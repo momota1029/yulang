@@ -19,7 +19,8 @@ use crate::{
         Statement, BracedStatementBlockExpression, commit_braced_statement_block_expression,
         commit_canonical_statement, parse_braced_statement_block_expression,
         parse_direct_expression_with_operators, parse_expression_with_operators,
-        parse_indented_binding_body, parse_indented_mod_body, parse_canonical_statement,
+        parse_indented_binding_body, parse_indented_impl_body, parse_indented_mod_body,
+        parse_canonical_statement,
     },
     grammar::{
         pattern::{ParsedPattern, Pattern, parse_direct_pattern_with_outer_missing_role,
@@ -964,6 +965,171 @@ where
     } else {
         Recovered::Complete(range)
     }
+}
+
+/// Gate 4's AST-only Impl continuation. It deliberately remains outside the
+/// root and canonical Statement dispatch until the later atomic promotion.
+fn parse_impl_declaration_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<ImplDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let intro = i.run(recognize_impl_statement_intro)?;
+    let visibility = intro
+        .visibility
+        .map_or(Visibility::Private, |prefix| prefix.visibility);
+    let head = if any_ambient_owner_claims(&mut i) {
+        Recovered::Incomplete
+    } else {
+        let checkpoint = i.checkpoint();
+        if mod_trivia(intro.impl_base, &mut i).is_some() {
+            parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Head, &mut i)
+        } else {
+            i.rollback(checkpoint);
+            Recovered::Incomplete
+        }
+    };
+    let (description, body) = parse_impl_after_head_ast(table, intro.impl_base, &mut i);
+    let end = i.pos();
+    Some(ImplDeclaration {
+        visibility,
+        head,
+        description,
+        body,
+        range: intro.start..end,
+    })
+}
+
+fn parse_impl_after_head_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    impl_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (Option<ImplDescription<'source>>, Recovered<ImplBody<'source>>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return (None, Recovered::Incomplete);
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(impl_base, i) else {
+        i.rollback(checkpoint);
+        return (None, Recovered::Incomplete);
+    };
+    let colon = i.run(scan_punctuation).and_then(|punctuation| {
+        (punctuation.kind() == PunctuationKind::Colon).then_some(punctuation.range())
+    });
+    let Some(colon) = colon else {
+        i.rollback(checkpoint);
+        return (None, parse_impl_body_ast(table, impl_base, i));
+    };
+
+    let description_trivia_checkpoint = i.checkpoint();
+    let description_trivia = i.run(scan_trivia).expect("trivia scan is total");
+    if i.input.source()[description_trivia.range()].contains(['\r', '\n']) {
+        i.rollback(description_trivia_checkpoint);
+        i.rollback(checkpoint);
+        return (None, parse_impl_body_ast(table, impl_base, i));
+    }
+    let value = parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Description, i);
+    let description = ImplDescription {
+        colon: colon.clone(),
+        value,
+        range: colon.start..i.pos(),
+    };
+    let body = parse_impl_body_ast(table, impl_base, i);
+    (Some(description), body)
+}
+
+fn parse_impl_body_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    impl_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<ImplBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return Recovered::Incomplete;
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(impl_base, i) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    match punctuation.kind() {
+        PunctuationKind::Semicolon => Recovered::Complete(ImplBody::Bodyless {
+            semicolon: punctuation.range(),
+        }),
+        PunctuationKind::Open(Delimiter::Brace) => Recovered::Complete(ImplBody::Braced {
+            block: parse_braced_statement_block_expression(table, punctuation.range(), i),
+        }),
+        PunctuationKind::Colon => Recovered::Complete(ImplBody::Colon {
+            colon: punctuation.range(),
+            body: parse_impl_colon_body_ast(table, impl_base, i)
+                .map_or(Recovered::Incomplete, Recovered::Complete),
+        }),
+        _ => {
+            i.rollback(checkpoint);
+            Recovered::Incomplete
+        }
+    }
+}
+
+fn parse_impl_colon_body_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    impl_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<ImplColonBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia)?;
+    if i.input.source()[trivia.range()].contains(['\r', '\n']) {
+        if i.local.line().line_indent <= impl_base {
+            i.rollback(checkpoint);
+            return None;
+        }
+        let block_indent = i.local.line().line_indent;
+        return Some(ImplColonBody::Indented {
+            block: parse_indented_impl_body(table, trivia, impl_base, block_indent, i),
+        });
+    }
+    let ambient_scope = i
+        .local
+        .push_inline_canonical_statement_ambient_scope(
+            crate::session::InlineStatementOwnerKind::ImplColonBody,
+        );
+    let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)));
+    let body = statement.map(|statement| {
+        let terminal = i.checkpoint();
+        if i
+            .run(scan_punctuation)
+            .is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon)
+        {
+            i.rollback(terminal);
+        }
+        ImplColonBody::Inline {
+            statement: Box::new(statement),
+        }
+    });
+    assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
+    body
 }
 
 /// Scans the optional, same-line-only declaration parameter production.
@@ -22810,5 +22976,160 @@ mod tests {
                 0..1,
             )],
         );
+    }
+
+    #[test]
+    fn isolated_impl_declaration_ast_selects_description_and_all_body_forms() {
+        fn parse(source: &str) -> (ImplDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Impl intro establishes authority")
+            };
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        let bodyless_source = "impl Int;";
+        let (bodyless, remainder) = parse(bodyless_source);
+        assert_eq!(bodyless.range(), 0..bodyless_source.len());
+        assert!(matches!(
+            bodyless.head,
+            Recovered::Complete(ref head) if head.range() == (5..8)
+        ));
+        assert!(bodyless.description.is_none());
+        assert!(matches!(
+            bodyless.body,
+            Recovered::Complete(ImplBody::Bodyless { ref semicolon }) if *semicolon == (8..9)
+        ));
+        assert_eq!(remainder, "");
+
+        let described_source = "impl Int: Eq;";
+        let (described, remainder) = parse(described_source);
+        assert_eq!(described.range(), 0..described_source.len());
+        assert!(matches!(
+            described.description,
+            Some(ImplDescription { colon, value: Recovered::Complete(ref value), range })
+                if colon == (8..9) && value.range() == (10..12) && range == (8..12)
+        ));
+        assert!(matches!(
+            described.body,
+            Recovered::Complete(ImplBody::Bodyless { semicolon }) if semicolon == (12..13)
+        ));
+        assert_eq!(remainder, "");
+
+        let brace_source = "impl Eq Int { my value = 1 }";
+        let (brace, remainder) = parse(brace_source);
+        assert_eq!(brace.range(), 0..brace_source.len());
+        assert!(matches!(
+            brace.head,
+            Recovered::Complete(ref head) if head.range() == (5..11)
+        ));
+        assert!(matches!(brace.body, Recovered::Complete(ImplBody::Braced { .. })));
+        assert_eq!(remainder, "");
+
+        let description_free_indented_source = "impl Point:\n  my value = 1";
+        let (description_free_indented, remainder) = parse(description_free_indented_source);
+        assert!(description_free_indented.description.is_none());
+        assert!(matches!(
+            description_free_indented.body,
+            Recovered::Complete(ImplBody::Colon {
+                body: Recovered::Complete(ImplColonBody::Indented { ref block }),
+                ..
+            }) if block.statements().len() == 1
+        ));
+        assert_eq!(
+            description_free_indented.range(),
+            0..description_free_indented_source.len()
+        );
+        assert_eq!(remainder, "");
+
+        let description_inline_source = "impl Point: Eq: my value = 1;";
+        let (description_inline, remainder) = parse(description_inline_source);
+        assert!(matches!(
+            description_inline.description,
+            Some(ImplDescription { value: Recovered::Complete(_), .. })
+        ));
+        assert!(matches!(
+            description_inline.body,
+            Recovered::Complete(ImplBody::Colon {
+                body: Recovered::Complete(ImplColonBody::Inline { ref statement }),
+                ..
+            }) if matches!(**statement, Statement::Binding(_))
+        ));
+        assert_eq!(description_inline.range(), 0..description_inline_source.len());
+        assert_eq!(remainder, "");
+
+        let description_indented_source = "impl Point: Eq:\n  my value = 1";
+        let (description_indented, remainder) = parse(description_indented_source);
+        assert!(matches!(
+            description_indented.body,
+            Recovered::Complete(ImplBody::Colon {
+                body: Recovered::Complete(ImplColonBody::Indented { ref block }),
+                ..
+            }) if block.statements().len() == 1
+        ));
+        assert_eq!(
+            description_indented.range(),
+            0..description_indented_source.len()
+        );
+        assert_eq!(remainder, "");
+
+        let missing_head_source = "impl;";
+        let (missing_head, remainder) = parse(missing_head_source);
+        assert!(matches!(missing_head.head, Recovered::Incomplete));
+        assert!(matches!(
+            missing_head.body,
+            Recovered::Complete(ImplBody::Bodyless { ref semicolon }) if *semicolon == (4..5)
+        ));
+        assert_eq!(missing_head.range(), 0..missing_head_source.len());
+        assert_eq!(remainder, "");
+
+        let missing_description_source = "impl T: ;";
+        let (missing_description, remainder) = parse(missing_description_source);
+        assert!(matches!(
+            missing_description.description,
+            Some(ImplDescription { value: Recovered::Incomplete, ref range, .. }) if *range == (6..8)
+        ), "{missing_description:?}");
+        assert!(matches!(
+            missing_description.body,
+            Recovered::Complete(ImplBody::Bodyless { ref semicolon }) if *semicolon == (8..9)
+        ));
+        assert_eq!(
+            missing_description.range(),
+            0..missing_description_source.len()
+        );
+        assert_eq!(remainder, "");
+
+        let missing_body_source = "impl T";
+        let (missing_body, remainder) = parse(missing_body_source);
+        assert!(matches!(missing_body.head, Recovered::Complete(_)));
+        assert!(matches!(missing_body.body, Recovered::Incomplete));
+        assert_eq!(missing_body.range(), 0..missing_body_source.len());
+        assert_eq!(remainder, "");
+
+        let missing_colon_body_source = "impl T:\n";
+        let (missing_colon_body, remainder) = parse(missing_colon_body_source);
+        assert!(matches!(
+            missing_colon_body.body,
+            Recovered::Complete(ImplBody::Colon {
+                body: Recovered::Incomplete,
+                ..
+            })
+        ));
+        assert_eq!(missing_colon_body.range(), 0..7);
+        assert_eq!(remainder, "\n");
     }
 }

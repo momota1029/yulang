@@ -3166,6 +3166,35 @@ where
     )
 }
 
+/// Reuses the canonical indented statement sequence while preserving the
+/// declaration-specific recovery identity of an Impl colon body.
+pub(crate) fn parse_indented_impl_body<'source, E>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndentedStatementBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            stops_for_if_companion: false,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Impl(
+                crate::session::ImplRole::IndentedStatement,
+            ))),
+        },
+        i,
+    )
+}
+
 fn parse_indented_statement_block_with_options<'source, E>(
     table: &OperatorTable,
     opening_trivia: TriviaRun,
