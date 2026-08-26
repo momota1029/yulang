@@ -20744,7 +20744,7 @@ raw delimiter count、`allow_forall`、`type_ml_arg`、source position比較、c
 
 current `StopSet`は`u16`で、existing `StopKind`はdeclaration orderどおり0..14の15 variantsを使う。
 本追補の`Derives` / `Via` / `LeftParenthesis`を加えると18 variantsになり、bit 16 / 17は`u16`へ入らない。
-従ってGate 1でbacking storageを`u32`へwidenし、new variantsはexisting `With`の後へ
+従ってGate 1bでbacking storageを`u32`へwidenし、new variantsはexisting `With`の後へ
 `Derives = 15`、`Via = 16`、`LeftParenthesis = 17`の順でappendする。existing 0..14をrenumberせず、
 `with` / `without` / `contains`のmaskは`1u32 << (stop as u8)`で作り、`difference` / `Default` / Copy semanticsを保つ。
 `StopKind::ALL`はexisting declaration-generated listを保ち、18 variants / 32 bitsなので14 bitsのheadroomを持つ。
@@ -20900,22 +20900,26 @@ current public Struct / Type behaviorを変えない。
 
 implementation gateを次で固定する。
 
-1. `DerivesClause` / `DerivesKw` / `ViaKw` SyntaxKind、`DerivesAttachment` / `DerivesAttachmentPosition` /
-   `DerivesClause` / `DerivesVia` AST、Struct / Typeの`derives` field、`DeclarationRole::Derives(DerivesRole)`、
-   `StopKind::Derives` / `StopKind::Via` / `StopKind::LeftParenthesis`、rollback-owned `type_expression_episode_depth` /
-   `TypeExpressionScopedStopFrame` / `TypeExpressionEpisodePolicy`を追加する。`StopSet(u16)`は`StopSet(u32)`へ
-   widenし、existing StopKind 0..14のdeclaration order / bit positionを不変にしたままnew variantsを15..17へ
-   appendする。with / without / contains / difference / `StopKind::ALL`をexisting各singleton / new singleton /
-   representative multi-stop compositionでfixture化する。AST / directのoptional / mandatory TypeExpression entryは
-   wrapper + in-current-episode innerへmechanical splitし、Gate 1ではempty episode policyだけを渡して
+1. Gate 1を次のtwo ordered atomic subgatesへ分ける。
+   **Gate 1a — Neutral shared TypeExpression episode infrastructure.** rollback-owned `type_expression_episode_depth` /
+   `TypeExpressionScopedStopFrame` / `TypeExpressionEpisodePolicy`を追加する。AST / directのoptional / mandatory
+   TypeExpression entryはwrapper + in-current-episode innerへmechanical splitし、empty episode policyだけを渡して
    candidate / parse / recovery / retryのobservable behaviorをbyte-identicalに保つ。
    同Gateで`type_stop_is_active_in_current_episode`を追加し、type_expr.rs / polymorphic_variant.rsの
    caller-ownership raw membershipを一括migrateする。少なくともpolymorphic-variant semicolon、AST/direct Forall
    unowned comma / semicolon、Forall first-binder recovery、raw Newline / right-close ownershipをinventory fixture化する。
-   scoped frameがまだemptyなGate 1では全queryが旧raw membershipと一致することをassertし、
+   scoped frameがまだemptyなGate 1aでは全queryが旧raw membershipと一致することをassertし、
    ownership以外のStopSet construction / local separator / matching close priorityは変更しない。
-   existing constructorはempty Vecへmechanical migrateし、
-   no StatementIntro / StatementKind / TypeDelimitedOwner / behavior change、full suite byte-identicalを固定する。
+   Derives SyntaxKind / AST field / role / contextual StopKindを本Gateへ混ぜず、no vocabulary / behavior change、
+   full suite byte-identicalを固定する。本GateはImplその他のfull-TypeExpression ownerもreuseするshared prerequisiteである。
+   **Gate 1b — Derives-specific vocabulary.** `DerivesClause` / `DerivesKw` / `ViaKw` SyntaxKind、
+   `DerivesAttachment` / `DerivesAttachmentPosition` / `DerivesClause` / `DerivesVia` AST、Struct / Typeの`derives` field、
+   `DeclarationRole::Derives(DerivesRole)`、`StopKind::Derives` / `StopKind::Via` / `StopKind::LeftParenthesis`を追加する。
+   `StopSet(u16)`は`StopSet(u32)`へwidenし、existing StopKind 0..14のdeclaration order / bit positionを不変にしたまま
+   new variantsを15..17へappendする。with / without / contains / difference / `StopKind::ALL`をexisting各singleton /
+   new singleton / representative multi-stop compositionでfixture化する。existing Struct / Type constructorはempty Vecへ
+   mechanical migrateし、no StatementIntro / StatementKind / TypeDelimitedOwner / behavior change、full suite byte-identicalを固定する。
+   Gate 1aを先に完了し、Gate 1bも完了してからGate 2へ進む。
 2. shared sink-free `recognize_derives_attachment_start` / `DerivesDriverSpec`と、comma / via / repeated-clause /
    owner-tailを裁定するone decision driverをisolated実装する。contextual exact-word collision、same-line /
    deeper / equal-shallower gap、ASOB / braced / Catch / active close、Arrow / Forall / TypeApply / nested delimiter
@@ -21003,3 +21007,638 @@ Gate 8のatomic migration範囲を確認対象にする。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案中、Claude査読・ユーザ承認待ち
 （2026-08-26、canonical Struct / Type Declarationのshared `derives` clause attachment grammar追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`のstandalone `impl` declaration shell grammar
+
+Status: Proposal（Claude査読待ち）。
+
+Date: 2026-08-26。
+
+### Scope and authority
+
+本追補は、Authoritativeなcanonical Statement / root Declaration grammarがfuture declaration kindへ残した
+standalone `impl` declarationを、root / nestedで同じsyntax ownerとして設計する。対象は次だけである。
+
+- optional declaration visibilityとexact maximal word `impl`から成るstatement intro。
+- mandatory one full ordinary `TypeExpression` head。
+- head直後のsame-line colonだけが開始するoptional description `: TypeExpression`。
+- bodyless semicolon、existing braced canonical Statement block、colon-introduced inline / indented canonical Statement body。
+- head / description / body introducer / bodyのtyped recovery、ASOB、outer Statement boundary、AST / direct-CST parity。
+- root / nested shared dispatchと、source-leading header discoveryを終了するno-fact behavior。
+
+本追補は次を設計しない。
+
+- `type Name impl ...`のType-attached tail。standaloneとpost-`impl` source shapeが似ていても、TypeDeclaration form / CST ownerへ接続しない。
+- declaration companion `with:` attachment、companion-only item、companion module ownership。
+- Type declarationのcolon / brace role-like body form。
+- Impl-specific `via` token / stop / AST / recovery / diagnostic。`via`は本grammarでspecial spellingを持たない。
+- role conformance、associated-type assignment、method set、receiver、overlap / coherence、visibility meaning、HIR / resolver / inference / formatter。
+- Impl body member subset。body itemはsyntax上ordinary canonical `Statement`であり、valid member semanticsをparserが判定しない。
+
+本追補のBNF-equivalent grammarの唯一の正本は`IMD-G`、intro / head-description-body authorityは`IMD-J`、
+TypeExpression / canonical Statement / owner compositionは`IMD-T`、typed recoveryは`IMD-R`である。
+`IMD`はImpl Declarationの略で、current documentの`SD` / `TD` / `TND` / `DRV` / `ASOB`その他のprefixと衝突しない。
+
+### Problem statement and supersession boundary
+
+current Yulang3の`Declaration` / `Statement` / `StatementIntro` / `StatementKind`にはImpl variantがなく、
+exact word `impl`はfull root / nested canonical Statementでdeclaration authorityを得ない。したがってoracle corpusの
+`impl (list 'a): Index int:`や`impl Eq Int { ... }`は、mandatory head、description、bodyを一個のdeclaration ownerとして
+保持できない。Type declaration addendaはこのsurfaceを意図的にscope外へ残し、associated-type-shaped body itemも
+Impl ownerがないことを理由に未接続としていた（本document:19185-19186, 19641, 20194-20195）。
+
+本追補は次だけをsupersedeする。
+
+- statement positionのbare exact `impl`と`my` / `our` / `pub` + declaration-continuing trivia + exact `impl`を、
+  expression / Binding fallbackより先に`StatementIntro::Impl`へ分類する。
+- root `Declaration` / nested `Statement`のclosed sumへsame `ImplDeclaration`を追加する。
+- source-leading Implをfull parseではacceptしつつ、header discoveryでは`FirstNonHeader`として終了する。
+- standalone Implのhead / optional description / body punctuation / body Statement bytesをone declaration nodeが所有する。
+
+次はsupersedeしない。
+
+- Struct / Type / Mod / Use / Binding / OperatorHeaderのintro priorityとobservable parse / recovery。
+- TypeDeclarationのNominal / Equality form judge、Type-attached `impl` / `with` / role-like bodyのtemporary scope boundary。
+- generic expression `WithBodyTail`、shared derives Proposal、TypeExpression core / exotic primary grammar。
+- canonical Statement sequenceのseparator、brace close、indent / dedent、ASOB / If companion authority。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のground truthをcommit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`へ固定し、parser implementation、direct parser fixture、
+representative corpusをsame treeから再確認した。
+
+1. root / nested statement dispatcherはbare `Impl`をstandalone `parse_impl_decl`へ渡し、visibility dispatcherも
+   `my` / `our` / `pub`後のexact `Impl`を同じentryへ渡した
+   （`yulang2-oracle:crates/parser/src/stmt/mod.rs:64-85,159-268`）。`parse_impl_decl`は
+   `ImplDecl`をstartし、optional visibility、`impl`、post-keyword grammarをsource orderで同じnodeへemitした
+   （`crates/parser/src/stmt/impl_decl.rs:13-27`）。
+2. `parse_impl_after_impl_kw`はfirst mandatory-like valueをordinary type parserへ渡し、outer stopとして
+   `Colon | BraceL | Semicolon`を使った。historical implementationにはImpl-specific `Via` rejection branchもあったが、
+   valid Impl grammar / loweringを持たないsyntax error pathだった
+   （`impl_decl.rs:29-55,76-95`）。本追補はこのrejected branchをsurfaceへ採用しない。
+3. head後のexact colonは、そのcolonのtrailing triviaがphysical newlineでなければ`ImplDescription`を開始し、
+   colon + one ordinary full TypeExpressionを保持した。trailing triviaがnewlineならdescriptionではなくbody colonとして
+   `parse_role_body_from_stop`へ渡した（`impl_decl.rs:49-73`）。従って`impl int: Eq;`のcolonはdescription、
+   `impl point:\n  ...`のcolonはbody introducerである。
+4. description TypeExpression後は`Semicolon | Colon | BraceL`をouter stopとしてrole-like bodyへ戻した。
+   `impl User: Box { ... }`はdescription `Box` + brace body、`impl point: Eq:\n ...`はdescription `Eq` + second colon bodyである
+   （`impl_decl.rs:58-73`; `crates/parser/tests/stmt_grammar.rs:902-945,2740-2779`）。
+5. role-like bodyはbodyless semicolon、ordinary brace Statement block、colon-introduced inline / indented Statement bodyを共有した。
+   brace / indent itemはImpl-specific member parserでなくordinary statement dispatcherを使った
+   （`crates/parser/src/stmt/role_decl.rs:44-119`; `stmt/block.rs:15-69,108-129,242-316`）。
+6. direct fixture `impl Eq Int {\n  our eq = id\n}`はheadをTypeApply `Eq Int`、bodyをordinary Binding一件の
+   brace blockとして保持した。`impl User: Box {\n  our x.get = x\n}`もsame body shapeを使った
+   （`crates/parser/tests/stmt_grammar.rs:2700-2779`）。
+7. corpusはprimitive / application / tuple / reference-shaped head、one-or-more-argument description、colon bodyを広く使う。
+   `lib/std/data/list.yu:23-35`には`impl (list 'a): Index int:`とbody内の
+   `type value = 'a` / Bindingがあり、`tests/yulang/regressions/runtime/attached_impl_pick.yu:7-14`には
+   Struct companion内のtwo standalone Implがある。これはhead / descriptionがraw name pairでなくfull TypeExpressionで、
+   body itemがmethod専用でないsurface evidenceである。
+8. Yulang2のrole / impl loweringはbody内BindingやType declarationをsemantic memberへ解釈したが、parser CST自体は
+   ordinary statement blockだった。本追補が継承するのはsyntax node / source boundaryだけで、semantic member validityではない。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- current exact-word statement-intro discipline、sink-free recognition、accepted intro後のcut、root / nested shared continuation。
+- full ordinary standalone TypeExpression surface、mandatory outer missing-role override、nested TypeRole recovery、
+  TypeExpression episode / delimiter / ML / positional-fence invariants。
+- `parse_canonical_statement` / `commit_canonical_statement`とshared braced / indented Statement sequence。
+- root / indented / braced / inline canonical Statement owner、ASOB original-gap ordering、If companion / Catch barrier visibility。
+- actual punctuation / separator / closeのone-owner rule、lossless trivia、one range = one recovery node = one record。
+- header discoveryがUse / OperatorHeaderだけをfactへprojectし、first full-only declarationで停止するtwo-phase architecture。
+
+限定して追加するのは次である。
+
+- `SyntaxKind::ImplDeclaration` / `ImplDescription` / `ImplKw`、Impl AST / session typed vocabulary。
+- `Declaration::Impl` / `Statement::Impl` / `StatementIntro::Impl` / `StatementKind::ImplDeclaration`。
+- outermost Impl head / description TypeExpression episodeだけに見えるbody-starter stopsと、そのfresh-primary / completed-tail phase rule。
+- Impl colon-inline episodeをidentity-bearing ambient owner stackへ載せる`InlineStatementOwnerKind::ImplColonBody`。
+
+TypeExpression episode-scoped stop infrastructureにはcross-addendum implementation dependencyがある。本追補の
+Gate 3以降へ進む前に、shared derives clause addendumがAuthoritative化され、そのneutral DRV Gate 1aがgeneral-purpose
+`type_expression_episode_depth` / scoped-stop frame / one depth-aware activation queryとして実装済みでなければならない。
+本追補は独立counter、partial frame、raw-membership bypass、暫定fallbackを作らない。neutral DRV Gate 1aが先行しない場合、
+Impl implementationはGate 2で停止する。このdependencyはImpl syntax authorityをderivesへ委譲するものではなく、
+recursive TypeExpression episode identityというone shared parser infrastructureだけを先行条件にする。Derives-specific
+vocabulary / StopKinds / Struct・Type fieldsを追加するDRV Gate 1bの完了には依存しない。
+
+### `IMD-G`: standalone Impl grammar and layout
+
+```text
+ImplDeclaration :=
+    [ VisibilityKw Gimpl+ ]
+    ImplKw Gimpl-head
+    RequiredTypeExpression(Impl::Head)
+    ImplAfterHead
+
+ImplAfterHead :=
+    ImplDescription ImplBody
+  | ImplBody
+
+ImplDescription :=
+    DescriptionColon Gimpl-description
+    RequiredTypeExpression(Impl::Description)
+
+ImplBody :=
+    BodylessSemicolon
+  | BracedStatementBlockExpression
+  | ImplColonBody
+
+ImplColonBody :=
+    BodyColon G0* RequiredCanonicalStatement(Impl::Body) [ InlineTerminalSemicolon ]
+  | BodyColon Gimpl-indent IndentedStatementBlock(Impl::IndentedStatement)
+
+VisibilityKw := MyKw | OurKw | PubKw
+ImplKw := exact maximal word "impl"
+
+Gimpl+ := non-empty TypeChainTrivia(impl_base)
+Gimpl-head := TypeChainTrivia(impl_base)
+Gimpl-description := G0*
+Gimpl-indent := NonEmptyStrictlyDeeperContinuationTrivia(impl_base)
+G0* := maximal trivia containing no physical newline
+```
+
+`impl_base`はfirst declaration starter（visibilityがあればそのkeyword、なければ`impl`）をstatement positionで
+acceptした時点のactive `IndentationBaseline.column`で、frameがなければ0である。visibility--`impl`間はnon-emptyの
+same-lineまたはstrictly-deeper continuationを要求する。`impl`--head間はempty、same-line、strictly-deeper continuationを
+acceptするため、oracle-compatibleな`impl(Eq);`もvalidである。どちらもequal-or-shallower newline / ambient owner gapを
+consumeしない。`implFoo` / `implement` / `my_impl`をprefix splitしない。
+
+headとdescriptionはordinary full TypeExpressionである。ただしoutermost completed expression後のexact
+`Colon | LeftBrace | Semicolon`はImpl ownerへ返す。これらのstopはnested Arrow RHS / Forall body / TypeApply argument /
+Parenthesized / Call / NamedRecord / EffectRow / BracketRow / PolymorphicVariant episodeではsuspendされ、nested syntaxを切らない。
+
+fresh **head** primaryでbare `LeftBrace`はlocally ownedにせず、Impl body starterが常に勝つ。従って
+`impl { statement }`はone Missing Headを置き、same `{`からbrace bodyをretryする。NamedRecordType headは
+`impl ({ value: Int });`のようにparenthesizeする。一方、same-line DescriptionColonへ既にcutした後のfresh
+**description** primaryではbare `{`をNamedRecordType starterとしてlocally ownする。従って既述の
+`impl T: { value: Int };`はdescriptionであり、descriptionなしbrace bodyは`impl T { statement }`である。
+
+Colon authorityはtoken-shape-sensitiveにする。candidate judgeは**adjacent exact compound `:{`だけ**をordinary
+PolymorphicVariantType primaryとしてlocalに認め、bare colonをwholesaleにlocally owned stopへ入れない。従って
+`impl :{ A };`と`impl T: :{ A };`はそれぞれhead / descriptionを開始できるが、bare colonで始まる
+`impl:` + physical newline + statementはone Missing Head後にsame colonからbody introducerとしてretryされる。
+one complete outer head / description後の`{`はbrace body、`;`はbodyless、bare colonは下記phase judgeへ渡る。
+complete headへunparenthesized NamedRecord / PolymorphicVariant argumentを続けたいsourceはowner punctuationが勝ち、
+`F ({ value: Int })` / `F (:{ A })`のgroupでTypeApply intentを明示する。
+
+#### Colon phase split
+
+head直後に返ったbare exact colonは、colon後のone maximal trivia runをsink-freeにprobeし、次の二branchだけを選ぶ。
+
+1. triviaがphysical newlineを一つも含まない（emptyを含む）なら`DescriptionColon`。colonをacceptした時点で
+   optional description presenceへcutし、following TypeExpressionがmissing / malformedでもbody-colon interpretationへ戻らない。
+2. triviaがphysical newlineを含むなら`BodyColon`。descriptionは`None`で、same triviaをcolon body layoutへ一度だけ渡す。
+
+従って`impl T: Eq;`はdescription `Eq` + bodyless semicolon、`impl T:\n  statement`はdescriptionなしの
+indented bodyである。descriptionとcolon bodyを両方持つsourceは`impl T: Eq: statement`または
+`impl T: Eq:\n  statement`と書く。`impl T: { value: Int };`のsame-line braceはdescriptionの
+NamedRecordTypeであり、descriptionなしbrace bodyは`impl T { statement }`と書く。
+
+descriptionをparseした後のexact colonは常に`BodyColon`で、post-colon triviaをlayout classifierへ渡す。
+physical newlineなしならexactly one canonical Statement + optional terminal semicolon、newlineありかつfollowing indent
+`> impl_base`ならexisting non-empty indented Statement sequence、newlineありかつindent `<= impl_base`ならBody missingとして
+whole gapをouter ownerへ返す。opaque lexical region内だけのnewlineはtrivia classifierへ出ない。
+
+bodyless semicolonとcolon-inline body後のone optional terminal semicolonはImplDeclarationが所有する。
+brace close後、indented body dedent後、missing body / outer boundary後のsemicolonはouter canonical Statement ownerへ残す。
+brace / indented body内のcomma / semicolon / newline / matching closeはexisting Statement sequence ownerだけが所有し、
+Impl layerはseparatorをduplicateしない。
+
+### `IMD-J`: intro authority and phase judge order
+
+sink-free `recognize_impl_statement_intro`はcurrent positionのbare exact `impl`、または
+exact `my | our | pub` + non-empty declaration-continuing trivia + exact `impl`だけをacceptする。head / description / bodyの
+successをintro条件にせず、accepted keyword後はImpl continuationへcutする。resultは次の情報を保持する。
+
+```rust
+struct ImplStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    impl_keyword: WordSpan<'source>,
+    impl_base: usize,
+}
+```
+
+updated `recognize_statement_intro` priorityを次で固定する。
+
+1. caller-owned EOF / statement separator / matching close / dedent / active ambient companionはexisting outer judgeが先に保持する。
+2. existing `recognize_struct_statement_intro`。
+3. existing `recognize_mod_statement_intro`。
+4. existing `recognize_type_statement_intro`。
+5. new `recognize_impl_statement_intro`。
+6. existing `binding_statement_selected` + Binding intro。
+7. existing Use / Mod fallback、OperatorHeader、ordinary OperatorChain fallback。
+
+bare `impl`は他のdeclaration keywordとmaximal-word collisionを持たない。placement上の実質的制約はvisibility-led inputであり、
+Impl judgeをBinding selectionより前へ置くことで`my impl = value`をBinding targetでなくaccepted malformed Implへ一意にcutする。
+Struct / Mod / Typeの既存priorityを動かさず、その直後へstrict additiveに挿す。statement position外の`impl` spellingは
+ordinary expression / type identifier policyを変更しない。
+
+accepted intro後のphase priorityを次で固定する。
+
+1. mandatory head entry前のoriginal gapをASOB / caller boundaryへ問い、claimならHead Missingだけを置いてnon-consume returnする。
+2. head outer episodeではadjacent compound `:{`だけのfresh-primary local authorityの後、
+   complete-tail `Colon | LeftBrace | Semicolon` stop、
+   actual matching nested close / local Type continuation、ambient ownerのexisting priorityを使う。
+3. complete / recovered head後のoriginal tail gapでactual `;` / `{` / `:`が見えればImpl local punctuation authority。
+   colonは上記physical-newline probeでdescription / bodyへ一度だけ分岐する。
+4. descriptionを選んだ後はmandatory TypeExpression slotをfinishし、same positionからbody judgeへ進む。
+5. body starterがなければtyped BodyIntroducer recovery。outer boundary / ambient claimをconsumeせず、malformed runだけを
+   maximal Errorとしてcommitする。full TypeExpression headとcanonical Statementのword surfaceが重なるため、
+   punctuationなしのword列をmissing-colon inline bodyへheuristic splitしない。
+
+AST / direct-CSTはone shared intro result、one head/description boundary policy、one body layout decisionを使う。
+root / nested / direct callerへspelling judgeやcolon-newline probeをcopyしない。newlineやmalformed byteをconsumeした後に
+ASOBをre-probeしてowner authorityをretroactively変えない。
+
+### AST / direct-CST shape
+
+```rust
+struct ImplDeclaration<'source> {
+    visibility: Visibility,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    description: Option<ImplDescription<'source>>,
+    body: Recovered<ImplBody<'source>>,
+    range: Range<usize>,
+}
+
+struct ImplDescription<'source> {
+    colon: Range<usize>,
+    value: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+enum ImplBody<'source> {
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<ImplColonBody<'source>>,
+    },
+}
+
+enum ImplColonBody<'source> {
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+`description: None`はdescription colonがsourceにないcaseで、missing descriptionではない。
+same-line colonをacceptした後にTypeExpressionがないcaseは`Some(ImplDescription { value: Incomplete, ... })`である。
+`body: Incomplete`はbody formをfinishできなかったcaseで、dummy semicolon / empty blockを作らない。
+literal body colonはalways completeなので`Recovered<Range>`へしない。missing-colon inline Statement recoveryは
+IMD-Jで禁止するため、colon absenceとbody recovery failureを混同しない。
+
+new CST vocabularyは`ImplDeclaration` / `ImplDescription` nodeと`ImplKw` tokenだけである。
+`ImplHeader` / `ImplBody` / `ImplColonBody` / member-list / synthetic separator wrapperを作らない。
+existing visibility、TypeExpression、Colon、Semicolon、Statement、BracedStatementBlockExpression、
+IndentedStatementBlock、Missing / Error、trivia tokenをreuseする。
+
+#### Bodyless description example
+
+source bytes:
+
+```text
+impl int: Eq;
+```
+
+byte-exact CST:
+
+```text
+ImplDeclaration 0..13
+  ImplKw 0..4 "impl"
+  Trivia 4..5 " "
+  TypeExpression 5..8 "int"
+  ImplDescription 8..12
+    Colon 8..9 ":"
+    Trivia 9..10 " "
+    TypeExpression 10..12 "Eq"
+  Semicolon 12..13 ";"
+```
+
+ASTはvisibility Private、head Complete、description Some + value Complete、body Bodyless、range `0..13`、
+recovery zeroである。
+
+#### Description-free indented body
+
+```text
+impl point:
+  our p.eq = true
+```
+
+first colonのfollowing triviaがphysical newlineを含むためImplDescription nodeを作らない。
+ImplDeclaration直下にhead TypeExpression、Colon、IndentedStatementBlockをsource orderで置き、block内Bindingは
+existing `Statement` wrapperを一個持つ。newline / indentation triviaはblock opening triviaとして一度だけemitする。
+
+#### Brace body with full head
+
+```text
+impl Eq Int {
+  our eq = id
+}
+```
+
+headはone TypeExpression whose outer tail contains TypeApply `Int`、following `{`はImpl ownerへ返る。
+ImplDeclaration直下にexisting BracedStatementBlockExpressionを置き、その内部separator / close recoveryはblock ownerが持つ。
+
+declaration rangeはsource visibilityまたはImplKw startから、最後にcommitしたhead / description、bodyless semicolon、
+brace block close / recovery end、colon-inline optional terminal semicolon / statement、indented block endの最大値までである。
+outer separator、dedent、equal-or-shallower newline、ambient companion、active outer closeはrangeへ入らない。
+
+### `IMD-T`: full TypeExpression and canonical Statement composition
+
+head / descriptionはordinary mandatory TypeExpression entryを使う。ASTは
+`parse_required_type_expression_with_outer_missing_role`、direct-CSTは
+`commit_direct_type_expression_with_outer_missing_role`を使い、completely missing outer primaryだけを
+`GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head | Description))`へoverrideする。
+malformed primary / TypeApply / ArrowRhs / NamedRecord / Forall / EffectRow / PolymorphicVariant / BracketRowの
+nested Errorはexisting `TypeRole`を保つ。Impl専用TypeExpression subsetやraw-name pair parserを作らない。
+
+#### Episode-scoped body-starter stops
+
+Impl outer TypeExpression slotはincoming stop setを保ち、`Colon | LeftBrace | Semicolon`をone scoped frameへ追加する。
+stopはouter head / description episodeのcompleted-tailとmalformed safe-pointでだけvisibleで、all nested fresh
+TypeExpression episodeではsuspendされる。fresh outer primary policyはbare `LeftBrace` / bare `Colon`をlocally ownedにしない。
+ただしDescriptionColonへsame-line cut済みのdescription policyだけはbare `LeftBrace`をlocally ownedにし、NamedRecordTypeを
+開始できる。head / description双方のinitial candidate / malformed retry classifierはadjacent compound `:{`をone
+PolymorphicVariantType starterとしてbare-colon stopより先に認める。headのbare `{`はHead Missing後のbody retry、headの
+bare `:`はHead Missing後の`ImplAfterHead` colon phaseへ残す。descriptionのbare `:`はDescription Missing後のbody retryへ残し、
+complete outer operand tailでは全body / description punctuationがTypeCall / TypeApply continuationより先に勝つ。
+initial / retryでslot-specific policyを同じvalueとして渡し、driftを作らない。
+
+token-shape-sensitive exceptionを`fresh_primary_locally_owned_stops`の`Colon` bitへ潰さない。IMD Gate 3はshared
+`TypeExpressionEpisodePolicy`へdefault falseのgeneral field
+`fresh_primary_owns_adjacent_polymorphic_variant_starter: bool`を追加する。head policyは
+`locally_owned_stops = empty` + this field true、description policyは
+`locally_owned_stops = { LeftBrace }` + this field true、all existing ordinary policyはfield falseである。
+candidate / malformed scanner / same-slot retryは、field trueかつnext exact compoundがadjacent `:{`である場合だけ
+bare `Colon` activationより先にPolymorphicVariant candidateを返す。whitespaceを挟む`: {`、bare `:`、`::`へ拡張しない。
+このfield追加はImpl spellingを含まず、default falseでDRV / existing TypeExpression behaviorをbyte-identicalに保つ。
+
+このinvariantにはlogical TypeExpression episode boundaryがmandatory candidate probe、actual AST parse / direct commit、
+malformed-run scanner、same-slot retryを一緒に包む必要がある。IMD Gate 3はshared derives addendumのneutral DRV Gate 1aが実装した
+`type_expression_episode_depth` / `TypeExpressionScopedStopFrame` / `TypeExpressionEpisodePolicy` /
+`type_stop_is_active_in_current_episode`をhard dependencyとしてreuseし、second counter / second activation queryを作らない。
+mandatory wrapper、optional / recursive entry、raw caller-ownership queryのmigrationはDRV Gate 1aの完了条件であり、
+IMD側でpartial subsetを再実装しない。dependencyが未達ならGate 3を開始しない。
+
+raw `active_stop_set().contains(...)`をImpl ownership decisionへ使わず、depth-aware activation queryを通す。
+Arrow RHS、Forall body、TypeApply argument、delimited item、mandatory recovery retryでouter body stopが漏れないこと、
+outer episodeへ戻った直後にsame stopが再びactiveになることをAST / directで固定する。
+
+#### Body reuse
+
+Implはnew member grammarを持たない。body adapterは次を直接reuseする。
+
+- brace: existing `parse_braced_statement_block_expression` / `commit_braced_statement_block_expression`、
+  `StatementSequencePolicy::BracedPrimary`、existing brace barrier / close recovery。
+- indented colon: existing generic indented Statement sequence driverと`IndentedStatementBlock`。owner optionだけを
+  `GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::IndentedStatement))`へ設定する。
+- inline colon: existing `parse_canonical_statement` / `commit_canonical_statement`をexactly once呼び、
+  `InlineCanonicalStatement(ImplColonBody)` scopeをpushする。optional terminal semicolon一個だけをImpl ownerがconsumeする。
+
+`ModBody` / `ModColonBody` ASTをImplへ流用せず、Mod recovery roleも偽装しない。一方でstatement loop、separator classifier、
+brace close、indent / dedent classifierをcopyしない。body representationに必要なrefactorはcurrent private generic
+`parse/commit_indented_statement_block_with_options`へImpl owner optionを渡せるthin exposureまでに限定する。
+existing block loopは`parse_canonical_statement` / `commit_canonical_statement`をhard-codeしており、isolated Impl adapterを
+injectするseamは持たない。本追補はstaging testだけのためにpermanent dispatcher parameterを追加せず、actual nested block-driver
+coverageをGate 8のatomic dispatch switch内で初めて有効化して同Gate内でexhaustiveに検証する。
+
+body内canonical Statement familyは実装時点のshared closed sumをそのまま受け取る。Expression / Binding / Use / Mod /
+Struct / Type / nested Implをowner-specific branchなしでacceptし、future Statement variantもshared entryへ追加されれば
+Impl bodyへ自動的に届く。parserはbody itemをmethod / associated typeとして分類し直さない。
+
+#### ASOB and state restoration
+
+head / description / body-introducer / colon-body gapはoriginal unconsumed gapに対し、actual local punctuation / matching close、
+active caller boundary、`any_ambient_owner_claims`のapproved orderを一度だけ使う。ambient claimならtrivia / companion wordを
+consumeせずouter ownerへ返す。newlineをlocal continuationとしてcommitした後にambient predicateを再質問しない。
+
+normal / missing / malformed retry / early boundary / brace missing-closeのevery exitで、ambient / If、delimiter、stop、
+indentation baseline、TypeExpression episode depth / scoped frame、type owner、ML、positional fence、line、sink cut stateを
+entry時のdepthへexact restoreする。brace / indent bodyのinner recoveryをImpl layerがduplicateしない。
+
+### `IMD-R`: typed recovery and owner convergence
+
+new recovery vocabularyを次で固定する。
+
+```rust
+enum ImplRole {
+    Head,
+    Description,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
+}
+
+DeclarationRole::Impl(ImplRole)
+```
+
+Implはdelimiter ownerではないためnew `ConstructRole` / `TypeDelimitedOwner`を作らない。brace closeはexisting
+`GrammarRole::ClosingDelimiter { owner: ConstructRole::BracedStatementBlockExpression, delimiter: Brace }`をreuseする。
+body punctuationはactual tokenで、synthetic separator / terminatorを作らない。
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `impl T;` | head Complete、description None、Bodyless Complete | zero recovery、semicolon Impl-owned |
+| `impl T { ... }` | head Complete、description None、Braced Complete | existing block ownerへdelegate |
+| `impl T:\n  statement` | head Complete、description None、Colon body Complete | first colonはbody introducer |
+| `impl T: D;` | head / description Complete、Bodyless Complete | first colon description、semicolon body |
+| `impl T: D: statement` | head / description / inline body Complete | second colon body introducer |
+| exact `impl` + EOF / owner boundary | one zero-width Missing Head | head / body Incomplete、same-cause BodyIntroducer Missingなし、boundary non-consume |
+| exact `impl` + exact `;` / bare `{` / bare `:` | one Missing Head | `;` / `{`はbody、`:`はsame `ImplAfterHead` phaseへretry。adjacent compound `:{`だけは本rowでなくTypePrimary |
+| malformed head run + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same head slot retry、Head Complete |
+| malformed head run reaches body starter / boundary | nested maximal `Error(Type::Primary)` one | head Incomplete、starter / boundary non-consume、outer Head Missingを追加しない |
+| complete head + EOF / owner boundary | one zero-width Missing BodyIntroducer | body Incomplete、boundary non-consume |
+| complete head + malformed introducer run + `;` / `{` / `:` | one maximal Error BodyIntroducer | actual starterからbody retry、additional Missingなし |
+| complete head + malformed introducer reaches owner boundary | one maximal Error BodyIntroducer | body Incomplete、additional Missingなし、boundary non-consume |
+| head colon + same-line complete TypeExpression | description Some(Complete) | body judgeへsame positionで進む |
+| head colon + same-line EOF / `;` / second bare colon | one zero-width Missing Description | description Some(Incomplete)、body starterはretry可。同じEOFでBodyIntroducer Missingをcascadeしない |
+| description malformed run + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same description slot retry、value Complete |
+| description malformed run reaches body starter / boundary | nested maximal `Error(Type::Primary)` one | value Incomplete、starter / boundary non-consume、Description Missingなし |
+| complete / recovered description + EOF / owner boundary | one Missing BodyIntroducer | body Incomplete。description recoveryと原因が別ならdistinct record可 |
+| literal body colon + inline Statement | Colon Inline Complete | optional terminal semicolon一個だけImpl-owned |
+| literal body colon + deeper non-empty block | Colon Indented Complete | existing block recovery / separators |
+| literal body colon + EOF / semicolon / comma / matching close | one Missing Body | boundary non-consume。inline terminal semicolonはbody slot absent時にconsumeしない |
+| literal body colon + equal-or-shallower newline | one Missing Body | post-colon trivia rollback、newline / next statement outer-owned |
+| body inline malformed run + valid canonical Statement | one maximal Error Body | same body slot retry、additional Missingなし |
+| indented first statement missing / malformed | existing IndentedStatement recovery one | Impl Body Missingをduplicateしない |
+| brace body missing / mismatched `}` | existing brace close Missing / Error one | Impl close recoveryを追加せずcaller boundary non-consume |
+| body内nested malformed Statement | inner owner recovery only | same rangeへImpl Missing / Errorを重ねない |
+
+head / description TypeExpressionのinvalid-run safe pointはouter `Colon | LeftBrace | Semicolon`、active close / separator、
+equal-or-shallower newline、ambient ownerをconsumeしない。Description colonはpositive evidenceなのでMissing colon roleを作らない。
+body formはpunctuationでのみ始まり、head末尾wordとinline Statement先頭wordのarbitrary splitをしない。
+
+one accepted `impl` = one ImplDeclaration nodeである。one committed Missing / Error record = one recovery node。
+head failureがsame terminal boundaryへ達したときBodyIntroducerをcascadeせず、description failureがsame boundaryへ達したとき
+BodyIntroducerをcascadeしない。head / description recovery後にdistinct actual body starterがあればbodyはsame positionから継続できる。
+
+### Root / nested dispatch and header discovery
+
+root / nested relationshipを次で固定する。
+
+| caller | behavior |
+| --- | --- |
+| source-leading header discovery | exact Impl introでheader runを`FirstNonHeader`として終了。Implをparse / projectせずinputをrollback |
+| full root loop | `Declaration::Impl`を選び、ImplDeclarationをRoot直下へemit |
+| nested canonical Statement | `Statement::Impl`を選び、same ImplDeclarationをone Statement wrapper直下へemit |
+| Impl brace / colon-indented body | same canonical Statement entryを再帰的に使い、nested Implを含むcurrent full Statement familyをaccept |
+| Impl colon-inline body | exactly one canonical Statementをacceptし、`InlineCanonicalStatement(ImplColonBody)`でouter ambient ownerへdelegate |
+
+`HeaderDeclaration` / `HeaderStatementIntro`へImpl variantを追加しない。`commit_header_statement`は
+`StatementIntro::Impl`をBinding / Mod / Struct / Typeと同じfull-only branchとしてrollback + Noneにし、header coverageを
+`HeaderStop::FirstNonHeader`で閉じる。Implはimport route、operator BP、module header fact、role / conformance factを生成しない。
+source-leading visibility-prefixed Implも同じである。
+
+ImplはStatement-level ownerであり、OperatorChain primary / LED、ML argument、TypeDeclaration tailとしてacceptしない。
+if / case / catchのOperatorChain-only inline armやColonApplication inline argumentをImplのためにfull Statementへ拡張しない。
+既にfull canonical Statementを呼ぶroot、indented block、braced block、WithBodyTail inline / indented、Mod body、
+Binding indented bodyだけがsame dispatch追加でImplを受け取る。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `scan_word` / visibility prefix / declaration-continuing trivia / checkpoint rollback、source range / line state。
+- one shared `recognize_statement_intro`、root / nested AST and direct-CST dispatch、header discovery stop。
+- ordinary mandatory TypeExpression、typed outer missing-role、episode-scoped stop activation / recovery classifier。
+- `parse_canonical_statement` / `commit_canonical_statement` / direct candidate。
+- `BracedStatementBlockExpression`、`StatementSequencePolicy::BracedPrimary`、generic indented Statement sequence、
+  separator / close / dedent / ambient ownership。
+- `any_ambient_owner_claims`、InlineCanonicalStatement frame、If companion / braced barrier / positional fence。
+
+次を共有・追加しない。
+
+- `ModBody` / `ModColonBody` ASTまたは`ModRole`をImpl value / recovery identityとして偽装すること。
+- Impl-specific statement list、member parser、associated-type parser、method parser、separator / close driver。
+- `TypeDelimitedOwner::Impl`、`ConstructRole::Impl`、Impl body delimiter wrapper、synthetic semicolon。
+- `HeaderDeclaration::Impl`、operator / import / role fact、parser-time semantic registry。
+- `ImplVia`、`ViaKw`、Impl scopeの`StopKind::Via`、rejected Y2 branchのInvalidToken再現。
+- Type-attached tail / with companion / Type role-like bodyとのcombined judge。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Standalone surface preserved:** optional `my` / `our` / `pub`、exact `impl`、full TypeExpression head、optional
+   same-line description、semicolon / brace / colon bodyを保つ。
+2. **Typed recovery:** Y2のsilent close / generic InvalidTokenをImplRole別Missing / Error、same-slot retry、no-cascadeへ置き換える。
+3. **Impl-specific via absent:** Y2自身が`impl Target via Source`をunimplemented syntax errorとしてrejectした。
+   Y3はそのbranchを移植せず、ViaKw / stop / AST / recoveryを追加しない。word `via`はordinary TypeExpression lexical policyだけに従う。
+4. **Full TypeExpression with owner punctuation:** head / descriptionはfull ordinary surfaceだが、fresh headのbare `{` / `:`と、
+   outer completed operand後の`{` / `:` / `;`はImpl ownerが勝つ。same-line colonへcut済みのfresh descriptionではbare `{`を
+   NamedRecordTypeが所有し、head / descriptionのfresh adjacent `:{`はcompound PolymorphicVariantType starterとして
+   TypeExpressionが勝つ。NamedRecord headやambiguous TypeApply argumentはparenthesized formで明示する。
+5. **Colon description authority:** first colon後にphysical newlineがなければdescriptionへcutし、TypeExpression failureを理由に
+   body colonへreinterpretしない。newlineがあればdescriptionを作らずbody colonである。
+6. **No punctuation-free inline split:** Y2 parserのtype stopから自然に得られないword境界をheuristicに発明せず、
+   missing body colon + inline Statement recoveryは行わない。
+7. **Canonical body subset:** Y2 bodyは当時のfull statement familyをacceptした。Y3はimplementation時点のcanonical Statement
+   closed sumを共有し、未実装future declarationだけをImpl専用に先取りしない。
+8. **Semicolon ownership:** bodyless / colon-inline terminal semicolonはImpl-owned。brace / indented body後のsemicolonは
+   outer Statement ownerへ残す。
+9. **No member semantics:** Binding / Type declarationをmethod / associated typeへ分類せず、duplicate / required member /
+   conformance / overlapを検査しない。
+10. **No attached or companion forms:** Type-attached `impl`、declaration `with:`、Type role-like bodyは別addendumへ残し、
+    same prefixやAST placeholderを作らない。
+11. **Header architecture:** Implはfull syntaxではvalidだがheader factではなく、source-leading occurrenceはFirstNonHeaderである。
+12. **No HIR boundary crossing:** visibility meaning、role resolution、module registration、lowering、diagnostics wording、formatterはscope外。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationは
+vocabulary、isolated intro、shared TypeExpression infrastructure dependency audit、isolated AST/direct body、
+pre-promotion declaration-state matrix、atomic dispatch + nested-context matrix、final scope gateへ分ける。
+Gate 7までcurrent public parser behaviorを変えない。
+
+implementation gateを次で固定する。
+
+1. `ImplDeclaration` / `ImplDescription` / `ImplKw` SyntaxKind、`ImplDeclaration` / `ImplDescription` /
+   `ImplBody` / `ImplColonBody` AST、`Declaration::Impl` / `Statement::Impl`、
+   `StatementIntro::Impl` carrier、`StatementKind::ImplDeclaration`、`DeclarationRole::Impl(ImplRole)`、
+   `InlineStatementOwnerKind::ImplColonBody`を追加する。existing exhaustive matchへunreachable-from-dispatchなmechanical armだけを足し、
+   no ConstructRole / TypeDelimitedOwner / HeaderDeclaration / behavior change、full suite byte-identicalを固定する。
+2. sink-free `recognize_impl_statement_intro`をisolated実装し、bare / my / our / pub exact recognition、impl_base、
+   empty adjacency `impl(Eq);`、newline continuation、EOF independent cut、`implement` / `my implish` rejection、
+   `my impl = value`のImpl selection、
+   Binding / Struct / Mod / Type / Use / Operator non-collision、all-state exact rollbackをdirect fixture化する。
+   real `recognize_statement_intro`へはまだ接続しない。
+3. mandatory head / descriptionのouter-episode `Colon | LeftBrace | Semicolon` policyをisolated実装する。
+   本Gate開始条件としてshared derives addendumのneutral DRV Gate 1aによるlogical TypeExpression episode facility、
+   mandatory / recursive wrapper migration、one depth-aware activation queryが実装済みであることをauditする。
+   未達なら本Gateを開始せず、partial fallbackを作らない。fresh head bare `{` body retry、fresh description bare `{`
+   NamedRecord primary、fresh adjacent `:{` primary、token-shape-sensitive colon authority、complete-tail body stop、
+   nested Arrow / Forall / TypeApply / every exotic primary suspension、
+   malformed candidate / retry parity、ASOB、normal / recovery / rollback state restorationをAST/directで固定する。
+4. head後colonのsame-line-description vs physical-newline-body judgeと、semicolon / brace / colon bodyを使う
+   form-aware AST isolated adapterを実装する。bodyless、description + bodyless、description-free indented、
+   description + inline/indented、brace、missing head / description / bodyのAST shape / rangeを固定する。
+   existing public dispatchは変更しない。
+5. direct-CST thin adapterをisolated harnessへ追加し、`impl int: Eq;`、
+   `impl point:\n  our p.eq = true`、`impl Eq Int {\n  our eq = id\n}`のchild order / byte range、
+   all trivia home、lossless round trip、no body wrapper / synthetic separator、AST-direct parityを固定する。
+6. `IMD-R`全rowをfixture化する。head / description / body-introducer / bodyのMissing / malformed retry / terminal、
+   description-vs-body colon cut、body starter preservation、brace close delegation、nested Statement recovery、
+   one range = one node = one record、same-cause no-cascadeをAST/directで閉じる。production behaviorはまだ変えない。
+7. real dispatch switch前にisolated declaration adapterをdirect root / indented / braced / inline ambient frameで包み、
+   depth-2+ ambient / If companion、EOF / semicolon / comma / each active right delimiter / equal-shallower newline、
+   strictly-deeper head / description / body、normal / recovery / rollbackのdeclaration-state matrixを閉じる。
+   input / line / sink / ambient / If / delimiter / stop / indentation / type owner / ML / positional fence /
+   TypeExpression episode depthをevery exitでexact restoreする。これはowner frame compositionを検証するisolated testであり、
+   hard-coded canonical Statement block loopへadapterをinjectしたとは主張しない。actual braced / indented / With / Mod / Catch
+   block-driverからのnested Impl acceptanceはGate 8のatomic matrixへ明示的に残す。current public parserはまだ変えない。
+8. `recognize_statement_intro`のType後 / Binding前へImpl introを挿し、root `parse_declaration` / direct root loop、
+   `parse_canonical_statement` / `commit_canonical_statement` / direct candidateをsame isolated adapterへatomic switchする。
+   same changeでsource-leading Implがheader discoveryを`FirstNonHeader`で終了しfactを作らないことをwireする。
+   **同じGate / same atomic change内で**Gate 7 suiteをunmodified再実行し、root / indented / braced / With inline /
+   Mod inline / Catch-inline-through-owner、depth-2+ ambient / If companion、all active fixed boundaries、normal / recovery /
+   rollback、canonical body内Expression / Binding / Use / Mod / Struct / Type / nested Implのfull AST/direct matrixを
+   real block-driverとpublic `parse_file`から閉じる。このmatrixがgreenになるまでdispatch switchをland済みと扱わない。
+   existing non-Impl intro priority / fixtureを変更しない。
+9. final regression matrixでvisibility、full/exotic head / description、three body forms、root / nested interleaving、
+   outer semicolon / ambient companion、malformed boundary、missing brace close、nested Impl、AST/direct parity、losslessness、
+   one record = one node、all state restoration、full `yu-syntax` suiteを閉じる。
+   Type-attached tail / with companion / Type colon-brace body / Impl-specific via / member semantics / HIR / resolver / formatterを
+   実装しないscope gateを固定する。Gate 8でpre-provenになったpublic nested matrixを再実行し、
+   本Gateはnew contextのfirst-time coverageを持たない。
+
+### Closed design decisions and Claude review focus
+
+本Proposalで次をdesign decision候補として固定する。
+
+- standalone Implはroot `Declaration::Impl` / nested `Statement::Impl`がsame AST / CST ownerを共有する。
+- exact bare / visibility-prefixed `impl`はhead / bodyの成否に依存せずstatement authorityを得て、Type後 / Binding前へ入る。
+- head / descriptionはfull mandatory TypeExpressionで、fresh headのbare `{` / bare `:`はbody authority、
+  colonへcut済みfresh descriptionのbare `{`はNamedRecord authority、adjacent `:{`はcompound TypePrimary authority、
+  outer completed-tail body stopsはepisode-scopedに有効である。
+- TypeExpression episode infrastructureはshared derives addendumのneutral DRV Gate 1aだけへのhard dependencyであり、
+  IMD-specific subset / fallback / second activation queryを作らない。
+- first colon後のphysical newline有無だけでdescription / bodyを一度だけ分岐し、parse successによるbacktrackingをしない。
+- bodyはbodyless semicolon、existing brace Statement block、inline / indented colon canonical Statementのthree familyである。
+- body loop / separator / close / indentation machineryを作らず、existing canonical Statement sequenceをthin owner adapterからreuseする。
+- bodyless / colon-inline terminal semicolonだけImpl-owned、brace / indent後のsemicolonはouter-ownedである。
+- Impl-specific `via` surface / stub / diagnosticを作らない。
+- source-leading Implはheader discoveryをFirstNonHeaderで終了し、HeaderDeclaration factを作らない。
+- body item semantics、Type-attached impl、with companion、Type role-like bodyを別addendumへ残す。
+
+Claude reviewでは特に、visibility-led ImplをBinding前へ置くpriority、first colonのdescription / body split、
+fresh exotic TypePrimaryとcompleted-tail body punctuationのphase rule、nested TypeExpression episodeへのstop leakage、
+mandatory head / description / body no-cascade、punctuation-free inline recoveryを禁止する根拠、
+Mod ASTを偽装せずcanonical Statement sequenceだけを共有するbody adapter、inline ambient frame追加のexhaustiveness、
+Gate 7 isolated declaration-state matrixと、Gate 8 same-change内のreal block-driver full matrix / atomic dispatch /
+header-stop範囲を確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案中、Claude査読・ユーザ承認待ち
+（2026-08-26、canonical Statement / root Declarationのstandalone `impl` declaration shell grammar追補案）。
