@@ -225,6 +225,7 @@ pub(crate) enum BracedBarrierOrigin {
 pub(crate) enum InlineStatementOwnerKind {
     WithBodyTail,
     ModColonBody,
+    ImplColonBody,
 }
 
 /// Identity for one complete IfExpression companion lifetime.
@@ -1088,6 +1089,7 @@ pub(crate) enum DeclarationRole {
     Mod(ModRole),
     Struct(StructRole),
     Type(TypeDeclarationRole),
+    Impl(ImplRole),
     Derives(DerivesRole),
 }
 
@@ -1115,6 +1117,7 @@ pub(crate) enum StatementKind {
     ModDeclaration,
     StructDeclaration,
     TypeDeclaration,
+    ImplDeclaration,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1157,6 +1160,15 @@ pub(crate) enum TypeDeclarationRole {
     Name,
     DefinitionIntroducer,
     Rhs,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ImplRole {
+    Head,
+    Description,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

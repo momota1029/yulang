@@ -65,6 +65,7 @@ pub(crate) enum Declaration<'source> {
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
     Type(TypeDeclaration<'source>),
+    Impl(ImplDeclaration<'source>),
 }
 
 /// A declaration shape that can contribute a source-leading header fact.
@@ -96,6 +97,8 @@ pub(crate) enum StatementIntro<'source> {
     Mod(ModStatementIntro<'source>),
     Struct(StructStatementIntro<'source>),
     Type(TypeStatementIntro<'source>),
+    #[allow(dead_code)]
+    Impl(ImplStatementIntro<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -164,6 +167,20 @@ pub(crate) struct TypeStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     type_keyword: WordSpan<'source>,
     type_base: usize,
+}
+
+/// The sink-free prefix reserved for standalone Impl declarations.
+///
+/// Gate 1 carries this source shape only. Gate 2 supplies recognition, and
+/// Gate 8 connects it to shared statement dispatch.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ImplStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    impl_keyword: WordSpan<'source>,
+    impl_base: usize,
 }
 
 pub(crate) struct ParsedBindingDeclaration<'source, C> {
@@ -338,6 +355,9 @@ fn parse_direct_root_candidate_with_local(
             StatementIntro::Type(intro) => {
                 let _ = commit_type_declaration(&mut committed, intro);
                 StatementKind::TypeDeclaration
+            }
+            StatementIntro::Impl(_) => {
+                unreachable!("Impl dispatch is introduced in its Gate 8 promotion")
             }
             StatementIntro::Operator(intro) => {
                 if matches!(
@@ -541,6 +561,10 @@ where
             return None;
         }
         StatementIntro::Type(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::Impl(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -7335,6 +7359,49 @@ pub(crate) enum ModBody<'source> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ModColonBody<'source> {
+    Inline { statement: Box<Statement<'source>> },
+    Indented { block: IndentedStatementBlock<'source> },
+}
+
+/// A standalone Impl declaration shared by root and canonical Statements.
+///
+/// Gate 1 establishes only the approved AST shape. Recognition and body
+/// parsing remain unreachable until their later dedicated gates.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ImplDeclaration<'source> {
+    visibility: Visibility,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    description: Option<ImplDescription<'source>>,
+    body: Recovered<ImplBody<'source>>,
+    range: Range<usize>,
+}
+
+impl ImplDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ImplDescription<'source> {
+    colon: Range<usize>,
+    value: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ImplBody<'source> {
+    Bodyless { semicolon: Range<usize> },
+    Braced { block: BracedStatementBlockExpression<'source> },
+    Colon { colon: Range<usize>, body: Recovered<ImplColonBody<'source>> },
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ImplColonBody<'source> {
     Inline { statement: Box<Statement<'source>> },
     Indented { block: IndentedStatementBlock<'source> },
 }

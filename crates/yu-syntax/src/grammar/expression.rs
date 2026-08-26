@@ -11,7 +11,7 @@ use chasa::{
 
 use crate::{
     grammar::declaration::{
-        BindingDeclaration, ModDeclaration, Recovered, StatementIntro, StructDeclaration, TypeDeclaration,
+        BindingDeclaration, ImplDeclaration, ModDeclaration, Recovered, StatementIntro, StructDeclaration, TypeDeclaration,
         UseDeclaration,
         commit_binding_declaration, commit_type_declaration, commit_use_declaration,
         parse_binding_declaration_with_operators,
@@ -210,6 +210,7 @@ pub(crate) enum Statement<'source> {
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
     Type(TypeDeclaration<'source>),
+    Impl(ImplDeclaration<'source>),
 }
 
 impl<'source> Statement<'source> {
@@ -221,6 +222,7 @@ impl<'source> Statement<'source> {
             Self::Mod(declaration) => declaration.range(),
             Self::Struct(declaration) => declaration.range(),
             Self::Type(declaration) => declaration.range(),
+            Self::Impl(declaration) => declaration.range(),
         }
     }
 }
@@ -4041,6 +4043,9 @@ where
         Some(StatementIntro::Type(intro)) => {
             let _ = commit_type_declaration(committed, intro);
             true
+        }
+        Some(StatementIntro::Impl(_)) => {
+            unreachable!("Impl dispatch is introduced in its Gate 8 promotion")
         }
         Some(StatementIntro::Operator(_)) | None => {
             parse_direct_operator_chain(table, leading, committed).is_some()
