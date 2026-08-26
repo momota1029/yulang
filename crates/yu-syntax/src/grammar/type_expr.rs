@@ -3379,6 +3379,14 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if current_fresh_primary_owns_adjacent_polymorphic_variant_starter(i) {
+        if let Some((colon, open)) = scan_polymorphic_variant_open(i) {
+            return Some(TypeExpressionHead::Primary(TypePrimaryHead::PolymorphicVariant {
+                colon,
+                open,
+            }));
+        }
+    }
     if classify_type_boundary(
         TypeBoundaryPolicy {
             matching_close: None,
@@ -5390,6 +5398,11 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if current_fresh_primary_owns_adjacent_polymorphic_variant_starter(i)
+        && i.input.remainder().starts_with(":{")
+    {
+        return false;
+    }
     let checkpoint = i.checkpoint();
     let fixed = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
     i.rollback(checkpoint);
@@ -5795,6 +5808,15 @@ where
     i.local
         .type_expression_episode_policy()
         .map_or_else(StopSet::default, |policy| policy.fresh_primary_locally_owned_stops)
+}
+
+fn current_fresh_primary_owns_adjacent_polymorphic_variant_starter<E>(i: &SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    i.local.type_expression_episode_policy().is_some_and(|policy| {
+        policy.fresh_primary_owns_adjacent_polymorphic_variant_starter
+    })
 }
 
 /// The single TypeExpression-side stop ownership query. Scoped ownership is

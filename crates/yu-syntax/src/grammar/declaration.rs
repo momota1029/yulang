@@ -46,7 +46,7 @@ use crate::{
         CommittedRecoveryRecord, ConstructRole,
         DeclarationRole, Delimiter, DerivesRole, ExpectationSources, ExpectedSyntax,
         FullCstOutput, GrammarRole,
-        ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
+        ImplRole, ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
         LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
         ModRole, ParseLocal, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole,
         StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner,
@@ -828,6 +828,142 @@ where
         impl_keyword: keyword,
         impl_base,
     })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ImplTypeExpressionSlot {
+    Head,
+    Description,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ImplTypeExpressionEpisodeSpec {
+    stops: StopSet,
+    scoped_frame: TypeExpressionScopedStopFrame,
+    policy: TypeExpressionEpisodePolicy,
+    outer_role: GrammarRole,
+}
+
+/// One outer Impl TypeExpression slot owns body punctuation only in its
+/// logical episode. Nested TypeExpression episodes retain the raw stop bits
+/// while the scoped frame suspends their ownership there.
+fn impl_type_expression_episode_spec(
+    slot: ImplTypeExpressionSlot,
+    incoming: StopSet,
+    current_episode_depth: usize,
+) -> ImplTypeExpressionEpisodeSpec {
+    let scoped_stops = StopSet::default()
+        .with(StopKind::Colon)
+        .with(StopKind::LeftBrace)
+        .with(StopKind::Semicolon);
+    let stops = incoming
+        .with(StopKind::Colon)
+        .with(StopKind::LeftBrace)
+        .with(StopKind::Semicolon);
+    let fresh_primary_locally_owned_stops = match slot {
+        ImplTypeExpressionSlot::Head => StopSet::default(),
+        ImplTypeExpressionSlot::Description => {
+            StopSet::default().with(StopKind::LeftBrace)
+        }
+    };
+    let role = match slot {
+        ImplTypeExpressionSlot::Head => ImplRole::Head,
+        ImplTypeExpressionSlot::Description => ImplRole::Description,
+    };
+    ImplTypeExpressionEpisodeSpec {
+        stops,
+        scoped_frame: TypeExpressionScopedStopFrame {
+            stops: scoped_stops,
+            visible_episode_depth: current_episode_depth + 1,
+        },
+        policy: TypeExpressionEpisodePolicy {
+            fresh_primary_locally_owned_stops,
+            fresh_primary_owns_adjacent_polymorphic_variant_starter: true,
+        },
+        outer_role: GrammarRole::Declaration(DeclarationRole::Impl(role)),
+    }
+}
+
+fn parse_required_impl_type_expression_isolated<'source, E>(
+    slot: ImplTypeExpressionSlot,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode = impl_type_expression_episode_spec(
+        slot,
+        i.local.stop_set().unwrap_or_default(),
+        i.local.type_expression_episode_depth(),
+    );
+    i.local.push_stop_set(episode.stops);
+    i.local
+        .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    let parsed = i
+        .run(from_fn(|i| {
+            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
+                Some(episode.outer_role),
+                episode.policy,
+                i,
+            ))
+        }))
+        .expect("the mandatory Impl TypeExpression entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(episode.scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    match parsed {
+        Recovered::Complete(parsed) => Recovered::Complete(Box::new(parsed)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    }
+}
+
+fn commit_required_impl_type_expression_isolated<'parse, 'source, 'local, E, O>(
+    slot: ImplTypeExpressionSlot,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode = committed.probe(|probe| {
+        let i = probe.input();
+        impl_type_expression_episode_spec(
+            slot,
+            i.local.stop_set().unwrap_or_default(),
+            i.local.type_expression_episode_depth(),
+        )
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(episode.stops);
+        i.local
+            .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    });
+    let parsed = commit_direct_type_expression_with_outer_missing_role_and_policy(
+        Some(episode.outer_role),
+        episode.policy,
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(episode.scoped_frame),
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    });
+    let range = parsed.range();
+    if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    }
 }
 
 /// Scans the optional, same-line-only declaration parameter production.
@@ -22430,5 +22566,249 @@ mod tests {
         ] {
             run(source, expected);
         }
+    }
+
+    #[test]
+    fn impl_type_expression_episode_policy_is_phase_exact_nested_and_state_balanced() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct SlotResult {
+            range: Option<Range<usize>>,
+            remainder: String,
+            recoveries: Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
+        }
+
+        fn prepare_local() -> (
+            ParseLocal,
+            StopSet,
+            TypeExpressionScopedStopFrame,
+            AmbientOwnerScopeFrame,
+            IfExpressionCompanionId,
+        ) {
+            let mut local = ParseLocal::new();
+            let incoming = StopSet::default().with(StopKind::RightBracket);
+            local.push_indentation_baseline(IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            });
+            local.push_stop_set(incoming);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            let outer_episode =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let outer_frame = TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::RightBracket),
+                visible_episode_depth: outer_episode,
+            };
+            local.push_type_expression_scoped_stop_frame(outer_frame);
+            let ambient = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, IF_WORDS);
+            (local, incoming, outer_frame, ambient, companion)
+        }
+
+        fn assert_local_restored(
+            local: &ParseLocal,
+            incoming: StopSet,
+            outer_frame: TypeExpressionScopedStopFrame,
+            ambient: AmbientOwnerScopeFrame,
+            companion: IfExpressionCompanionId,
+        ) {
+            assert_eq!(local.stop_set(), Some(incoming));
+            assert_eq!(local.indentation_baseline().map(|frame| frame.column), Some(0));
+            assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(
+                local.expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call),
+            );
+            assert_eq!(local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert_eq!(local.type_expression_episode_depth(), 1);
+            assert_eq!(
+                local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![outer_frame],
+            );
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![ambient],
+            );
+            assert_eq!(
+                local.if_expression_companion().map(|frame| frame.id()),
+                Some(companion),
+            );
+        }
+
+        fn parse_slot(source: &str, slot: ImplTypeExpressionSlot) -> SlotResult {
+            let mut source_input = SourceInput::new(source);
+            let (mut local, incoming, outer_frame, ambient, companion) = prepare_local();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let parsed = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_required_impl_type_expression_isolated(slot, &mut i)
+            };
+            assert_local_restored(&local, incoming, outer_frame, ambient, companion);
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            SlotResult {
+                range: match parsed {
+                    Recovered::Complete(parsed) => Some(parsed.range()),
+                    Recovered::Incomplete => None,
+                },
+                remainder: source_input.remainder().to_owned(),
+                recoveries: Vec::new(),
+            }
+        }
+
+        fn commit_slot(source: &str, slot: ImplTypeExpressionSlot) -> SlotResult {
+            let mut source_input = SourceInput::new(source);
+            let (mut local, incoming, outer_frame, ambient, companion) = prepare_local();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let probe = Probe::new(i);
+            let mut committed = probe.commit(HeaderOutput::new());
+            let parsed = commit_required_impl_type_expression_isolated(slot, &mut committed);
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            assert_local_restored(&local, incoming, outer_frame, ambient, companion);
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            SlotResult {
+                range: match parsed {
+                    Recovered::Complete(range) => Some(range),
+                    Recovered::Incomplete => None,
+                },
+                remainder,
+                recoveries: output
+                    .committed_recoveries()
+                    .iter()
+                    .map(|record| {
+                        (
+                            record.kind,
+                            record.site.role,
+                            record.site.range.clone(),
+                        )
+                    })
+                    .collect(),
+            }
+        }
+
+        fn assert_complete(
+            source: &str,
+            slot: ImplTypeExpressionSlot,
+            expected_range: Range<usize>,
+            expected_remainder: &str,
+        ) {
+            let ast = parse_slot(source, slot);
+            let direct = commit_slot(source, slot);
+            assert_eq!(ast.range, Some(expected_range.clone()), "AST range: {source:?}");
+            assert_eq!(direct.range, Some(expected_range), "direct range: {source:?}");
+            assert_eq!(ast.remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct.remainder, expected_remainder, "direct remainder: {source:?}");
+            assert!(direct.recoveries.is_empty(), "direct recovery: {source:?}");
+        }
+
+        fn assert_missing(
+            source: &str,
+            slot: ImplTypeExpressionSlot,
+            expected_role: ImplRole,
+        ) {
+            let ast = parse_slot(source, slot);
+            let direct = commit_slot(source, slot);
+            assert_eq!(ast.range, None, "AST range: {source:?}");
+            assert_eq!(direct.range, None, "direct range: {source:?}");
+            assert_eq!(ast.remainder, source, "AST remainder: {source:?}");
+            assert_eq!(direct.remainder, source, "direct remainder: {source:?}");
+            assert_eq!(
+                direct.recoveries,
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Declaration(DeclarationRole::Impl(expected_role)),
+                    0..0,
+                )],
+                "direct recovery: {source:?}",
+            );
+        }
+
+        // Adjacent `:{` is the one fresh-primary exception. Bare colon and
+        // whitespace-separated `: {` remain with the Impl phase judge.
+        assert_complete(":{ A };", ImplTypeExpressionSlot::Head, 0..6, ";");
+        assert_complete(":{ A };", ImplTypeExpressionSlot::Description, 0..6, ";");
+        for source in [":", ": { A }"] {
+            assert_missing(source, ImplTypeExpressionSlot::Head, ImplRole::Head);
+            assert_missing(
+                source,
+                ImplTypeExpressionSlot::Description,
+                ImplRole::Description,
+            );
+        }
+
+        // A fresh description owns a NamedRecord primary. A fresh head
+        // returns the identical brace to the future body judge.
+        assert_missing("{ x: Int }", ImplTypeExpressionSlot::Head, ImplRole::Head);
+        assert_complete(
+            "{ x: Int };",
+            ImplTypeExpressionSlot::Description,
+            0..10,
+            ";",
+        );
+
+        // Completed outer operands always yield to Impl body punctuation,
+        // including an adjacent spelling which would be a fresh variant.
+        for slot in [ImplTypeExpressionSlot::Head, ImplTypeExpressionSlot::Description] {
+            assert_complete("Eq:{ A }", slot, 0..2, ":{ A }");
+            assert_complete("Eq { x: Int }", slot, 0..2, " { x: Int }");
+            assert_complete("Eq;", slot, 0..2, ";");
+        }
+
+        // Every recursively-owned episode suspends the outer body stops.
+        for source in [
+            "Int -> { x: Int }",
+            "for 'a: { x: Int }",
+            "F ({ x: Int })",
+            "({ x: Int })",
+            "(A; B)",
+            "('[derives Eq])",
+            "([derives Eq] T)",
+            "(:{ A derives Eq })",
+        ] {
+            assert_complete(source, ImplTypeExpressionSlot::Head, 0..source.len(), "");
+        }
+
+        // Malformed-run classification and same-slot retry share the same
+        // token-shape-sensitive policy on AST and direct paths.
+        let source = "@:{ A };";
+        let ast = parse_slot(source, ImplTypeExpressionSlot::Head);
+        let direct = commit_slot(source, ImplTypeExpressionSlot::Head);
+        assert_eq!(ast.range, Some(1..7));
+        assert_eq!(direct.range, Some(1..7));
+        assert_eq!(ast.remainder, ";");
+        assert_eq!(direct.remainder, ";");
+        assert_eq!(
+            direct.recoveries,
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                0..1,
+            )],
+        );
     }
 }

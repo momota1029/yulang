@@ -895,6 +895,7 @@ pub(crate) struct TypeExpressionScopedStopFrame {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct TypeExpressionEpisodePolicy {
     pub(crate) fresh_primary_locally_owned_stops: StopSet,
+    pub(crate) fresh_primary_owns_adjacent_polymorphic_variant_starter: bool,
 }
 
 macro_rules! define_stop_kinds {
@@ -2040,6 +2041,7 @@ mod tests {
         local.push_expression_delimited_owner(ExpressionDelimitedOwner::Index);
         local.push_type_expression_episode(TypeExpressionEpisodePolicy {
             fresh_primary_locally_owned_stops: StopSet::default().with(StopKind::Comma),
+            fresh_primary_owns_adjacent_polymorphic_variant_starter: false,
         });
         local.push_type_expression_scoped_stop_frame(TypeExpressionScopedStopFrame {
             stops: StopSet::default().with(StopKind::Comma),
