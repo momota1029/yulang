@@ -978,30 +978,35 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let intro = i.run(recognize_impl_statement_intro)?;
-    let visibility = intro
-        .visibility
-        .map_or(Visibility::Private, |prefix| prefix.visibility);
-    let head = if any_ambient_owner_claims(&mut i) {
-        Recovered::Incomplete
-    } else {
-        let checkpoint = i.checkpoint();
-        if mod_trivia(intro.impl_base, &mut i).is_some() {
-            parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Head, &mut i)
-        } else {
-            i.rollback(checkpoint);
+    let errors_checkpoint = i.errors_checkpoint();
+    let declaration = (|| {
+        let intro = i.run(recognize_impl_statement_intro)?;
+        let visibility = intro
+            .visibility
+            .map_or(Visibility::Private, |prefix| prefix.visibility);
+        let head = if any_ambient_owner_claims(&mut i) {
             Recovered::Incomplete
-        }
-    };
-    let (description, body) = parse_impl_after_head_ast(table, intro.impl_base, &mut i);
-    let end = i.pos();
-    Some(ImplDeclaration {
-        visibility,
-        head,
-        description,
-        body,
-        range: intro.start..end,
-    })
+        } else {
+            let checkpoint = i.checkpoint();
+            if mod_trivia(intro.impl_base, &mut i).is_some() {
+                parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Head, &mut i)
+            } else {
+                i.rollback(checkpoint);
+                Recovered::Incomplete
+            }
+        };
+        let (description, body) = parse_impl_after_head_ast(table, intro.impl_base, &mut i);
+        let end = i.pos();
+        Some(ImplDeclaration {
+            visibility,
+            head,
+            description,
+            body,
+            range: intro.start..end,
+        })
+    })();
+    i.errors_rollback(errors_checkpoint);
+    declaration
 }
 
 fn parse_impl_after_head_ast<'source, E>(
@@ -1160,6 +1165,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let errors_checkpoint =
+        committed.probe(|probe| probe.input().errors_checkpoint());
     committed.start_node(SyntaxKind::ImplDeclaration);
     if let Some(visibility) = &intro.visibility {
         emit_visibility(committed, visibility);
@@ -1184,6 +1191,9 @@ where
     commit_impl_after_head_isolated(table, intro.impl_base, committed, head_terminated_incomplete);
     let end = committed_position(committed);
     committed.finish_node();
+    committed.probe(|probe| {
+        probe.input().errors_rollback(errors_checkpoint);
+    });
     Recovered::Complete(intro.start..end)
 }
 
@@ -1272,28 +1282,49 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
     let starter = committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let trivia = mod_trivia(impl_base, i)?;
-        let punctuation = i.run(scan_punctuation)?;
-        let starter = match punctuation.kind() {
-            PunctuationKind::Semicolon => ImplBodyStarter::Bodyless(punctuation.range()),
-            PunctuationKind::Open(Delimiter::Brace) => ImplBodyStarter::Braced(punctuation.range()),
-            PunctuationKind::Colon => ImplBodyStarter::Colon(punctuation.range()),
-            _ => {
-                i.rollback(checkpoint);
-                return None;
-            }
-        };
+        let starter = mod_trivia(impl_base, i).and_then(|trivia| {
+            let punctuation = i.run(scan_punctuation)?;
+            let starter = match punctuation.kind() {
+                PunctuationKind::Semicolon => ImplBodyStarter::Bodyless(punctuation.range()),
+                PunctuationKind::Open(Delimiter::Brace) => {
+                    ImplBodyStarter::Braced(punctuation.range())
+                }
+                PunctuationKind::Colon => ImplBodyStarter::Colon(punctuation.range()),
+                _ => return None,
+            };
+            Some((trivia, starter))
+        });
         i.rollback(checkpoint);
-        Some((trivia, starter))
+        starter
     });
     let Some((trivia, starter)) = starter else {
-        let Some(trivia) = committed.probe(|probe| mod_trivia(impl_base, probe.input())) else {
+        let trivia = committed.probe(|probe| {
+            let i = probe.input();
+            let checkpoint = i.checkpoint();
+            let trivia = mod_trivia(impl_base, i);
+            i.rollback(checkpoint);
+            trivia
+        });
+        let Some(trivia) = trivia else {
             if !upstream_slot_terminated_incomplete {
                 emit_impl_body_introducer_missing(committed);
             }
             return;
         };
-        committed.emit_trivia(&trivia);
+        let newline = committed.probe(|probe| {
+            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
+        });
+        if newline {
+            if !upstream_slot_terminated_incomplete {
+                emit_impl_body_introducer_missing(committed);
+            }
+            return;
+        }
+        let consumed_trivia = committed
+            .probe(|probe| mod_trivia(impl_base, probe.input()))
+            .expect("the Impl body-introducer recovery leaves its leading trivia at the cursor");
+        assert_eq!(consumed_trivia.range(), trivia.range());
+        committed.emit_trivia(&consumed_trivia);
         match impl_body_introducer_error_retry(committed) {
             Some(true) => {
                 commit_impl_body_isolated(table, impl_base, committed, upstream_slot_terminated_incomplete);
@@ -24137,21 +24168,36 @@ mod tests {
             install_context(&mut local, context, stop);
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            let (range, remainder, records) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
                 .set_local(&mut local);
-            let mut probe = Probe::new(i);
-            skip_prefix(prefix_len, probe.input());
-            let before = snapshot(probe.input().local);
-            let intro = probe.input().run(recognize_impl_statement_intro).expect("Impl matrix intro");
-            let mut committed = probe.commit(HeaderOutput::new());
-            let range = commit_impl_declaration_isolated(
-                &crate::operator::OperatorTable::empty(),
-                &mut committed,
-                intro,
-            );
-            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
-            let records = committed.into_output().committed_recoveries().to_vec();
-            assert_eq!(snapshot(&local), before, "direct state: {source:?}");
+                i.run(chasa::prelude::uncut(chasa::prelude::from_fn_once(|i| {
+                    let mut probe = Probe::new(i);
+                    skip_prefix(prefix_len, probe.input());
+                    let before = snapshot(probe.input().local);
+                    let intro = probe
+                        .input()
+                        .run(recognize_impl_statement_intro)
+                        .expect("Impl matrix intro");
+                    let mut committed = probe.commit(HeaderOutput::new());
+                    let range = commit_impl_declaration_isolated(
+                        &crate::operator::OperatorTable::empty(),
+                        &mut committed,
+                        intro,
+                    );
+                    let remainder = committed
+                        .probe(|probe| probe.input().input.remainder().to_owned());
+                    let after = committed.probe(|probe| snapshot(probe.input().local));
+                    assert_eq!(after, before, "direct state: {source:?}");
+                    let records = committed.into_output().committed_recoveries().to_vec();
+                    Some((range, remainder, records))
+                })))
+                .expect("the uncut direct Impl matrix adapter is total")
+            };
             assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
             assert!(!is_cut, "direct cut: {source:?}");
             (
@@ -24222,5 +24268,32 @@ mod tests {
         ] {
             let _ = assert_case(source, 0, Context::Root, StopKind::RightBracket, remainder);
         }
+
+        let records = assert_case(
+            "impl T\n  Next",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+            "\n  Next",
+        );
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            records[0].site,
+            RecoverySiteKey {
+                role: GrammarRole::Declaration(DeclarationRole::Impl(
+                    ImplRole::BodyIntroducer,
+                )),
+                range: 6..6,
+            },
+        );
+        assert!(assert_case(
+            "impl T:\n  my value = 1",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+            "",
+        )
+        .is_empty());
     }
 }
