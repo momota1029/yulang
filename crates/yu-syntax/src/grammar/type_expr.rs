@@ -19,7 +19,15 @@ use crate::{
         trivia::{TriviaRun, scan_comment, scan_trivia},
         word::{WordSpan, scan_path_segment, scan_word},
     },
-    session::{CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner, TypeMalformedCallerBoundaryFence, TypeRole, UnexpectedCategory, UnexpectedSyntax, any_ambient_owner_claims},
+    session::{
+        CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
+        ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline,
+        IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn,
+        SyntaxExpectation, TypeDelimitedOwner, TypeExpressionEpisodePolicy,
+        TypeMalformedCallerBoundaryFence, TypeRole, UnexpectedCategory, UnexpectedSyntax,
+        any_ambient_owner_claims,
+    },
     syntax_kind::SyntaxKind,
 };
 
@@ -267,7 +275,43 @@ where
 
 fn parse_type_expression_in_context<'source, E>(
     allow_forall: bool,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_type_expression_in_context_with_policy(
+        allow_forall,
+        TypeExpressionEpisodePolicy::default(),
+        i,
+    )
+}
+
+fn parse_type_expression_in_context_with_policy<'source, E>(
+    allow_forall: bool,
+    policy: TypeExpressionEpisodePolicy,
     mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode_depth = i.local.push_type_expression_episode(policy);
+    let parsed = parse_type_expression_in_current_episode(allow_forall, &mut i);
+    assert_eq!(
+        i.local.pop_type_expression_episode(),
+        Some(policy),
+    );
+    debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
+    parsed
+}
+
+fn parse_type_expression_in_current_episode<'source, E>(
+    allow_forall: bool,
+    mut i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<TypeExpression<'source>>
 where
     E: ErrorSink<usize>,
@@ -313,7 +357,8 @@ where
             break;
         }
         let trivia = consume_trivia(&mut i);
-        if (trivia_has_newline(&trivia) && active_stop_set(&i).contains(StopKind::Newline))
+        if (trivia_has_newline(&trivia)
+            && type_stop_is_active_in_current_episode(&i, StopKind::Newline))
             || is_outer_newline_boundary(&i, &trivia)
         {
             i.rollback(checkpoint);
@@ -375,13 +420,24 @@ where
             i.rollback(checkpoint);
             break;
         }
-        if !trivia.is_empty() && type_primary_candidate_in_context(false, &mut i) {
+        let apply_episode_depth = (!trivia.is_empty()).then(|| {
+            i.local
+                .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+        });
+        if apply_episode_depth.is_some() && type_primary_candidate_in_context(false, &mut i) {
             let boundary = boundary_start..i.pos();
             let saved_ml = i.local.type_ml_arg();
             i.local.set_type_ml_arg(true);
-            let argument = i.run(from_fn(|i| parse_type_expression_in_context(false, i)))
+            let argument = parse_type_expression_in_current_episode(false, &mut i)
                 .expect("the TypeApply candidate probe accepted a primary");
             i.local.set_type_ml_arg(saved_ml);
+            let episode_depth =
+                apply_episode_depth.expect("the TypeApply candidate owns an episode");
+            assert_eq!(
+                i.local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default()),
+            );
+            debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
             let end = argument.range.end;
             postfix.push(TypePostfixTail::Apply(TypeApplyArgument {
                 boundary: boundary.clone(),
@@ -389,6 +445,13 @@ where
                 range: boundary.start..end,
             }));
             continue;
+        }
+        if let Some(episode_depth) = apply_episode_depth {
+            assert_eq!(
+                i.local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default()),
+            );
+            debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
         }
         i.rollback(checkpoint);
         break;
@@ -430,6 +493,23 @@ where
 /// active type indentation baseline.
 pub(crate) fn parse_required_type_expression_with_recovery_context<'source, E>(
     recovery_context: RequiredTypeRecoveryContext,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Recovered<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_required_type_expression_with_recovery_context_and_policy(
+        recovery_context,
+        TypeExpressionEpisodePolicy::default(),
+        i,
+    )
+}
+
+pub(crate) fn parse_required_type_expression_with_recovery_context_and_policy<'source, E>(
+    recovery_context: RequiredTypeRecoveryContext,
+    policy: TypeExpressionEpisodePolicy,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Recovered<TypeExpression<'source>>
 where
@@ -437,10 +517,27 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let episode_depth = i.local.push_type_expression_episode(policy);
+    let parsed = parse_required_type_expression_in_current_episode(recovery_context, &mut i);
+    assert_eq!(
+        i.local.pop_type_expression_episode(),
+        Some(policy),
+    );
+    debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
+    parsed
+}
+
+fn parse_required_type_expression_in_current_episode<'source, E>(
+    recovery_context: RequiredTypeRecoveryContext,
+    mut i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let malformed_continuation_base = recovery_context.malformed_continuation_base(&i);
-    if let Some(type_expr) = i.run(from_fn(|i| {
-        parse_type_expression_with_outer_missing_role(recovery_context.outer_missing_role, i)
-    })) {
+    if let Some(type_expr) = parse_type_expression_in_current_episode(true, i) {
         return Recovered::Complete(type_expr);
     }
     let Some(recovery) = recover_required_type_item_for_ast(
@@ -451,16 +548,12 @@ where
     };
     match recovery.disposition {
         TypeInvalidRunDisposition::RetryCurrent => {
-            i.run(from_fn(|i| {
-                parse_type_expression_with_outer_missing_role(recovery_context.outer_missing_role, i)
-            }))
+            parse_type_expression_in_current_episode(true, i)
                 .map_or(Recovered::Incomplete, Recovered::Complete)
         }
         TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
             consume_recovery_trivia(&mut i, &trivia);
-            i.run(from_fn(|i| {
-                parse_type_expression_with_outer_missing_role(recovery_context.outer_missing_role, i)
-            }))
+            parse_type_expression_in_current_episode(true, i)
                 .map_or(Recovered::Incomplete, Recovered::Complete)
         }
         TypeInvalidRunDisposition::BoundaryCurrent => Recovered::Incomplete,
@@ -487,6 +580,50 @@ where
 }
 
 fn commit_direct_type_expression_in_context<'parse, 'source, 'local, E, O>(
+    allow_forall: bool,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<ParsedTypeExpression<O::Checkpoint>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_direct_type_expression_in_context_with_policy(
+        allow_forall,
+        TypeExpressionEpisodePolicy::default(),
+        committed,
+    )
+}
+
+fn commit_direct_type_expression_in_context_with_policy<'parse, 'source, 'local, E, O>(
+    allow_forall: bool,
+    policy: TypeExpressionEpisodePolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<ParsedTypeExpression<O::Checkpoint>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode_depth = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_type_expression_episode(policy)
+    });
+    let parsed = commit_direct_type_expression_in_current_episode(allow_forall, committed);
+    let popped = committed.probe(|probe| probe.input().local.pop_type_expression_episode());
+    assert_eq!(popped, Some(policy));
+    debug_assert_eq!(
+        committed.probe(|probe| probe.input().local.type_expression_episode_depth()) + 1,
+        episode_depth,
+    );
+    parsed
+}
+
+fn commit_direct_type_expression_in_current_episode<'parse, 'source, 'local, E, O>(
     allow_forall: bool,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<ParsedTypeExpression<O::Checkpoint>>
@@ -584,13 +721,26 @@ where
                 committed.emit_trivia(&leading);
                 commit_direct_type_delimited(TypeDelimitedOwner::Call, TypeDelimitedShape::Parenthesis, SyntaxKind::TypeCallTail, None, open, committed);
             }
-            DirectTypeTail::Apply { boundary } => {
+            DirectTypeTail::Apply {
+                boundary,
+                episode_depth,
+            } => {
                 committed.start_node(SyntaxKind::TypeApplyArgument);
                 committed.emit_trivia(&boundary);
                 let saved = committed.probe(|probe| probe.input().local.type_ml_arg());
                 committed.probe(|probe| probe.input().local.set_type_ml_arg(true));
-                commit_direct_type_expression_in_context(false, committed).expect("accepted TypeApply owns a type primary");
+                commit_direct_type_expression_in_current_episode(false, committed)
+                    .expect("accepted TypeApply owns a type primary");
                 committed.probe(|probe| probe.input().local.set_type_ml_arg(saved));
+                assert_eq!(
+                    committed.probe(|probe| probe.input().local.pop_type_expression_episode()),
+                    Some(TypeExpressionEpisodePolicy::default()),
+                );
+                debug_assert_eq!(
+                    committed.probe(|probe| probe.input().local.type_expression_episode_depth())
+                        + 1,
+                    episode_depth,
+                );
                 committed.finish_node();
             }
             DirectTypeTail::Arrow { leading, arrow } => {
@@ -796,6 +946,31 @@ fn commit_direct_type_arrow_rhs<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let episode_depth = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+    });
+    commit_direct_type_arrow_rhs_in_current_episode(committed);
+    assert_eq!(
+        committed.probe(|probe| probe.input().local.pop_type_expression_episode()),
+        Some(TypeExpressionEpisodePolicy::default()),
+    );
+    debug_assert_eq!(
+        committed.probe(|probe| probe.input().local.type_expression_episode_depth()) + 1,
+        episode_depth,
+    );
+}
+
+fn commit_direct_type_arrow_rhs_in_current_episode<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let rhs_trivia = consume_direct_type_chain_trivia(committed);
     if let Some(rhs_trivia) = rhs_trivia.as_ref() {
         committed.emit_trivia(rhs_trivia);
@@ -806,10 +981,10 @@ fn commit_direct_type_arrow_rhs<'parse, 'source, 'local, E, O>(
             GrammarRole::Type(TypeRole::ArrowRhs),
             ExpectedSyntax::TypeExpression,
         );
-    } else if commit_direct_type_expression(committed).is_none() {
+    } else if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
         match direct_required_type_item_error_retry(committed, TypeRole::ArrowRhs, None) {
             Some(TypeInvalidRunDisposition::RetryCurrent) => {
-                if commit_direct_type_expression(committed).is_none() {
+                if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
                     emit_type_missing(
                         committed,
                         GrammarRole::Type(TypeRole::ArrowRhs),
@@ -819,7 +994,7 @@ fn commit_direct_type_arrow_rhs<'parse, 'source, 'local, E, O>(
             }
             Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
                 consume_direct_recovery_trivia(committed, &trivia);
-                if commit_direct_type_expression(committed).is_none() {
+                if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
                     emit_type_missing(
                         committed,
                         GrammarRole::Type(TypeRole::ArrowRhs),
@@ -869,8 +1044,53 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    commit_direct_type_expression_with_recovery_context_and_policy(
+        recovery_context,
+        TypeExpressionEpisodePolicy::default(),
+        committed,
+    )
+}
+
+pub(crate) fn commit_direct_type_expression_with_recovery_context_and_policy<'parse, 'source, 'local, E, O>(
+    recovery_context: RequiredTypeRecoveryContext,
+    policy: TypeExpressionEpisodePolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedTypeExpression<O::Checkpoint>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode_depth = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_type_expression_episode(policy)
+    });
+    let parsed =
+        commit_direct_required_type_expression_in_current_episode(recovery_context, committed);
+    let popped = committed.probe(|probe| probe.input().local.pop_type_expression_episode());
+    assert_eq!(popped, Some(policy));
+    debug_assert_eq!(
+        committed.probe(|probe| probe.input().local.type_expression_episode_depth()) + 1,
+        episode_depth,
+    );
+    parsed
+}
+
+fn commit_direct_required_type_expression_in_current_episode<'parse, 'source, 'local, E, O>(
+    recovery_context: RequiredTypeRecoveryContext,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedTypeExpression<O::Checkpoint>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     if committed.probe(|probe| direct_type_primary_candidate(probe.input())) {
-        return commit_direct_type_expression(committed)
+        return commit_direct_type_expression_in_current_episode(true, committed)
             .expect("the sink-free type primary probe accepted a primary");
     }
     let malformed_continuation_base = committed
@@ -881,12 +1101,12 @@ where
         Some(malformed_continuation_base),
     ) {
         Some(TypeInvalidRunDisposition::RetryCurrent) => {
-            return commit_direct_type_expression(committed)
+            return commit_direct_type_expression_in_current_episode(true, committed)
                 .expect("the primary recovery retry stopped at a valid primary");
         }
         Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
             consume_direct_recovery_trivia(committed, &trivia);
-            return commit_direct_type_expression(committed)
+            return commit_direct_type_expression_in_current_episode(true, committed)
                 .expect("the primary recovery retry stopped at a valid primary");
         }
         Some(TypeInvalidRunDisposition::BoundaryCurrent) => false,
@@ -921,11 +1141,26 @@ impl<C> ParsedTypeExpression<C> {
 
 #[derive(Clone)]
 enum DirectTypeTail {
-    Path { leading: TriviaRun, separator: Range<usize> },
-    Call { leading: TriviaRun, open: Range<usize> },
-    Apply { boundary: TriviaRun },
-    Arrow { leading: TriviaRun, arrow: Range<usize> },
-    BracketArrow { leading: TriviaRun, open: Range<usize> },
+    Path {
+        leading: TriviaRun,
+        separator: Range<usize>,
+    },
+    Call {
+        leading: TriviaRun,
+        open: Range<usize>,
+    },
+    Apply {
+        boundary: TriviaRun,
+        episode_depth: usize,
+    },
+    Arrow {
+        leading: TriviaRun,
+        arrow: Range<usize>,
+    },
+    BracketArrow {
+        leading: TriviaRun,
+        open: Range<usize>,
+    },
 }
 
 fn recognize_direct_type_tail<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<DirectTypeTail>
@@ -940,7 +1175,7 @@ where
         return None;
     }
     let leading = consume_trivia(i);
-    if (trivia_has_newline(&leading) && active_stop_set(i).contains(StopKind::Newline))
+    if trivia_has_newline(&leading) && type_stop_is_active_in_current_episode(i, StopKind::Newline)
         || is_outer_newline_boundary(i, &leading)
     {
         i.rollback(checkpoint);
@@ -981,8 +1216,21 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    if !leading.is_empty() && type_primary_candidate_in_context(false, i) {
-        return Some(DirectTypeTail::Apply { boundary: leading });
+    if !leading.is_empty() {
+        let episode_depth = i
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+        if type_primary_candidate_in_context(false, i) {
+            return Some(DirectTypeTail::Apply {
+                boundary: leading,
+                episode_depth,
+            });
+        }
+        assert_eq!(
+            i.local.pop_type_expression_episode(),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
     }
     i.rollback(checkpoint);
     None
@@ -1181,7 +1429,7 @@ where
     let trivia = consume_trivia(i);
     // An active newline stop belongs to the caller even if a local close
     // appears after it; the complete gap must remain unconsumed.
-    if trivia_has_newline(&trivia) && active_stop_set(i).contains(StopKind::Newline) {
+    if trivia_has_newline(&trivia) && type_stop_is_active_in_current_episode(i, StopKind::Newline) {
         i.rollback(checkpoint);
         return None;
     }
@@ -1363,7 +1611,9 @@ where
         let trivia_checkpoint = i.checkpoint();
         let trivia = consume_trivia(i);
         if !trivia.is_empty() {
-            if trivia_has_newline(&trivia) && active_stop_set(i).contains(StopKind::Newline) {
+            if trivia_has_newline(&trivia)
+                && type_stop_is_active_in_current_episode(i, StopKind::Newline)
+            {
                 i.rollback(trivia_checkpoint);
                 if end > start {
                     mark_type_malformed_caller_boundary(i);
@@ -1637,8 +1887,12 @@ where
         let checkpoint = i.checkpoint();
         let separator = scan_separator(i);
         let owned = match &separator {
-            Some(TypeExplicitSeparator::Comma(_)) => active_stop_set(i).contains(StopKind::Comma),
-            Some(TypeExplicitSeparator::Semicolon(_)) => active_stop_set(i).contains(StopKind::Semicolon),
+            Some(TypeExplicitSeparator::Comma(_)) => {
+                type_stop_is_active_in_current_episode(i, StopKind::Comma)
+            }
+            Some(TypeExplicitSeparator::Semicolon(_)) => {
+                type_stop_is_active_in_current_episode(i, StopKind::Semicolon)
+            }
             None => false,
         };
         if owned {
@@ -1686,6 +1940,31 @@ fn commit_direct_forall_body<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let episode_depth = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+    });
+    commit_direct_forall_body_in_current_episode(committed);
+    assert_eq!(
+        committed.probe(|probe| probe.input().local.pop_type_expression_episode()),
+        Some(TypeExpressionEpisodePolicy::default()),
+    );
+    debug_assert_eq!(
+        committed.probe(|probe| probe.input().local.type_expression_episode_depth()) + 1,
+        episode_depth,
+    );
+}
+
+fn commit_direct_forall_body_in_current_episode<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let trivia = consume_direct_forall_trivia(committed, false);
     if let Some(trivia) = trivia.as_ref() {
         committed.emit_trivia(trivia);
@@ -1693,13 +1972,17 @@ fn commit_direct_forall_body<'parse, 'source, 'local, E, O>(
         emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
         return;
     }
-    if commit_direct_type_expression(committed).is_none() {
+    if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
         match direct_forall_invalid_run(ForallRecoveryPhase::Body, committed) {
             Some(ForallInvalidRunRecovery { error_range, target: ForallInvalidRecovery::Body, disposition }) => {
                 emit_type_error(committed, TypeRole::ForallBody, error_range, ExpectedSyntax::TypeExpression);
                 consume_direct_forall_recovery_trivia(committed, &disposition);
-                if commit_direct_type_expression(committed).is_none() {
-                    emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
+                if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
+                    emit_type_missing(
+                        committed,
+                        GrammarRole::Type(TypeRole::ForallBody),
+                        ExpectedSyntax::TypeExpression,
+                    );
                 }
             }
             Some(ForallInvalidRunRecovery { error_range, target: ForallInvalidRecovery::Boundary, .. }) => {
@@ -1897,10 +2180,10 @@ where
     i.rollback(checkpoint);
     match punctuation {
         Some(PunctuationKind::Comma) if matches!(phase, ForallRecoveryPhase::FirstBinder) => {
-            active_stop_set(i).contains(StopKind::Comma)
+            type_stop_is_active_in_current_episode(i, StopKind::Comma)
         }
         Some(PunctuationKind::Semicolon) if matches!(phase, ForallRecoveryPhase::FirstBinder) => {
-            active_stop_set(i).contains(StopKind::Semicolon)
+            type_stop_is_active_in_current_episode(i, StopKind::Semicolon)
         }
         _ => type_recovery_boundary_pending(i),
     }
@@ -1986,6 +2269,8 @@ impl TypeDelimitedSpec {
 }
 
 trait TypeDelimitedContext<'source>: TypeCloseSlotContext<'source> {
+    fn begin_item_episode(&mut self) -> usize;
+    fn end_item_episode(&mut self, episode_depth: usize);
     fn emit_trivia(&mut self, trivia: &TriviaRun);
     fn emit_incomplete_item(&mut self, role: TypeRole);
     fn emit_malformed_item(&mut self);
@@ -2029,17 +2314,27 @@ where
     });
     context.with_input(|i| push_layout(layout, i));
 
+    let mut item_episode_depth = None;
     loop {
         if context.with_input(|i| close_delimiter_pending(spec.shape, i)) {
+            if let Some(depth) = item_episode_depth.take() {
+                context.end_item_episode(depth);
+            }
             break;
         }
         if context.with_input(|i| local_mismatched_close_pending(spec.shape, i)) {
+            if let Some(depth) = item_episode_depth.take() {
+                context.end_item_episode(depth);
+            }
             if spec.uses_bracket_row_alignment() {
                 context.emit_incomplete_item(spec.item_role());
             }
             break;
         }
         if context.with_input(separator_pending) {
+            if let Some(depth) = item_episode_depth.take() {
+                context.end_item_episode(depth);
+            }
             context.emit_incomplete_item(spec.item_role());
             let separator = context.with_input(scan_separator)
                 .expect("the separator pending probe accepted a literal separator");
@@ -2048,11 +2343,18 @@ where
             context.emit_trivia(&trailing);
             continue;
         }
+        if item_episode_depth.is_none() {
+            item_episode_depth = Some(context.begin_item_episode());
+        }
+        let episode_depth =
+            item_episode_depth.expect("the item slot owns one TypeExpression episode");
         if !context.parse_item() {
             if spec.uses_bracket_row_alignment() {
                 let Some(recovery) = context
                     .with_input(|i| scan_bracket_row_item_invalid_run(layout, i))
                 else {
+                    context.end_item_episode(episode_depth);
+                    item_episode_depth = None;
                     context.emit_incomplete_item(spec.item_role());
                     break;
                 };
@@ -2060,6 +2362,8 @@ where
                 match recovery.outcome {
                     BracketRowMalformedOutcome::RetryPrimary => continue,
                     BracketRowMalformedOutcome::RetrySeparator => {
+                        context.end_item_episode(episode_depth);
+                        item_episode_depth = None;
                         context.emit_malformed_item();
                         let separator = context.with_input(scan_separator)
                             .expect("BR-RP1 accepted an explicit separator");
@@ -2069,6 +2373,8 @@ where
                         continue;
                     }
                     BracketRowMalformedOutcome::RetryImplicitNewline => {
+                        context.end_item_episode(episode_depth);
+                        item_episode_depth = None;
                         context.emit_malformed_item();
                         let trivia = context.with_input(consume_trivia);
                         debug_assert_eq!(
@@ -2082,8 +2388,14 @@ where
                         continue;
                     }
                     BracketRowMalformedOutcome::MatchingClose
-                    | BracketRowMalformedOutcome::LocalMismatchedClose => break,
+                    | BracketRowMalformedOutcome::LocalMismatchedClose => {
+                        context.end_item_episode(episode_depth);
+                        item_episode_depth = None;
+                        break;
+                    }
                     BracketRowMalformedOutcome::TerminalBoundary => {
+                        context.end_item_episode(episode_depth);
+                        item_episode_depth = None;
                         context.emit_malformed_item();
                         break;
                     }
@@ -2093,7 +2405,10 @@ where
             let Some(TypeInvalidRunRecovery {
                 error_range,
                 disposition,
-            }) = recovered else {
+            }) = recovered
+            else {
+                context.end_item_episode(episode_depth);
+                item_episode_depth = None;
                 context.emit_incomplete_item(spec.item_role());
                 break;
             };
@@ -2141,6 +2456,8 @@ where
             };
             match target {
                 DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => {
+                    context.end_item_episode(episode_depth);
+                    item_episode_depth = None;
                     context.emit_malformed_item();
                     break;
                 }
@@ -2150,6 +2467,8 @@ where
                     continue;
                 }
                 DelimitedRecoveryTarget::ExplicitSeparator(separator) => {
+                    context.end_item_episode(episode_depth);
+                    item_episode_depth = None;
                     context.emit_malformed_item();
                     let trivia = context.with_input(consume_trivia);
                     context.emit_trivia(&trivia);
@@ -2162,18 +2481,25 @@ where
                     continue;
                 }
                 DelimitedRecoveryTarget::ImplicitNewline => {
+                    context.end_item_episode(episode_depth);
+                    item_episode_depth = None;
                     context.emit_malformed_item();
                     let trivia = context.with_input(consume_trivia);
                     context.emit_trivia(&trivia);
                     continue;
                 }
-                DelimitedRecoveryTarget::MatchingClose(_) | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
+                DelimitedRecoveryTarget::MatchingClose(_)
+                | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
+                    context.end_item_episode(episode_depth);
+                    item_episode_depth = None;
                     context.emit_malformed_item();
                     let trivia = context.with_input(consume_trivia);
                     context.emit_trivia(&trivia);
                     break;
                 }
                 DelimitedRecoveryTarget::OuterBoundary => {
+                    context.end_item_episode(episode_depth);
+                    item_episode_depth = None;
                     context.emit_malformed_item();
                     let trivia = context.with_input(consume_type_chain_trivia);
                     if let Some(trivia) = trivia.as_ref() {
@@ -2183,6 +2509,9 @@ where
                 }
             }
         }
+
+        context.end_item_episode(episode_depth);
+        item_episode_depth = None;
 
         if context.with_input(type_malformed_caller_boundary_pending) {
             break;
@@ -2228,6 +2557,8 @@ where
             }
         }
     }
+
+    debug_assert!(item_episode_depth.is_none());
 
     let close = drive_type_close_slot(context, spec.close_spec());
     context.with_input(|i| {
@@ -2350,6 +2681,29 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    fn begin_item_episode(&mut self) -> usize {
+        self.committed.probe(|probe| {
+            probe
+                .input()
+                .local
+                .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+        })
+    }
+
+    fn end_item_episode(&mut self, episode_depth: usize) {
+        assert_eq!(
+            self.committed
+                .probe(|probe| probe.input().local.pop_type_expression_episode()),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        debug_assert_eq!(
+            self.committed
+                .probe(|probe| probe.input().local.type_expression_episode_depth())
+                + 1,
+            episode_depth,
+        );
+    }
+
     fn emit_trivia(&mut self, trivia: &TriviaRun) {
         self.committed.emit_trivia(trivia);
     }
@@ -2379,7 +2733,7 @@ where
     fn set_trailing_separator(&mut self, _separator: TypeExplicitSeparator) {}
 
     fn parse_item(&mut self) -> bool {
-        commit_direct_type_expression(self.committed).is_some()
+        commit_direct_type_expression_in_current_episode(true, self.committed).is_some()
     }
 }
 
@@ -2687,40 +3041,72 @@ where
         }
         type_expected = true;
     }
-    if type_expected && committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+    if type_expected {
+        let episode_depth = committed.probe(|probe| {
+            probe
+                .input()
+                .local
+                .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+        });
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
         emit_type_missing(
             committed,
             GrammarRole::Type(TypeRole::RecordFieldType),
             ExpectedSyntax::TypeExpression,
         );
-    } else if type_expected {
+        } else {
         if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
             committed.emit_trivia(&trivia);
         }
-        if commit_direct_type_expression(committed).is_none() {
+            if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
             match direct_required_type_item_error_retry(
                 committed,
                 TypeRole::RecordFieldType,
                 None,
             ) {
                 Some(TypeInvalidRunDisposition::RetryCurrent) => {
-                    if commit_direct_type_expression(committed).is_none() {
-                        emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
+                        if commit_direct_type_expression_in_current_episode(true, committed)
+                            .is_none()
+                        {
+                            emit_type_missing(
+                                committed,
+                                GrammarRole::Type(TypeRole::RecordFieldType),
+                                ExpectedSyntax::TypeExpression,
+                            );
                     }
                 }
                 Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
                     consume_direct_recovery_trivia(committed, &trivia);
-                    if commit_direct_type_expression(committed).is_none() {
-                        emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
+                        if commit_direct_type_expression_in_current_episode(true, committed)
+                            .is_none()
+                        {
+                            emit_type_missing(
+                                committed,
+                                GrammarRole::Type(TypeRole::RecordFieldType),
+                                ExpectedSyntax::TypeExpression,
+                            );
                     }
                 }
                 Some(TypeInvalidRunDisposition::BoundaryCurrent)
                 | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
                 None => {
-                    emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
+                        emit_type_missing(
+                            committed,
+                            GrammarRole::Type(TypeRole::RecordFieldType),
+                            ExpectedSyntax::TypeExpression,
+                        );
                 }
             }
         }
+    }
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.pop_type_expression_episode()),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        debug_assert_eq!(
+            committed.probe(|probe| probe.input().local.type_expression_episode_depth()) + 1,
+            episode_depth,
+        );
     }
     committed.finish_node();
     true
@@ -2958,7 +3344,7 @@ where
         TypeBoundaryPolicy {
             matching_close: None,
             local_separators: StopSet::default(),
-            locally_owned_stops: StopSet::default(),
+            locally_owned_stops: current_fresh_primary_locally_owned_stops(i),
         },
         i,
     )
@@ -3115,8 +3501,12 @@ where
     let checkpoint = i.checkpoint();
     let separator = scan_separator(i);
     let owned = match &separator {
-        Some(TypeExplicitSeparator::Comma(_)) => active_stop_set(i).contains(StopKind::Comma),
-        Some(TypeExplicitSeparator::Semicolon(_)) => active_stop_set(i).contains(StopKind::Semicolon),
+        Some(TypeExplicitSeparator::Comma(_)) => {
+            type_stop_is_active_in_current_episode(i, StopKind::Comma)
+        }
+        Some(TypeExplicitSeparator::Semicolon(_)) => {
+            type_stop_is_active_in_current_episode(i, StopKind::Semicolon)
+        }
         None => false,
     };
     if separator.is_some() && !owned {
@@ -3133,21 +3523,32 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let episode_depth = i
+        .local
+        .push_type_expression_episode(TypeExpressionEpisodePolicy::default());
     let _ = consume_forall_trivia(i, false);
-    i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
-        .or_else(|| match recover_forall_for_ast(ForallRecoveryPhase::Body, i) {
+    let parsed = parse_type_expression_in_current_episode(true, i)
+        .or_else(
+            || match recover_forall_for_ast(ForallRecoveryPhase::Body, i) {
             Some(ForallInvalidRunRecovery {
                 target: ForallInvalidRecovery::Body,
                 disposition,
                 ..
             }) => {
                 let _ = consume_forall_recovery_trivia(i, &disposition);
-                i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                    parse_type_expression_in_current_episode(true, i)
             }
             _ => None,
-        })
+            },
+        )
         .map(|value| Recovered::Complete(Box::new(value)))
-        .unwrap_or(Recovered::Incomplete)
+        .unwrap_or(Recovered::Incomplete);
+    assert_eq!(
+        i.local.pop_type_expression_episode(),
+        Some(TypeExpressionEpisodePolicy::default()),
+    );
+    debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
+    parsed
 }
 
 fn forall_end(
@@ -3292,20 +3693,26 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let episode_depth = i
+        .local
+        .push_type_expression_episode(TypeExpressionEpisodePolicy::default());
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
-    if !type_chain_trivia(i, &trivia) { i.rollback(checkpoint); }
-    let rhs = if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
+    if !type_chain_trivia(i, &trivia) {
+        i.rollback(checkpoint);
+    }
+    let rhs = if let Some(value) = parse_type_expression_in_current_episode(true, i) {
         Recovered::Complete(Box::new(value))
     } else {
         match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
-            Some(TypeInvalidRunDisposition::RetryCurrent) => i
-                .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+            Some(TypeInvalidRunDisposition::RetryCurrent) => {
+                parse_type_expression_in_current_episode(true, i)
                 .map(|value| Recovered::Complete(Box::new(value)))
-                .unwrap_or(Recovered::Incomplete),
+                    .unwrap_or(Recovered::Incomplete)
+            }
             Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
                 consume_recovery_trivia(i, &trivia);
-                i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                parse_type_expression_in_current_episode(true, i)
                     .map(|value| Recovered::Complete(Box::new(value)))
                     .unwrap_or(Recovered::Incomplete)
             }
@@ -3314,8 +3721,18 @@ where
             | None => Recovered::Incomplete,
         }
     };
-    let start = argument_effect.as_ref().map_or(arrow.start, |row| row.range.start);
-    let end = match &rhs { Recovered::Complete(rhs) => rhs.range.end, Recovered::Incomplete => arrow.end };
+    let start = argument_effect
+        .as_ref()
+        .map_or(arrow.start, |row| row.range.start);
+    let end = match &rhs {
+        Recovered::Complete(rhs) => rhs.range.end,
+        Recovered::Incomplete => arrow.end,
+    };
+    assert_eq!(
+        i.local.pop_type_expression_episode(),
+        Some(TypeExpressionEpisodePolicy::default()),
+    );
+    debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
     TypeArrowTail {
         argument_effect,
         arrow: Recovered::Complete(arrow.clone()),
@@ -3743,18 +4160,22 @@ where
     let type_expr = if !type_expected || any_ambient_owner_claims(i) {
         Recovered::Incomplete
     } else {
+        let episode_depth = i
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default());
         let _ = consume_type_chain_trivia(i);
-        if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
+        let parsed = if let Some(value) = parse_type_expression_in_current_episode(true, i) {
             Recovered::Complete(Box::new(value))
         } else {
             match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
-                Some(TypeInvalidRunDisposition::RetryCurrent) => i
-                    .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                Some(TypeInvalidRunDisposition::RetryCurrent) => {
+                    parse_type_expression_in_current_episode(true, i)
                     .map(|value| Recovered::Complete(Box::new(value)))
-                    .unwrap_or(Recovered::Incomplete),
+                        .unwrap_or(Recovered::Incomplete)
+                }
                 Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
                     consume_recovery_trivia(i, &trivia);
-                    i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                    parse_type_expression_in_current_episode(true, i)
                         .map(|value| Recovered::Complete(Box::new(value)))
                         .unwrap_or(Recovered::Incomplete)
                 }
@@ -3762,7 +4183,13 @@ where
                 | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_))
                 | None => Recovered::Incomplete,
             }
-        }
+        };
+        assert_eq!(
+            i.local.pop_type_expression_episode(),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
+        parsed
     };
     let end = match &type_expr { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => match &colon { Recovered::Complete(colon) => colon.end, Recovered::Incomplete => match &name { Recovered::Complete(name) => name.range().end, Recovered::Incomplete => start } } };
     Some(TypeRecordField { name, colon, type_expr, range: start..end })
@@ -3801,6 +4228,23 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    fn begin_item_episode(&mut self) -> usize {
+        self.i
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+    }
+
+    fn end_item_episode(&mut self, episode_depth: usize) {
+        assert_eq!(
+            self.i.local.pop_type_expression_episode(),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        debug_assert_eq!(
+            self.i.local.type_expression_episode_depth() + 1,
+            episode_depth
+        );
+    }
+
     fn emit_trivia(&mut self, _trivia: &TriviaRun) {}
 
     fn emit_incomplete_item(&mut self, _role: TypeRole) {
@@ -3820,7 +4264,7 @@ where
     }
 
     fn parse_item(&mut self) -> bool {
-        let value = self.i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)));
+        let value = parse_type_expression_in_current_episode(true, self.i);
         if let Some(value) = value {
             self.items.push(Recovered::Complete(value));
             true
@@ -4061,9 +4505,15 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         return None;
     };
     let owned_by_outer = match punctuation.kind() {
-        PunctuationKind::Close(Delimiter::Parenthesis) => active_stop_set(i).contains(StopKind::RightParenthesis),
-        PunctuationKind::Close(Delimiter::Bracket) => active_stop_set(i).contains(StopKind::RightBracket),
-        PunctuationKind::Close(Delimiter::Brace) => active_stop_set(i).contains(StopKind::RightBrace),
+        PunctuationKind::Close(Delimiter::Parenthesis) => {
+            type_stop_is_active_in_current_episode(i, StopKind::RightParenthesis)
+        }
+        PunctuationKind::Close(Delimiter::Bracket) => {
+            type_stop_is_active_in_current_episode(i, StopKind::RightBracket)
+        }
+        PunctuationKind::Close(Delimiter::Brace) => {
+            type_stop_is_active_in_current_episode(i, StopKind::RightBrace)
+        }
         _ => false,
     };
     if matches!(punctuation.kind(), PunctuationKind::Close(found) if found != delimiter) && !owned_by_outer {
@@ -4290,8 +4740,8 @@ where
 
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
-    let pending = trivia_has_newline(&trivia)
-        && active_stop_set(i).contains(StopKind::Newline);
+    let pending =
+        trivia_has_newline(&trivia) && type_stop_is_active_in_current_episode(i, StopKind::Newline);
     i.rollback(checkpoint);
     debug_assert!(
         pending,
@@ -4340,7 +4790,7 @@ where
 {
     if !trivia_has_newline(trivia) {
         TypeMalformedTriviaClassification::NoNewline
-    } else if active_stop_set(i).contains(StopKind::Newline) {
+    } else if type_stop_is_active_in_current_episode(i, StopKind::Newline) {
         TypeMalformedTriviaClassification::CallerBoundary
     } else {
         match policy {
@@ -4919,7 +5369,7 @@ where
             TypeBoundaryPolicy {
                 matching_close: None,
                 local_separators: StopSet::default(),
-                locally_owned_stops: StopSet::default(),
+                locally_owned_stops: current_fresh_primary_locally_owned_stops(i),
             },
             i,
         ),
@@ -4957,7 +5407,7 @@ where
         return Some(TypeBoundary::Eof);
     }
     if matches!(i.input.remainder().chars().next(), Some('\n' | '\r')) {
-        if active_stop_set(i).contains(StopKind::Newline)
+        if type_stop_is_active_in_current_episode(i, StopKind::Newline)
             && !policy.locally_owned_stops.contains(StopKind::Newline)
         {
             return Some(TypeBoundary::ActiveStop(StopKind::Newline));
@@ -4974,7 +5424,9 @@ where
         }
         Some(PunctuationKind::Close(delimiter)) => {
             let stop = close_stop_kind(delimiter);
-            if active_stop_set(i).contains(stop) && !policy.locally_owned_stops.contains(stop) {
+            if type_stop_is_active_in_current_episode(i, stop)
+                && !policy.locally_owned_stops.contains(stop)
+            {
                 return Some(TypeBoundary::OuterOwnedClose);
             }
         }
@@ -4987,11 +5439,14 @@ where
         _ => {}
     }
 
-    let active = active_stop_set(i).difference(policy.locally_owned_stops);
     StopKind::ALL
         .iter()
         .copied()
-        .find(|stop| active.contains(*stop) && stop_kind_pending(*stop, i))
+        .find(|stop| {
+            !policy.locally_owned_stops.contains(*stop)
+                && type_stop_is_active_in_current_episode(i, *stop)
+                && stop_kind_pending(*stop, i)
+        })
         .map(TypeBoundary::ActiveStop)
 }
 
@@ -5265,16 +5720,97 @@ where E: ErrorSink<usize> {
     trivia_has_newline(trivia) && i.local.line().line_indent > continuation_base
 }
 
-fn type_chain_trivia<E>(i: &SynIn<E>, trivia: &TriviaRun) -> bool where E: ErrorSink<usize> {
-    !trivia_has_newline(trivia) || continues_after_newline(i, trivia, active_type_continuation_base(i))
+fn type_chain_trivia<E>(i: &SynIn<E>, trivia: &TriviaRun) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    !trivia_has_newline(trivia)
+        || continues_after_newline(i, trivia, active_type_continuation_base(i))
 }
-fn is_outer_newline_boundary<E>(i: &SynIn<E>, trivia: &TriviaRun) -> bool where E: ErrorSink<usize> { trivia_has_newline(trivia) && !type_chain_trivia(i, trivia) }
-fn trivia_has_newline(trivia: &TriviaRun) -> bool { trivia.parts().iter().any(|part| matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline)) }
-fn active_stop_set<E>(i: &SynIn<E>) -> StopSet where E: ErrorSink<usize> { i.local.stop_set().unwrap_or_default() }
-fn push_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { i.local.push_indentation_baseline(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }); }
-fn pop_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { assert_eq!(i.local.pop_indentation_baseline(), Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer })); }
-fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone(), TypePrimary::Forall(forall) => forall.range.clone(), TypePrimary::EffectRow(row) => row.range.clone(), TypePrimary::PolymorphicVariant(variant) => variant.range.clone() } }
-fn postfix_range_end(tail: &TypePostfixTail<'_>) -> usize { match tail { TypePostfixTail::Path(tail) => tail.range.end, TypePostfixTail::Call(tail) => tail.range.end, TypePostfixTail::Apply(tail) => tail.range.end } }
+fn is_outer_newline_boundary<E>(i: &SynIn<E>, trivia: &TriviaRun) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    trivia_has_newline(trivia) && !type_chain_trivia(i, trivia)
+}
+fn trivia_has_newline(trivia: &TriviaRun) -> bool {
+    trivia
+        .parts()
+        .iter()
+        .any(|part| matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline))
+}
+fn active_stop_set<E>(i: &SynIn<E>) -> StopSet
+where
+    E: ErrorSink<usize>,
+{
+    i.local.stop_set().unwrap_or_default()
+}
+
+fn current_fresh_primary_locally_owned_stops<E>(i: &SynIn<E>) -> StopSet
+where
+    E: ErrorSink<usize>,
+{
+    i.local
+        .type_expression_episode_policy()
+        .map_or_else(StopSet::default, |policy| policy.fresh_primary_locally_owned_stops)
+}
+
+/// The single TypeExpression-side stop ownership query. Scoped ownership is
+/// visible only in the logical episode captured by the innermost matching
+/// frame; ordinary stops retain their raw StopSet behavior.
+pub(crate) fn type_stop_is_active_in_current_episode<E>(i: &SynIn<E>, stop: StopKind) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    if !active_stop_set(i).contains(stop) {
+        return false;
+    }
+    i.local
+        .type_expression_scoped_stop_frames()
+        .find(|frame| frame.stops.contains(stop))
+        .is_none_or(|frame| frame.visible_episode_depth == i.local.type_expression_episode_depth())
+}
+fn push_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    i.local.push_indentation_baseline(IndentationBaseline {
+        column: layout.base_indent(),
+        kind: IndentationBaselineKind::Introducer,
+    });
+}
+fn pop_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    assert_eq!(
+        i.local.pop_indentation_baseline(),
+        Some(IndentationBaseline {
+            column: layout.base_indent(),
+            kind: IndentationBaselineKind::Introducer
+        })
+    );
+}
+fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> {
+    match primary {
+        TypePrimary::Atom(atom) => match atom {
+            TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(),
+            TypeAtom::Number(number) => number.range.clone(),
+        },
+        TypePrimary::Parenthesized(group) => group.range.clone(),
+        TypePrimary::Record(record) => record.range.clone(),
+        TypePrimary::Forall(forall) => forall.range.clone(),
+        TypePrimary::EffectRow(row) => row.range.clone(),
+        TypePrimary::PolymorphicVariant(variant) => variant.range.clone(),
+    }
+}
+fn postfix_range_end(tail: &TypePostfixTail<'_>) -> usize {
+    match tail {
+        TypePostfixTail::Path(tail) => tail.range.end,
+        TypePostfixTail::Call(tail) => tail.range.end,
+        TypePostfixTail::Apply(tail) => tail.range.end,
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5284,7 +5820,10 @@ mod tests {
     use crate::{
         SyntaxNode,
         input::SourceInput,
-        session::{FullCstOutput, GrammarRole, ParseLocal, PunctuationEvidence, StopKind, StopSet, TypeRole},
+        session::{
+            FullCstOutput, GrammarRole, ParseLocal, PunctuationEvidence, StopKind, StopSet,
+            TypeExpressionScopedStopFrame, TypeRole,
+        },
     };
 
     fn parse<'source>(source: &'source str) -> TypeExpression<'source> {
@@ -5302,6 +5841,9 @@ mod tests {
         assert!(value.is_some(), "type expression AST for {source:?}; remainder={:?}", i.input.remainder());
         let value = value.expect("asserted above");
         assert_eq!(i.input.remainder(), "", "complete type source");
+        assert_eq!(i.local.type_expression_episode_depth(), 0);
+        assert_eq!(i.local.type_expression_episode_policy(), None);
+        assert_eq!(i.local.type_expression_scoped_stop_frames().count(), 0);
         value
     }
 
@@ -5489,10 +6031,84 @@ mod tests {
         let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         commit_direct_type_expression(&mut committed).expect("direct type expression");
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.type_expression_episode_depth()),
+            0,
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.type_expression_episode_policy()),
+            None,
+        );
         let remainder = committed.probe(|probe| probe.input().input.remainder());
         assert_eq!(remainder, "", "complete direct type source");
         committed.finish_node();
         SyntaxNode::new_root(committed.into_output().finish_complete())
+    }
+
+    #[test]
+    fn type_expression_episode_depth_and_scoped_stop_query_are_balanced_and_depth_aware() {
+        let mut source_input = SourceInput::new("");
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(StopKind::Semicolon));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        assert!(type_stop_is_active_in_current_episode(
+            &i,
+            StopKind::Semicolon
+        ));
+        let outer = i
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+        i.local
+            .push_type_expression_scoped_stop_frame(TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: outer,
+            });
+        assert!(type_stop_is_active_in_current_episode(
+            &i,
+            StopKind::Semicolon
+        ));
+
+        let nested = i
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+        assert!(!type_stop_is_active_in_current_episode(
+            &i,
+            StopKind::Semicolon
+        ));
+        assert_eq!(
+            i.local.pop_type_expression_episode(),
+            Some(TypeExpressionEpisodePolicy::default())
+        );
+        assert_eq!(i.local.type_expression_episode_depth() + 1, nested);
+        assert!(type_stop_is_active_in_current_episode(
+            &i,
+            StopKind::Semicolon
+        ));
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: outer,
+            }),
+        );
+        assert_eq!(
+            i.local.pop_type_expression_episode(),
+            Some(TypeExpressionEpisodePolicy::default())
+        );
+        assert_eq!(i.local.type_expression_episode_depth(), 0);
+
+        for source in ["A -> B -> C", "for 'a: F 'a", "(A, '[e], [f] T)"] {
+            assert_eq!(parse_direct(source).to_string(), source);
+            assert_eq!(parse(source).range(), 0..source.len());
+        }
     }
 
     fn parse_direct_with_outer_stop(source: &str, stop: StopKind) -> SyntaxNode {

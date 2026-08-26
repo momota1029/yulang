@@ -9,7 +9,10 @@ use super::*;
 pub(super) enum TagPosition {
     Optional,
     AfterTag,
-    Required { filled: bool, last_comma: Option<Range<usize>> },
+    Required {
+        filled: bool,
+        last_comma: Option<Range<usize>>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -86,10 +89,7 @@ fn transition(position: &TagPosition, boundary: TagBoundary) -> TagTransition {
         },
         TagBoundary::Owner => TagTransition {
             next: position.clone(),
-            emit_missing: matches!(
-                position,
-                TagPosition::Required { filled: false, .. }
-            ),
+            emit_missing: matches!(position, TagPosition::Required { filled: false, .. }),
             trailing_comma: None,
         },
     }
@@ -97,7 +97,10 @@ fn transition(position: &TagPosition, boundary: TagBoundary) -> TagTransition {
 
 enum PayloadJudge {
     Outer,
-    Candidate { boundary_start: usize, trivia: TriviaRun },
+    Candidate {
+        boundary_start: usize,
+        trivia: TriviaRun,
+    },
     Malformed {
         boundary_start: usize,
         trivia: TriviaRun,
@@ -116,10 +119,10 @@ enum PayloadIssue {
 trait VariantContext<'source> {
     type Error: ErrorSink<usize>;
 
-    fn with_input<R>(
-        &mut self,
-        f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
-    ) -> R;
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R)
+    -> R;
+    fn begin_type_expression_episode(&mut self) -> usize;
+    fn end_type_expression_episode(&mut self, episode_depth: usize);
     fn emit_trivia(&mut self, trivia: &TriviaRun);
     fn emit_missing_tag(&mut self);
     fn emit_comma(&mut self, comma: Range<usize>);
@@ -208,7 +211,9 @@ where
         open,
         tags: context.tags,
         trailing_comma: context.trailing_comma,
-        close: context.close.map_or(Recovered::Incomplete, Recovered::Complete),
+        close: context
+            .close
+            .map_or(Recovered::Incomplete, Recovered::Complete),
         range: start..end,
     }
 }
@@ -242,7 +247,9 @@ where
     UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
 {
     let incoming = context.with_input(|i| {
-        i.local.indentation_baseline().map_or(0, |baseline| baseline.column)
+        i.local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
     });
     let stops = context.with_input(|i| {
         let stops = active_stop_set(i)
@@ -257,21 +264,13 @@ where
     let opening = context.with_input(consume_trivia);
     context.emit_trivia(&opening);
     let layout = context.with_input(|i| {
-        LayoutDelimitedFrame::after_opening_trivia(
-            incoming,
-            &opening,
-            i.local.line().line_indent,
-        )
+        LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent)
     });
     context.with_input(|i| push_layout(layout, i));
     (layout, stops)
 }
 
-fn leave_variant<'source, C>(
-    context: &mut C,
-    layout: LayoutDelimitedFrame,
-    stops: StopSet,
-)
+fn leave_variant<'source, C>(context: &mut C, layout: LayoutDelimitedFrame, stops: StopSet)
 where
     C: VariantContext<'source>,
 {
@@ -307,7 +306,9 @@ where
             closed = true;
             break;
         }
-        if let Some(mismatched) = context.with_input(|i| scan_mismatched_close_for(Delimiter::Brace, i)) {
+        if let Some(mismatched) =
+            context.with_input(|i| scan_mismatched_close_for(Delimiter::Brace, i))
+        {
             context.emit_close_error(mismatched);
             origin = TagJudgeOrigin::ContinuationOrRecovery;
             continue;
@@ -325,9 +326,8 @@ where
             continue;
         }
         if context.with_input(exact_semicolon_pending) {
-            let caller_owns = context.with_input(|i| {
-                active_stop_set(i).contains(StopKind::Semicolon)
-            });
+            let caller_owns = context
+                .with_input(|i| type_stop_is_active_in_current_episode(i, StopKind::Semicolon));
             if caller_owns {
                 apply_owner_transition(&position, context);
                 break;
@@ -395,7 +395,8 @@ where
             context.begin_tag(Some(range));
             let ambient_retry = context.with_input(any_ambient_owner_claims);
             if !ambient_retry
-                && let Some(primary) = context.with_input(|i| parse_type_primary_in_context(true, i))
+                && let Some(primary) =
+                    context.with_input(|i| parse_type_primary_in_context(true, i))
             {
                 context.accept_tag_head(primary);
                 drive_payloads(context);
@@ -433,9 +434,16 @@ where
     UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
 {
     loop {
+        let episode_depth = context.begin_type_expression_episode();
         match context.with_input(inspect_payload) {
-            PayloadJudge::Outer | PayloadJudge::None => break,
-            PayloadJudge::Candidate { boundary_start, trivia } => {
+            PayloadJudge::Outer | PayloadJudge::None => {
+                context.end_type_expression_episode(episode_depth);
+                break;
+            }
+            PayloadJudge::Candidate {
+                boundary_start,
+                trivia,
+            } => {
                 let consumed = context.with_input(consume_trivia);
                 debug_assert_eq!(consumed.range(), trivia.range());
                 let boundary = if trivia.is_empty() {
@@ -446,6 +454,7 @@ where
                 context.begin_payload(boundary, &consumed, None);
                 assert!(context.consume_payload_type());
                 context.finish_payload();
+                context.end_type_expression_episode(episode_depth);
             }
             PayloadJudge::Malformed {
                 boundary_start,
@@ -472,6 +481,7 @@ where
                     assert!(context.consume_payload_type());
                 }
                 context.finish_payload();
+                context.end_type_expression_episode(episode_depth);
                 if !retry {
                     break;
                 }
@@ -495,7 +505,10 @@ where
     let judge = if trivia_has_newline(&trivia) || payload_outer_boundary(i) {
         PayloadJudge::Outer
     } else if type_primary_candidate(i) {
-        PayloadJudge::Candidate { boundary_start, trivia }
+        PayloadJudge::Candidate {
+            boundary_start,
+            trivia,
+        }
     } else if let Some(range) = consume_invalid_run(i) {
         let retry = type_primary_candidate(i);
         let ambient_retry = retry && any_ambient_owner_claims(i);
@@ -544,7 +557,7 @@ where
         // type slot happens to carry `StopKind::Newline`.  A matching local
         // close remains different: that whole newline gap belongs to the
         // caller's close recovery and must stay intact.
-        let caller_owns_local_close = active_stop_set(i).contains(StopKind::Newline)
+        let caller_owns_local_close = type_stop_is_active_in_current_episode(i, StopKind::Newline)
             && scan_close_brace(i).is_some();
         if !caller_owns_local_close
             && layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
@@ -585,12 +598,10 @@ where
         TagJudgeOrigin::FreshLocalHead {
             companion_spelling_is_local: true,
         }
-    )
-        && matches!(
+    ) && matches!(
             boundary,
             Some(TypeBoundary::ActiveStop(StopKind::Elsif | StopKind::Else))
-        )
-        && any_ambient_owner_claims(i)
+    ) && any_ambient_owner_claims(i)
     {
         return false;
     }
@@ -709,12 +720,26 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    fn begin_type_expression_episode(&mut self) -> usize {
+        self.i
+            .local
+            .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+    }
+
+    fn end_type_expression_episode(&mut self, episode_depth: usize) {
+        assert_eq!(
+            self.i.local.pop_type_expression_episode(),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        debug_assert_eq!(
+            self.i.local.type_expression_episode_depth() + 1,
+            episode_depth
+        );
+    }
+
     type Error = E;
 
-    fn with_input<R>(
-        &mut self,
-        f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R,
-    ) -> R {
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R) -> R {
         f(self.i)
     }
 
@@ -752,7 +777,10 @@ where
 
     fn accept_tag_head(&mut self, primary: TypePrimary<'source>) {
         let range = primary_range(&primary);
-        let tag = self.current_tag.as_mut().expect("tag head requires an open tag");
+        let tag = self
+            .current_tag
+            .as_mut()
+            .expect("tag head requires an open tag");
         if tag.start == tag.head_end {
             tag.start = range.start;
         }
@@ -768,10 +796,14 @@ where
             self.tags.push(Recovered::Incomplete);
             return;
         }
-        let end = tag.payloads.last().and_then(|payload| match payload {
+        let end = tag
+            .payloads
+            .last()
+            .and_then(|payload| match payload {
             Recovered::Complete(payload) => Some(payload.range.end),
             Recovered::Incomplete => None,
-        }).unwrap_or(tag.head_end);
+            })
+            .unwrap_or(tag.head_end);
         self.tags.push(Recovered::Complete(PolymorphicVariantTag {
             name: tag.name,
             payloads: tag.payloads,
@@ -807,7 +839,7 @@ where
     fn consume_payload_type(&mut self) -> bool {
         let saved = self.i.local.type_ml_arg();
         self.i.local.set_type_ml_arg(true);
-        let value = self.i.run(from_fn(|i| parse_type_expression_in_context(false, i)));
+        let value = parse_type_expression_in_current_episode(false, self.i);
         self.i.local.set_type_ml_arg(saved);
         if let Some(value) = value {
             self.current_payload
@@ -821,7 +853,10 @@ where
     }
 
     fn finish_payload(&mut self) {
-        let payload = self.current_payload.take().expect("finishing an unopened payload");
+        let payload = self
+            .current_payload
+            .take()
+            .expect("finishing an unopened payload");
         let end = match &payload.type_expr {
             Recovered::Complete(type_expr) => type_expr.range.end,
             Recovered::Incomplete => payload.fallback_end,
@@ -849,20 +884,34 @@ struct DirectContext<
     committed: &'context mut Committed<'parse, 'source, 'local, E, O>,
 }
 
-impl<'source, E, O> VariantContext<'source>
-    for DirectContext<'_, '_, 'source, '_, E, O>
+impl<'source, E, O> VariantContext<'source> for DirectContext<'_, '_, 'source, '_, E, O>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    fn begin_type_expression_episode(&mut self) -> usize {
+        self.with_input(|i| {
+            i.local
+                .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
+        })
+    }
+
+    fn end_type_expression_episode(&mut self, episode_depth: usize) {
+        assert_eq!(
+            self.with_input(|i| i.local.pop_type_expression_episode()),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        debug_assert_eq!(
+            self.with_input(|i| i.local.type_expression_episode_depth()) + 1,
+            episode_depth,
+        );
+    }
+
     type Error = E;
 
-    fn with_input<R>(
-        &mut self,
-        f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R,
-    ) -> R {
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R) -> R {
         self.committed.probe(|probe| f(probe.input()))
     }
 
@@ -958,7 +1007,8 @@ where
         trivia: &TriviaRun,
         issue: Option<PayloadIssue>,
     ) {
-        self.committed.start_node(SyntaxKind::PolymorphicVariantPayload);
+        self.committed
+            .start_node(SyntaxKind::PolymorphicVariantPayload);
         match issue {
             Some(PayloadIssue::Boundary(range)) => emit_type_error(
                 self.committed,
@@ -989,7 +1039,8 @@ where
     fn consume_payload_type(&mut self) -> bool {
         let saved = self.with_input(|i| i.local.type_ml_arg());
         self.with_input(|i| i.local.set_type_ml_arg(true));
-        let parsed = commit_direct_type_expression_in_context(false, self.committed).is_some();
+        let parsed =
+            commit_direct_type_expression_in_current_episode(false, self.committed).is_some();
         self.with_input(|i| i.local.set_type_ml_arg(saved));
         parsed
     }
@@ -1046,9 +1097,7 @@ mod tests {
         drop(i);
         assert_eq!(local.pop_stop_set(), Some(stops));
         assert_eq!(
-            local
-                .pop_if_expression_companion()
-                .map(|frame| frame.id()),
+            local.pop_if_expression_companion().map(|frame| frame.id()),
             Some(companion),
         );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
@@ -1094,7 +1143,9 @@ mod tests {
             "direct {source:?}: {recoveries:#?}",
         );
         assert!(
-            !recoveries.iter().any(|record| record.kind == RecoveryKind::Missing
+            !recoveries
+                .iter()
+                .any(|record| record.kind == RecoveryKind::Missing
                 && matches!(
                     record.site.role,
                     GrammarRole::Type(
@@ -1108,9 +1159,7 @@ mod tests {
         drop(output);
         assert_eq!(local.pop_stop_set(), Some(stops));
         assert_eq!(
-            local
-                .pop_if_expression_companion()
-                .map(|frame| frame.id()),
+            local.pop_if_expression_companion().map(|frame| frame.id()),
             Some(companion),
         );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
@@ -1269,7 +1318,10 @@ mod tests {
             (StopKind::Arrow, "->", &["->>", "->="][..]),
         ] {
             let active = StopSet::default().with(stop);
-            assert_eq!(boundary(exact, active), Some(TypeBoundary::ActiveStop(stop)));
+            assert_eq!(
+                boundary(exact, active),
+                Some(TypeBoundary::ActiveStop(stop))
+            );
             for longer in longer_spellings {
                 assert_ne!(
                     boundary(longer, active),
@@ -1358,17 +1410,13 @@ mod tests {
     #[test]
     fn it3_same_line_payload_candidate_defers_to_the_live_if_companion() {
         assert_variant_defers_live_companion(":{A else: 0", " else: 0");
-        assert_nested_variant_preserves_else_arm(
-            "if condition:\n  struct S { field: :{A else: 0",
-        );
+        assert_nested_variant_preserves_else_arm("if condition:\n  struct S { field: :{A else: 0");
     }
 
     #[test]
     fn nt5_newline_tag_candidate_defers_to_the_live_if_companion() {
         assert_variant_defers_live_companion(":{A\nelse: 0", "\nelse: 0");
-        assert_nested_variant_preserves_else_arm(
-            "if condition:\n  struct S { field: :{A\nelse: 0",
-        );
+        assert_nested_variant_preserves_else_arm("if condition:\n  struct S { field: :{A\nelse: 0");
     }
 
     #[test]
@@ -1406,9 +1454,7 @@ mod tests {
         drop(i);
         assert_eq!(local.pop_stop_set(), Some(stops));
         assert_eq!(
-            local
-                .pop_if_expression_companion()
-                .map(|frame| frame.id()),
+            local.pop_if_expression_companion().map(|frame| frame.id()),
             Some(companion),
         );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
@@ -1429,19 +1475,17 @@ mod tests {
         let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         commit_direct_type_expression(&mut committed).expect("direct complete polymorphic variant");
-        assert_eq!(
-            committed.probe(|probe| probe.input().input.remainder()),
-            "",
-        );
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "",);
         committed.finish_node();
         let output = committed.into_output();
         assert!(output.committed_recoveries().is_empty());
-        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+        assert_eq!(
+            SyntaxNode::new_root(output.finish_complete()).to_string(),
+            source
+        );
         assert_eq!(local.pop_stop_set(), Some(stops));
         assert_eq!(
-            local
-                .pop_if_expression_companion()
-                .map(|frame| frame.id()),
+            local.pop_if_expression_companion().map(|frame| frame.id()),
             Some(companion),
         );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));

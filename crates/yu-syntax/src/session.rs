@@ -262,6 +262,9 @@ pub(crate) struct ParseLocal {
     inline: bool,
     ml_arg: bool,
     type_ml_arg: bool,
+    type_expression_episode_depth: usize,
+    type_expression_episode_policies: RollbackStack<TypeExpressionEpisodePolicy>,
+    type_expression_scoped_stop_frames: RollbackStack<TypeExpressionScopedStopFrame>,
     stop_sets: RollbackStack<StopSet>,
     delimiters: RollbackStack<Delimiter>,
     expression_delimited_owners: RollbackStack<ExpressionDelimitedOwner>,
@@ -286,6 +289,9 @@ impl ParseLocal {
             inline: false,
             ml_arg: false,
             type_ml_arg: false,
+            type_expression_episode_depth: 0,
+            type_expression_episode_policies: RollbackStack::new(),
+            type_expression_scoped_stop_frames: RollbackStack::new(),
             stop_sets: RollbackStack::new(),
             delimiters: RollbackStack::new(),
             expression_delimited_owners: RollbackStack::new(),
@@ -323,6 +329,11 @@ impl ParseLocal {
             inline: self.inline,
             ml_arg: self.ml_arg,
             type_ml_arg: self.type_ml_arg,
+            type_expression_episode_depth: self.type_expression_episode_depth,
+            type_expression_episode_policies: self.type_expression_episode_policies.checkpoint(),
+            type_expression_scoped_stop_frames: self
+                .type_expression_scoped_stop_frames
+                .checkpoint(),
             stop_sets: self.stop_sets.checkpoint(),
             delimiters: self.delimiters.checkpoint(),
             expression_delimited_owners: self.expression_delimited_owners.checkpoint(),
@@ -346,6 +357,11 @@ impl ParseLocal {
         self.inline = checkpoint.inline;
         self.ml_arg = checkpoint.ml_arg;
         self.type_ml_arg = checkpoint.type_ml_arg;
+        self.type_expression_episode_depth = checkpoint.type_expression_episode_depth;
+        self.type_expression_episode_policies
+            .rollback(checkpoint.type_expression_episode_policies);
+        self.type_expression_scoped_stop_frames
+            .rollback(checkpoint.type_expression_scoped_stop_frames);
         self.stop_sets.rollback(checkpoint.stop_sets);
         self.delimiters.rollback(checkpoint.delimiters);
         self.expression_delimited_owners
@@ -423,6 +439,54 @@ impl ParseLocal {
 
     pub(crate) fn type_ml_arg(&self) -> bool {
         self.type_ml_arg
+    }
+
+    pub(crate) fn push_type_expression_episode(
+        &mut self,
+        policy: TypeExpressionEpisodePolicy,
+    ) -> usize {
+        self.type_expression_episode_depth += 1;
+        self.type_expression_episode_policies.push(policy);
+        self.type_expression_episode_depth
+    }
+
+    pub(crate) fn pop_type_expression_episode(&mut self) -> Option<TypeExpressionEpisodePolicy> {
+        let policy = self.type_expression_episode_policies.pop()?;
+        self.type_expression_episode_depth = self
+            .type_expression_episode_depth
+            .checked_sub(1)
+            .expect("a TypeExpression episode policy requires a matching depth");
+        Some(policy)
+    }
+
+    pub(crate) fn type_expression_episode_depth(&self) -> usize {
+        self.type_expression_episode_depth
+    }
+
+    pub(crate) fn type_expression_episode_policy(&self) -> Option<TypeExpressionEpisodePolicy> {
+        self.type_expression_episode_policies.last().copied()
+    }
+
+    pub(crate) fn push_type_expression_scoped_stop_frame(
+        &mut self,
+        frame: TypeExpressionScopedStopFrame,
+    ) {
+        self.type_expression_scoped_stop_frames.push(frame);
+    }
+
+    pub(crate) fn pop_type_expression_scoped_stop_frame(
+        &mut self,
+    ) -> Option<TypeExpressionScopedStopFrame> {
+        self.type_expression_scoped_stop_frames.pop()
+    }
+
+    pub(crate) fn type_expression_scoped_stop_frames(
+        &self,
+    ) -> impl Iterator<Item = &TypeExpressionScopedStopFrame> {
+        self.type_expression_scoped_stop_frames
+            .values()
+            .iter()
+            .rev()
     }
 
     pub(crate) fn push_stop_set(&mut self, stop_set: StopSet) {
@@ -747,6 +811,9 @@ pub(crate) struct ParseLocalCheckpoint {
     inline: bool,
     ml_arg: bool,
     type_ml_arg: bool,
+    type_expression_episode_depth: usize,
+    type_expression_episode_policies: StackCheckpoint,
+    type_expression_scoped_stop_frames: StackCheckpoint,
     stop_sets: StackCheckpoint,
     delimiters: StackCheckpoint,
     expression_delimited_owners: StackCheckpoint,
@@ -811,6 +878,22 @@ impl StopSet {
     pub(crate) fn difference(self, other: Self) -> Self {
         Self(self.0 & !other.0)
     }
+}
+
+/// A stop set whose ownership is visible only in one logical TypeExpression
+/// episode. Nested recursive TypeExpressions retain the raw stop bits but do
+/// not inherit the caller's ownership decision.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TypeExpressionScopedStopFrame {
+    pub(crate) stops: StopSet,
+    pub(crate) visible_episode_depth: usize,
+}
+
+/// Candidate policy shared by the probe, parser, recovery scanner, and retry
+/// that make up one logical TypeExpression slot.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct TypeExpressionEpisodePolicy {
+    pub(crate) fresh_primary_locally_owned_stops: StopSet,
 }
 
 macro_rules! define_stop_kinds {
@@ -1849,6 +1932,12 @@ mod tests {
         local.push_stop_set(StopSet::default().with(StopKind::Newline));
         local.push_delimiter(Delimiter::Parenthesis);
         local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+        let initial_type_episode =
+            local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+        local.push_type_expression_scoped_stop_frame(TypeExpressionScopedStopFrame {
+            stops: StopSet::default().with(StopKind::Semicolon),
+            visible_episode_depth: initial_type_episode,
+        });
         local.push_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: 1 });
         let initial_if = local.push_if_expression_companion(0, IF_WORDS);
         local.push_root_statement_ambient_scope();
@@ -1884,6 +1973,13 @@ mod tests {
             Some(ExpressionDelimitedOwner::Call)
         );
         local.push_expression_delimited_owner(ExpressionDelimitedOwner::Index);
+        local.push_type_expression_episode(TypeExpressionEpisodePolicy {
+            fresh_primary_locally_owned_stops: StopSet::default().with(StopKind::Comma),
+        });
+        local.push_type_expression_scoped_stop_frame(TypeExpressionScopedStopFrame {
+            stops: StopSet::default().with(StopKind::Comma),
+            visible_episode_depth: local.type_expression_episode_depth(),
+        });
         local.replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 2 });
         local.push_lexical_mode(EmbeddedLexicalMode::Heredoc { quote_count: 3 });
         let speculative_if = local.push_if_expression_companion(6, IF_WORDS);
@@ -1922,6 +2018,21 @@ mod tests {
         assert_eq!(
             local.expression_delimited_owner(),
             Some(ExpressionDelimitedOwner::Call)
+        );
+        assert_eq!(local.type_expression_episode_depth(), initial_type_episode);
+        assert_eq!(
+            local.type_expression_episode_policy(),
+            Some(TypeExpressionEpisodePolicy::default()),
+        );
+        assert_eq!(
+            local
+                .type_expression_scoped_stop_frames()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: initial_type_episode,
+            }],
         );
         assert_eq!(
             local.lexical_mode(),
