@@ -51,6 +51,13 @@ enum PatternPrecedence {
     Alias = 3,
 }
 
+/// Additional caller-owned boundaries for one mandatory Pattern slot's fresh
+/// primary recovery only.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct PatternMandatorySlotPolicy {
+    pub(crate) fresh_primary_recovery_stops: StopSet,
+}
+
 /// The two pattern primaries with the same comma-delimited container contract.
 ///
 /// This stays a closed policy rather than becoming a generic public AST: the
@@ -389,6 +396,24 @@ where
     parse_pattern_bp(table, i, PatternPrecedence::Lowest)
 }
 
+/// Mandatory AST entry whose policy applies only before its first Pattern NUD.
+pub(crate) fn parse_required_pattern_with_outer_missing_role_and_policy<'source, E>(
+    table: &OperatorTable,
+    _outer_missing_role: Option<GrammarRole>,
+    policy: PatternMandatorySlotPolicy,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<Pattern<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    match parse_pattern_bp_with_fresh_primary_policy(table, i, PatternPrecedence::Lowest, policy) {
+        Some(pattern) if matches!(pattern.head, Recovered::Complete(_)) => Recovered::Complete(Box::new(pattern)),
+        Some(_) | None => Recovered::Incomplete,
+    }
+}
+
 /// Direct-CST counterpart of [`parse_pattern`].  `leading` is currently
 /// retained only for the shared entrypoint shape: patterns do not use it for
 /// fixed NUD recognition.
@@ -430,6 +455,25 @@ where
     )
 }
 
+/// Direct-CST counterpart of
+/// [`parse_required_pattern_with_outer_missing_role_and_policy`].
+pub(crate) fn commit_direct_pattern_with_outer_missing_role_and_policy<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    _leading: LeadingTrivia,
+    outer_missing_role: Option<GrammarRole>,
+    policy: PatternMandatorySlotPolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedPattern<O::Checkpoint>
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_direct_pattern_bp_with_fresh_primary_policy(
+        table, PatternPrecedence::Lowest, PatternRole::Primary,
+        outer_missing_role.unwrap_or_else(|| pattern_role(PatternRole::Primary)),
+        policy, committed,
+    ).expect("a required Pattern slot is total after recovery")
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ParsedPattern<C> {
     range: Range<usize>,
@@ -450,8 +494,24 @@ impl<C> ParsedPattern<C> {
 
 fn parse_pattern_bp<'source, E>(
     table: &OperatorTable,
+    i: SynIn<'_, 'source, '_, E>,
+    minimum: PatternPrecedence,
+) -> Option<Pattern<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_pattern_bp_with_fresh_primary_policy(table, i, minimum, PatternMandatorySlotPolicy::default())
+}
+
+/// Recursive Pattern entries deliberately use the ordinary wrapper above, so
+/// this caller's extra fresh-primary boundaries end with its first NUD.
+fn parse_pattern_bp_with_fresh_primary_policy<'source, E>(
+    table: &OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
     minimum: PatternPrecedence,
+    policy: PatternMandatorySlotPolicy,
 ) -> Option<Pattern<'source>>
 where
     E: ErrorSink<usize>,
@@ -460,16 +520,19 @@ where
 {
     let start = i.pos();
     let pattern_continuation_base = pattern_continuation_base(&i);
-    let head = match i.run(from_fn(recognize_pattern_nud)) {
+    let head = match i.run(from_fn(|i| recognize_pattern_nud_with_fresh_primary_policy(policy, i))) {
         Some(nud) => Recovered::Complete(parse_pattern_primary(table, nud, &mut i)),
-        None if recover_pattern_primary_ast(&mut i) => {
+        None if recover_pattern_primary_ast_with_fresh_primary_policy(policy, &mut i) => {
             let nud = i
-                .run(from_fn(recognize_pattern_nud))
+                .run(from_fn(|i| recognize_pattern_nud_with_fresh_primary_policy(policy, i)) )
                 .expect("AST recovery stops at a pattern primary");
             Recovered::Complete(parse_pattern_primary(table, nud, &mut i))
         }
         None => Recovered::Incomplete,
     };
+    if matches!(head, Recovered::Incomplete) && policy.fresh_primary_recovery_stops != StopSet::default() {
+        return Some(Pattern { head, tails: Vec::new(), type_annotation: None, range: start..start });
+    }
     let mut tails = Vec::new();
     let mut type_annotation = None;
     while let Some(led) = i.run(from_fn(|i| {
@@ -897,16 +960,29 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    recover_pattern_primary_ast_with_fresh_primary_policy(PatternMandatorySlotPolicy::default(), i)
+}
+
+fn recover_pattern_primary_ast_with_fresh_primary_policy<E>(policy: PatternMandatorySlotPolicy, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let start = i.pos();
     loop {
         if any_ambient_owner_claims(i) {
             return false;
+        }
+        if i.pos() > start && pattern_nud_candidate_input_with_fresh_primary_policy(policy, i) {
+            return true;
         }
         let Some(character) = i.input.remainder().chars().next() else {
             return false;
         };
         if matches!(character, ')' | ']' | '}' | ',' | ';')
             || (character == ':' && active_stop_set(i).contains(StopKind::Colon))
+            || fresh_primary_policy_stop_pending(policy, i)
             || arm_stop_pending(i)
         {
             return false;
@@ -915,7 +991,7 @@ where
         let mut line = i.local.line();
         line.at_line_start = false;
         i.local.set_line(line);
-        if pattern_nud_candidate_input(i) {
+        if pattern_nud_candidate_input_with_fresh_primary_policy(policy, i) {
             return i.pos() > start;
         }
     }
@@ -929,6 +1005,16 @@ where
 {
     let checkpoint = i.checkpoint();
     let candidate = i.run(from_fn(recognize_pattern_nud)).is_some();
+    i.rollback(checkpoint);
+    candidate
+}
+
+fn pattern_nud_candidate_input_with_fresh_primary_policy<E>(policy: PatternMandatorySlotPolicy, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(from_fn(|i| recognize_pattern_nud_with_fresh_primary_policy(policy, i))).is_some();
     i.rollback(checkpoint);
     candidate
 }
@@ -985,6 +1071,27 @@ where
         recognize_open_bracket.map(|open| PatternNudRecognition::List { open }),
         recognize_open_brace.map(|open| PatternNudRecognition::Record { open }),
     ))
+}
+
+/// `:symbol` wins before the caller-owned bare-colon stop; accepted NUDs then
+/// return to the normal Pattern entry with its raw incoming stops.
+fn recognize_pattern_nud_with_fresh_primary_policy<'source, E>(policy: PatternMandatorySlotPolicy, mut i: SynIn<'_, 'source, '_, E>) -> Option<PatternNudRecognition<'source>>
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    if arm_stop_pending(&mut i) { return None; }
+    if let Some(symbol) = i.run(from_fn(recognize_symbol_pattern)) { return Some(symbol); }
+    if fresh_primary_policy_stop_pending(policy, &mut i) { return None; }
+    recognize_pattern_nud(i)
+}
+
+fn fresh_primary_policy_stop_pending<E>(policy: PatternMandatorySlotPolicy, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let stops = policy.fresh_primary_recovery_stops;
+    (stops.contains(StopKind::Colon) && colon_pending(i))
+        || (stops.contains(StopKind::Equal) && exact_equals_pending_input(i))
 }
 
 fn arm_stop_pending<E>(i: &mut SynIn<E>) -> bool
@@ -1425,25 +1532,49 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    parse_direct_pattern_bp_with_fresh_primary_policy(table, minimum, primary_role, outer_missing_role, PatternMandatorySlotPolicy::default(), committed)
+}
+
+fn parse_direct_pattern_bp_with_fresh_primary_policy<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    minimum: PatternPrecedence,
+    primary_role: PatternRole,
+    outer_missing_role: GrammarRole,
+    policy: PatternMandatorySlotPolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<ParsedPattern<O::Checkpoint>>
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
     let start = committed_position(committed);
     let pattern_continuation_base = committed.probe(|probe| pattern_continuation_base(probe.input()));
     committed.start_node(SyntaxKind::Pattern);
-    if let Some(nud) = committed.probe(probe_pattern_nud) {
+    let primary_accepted = if let Some(nud) = committed.probe(|probe| probe_pattern_nud_with_fresh_primary_policy(policy, probe)) {
         commit_direct_primary(table, nud, committed);
+        true
     } else if committed.probe(pipe_pending) {
         // The RHS of `A | | B` owns a missing primary at the second pipe;
         // leaving that pipe lets this same Pattern consume its nested tail.
         emit_pattern_missing(committed, primary_role, ExpectedSyntax::Pattern);
-    } else if direct_pattern_primary_error_retry(committed, primary_role) {
-        commit_direct_primary(
-            table,
-            committed
-                .probe(probe_pattern_nud)
-                .expect("recovery retried a pattern NUD"),
-            committed,
-        );
+        false
+    } else if let Some(retry) = direct_pattern_primary_error_retry_with_fresh_primary_policy(policy, committed, primary_role) {
+        if retry {
+            commit_direct_primary(table, committed.probe(|probe| probe_pattern_nud_with_fresh_primary_policy(policy, probe)).expect("recovery retried a pattern NUD"), committed);
+            true
+        } else {
+            if policy.fresh_primary_recovery_stops == StopSet::default() {
+                emit_missing_with_role(committed, outer_missing_role, ExpectedSyntax::Pattern);
+            }
+            false
+        }
     } else {
         emit_missing_with_role(committed, outer_missing_role, ExpectedSyntax::Pattern);
+        false
+    };
+    if !primary_accepted && policy.fresh_primary_recovery_stops != StopSet::default() {
+        let end = committed_position(committed);
+        committed.finish_node();
+        return Some(ParsedPattern::new(start..end));
     }
 
     loop {
@@ -1532,6 +1663,13 @@ where
     probe.input().run(from_fn(recognize_pattern_nud))
 }
 
+fn probe_pattern_nud_with_fresh_primary_policy<'parse, 'source, 'local, E>(policy: PatternMandatorySlotPolicy, probe: &mut Probe<'parse, 'source, 'local, E>) -> Option<PatternNudRecognition<'source>>
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    probe.input().run(from_fn(|i| recognize_pattern_nud_with_fresh_primary_policy(policy, i)))
+}
+
 fn pattern_nud_candidate<'parse, 'source, 'local, E>(
     probe: &mut Probe<'parse, 'source, 'local, E>,
 ) -> bool
@@ -1543,6 +1681,17 @@ where
     let i = probe.input();
     let checkpoint = i.checkpoint();
     let candidate = i.run(from_fn(recognize_pattern_nud)).is_some();
+    i.rollback(checkpoint);
+    candidate
+}
+
+fn pattern_nud_candidate_with_fresh_primary_policy<'parse, 'source, 'local, E>(policy: PatternMandatorySlotPolicy, probe: &mut Probe<'parse, 'source, 'local, E>) -> bool
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let i = probe.input();
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(from_fn(|i| recognize_pattern_nud_with_fresh_primary_policy(policy, i))).is_some();
     i.rollback(checkpoint);
     candidate
 }
@@ -2066,6 +2215,16 @@ where
     retry
 }
 
+fn direct_pattern_primary_error_retry_with_fresh_primary_policy<'parse, 'source, 'local, E, O>(policy: PatternMandatorySlotPolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>, role: PatternRole) -> Option<bool>
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| scan_invalid_run_until_pattern_with_fresh_primary_policy(policy, probe, false));
+    let Some((range, retry)) = recovered else { return None; };
+    emit_pattern_error(committed, role, range, ExpectedSyntax::Pattern);
+    Some(retry)
+}
+
 fn direct_alias_binding_error_retry<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<bool>
@@ -2139,6 +2298,33 @@ where
         if pattern_nud_candidate(probe) {
             return Some((start..end, true));
         }
+    }
+}
+
+fn scan_invalid_run_until_pattern_with_fresh_primary_policy<'parse, 'source, 'local, E>(policy: PatternMandatorySlotPolicy, probe: &mut Probe<'parse, 'source, 'local, E>, parenthesized: bool) -> Option<(Range<usize>, bool)>
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = probe.input().pos();
+    let mut end = start;
+    loop {
+        if any_ambient_owner_claims(probe.input()) { return (start < end).then_some((start..end, false)); }
+        if end > start && policy.fresh_primary_recovery_stops.contains(StopKind::Colon)
+            && pattern_nud_candidate_with_fresh_primary_policy(policy, probe)
+        { return Some((start..end, true)); }
+        let i = probe.input();
+        let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some((start..end, false)); };
+        if matches!(character, ')' | ']' | '}' | ',' | ';')
+            || (!parenthesized && character == ':')
+            || fresh_primary_policy_stop_pending(policy, i)
+            || arm_stop_pending(i)
+        { return (start < end).then_some((start..end, false)); }
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        if pattern_nud_candidate_with_fresh_primary_policy(policy, probe) { return Some((start..end, true)); }
     }
 }
 
@@ -2659,6 +2845,42 @@ mod tests {
         assert_eq!(parse_direct_prefix(":foo: body", true), ": body");
         assert_eq!(parse_direct_prefix(": body", true), ": body");
         assert_eq!(parse_direct_prefix(": foo", false), " foo");
+    }
+
+    #[test]
+    fn required_pattern_fresh_primary_policy_is_isolated_and_preserves_accepted_grammar() {
+        let binding = parse_direct_root_candidate("my x: Int = 0", &OperatorTable::default(), &[]);
+        assert_eq!(SyntaxNode::new_root(binding.green().clone()).to_string(), "my x: Int = 0");
+        assert!(binding.committed_recoveries().is_empty());
+
+        let colon = PatternMandatorySlotPolicy { fresh_primary_recovery_stops: StopSet::default().with(StopKind::Colon) };
+        let equal = PatternMandatorySlotPolicy { fresh_primary_recovery_stops: StopSet::default().with(StopKind::Equal) };
+        for (source, policy) in [("@: target", colon), ("@= target", equal)] {
+            let (ast, remainder) = parse_required_with_policy(source, policy);
+            assert!(matches!(ast, Recovered::Incomplete), "{source:?}: {ast:#?}");
+            assert_eq!(remainder, &source[1..]);
+            let (remainder, recoveries) = parse_direct_required_with_policy(source, policy);
+            assert_eq!(remainder, &source[1..]);
+            assert!(matches!(recoveries.as_slice(), [record]
+                if record.kind == RecoveryKind::Error
+                    && record.site.role == GrammarRole::Pattern(PatternRole::Primary)
+                    && record.site.range == (0..1)), "{source:?}: {recoveries:#?}");
+        }
+
+        let (symbol, remainder) = parse_required_with_policy(":symbol", colon);
+        assert!(matches!(symbol, Recovered::Complete(pattern) if pattern.range() == (0..7)));
+        assert_eq!(remainder, "");
+        let (annotated, remainder) = parse_required_with_policy("x: Int", colon);
+        assert!(matches!(annotated, Recovered::Complete(pattern) if pattern.type_annotation().is_some()));
+        assert_eq!(remainder, "");
+        let (record, remainder) = parse_required_with_policy("{x = 1}", equal);
+        assert!(matches!(record, Recovered::Complete(pattern) if pattern.range() == (0..7)));
+        assert_eq!(remainder, "");
+        for (source, policy) in [(":symbol", colon), ("x: Int", colon), ("{x = 1}", equal)] {
+            let (remainder, recoveries) = parse_direct_required_with_policy(source, policy);
+            assert_eq!(remainder, "", "{source:?}");
+            assert!(recoveries.is_empty(), "{source:?}: {recoveries:#?}");
+        }
     }
 
     #[test]
@@ -3280,6 +3502,30 @@ mod tests {
         let pattern = i.run(from_fn(|i| parse_pattern(&table, i))).expect("pattern AST");
         assert_eq!(i.input.remainder(), "");
         pattern
+    }
+
+    fn parse_required_with_policy<'source>(source: &'source str, policy: PatternMandatorySlotPolicy) -> (Recovered<Box<Pattern<'source>>>, &'source str) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut)).set_local(&mut local);
+        let parsed = i.run(from_fn(|i| Some(parse_required_pattern_with_outer_missing_role_and_policy(&OperatorTable::default(), None, policy, i)))).expect("required Pattern entry is total");
+        (parsed, i.input.remainder())
+    }
+
+    fn parse_direct_required_with_policy<'source>(source: &'source str, policy: PatternMandatorySlotPolicy) -> (&'source str, Vec<CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut)).set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_pattern_with_outer_missing_role_and_policy(&OperatorTable::default(), LeadingTrivia::None, None, policy, &mut committed);
+        let remainder = committed.probe(|probe| probe.input().input.remainder());
+        let recoveries = committed.into_output().committed_recoveries().to_vec();
+        (remainder, recoveries)
     }
 
     fn parse_direct(source: &str) -> SyntaxNode {
