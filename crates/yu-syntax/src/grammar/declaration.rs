@@ -1212,6 +1212,162 @@ where
     }
 }
 
+/// Gate-7 isolated Type RHS episode.  It extends the already-atomic TD-T
+/// state scope with a depth-fenced Derives stop, without changing the public
+/// Type continuation before Gate 8.
+fn parse_type_declaration_rhs_with_derives_isolated<'source, E>(
+    header: &ParsedTypeDeclarationHeader<'source>,
+    type_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !header.rhs_retry || any_ambient_owner_claims(i) {
+        return Recovered::Incomplete;
+    }
+    let trivia_checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(type_base, i) else {
+        i.rollback(trivia_checkpoint);
+        return Recovered::Incomplete;
+    };
+
+    let baseline = IndentationBaseline {
+        column: type_base,
+        kind: IndentationBaselineKind::Introducer,
+    };
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
+        .with(StopKind::Semicolon)
+        .with(StopKind::With)
+        .with(StopKind::Derives);
+    let scoped_frame = TypeExpressionScopedStopFrame {
+        stops: StopSet::default().with(StopKind::Derives),
+        visible_episode_depth: i.local.type_expression_episode_depth() + 1,
+    };
+    i.local.push_indentation_baseline(baseline);
+    i.local.push_stop_set(stops);
+    i.local.push_type_expression_scoped_stop_frame(scoped_frame);
+    let rhs = i
+        .run(from_fn(|i| {
+            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
+                Some(type_declaration_rhs_role()),
+                TypeExpressionEpisodePolicy::default(),
+                i,
+            ))
+        }))
+        .expect("the mandatory derives-aware Type declaration RHS entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_indentation_baseline(), Some(baseline));
+
+    match rhs {
+        Recovered::Complete(rhs) => Recovered::Complete(Box::new(rhs)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    }
+}
+
+fn commit_type_declaration_rhs_with_derives_isolated<'parse, 'source, 'local, E, O>(
+    header: &ParsedTypeDeclarationHeader<'source>,
+    type_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !header.rhs_retry {
+        return Recovered::Incomplete;
+    }
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        let at = committed.probe(|probe| probe.input().pos());
+        emit_type_declaration_header_recovery(
+            committed,
+            TypeDeclarationHeaderRecovery::Missing {
+                role: crate::session::TypeDeclarationRole::Rhs,
+                at,
+            },
+        );
+        return Recovered::Incomplete;
+    }
+    let trivia = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = mod_trivia(type_base, i);
+        if trivia.is_none() {
+            i.rollback(checkpoint);
+        }
+        trivia
+    });
+    let Some(trivia) = trivia else {
+        let at = committed.probe(|probe| probe.input().pos());
+        emit_type_declaration_header_recovery(
+            committed,
+            TypeDeclarationHeaderRecovery::Missing {
+                role: crate::session::TypeDeclarationRole::Rhs,
+                at,
+            },
+        );
+        return Recovered::Incomplete;
+    };
+    committed.emit_trivia(&trivia);
+
+    let baseline = IndentationBaseline {
+        column: type_base,
+        kind: IndentationBaselineKind::Introducer,
+    };
+    let (stops, scoped_frame) = committed.probe(|probe| {
+        let i = probe.input();
+        (
+            i.local
+                .stop_set()
+                .unwrap_or_default()
+                .with(StopKind::Semicolon)
+                .with(StopKind::With)
+                .with(StopKind::Derives),
+            TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Derives),
+                visible_episode_depth: i.local.type_expression_episode_depth() + 1,
+            },
+        )
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_indentation_baseline(baseline);
+        i.local.push_stop_set(stops);
+        i.local.push_type_expression_scoped_stop_frame(scoped_frame);
+    });
+    let rhs = commit_direct_type_expression_with_outer_missing_role_and_policy(
+        Some(type_declaration_rhs_role()),
+        TypeExpressionEpisodePolicy::default(),
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(scoped_frame),
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+        assert_eq!(i.local.pop_indentation_baseline(), Some(baseline));
+    });
+    let range = rhs.range();
+    if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    }
+}
+
 /// Parses the shared Type declaration header, then gives exact equality or
 /// caller-owned terminal evidence its form-specific continuation.
 pub(crate) fn parse_type_declaration<'source, E>(
@@ -1370,6 +1526,264 @@ where
     let end = committed.probe(|probe| probe.input().pos());
     committed.finish_node();
     Recovered::Complete(intro.start..end)
+}
+
+/// Gate-7 isolated promotion candidate for Type derives attachments.  Header
+/// clauses run after the shared name/parameter phase and before TND form
+/// selection; trailing clauses run only after a selected Equality RHS episode.
+fn parse_type_declaration_with_derives_isolated<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let intro = i.run(recognize_type_statement_intro)?;
+    let mut recoveries = Vec::new();
+    let shared = parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
+    let mut derives = if matches!(shared.name, Recovered::Complete(_)) {
+        recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            intro.type_base,
+            &mut i,
+        )
+        .map(|start| parse_derives_attachments_isolated(start, &mut i))
+        .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let disposition = classify_type_declaration_form(&shared.name, intro.type_base, &mut i);
+    let form = match disposition {
+        TypeDeclarationFormDisposition::Nominal {
+            owns_trailing_trivia_through,
+        } => {
+            consume_type_declaration_nominal_trailing_trivia_until(
+                owns_trailing_trivia_through,
+                &mut i,
+            );
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        }
+        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
+            let (equals, rhs_retry) = parse_type_declaration_definition_phase(
+                &intro,
+                &shared.name,
+                &mut i,
+                &mut recoveries,
+            );
+            let header = ParsedTypeDeclarationHeader {
+                name: shared.name.clone(),
+                parameters: shared.parameters.clone(),
+                equals,
+                rhs_retry,
+            };
+            if header.rhs_retry {
+                let rhs = parse_type_declaration_rhs_with_derives_isolated(
+                    &header,
+                    intro.type_base,
+                    &mut i,
+                );
+                if let Some(start) = recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Trailing,
+                    intro.type_base,
+                    &mut i,
+                ) {
+                    derives.extend(parse_derives_attachments_isolated(start, &mut i));
+                }
+                Recovered::Complete(TypeDeclarationForm::Equality {
+                    equals: header.equals,
+                    rhs,
+                })
+            } else {
+                Recovered::Incomplete
+            }
+        }
+        TypeDeclarationFormDisposition::Incomplete => Recovered::Incomplete,
+    };
+    let range = intro.start..i.pos();
+    Some(TypeDeclaration {
+        visibility: intro
+            .visibility
+            .map_or(Visibility::Private, |prefix| prefix.visibility),
+        name: shared.name,
+        parameters: shared.parameters,
+        derives,
+        form,
+        range,
+    })
+}
+
+/// Direct-CST counterpart of
+/// [`parse_type_declaration_with_derives_isolated`].  It replays each phase
+/// only after the shared probes have selected the same AST disposition.
+fn commit_type_declaration_with_derives_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: TypeStatementIntro<'source>,
+) -> (Recovered<Range<usize>>, Vec<DirectDerivesAttachment>)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::TypeDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
+
+    let (shared, shared_recoveries, shared_end) = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let mut recoveries = Vec::new();
+        let shared = parse_type_declaration_shared_header_phase(&intro, i, &mut recoveries);
+        let end = i.pos();
+        i.rollback(checkpoint);
+        (shared, recoveries, end)
+    });
+    let shared_surface = ParsedTypeDeclarationHeader {
+        name: shared.name.clone(),
+        parameters: shared.parameters.clone(),
+        equals: Recovered::Incomplete,
+        rhs_retry: false,
+    };
+    commit_type_declaration_header_surface(
+        intro.type_base,
+        &shared_surface,
+        shared_recoveries,
+        shared_end,
+        committed,
+    );
+
+    let mut derives = if matches!(shared.name, Recovered::Complete(_)) {
+        committed
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    intro.type_base,
+                    probe.input(),
+                )
+            })
+            .map(|start| commit_derives_attachments_isolated(start, committed))
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let disposition = committed.probe(|probe| {
+        classify_type_declaration_form(&shared.name, intro.type_base, probe.input())
+    });
+    match disposition {
+        TypeDeclarationFormDisposition::Nominal {
+            owns_trailing_trivia_through,
+        } => commit_type_declaration_nominal_trailing_trivia_until(
+            owns_trailing_trivia_through,
+            committed,
+        ),
+        TypeDeclarationFormDisposition::Incomplete => {}
+        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
+            let (header, definition_recoveries, definition_end) = committed.probe(|probe| {
+                let i = probe.input();
+                let checkpoint = i.checkpoint();
+                let mut recoveries = Vec::new();
+                let (equals, rhs_retry) = parse_type_declaration_definition_phase(
+                    &intro,
+                    &shared.name,
+                    i,
+                    &mut recoveries,
+                );
+                let end = i.pos();
+                i.rollback(checkpoint);
+                (
+                    ParsedTypeDeclarationHeader {
+                        name: shared.name.clone(),
+                        parameters: shared.parameters.clone(),
+                        equals,
+                        rhs_retry,
+                    },
+                    recoveries,
+                    end,
+                )
+            });
+            commit_type_declaration_definition_surface_isolated(
+                intro.type_base,
+                &header,
+                definition_recoveries,
+                definition_end,
+                committed,
+            );
+            if header.rhs_retry {
+                let _ = commit_type_declaration_rhs_with_derives_isolated(
+                    &header,
+                    intro.type_base,
+                    committed,
+                );
+                if let Some(start) = committed.probe(|probe| {
+                    recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Type,
+                        DerivesAttachmentPosition::Trailing,
+                        intro.type_base,
+                        probe.input(),
+                    )
+                }) {
+                    derives.extend(commit_derives_attachments_isolated(start, committed));
+                }
+            }
+        }
+    }
+
+    let end = committed.probe(|probe| probe.input().pos());
+    committed.finish_node();
+    (Recovered::Complete(intro.start..end), derives)
+}
+
+fn commit_type_declaration_definition_surface_isolated<'parse, 'source, 'local, E, O>(
+    type_base: usize,
+    header: &ParsedTypeDeclarationHeader<'source>,
+    recoveries: Vec<TypeDeclarationHeaderRecovery>,
+    definition_end: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let definition_recovery = recoveries.iter().find(|recovery| {
+        type_declaration_header_recovery_role(recovery)
+            == crate::session::TypeDeclarationRole::DefinitionIntroducer
+    });
+    debug_assert_eq!(recoveries.len(), usize::from(definition_recovery.is_some()));
+    let definition_target = definition_recovery
+        .map(type_declaration_header_recovery_start)
+        .or_else(|| match &header.equals {
+            Recovered::Complete(equals) => Some(equals.start),
+            Recovered::Incomplete => None,
+        })
+        .unwrap_or(definition_end);
+    commit_type_declaration_continuation_trivia_until(
+        type_base,
+        definition_target,
+        committed,
+    );
+    if let Some(recovery) = definition_recovery {
+        commit_type_declaration_header_recovery(recovery.clone(), committed);
+    }
+    if let Recovered::Complete(expected) = &header.equals {
+        let actual = committed
+            .probe(|probe| probe.input().run(scan_declaration_exact_equals))
+            .expect("accepted Type definition introducer remains at the cursor");
+        debug_assert_eq!(&actual, expected);
+        committed.token(SyntaxKind::Equals, actual);
+    }
+    debug_assert_eq!(committed.probe(|probe| probe.input().pos()), definition_end);
 }
 
 fn commit_type_declaration_header_surface<'parse, 'source, 'local, E, O>(
@@ -15690,6 +16104,698 @@ mod tests {
         assert!(records.is_empty());
         assert!(field_named_derives.derives.is_empty());
         assert!(matches!(field_named_derives.body, Recovered::Complete(StructBody::NamedBraced(_))));
+    }
+
+    #[test]
+    fn isolated_type_derives_adapter_composes_header_form_and_atomic_rhs_episode() {
+        type Records = Vec<(RecoveryKind, GrammarRole, Range<usize>)>;
+
+        fn parse_ast<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_type_declaration_with_derives_isolated(i)
+                    .expect("the isolated fixture starts with Type")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "AST episode: {source:?}");
+            assert!(local.type_expression_scoped_stop_frames().next().is_none());
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, Vec<DirectDerivesAttachment>, Records, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("the isolated fixture starts with Type");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let (range, attachments) =
+                commit_type_declaration_with_derives_isolated(&mut committed, intro);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let records = committed
+                .into_output()
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "direct episode: {source:?}");
+            assert!(local.type_expression_scoped_stop_frames().next().is_none());
+            (range, attachments, records, remainder)
+        }
+
+        fn assert_attachment_parity(
+            ast: &[DerivesAttachment<'_>],
+            direct: &[DirectDerivesAttachment],
+        ) {
+            assert_eq!(ast.len(), direct.len());
+            for (ast, direct) in ast.iter().zip(direct) {
+                assert_eq!(ast.position, direct.position);
+                assert_eq!(ast.clause.keyword, direct.clause.keyword);
+                assert_eq!(ast.clause.range, direct.clause.range);
+                assert_eq!(ast.clause.roles.len(), direct.clause.roles.len());
+                for (ast_role, direct_role) in ast.clause.roles.iter().zip(&direct.clause.roles) {
+                    match (ast_role, direct_role) {
+                        (Recovered::Complete(ast), Recovered::Complete(direct)) => {
+                            assert_eq!(ast.range(), *direct)
+                        }
+                        (Recovered::Incomplete, Recovered::Incomplete) => {}
+                        _ => panic!("AST/direct RoleReference recovery differs"),
+                    }
+                }
+            }
+        }
+
+        fn run<'source>(
+            source: &'source str,
+            expected_remainder: &str,
+        ) -> (TypeDeclaration<'source>, Records) {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct, records, direct_remainder) = parse_direct(source);
+            assert_attachment_parity(&ast.derives, &direct);
+            assert_eq!(direct_range, Recovered::Complete(ast.range.clone()), "{source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            (ast, records)
+        }
+
+        let (nominal, records) = run("type Point derives Eq", "");
+        assert!(records.is_empty());
+        assert!(matches!(nominal.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        assert!(matches!(nominal.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Header, .. }]));
+
+        let (coexist, records) = run("type Id derives Eq = Int derives Debug", "");
+        assert!(records.is_empty());
+        assert!(matches!(coexist.form, Recovered::Complete(TypeDeclarationForm::Equality { rhs: Recovered::Complete(_), .. })));
+        assert_eq!(
+            coexist.derives.iter().map(|attachment| attachment.position).collect::<Vec<_>>(),
+            [DerivesAttachmentPosition::Header, DerivesAttachmentPosition::Trailing],
+        );
+
+        let (missing_rhs, records) = run("type Id = derives Eq", "");
+        assert!(matches!(missing_rhs.form, Recovered::Complete(TypeDeclarationForm::Equality { rhs: Recovered::Incomplete, .. })));
+        assert!(matches!(missing_rhs.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].0, RecoveryKind::Missing);
+        assert_eq!(records[0].1, GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs)));
+
+        let (malformed_rhs, records) = run("type Id = @ derives Eq", "");
+        assert!(matches!(malformed_rhs.form, Recovered::Complete(TypeDeclarationForm::Equality { rhs: Recovered::Incomplete, .. })));
+        assert!(matches!(malformed_rhs.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].0, RecoveryKind::Error);
+        assert_eq!(records[0].1, GrammarRole::Type(crate::session::TypeRole::Primary));
+
+        let (exotic, records) = run("type Id derives [e] T = ({ x: Int }) derives (:{ A })", "");
+        assert!(records.is_empty());
+        assert_eq!(exotic.derives.len(), 2);
+        assert!(format!("{:?}", exotic.derives[0].clause.roles[0]).contains("leading_effect_row: Some"));
+
+        let (multiline, records) = run("type Id =\n   Int derives Eq", "");
+        assert!(records.is_empty());
+        assert!(matches!(multiline.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+
+        for source in [
+            "type F = Int -> derives Eq",
+            "type F = for 'a: derives Eq",
+            "type F = F (derives Eq)",
+        ] {
+            let (nested, records) = run(source, "");
+            assert!(nested.derives.is_empty(), "nested episode leaked Derives: {source:?}");
+            if source == "type F = F (derives Eq)" {
+                assert_eq!(records.len(), 1);
+                assert_eq!(records[0].0, RecoveryKind::Missing);
+                assert_eq!(
+                    records[0].1,
+                    GrammarRole::Type(crate::session::TypeRole::ParenthesizedSeparator),
+                );
+            } else {
+                assert!(records.is_empty(), "{source:?}: {records:?}");
+            }
+        }
+        for source in [
+            "type F = F (A) derives Eq",
+            "type F = (Int -> String) derives Eq",
+            "type F = (for 'a: T) derives Eq",
+        ] {
+            let (grouped, records) = run(source, "");
+            assert!(records.is_empty(), "{source:?}");
+            assert!(matches!(grouped.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]), "{source:?}");
+        }
+    }
+
+    #[test]
+    fn isolated_derives_owner_adapters_restore_full_boundary_state_before_promotion() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Copy, Debug)]
+        enum Candidate {
+            Struct,
+            Type,
+        }
+
+        #[derive(Clone, Copy, Debug)]
+        enum Context {
+            Root,
+            Indented,
+            Braced,
+            CatchInline,
+            NestedIf,
+        }
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct State {
+            baseline: Option<IndentationBaseline>,
+            stops: Option<StopSet>,
+            delimiter: Option<Delimiter>,
+            expression_owner: Option<ExpressionDelimitedOwner>,
+            type_owner: Option<TypeDelimitedOwner>,
+            inline: bool,
+            ml_arg: bool,
+            type_ml_arg: bool,
+            positional_fence: Option<TypeMalformedCallerBoundaryFence>,
+            ambient: Vec<AmbientOwnerScopeFrame>,
+            if_depth: usize,
+            innermost_if: Option<IfExpressionCompanionId>,
+            type_episode_depth: usize,
+            scoped_type_stops: Vec<TypeExpressionScopedStopFrame>,
+        }
+
+        fn snapshot(local: &ParseLocal) -> State {
+            State {
+                baseline: local.indentation_baseline(),
+                stops: local.stop_set(),
+                delimiter: local.delimiter(),
+                expression_owner: local.expression_delimited_owner(),
+                type_owner: local.type_delimited_owner(),
+                inline: local.inline(),
+                ml_arg: local.ml_arg(),
+                type_ml_arg: local.type_ml_arg(),
+                positional_fence: local.type_malformed_caller_boundary(),
+                ambient: local.ambient_owner_scope_frames().copied().collect(),
+                if_depth: local.if_expression_companion_depth(),
+                innermost_if: local.if_expression_companion().map(|frame| frame.id()),
+                type_episode_depth: local.type_expression_episode_depth(),
+                scoped_type_stops: local.type_expression_scoped_stop_frames().copied().collect(),
+            }
+        }
+
+        fn context_base(context: Context) -> usize {
+            matches!(context, Context::Indented | Context::NestedIf)
+                .then_some(2)
+                .unwrap_or(0)
+        }
+
+        fn install_context(local: &mut ParseLocal, context: Context, stop: StopKind) {
+            let base = context_base(context);
+            local.push_indentation_baseline(IndentationBaseline {
+                column: base,
+                kind: IndentationBaselineKind::Block,
+            });
+            local.push_stop_set(StopSet::default().with(stop));
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: usize::MAX,
+            }));
+            local.push_root_statement_ambient_scope();
+            match context {
+                Context::Root => {}
+                Context::Indented => {
+                    local.push_indented_statement_ambient_scope(2);
+                }
+                Context::Braced => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    );
+                }
+                Context::CatchInline => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+                Context::NestedIf => {
+                    local.push_indented_statement_ambient_scope(2);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                }
+            }
+        }
+
+        fn skip_prefix<E>(prefix_len: usize, i: &mut SynIn<E>)
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            while i.pos() < prefix_len {
+                i.input.next().expect("the matrix prefix remains available");
+            }
+            if prefix_len > 0 {
+                i.local.set_line(LineState {
+                    at_line_start: false,
+                    ..i.local.line()
+                });
+            }
+        }
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            prefix_len: usize,
+            candidate: Candidate,
+            context: Context,
+            stop: StopKind,
+        ) -> (Range<usize>, Vec<DerivesAttachmentPosition>, String, LineState) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (range, attachments) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                skip_prefix(prefix_len, &mut i);
+                let before = snapshot(i.local);
+                let result = match candidate {
+                    Candidate::Struct => {
+                        let declaration = parse_struct_declaration_with_derives_isolated(i)
+                            .expect("Struct matrix candidate");
+                        (
+                            declaration.range,
+                            declaration.derives.iter().map(|item| item.position).collect(),
+                        )
+                    }
+                    Candidate::Type => {
+                        let declaration = parse_type_declaration_with_derives_isolated(i)
+                            .expect("Type matrix candidate");
+                        (
+                            declaration.range,
+                            declaration.derives.iter().map(|item| item.position).collect(),
+                        )
+                    }
+                };
+                assert_eq!(snapshot(&local), before, "AST state: {source:?}");
+                result
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (range, attachments, source_input.remainder().to_owned(), local.line())
+        }
+
+        fn parse_direct(
+            source: &str,
+            prefix_len: usize,
+            candidate: Candidate,
+            context: Context,
+            stop: StopKind,
+        ) -> (
+            Range<usize>,
+            Vec<DerivesAttachmentPosition>,
+            Vec<CommittedRecoveryRecord>,
+            String,
+            LineState,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            skip_prefix(prefix_len, probe.input());
+            let before = snapshot(probe.input().local);
+            let start = probe.input().pos();
+            let mut committed = probe.commit(HeaderOutput::new());
+            let attachments = match candidate {
+                Candidate::Struct => {
+                    let intro = committed
+                        .probe(|probe| probe.input().run(recognize_struct_statement_intro))
+                        .expect("Struct matrix candidate");
+                    commit_struct_declaration_with_derives_isolated(&mut committed, intro)
+                        .1
+                }
+                Candidate::Type => {
+                    let intro = committed
+                        .probe(|probe| probe.input().run(recognize_type_statement_intro))
+                        .expect("Type matrix candidate");
+                    commit_type_declaration_with_derives_isolated(&mut committed, intro)
+                        .1
+                }
+            };
+            let end = committed.probe(|probe| probe.input().pos());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let records = committed.into_output().committed_recoveries().to_vec();
+            assert_eq!(snapshot(&local), before, "direct state: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            (
+                start..end,
+                attachments.iter().map(|item| item.position).collect(),
+                records,
+                remainder,
+                local.line(),
+            )
+        }
+
+        fn assert_case(
+            source: &str,
+            prefix_len: usize,
+            candidate: Candidate,
+            context: Context,
+            stop: StopKind,
+            expected_remainder: &str,
+        ) -> Vec<CommittedRecoveryRecord> {
+            let (ast_range, ast_attachments, ast_remainder, ast_line) =
+                parse_ast(source, prefix_len, candidate, context, stop);
+            let (direct_range, direct_attachments, records, direct_remainder, direct_line) =
+                parse_direct(source, prefix_len, candidate, context, stop);
+            assert_eq!(ast_range, direct_range, "range: {source:?}");
+            assert_eq!(ast_attachments, direct_attachments, "attachments: {source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(ast_line, direct_line, "line state: {source:?}");
+            records
+        }
+
+        for context in [
+            Context::Root,
+            Context::Indented,
+            Context::Braced,
+            Context::CatchInline,
+            Context::NestedIf,
+        ] {
+            assert!(assert_case(
+                "struct S derives Eq;",
+                0,
+                Candidate::Struct,
+                context,
+                StopKind::RightBracket,
+                "",
+            )
+            .is_empty());
+            assert!(assert_case(
+                "type S derives Eq",
+                0,
+                Candidate::Type,
+                context,
+                StopKind::RightBracket,
+                "",
+            )
+            .is_empty());
+        }
+
+        for (candidate, source) in [
+            (Candidate::Struct, "struct S(Int) derives Eq else: 0"),
+            (Candidate::Type, "type S = Int derives Eq else: 0"),
+        ] {
+            assert!(assert_case(
+                source,
+                0,
+                candidate,
+                Context::NestedIf,
+                StopKind::RightBracket,
+                " else: 0",
+            )
+            .is_empty());
+        }
+
+        let catch_prefix = "value with: ".len();
+        for (candidate, source) in [
+            (
+                Candidate::Struct,
+                "value with: struct S(Int) derives Eq\n  B -> fallback",
+            ),
+            (
+                Candidate::Type,
+                "value with: type S = Int derives Eq\n  B -> fallback",
+            ),
+        ] {
+            assert!(assert_case(
+                source,
+                catch_prefix,
+                candidate,
+                Context::CatchInline,
+                StopKind::RightBracket,
+                "\n  B -> fallback",
+            )
+            .is_empty());
+        }
+
+        for (stop, punctuation) in [
+            (StopKind::RightParenthesis, ")"),
+            (StopKind::RightBracket, "]"),
+            (StopKind::RightBrace, "}"),
+        ] {
+            for (candidate, prefix) in [
+                (Candidate::Struct, "struct S(Int) derives Eq"),
+                (Candidate::Type, "type S = Int derives Eq"),
+            ] {
+                let source = format!("{prefix}{punctuation} tail");
+                assert!(assert_case(
+                    &source,
+                    0,
+                    candidate,
+                    Context::Root,
+                    stop,
+                    &format!("{punctuation} tail"),
+                )
+                .is_empty());
+            }
+        }
+
+        for (candidate, source, remainder) in [
+            (Candidate::Struct, "struct S(Int), tail", ", tail"),
+            (Candidate::Type, "type S, tail", ", tail"),
+            (Candidate::Struct, "struct S(Int) derives Eq;", ";"),
+            (Candidate::Type, "type S = Int derives Eq;", ";"),
+            (Candidate::Struct, "struct S(Int) derives Eq\nnext", "\nnext"),
+            (Candidate::Type, "type S = Int derives Eq\nnext", "\nnext"),
+        ] {
+            assert!(assert_case(
+                source,
+                0,
+                candidate,
+                Context::Root,
+                if remainder.starts_with(',') { StopKind::Comma } else { StopKind::RightBracket },
+                remainder,
+            )
+            .is_empty());
+        }
+
+        for (candidate, source) in [
+            (Candidate::Struct, "struct S derives\n  Eq;"),
+            (Candidate::Type, "type S = Int derives\n  Eq"),
+        ] {
+            assert!(assert_case(
+                source,
+                0,
+                candidate,
+                Context::Root,
+                StopKind::RightBracket,
+                "",
+            )
+            .is_empty());
+        }
+
+        let struct_recovery = assert_case(
+            "struct S derives @ { x: Int }",
+            0,
+            Candidate::Struct,
+            Context::Braced,
+            StopKind::RightBracket,
+            "",
+        );
+        assert_eq!(struct_recovery.len(), 1);
+        assert_eq!(struct_recovery[0].kind, RecoveryKind::Error);
+        let type_recovery = assert_case(
+            "type S = @ derives Eq",
+            0,
+            Candidate::Type,
+            Context::NestedIf,
+            StopKind::RightBracket,
+            "",
+        );
+        assert_eq!(type_recovery.len(), 1);
+        assert_eq!(type_recovery[0].kind, RecoveryKind::Error);
+
+        for (candidate, source) in [
+            (Candidate::Struct, "struct S derives Eq;"),
+            (Candidate::Struct, "struct S derives @ { x: Int }"),
+            (Candidate::Type, "type S = Int derives Eq"),
+            (Candidate::Type, "type S = @ derives Eq"),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, Context::NestedIf, StopKind::RightBracket);
+            let input_checkpoint = source_input.checkpoint();
+            let local_checkpoint = local.checkpoint();
+            let before = snapshot(&local);
+            let before_line = local.line();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                match candidate {
+                    Candidate::Struct => {
+                        let _ = parse_struct_declaration_with_derives_isolated(i).unwrap();
+                    }
+                    Candidate::Type => {
+                        let _ = parse_type_declaration_with_derives_isolated(i).unwrap();
+                    }
+                }
+            }
+            source_input.rollback(input_checkpoint);
+            local.rollback(local_checkpoint);
+            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
+            assert_eq!(local.line(), before_line, "rollback line: {source:?}");
+            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(!is_cut, "rollback cut: {source:?}");
+
+            let mut direct_source = SourceInput::new(source);
+            let mut direct_local = ParseLocal::new();
+            install_context(
+                &mut direct_local,
+                Context::NestedIf,
+                StopKind::RightBracket,
+            );
+            let direct_input_checkpoint = direct_source.checkpoint();
+            let direct_local_checkpoint = direct_local.checkpoint();
+            let direct_before = snapshot(&direct_local);
+            let direct_before_line = direct_local.line();
+            let mut direct_expectations = chasa::LatestSink::new();
+            let mut direct_cut = false;
+            let i = In::new(
+                &mut direct_source,
+                &mut direct_expectations,
+                IsCut::new(&mut direct_cut),
+            )
+            .set_local(&mut direct_local);
+            let mut probe = Probe::new(i);
+            match candidate {
+                Candidate::Struct => {
+                    let intro = probe
+                        .input()
+                        .run(recognize_struct_statement_intro)
+                        .unwrap();
+                    let mut committed = probe.commit(HeaderOutput::new());
+                    let _ = commit_struct_declaration_with_derives_isolated(
+                        &mut committed,
+                        intro,
+                    );
+                    let _ = committed.into_output();
+                }
+                Candidate::Type => {
+                    let intro = probe
+                        .input()
+                        .run(recognize_type_statement_intro)
+                        .unwrap();
+                    let mut committed = probe.commit(HeaderOutput::new());
+                    let _ = commit_type_declaration_with_derives_isolated(
+                        &mut committed,
+                        intro,
+                    );
+                    let _ = committed.into_output();
+                }
+            }
+            direct_source.rollback(direct_input_checkpoint);
+            direct_local.rollback(direct_local_checkpoint);
+            assert_eq!(direct_source.remainder(), source, "direct rollback input: {source:?}");
+            assert_eq!(snapshot(&direct_local), direct_before, "direct rollback state: {source:?}");
+            assert_eq!(direct_local.line(), direct_before_line, "direct rollback line: {source:?}");
+            assert!(direct_expectations.take_merged().is_none(), "direct rollback sink: {source:?}");
+            assert!(!direct_cut, "direct rollback cut: {source:?}");
+        }
+
+        for (candidate, source) in [
+            (Candidate::Struct, "struct S derives Eq;"),
+            (Candidate::Type, "type S = derives Eq"),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            match candidate {
+                Candidate::Struct => {
+                    let intro = committed
+                        .probe(|probe| probe.input().run(recognize_struct_statement_intro))
+                        .unwrap();
+                    let _ = commit_struct_declaration_with_derives_isolated(&mut committed, intro);
+                }
+                Candidate::Type => {
+                    let intro = committed
+                        .probe(|probe| probe.input().run(recognize_type_statement_intro))
+                        .unwrap();
+                    let _ = commit_type_declaration_with_derives_isolated(&mut committed, intro);
+                }
+            }
+            committed.finish_node();
+            let output = committed.into_output();
+            let record_count = output.committed_recoveries().len();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                record_count,
+                "one record = one recovery node: {source:?}",
+            );
+            assert!(expectations.take_merged().is_none());
+            assert!(!is_cut);
+        }
     }
 
     #[test]
