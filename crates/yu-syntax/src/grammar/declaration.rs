@@ -1265,6 +1265,7 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
         Some((trivia, starter))
     });
     let Some((trivia, starter)) = starter else {
+        emit_impl_body_introducer_missing(committed);
         return;
     };
     let consumed_trivia = committed
@@ -5163,6 +5164,36 @@ fn emit_mod_body_introducer_missing<'parse, 'source, 'local, E, O>(
         let i = probe.input();
         let at = i.pos();
         let role = GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer));
+        let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+            ]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+/// Emits the one outer-body recovery owned by an accepted Impl declaration.
+/// The AST path represents the same terminal slot as `ImplBody::Incomplete`;
+/// direct CST additionally materializes the typed missing recovery node.
+fn emit_impl_body_introducer_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer));
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
@@ -23417,7 +23448,7 @@ mod tests {
             ("impl Point: Eq:\n  my value = 1", "", 0),
             ("impl;", "", 1),
             ("impl T: ;", "", 1),
-            ("impl T", "", 0),
+            ("impl T", "", 1),
             ("impl T:\n", "\n", 0),
         ] {
             let (ast, ast_remainder) = parse_ast(source);
@@ -23434,6 +23465,20 @@ mod tests {
                 "one recovery record = one node: {source:?}",
             );
         }
+
+        let (_, _, _, records) = commit_direct("impl T");
+        assert_eq!(
+            records
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect::<Vec<_>>(),
+            vec![(
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer)),
+                6..6,
+            )],
+            "complete head + EOF owns exactly one Impl body-introducer missing recovery",
+        );
 
         for (source, expected_children) in [
             (
