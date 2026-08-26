@@ -21645,7 +21645,7 @@ header-stop範囲を確認対象にする。
 
 ## 追補案: canonical `Statement` / root `Declaration`のstandalone `cast` declaration grammar
 
-Status: Proposal（Claude査読待ち）。
+Status: Authoritative（ユーザ承認済み、2026-08-27）。
 
 Date: 2026-08-27。
 
@@ -22771,5 +22771,5 @@ byte identityとcaller-closeありnew non-consume behaviorを同じpreservation 
 outer arm stopsをAST / Parenthesized directへ新たにleakせずdirect List / Recordのexisting arm behaviorも保つこと、
 semantic future scopeの閉じ方を確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案（Claude査読・確定前、ユーザ未承認）
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が11巡の独立レビューを経て査読・確定、ユーザ承認済み
 （2026-08-27、canonical Statement / root Declarationのstandalone `cast` declaration grammar追補案）。
