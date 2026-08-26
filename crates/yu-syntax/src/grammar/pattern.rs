@@ -682,19 +682,22 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let policy = PatternDelimitedPolicy::List;
+    let caller_close_stops = pattern_caller_close_stops(active_stop_set(i));
     let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
-    push_pattern_delimited_scope(policy, i);
+    push_pattern_delimited_scope(policy, caller_close_stops, i);
     let opening_trivia = consume_trivia(i);
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
     let (items, trailing_comma, close) =
-        parse_pattern_delimited_items_ast(policy, layout, i, |i| parse_list_item_ast(table, i));
+        parse_pattern_delimited_items_ast(policy, layout, caller_close_stops, i, |i| {
+            parse_list_item_ast(table, i)
+        });
     let end = match &close {
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
     pop_pattern_layout_baseline(layout, i);
-    pop_pattern_delimited_scope(policy, i);
+    pop_pattern_delimited_scope(policy, caller_close_stops, i);
     ListPattern { open: open.clone(), items, trailing_comma, close, range: open.start..end }
 }
 
@@ -728,19 +731,22 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let policy = PatternDelimitedPolicy::Record;
+    let caller_close_stops = pattern_caller_close_stops(active_stop_set(i));
     let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
-    push_pattern_delimited_scope(policy, i);
+    push_pattern_delimited_scope(policy, caller_close_stops, i);
     let opening_trivia = consume_trivia(i);
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
     let (items, trailing_comma, close) =
-        parse_pattern_delimited_items_ast(policy, layout, i, |i| parse_record_item_ast(table, i));
+        parse_pattern_delimited_items_ast(policy, layout, caller_close_stops, i, |i| {
+            parse_record_item_ast(table, i)
+        });
     let end = match &close {
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
     pop_pattern_layout_baseline(layout, i);
-    pop_pattern_delimited_scope(policy, i);
+    pop_pattern_delimited_scope(policy, caller_close_stops, i);
     RecordPattern { open: open.clone(), items, trailing_comma, close, range: open.start..end }
 }
 
@@ -880,21 +886,28 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let policy = PatternDelimitedPolicy::Parenthesized;
+    let caller_close_stops = pattern_caller_close_stops(active_stop_set(i));
     let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
-    push_pattern_delimited_scope(policy, i);
+    push_pattern_delimited_scope(policy, caller_close_stops, i);
     let opening_trivia = consume_trivia(i);
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
-    let (elements, trailing_comma, close) = parse_pattern_delimited_items_ast(policy, layout, i, |i| {
-        i.run(from_fn(|i| parse_pattern_bp(table, i, PatternPrecedence::Lowest)))
-            .map_or(Recovered::Incomplete, Recovered::Complete)
-    });
+    let (elements, trailing_comma, close) = parse_pattern_delimited_items_ast(
+        policy,
+        layout,
+        caller_close_stops,
+        i,
+        |i| {
+            i.run(from_fn(|i| parse_pattern_bp(table, i, PatternPrecedence::Lowest)))
+                .map_or(Recovered::Incomplete, Recovered::Complete)
+        },
+    );
     let end = match &close {
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
     pop_pattern_layout_baseline(layout, i);
-    pop_pattern_delimited_scope(policy, i);
+    pop_pattern_delimited_scope(policy, caller_close_stops, i);
     ParenthesizedPattern {
         open: open.clone(),
         elements,
@@ -909,6 +922,7 @@ where
 fn parse_pattern_delimited_items_ast<'source, E, Item>(
     policy: PatternDelimitedPolicy,
     layout: LayoutDelimitedFrame,
+    caller_close_stops: StopSet,
     i: &mut SynIn<'_, 'source, '_, E>,
     mut parse_item: impl FnMut(&mut SynIn<'_, 'source, '_, E>) -> Recovered<Item>,
 ) -> (
@@ -925,6 +939,8 @@ where
     let mut trailing_comma = None;
     let close = if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
         Recovered::Complete(close)
+    } else if outer_pattern_close_stop_pending(policy, caller_close_stops, i) {
+        Recovered::Incomplete
     } else {
         'items: loop {
             items.push(parse_item(i));
@@ -938,10 +954,16 @@ where
                     trailing_comma = Some(comma);
                     break Recovered::Complete(close);
                 }
+                if outer_pattern_close_stop_pending(policy, caller_close_stops, i) {
+                    break Recovered::Incomplete;
+                }
                 continue;
             }
             if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
                 break Recovered::Complete(close);
+            }
+            if outer_pattern_close_stop_pending(policy, caller_close_stops, i) {
+                break Recovered::Incomplete;
             }
             if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline {
                 continue;
@@ -950,7 +972,7 @@ where
                 continue;
             }
             if policy == PatternDelimitedPolicy::Parenthesized {
-                match drive_parenthesized_pattern_close_recovery(i) {
+                match drive_parenthesized_pattern_close_recovery(caller_close_stops, i) {
                     ParenthesizedPatternCloseRecoveryStep::Complete { close } => {
                         break 'items Recovered::Complete(close);
                     }
@@ -975,6 +997,7 @@ where
 /// AST path.  It intentionally has no sink: callers decide how an Error or a
 /// Missing becomes their own AST/CST representation.
 fn drive_parenthesized_pattern_close_recovery<E>(
+    caller_close_stops: StopSet,
     i: &mut SynIn<E>,
 ) -> ParenthesizedPatternCloseRecoveryStep
 where
@@ -984,6 +1007,18 @@ where
 {
     let at = i.pos();
     if any_ambient_owner_claims(i) || i.input.remainder().is_empty() {
+        return ParenthesizedPatternCloseRecoveryStep::Missing { at };
+    }
+    if let Some(close) = i.run(from_fn(|i| {
+        recognize_pattern_delimited_close(PatternDelimitedPolicy::Parenthesized, i)
+    })) {
+        return ParenthesizedPatternCloseRecoveryStep::Complete { close };
+    }
+    if outer_pattern_close_stop_pending(
+        PatternDelimitedPolicy::Parenthesized,
+        caller_close_stops,
+        i,
+    ) {
         return ParenthesizedPatternCloseRecoveryStep::Missing { at };
     }
     if let Some(punctuation) = i.run(scan_punctuation) {
@@ -1545,20 +1580,63 @@ where
     i.local.stop_set().unwrap_or_default()
 }
 
-fn push_pattern_delimited_scope<E>(policy: PatternDelimitedPolicy, i: &mut SynIn<E>)
+fn pattern_caller_close_stops(stops: StopSet) -> StopSet {
+    let mut caller_closes = StopSet::default();
+    for stop in [
+        StopKind::RightParenthesis,
+        StopKind::RightBracket,
+        StopKind::RightBrace,
+    ] {
+        if stops.contains(stop) {
+            caller_closes = caller_closes.with(stop);
+        }
+    }
+    caller_closes
+}
+
+fn pattern_delimited_scope_stops(
+    policy: PatternDelimitedPolicy,
+    caller_close_stops: StopSet,
+) -> StopSet {
+    let mut stops = policy.stop_set();
+    for stop in [
+        StopKind::RightParenthesis,
+        StopKind::RightBracket,
+        StopKind::RightBrace,
+    ] {
+        if caller_close_stops.contains(stop) {
+            stops = stops.with(stop);
+        }
+    }
+    stops
+}
+
+fn push_pattern_delimited_scope<E>(
+    policy: PatternDelimitedPolicy,
+    caller_close_stops: StopSet,
+    i: &mut SynIn<E>,
+)
 where
     E: ErrorSink<usize>,
 {
     i.local.push_delimiter(policy.delimiter());
-    i.local.push_stop_set(policy.stop_set());
+    i.local
+        .push_stop_set(pattern_delimited_scope_stops(policy, caller_close_stops));
 }
 
-fn pop_pattern_delimited_scope<E>(policy: PatternDelimitedPolicy, i: &mut SynIn<E>)
+fn pop_pattern_delimited_scope<E>(
+    policy: PatternDelimitedPolicy,
+    caller_close_stops: StopSet,
+    i: &mut SynIn<E>,
+)
 where
     E: ErrorSink<usize>,
 {
     assert_eq!(i.local.pop_delimiter(), Some(policy.delimiter()));
-    assert_eq!(i.local.pop_stop_set(), Some(policy.stop_set()));
+    assert_eq!(
+        i.local.pop_stop_set(),
+        Some(pattern_delimited_scope_stops(policy, caller_close_stops))
+    );
 }
 
 fn push_pattern_layout_baseline<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
@@ -1880,15 +1958,25 @@ fn commit_direct_list_pattern<'parse, 'source, 'local, E, O>(
 {
     let policy = PatternDelimitedPolicy::List;
     let outer_stops = committed.probe(|probe| active_stop_set(probe.input()));
+    let caller_close_stops = pattern_caller_close_stops(outer_stops);
     let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
     committed.start_node(SyntaxKind::ListPattern);
     committed.token(SyntaxKind::LBracket, open);
-    committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
+    committed.probe(|probe| {
+        push_pattern_delimited_scope(policy, caller_close_stops, probe.input())
+    });
     let initial = consume_direct_trivia(committed);
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
     committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(table, policy, layout, outer_stops, committed);
+    commit_direct_pattern_delimited_items(
+        table,
+        policy,
+        layout,
+        outer_stops,
+        caller_close_stops,
+        committed,
+    );
 }
 
 fn commit_direct_list_item<'parse, 'source, 'local, E, O>(
@@ -1939,15 +2027,25 @@ fn commit_direct_record_pattern<'parse, 'source, 'local, E, O>(
 {
     let policy = PatternDelimitedPolicy::Record;
     let outer_stops = committed.probe(|probe| active_stop_set(probe.input()));
+    let caller_close_stops = pattern_caller_close_stops(outer_stops);
     let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
     committed.start_node(SyntaxKind::RecordPattern);
     committed.token(SyntaxKind::LBrace, open);
-    committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
+    committed.probe(|probe| {
+        push_pattern_delimited_scope(policy, caller_close_stops, probe.input())
+    });
     let initial = consume_direct_trivia(committed);
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
     committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(table, policy, layout, outer_stops, committed);
+    commit_direct_pattern_delimited_items(
+        table,
+        policy,
+        layout,
+        outer_stops,
+        caller_close_stops,
+        committed,
+    );
 }
 
 #[derive(Clone, Debug)]
@@ -2108,16 +2206,26 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let policy = PatternDelimitedPolicy::Parenthesized;
-    let outer_stops = committed.probe(|probe| active_stop_set(probe.input()));
+    let caller_close_stops =
+        committed.probe(|probe| pattern_caller_close_stops(active_stop_set(probe.input())));
     let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
     committed.start_node(SyntaxKind::ParenthesizedPattern);
     committed.token(SyntaxKind::LParen, open);
-    committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
+    committed.probe(|probe| {
+        push_pattern_delimited_scope(policy, caller_close_stops, probe.input())
+    });
     let initial = consume_direct_trivia(committed);
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
     committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(table, policy, layout, outer_stops, committed);
+    commit_direct_pattern_delimited_items(
+        table,
+        policy,
+        layout,
+        StopSet::default(),
+        caller_close_stops,
+        committed,
+    );
 }
 
 /// Runs the comma/close/retry control flow shared by parenthesized and list
@@ -2127,6 +2235,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
     layout: LayoutDelimitedFrame,
     outer_stops: StopSet,
+    caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -2135,7 +2244,14 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if direct_pattern_delimited_close(policy, committed) {
-        finish_pattern_delimited_scope(policy, layout, committed);
+        finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
+        return;
+    }
+    if committed.probe(|probe| {
+        outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
+    }) {
+        emit_pattern_delimited_close_missing(policy, committed);
+        finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
         return;
     }
 
@@ -2143,7 +2259,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
         commit_direct_pattern_delimited_item(table, policy, committed);
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
             emit_pattern_delimited_close_missing(policy, committed);
-            finish_pattern_delimited_scope(policy, layout, committed);
+            finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
             return;
         }
         let trivia = consume_direct_trivia(committed);
@@ -2153,13 +2269,27 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
             let trivia = consume_direct_trivia(committed);
             committed.emit_trivia(&trivia);
             if direct_pattern_delimited_close(policy, committed) {
-                finish_pattern_delimited_scope(policy, layout, committed);
+                finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
+                return;
+            }
+            if committed.probe(|probe| {
+                outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
+            }) {
+                emit_pattern_delimited_close_missing(policy, committed);
+                finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
                 return;
             }
             continue;
         }
         if direct_pattern_delimited_close(policy, committed) {
-            finish_pattern_delimited_scope(policy, layout, committed);
+            finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
+            return;
+        }
+        if committed.probe(|probe| {
+            outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
+        }) {
+            emit_pattern_delimited_close_missing(policy, committed);
+            finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
             return;
         }
         if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline {
@@ -2173,10 +2303,15 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
             );
             continue;
         }
-        if recover_pattern_delimited_separator_or_close(policy, outer_stops, committed) {
+        if recover_pattern_delimited_separator_or_close(
+            policy,
+            outer_stops,
+            caller_close_stops,
+            committed,
+        ) {
             continue;
         }
-        finish_pattern_delimited_scope(policy, layout, committed);
+        finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
         return;
     }
 }
@@ -2222,6 +2357,7 @@ where
 fn recover_pattern_delimited_separator_or_close<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
     outer_stops: StopSet,
+    caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
@@ -2232,11 +2368,15 @@ where
 {
     match policy {
         PatternDelimitedPolicy::Parenthesized => {
-            recover_pattern_delimited_close(policy, committed);
+            recover_pattern_delimited_close(policy, caller_close_stops, committed);
             false
         }
-        PatternDelimitedPolicy::List => recover_list_separator_or_close(policy, outer_stops, committed),
-        PatternDelimitedPolicy::Record => recover_record_separator_or_close(policy, outer_stops, committed),
+        PatternDelimitedPolicy::List => {
+            recover_list_separator_or_close(policy, outer_stops, caller_close_stops, committed)
+        }
+        PatternDelimitedPolicy::Record => {
+            recover_record_separator_or_close(policy, outer_stops, caller_close_stops, committed)
+        }
     }
 }
 
@@ -2438,6 +2578,7 @@ where
 
 fn recover_pattern_delimited_close<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
+    caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -2447,7 +2588,9 @@ fn recover_pattern_delimited_close<'parse, 'source, 'local, E, O>(
 {
     debug_assert_eq!(policy, PatternDelimitedPolicy::Parenthesized);
     loop {
-        match committed.probe(|probe| drive_parenthesized_pattern_close_recovery(probe.input())) {
+        match committed.probe(|probe| {
+            drive_parenthesized_pattern_close_recovery(caller_close_stops, probe.input())
+        }) {
             ParenthesizedPatternCloseRecoveryStep::Complete { close } => {
                 committed.token(SyntaxKind::RParen, close);
                 return;
@@ -2470,6 +2613,7 @@ fn recover_pattern_delimited_close<'parse, 'source, 'local, E, O>(
 fn recover_list_separator_or_close<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
     outer_stops: StopSet,
+    caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
@@ -2518,6 +2662,21 @@ where
                     ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
                 );
             }
+            return false;
+        }
+        if committed.probe(|probe| {
+            outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
+        }) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(
+                    committed,
+                    PatternRole::ListSeparator,
+                    start..end,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+                );
+            }
+            emit_pattern_delimited_close_missing(policy, committed);
             return false;
         }
         if committed.probe(exact_dot_dot_pending) || committed.probe(pattern_nud_candidate) {
@@ -2551,6 +2710,7 @@ where
 fn recover_record_separator_or_close<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
     outer_stops: StopSet,
+    caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
@@ -2584,6 +2744,21 @@ where
                 let end = committed_position(committed);
                 emit_pattern_error(committed, PatternRole::RecordSeparator, start..end, ExpectedSyntax::DelimitedSequenceSeparator);
             }
+            return false;
+        }
+        if committed.probe(|probe| {
+            outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
+        }) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(
+                    committed,
+                    PatternRole::RecordSeparator,
+                    start..end,
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                );
+            }
+            emit_pattern_delimited_close_missing(policy, committed);
             return false;
         }
         if committed.probe(exact_dot_dot_pending) || committed.probe(pattern_name_pending) {
@@ -2625,16 +2800,45 @@ where
         || matches!(word, Some("where") if stops.contains(StopKind::ArmGuardWhere))
 }
 
+/// Recognizes only a carried caller close.  The current container's own close
+/// remains its first-priority terminal, even when the same close bit is also
+/// active in an outer frame.
+fn outer_pattern_close_stop_pending<E>(
+    policy: PatternDelimitedPolicy,
+    caller_close_stops: StopSet,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        let stop = match punctuation.kind() {
+            PunctuationKind::Close(Delimiter::Parenthesis) => StopKind::RightParenthesis,
+            PunctuationKind::Close(Delimiter::Bracket) => StopKind::RightBracket,
+            PunctuationKind::Close(Delimiter::Brace) => StopKind::RightBrace,
+            _ => return false,
+        };
+        stop != policy.close_stop() && caller_close_stops.contains(stop)
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
 fn finish_pattern_delimited_scope<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
     layout: LayoutDelimitedFrame,
+    caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
     committed.probe(|probe| pop_pattern_layout_baseline(layout, probe.input()));
-    committed.probe(|probe| pop_pattern_delimited_scope(policy, probe.input()));
+    committed.probe(|probe| {
+        pop_pattern_delimited_scope(policy, caller_close_stops, probe.input())
+    });
     committed.finish_node();
 }
 
@@ -3547,6 +3751,156 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn pattern_caller_close_propagation_is_right_close_only() {
+        for (source, arm_stop) in [
+            ("(x ->)", StopKind::Arrow),
+            ("(x if)", StopKind::ArmGuardIf),
+            ("(x where)", StopKind::ArmGuardWhere),
+        ] {
+            let plain_ast = parse(source);
+            let (active_ast, active_remainder) = parse_with_active_stop(source, arm_stop);
+            assert_eq!(active_remainder, "");
+            assert_eq!(active_ast, plain_ast, "AST must not inherit {arm_stop:?}");
+
+            let (plain_direct, plain_recoveries) = parse_direct_recovered(source);
+            let (active_direct, active_recoveries) =
+                parse_direct_with_active_stop_complete(source, arm_stop);
+            assert_eq!(active_direct.to_string(), plain_direct.to_string());
+            assert_eq!(
+                active_recoveries, plain_recoveries,
+                "Parenthesized direct has no {arm_stop:?} query"
+            );
+        }
+
+        for source in ["[x ->", "{x ->"] {
+            let (ast, remainder) = parse_with_active_stop(source, StopKind::Arrow);
+            assert_eq!(remainder, "", "AST keeps arm stops out of its local scope: {source:?}");
+            assert_eq!(ast.range(), 0..source.len(), "{source:?}");
+
+            let (remainder, recoveries) = parse_direct_with_active_stop(source, StopKind::Arrow);
+            assert_eq!(remainder, "->", "direct List/Record retain their existing arm query: {source:?}");
+            assert!(matches!(recoveries.as_slice(), [missing]
+                if missing.kind == RecoveryKind::Missing && missing.site.range == (3..3)
+            ), "{source:?}: {recoveries:#?}");
+        }
+
+        for (source, caller_stop, close_role, caller_boundary, error_end) in [
+            (
+                "(x @)",
+                StopKind::RightParenthesis,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ParenthesizedPattern,
+                    delimiter: Delimiter::Parenthesis,
+                },
+                false,
+                4,
+            ),
+            (
+                "(x @]",
+                StopKind::RightBracket,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ParenthesizedPattern,
+                    delimiter: Delimiter::Parenthesis,
+                },
+                true,
+                4,
+            ),
+            (
+                "(x @}",
+                StopKind::RightBrace,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ParenthesizedPattern,
+                    delimiter: Delimiter::Parenthesis,
+                },
+                true,
+                4,
+            ),
+            (
+                "[x @)",
+                StopKind::RightParenthesis,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ListPattern,
+                    delimiter: Delimiter::Bracket,
+                },
+                true,
+                4,
+            ),
+            (
+                "[x @]",
+                StopKind::RightBracket,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ListPattern,
+                    delimiter: Delimiter::Bracket,
+                },
+                false,
+                5,
+            ),
+            (
+                "[x @}",
+                StopKind::RightBrace,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ListPattern,
+                    delimiter: Delimiter::Bracket,
+                },
+                true,
+                4,
+            ),
+            (
+                "{x @)",
+                StopKind::RightParenthesis,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::RecordPattern,
+                    delimiter: Delimiter::Brace,
+                },
+                true,
+                4,
+            ),
+            (
+                "{x @]",
+                StopKind::RightBracket,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::RecordPattern,
+                    delimiter: Delimiter::Brace,
+                },
+                true,
+                4,
+            ),
+            (
+                "{x @}",
+                StopKind::RightBrace,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::RecordPattern,
+                    delimiter: Delimiter::Brace,
+                },
+                false,
+                5,
+            ),
+        ] {
+            let (ast, ast_remainder) = parse_with_active_stop(source, caller_stop);
+            let expected_remainder = if caller_boundary { &source[4..] } else { "" };
+            let expected_end = if caller_boundary { 4 } else { source.len() };
+            assert_eq!(ast.range(), 0..expected_end, "AST close ownership: {source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST close ownership: {source:?}");
+
+            let (direct_remainder, recoveries) = parse_direct_with_active_stop(source, caller_stop);
+            assert_eq!(direct_remainder, expected_remainder, "direct close ownership: {source:?}");
+            if caller_boundary {
+                assert!(matches!(recoveries.as_slice(), [error, missing]
+                    if error.kind == RecoveryKind::Error
+                        && error.site.range == (3..error_end)
+                        && missing.kind == RecoveryKind::Missing
+                        && missing.site.role == close_role
+                        && missing.site.range == (4..4)
+                ), "{source:?}: {recoveries:#?}");
+            } else {
+                assert!(matches!(recoveries.as_slice(), [error]
+                    if error.kind == RecoveryKind::Error && error.site.range == (3..error_end)
+                ), "{source:?}: {recoveries:#?}");
+            }
+        }
+    }
+
     fn parse<'source>(source: &'source str) -> Pattern<'source> {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
@@ -3562,6 +3916,28 @@ mod tests {
         let pattern = i.run(from_fn(|i| parse_pattern(&table, i))).expect("pattern AST");
         assert_eq!(i.input.remainder(), "");
         pattern
+    }
+
+    fn parse_with_active_stop<'source>(
+        source: &'source str,
+        stop: StopKind,
+    ) -> (Pattern<'source>, &'source str) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let stops = StopSet::default().with(stop);
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let (pattern, remainder) = {
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let pattern = i
+                .run(from_fn(|i| parse_pattern(&OperatorTable::default(), i)))
+                .expect("pattern AST");
+            (pattern, i.input.remainder())
+        };
+        assert_eq!(local.pop_stop_set(), Some(stops));
+        (pattern, remainder)
     }
 
     fn parse_required_with_policy<'source>(source: &'source str, policy: PatternMandatorySlotPolicy) -> (Recovered<Box<Pattern<'source>>>, &'source str) {
@@ -3602,6 +3978,58 @@ mod tests {
         let (root, remainder, recoveries) = parse_direct_inner(source, false);
         assert_eq!(remainder, "", "recovered pattern source");
         (root.expect("complete direct CST"), recoveries)
+    }
+
+    fn parse_direct_with_active_stop<'source>(
+        source: &'source str,
+        stop: StopKind,
+    ) -> (&'source str, Vec<CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let stops = StopSet::default().with(stop);
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let (remainder, recoveries) = {
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_pattern(&OperatorTable::default(), LeadingTrivia::None, &mut committed)
+                .expect("direct pattern");
+            let remainder = committed.probe(|probe| probe.input().input.remainder());
+            let recoveries = committed.into_output().committed_recoveries().to_vec();
+            (remainder, recoveries)
+        };
+        assert_eq!(local.pop_stop_set(), Some(stops));
+        (remainder, recoveries)
+    }
+
+    fn parse_direct_with_active_stop_complete(
+        source: &str,
+        stop: StopKind,
+    ) -> (SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let stops = StopSet::default().with(stop);
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let (root, recoveries) = {
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_pattern(&OperatorTable::default(), LeadingTrivia::None, &mut committed)
+                .expect("direct pattern");
+            assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "");
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            (SyntaxNode::new_root(output.finish_complete()), recoveries)
+        };
+        assert_eq!(local.pop_stop_set(), Some(stops));
+        (root, recoveries)
     }
 
     fn parse_direct_expression(source: &str) -> SyntaxNode {
