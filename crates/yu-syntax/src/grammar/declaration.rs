@@ -26,6 +26,7 @@ use crate::{
             parse_pattern_with_outer_missing_role},
         type_expr::{
             TypeExpression, commit_direct_type_expression_with_outer_missing_role,
+            commit_direct_type_expression_with_outer_missing_role_and_policy,
             parse_required_type_expression_with_outer_missing_role,
             parse_required_type_expression_with_outer_missing_role_and_policy,
             parse_type_expression, type_stop_is_active_in_current_episode,
@@ -2265,6 +2266,242 @@ where
     };
     let range_start = keyword.start;
     DerivesVia {
+        keyword,
+        target,
+        range: range_start..end,
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DirectDerivesAttachment {
+    position: DerivesAttachmentPosition,
+    clause: DirectDerivesClause,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DirectDerivesClause {
+    keyword: Range<usize>,
+    roles: Vec<Recovered<Range<usize>>>,
+    via: Option<DirectDerivesVia>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DirectDerivesVia {
+    keyword: Range<usize>,
+    target: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+/// Isolated direct-CST counterpart of [`parse_derives_attachments_isolated`].
+/// The owner adapter supplies the one accepted start; this function owns only
+/// DerivesClause nodes and their source children, not declaration dispatch.
+fn commit_derives_attachments_isolated<'parse, 'source, 'local, E, O>(
+    start: DerivesAttachmentStart,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Vec<DirectDerivesAttachment>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut attachments = Vec::new();
+    let mut next_start = Some(start);
+    while let Some(start) = next_start.take() {
+        let spec = DerivesDriverSpec::new(start.owner, start.position, start.owner_base);
+        let (attachment, repeated_start) = commit_derives_clause_isolated(start, spec, committed);
+        attachments.push(attachment);
+        next_start = repeated_start;
+    }
+    attachments
+}
+
+fn commit_derives_clause_isolated<'parse, 'source, 'local, E, O>(
+    start: DerivesAttachmentStart,
+    spec: DerivesDriverSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> (DirectDerivesAttachment, Option<DerivesAttachmentStart>)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::DerivesClause);
+    let leading = committed.probe(|probe| probe.input().run(scan_trivia))
+        .expect("the derives attachment gap is total");
+    debug_assert_eq!(leading.range().end, start.keyword.start);
+    committed.emit_trivia(&leading);
+    let keyword = commit_word(committed)
+        .expect("an accepted derives attachment start leaves its keyword at the cursor");
+    assert_eq!(keyword.range(), start.keyword);
+    debug_assert_eq!(keyword.text(), "derives");
+    committed.token(SyntaxKind::DerivesKw, keyword.range());
+
+    let mut roles = Vec::new();
+    let (via, repeated_start) = loop {
+        commit_derives_role_trivia(start.owner_base, committed);
+        roles.push(commit_required_derives_role(spec, committed));
+        match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
+            DerivesDriverDecision::Comma { leading, comma } => {
+                commit_derives_trivia(leading, committed);
+                let consumed = committed.probe(|probe| scan_derives_comma(probe.input()))
+                    .expect("the shared derives driver leaves its comma at the cursor");
+                assert_eq!(consumed, comma);
+                committed.token(SyntaxKind::Comma, consumed);
+            }
+            DerivesDriverDecision::Via { leading, keyword } => {
+                commit_derives_trivia(leading, committed);
+                let consumed = commit_word(committed)
+                    .expect("the shared derives driver leaves its via word at the cursor");
+                assert_eq!(consumed.range(), keyword);
+                debug_assert_eq!(consumed.text(), "via");
+                committed.token(SyntaxKind::ViaKw, consumed.range());
+                let via = commit_derives_via_isolated(keyword, start.owner_base, committed);
+                let repeated_start = match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
+                    DerivesDriverDecision::RepeatedClause { leading, start } => {
+                        commit_derives_trivia(leading, committed);
+                        Some(start)
+                    }
+                    DerivesDriverDecision::Comma { .. }
+                    | DerivesDriverDecision::Via { .. }
+                    | DerivesDriverDecision::OwnerTail(_)
+                    | DerivesDriverDecision::Boundary
+                    | DerivesDriverDecision::NoContinuation => None,
+                };
+                break (Some(via), repeated_start);
+            }
+            DerivesDriverDecision::RepeatedClause { leading, start } => {
+                commit_derives_trivia(leading, committed);
+                break (None, Some(start));
+            }
+            DerivesDriverDecision::OwnerTail(_)
+            | DerivesDriverDecision::Boundary
+            | DerivesDriverDecision::NoContinuation => break (None, None),
+        }
+    };
+    let end = committed_position(committed);
+    let clause_start = start.keyword.start;
+    committed.finish_node();
+    (
+        DirectDerivesAttachment {
+            position: start.position,
+            clause: DirectDerivesClause {
+                keyword: start.keyword,
+                roles,
+                via,
+                range: clause_start..end,
+            },
+        },
+        repeated_start,
+    )
+}
+
+fn commit_derives_trivia<'parse, 'source, 'local, E, O>(
+    expected: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia is total");
+    assert_eq!(trivia.range(), expected);
+    committed.emit_trivia(&trivia);
+}
+
+fn commit_derives_role_trivia<'parse, 'source, 'local, E, O>(
+    owner_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = i.run(scan_trivia).expect("trivia is total");
+        if derives_gap_is_caller_owned(owner_base, struct_trivia_has_newline(&trivia), i) {
+            i.rollback(checkpoint);
+            None
+        } else {
+            Some(trivia)
+        }
+    });
+    if let Some(trivia) = trivia.as_ref() {
+        committed.emit_trivia(trivia);
+    }
+}
+
+fn commit_required_derives_role<'parse, 'source, 'local, E, O>(
+    spec: DerivesDriverSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming = committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default());
+    let episode = committed.probe(|probe| {
+        derives_role_episode_spec(
+            spec,
+            incoming,
+            probe.input().local.type_expression_episode_depth(),
+        )
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(episode.stops);
+        i.local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    });
+    let role = commit_direct_type_expression_with_outer_missing_role_and_policy(
+        Some(episode.outer_role),
+        episode.policy,
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(i.local.pop_type_expression_scoped_stop_frame(), Some(episode.scoped_frame));
+        assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    });
+    let range = role.range();
+    if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    }
+}
+
+fn commit_derives_via_isolated<'parse, 'source, 'local, E, O>(
+    keyword: Range<usize>,
+    owner_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> DirectDerivesVia
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_derives_role_trivia(owner_base, committed);
+    let target = commit_word(committed).map_or(Recovered::Incomplete, |target| {
+        let range = target.range();
+        committed.token(SyntaxKind::Identifier, range.clone());
+        Recovered::Complete(range)
+    });
+    let end = match &target {
+        Recovered::Complete(target) => target.end,
+        Recovered::Incomplete => keyword.end,
+    };
+    let range_start = keyword.start;
+    DirectDerivesVia {
         keyword,
         target,
         range: range_start..end,
@@ -14109,6 +14346,455 @@ mod tests {
             panic!("the bracket-row role should complete");
         };
         assert!(format!("{bracket_row:?}").contains("leading_effect_row: Some"));
+    }
+
+    #[test]
+    fn isolated_derives_direct_cst_adapter_is_byte_exact_lossless_and_ast_parity_checked() {
+        fn advance_to<E>(end: usize, i: &mut SynIn<E>)
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            while i.pos() < end {
+                i.input.next().expect("the worked-example prefix remains available");
+            }
+            assert_eq!(i.pos(), end);
+        }
+
+        fn replay_token<'parse, 'source, 'local, E, O>(
+            kind: SyntaxKind,
+            range: Range<usize>,
+            committed: &mut Committed<'parse, 'source, 'local, E, O>,
+        ) where
+            E: ErrorSink<usize>,
+            O: CommitOutput<'source>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            assert_eq!(committed_position(committed), range.start);
+            committed.probe(|probe| advance_to(range.end, probe.input()));
+            committed.token(kind, range);
+        }
+
+        fn recognize_direct_start<'parse, 'source, 'local, E, O>(
+            owner: DerivesAttachmentOwner,
+            position: DerivesAttachmentPosition,
+            base: usize,
+            committed: &mut Committed<'parse, 'source, 'local, E, O>,
+        ) -> DerivesAttachmentStart
+        where
+            E: ErrorSink<usize>,
+            O: CommitOutput<'source>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            committed
+                .probe(|probe| {
+                    recognize_derives_attachment_start(owner, position, base, probe.input())
+                })
+                .expect("the worked example reaches its declared derives attachment")
+        }
+
+        fn commit_type_until_trailing_derives<'parse, 'source, 'local, E, O>(
+            committed: &mut Committed<'parse, 'source, 'local, E, O>,
+        ) -> Range<usize>
+        where
+            E: ErrorSink<usize>,
+            O: CommitOutput<'source>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            let incoming = committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default());
+            let stops = incoming.with(StopKind::Derives);
+            let frame = TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Derives),
+                visible_episode_depth: committed.probe(|probe| {
+                    probe.input().local.type_expression_episode_depth() + 1
+                }),
+            };
+            committed.probe(|probe| {
+                let i = probe.input();
+                i.local.push_stop_set(stops);
+                i.local.push_type_expression_scoped_stop_frame(frame);
+            });
+            let parsed = commit_direct_type_expression_with_outer_missing_role_and_policy(
+                None,
+                TypeExpressionEpisodePolicy::default(),
+                committed,
+            );
+            committed.probe(|probe| {
+                let i = probe.input();
+                assert_eq!(i.local.pop_type_expression_scoped_stop_frame(), Some(frame));
+                assert_eq!(i.local.pop_stop_set(), Some(stops));
+            });
+            parsed.range()
+        }
+
+        fn parse_ast_at<'source>(
+            source: &'source str,
+            offset: usize,
+            owner: DerivesAttachmentOwner,
+            position: DerivesAttachmentPosition,
+        ) -> Vec<DerivesAttachment<'source>> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let attachments = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                advance_to(offset, &mut i);
+                let start = recognize_derives_attachment_start(owner, position, 0, &mut i)
+                    .expect("the worked example reaches its declared derives attachment");
+                parse_derives_attachments_isolated(start, &mut i)
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "AST state: {source:?}");
+            attachments
+        }
+
+        fn assert_ast_direct_parity(
+            ast: &[DerivesAttachment<'_>],
+            direct: &[DirectDerivesAttachment],
+        ) {
+            assert_eq!(ast.len(), direct.len());
+            for (ast, direct) in ast.iter().zip(direct) {
+                assert_eq!(ast.position, direct.position);
+                assert_eq!(ast.clause.keyword, direct.clause.keyword);
+                assert_eq!(ast.clause.range, direct.clause.range);
+                assert_eq!(ast.clause.roles.len(), direct.clause.roles.len());
+                for (ast_role, direct_role) in ast.clause.roles.iter().zip(&direct.clause.roles) {
+                    match (ast_role, direct_role) {
+                        (Recovered::Complete(ast_role), Recovered::Complete(direct_range)) => {
+                            assert_eq!(ast_role.range(), *direct_range);
+                        }
+                        (Recovered::Incomplete, Recovered::Incomplete) => {}
+                        _ => panic!("AST/direct role recovery shape differs"),
+                    }
+                }
+                match (&ast.clause.via, &direct.clause.via) {
+                    (None, None) => {}
+                    (Some(ast_via), Some(direct_via)) => {
+                        assert_eq!(ast_via.keyword, direct_via.keyword);
+                        assert_eq!(ast_via.range, direct_via.range);
+                        match (&ast_via.target, &direct_via.target) {
+                            (Recovered::Complete(ast_target), Recovered::Complete(direct_range)) => {
+                                assert_eq!(ast_target.range(), *direct_range);
+                            }
+                            (Recovered::Incomplete, Recovered::Incomplete) => {}
+                            _ => panic!("AST/direct via recovery shape differs"),
+                        }
+                    }
+                    _ => panic!("AST/direct via presence differs"),
+                }
+            }
+        }
+
+        fn parse_direct<'source>(
+            source: &'source str,
+        ) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, SyntaxNode) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+
+            let attachments = match source {
+                "struct Point derives Eq, Debug via key { value: Int }" => {
+                    committed.start_node(SyntaxKind::StructDeclaration);
+                    replay_token(SyntaxKind::StructKw, 0..6, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 6..7, &mut committed);
+                    replay_token(SyntaxKind::Identifier, 7..12, &mut committed);
+                    let attachments = commit_derives_attachments_isolated(
+                        recognize_direct_start(
+                            DerivesAttachmentOwner::Struct,
+                            DerivesAttachmentPosition::Header,
+                            0,
+                            &mut committed,
+                        ),
+                        &mut committed,
+                    );
+                    replay_token(SyntaxKind::Whitespace, 38..39, &mut committed);
+                    replay_token(SyntaxKind::LBrace, 39..40, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 40..41, &mut committed);
+                    committed.start_node(SyntaxKind::StructField);
+                    replay_token(SyntaxKind::Identifier, 41..46, &mut committed);
+                    replay_token(SyntaxKind::Colon, 46..47, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 47..48, &mut committed);
+                    let field = commit_direct_type_expression_with_outer_missing_role(None, &mut committed);
+                    assert_eq!(field.range(), 48..51);
+                    committed.finish_node();
+                    replay_token(SyntaxKind::Whitespace, 51..52, &mut committed);
+                    replay_token(SyntaxKind::RBrace, 52..53, &mut committed);
+                    committed.finish_node();
+                    attachments
+                }
+                "struct Point { value: Int } derives Eq" => {
+                    committed.start_node(SyntaxKind::StructDeclaration);
+                    replay_token(SyntaxKind::StructKw, 0..6, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 6..7, &mut committed);
+                    replay_token(SyntaxKind::Identifier, 7..12, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 12..13, &mut committed);
+                    replay_token(SyntaxKind::LBrace, 13..14, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 14..15, &mut committed);
+                    committed.start_node(SyntaxKind::StructField);
+                    replay_token(SyntaxKind::Identifier, 15..20, &mut committed);
+                    replay_token(SyntaxKind::Colon, 20..21, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 21..22, &mut committed);
+                    let field = commit_direct_type_expression_with_outer_missing_role(None, &mut committed);
+                    assert_eq!(field.range(), 22..25);
+                    committed.finish_node();
+                    replay_token(SyntaxKind::Whitespace, 25..26, &mut committed);
+                    replay_token(SyntaxKind::RBrace, 26..27, &mut committed);
+                    let attachments = commit_derives_attachments_isolated(
+                        recognize_direct_start(
+                            DerivesAttachmentOwner::Struct,
+                            DerivesAttachmentPosition::Trailing,
+                            0,
+                            &mut committed,
+                        ),
+                        &mut committed,
+                    );
+                    committed.finish_node();
+                    attachments
+                }
+                "type Id derives Eq = Int derives Debug" => {
+                    committed.start_node(SyntaxKind::TypeDeclaration);
+                    replay_token(SyntaxKind::TypeKw, 0..4, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 4..5, &mut committed);
+                    replay_token(SyntaxKind::Identifier, 5..7, &mut committed);
+                    let mut attachments = commit_derives_attachments_isolated(
+                        recognize_direct_start(
+                            DerivesAttachmentOwner::Type,
+                            DerivesAttachmentPosition::Header,
+                            0,
+                            &mut committed,
+                        ),
+                        &mut committed,
+                    );
+                    replay_token(SyntaxKind::Whitespace, 18..19, &mut committed);
+                    replay_token(SyntaxKind::Equals, 19..20, &mut committed);
+                    replay_token(SyntaxKind::Whitespace, 20..21, &mut committed);
+                    let rhs = commit_type_until_trailing_derives(&mut committed);
+                    assert_eq!(rhs, 21..24);
+                    attachments.extend(commit_derives_attachments_isolated(
+                        recognize_direct_start(
+                            DerivesAttachmentOwner::Type,
+                            DerivesAttachmentPosition::Trailing,
+                            0,
+                            &mut committed,
+                        ),
+                        &mut committed,
+                    ));
+                    committed.finish_node();
+                    attachments
+                }
+                _ => unreachable!("only the three DRV-G representative sources use this harness"),
+            };
+            committed.probe(|probe| assert_eq!(probe.input().input.remainder(), ""));
+            committed.finish_node();
+            let output = committed.into_output();
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "direct state: {source:?}");
+            let records = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            (attachments, records, root)
+        }
+
+        let struct_header = "struct Point derives Eq, Debug via key { value: Int }";
+        let (direct, records, root) = parse_direct(struct_header);
+        let ast = parse_ast_at(
+            struct_header,
+            12,
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Header,
+        );
+        assert_ast_direct_parity(&ast, &direct);
+        assert!(records.is_empty());
+        assert_eq!(root.to_string(), struct_header);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::StructDeclaration, 0..53),
+                (SyntaxKind::DerivesClause, 12..38),
+                (SyntaxKind::TypeExpression, 21..23),
+                (SyntaxKind::TypeExpression, 25..30),
+                (SyntaxKind::StructField, 41..51),
+                (SyntaxKind::TypeExpression, 48..51),
+            ],
+        );
+        let declaration = root.children().next().expect("one declaration");
+        assert_eq!(
+            declaration.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::DerivesClause, SyntaxKind::StructField],
+            "no synthetic attachment wrapper sits between the declaration and clause",
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
+                (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
+                (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
+                (SyntaxKind::Whitespace, " ".to_owned(), 12..13),
+                (SyntaxKind::DerivesKw, "derives".to_owned(), 13..20),
+                (SyntaxKind::Whitespace, " ".to_owned(), 20..21),
+                (SyntaxKind::Identifier, "Eq".to_owned(), 21..23),
+                (SyntaxKind::Comma, ",".to_owned(), 23..24),
+                (SyntaxKind::Whitespace, " ".to_owned(), 24..25),
+                (SyntaxKind::Identifier, "Debug".to_owned(), 25..30),
+                (SyntaxKind::Whitespace, " ".to_owned(), 30..31),
+                (SyntaxKind::ViaKw, "via".to_owned(), 31..34),
+                (SyntaxKind::Whitespace, " ".to_owned(), 34..35),
+                (SyntaxKind::Identifier, "key".to_owned(), 35..38),
+                (SyntaxKind::Whitespace, " ".to_owned(), 38..39),
+                (SyntaxKind::LBrace, "{".to_owned(), 39..40),
+                (SyntaxKind::Whitespace, " ".to_owned(), 40..41),
+                (SyntaxKind::Identifier, "value".to_owned(), 41..46),
+                (SyntaxKind::Colon, ":".to_owned(), 46..47),
+                (SyntaxKind::Whitespace, " ".to_owned(), 47..48),
+                (SyntaxKind::Identifier, "Int".to_owned(), 48..51),
+                (SyntaxKind::Whitespace, " ".to_owned(), 51..52),
+                (SyntaxKind::RBrace, "}".to_owned(), 52..53),
+            ],
+        );
+
+        let struct_trailing = "struct Point { value: Int } derives Eq";
+        let (direct, records, root) = parse_direct(struct_trailing);
+        let ast = parse_ast_at(
+            struct_trailing,
+            27,
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Trailing,
+        );
+        assert_ast_direct_parity(&ast, &direct);
+        assert!(records.is_empty());
+        assert_eq!(root.to_string(), struct_trailing);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::StructDeclaration, 0..38),
+                (SyntaxKind::StructField, 15..25),
+                (SyntaxKind::TypeExpression, 22..25),
+                (SyntaxKind::DerivesClause, 27..38),
+                (SyntaxKind::TypeExpression, 36..38),
+            ],
+        );
+        let declaration = root.children().next().expect("one declaration");
+        assert_eq!(
+            declaration.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::StructField, SyntaxKind::DerivesClause],
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
+                (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
+                (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
+                (SyntaxKind::Whitespace, " ".to_owned(), 12..13),
+                (SyntaxKind::LBrace, "{".to_owned(), 13..14),
+                (SyntaxKind::Whitespace, " ".to_owned(), 14..15),
+                (SyntaxKind::Identifier, "value".to_owned(), 15..20),
+                (SyntaxKind::Colon, ":".to_owned(), 20..21),
+                (SyntaxKind::Whitespace, " ".to_owned(), 21..22),
+                (SyntaxKind::Identifier, "Int".to_owned(), 22..25),
+                (SyntaxKind::Whitespace, " ".to_owned(), 25..26),
+                (SyntaxKind::RBrace, "}".to_owned(), 26..27),
+                (SyntaxKind::Whitespace, " ".to_owned(), 27..28),
+                (SyntaxKind::DerivesKw, "derives".to_owned(), 28..35),
+                (SyntaxKind::Whitespace, " ".to_owned(), 35..36),
+                (SyntaxKind::Identifier, "Eq".to_owned(), 36..38),
+            ],
+        );
+
+        let type_header_and_trailing = "type Id derives Eq = Int derives Debug";
+        let (direct, records, root) = parse_direct(type_header_and_trailing);
+        let mut ast = parse_ast_at(
+            type_header_and_trailing,
+            7,
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+        );
+        ast.extend(parse_ast_at(
+            type_header_and_trailing,
+            24,
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Trailing,
+        ));
+        assert_ast_direct_parity(&ast, &direct);
+        assert!(records.is_empty());
+        assert_eq!(root.to_string(), type_header_and_trailing);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeDeclaration, 0..38),
+                (SyntaxKind::DerivesClause, 7..18),
+                (SyntaxKind::TypeExpression, 16..18),
+                (SyntaxKind::TypeExpression, 21..24),
+                (SyntaxKind::DerivesClause, 24..38),
+                (SyntaxKind::TypeExpression, 33..38),
+            ],
+        );
+        let declaration = root.children().next().expect("one declaration");
+        assert_eq!(
+            declaration.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::DerivesClause,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::DerivesClause,
+            ],
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
+                (SyntaxKind::Whitespace, " ".to_owned(), 4..5),
+                (SyntaxKind::Identifier, "Id".to_owned(), 5..7),
+                (SyntaxKind::Whitespace, " ".to_owned(), 7..8),
+                (SyntaxKind::DerivesKw, "derives".to_owned(), 8..15),
+                (SyntaxKind::Whitespace, " ".to_owned(), 15..16),
+                (SyntaxKind::Identifier, "Eq".to_owned(), 16..18),
+                (SyntaxKind::Whitespace, " ".to_owned(), 18..19),
+                (SyntaxKind::Equals, "=".to_owned(), 19..20),
+                (SyntaxKind::Whitespace, " ".to_owned(), 20..21),
+                (SyntaxKind::Identifier, "Int".to_owned(), 21..24),
+                (SyntaxKind::Whitespace, " ".to_owned(), 24..25),
+                (SyntaxKind::DerivesKw, "derives".to_owned(), 25..32),
+                (SyntaxKind::Whitespace, " ".to_owned(), 32..33),
+                (SyntaxKind::Identifier, "Debug".to_owned(), 33..38),
+            ],
+        );
     }
 
     #[test]
