@@ -22365,31 +22365,61 @@ latticeが固定した次phaseだけが所有する。scannerごとにword /
 punctuation policyをcopyせず、existing declaration invalid-run classifierとPattern / TypeExpression / Expression mandatory
 entriesをcompositionする。
 
-#### Known residual: Catch arm-sequence newline behind a missing nested Pattern delimiter
+#### Known residual: Case / Catch arm-sequence newline behind a missing nested Pattern / annotation TypeExpression delimiter
 
-次のone cross-productは本追補後にも残る**known residual bug / ambiguity**である。
+本追補後にも残る**known residual bug / ambiguity**を、曖昧なclass-level exemptionでなく次のexact
+**twelve-case residual set**として固定する。rowはCast Pattern slot内のmissing nested owner、columnはCastが
+`with:` inline canonical Statement経由で現れるarm-sequence ownerである。
+
+| missing nested owner / malformed fragment | CaseIndented arm-indent newline | CatchIndented arm-indent newline | CatchBraced current-depth newline |
+| --- | --- | --- | --- |
+| ParenthesizedPattern missing `)` / `(x @` | residual | residual | residual |
+| ListPattern missing `]` / `[x @` | residual | residual | residual |
+| RecordPattern missing `}` / `{x @` | residual | residual | residual |
+| Pattern annotation TypeExpressionのEffectRow missing `]` / `x: '[A @` | residual | residual | residual |
+
+ambient ownerごとのfixture templateは次であり、`INNER`を上表のfour fragmentで置換して12 casesを作る。
 
 ```yu
-my result = catch action {
-  A -> value with: cast(@ [x @
+case action:
+  A -> value with: cast(INNER
+  B -> fallback
+```
+
+```yu
+catch action:
+  A -> value with: cast(INNER
+  B -> fallback
+```
+
+```yu
+catch action {
+  A -> value with: cast(INNER
   B -> fallback
 }
 ```
 
-CastのPattern-slot stop frameはright-delimiter ownershipだけをnested Patternへcarryし、raw Newlineをcarryしない。
-missing ListPattern closeの内側にいるmalformed recoveryから見ると、CatchBraced arm-sequenceのphysical newlineは
-statement strict dedentでもIf companionでもないため、next arm `B -> fallback`をlocal malformed runが先取りし得る。
-これは本documentのambient statement-owner boundary追補が列挙するknown residual family
-「case / catch arm-sequence newline」および「owner stop behind a missing nested delimiter」のCast-specific instanceである。
+CastのPattern-slot stop frameはright-delimiter ownershipだけをnested Pattern / annotation TypeExpressionへcarryし、
+raw Newlineをcarryしない。CaseIndented / CatchIndentedのnext-arm lineはarm indentとequalなのでstrict dedentでなく、
+CatchBraced current-depth newlineもstatement strict dedentでもIf companionでもない。従って三contextすべてで
+`any_ambient_owner_claims == false`である。ParenthesizedPattern close recoveryはnewlineをmalformed runとして進み、
+List / Record Pattern sequenceは`B`をnext local item candidateとして受理し得る。annotation TypeExpressionの
+delimited sequenceも同じ`B`をnext TypePrimaryとして受理し得る。Gate 3a-iiがcarryするthree right-close bitsは
+このarm-newline authorityを追加しないため、four inner owner family × three ambient owner familyの全12 casesで
+next arm `B -> fallback`がseparate armとしてdiscoverされないcurrent outcomeになり得る。
 
-本追補はnested PatternへNewlineをunconditionally carryしない。それを行うとvalid multiline Pattern自身のlayout /
-continuation priorityをCastのために変更し、Pattern / arm-sequence全体のowner collisionを局所規則で隠すためである。
-これを閉じるにはarm-sequence newline authority、missing nested delimiter、local Pattern candidateのpriorityを
-別のsigned addendumで一般化する必要がある。Gate 8 / 9はこのcross-productをsuccess matrixから明示的に除外し、
-current remainder / recoveryをknown-residual characterization fixtureとして固定する。そのfixtureはnested Patternの
-malformed runがarm newlineを越えてnext arm `B -> fallback` bytesをownし、next armがseparate Catch armとして
-discoverされないcurrent outcomeをAST/direct byte-exact・losslessに記録する。これをcorrect parseやgreen successとは
-呼ばない。ordinary Catch-inline Cast、right-close handoff、missing nested delimiterを伴わないmultiline Patternは除外しない。
+これは本documentのambient statement-owner boundary追補が列挙するknown residual family
+「CaseIndented / CatchIndented arm-indentおよびCatchBraced current-depth newline」と
+「owner stop behind a missing nested delimiter」のCast-specific instanceである。本追補はnested PatternへNewlineを
+unconditionally carryしない。それを行うとvalid multiline Pattern自身のlayout / continuation priorityをCastのために変更し、
+Pattern / arm-sequence全体のowner collisionを局所規則で隠すためである。これを閉じるにはarm-sequence newline authority、
+missing nested delimiter、local Pattern / TypeExpression candidateのpriorityを別のsigned addendumで一般化する必要がある。
+
+Gate 8 / 9は上表のexact twelve-case setだけをsuccess matrixから除外し、各caseのcurrent remainder / recovery、
+one discovered arm、AST/direct parity、byte-exact losslessnessをknown-residual characterization fixtureとして固定する。
+これをcorrect parseやgreen successとは呼ばない。上表外、特にCaseInline / CatchInlineSingle、ordinary
+CaseIndented / CatchIndented / CatchBraced Cast、caller-owned right-close handoff、well-delimited nested Pattern /
+annotation TypeExpression、arm-sequence外のmissing-delimiter recoveryはsuccess matrixから除外しない。
 
 ### Root / nested dispatch and header discovery
 
@@ -22551,23 +22581,26 @@ Gate 5-9のfive slicesからなる、合計**12 atomic implementation slices**�
    `parse_canonical_statement` / `commit_canonical_statement` / direct candidateをsame isolated adapterへatomic switchする。
    source-leading Castがheader discoveryを`FirstNonHeader`で終了しfactを作らないこともsame changeでwireする。
    **同じGate / same atomic change内で**Gate 7 suiteをunmodified再実行し、root / indented / braced / With inline /
-   Mod inline / Catch-inline-through-owner、depth-2+ ambient / If companion、all active fixed boundaries、normal / recovery /
+   Mod inline / Case / Catch inline-through-owner、depth-2+ ambient / If companion、all active fixed boundaries、normal / recovery /
    rollback、Cast indented body内Expression / Binding / Use / Mod / Struct / Type / Impl / nested Castのfull AST/direct matrixを
    real block-driverとpublic `parse_file`から閉じる。このmatrixがgreenになるまでdispatch switchをland済みと扱わない。
-   existing non-Cast intro priority / fixtureを変更しない。ただし上記known residualのexact cross-product、すなわち
-   **nested Pattern malformed recovery + Catch-inline ambient arm-newline authority + missing local nested delimiter**だけは
-   success matrixから除外する。これを隠したりgreen successとして数えたりせず、current remainder / recoveryを
-   known-residual characterization fixtureとしてpublic entrypointから固定する。ordinary Catch-inline Cast、caller-owned
-   right-close handoff、missing local nested delimiterを伴わないmultiline Patternは従来どおりsuccess matrixに含める。
+   existing non-Cast intro priority / fixtureを変更しない。ただし上記tableがenumerateするexact twelve-case residual set、
+   すなわちfour inner owners（ParenthesizedPattern / ListPattern / RecordPattern / Pattern annotation TypeExpression）×
+   three arm-sequence owners（CaseIndented / CatchIndented / CatchBraced）だけはsuccess matrixから除外する。
+   12 casesすべてのcurrent remainder / recovery、one discovered arm、AST/direct parity、byte-exact losslessnessを
+   known-residual characterization fixtureとしてpublic entrypointから固定し、green successとして数えない。
+   CaseInline / CatchInlineSingle、well-delimited inner owner、caller-owned right-close handoff、arm-sequence外の
+   missing-delimiter recoveryは従来どおりsuccess matrixに含める。
 9. final public regression matrixでall visibility、annotated / unannotated / nested / malformed Pattern、full/exotic target、
    bodyless / inline / multi-Statement indented body、root / nested interleaving、outer semicolon / ambient companion、
    every missing / malformed boundary、AST/direct parity、losslessness、one record = one node、all state restoration、
    full `yu-syntax` suiteを閉じる。`cast`がidentifier / field / Pattern / TypeExpression / expression positionでordinary wordのまま、
    Cast role / rule registration / implicit application / expected-type semantics / HIR / resolver / inference / formatterが未実装である
    scope gateを固定する。Gate 8でpre-provenになったpublic nested matrixとknown-residual characterization fixtureを再実行し、
-   本Gateはnew contextのfirst-time coverageを持たない。`every missing / malformed boundary`というsuccess requirementは、
-   nested Pattern malformed recovery + Catch-inline ambient arm-newline authority + missing local nested delimiterのknown residualを
-   含まない。このone cross-product以外へ例外を広げず、residual fixtureを削除・正常化して未解決を隠さない。
+   本Gateはnew contextのfirst-time coverageを持たない。`every missing / malformed boundary`というsuccess requirementから
+   除外するのは、上表のfour inner owners × CaseIndented / CatchIndented / CatchBracedからなるexact 12 casesだけである。
+   Gate 8の12 characterization fixturesをunmodifiedで再実行し、このenumerated set以外へ例外を広げず、fixtureを
+   削除・正常化して未解決を隠さない。
 
 ### Closed design decisions and Claude review focus
 
@@ -22584,9 +22617,12 @@ Gate 5-9のfive slicesからなる、合計**12 atomic implementation slices**�
   caller-owned closeとしてnon-consumeで返し、actual-opener Cast自身はdelimiter current-top authorityをstop bitより先に取り
   同じ`)`をconsumeする。missing-opener Castはdelimiter authorityを持たず`)`をnon-consumeで返す。
   outer-owned / unowned `)`はどのprefix slotからもnon-consumeで返す。
-- Catch arm-sequence newline behind a missing nested Pattern delimiterはexisting ASOB known-residual familyとして残す。
-  nested PatternへNewlineをunconditionally carryせず、Gate 8 / 9でexact cross-productをcharacterization fixtureとして
-  可視化し、ordinary Catch-inline / right-close / well-delimited multiline Patternのsuccess contractとは分離する。
+- Case / Catch arm-sequence newline behind a missing nested Pattern / annotation TypeExpression delimiterは
+  existing ASOB known-residual familyとして残す。
+  Parenthesized / List / Record PatternおよびPattern annotation TypeExpression × CaseIndented / CatchIndented /
+  CatchBracedのexact 12 casesだけをGate 8 / 9 characterization fixtureとして可視化する。nested PatternへNewlineを
+  unconditionally carryせず、CaseInline / CatchInlineSingle / right-close / well-delimited owner / arm-sequence外の
+  missing-delimiter recoveryに対するsuccess contractとは分離する。
 - target colonとfull mandatory TypeExpressionをdistinct typed slotsとし、outer `Equal | Semicolon | conditional Newline` stopsを
   one TypeExpression episodeだけにdepth-fenceする。
 - formはbodyless semicolon、またはexact equals + inline OperatorChain / strictly-deeper canonical Statement blockである。
@@ -22602,7 +22638,8 @@ active right-close propagation、nested caller-owned handoff後のlocal / outer 
 visibility-led CastをBinding前へ置くpriority、target-colon missing / malformed retry、target TypeExpressionの
 Equal / Semicolon / ambient Newline stop leakage、bodyless semicolonとouter separatorのownership、Binding helper extractionの
 identity separation、upstream terminal failureのno-cascade、Gate 7 isolated matrixとGate 8 same-change real block-driver matrix、
-Catch-inline known residualを限定して隠さないこと、semantic future scopeの閉じ方を確認対象にする。
+four inner owners × CaseIndented / CatchIndented / CatchBracedのexact twelve-case residualを限定して隠さないこと、
+semantic future scopeの閉じ方を確認対象にする。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案（Claude査読・確定前、ユーザ未承認）
 （2026-08-27、canonical Statement / root Declarationのstandalone `cast` declaration grammar追補案）。
