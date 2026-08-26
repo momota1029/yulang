@@ -2149,7 +2149,7 @@ where
                     .expect("the shared derives driver leaves its via word at the cursor");
                 assert_eq!(consumed.range(), keyword);
                 debug_assert_eq!(consumed.text(), "via");
-                let via = parse_derives_via_isolated(keyword, start.owner_base, i);
+                let via = parse_derives_via_isolated(keyword, spec, i);
                 let repeated_start = match drive_derives_clauses(spec, i) {
                     DerivesDriverDecision::RepeatedClause { leading, start } => {
                         consume_derives_trivia(leading, i);
@@ -2244,13 +2244,25 @@ where
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DerivesViaInvalidTarget {
+    RawIdentifier,
+    Boundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DerivesViaInvalidRun {
+    range: Range<usize>,
+    target: DerivesViaInvalidTarget,
+}
+
 /// `scan_word` is the existing declaration-name convention for a mandatory
 /// raw lexical identifier: it intentionally performs no contextual keyword
-/// reclassification. Gate 5 extends this slot with its typed malformed-run
-/// recovery; Gate 3 fixes the complete/incomplete AST shape.
+/// reclassification.  Its malformed-run recovery stops at the same clause
+/// driver boundaries as the role list, then retries one raw word in place.
 fn parse_derives_via_isolated<'source, E>(
     keyword: Range<usize>,
-    owner_base: usize,
+    spec: DerivesDriverSpec,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> DerivesVia<'source>
 where
@@ -2258,8 +2270,20 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    consume_derives_role_trivia(owner_base, i);
-    let target = i.run(scan_word).map_or(Recovered::Incomplete, Recovered::Complete);
+    consume_derives_role_trivia(spec.owner_base, i);
+    let target = if let Some(target) = i.run(scan_word) {
+        Recovered::Complete(target)
+    } else if let Some(recovery) = scan_derives_via_invalid_run(spec, i) {
+        match recovery.target {
+            DerivesViaInvalidTarget::RawIdentifier => Recovered::Complete(
+                i.run(scan_word)
+                    .expect("ViaTarget retry leaves its raw word at the cursor"),
+            ),
+            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+        }
+    } else {
+        Recovered::Incomplete
+    };
     let end = match &target {
         Recovered::Complete(target) => target.range().end,
         Recovered::Incomplete => keyword.end,
@@ -2358,7 +2382,7 @@ where
                 assert_eq!(consumed.range(), keyword);
                 debug_assert_eq!(consumed.text(), "via");
                 committed.token(SyntaxKind::ViaKw, consumed.range());
-                let via = commit_derives_via_isolated(keyword, start.owner_base, committed);
+                let via = commit_derives_via_isolated(keyword, spec, committed);
                 let repeated_start = match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
                     DerivesDriverDecision::RepeatedClause { leading, start } => {
                         commit_derives_trivia(leading, committed);
@@ -2481,7 +2505,7 @@ where
 
 fn commit_derives_via_isolated<'parse, 'source, 'local, E, O>(
     keyword: Range<usize>,
-    owner_base: usize,
+    spec: DerivesDriverSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> DirectDerivesVia
 where
@@ -2490,12 +2514,30 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    commit_derives_role_trivia(owner_base, committed);
-    let target = commit_word(committed).map_or(Recovered::Incomplete, |target| {
+    commit_derives_role_trivia(spec.owner_base, committed);
+    let target = if let Some(target) = commit_word(committed) {
         let range = target.range();
         committed.token(SyntaxKind::Identifier, range.clone());
         Recovered::Complete(range)
-    });
+    } else if let Some(recovery) =
+        committed.probe(|probe| scan_derives_via_invalid_run(spec, probe.input()))
+    {
+        emit_derives_via_recovery(committed, RecoveryKind::Error, recovery.range.clone());
+        match recovery.target {
+            DerivesViaInvalidTarget::RawIdentifier => {
+                let target = commit_word(committed)
+                    .expect("ViaTarget retry leaves its raw word at the cursor");
+                let range = target.range();
+                committed.token(SyntaxKind::Identifier, range.clone());
+                Recovered::Complete(range)
+            }
+            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+        }
+    } else {
+        let at = committed_position(committed);
+        emit_derives_via_recovery(committed, RecoveryKind::Missing, at..at);
+        Recovered::Incomplete
+    };
     let end = match &target {
         Recovered::Complete(target) => target.end,
         Recovered::Incomplete => keyword.end,
@@ -2505,6 +2547,107 @@ where
         keyword,
         target,
         range: range_start..end,
+    }
+}
+
+fn scan_derives_via_invalid_run<E>(
+    spec: DerivesDriverSpec,
+    i: &mut SynIn<E>,
+) -> Option<DerivesViaInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if derives_via_boundary_pending(spec, i) {
+            return (start < i.pos()).then_some(DerivesViaInvalidRun {
+                range: start..i.pos(),
+                target: DerivesViaInvalidTarget::Boundary,
+            });
+        }
+        if start < i.pos() && derives_via_raw_identifier_pending(i) {
+            return Some(DerivesViaInvalidRun {
+                range: start..i.pos(),
+                target: DerivesViaInvalidTarget::RawIdentifier,
+            });
+        }
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(DerivesViaInvalidRun {
+                range: start..i.pos(),
+                target: DerivesViaInvalidTarget::Boundary,
+            });
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn derives_via_boundary_pending<E>(spec: DerivesDriverSpec, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    !matches!(
+        drive_derives_clauses(spec, i),
+        DerivesDriverDecision::NoContinuation
+    )
+}
+
+fn derives_via_raw_identifier_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_word).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn emit_derives_via_recovery<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    kind: RecoveryKind,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            kind,
+            match kind {
+                RecoveryKind::Missing => Arc::from([]),
+                RecoveryKind::Error => Arc::from([crate::session::UnexpectedSyntax::Token {
+                    range: range.clone(),
+                    category: crate::session::UnexpectedCategory::OtherCharacter,
+                }]),
+            },
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Identifier,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    match kind {
+        RecoveryKind::Missing => committed.emit_missing(record),
+        RecoveryKind::Error => committed.emit_error(record),
     }
 }
 
@@ -14794,6 +14937,340 @@ mod tests {
                 (SyntaxKind::Whitespace, " ".to_owned(), 32..33),
                 (SyntaxKind::Identifier, "Debug".to_owned(), 33..38),
             ],
+        );
+    }
+
+    #[test]
+    fn derives_drv_r_recovery_rows_keep_ast_and_direct_slots_in_lockstep() {
+        type Records = Vec<(RecoveryKind, GrammarRole, Range<usize>)>;
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            stops: StopSet,
+        ) -> (Vec<DerivesAttachment<'source>>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(stops);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let attachments = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    0,
+                    &mut i,
+                )
+                .map(|start| parse_derives_attachments_isolated(start, &mut i))
+                .unwrap_or_default()
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            assert_eq!(local.stop_set(), Some(stops), "AST stop restoration: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "AST episode: {source:?}");
+            (attachments, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct(
+            source: &str,
+            stops: StopSet,
+        ) -> (Vec<DirectDerivesAttachment>, Records, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(stops);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(HeaderOutput::new());
+            let attachments = committed
+                .probe(|probe| {
+                    recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Type,
+                        DerivesAttachmentPosition::Header,
+                        0,
+                        probe.input(),
+                    )
+                })
+                .map(|start| commit_derives_attachments_isolated(start, &mut committed))
+                .unwrap_or_default();
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            let records = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            assert_eq!(local.stop_set(), Some(stops), "direct stop restoration: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "direct episode: {source:?}");
+            (attachments, records, remainder)
+        }
+
+        fn direct_recovery_nodes(source: &str) -> (Vec<CommittedRecoveryRecord>, SyntaxNode) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(StopSet::default());
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let start = committed
+                .probe(|probe| {
+                    recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Type,
+                        DerivesAttachmentPosition::Header,
+                        0,
+                        probe.input(),
+                    )
+                })
+                .expect("the complete direct-CST fixture starts with derives");
+            let _ = commit_derives_attachments_isolated(start, &mut committed);
+            committed.probe(|probe| assert_eq!(probe.input().input.remainder(), ""));
+            committed.finish_node();
+            let output = committed.into_output();
+            assert!(expectations.take_merged().is_none(), "full direct sink: {source:?}");
+            assert!(!is_cut, "full direct cut: {source:?}");
+            let records = output.committed_recoveries().to_vec();
+            (records, SyntaxNode::new_root(output.finish_complete()))
+        }
+
+        fn assert_parity(ast: &[DerivesAttachment<'_>], direct: &[DirectDerivesAttachment]) {
+            assert_eq!(ast.len(), direct.len());
+            for (ast, direct) in ast.iter().zip(direct) {
+                assert_eq!(ast.position, direct.position);
+                assert_eq!(ast.clause.keyword, direct.clause.keyword);
+                assert_eq!(ast.clause.range, direct.clause.range);
+                assert_eq!(ast.clause.roles.len(), direct.clause.roles.len());
+                for (ast_role, direct_role) in ast.clause.roles.iter().zip(&direct.clause.roles) {
+                    match (ast_role, direct_role) {
+                        (Recovered::Complete(ast_role), Recovered::Complete(direct_range)) => {
+                            assert_eq!(ast_role.range(), *direct_range);
+                        }
+                        (Recovered::Incomplete, Recovered::Incomplete) => {}
+                        _ => panic!("AST/direct RoleReference shape differs"),
+                    }
+                }
+                match (&ast.clause.via, &direct.clause.via) {
+                    (None, None) => {}
+                    (Some(ast_via), Some(direct_via)) => {
+                        assert_eq!(ast_via.keyword, direct_via.keyword);
+                        assert_eq!(ast_via.range, direct_via.range);
+                        match (&ast_via.target, &direct_via.target) {
+                            (Recovered::Complete(ast_target), Recovered::Complete(direct_range)) => {
+                                assert_eq!(ast_target.range(), *direct_range);
+                            }
+                            (Recovered::Incomplete, Recovered::Incomplete) => {}
+                            _ => panic!("AST/direct ViaTarget shape differs"),
+                        }
+                    }
+                    _ => panic!("AST/direct via presence differs"),
+                }
+            }
+        }
+
+        fn derives_role(role: DerivesRole) -> GrammarRole {
+            GrammarRole::Declaration(DeclarationRole::Derives(role))
+        }
+
+        fn run<'source>(
+            source: &'source str,
+            stops: StopSet,
+            expected_records: Records,
+            expected_remainder: &str,
+        ) -> Vec<DerivesAttachment<'source>> {
+            let (ast, ast_remainder) = parse_ast(source, stops);
+            let (direct, records, direct_remainder) = parse_direct(source, stops);
+            assert_parity(&ast, &direct);
+            assert_eq!(records, expected_records, "direct records: {source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            ast
+        }
+
+        let empty = StopSet::default();
+
+        // One exact derives word owns one clause even when its mandatory role
+        // immediately yields to an owner boundary.
+        let attachments = run(
+            "derives",
+            empty,
+            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 7..7)],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+
+        let attachments = run(
+            "derives @ Eq",
+            empty,
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                8..10,
+            )],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(role)] if role.range() == (10..12)));
+
+        let attachments = run(
+            "derives @",
+            empty,
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                8..9,
+            )],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+
+        // Leading and repeated commas each commit their own empty RoleRef
+        // slot; commas remain real CST tokens owned by the clause.
+        let attachments = run(
+            "derives , Eq,, Debug",
+            empty,
+            vec![
+                (RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 8..8),
+                (RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 13..13),
+            ],
+            "",
+        );
+        assert_eq!(attachments[0].clause.roles.len(), 4);
+        assert!(matches!(attachments[0].clause.roles[0], Recovered::Incomplete));
+        assert!(matches!(attachments[0].clause.roles[1], Recovered::Complete(ref role) if role.range() == (10..12)));
+        assert!(matches!(attachments[0].clause.roles[2], Recovered::Incomplete));
+        assert!(matches!(attachments[0].clause.roles[3], Recovered::Complete(ref role) if role.range() == (15..20)));
+
+        let attachments = run(
+            "derives Eq,",
+            empty,
+            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 11..11)],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
+
+        let attachments = run(
+            "derives Eq, derives Debug",
+            empty,
+            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 12..12)],
+            "",
+        );
+        assert_eq!(attachments.len(), 2, "next derives starts its own clause");
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
+
+        let attachments = run(
+            "derives Eq, via key",
+            empty,
+            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 12..12)],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
+        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+
+        let attachments = run("derives Eq via key", empty, vec![], "");
+        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+
+        let attachments = run(
+            "derives Eq via",
+            empty,
+            vec![(RecoveryKind::Missing, derives_role(DerivesRole::ViaTarget), 14..14)],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Incomplete)));
+
+        let attachments = run(
+            "derives Eq via)",
+            StopSet::default().with(StopKind::RightParenthesis),
+            vec![(RecoveryKind::Missing, derives_role(DerivesRole::ViaTarget), 14..14)],
+            ")",
+        );
+        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Incomplete)));
+
+        let attachments = run(
+            "derives Eq via @ key",
+            empty,
+            vec![(RecoveryKind::Error, derives_role(DerivesRole::ViaTarget), 15..17)],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+
+        let attachments = run(
+            "derives Eq via @",
+            empty,
+            vec![(RecoveryKind::Error, derives_role(DerivesRole::ViaTarget), 15..16)],
+            "",
+        );
+        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Incomplete)));
+
+        let attachments = run("derives Eq Debug", empty, vec![], "");
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(role)] if role.range() == (8..16)));
+
+        let attachments = run("derives Eq derives Debug", empty, vec![], "");
+        assert_eq!(attachments.len(), 2);
+        assert!(attachments.iter().all(|attachment| attachment.clause.roles.len() == 1));
+
+        // The shared driver keeps the type definition owner at the same
+        // cursor, with neither a derives clause recovery nor synthetic list
+        // separator.
+        let attachments = run("derives Eq = Int", empty, vec![], " = Int");
+        assert_eq!(attachments.len(), 1);
+        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_)]));
+
+        let outer = StopSet::default().with(StopKind::RightParenthesis);
+        let attachments = run(
+            ") derives Eq",
+            outer,
+            vec![],
+            ") derives Eq",
+        );
+        assert!(attachments.is_empty(), "outer boundary rejects attachment authority");
+
+        // Independent slots retain independent records: a leading empty item
+        // and malformed ViaTarget do not stack or overwrite one another.
+        let attachments = run(
+            "derives , Eq via @ key",
+            empty,
+            vec![
+                (RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 8..8),
+                (RecoveryKind::Error, derives_role(DerivesRole::ViaTarget), 17..19),
+            ],
+            "",
+        );
+        assert_eq!(attachments.len(), 1);
+        assert_eq!(attachments[0].clause.roles.len(), 2);
+        assert!(matches!(attachments[0].clause.roles[0], Recovered::Incomplete));
+        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+        let (records, root) = direct_recovery_nodes("derives , Eq via @ key");
+        assert_eq!(records.len(), 2, "one committed recovery per failed slot");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            2,
+            "one committed recovery record = one recovery CST node",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::DerivesClause)
+                .count(),
+            1,
+            "one exact derives keyword = one DerivesClause node",
         );
     }
 
