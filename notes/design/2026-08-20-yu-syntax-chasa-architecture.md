@@ -22145,6 +22145,54 @@ CastDeclaration 0..21
 ASTは`visibility = Public`、`range = 0..21`、`target.value = Complete(16..17)`、
 `form = Complete(Definition { equals: 18..19, body: Complete(Inline 20..21), range: 18..21 })`である。
 
+#### Oracle brace-expression inline body worked example
+
+Y2 representative source `pub cast(x: int): user_id = user_id { raw: x }`のbytesは0..46である。
+Y3ではbraceをCast form / declaration body openerへ昇格せず、inline bodyのordinary ML argument +
+`BracedStatementBlockExpression`として次のsource orderを持つ。
+
+```text
+CastDeclaration 0..46
+  PubKw 0..3 "pub"
+  Trivia 3..4 " "
+  CastKw 4..8 "cast"
+  CastPattern 8..16
+    LParen 8..9 "("
+    Pattern 9..15 "x: int"
+    RParen 15..16 ")"
+  CastTarget 16..25
+    Colon 16..17 ":"
+    Trivia 17..18 " "
+    TypeExpression 18..25 "user_id"
+  Trivia 25..26 " "
+  Equals 26..27 "="
+  CastBody 27..46
+    Trivia 27..28 " "
+    OperatorChain 28..46
+      IdentifierExpression 28..35 "user_id"
+      Trivia 35..36 " "
+      MlArgument 36..46
+        OperatorChain 36..46
+          BracedStatementBlockExpression 36..46
+            LBrace 36..37 "{"
+            Trivia 37..38 " "
+            Statement 38..44
+              OperatorChain 38..44
+                IdentifierExpression 38..41 "raw"
+                ColonApplicationTail 41..44
+                  Colon 41..42 ":"
+                  Trivia 42..43 " "
+                  OperatorChain 43..44
+                    IdentifierExpression 43..44 "x"
+            Trivia 44..45 " "
+            RBrace 45..46 "}"
+```
+
+ASTは`range = 0..46`、inline body expression rangeは28..46、
+`form = Complete(Definition { equals: 26..27, body: Complete(Inline 28..46), range: 26..46 })`である。
+`CastBody`はbrace直前で終了せずwhole ML-applied brace expressionまでをownする。brace内Statement /
+ColonApplicationTailのrecovery / separator authorityもordinary Expression ownerのままである。
+
 #### Strictly-deeper body worked example
 
 source `cast(x: A): B =\n  x`のbytesは0..19である。
@@ -22317,6 +22365,32 @@ latticeが固定した次phaseだけが所有する。scannerごとにword /
 punctuation policyをcopyせず、existing declaration invalid-run classifierとPattern / TypeExpression / Expression mandatory
 entriesをcompositionする。
 
+#### Known residual: Catch arm-sequence newline behind a missing nested Pattern delimiter
+
+次のone cross-productは本追補後にも残る**known residual bug / ambiguity**である。
+
+```yu
+my result = catch action {
+  A -> value with: cast(@ [x @
+  B -> fallback
+}
+```
+
+CastのPattern-slot stop frameはright-delimiter ownershipだけをnested Patternへcarryし、raw Newlineをcarryしない。
+missing ListPattern closeの内側にいるmalformed recoveryから見ると、CatchBraced arm-sequenceのphysical newlineは
+statement strict dedentでもIf companionでもないため、next arm `B -> fallback`をlocal malformed runが先取りし得る。
+これは本documentのambient statement-owner boundary追補が列挙するknown residual family
+「case / catch arm-sequence newline」および「owner stop behind a missing nested delimiter」のCast-specific instanceである。
+
+本追補はnested PatternへNewlineをunconditionally carryしない。それを行うとvalid multiline Pattern自身のlayout /
+continuation priorityをCastのために変更し、Pattern / arm-sequence全体のowner collisionを局所規則で隠すためである。
+これを閉じるにはarm-sequence newline authority、missing nested delimiter、local Pattern candidateのpriorityを
+別のsigned addendumで一般化する必要がある。Gate 8 / 9はこのcross-productをsuccess matrixから明示的に除外し、
+current remainder / recoveryをknown-residual characterization fixtureとして固定する。そのfixtureはnested Patternの
+malformed runがarm newlineを越えてnext arm `B -> fallback` bytesをownし、next armがseparate Catch armとして
+discoverされないcurrent outcomeをAST/direct byte-exact・losslessに記録する。これをcorrect parseやgreen successとは
+呼ばない。ordinary Catch-inline Cast、right-close handoff、missing nested delimiterを伴わないmultiline Patternは除外しない。
+
 ### Root / nested dispatch and header discovery
 
 root / nested relationshipを次で固定する。
@@ -22398,6 +22472,9 @@ atomic dispatch + real nested-context matrix、final scope gateへ分ける。Ga
 
 implementation gateを次で固定する。
 
+Gate 1-2のtwo slices、Gate 3a-i / 3a-ii / 3bのthree slices、Gate 4a / 4bのtwo slices、
+Gate 5-9のfive slicesからなる、合計**12 atomic implementation slices**である。
+
 1. `CastDeclaration` / `CastPattern` / `CastTarget` / `CastBody` / `CastKw` SyntaxKind、
    `CastDeclaration` / `CastPattern` / `CastTarget` / `CastForm` / `CastBody` AST、
    `Declaration::Cast` / `Statement::Cast`、`StatementIntro::Cast` carrier、`StatementKind::CastDeclaration`、
@@ -22452,7 +22529,11 @@ implementation gateを次で固定する。
    流用せず、existing public dispatchは変更しない。Gate 4aを完了してからGate 4bへ進む。
 5. direct-CST thin adapterをisolated harnessへ追加し、`cast(x: A): B;`、`pub cast(x: A): B = x`、
    `cast(x: A): B =\n  x`のchild order / byte range、all trivia home、lossless round trip、no BindingBody /
-   synthetic wrapper / separator、AST-direct parityをbyte-exactに固定する。
+   synthetic wrapper / separator、AST-direct parityをbyte-exactに固定する。加えてY2 oracleのexact representative source
+   `pub cast(x: int): user_id = user_id { raw: x }`をworked fixtureにし、`CastBody 27..46`、inline
+   `OperatorChain 28..46`、その`MlArgument > BracedStatementBlockExpression 36..46`をbyte-exactに固定する。
+   このbraceをCast form / declaration body openerとしてcommitせず、ordinary inline expressionがwhole brace expressionを
+   ownすることをAST/direct双方でassertする。
 6. `CAST-R`全rowをfixture化する。pattern introducer / Pattern / close / target introducer / target type / body introducer / bodyの
    Missing / malformed retry / terminal、target-stop nested suspension、form starter preservation、indented Statement recovery、
    fresh Pattern malformed runのColon / Equal / local close / outer terminal handoff、PatternIntroducer / Pattern / close /
@@ -22473,13 +22554,20 @@ implementation gateを次で固定する。
    Mod inline / Catch-inline-through-owner、depth-2+ ambient / If companion、all active fixed boundaries、normal / recovery /
    rollback、Cast indented body内Expression / Binding / Use / Mod / Struct / Type / Impl / nested Castのfull AST/direct matrixを
    real block-driverとpublic `parse_file`から閉じる。このmatrixがgreenになるまでdispatch switchをland済みと扱わない。
-   existing non-Cast intro priority / fixtureを変更しない。
+   existing non-Cast intro priority / fixtureを変更しない。ただし上記known residualのexact cross-product、すなわち
+   **nested Pattern malformed recovery + Catch-inline ambient arm-newline authority + missing local nested delimiter**だけは
+   success matrixから除外する。これを隠したりgreen successとして数えたりせず、current remainder / recoveryを
+   known-residual characterization fixtureとしてpublic entrypointから固定する。ordinary Catch-inline Cast、caller-owned
+   right-close handoff、missing local nested delimiterを伴わないmultiline Patternは従来どおりsuccess matrixに含める。
 9. final public regression matrixでall visibility、annotated / unannotated / nested / malformed Pattern、full/exotic target、
    bodyless / inline / multi-Statement indented body、root / nested interleaving、outer semicolon / ambient companion、
    every missing / malformed boundary、AST/direct parity、losslessness、one record = one node、all state restoration、
    full `yu-syntax` suiteを閉じる。`cast`がidentifier / field / Pattern / TypeExpression / expression positionでordinary wordのまま、
    Cast role / rule registration / implicit application / expected-type semantics / HIR / resolver / inference / formatterが未実装である
-   scope gateを固定する。Gate 8でpre-provenになったpublic nested matrixを再実行し、本Gateはnew contextのfirst-time coverageを持たない。
+   scope gateを固定する。Gate 8でpre-provenになったpublic nested matrixとknown-residual characterization fixtureを再実行し、
+   本Gateはnew contextのfirst-time coverageを持たない。`every missing / malformed boundary`というsuccess requirementは、
+   nested Pattern malformed recovery + Catch-inline ambient arm-newline authority + missing local nested delimiterのknown residualを
+   含まない。このone cross-product以外へ例外を広げず、residual fixtureを削除・正常化して未解決を隠さない。
 
 ### Closed design decisions and Claude review focus
 
@@ -22496,6 +22584,9 @@ implementation gateを次で固定する。
   caller-owned closeとしてnon-consumeで返し、actual-opener Cast自身はdelimiter current-top authorityをstop bitより先に取り
   同じ`)`をconsumeする。missing-opener Castはdelimiter authorityを持たず`)`をnon-consumeで返す。
   outer-owned / unowned `)`はどのprefix slotからもnon-consumeで返す。
+- Catch arm-sequence newline behind a missing nested Pattern delimiterはexisting ASOB known-residual familyとして残す。
+  nested PatternへNewlineをunconditionally carryせず、Gate 8 / 9でexact cross-productをcharacterization fixtureとして
+  可視化し、ordinary Catch-inline / right-close / well-delimited multiline Patternのsuccess contractとは分離する。
 - target colonとfull mandatory TypeExpressionをdistinct typed slotsとし、outer `Equal | Semicolon | conditional Newline` stopsを
   one TypeExpression episodeだけにdepth-fenceする。
 - formはbodyless semicolon、またはexact equals + inline OperatorChain / strictly-deeper canonical Statement blockである。
@@ -22511,7 +22602,7 @@ active right-close propagation、nested caller-owned handoff後のlocal / outer 
 visibility-led CastをBinding前へ置くpriority、target-colon missing / malformed retry、target TypeExpressionの
 Equal / Semicolon / ambient Newline stop leakage、bodyless semicolonとouter separatorのownership、Binding helper extractionの
 identity separation、upstream terminal failureのno-cascade、Gate 7 isolated matrixとGate 8 same-change real block-driver matrix、
-semantic future scopeの閉じ方を確認対象にする。
+Catch-inline known residualを限定して隠さないこと、semantic future scopeの閉じ方を確認対象にする。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案（Claude査読・確定前、ユーザ未承認）
 （2026-08-27、canonical Statement / root Declarationのstandalone `cast` declaration grammar追補案）。
