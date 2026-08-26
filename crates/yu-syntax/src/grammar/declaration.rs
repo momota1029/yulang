@@ -15962,6 +15962,207 @@ mod tests {
     }
 
     #[test]
+    fn nominal_type_declaration_final_public_boundary_matrix_preserves_ast_direct_parity() {
+        let parse_public = |source: &str| {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            SyntaxNode::new_root(parsed.green().clone())
+        };
+        let assert_public_direct_lossless = |source: &str| {
+            let public = parse_public(source);
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public parser: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct parser: {source:?}");
+            assert_eq!(
+                public.descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .map(|node| (node.kind(), syntax_range(node.text_range())))
+                    .collect::<Vec<_>>(),
+                direct_root
+                    .descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .map(|node| (node.kind(), syntax_range(node.text_range())))
+                    .collect::<Vec<_>>(),
+                "AST/direct CST recovery-node parity: {source:?}",
+            );
+            (public, direct)
+        };
+        let declaration_ranges = |root: &SyntaxNode| {
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>()
+        };
+
+        // Gate 8 already fixes the standalone visibility/parameter and outer-semicolon
+        // cases.  This mixed root sequence closes the remaining coexistence edge: two
+        // nominal headers and an equality declaration leave the following Binding intact.
+        let source = "type Point\npub type Phantom 'a;\ntype Alias = Int\nmy value = 1";
+        let (root, direct) = assert_public_direct_lossless(source);
+        assert!(
+            direct.committed_recoveries().is_empty(),
+            "{:?}",
+            direct.committed_recoveries()
+        );
+        assert_eq!(
+            declaration_ranges(&root),
+            vec![0..10, 11..30, 32..48],
+        );
+        assert_eq!(
+            root.children()
+                .filter(|node| {
+                    matches!(
+                        node.kind(),
+                        SyntaxKind::TypeDeclaration | SyntaxKind::BindingStatement
+                    )
+                })
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::TypeDeclaration,
+                SyntaxKind::TypeDeclaration,
+                SyntaxKind::TypeDeclaration,
+                SyntaxKind::BindingStatement,
+            ],
+        );
+
+        // The outer If companion owns both spellings of its continuation word.
+        for source in [
+            "my result = if condition:\n  type Point\nelse: 0",
+            "my result = if condition:\n  type Point\nelsif other: 0",
+        ] {
+            let (root, direct) = assert_public_direct_lossless(source);
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "{source:?}: {:?}",
+                direct.committed_recoveries()
+            );
+            let type_start = source.find("type Point").unwrap();
+            assert_eq!(
+                declaration_ranges(&root),
+                vec![type_start..type_start + "type Point".len()],
+                "{source:?}"
+            );
+            assert!(root.descendants().all(|node| {
+                !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)
+            }));
+        }
+
+        // Braced sequences supply the active comma and RightBrace statement boundaries.
+        for source in [
+            "my block = { type Point, my value = 1 }",
+            "my closed = { type Point }",
+        ] {
+            let (root, direct) = assert_public_direct_lossless(source);
+            assert!(direct.committed_recoveries().is_empty(), "{source:?}");
+            let type_start = source.find("type Point").unwrap();
+            assert_eq!(
+                declaration_ranges(&root),
+                vec![type_start..type_start + "type Point".len()],
+                "{source:?}"
+            );
+        }
+
+        // Catch reaches its arm separator through the With inline canonical Statement.
+        let source = "my result = catch action {\n  A -> value with: type Point\n  B -> fallback}";
+        let (root, direct) = assert_public_direct_lossless(source);
+        assert!(
+            direct.committed_recoveries().is_empty(),
+            "Catch arm newline should close the nominal declaration without recovery: {:?}",
+            direct.committed_recoveries(),
+        );
+        let type_start = source.find("type Point").unwrap();
+        assert_eq!(
+            declaration_ranges(&root),
+            vec![type_start..type_start + "type Point".len()]
+        );
+
+        // Maximal strictly-deeper trailing trivia belongs to the completed nominal node.
+        let source = "type Point\n    ";
+        let (root, direct) = assert_public_direct_lossless(source);
+        assert!(direct.committed_recoveries().is_empty());
+        assert_eq!(declaration_ranges(&root), vec![0..source.len()]);
+
+        // A terminal malformed definition run remains the TND-R Incomplete equality
+        // recovery; it must not be silently upgraded to Nominal.
+        let source = "type Id @";
+        let (root, direct) = assert_public_direct_lossless(source);
+        assert_eq!(declaration_ranges(&root), vec![0..source.len()]);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>(),
+            vec![8..9],
+        );
+        let [record] = direct.committed_recoveries() else {
+            panic!("terminal malformed DefinitionIntroducer has one recovery record");
+        };
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Type(
+                TypeDeclarationRole::DefinitionIntroducer
+            ))
+        );
+        assert_eq!(record.site.range, 8..9);
+
+        for (source, expected_form) in [
+            ("type Point", "nominal"),
+            ("type Alias = Int", "equality"),
+            ("type Id @", "incomplete"),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Some(Declaration::Type(declaration)) = i.run(parse_declaration) else {
+                panic!("{source:?} must remain a Type declaration");
+            };
+            match expected_form {
+                "nominal" => assert!(matches!(
+                    declaration.form,
+                    Recovered::Complete(TypeDeclarationForm::Nominal)
+                )),
+                "equality" => assert!(matches!(
+                    declaration.form,
+                    Recovered::Complete(TypeDeclarationForm::Equality { .. })
+                )),
+                "incomplete" => assert!(matches!(declaration.form, Recovered::Incomplete)),
+                _ => unreachable!(),
+            }
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(
+                declaration_ranges(&direct_root),
+                vec![declaration.range.clone()],
+                "AST/direct TypeDeclaration range parity: {source:?}"
+            );
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+        }
+    }
+
+    #[test]
     fn type_declaration_stops_header_discovery_and_is_absent_from_operator_only_slots() {
         let source: Arc<crate::SourceText> = Arc::from("type Pair = Int\nuse std::data\n");
         let header = crate::scan_header(source);
