@@ -24542,4 +24542,251 @@ mod tests {
             assert!(header.operators().is_empty());
         }
     }
+
+    #[test]
+    fn impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity() {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum BodyKind {
+            Bodyless,
+            Braced,
+            ColonInline,
+            ColonIndented,
+            Incomplete,
+        }
+
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn identifier_tokens(root: &SyntaxNode, text: &str) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.text() == text)
+                .map(|token| {
+                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    syntax_range(token.text_range())
+                })
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ImplDeclaration),
+                "public/direct Impl range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> (Range<usize>, BodyKind, Option<Range<usize>>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Impl(declaration) = i
+                .run(parse_declaration)
+                .expect("the final root matrix starts with Impl")
+            else {
+                panic!("the final root matrix must select Declaration::Impl")
+            };
+            let body = match declaration.body {
+                Recovered::Complete(ImplBody::Bodyless { .. }) => BodyKind::Bodyless,
+                Recovered::Complete(ImplBody::Braced { .. }) => BodyKind::Braced,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Complete(ImplColonBody::Inline { .. }),
+                    ..
+                }) => BodyKind::ColonInline,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Complete(ImplColonBody::Indented { .. }),
+                    ..
+                }) => BodyKind::ColonIndented,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
+                | Recovered::Incomplete => BodyKind::Incomplete,
+            };
+            let description_range = declaration
+                .description
+                .as_ref()
+                .map(|description| description.range.clone());
+            let summary = (declaration.range(), body, description_range);
+            assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            summary
+        }
+
+        // Use different public sources from Gate 8 while re-auditing visibility,
+        // full/exotic TypeExpression slots, and each of the three body families.
+        for (source, body, has_description) in [
+            ("our impl Int -> { x: Int };", BodyKind::Bodyless, false),
+            ("pub impl Head: { x: Int };", BodyKind::Bodyless, true),
+            ("impl (:{ A }) { my value = 1 }", BodyKind::Braced, false),
+            ("impl Head: Description: use std;", BodyKind::ColonInline, true),
+            ("impl Head:\n  struct Nested;", BodyKind::ColonIndented, false),
+        ] {
+            let (ast_range, ast_body, description_range) = parse_root_ast(source);
+            assert_eq!(ast_range, 0..source.len(), "AST range: {source:?}");
+            assert_eq!(ast_body, body, "AST body: {source:?}");
+            assert_eq!(description_range.is_some(), has_description, "AST description: {source:?}");
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(direct.committed_recoveries().is_empty(), "{source:?}");
+            assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration), vec![ast_range.clone()]);
+            assert_eq!(node_ranges(&direct_root, SyntaxKind::ImplDeclaration), vec![ast_range]);
+        }
+
+        // Bodyless and colon-inline semicolons are Impl-owned; a brace body's
+        // semicolon belongs to its outer statement sequence. The ambient If
+        // companion remains an outer boundary rather than an Impl continuation.
+        for source in [
+            "impl Eq;\nmy next = 1",
+            "impl Eq: Description: my value = 1;\nmy next = 2",
+            "impl Eq { my value = 1 }; my next = 3",
+            "my result = if condition:\n  impl Eq;\nelse: fallback",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(direct.committed_recoveries().is_empty(), "{source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ImplDeclaration),
+                "outer boundary parity: {source:?}",
+            );
+        }
+
+        // Final recovery rows exercise a malformed Description boundary and
+        // delegated brace-close recovery through public/direct entrypoints.
+        for source in ["impl Head: @;", "impl Eq { my value = 1"] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(direct.committed_recoveries().len(), 1, "{source:?}");
+            assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration).len(), 1);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ImplDeclaration),
+                "recovery range parity: {source:?}",
+            );
+        }
+
+        // Re-run a public nested-Impl owner path. Gate 7's independently-run
+        // state matrix covers every rollback exit; this is its already-proven
+        // real block-driver counterpart, not new context coverage.
+        let source = "impl Outer {\n  impl Inner;\n  my value = 1\n}";
+        let (public, direct_root, direct) = parse_public_and_direct(source);
+        assert!(direct.committed_recoveries().is_empty());
+        assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration).len(), 2);
+        assert_eq!(node_ranges(&direct_root, SyntaxKind::ImplDeclaration).len(), 2);
+
+        // `impl` remains a word outside an exact Statement introduction. These
+        // public-entrypoint cases cover expression, field, type-expression,
+        // and OperatorChain-only inline positions.
+        for source in [
+            "my value = impl\nmy implish = implFoo",
+            "struct Fields { impl: Int }",
+            "type Alias = (impl Eq)",
+        ] {
+            let (public, direct_root, _) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::ImplDeclaration).is_empty(),
+                    "no ImplDeclaration outside an accepted Statement slot: {source:?}",
+                );
+                assert!(
+                    !identifier_tokens(root, "impl").is_empty(),
+                    "ordinary impl identifier: {source:?}",
+                );
+            }
+        }
+
+        let source = "if condition: impl Eq;";
+        let (public, direct_root, _) = parse_public_and_direct(source);
+        assert!(node_ranges(&public, SyntaxKind::ImplDeclaration).is_empty());
+        assert!(node_ranges(&direct_root, SyntaxKind::ImplDeclaration).is_empty());
+
+        // The deferred Type-tail, `with:` companion, and Type role-like body
+        // surfaces retain ordinary existing grammar behavior. In particular,
+        // none may synthesize an Impl owner from a Type-owned continuation.
+        for source in [
+            "type Box 't impl Pick Int:",
+            "struct Point { value: Int } with:\n  my method = value",
+            "type Point:\n  impl Eq;",
+            "type Point { impl Eq; }",
+        ] {
+            let (public, direct_root, _) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::ImplDeclaration).is_empty(),
+                    "deferred owner must not construct ImplDeclaration: {source:?}",
+                );
+            }
+        }
+
+        // `via` has no Impl-specific grammar. It stays a normal TypeExpression
+        // word and never receives the derives-only ViaKw token kind.
+        let source = "impl Eq via key;";
+        let (public, direct_root, direct) = parse_public_and_direct(source);
+        assert!(direct.committed_recoveries().is_empty());
+        for root in [&public, &direct_root] {
+            assert!(
+                root.descendants_with_tokens().all(|element| {
+                    element
+                        .into_token()
+                        .is_none_or(|token| token.kind() != SyntaxKind::ViaKw)
+                }),
+                "Impl-specific via remains unavailable",
+            );
+            assert!(!identifier_tokens(root, "via").is_empty());
+        }
+
+        // A body Type declaration is still only an ordinary Statement. No
+        // associated-type/member semantics or duplicate checking is introduced.
+        let source = "impl Eq {\n  type Item = Int;\n  type Item = Int;\n}";
+        let (public, direct_root, direct) = parse_public_and_direct(source);
+        assert!(direct.committed_recoveries().is_empty());
+        assert_eq!(node_ranges(&public, SyntaxKind::TypeDeclaration).len(), 2);
+        assert_eq!(node_ranges(&direct_root, SyntaxKind::TypeDeclaration).len(), 2);
+    }
 }
