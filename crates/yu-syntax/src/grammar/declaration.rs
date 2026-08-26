@@ -27,6 +27,7 @@ use crate::{
         type_expr::{
             TypeExpression, commit_direct_type_expression_with_outer_missing_role,
             parse_required_type_expression_with_outer_missing_role,
+            parse_required_type_expression_with_outer_missing_role_and_policy,
             parse_type_expression, type_stop_is_active_in_current_episode,
         },
     },
@@ -2085,6 +2086,189 @@ where
         i.rollback(checkpoint);
     }
     comma
+}
+
+/// Isolated AST construction for one owner-opened derives attachment point.
+/// The caller supplies the sole accepted start; later clauses come only from
+/// the shared driver so AST and direct-CST adapters cannot diverge on clause
+/// continuation ownership.
+fn parse_derives_attachments_isolated<'source, E>(
+    start: DerivesAttachmentStart,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Vec<DerivesAttachment<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut attachments = Vec::new();
+    let mut next_start = Some(start);
+    while let Some(start) = next_start.take() {
+        let spec = DerivesDriverSpec::new(start.owner, start.position, start.owner_base);
+        let (attachment, repeated_start) = parse_derives_clause_isolated(start, spec, i);
+        attachments.push(attachment);
+        next_start = repeated_start;
+    }
+    attachments
+}
+
+fn parse_derives_clause_isolated<'source, E>(
+    start: DerivesAttachmentStart,
+    spec: DerivesDriverSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (DerivesAttachment<'source>, Option<DerivesAttachmentStart>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = i.run(scan_trivia).expect("the derives attachment gap is total");
+    debug_assert_eq!(leading.range().end, start.keyword.start);
+    let keyword = i
+        .run(scan_word)
+        .expect("an accepted derives attachment start leaves its keyword at the cursor");
+    assert_eq!(keyword.range(), start.keyword);
+    debug_assert_eq!(keyword.text(), "derives");
+
+    let mut roles = Vec::new();
+    let (via, repeated_start) = loop {
+        consume_derives_role_trivia(start.owner_base, i);
+        roles.push(parse_required_derives_role(spec, i));
+        match drive_derives_clauses(spec, i) {
+            DerivesDriverDecision::Comma { leading, comma } => {
+                consume_derives_trivia(leading, i);
+                let consumed = scan_derives_comma(i)
+                    .expect("the shared derives driver leaves its comma at the cursor");
+                assert_eq!(consumed, comma);
+            }
+            DerivesDriverDecision::Via { leading, keyword } => {
+                consume_derives_trivia(leading, i);
+                let consumed = i
+                    .run(scan_word)
+                    .expect("the shared derives driver leaves its via word at the cursor");
+                assert_eq!(consumed.range(), keyword);
+                debug_assert_eq!(consumed.text(), "via");
+                let via = parse_derives_via_isolated(keyword, start.owner_base, i);
+                let repeated_start = match drive_derives_clauses(spec, i) {
+                    DerivesDriverDecision::RepeatedClause { leading, start } => {
+                        consume_derives_trivia(leading, i);
+                        Some(start)
+                    }
+                    DerivesDriverDecision::Comma { .. }
+                    | DerivesDriverDecision::Via { .. }
+                    | DerivesDriverDecision::OwnerTail(_)
+                    | DerivesDriverDecision::Boundary
+                    | DerivesDriverDecision::NoContinuation => None,
+                };
+                break (Some(via), repeated_start);
+            }
+            DerivesDriverDecision::RepeatedClause { leading, start } => {
+                consume_derives_trivia(leading, i);
+                break (None, Some(start));
+            }
+            DerivesDriverDecision::OwnerTail(_)
+            | DerivesDriverDecision::Boundary
+            | DerivesDriverDecision::NoContinuation => break (None, None),
+        }
+    };
+    let end = i.pos();
+    let clause_start = start.keyword.start;
+    (
+        DerivesAttachment {
+        position: start.position,
+        clause: DerivesClause {
+            keyword: start.keyword,
+            roles,
+            via,
+            range: clause_start..end,
+        },
+        },
+        repeated_start,
+    )
+}
+
+fn consume_derives_trivia<E>(expected: Range<usize>, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    assert_eq!(trivia.range(), expected);
+}
+
+fn consume_derives_role_trivia<E>(owner_base: usize, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    if derives_gap_is_caller_owned(owner_base, struct_trivia_has_newline(&trivia), i) {
+        i.rollback(checkpoint);
+    }
+}
+
+fn parse_required_derives_role<'source, E>(
+    spec: DerivesDriverSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming = i.local.stop_set().unwrap_or_default();
+    let episode = derives_role_episode_spec(spec, incoming, i.local.type_expression_episode_depth());
+    i.local.push_stop_set(episode.stops);
+    i.local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    let role = i
+        .run(from_fn(|i| {
+            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
+                Some(episode.outer_role),
+                episode.policy,
+                i,
+            ))
+        }))
+        .expect("the mandatory derives RoleReference entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(episode.scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    match role {
+        Recovered::Complete(role) => Recovered::Complete(Box::new(role)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    }
+}
+
+/// `scan_word` is the existing declaration-name convention for a mandatory
+/// raw lexical identifier: it intentionally performs no contextual keyword
+/// reclassification. Gate 5 extends this slot with its typed malformed-run
+/// recovery; Gate 3 fixes the complete/incomplete AST shape.
+fn parse_derives_via_isolated<'source, E>(
+    keyword: Range<usize>,
+    owner_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DerivesVia<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    consume_derives_role_trivia(owner_base, i);
+    let target = i.run(scan_word).map_or(Recovered::Incomplete, Recovered::Complete);
+    let end = match &target {
+        Recovered::Complete(target) => target.range().end,
+        Recovered::Incomplete => keyword.end,
+    };
+    let range_start = keyword.start;
+    DerivesVia {
+        keyword,
+        target,
+        range: range_start..end,
+    }
 }
 
 /// The isolated nominal-versus-equality disposition after Type's shared name
@@ -13822,6 +14006,109 @@ mod tests {
                 element.kind() == SyntaxKind::DerivesKw || element.kind() == SyntaxKind::ViaKw
             }));
         }
+    }
+
+    #[test]
+    fn isolated_derives_ast_clause_parser_follows_drv_g_and_preserves_source_order() {
+        fn parse<'source>(
+            source: &'source str,
+            owner: DerivesAttachmentOwner,
+            position: DerivesAttachmentPosition,
+        ) -> (Vec<DerivesAttachment<'source>>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let attachments = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let start = recognize_derives_attachment_start(owner, position, 0, &mut i)
+                    .expect("the isolated fixture begins at an accepted derives keyword");
+                parse_derives_attachments_isolated(start, &mut i)
+            };
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (attachments, source_input.remainder().to_owned())
+        }
+
+        let (single, remainder) = parse(
+            "derives Eq",
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Header,
+        );
+        assert_eq!(remainder, "");
+        let [single] = single.as_slice() else { panic!("one clause expected"); };
+        assert_eq!(single.position, DerivesAttachmentPosition::Header);
+        assert_eq!(single.clause.keyword, 0..7);
+        assert_eq!(single.clause.range, 0..10);
+        assert_eq!(single.clause.roles.len(), 1);
+        assert!(matches!(single.clause.roles[0], Recovered::Complete(_)));
+        assert!(single.clause.via.is_none());
+
+        let (comma_list, remainder) = parse(
+            "derives Eq, Debug, Show",
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+        );
+        assert_eq!(remainder, "");
+        let [comma_list] = comma_list.as_slice() else { panic!("one clause expected"); };
+        assert_eq!(comma_list.position, DerivesAttachmentPosition::Header);
+        assert_eq!(comma_list.clause.roles.len(), 3);
+        assert!(comma_list.clause.roles.iter().all(|role| matches!(role, Recovered::Complete(_))));
+        assert!(comma_list.clause.via.is_none());
+
+        let (type_apply, remainder) = parse(
+            "derives Eq Debug",
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Trailing,
+        );
+        assert_eq!(remainder, "");
+        let [type_apply] = type_apply.as_slice() else { panic!("one clause expected"); };
+        assert_eq!(type_apply.position, DerivesAttachmentPosition::Trailing);
+        assert_eq!(type_apply.clause.roles.len(), 1, "whitespace remains TypeApply");
+        let Recovered::Complete(type_apply_role) = &type_apply.clause.roles[0] else {
+            panic!("the TypeApply role should complete");
+        };
+        assert_eq!(type_apply_role.range(), 8..16);
+        assert!(format!("{type_apply_role:?}").contains("Apply"));
+
+        let (exotic, remainder) = parse(
+            "derives ({ value: Int })",
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Header,
+        );
+        assert_eq!(remainder, "");
+        let [exotic] = exotic.as_slice() else { panic!("one clause expected"); };
+        let Recovered::Complete(exotic_role) = &exotic.clause.roles[0] else {
+            panic!("the exotic role should complete");
+        };
+        assert!(format!("{exotic_role:?}").contains("Record"));
+
+        let source = "derives Eq via key derives [e] T";
+        let (repeated, remainder) = parse(
+            source,
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Trailing,
+        );
+        assert_eq!(remainder, "");
+        assert_eq!(repeated.len(), 2);
+        assert_eq!(repeated[0].position, DerivesAttachmentPosition::Trailing);
+        assert_eq!(repeated[0].clause.keyword, 0..7);
+        assert_eq!(repeated[0].clause.roles.len(), 1);
+        let via = repeated[0].clause.via.as_ref().expect("via target");
+        assert_eq!(via.keyword, 11..14);
+        assert!(matches!(via.target, Recovered::Complete(target) if target.text() == "key"));
+        assert_eq!(repeated[1].clause.keyword, 19..26);
+        assert_eq!(repeated[1].clause.roles.len(), 1);
+        let Recovered::Complete(bracket_row) = &repeated[1].clause.roles[0] else {
+            panic!("the bracket-row role should complete");
+        };
+        assert!(format!("{bracket_row:?}").contains("leading_effect_row: Some"));
     }
 
     #[test]
