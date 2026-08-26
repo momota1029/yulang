@@ -3696,6 +3696,35 @@ pub(crate) fn commit_indented_mod_body<'parse, 'source, 'local, E, O>(
     );
 }
 
+/// Reuses the canonical indented statement sequence while preserving the
+/// declaration-specific recovery identity of an Impl colon body.
+pub(crate) fn commit_indented_impl_body<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            stops_for_if_companion: false,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Impl(
+                crate::session::ImplRole::IndentedStatement,
+            ))),
+        },
+        committed,
+    );
+}
+
 /// Shared colon-body block loop.  Owners can supply a companion-stop policy
 /// without copying statement/separator/recovery ownership.
 fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(

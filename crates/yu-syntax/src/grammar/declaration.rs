@@ -15,7 +15,7 @@ use crate::{
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
     grammar::expression::{
         IndentedStatementBlock, OperatorChain, ParsedExpression, commit_indented_binding_body,
-        commit_indented_mod_body,
+        commit_indented_impl_body, commit_indented_mod_body,
         Statement, BracedStatementBlockExpression, commit_braced_statement_block_expression,
         commit_canonical_statement, parse_braced_statement_block_expression,
         parse_direct_expression_with_operators, parse_expression_with_operators,
@@ -1130,6 +1130,215 @@ where
     });
     assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
     body
+}
+
+/// Gate 5's direct-CST counterpart of [`parse_impl_declaration_isolated`].
+/// It remains outside root and canonical Statement dispatch until the later
+/// atomic promotion, while replaying the same isolated head, description, and
+/// body decisions into one lossless ImplDeclaration node.
+fn commit_impl_declaration_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: ImplStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::ImplDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::ImplKw, intro.impl_keyword.range());
+
+    if !committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.impl_base, probe.input())) {
+            committed.emit_trivia(&trivia);
+            let _ = commit_required_impl_type_expression_isolated(
+                ImplTypeExpressionSlot::Head,
+                committed,
+            );
+        }
+    }
+
+    commit_impl_after_head_isolated(table, intro.impl_base, committed);
+    let end = committed_position(committed);
+    committed.finish_node();
+    Recovered::Complete(intro.start..end)
+}
+
+fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    impl_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        return;
+    }
+    let description = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let result = mod_trivia(impl_base, i).and_then(|leading| {
+            let colon = i.run(scan_punctuation).and_then(|punctuation| {
+                (punctuation.kind() == PunctuationKind::Colon).then_some(punctuation.range())
+            })?;
+            let trailing = i.run(scan_trivia).expect("trivia scan is total");
+            (!i.input.source()[trailing.range()].contains(['\r', '\n']))
+                .then_some((leading, colon))
+        });
+        i.rollback(checkpoint);
+        result
+    });
+    let Some((leading, colon)) = description else {
+        commit_impl_body_isolated(table, impl_base, committed);
+        return;
+    };
+
+    let consumed_leading = committed
+        .probe(|probe| mod_trivia(impl_base, probe.input()))
+        .expect("the isolated description probe leaves its leading trivia at the cursor");
+    assert_eq!(consumed_leading.range(), leading.range());
+    committed.emit_trivia(&consumed_leading);
+    committed.start_node(SyntaxKind::ImplDescription);
+    let punctuation = committed
+        .probe(|probe| probe.input().run(scan_punctuation))
+        .expect("the isolated description probe leaves its colon at the cursor");
+    assert_eq!(punctuation.range(), colon);
+    committed.token(SyntaxKind::Colon, colon);
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scan is total");
+    committed.emit_trivia(&trivia);
+    let _ = commit_required_impl_type_expression_isolated(
+        ImplTypeExpressionSlot::Description,
+        committed,
+    );
+    committed.finish_node();
+    commit_impl_body_isolated(table, impl_base, committed);
+}
+
+#[derive(Clone)]
+enum ImplBodyStarter {
+    Bodyless(Range<usize>),
+    Braced(Range<usize>),
+    Colon(Range<usize>),
+}
+
+fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    impl_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        return;
+    }
+    let starter = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = mod_trivia(impl_base, i)?;
+        let punctuation = i.run(scan_punctuation)?;
+        let starter = match punctuation.kind() {
+            PunctuationKind::Semicolon => ImplBodyStarter::Bodyless(punctuation.range()),
+            PunctuationKind::Open(Delimiter::Brace) => ImplBodyStarter::Braced(punctuation.range()),
+            PunctuationKind::Colon => ImplBodyStarter::Colon(punctuation.range()),
+            _ => {
+                i.rollback(checkpoint);
+                return None;
+            }
+        };
+        i.rollback(checkpoint);
+        Some((trivia, starter))
+    });
+    let Some((trivia, starter)) = starter else {
+        return;
+    };
+    let consumed_trivia = committed
+        .probe(|probe| mod_trivia(impl_base, probe.input()))
+        .expect("the accepted Impl body starter leaves its leading trivia at the cursor");
+    assert_eq!(consumed_trivia.range(), trivia.range());
+    committed.emit_trivia(&consumed_trivia);
+    let punctuation = committed
+        .probe(|probe| probe.input().run(scan_punctuation))
+        .expect("the accepted Impl body starter remains at the cursor");
+    match starter {
+        ImplBodyStarter::Bodyless(range) => {
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Semicolon, range);
+        }
+        ImplBodyStarter::Braced(range) => {
+            assert_eq!(punctuation.range(), range);
+            commit_braced_statement_block_expression(table, range, committed);
+        }
+        ImplBodyStarter::Colon(range) => {
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Colon, range);
+            commit_impl_colon_body_isolated(table, impl_base, committed);
+        }
+    }
+}
+
+fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    impl_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scan is total");
+    let newline = committed.probe(|probe| {
+        probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
+    });
+    if newline && committed.probe(|probe| probe.input().local.line().line_indent <= impl_base) {
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+        return;
+    }
+    if newline {
+        let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+        commit_indented_impl_body(table, trivia, impl_base, block_indent, committed);
+        return;
+    }
+    committed.emit_trivia(&trivia);
+    let ambient_scope = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_inline_canonical_statement_ambient_scope(
+                crate::session::InlineStatementOwnerKind::ImplColonBody,
+            )
+    });
+    let statement_committed = commit_canonical_statement(table, LeadingTrivia::None, committed);
+    if statement_committed
+        && let Some(semicolon) = commit_character(committed, ';')
+    {
+        committed.token(SyntaxKind::Semicolon, semicolon);
+    }
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_ambient_owner_scope(),
+            Some(ambient_scope),
+        );
+    });
 }
 
 /// Scans the optional, same-line-only declaration parameter production.
@@ -23131,5 +23340,147 @@ mod tests {
         ));
         assert_eq!(missing_colon_body.range(), 0..7);
         assert_eq!(remainder, "\n");
+    }
+
+    #[test]
+    fn isolated_impl_declaration_direct_cst_is_lossless_and_matches_ast_shapes() {
+        fn parse_ast(source: &str) -> (ImplDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Impl intro establishes authority")
+            };
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_impl_statement_intro)
+                .expect("the isolated Impl intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_impl_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            if !remainder.is_empty() {
+                let outer_trivia = committed
+                    .probe(|probe| probe.input().run(scan_trivia))
+                    .expect("the isolated root remainder is trivia");
+                committed.emit_trivia(&outer_trivia);
+            }
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            let _ = expectations.take_merged();
+            let _ = is_cut;
+            (range, remainder, root, recoveries)
+        }
+
+        for (source, expected_remainder, expected_recoveries) in [
+            ("impl int: Eq;", "", 0),
+            ("impl point:\n  our p = true", "", 0),
+            ("impl Eq Int {\n  our eq = id\n}", "", 0),
+            ("impl Point: Eq: my value = 1;", "", 0),
+            ("impl Point: Eq:\n  my value = 1", "", 0),
+            ("impl;", "", 1),
+            ("impl T: ;", "", 1),
+            ("impl T", "", 0),
+            ("impl T:\n", "\n", 0),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, root, recoveries) = commit_direct(source);
+            assert_eq!(direct_range, Recovered::Complete(ast.range()));
+            assert_eq!(direct_remainder, ast_remainder, "remainder parity: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "remainder: {source:?}");
+            assert_eq!(recoveries.len(), expected_recoveries, "recoveries: {source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                recoveries.len(),
+                "one recovery record = one node: {source:?}",
+            );
+        }
+
+        for (source, expected_children) in [
+            (
+                "impl int: Eq;",
+                vec![
+                    SyntaxKind::ImplKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::ImplDescription,
+                    SyntaxKind::Semicolon,
+                ],
+            ),
+            (
+                "impl point:\n  our p = true",
+                vec![
+                    SyntaxKind::ImplKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Colon,
+                    SyntaxKind::IndentedStatementBlock,
+                ],
+            ),
+            (
+                "impl Eq Int {\n  our eq = id\n}",
+                vec![
+                    SyntaxKind::ImplKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::BracedStatementBlockExpression,
+                ],
+            ),
+        ] {
+            let (_, _, root, _) = commit_direct(source);
+            let declaration = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::ImplDeclaration)
+                .expect("one ImplDeclaration");
+            assert_eq!(
+                declaration
+                    .children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                expected_children,
+                "child order: {source:?}",
+            );
+            assert_eq!(declaration.text().to_string(), source, "range: {source:?}");
+        }
     }
 }
