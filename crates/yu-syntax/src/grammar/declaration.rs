@@ -1067,6 +1067,9 @@ where
     };
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
+        if impl_body_introducer_error_retry_ast(i).is_some_and(|retry| retry) {
+            return parse_impl_body_ast(table, impl_base, i);
+        }
         return Recovered::Incomplete;
     };
     match punctuation.kind() {
@@ -1083,6 +1086,9 @@ where
         }),
         _ => {
             i.rollback(checkpoint);
+            if impl_body_introducer_error_retry_ast(i).is_some_and(|retry| retry) {
+                return parse_impl_body_ast(table, impl_base, i);
+            }
             Recovered::Incomplete
         }
     }
@@ -1115,7 +1121,14 @@ where
         .push_inline_canonical_statement_ambient_scope(
             crate::session::InlineStatementOwnerKind::ImplColonBody,
         );
-    let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)));
+    let statement = i
+        .run(from_fn(|i| parse_canonical_statement(table, i)))
+        .or_else(|| {
+            impl_body_error_retry_ast(table, i)
+                .is_some_and(|retry| retry)
+                .then(|| i.run(from_fn(|i| parse_canonical_statement(table, i))))
+                .flatten()
+        });
     let body = statement.map(|statement| {
         let terminal = i.checkpoint();
         if i
@@ -1265,7 +1278,18 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
         Some((trivia, starter))
     });
     let Some((trivia, starter)) = starter else {
-        emit_impl_body_introducer_missing(committed);
+        let Some(trivia) = committed.probe(|probe| mod_trivia(impl_base, probe.input())) else {
+            emit_impl_body_introducer_missing(committed);
+            return;
+        };
+        committed.emit_trivia(&trivia);
+        match impl_body_introducer_error_retry(committed) {
+            Some(true) => {
+                commit_impl_body_isolated(table, impl_base, committed);
+            }
+            Some(false) => {}
+            None => emit_impl_body_introducer_missing(committed),
+        }
         return;
     };
     let consumed_trivia = committed
@@ -1312,6 +1336,7 @@ fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
     });
     if newline && committed.probe(|probe| probe.input().local.line().line_indent <= impl_base) {
         committed.probe(|probe| probe.input().rollback(checkpoint));
+        emit_impl_body_missing(committed);
         return;
     }
     if newline {
@@ -1328,7 +1353,18 @@ fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
                 crate::session::InlineStatementOwnerKind::ImplColonBody,
             )
     });
-    let statement_committed = commit_canonical_statement(table, LeadingTrivia::None, committed);
+    let statement_committed = if commit_canonical_statement(table, LeadingTrivia::None, committed) {
+        true
+    } else {
+        match impl_body_error_retry(table, committed) {
+            Some(true) => commit_canonical_statement(table, LeadingTrivia::None, committed),
+            Some(false) => false,
+            None => {
+                emit_impl_body_missing(committed);
+                false
+            }
+        }
+    };
     if statement_committed
         && let Some(semicolon) = commit_character(committed, ';')
     {
@@ -1340,6 +1376,193 @@ fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
             Some(ambient_scope),
         );
     });
+}
+
+fn impl_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+fn impl_body_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Comma
+            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
+            | PunctuationKind::Open(Delimiter::Brace)
+            | PunctuationKind::Colon
+            | PunctuationKind::Semicolon
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+/// Consumes one malformed body-starter run until an actual Impl starter or a
+/// caller-owned boundary.  The AST path consumes the same bytes without
+/// emitting; direct CST realizes the one typed error record below.
+fn impl_body_introducer_error_retry_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if impl_body_starter_pending(i) {
+            return (start < i.pos()).then_some(true);
+        }
+        if impl_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn impl_body_error_retry_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if impl_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        let checkpoint = i.checkpoint();
+        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        i.rollback(checkpoint);
+        if candidate {
+            return Some(true);
+        }
+    }
+}
+
+fn impl_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            let i = probe.input();
+            if impl_body_starter_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), true));
+            }
+            if impl_body_boundary_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            };
+            if matches!(character, '\r' | '\n') {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            i.input.next()?;
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    })?;
+    emit_impl_error(
+        committed,
+        ImplRole::BodyIntroducer,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        recovered.0,
+    );
+    Some(recovered.1)
+}
+
+fn impl_body_error_retry<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            {
+                let i = probe.input();
+                if impl_body_boundary_pending(i) {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                let Some(character) = i.input.remainder().chars().next() else {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                };
+                if matches!(character, '\r' | '\n') {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                i.input.next()?;
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            if crate::grammar::expression::direct_canonical_statement_candidate(
+                table,
+                LeadingTrivia::None,
+                probe,
+            ) {
+                let end = probe.input().pos();
+                return Some((start..end, true));
+            }
+        }
+    })?;
+    emit_impl_error(
+        committed,
+        ImplRole::Body,
+        ExpectedSyntax::Statement,
+        recovered.0,
+    );
+    Some(recovered.1)
 }
 
 /// Scans the optional, same-line-only declaration parameter production.
@@ -5209,6 +5432,79 @@ fn emit_impl_body_introducer_missing<'parse, 'source, 'local, E, O>(
         )
     });
     committed.emit_missing(record);
+}
+
+fn emit_impl_body_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    emit_impl_missing(committed, ImplRole::Body, ExpectedSyntax::Statement);
+}
+
+fn emit_impl_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: ImplRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Declaration(DeclarationRole::Impl(role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_impl_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    impl_role: ImplRole,
+    expected: ExpectedSyntax,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Impl(impl_role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
 }
 
 fn emit_struct_missing<'parse, 'source, 'local, E, O>(
@@ -23449,7 +23745,7 @@ mod tests {
             ("impl;", "", 1),
             ("impl T: ;", "", 1),
             ("impl T", "", 1),
-            ("impl T:\n", "\n", 0),
+            ("impl T:\n", "\n", 1),
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, root, recoveries) = commit_direct(source);
@@ -23526,6 +23822,104 @@ mod tests {
                 "child order: {source:?}",
             );
             assert_eq!(declaration.text().to_string(), source, "range: {source:?}");
+        }
+    }
+
+    #[test]
+    fn isolated_impl_body_recovery_retries_one_malformed_run_without_cascade() {
+        fn parse_ast(source: &str) -> (ImplDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Impl intro establishes authority")
+            };
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(source: &str) -> (Recovered<Range<usize>>, String, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_impl_statement_intro)
+                .expect("the isolated Impl intro establishes authority");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let range = commit_impl_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            let _ = expectations.take_merged();
+            let _ = is_cut;
+            (range, remainder, output.committed_recoveries().to_vec())
+        }
+
+        let role = |role| GrammarRole::Declaration(DeclarationRole::Impl(role));
+        for (source, expected_range, expected_remainder, expected_records) in [
+            (
+                "impl T @;",
+                0..9,
+                "",
+                vec![(RecoveryKind::Error, role(ImplRole::BodyIntroducer), 7..8)],
+            ),
+            (
+                "impl T @@",
+                0..9,
+                "",
+                vec![(RecoveryKind::Error, role(ImplRole::BodyIntroducer), 7..9)],
+            ),
+            (
+                "impl T: D:",
+                0..10,
+                "",
+                vec![(RecoveryKind::Missing, role(ImplRole::Body), 10..10)],
+            ),
+            (
+                "impl T: D: @my value = 1",
+                0..24,
+                "",
+                vec![(RecoveryKind::Error, role(ImplRole::Body), 11..12)],
+            ),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, records) = commit_direct(source);
+            assert_eq!(ast.range(), expected_range, "AST range: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(expected_range), "direct range: {source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                records
+                    .iter()
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                    .collect::<Vec<_>>(),
+                expected_records,
+                "one range = one node = one record: {source:?}",
+            );
         }
     }
 }
