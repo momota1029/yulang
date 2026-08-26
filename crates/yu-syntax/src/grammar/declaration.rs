@@ -863,6 +863,15 @@ struct ParsedTypeDeclarationHeader<'source> {
     rhs_retry: bool,
 }
 
+/// The shared prefix of both nominal and equality Type declarations.  The
+/// definition-introducer/RHS phase stays separate so the form judge can see
+/// the original post-parameter gap before equality recovery owns it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ParsedTypeDeclarationSharedHeader<'source> {
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum TypeDeclarationHeaderRecovery {
     Missing {
@@ -888,13 +897,40 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut recoveries = Vec::new();
+    let shared = parse_type_declaration_shared_header_phase(intro, i, &mut recoveries);
+    let (equals, rhs_retry) = parse_type_declaration_definition_phase(
+        intro,
+        &shared.name,
+        i,
+        &mut recoveries,
+    );
+
+    (
+        ParsedTypeDeclarationHeader {
+            name: shared.name,
+            parameters: shared.parameters,
+            equals,
+            rhs_retry,
+        },
+        recoveries,
+    )
+}
+
+fn parse_type_declaration_shared_header_phase<'source, E>(
+    intro: &TypeStatementIntro<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+    recoveries: &mut Vec<TypeDeclarationHeaderRecovery>,
+) -> ParsedTypeDeclarationSharedHeader<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let name_boundary = any_ambient_owner_claims(i);
     if !name_boundary {
         let _ = mod_trivia(intro.type_base, i);
     }
-    let mut name_incomplete = false;
     let name = if name_boundary {
-        name_incomplete = true;
         recoveries.push(TypeDeclarationHeaderRecovery::Missing {
             role: crate::session::TypeDeclarationRole::Name,
             at: i.pos(),
@@ -915,7 +951,6 @@ where
                             .expect("a Type name retry must leave its raw word at the cursor"),
                     ),
                     TypeDeclarationInvalidTarget::Equals | TypeDeclarationInvalidTarget::Boundary => {
-                        name_incomplete = true;
                         Recovered::Incomplete
                     }
                     TypeDeclarationInvalidTarget::Rhs => {
@@ -924,7 +959,6 @@ where
                 }
             }
             None => {
-                name_incomplete = true;
                 recoveries.push(TypeDeclarationHeaderRecovery::Missing {
                     role: crate::session::TypeDeclarationRole::Name,
                     at: i.pos(),
@@ -940,6 +974,20 @@ where
         Vec::new()
     };
 
+    ParsedTypeDeclarationSharedHeader { name, parameters }
+}
+
+fn parse_type_declaration_definition_phase<'source, E>(
+    intro: &TypeStatementIntro<'source>,
+    name: &Recovered<WordSpan<'source>>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+    recoveries: &mut Vec<TypeDeclarationHeaderRecovery>,
+) -> (Recovered<Range<usize>>, bool)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let definition_boundary = any_ambient_owner_claims(i);
     if !definition_boundary {
         let continuation_checkpoint = i.checkpoint();
@@ -948,9 +996,9 @@ where
         }
     }
 
-    let (equals, rhs_retry) = if let Some(equals) = i.run(scan_declaration_exact_equals) {
+    if let Some(equals) = i.run(scan_declaration_exact_equals) {
         (Recovered::Complete(equals), true)
-    } else if name_incomplete {
+    } else if matches!(name, Recovered::Incomplete) {
         (Recovered::Incomplete, false)
     } else if definition_boundary {
         recoveries.push(TypeDeclarationHeaderRecovery::Missing {
@@ -994,12 +1042,7 @@ where
                 (Recovered::Incomplete, false)
             }
         }
-    };
-
-    (
-        ParsedTypeDeclarationHeader { name, parameters, equals, rhs_retry },
-        recoveries,
-    )
+    }
 }
 
 /// Direct-CST's isolated header harness shares the AST scanner and merely
@@ -1162,6 +1205,56 @@ where
     } else {
         Recovered::Complete(range)
     }
+}
+
+/// The isolated form-aware AST continuation prepared for the later dispatch
+/// gate.  The live equality adapter below intentionally remains unchanged
+/// until that gate swaps this construction into the real statement path.
+fn parse_type_declaration_form_aware_isolated<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let intro = i.run(recognize_type_statement_intro)?;
+    let mut recoveries = Vec::new();
+    let shared = parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
+    let disposition = classify_type_declaration_form(&shared.name, intro.type_base, &mut i);
+    let form = match disposition {
+        TypeDeclarationFormDisposition::Nominal => Recovered::Complete(TypeDeclarationForm::Nominal),
+        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
+            let (equals, rhs_retry) = parse_type_declaration_definition_phase(
+                &intro,
+                &shared.name,
+                &mut i,
+                &mut recoveries,
+            );
+            let header = ParsedTypeDeclarationHeader {
+                name: shared.name.clone(),
+                parameters: shared.parameters.clone(),
+                equals,
+                rhs_retry,
+            };
+            let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                equals: header.equals,
+                rhs,
+            })
+        }
+        TypeDeclarationFormDisposition::Incomplete => Recovered::Incomplete,
+    };
+    let range = intro.start..i.pos();
+    Some(TypeDeclaration {
+        visibility: intro
+            .visibility
+            .map_or(Visibility::Private, |prefix| prefix.visibility),
+        name: shared.name,
+        parameters: shared.parameters,
+        form,
+        range,
+    })
 }
 
 pub(crate) fn parse_type_declaration<'source, E>(
@@ -13090,6 +13183,82 @@ mod tests {
             assert_eq!(i.pos(), pos);
             assert_eq!(i.local.line(), line);
         }
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+    }
+
+    #[test]
+    fn isolated_type_declaration_form_aware_ast_construction_reuses_tnd_j_once() {
+        fn parse_form_aware<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_type_declaration_form_aware_isolated(i)
+                    .expect("the isolated form-aware entry recognizes Type")
+            };
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        let (nominal, remainder) = parse_form_aware("type Point");
+        assert_eq!(remainder, "");
+        assert_eq!(nominal.range, 0..10);
+        assert!(matches!(
+            nominal.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
+
+        let (equality, remainder) = parse_form_aware("type Id = Int");
+        assert_eq!(remainder, "");
+        assert!(matches!(
+            equality.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                equals: Recovered::Complete(ref equals),
+                rhs: Recovered::Complete(ref rhs),
+            }) if equals == &(8..9) && rhs.range() == (10..13)
+        ));
+
+        let (recovered_equality, remainder) = parse_form_aware("type Id ('a)");
+        assert_eq!(remainder, "");
+        assert!(matches!(
+            recovered_equality.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                equals: Recovered::Incomplete,
+                rhs: Recovered::Complete(_),
+            })
+        ));
+
+        let (incomplete, remainder) = parse_form_aware("type");
+        assert_eq!(remainder, "");
+        assert!(matches!(incomplete.form, Recovered::Incomplete));
+
+        let (exotic_rhs, remainder) = parse_form_aware("type Id = [e] T");
+        assert_eq!(remainder, "");
+        assert!(matches!(
+            exotic_rhs.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                rhs: Recovered::Complete(ref rhs),
+                ..
+            }) if format!("{rhs:?}").contains("leading_effect_row: Some")
+        ));
+
+        // Gate 3 deliberately leaves the live equality adapter in place.
+        let mut source_input = SourceInput::new("type Point");
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let legacy = {
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            parse_type_declaration(i).expect("the current equality adapter recognizes Type")
+        };
+        assert!(matches!(legacy.form, Recovered::Incomplete));
+        assert_eq!(source_input.remainder(), "");
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
     }
