@@ -23512,3 +23512,807 @@ same-change real block-driver matrix、semantic deferred surfaceの閉じ方を�
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-27、canonical Statement / root Declarationのstandalone `role` declaration shell grammar追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`のstandalone `act` declaration shell grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-27）。
+
+Date: 2026-08-27。
+
+### Scope and authority
+
+本追補は、Authoritativeなcanonical Statement / root Declaration grammar、standalone TypeExpression grammar、
+standalone Role declaration追補がfuture declaration kind / future type use-siteへ残したstandalone `act` declarationを、
+root / nestedで同じsyntax ownerとして設計する。対象は次だけである。
+
+- optional declaration visibilityとexact maximal word `act`から成るstatement intro。
+- mandatory one full ordinary `TypeExpression` act head。Yulang2のpath-like act name、whitespace-applied type argument、
+  whitespace-separated parenthesized type-parameter surfaceは、separate name / parameter grammarへ分解せずhead TypeExpressionに保持する。
+- optional exact `=` + mandatory full ordinary `TypeExpression` source clause。これはYulang2のact copy surfaceをsyntaxとして保持する。
+- explicit bodyless semicolon、caller boundaryで完成するimplicit bodyless form、existing braced canonical Statement block、
+  colon-introduced inline / indented canonical Statement body。
+- act body内のsignature-only Binding、default-body Binding、ordinary declaration / expression Statementを、実装時点の
+  canonical `Statement` closed sumとして受理するcomposition。
+- operation signatureに現れるtrailing `Pattern : TypeExpression`を、existing `BindingStatement > Pattern >
+  PatternTypeAnnotation > TypeExpression`としてfull standalone TypeExpressionへ接続すること。
+- head / source / body introducer / bodyのtyped recovery、ASOB、outer Statement boundary、AST / direct-CST parity。
+- root / nested shared dispatchと、source-leading Actがheader discoveryを`FirstNonHeader`で終了するno-fact behavior。
+
+本追補は次を設計しない。
+
+- algebraic effectのoperation登録、operation signatureへのlatent effect追加、handler / continuation、effect row意味論。
+- act name / type argument / copy sourceのsemantic validity、act copy / substitution / export filtering、duplicate operation、visibility meaning。
+- contextual `host` act modifier、`suspend_one_shot` / `suspend_multi_shot` operation tier、host ABI manifest。
+- declaration companion `with:` / `with {}`、Act-owned `derives` attachment、act inheritance / `where` / `via`。
+- act body itemのsemantic subset。body itemはsyntax上ordinary canonical `Statement`であり、operation / helper / nested declarationかを
+  parserが判定しない。
+- HIR lowering、resolver、inference、diagnostics wording、formatter、syntax-reference page。
+- Patternのidentifier + `.field` continuation。Act bodyでdotted Binding targetを使うsourceはPattern addendumへ残す。
+
+本追補のBNF-equivalent grammarの唯一の正本は`ACT-G`、intro / form authorityは`ACT-J`、
+TypeExpression / Binding-signature / canonical Statement compositionは`ACT-T`、typed recoveryは`ACT-R`である。
+`ACT`はAct Declarationの略で、current documentの`DRV` / `IMD` / `CAST` / `ASOB` / `RLD`その他のprefixと衝突しない。
+
+### Problem statement and supersession boundary
+
+current Yulang3の`Declaration` / `Statement` / `StatementIntro` / `StatementKind`にはAct variantがなく、
+`DeclarationRole`にもAct recovery identityがない。exact word `act`はroot / nested canonical Statementでdeclaration authorityを得ず、
+oracle surfaceの`act Console::Read;`、`act local 't = var 't`、`act a:\n    our r: a -> b`をone declaration ownerとして
+保持できない。
+
+standalone TypeExpression coreは将来の`role / act signature`について「signature colon / declaration boundaryがtype slotを所有する」
+とだけ予約し、individual use-site addendumがintroducer / stop / missing-role authorityを定めるまでwiringしないとした
+（本document:12755-12768）。Pattern annotation追補はcanonical Binding targetの`PatternTypeAnnotation`を実装したが、
+Act ownerとAct body reachabilityはscope外へ残した（本document:16054-16070）。Role追補は同じ二つをRole ownerへ接続したが、
+Act固有のsource clause、implicit bodyless boundary、Yulang2の`my act = 1` collisionは設計しない。本追補は次の限定で接続する。
+
+- Act declarationのmandatory headと、actual `=`後のmandatory sourceは、それぞれAct-owned full TypeExpression slotである。
+- act operation signatureはnew Act-specific signature parserでなく、act bodyからreachableになったexisting Bindingのterminal
+  Pattern annotationである。signature colon / RHS type recovery authorityは`PatternTypeAnnotation`が既に持つものをそのまま使う。
+- Act bodyはexisting canonical Statement sequenceを使う。Act-specific operation / member listを作らない。
+- Act copyはsource TypeExpressionをsource-order ASTとして保持するだけで、copy resolution / body inheritanceをparserへ入れない。
+
+本追補は次をsupersedeしない。
+
+- Struct / Mod / Type / Role / Impl / Cast / Binding / Use / OperatorHeaderのintro priorityとobservable parse / recovery。
+- Role head / body、Pattern annotation、TypeExpression、TMN / positional fence、ASOBのauthority。
+- TypeDeclarationのNominal / Equality form、Impl shell、Derives attachment、Cast body、generic `WithBodyTail`。
+- canonical Statement sequenceのseparator、brace close、indent / dedent、If companion authority。
+- shared declaration companion `with:`とActへのderives attachmentがfuture ownerであるscope boundary。
+- `host`がordinary identifierであるcurrent Y3 surface。host-act syntaxをpartialにkeyword化しない。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`のtag objectは
+`1ec55fdfd33df836ffc216b7075f11ffe260cef4`、peeled commitは
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`であった。parser implementation、parser-tree fixtures、surface design note、
+language report、representative standard libraryをsame commit treeから再確認し、次をground truthとする。
+
+1. surface noteは`act_decl = visibility? "act" act_name act_tail`、
+   `act_name = (ident | sigil_ident) ("::" (ident | sigil_ident))*`とし、tailにwhitespace-sensitive parenthesized
+   type parameter list、whitespace-applied type arguments、`= type` source、`with` block、`;` / brace / colon body、nothingを列挙した
+   （`yulang2-oracle:spec/2026-06-06-syntax-design.md:614-644`）。従ってAct declaration自身にseparate input / output fieldはなく、
+   head name / type argumentsとbody operation signatureは別syntax positionである。
+2. implementationは`ActDecl` nodeへvisibility / optional contextual host marker / `act`を入れ、path-like nameをscanした後、
+   `parse_header_derives`、act tail、bodyへ進んだ（`yulang2-oracle:crates/parser/src/stmt/act_decl.rs:14-49,232-263`）。
+   tail parserは`=`後のsource type、parenthesized parameters、comma-separated type arguments、body punctuationを同じAct ownerで扱った
+   （同`:90-229,265-311`）。
+3. direct fixture `act Console::Read;`は`ActDecl > Act, Ident Console, ColonColon, Ident Read, Semicolon`を保持した
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1037-1050`）。path segmentはoperation signatureではなくAct headの一部である。
+4. direct fixtures `act local 't = var 't`と`act local 't = std::control::var::var 't`は、head後のtype argumentと
+   `=`後のsource typeをdistinct `TypeExpr`として保持した（同`:1137-1195`）。`my act next = last`もAct copyであった
+   （同`:1197-1212`）。standard libraryはnested `my act next = last` / `my act redo = last`を実際に使う
+   （`yulang2-oracle:lib/std/control/flow.yu:23-28,56-61`）。
+5. `my act = 1`はActDeclでなくordinary Bindingとしてparseされた
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1214-1219`）。old dispatcherは`my`だけnamed declaration keyword後に
+   actual identifier / sigil identifierをlook aheadし、nameがなければBindingへrollbackした
+   （`yulang2-oracle:crates/parser/src/stmt/mod.rs:159-205,310-316`）。一方bare / `our` / `pub`のAct keywordはnormal declaration
+   branchでActへ入った（同`:64-85,243-264`）。
+6. direct fixture `act a:\n    our r: a -> b`はcolon + `IndentBlock`内にspecial ActSignatureでなくordinary
+   `Binding > BindingHeader > Pattern > TypeAnn > TypeExpr`を保持した
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1299-1331`）。language reportもoperationをbindingとして登録し、
+   operation signatureにlatent effectがなければ対象actのeffect rowを補うと記録する
+   （`yulang2-oracle:notes/design/yulang-language-report.md:300-312`）。effect補完はlowering semanticsでありparser fieldではない。
+7. lowering implementationもbody childがannotation付き・definitionなしBindingならoperation候補とし、annotationのTypeExprを取り出した
+   （`yulang2-oracle:crates/infer/src/syntax.rs:1120-1157`）。そのTypeExprをfunction signatureへlowerした後にAct effectを付加した
+   （`yulang2-oracle:crates/infer/src/lowering/body/act.rs:166-195`）。従ってordinary operation signatureはRole method signatureと
+   同じBinding + PatternTypeAnnotation syntax compositionを使い、input / output / effectをAct-specific CST fieldへ分解しなかった。
+8. standard libraryの`pub act sub 'a:`はwhitespace-applied type argumentと`pub return: 'a -> never` operationを持ち、
+   annotation付きdefault helperも同じbodyへ置いた
+   （`yulang2-oracle:lib/std/control/flow.yu:1-5`）。`pub act var 't:`は`get` / `set` signatureに加えordinary helper Bindingを
+   bodyへ置いた（`yulang2-oracle:lib/std/control/var.yu:13-24`）。old loweringもBinding、Mod、nested Act、Type / Struct / Enum /
+   Error、Role、Impl、Castをbody childとしてdispatchした（`yulang2-oracle:crates/infer/src/lowering/body/act.rs:520-562`）。
+9. optional contextual `host` surfaceは`pub host act file:`、operation tierは
+   `pub suspend_multi_shot accept: listener -> request`としてparser fixture化されていた
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1052-1126`）。`host`とtier wordはglobal keywordでなくaccepted context内だけ
+   generic `Keyword` tokenへreclassifyされた（`yulang2-oracle:crates/parser/src/stmt/mod.rs:218-239,270-307`）。standard libraryも
+   `pub host act out:`を使う（`yulang2-oracle:lib/std/io/console.yu:4-5`）。これはordinary Act shellより広いhost ABI surfaceである。
+10. old parserはsource clause後のoptional `with` companion、direct `with` companion、Act-owned derivesをacceptする経路を持った
+    （`yulang2-oracle:crates/parser/src/stmt/act_decl.rs:29-47,107-149,174-213`）。surface noteのlargest exampleは
+    `act local ('t, int) = var 't with { our x = 1 }`であった（`syntax-design.md:637-644`）。current Y3ではshared declaration
+    companion `with`とAct derives ownerが明示的future scopeなので、本追補はそれらをpartialに復元しない。
+11. old body driverはsemicolon、brace statement block、colon declaration bodyを共通Role-like helperへdelegateした
+    （`yulang2-oracle:crates/parser/src/stmt/act_decl.rs:60-88`、同`role_decl.rs:84-118`）。tail nothingもvalidであり、
+    `act local ()`がsurface exampleにある（`syntax-design.md:624-643`）。従ってActのcomplete head / source後のcaller boundaryは
+    Roleのmissing BodyIntroducerと異なり、implicit bodyless successである。
+12. oracle corpus / parser / syntax noteから、Act declaration固有のreturn-type field、operation parameter-list field、ActSignature node、
+    inheritance / `where` / `via`、member-only parserは確認できなかった。operationのinput / outputはordinary TypeExpressionのarrow、
+    explicit effectはordinary effect-row type syntax、implicit Act effectはsemantic loweringが担った。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- optional `my` / `our` / `pub`、exact `act`、path / sigil / whitespace applicationを含むhead surface。
+- old act name + tail argumentsをone ordinary full TypeExpression headとしてlosslessに保持すること。
+- optional exact `=` + source TypeExpressionによるcopy surface。sourceの意味解決は行わない。
+- explicit semicolon、brace、colon inline / indented body、およびcomplete head / source後のimplicit boundary bodyless form。
+- act body内のsignature-only Binding、annotated / unannotated default Binding、ordinary canonical Statement composition。
+- operation signatureをexisting Pattern type annotation + full TypeExpressionとして保持し、input / output / effect-specific wrapperを作らないこと。
+- Y2の`my act = 1` Binding collision ruleと、`my act next = last` Act selection。
+- current exact-word statement-intro discipline、sink-free recognition、accepted intro後のcut、root / nested shared continuation。
+- full ordinary standalone TypeExpression、mandatory outer missing-role override、nested TypeRole recovery、logical episode stop fencing。
+- canonical Pattern type annotation、Binding AST / CST / recovery、canonical Statement body layout。
+- root / indented / braced / inline canonical Statement owner、ASOB original-gap ordering、If companion / Catch barrier visibility。
+- actual punctuation / separator / closeのone-owner rule、lossless trivia、one range = one recovery node = one record。
+- header discoveryがUse / OperatorHeaderだけをfactへprojectし、first full-only declarationで停止するtwo-phase architecture。
+- `act`がstatement introにならないidentifier / field / Pattern / TypeExpression / expression positionでordinary wordであること。
+
+限定して追加するのは次である。
+
+- `SyntaxKind::ActDeclaration` / `ActKw`、Act AST / session typed vocabulary。
+- `Declaration::Act` / `Statement::Act` / `StatementIntro::Act` / `StatementKind::ActDeclaration`。
+- Act head outer TypeExpression episodeだけに見える`Equal | Colon | LeftBrace | Semicolon` stops。
+- Act source outer TypeExpression episodeだけに見える`Colon | LeftBrace | Semicolon` stops。
+- existing canonical Statement block machineryへAct-specific recovery identityを渡すthin body adapter。
+- act bodyをreal shared dispatchからreachableにすることで、existing Binding Pattern annotationのfull TypeExpressionを
+  operation signature positionへ接続すること。
+
+### `ACT-G`: standalone Act grammar and layout
+
+```text
+ActDeclaration :=
+    [ VisibilityKw Gact+ ]
+    ActKw Gact-head
+    RequiredTypeExpression(ActDeclaration::Head)
+    [ ActSourceClause ]
+    ActBody
+
+ActSourceClause :=
+    SourceEquals Gsource
+    RequiredTypeExpression(ActDeclaration::Source)
+
+ActBody :=
+    ImplicitBoundaryBodyless
+  | BodylessSemicolon
+  | BracedStatementBlockExpression
+  | ActColonBody
+
+ActColonBody :=
+    BodyColon G0* RequiredCanonicalStatement(ActDeclaration::Body) [ InlineTerminalSemicolon ]
+  | BodyColon Gact-indent IndentedStatementBlock(ActDeclaration::IndentedStatement)
+
+ActOperationSignatureSurface :=
+    BindingStatement(
+        target := Pattern PatternTypeAnnotation,
+        definition := None
+    )
+
+ActOrdinaryBodyItemSurface :=
+    BindingStatement | any other currently implemented canonical Statement
+
+VisibilityKw := MyKw | OurKw | PubKw
+ActKw := exact maximal word "act"
+SourceEquals := "="
+
+Gact+ := non-empty TypeChainTrivia(act_base)
+Gact-head := TypeChainTrivia(act_base)
+Gsource := TypeChainTrivia(act_base)
+Gact-indent := NonEmptyStrictlyDeeperContinuationTrivia(act_base)
+G0* := maximal trivia containing no physical newline
+```
+
+`act_base`はfirst declaration starter（visibilityがあればそのkeyword、なければ`act`）をstatement positionでacceptした時点の
+active `IndentationBaseline.column`で、frameがなければ0である。visibility--`act`間はnon-emptyのsame-lineまたはstrictly-deeper
+continuationを要求する。`act`--head、`=`--source間はempty / same-line / strictly-deeper continuationをacceptする。
+equal-or-shallower newline / ambient owner gapをconsumeしない。`acts` / `action` / `my_act`をprefix splitしない。
+
+headはordinary one full TypeExpressionである。`act Console::Read;`のpath、`act local 't = ...`のwhitespace TypeApply、
+`act local ('t, int)`のwhitespace-applied ParenthesizedTypeGroupをsource shapeのまま保持する。separate `ActName` /
+`ActTypeParameterList`を作らない。call、arrow、named record、forall、effect row、polymorphic variant、bracket rowも
+TypeExpression grammarが許す限りparserは保持し、Act semantic headへ狭めない。
+
+`ActSourceClause`はhead episode終了後のactual exact `=`だけが開始する。sourceもordinary one full TypeExpressionで、
+path / whitespace application / every exotic primaryを許す。sourceの型がactを指すか、headとarityが合うか、copy可能かをparserは判定しない。
+
+outer completed head後のexact `=` / `;` / `{` / `:`はAct ownerがTypeApplyより先に保持する。fresh outer primary位置のbare
+`=` / `{` / `:`もmissing head後のsource / body retryに残す。ただしadjacent compound `:{`はexisting
+PolymorphicVariantType starterとしてTypeExpressionが先にownする。source episodeではexact `;` / `{` / `:`をsame ruleでbodyへ残す。
+bare named-record head / sourceを必要とするsourceは`act ({ value: T });` / `act Copy = ({ value: T });`のようにgroupで
+declaration punctuation ownershipを明示する。
+
+complete head、またはactual `=`を持つcomplete sourceがEOF / outer separator / matching close / equal-or-shallower newlineへ達した場合、
+ActBodyは`ImplicitBoundaryBodyless`としてcompleteする。これはzero-width Missingではなく、Y2のtail nothingを保持するactual successである。
+trivia / boundaryはActがconsumeせず、synthetic semicolonも作らない。head / sourceがIncompleteのsame boundaryではbodyをcompleteにせず、
+same-cause body recoveryも追加しない。
+
+explicit bodyless semicolonとcolon-inline body後のone optional terminal semicolonはActDeclarationが所有する。brace close後、
+indented body dedent後、implicit bodyless後のsemicolon / comma / matching closeはouter canonical Statement ownerへ残す。
+brace / indented body内のcomma / semicolon / newline / matching closeはexisting Statement sequence ownerだけが所有し、Act layerはseparatorを
+duplicateしない。
+
+`ActOperationSignatureSurface`はexplanatory compositionでありnew parser production / CST nodeではない。act body内の
+`our read: () -> str`はordinary Binding whose Pattern has `PatternTypeAnnotation`である。annotation付き / なしの`=` Binding、nested
+declaration、Expressionもsyntax上ordinary body itemである。Act parserはbody itemのvisibility、target shape、annotation presence、
+definition absence、function type shapeをoperation acceptance条件にしない。
+
+### `ACT-J`: intro authority and phase judge order
+
+sink-free `recognize_act_statement_intro`は次をacceptする。
+
+- current positionのbare exact `act`。
+- exact `our | pub` + non-empty declaration-continuing trivia + exact `act`。
+- exact `my` + non-empty declaration-continuing trivia + exact `act`に続き、raw Identifier / SigilIdentifier head candidateが見えるcase。
+
+third ruleだけはY2のcontextual local-declaration collisionとold named-head lookaheadを保持する。
+`my act next = last`はAct、`my act = 1`はBindingである。
+`my act` + EOF / semicolon / body punctuationはAct introへcutせず、existing Binding authorityへrollbackする。bare / `our` / `pub` Actは
+head / source / bodyのsuccessをintro条件にせず、accepted keyword後はAct continuationへcutする。resultは次の情報を保持する。
+
+```rust
+struct ActStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    act_keyword: WordSpan<'source>,
+    act_base: usize,
+}
+```
+
+updated `recognize_statement_intro` priorityを次で固定する。
+
+1. caller-owned EOF / statement separator / matching close / dedent / active ambient companionはexisting outer judgeが先に保持する。
+2. existing `recognize_struct_statement_intro`。
+3. existing `recognize_mod_statement_intro`。
+4. existing `recognize_type_statement_intro`。
+5. existing `recognize_role_statement_intro`。
+6. existing `recognize_impl_statement_intro`。
+7. existing `recognize_cast_statement_intro`。
+8. new `recognize_act_statement_intro`。
+9. existing `binding_statement_selected` + Binding intro。
+10. existing Use / Mod fallback、OperatorHeader、ordinary OperatorChain fallback。
+
+Yulang2 dispatcherもRole / Impl / Cast後、For / operator / Where前にActを置いた
+（`yulang2-oracle:crates/parser/src/stmt/mod.rs:64-86`）。current Y3の実branch orderは
+Struct -> Mod -> Type -> Role -> Impl -> Cast -> Bindingである
+（`crates/yu-syntax/src/grammar/declaration.rs:663-699`）。ActをCast後 / Binding前へstrict additiveに挿し、existing introの
+relative orderを動かさない。current Y3に未実装のEnum / Error / For / Whereはpriority slotとして先取りしない。
+
+accepted intro後のphase priorityを次で固定する。
+
+1. mandatory head entry前のoriginal gapをactive caller boundary / `any_ambient_owner_claims`へ問い、claimならHead Missingだけを置いて
+   non-consume returnする。
+2. head outer episodeではadjacent compound `:{` fresh-primary authority、actual nested close / Type continuation、
+   outer completed-tail `Equal | Colon | LeftBrace | Semicolon` Act stops、ambient ownerのapproved priorityを使う。
+3. complete / recovered head後のoriginal tail gapでactual `=`が見えればActSourceClause authorityへcutする。source outer episodeでは
+   nested Type continuation、outer completed-tail `Colon | LeftBrace | Semicolon` body stops、ambient ownerのpriorityを使う。
+4. head / source後のoriginal tail gapでactual `;` / `{` / `:`が見えればAct local punctuation authority。
+5. colonをacceptしたらpost-colon triviaをone sink-free layout decisionへ渡す。physical newlineなしならexactly one inline
+   canonical Statement、newlineありかつfollowing indent `> act_base`ならexisting non-empty indented Statement sequence、
+   equal-or-shallower newlineならBody Missingとしてwhole gapをouter ownerへ返す。
+6. head / sourceがCompleteで、actual body starterなしのままapproved caller boundaryへ達したらImplicitBoundaryBodyless success。
+7. approved boundaryでなくbody starterでもないmalformed runだけをtyped BodyIntroducer Errorにし、same slotをactual starter / boundaryから
+   retryする。full TypeExpressionとcanonical Statement先頭のword surfaceが重なるため、punctuationなしのword列をimplicit inline bodyへ
+   heuristic splitしない。
+
+AST / direct-CSTはone shared intro result、one `ActTypeExpressionSlot` episode driver、one source/body form driver、one body layout decisionを
+使う。root / nested / direct callerへspelling judge、`my` collision probe、equals probe、colon-newline probeをcopyしない。newlineやmalformed
+byteをconsumeした後にASOBをre-probeしてowner authorityをretroactively変えない。
+
+### AST / direct-CST shape
+
+```rust
+struct ActDeclaration<'source> {
+    visibility: Visibility,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    source: Option<ActSourceClause<'source>>,
+    body: Recovered<ActBody<'source>>,
+    range: Range<usize>,
+}
+
+struct ActSourceClause<'source> {
+    equals: Range<usize>,
+    source: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+enum ActBody<'source> {
+    Bodyless {
+        semicolon: Option<Range<usize>>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<ActColonBody<'source>>,
+    },
+}
+
+enum ActColonBody<'source> {
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+`source: None`はactual `=`がないdirect declaration、`Some`はactual equalsを保持するcopy surfaceである。
+equals後にsourceがmissing / terminally malformedでも`ActSourceClause`自体はactual tokenを持つため存在し、`source`だけが
+`Recovered::Incomplete`になる。dummy source typeを作らない。
+
+`ActBody::Bodyless { semicolon: Some(range) }`はactual semicolon、`semicolon: None`はapproved caller boundaryで完成した
+implicit bodyless formである。後者はzero-width source child / synthetic tokenを持たない。`body: Incomplete`はhead / source failure、
+malformed body introducer、literal colon後のbody failureなどbody formをfinishできなかったcaseで、dummy blockを作らない。
+literal body colonはalways completeなので`Recovered<Range>`へしない。missing-colon inline Statement recoveryは禁止する。
+
+new CST vocabularyは`ActDeclaration` nodeと`ActKw` tokenだけである。`ActHeader` / `ActSourceClause` / `ActBody` /
+`ActColonBody` / `ActSignature` / operation-list / copy wrapper / synthetic separator / synthetic semicolonを作らない。existing visibility、
+TypeExpression、Equals、Colon、Semicolon、Statement、BindingStatement、PatternTypeAnnotation、BracedStatementBlockExpression、
+IndentedStatementBlock、Missing / Error、trivia tokenをsource orderのflat childとして使う。ASTの`ActSourceClause`はsource slotとequals rangeを
+まとめるsurface convenienceで、同名CST wrapperを要求しない。
+
+`ActDeclaration.range`はfirst visibility / ActKw startからlast committed source token / body tokenまでである。implicit bodylessではhead /
+source end、boundary non-consume recoveryではlast committed declaration-owned byteまでとする。trailing triviaやouter separatorをrangeへ含めない。
+
+#### Path head and explicit semicolon
+
+oracle fixtureをそのまま使う。
+
+```yu
+act Console::Read;
+```
+
+byte-exact direct CSTを次で固定する。
+
+```text
+ActDeclaration 0..18
+  ActKw 0..3 "act"
+  Trivia 3..4 " "
+  TypeExpression 4..17 "Console::Read"
+    Identifier 4..11 "Console"
+    TypePathTail 11..17
+      ColonColon 11..13 "::"
+      Identifier 13..17 "Read"
+  Semicolon 17..18 ";"
+```
+
+ASTはhead Complete、source None、`Bodyless { semicolon: Some(17..18) }`、range `0..18`である。
+source literalとold treeは`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1037-1050`にある。
+
+#### Copy source with implicit boundary bodyless form
+
+oracle fixtureをそのまま使う。
+
+```yu
+act local 't = var 't
+```
+
+```text
+ActDeclaration 0..21
+  ActKw 0..3 "act"
+  Trivia 3..4 " "
+  TypeExpression 4..12 "local 't"
+    Identifier 4..9 "local"
+    TypeApplyArgument 9..12
+      Trivia 9..10 " "
+      TypeExpression 10..12 "'t"
+  Trivia 12..13 " "
+  Equals 13..14 "="
+  Trivia 14..15 " "
+  TypeExpression 15..21 "var 't"
+    Identifier 15..18 "var"
+    TypeApplyArgument 18..21
+      Trivia 18..19 " "
+      TypeExpression 19..21 "'t"
+```
+
+ASTはhead `4..12` Complete、source clause `13..21` / source `15..21` Complete、
+`Bodyless { semicolon: None }`、range `0..21`である。EOFへMissing / synthetic semicolonを置かない。
+source literalとold treeは`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1137-1159`にある。
+
+#### Indented operation signature
+
+oracle fixtureをそのまま使う。
+
+```yu
+act a:
+    our r: a -> b
+```
+
+```text
+ActDeclaration 0..24
+  ActKw 0..3 "act"
+  Trivia 3..4 " "
+  TypeExpression 4..5 "a"
+  Colon 5..6 ":"
+  IndentedStatementBlock 6..24
+    Trivia 6..11 "\n    "
+    Statement 11..24
+      BindingStatement 11..24 "our r: a -> b"
+        BindingHeader 11..24
+          OurKw 11..14 "our"
+          Trivia 14..15 " "
+          Pattern 15..24
+            IdentifierPattern 15..16 "r"
+            PatternTypeAnnotation 16..24
+              Colon 16..17 ":"
+              Trivia 17..18 " "
+              TypeExpression 18..24 "a -> b"
+```
+
+ASTはhead Complete、source None、Colon Indented body with one `Statement::Binding`である。
+`ActSignature` wrapperはない。source literalとold treeは
+`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1299-1331`にある。
+
+#### Braced body substitute fixture
+
+oracle parserはBraceLを`parse_brace_stmt_block`へdelegateするが、調査したsurface note / direct parser fixture / representative stdlibに
+standalone braced Act literalは見つからなかった（`yulang2-oracle:crates/parser/src/stmt/act_decl.rs:60-71`）。従って次は
+oracleに存在したと偽らず、verified brace branchと同じplain-identifier signatureを使うY3 implementation fixtureとして固定する。
+
+```yu
+act Eq {
+  our eq: Self -> Self -> Bool
+}
+```
+
+```text
+ActDeclaration 0..41
+  ActKw 0..3 "act"
+  Trivia 3..4 " "
+  TypeExpression 4..6 "Eq"
+  Trivia 6..7 " "
+  BracedStatementBlockExpression 7..41
+    LBrace 7..8 "{"
+    Trivia 8..11 "\n  "
+    Statement 11..39
+      BindingStatement 11..39 "our eq: Self -> Self -> Bool"
+        BindingHeader 11..39
+          OurKw 11..14 "our"
+          Trivia 14..15 " "
+          Pattern 15..39
+            IdentifierPattern 15..17 "eq"
+            PatternTypeAnnotation 17..39
+              Colon 17..18 ":"
+              Trivia 18..19 " "
+              TypeExpression 19..39 "Self -> Self -> Bool"
+    BlockStatementSeparator 39..40 "\n"
+    RBrace 40..41 "}"
+```
+
+ASTはhead Complete、source None、Braced body with one `Statement::Binding`、range `0..41`である。
+このsubstituteはPattern DotFieldを使わず、current Pattern grammarでbyte-exactに表現できる。
+
+### `ACT-T`: TypeExpression, Binding signature, and canonical Statement composition
+
+#### Act head and source TypeExpression episodes
+
+Actはone shared slot specを使う。
+
+```rust
+enum ActTypeExpressionSlot {
+    Head,
+    Source,
+}
+
+fn act_type_expression_episode_spec(
+    slot: ActTypeExpressionSlot,
+    incoming: StopSet,
+    current_episode_depth: usize,
+) -> ActTypeExpressionEpisodeSpec
+```
+
+Head slotはone `TypeExpressionScopedStopFrame`へ`Equal | Colon | LeftBrace | Semicolon`、Source slotは
+`Colon | LeftBrace | Semicolon`を入れる。frameの`visible_episode_depth`は各outer mandatory slotのlogical episodeだけで、Arrow RHS、
+Forall body、TypeApply argument、Parenthesized group、Call、NamedRecord、EffectRow、BracketRow、PolymorphicVariantのnested recursive
+episodeでは同じraw stop bitsをsuspendする。nested episodeを閉じた後、outer completed-tail / malformed safe pointで再びvisibleになる。
+
+両slotとも`TypeExpressionEpisodePolicy.fresh_primary_locally_owned_stops`はemptyにし、fresh bare `=` / `{` / `:`をAct form retryへ残す。
+`fresh_primary_owns_adjacent_polymorphic_variant_starter`はtrueにし、adjacent exact `:{`をbare colon stopより先にType primaryへ渡す。
+HeadのEqualはonly outer completed-tail stopで、source / nested type内のoperatorやtokenをglobalに止めない。
+
+outer missing-role overrideはHeadで
+`GrammarRole::Declaration(DeclarationRole::Act(ActDeclarationRole::Head))`、Sourceで
+`GrammarRole::Declaration(DeclarationRole::Act(ActDeclarationRole::Source))`だけを渡す。completely missing outer primary以外、
+malformed primary / TypeApply / ArrowRhs / NamedRecord / Forall / EffectRow / PolymorphicVariant / BracketRow recoveryはexisting TypeRoleを保つ。
+
+implementationはderives Gate 1a / Impl / Roleが使う`TypeExpressionEpisodePolicy` /
+`TypeExpressionScopedStopFrame` / `type_stop_is_active_in_current_episode`、
+`parse_required_type_expression_with_outer_missing_role_and_policy` /
+`commit_direct_type_expression_with_outer_missing_role_and_policy`をhard dependencyとしてreuseする
+（`crates/yu-syntax/src/grammar/type_expr.rs:276-309,472-547,1056-1123`、
+`crates/yu-syntax/src/grammar/declaration.rs:1000-1240`）。Act-specific counter、raw
+`active_stop_set().contains(...)` bypass、AST/direct別slot judgeを作らない。
+
+#### Act body reuse
+
+body ownerはRoleと同じcanonical Statement driversを使う。
+
+- brace form: `parse_braced_statement_block_expression` / `commit_braced_statement_block_expression`。
+- colon inline: `parse_canonical_statement` / `commit_canonical_statement`をnew
+  `InlineStatementOwnerKind::ActColonBody` ambient scope内でexactly one回。
+- colon indented: generic indented Statement sequenceへ
+  `GrammarRole::Declaration(DeclarationRole::Act(ActDeclarationRole::IndentedStatement))`を渡すthin
+  `parse_indented_act_body` / `commit_indented_act_body` wrapper。
+
+Roleの`parse_indented_role_body` / `commit_indented_role_body`をActから直接呼ばない。driverは共有してもrecovery identityを偽装しない
+（current Role wrapper precedent: `crates/yu-syntax/src/grammar/expression.rs:3245-3272,3833-3859`）。
+
+implicit bodylessはbody driverを呼ばない。boundaryをconsumeせず`ActBody::Bodyless { semicolon: None }`を作り、direct-CSTではnode / tokenを
+追加しない。source clause後のcolon / brace / semicolonはdirect head後とsame body driverへ合流する。
+
+#### Operation signature TypeExpression attachment
+
+Act operation signatureにnew `ActSignature` parserを作らない。body sequenceが
+`our read: () -> str`をordinary canonical Bindingへdispatchし、Binding targetのterminal Pattern annotationがmandatory full
+TypeExpressionをparseする。signatureのmissing / malformed RHS、TMN、positional fence、nested exotic type、AST/direct parityは
+Pattern annotation ownerが既に持つ。
+
+parserはarrowをinput / output fieldへ分解しない。`() -> str`、`'a -> never`、`(str, int) -> ()`、explicit effect-row resultを
+ordinary TypeExpression AST / CSTとして保持する。Act effect rowのimplicit augmentation、function-shape requirement、operation registrationは
+lowering scopeであり、本追補のparser recovery role / wrapperへ投影しない。
+
+bodyにannotation付きdefault Binding、annotationなしdefault Binding、Type / Struct / Mod / Role / Impl / Cast / nested Act、Expression / Useが
+入ってもordinary canonical Statementとしてparseする。operation / helper / nested declarationのsemantic分類は行わない。
+
+#### ASOB and state restoration
+
+head / source entry前、body form judge前、inline / indented / braced Statement entry前のoriginal gapで`any_ambient_owner_claims`を問う。
+Act local punctuation / Equal authorityはaccepted Act ownerのcurrent gapにactual tokenがある場合だけで、outer semicolon / comma / matching close、
+equal-or-shallower newline、If / Case / Catch companionを越えない。TypeExpression malformed scannerはAct scoped stops、active fixed boundary、
+TMN / positional fence、ASOBを尊重する。
+
+normal / Missing / Error / speculative rollbackのevery exitでinput、line state、sink、ambient owner stack、If companion stack、delimiter stack、
+stop-set stack、indentation baseline、Pattern layout state、expression/type-delimited owner state、ML-argument flags、positional fence、
+TypeExpression episode depth / scoped frameをentry時のdepthへexact restoreする。body内Binding / Pattern annotation / nested Statement recoveryを
+Act layerがduplicateしない。
+
+### `ACT-R`: typed recovery and owner convergence
+
+new recovery vocabularyを次で固定する。
+
+```rust
+enum ActDeclarationRole {
+    Head,
+    Source,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
+}
+
+DeclarationRole::Act(ActDeclarationRole)
+```
+
+Actはdelimiter ownerではないためnew `ConstructRole` / `TypeDelimitedOwner`を作らない。brace closeはexisting
+`GrammarRole::ClosingDelimiter { owner: ConstructRole::BracedStatementBlockExpression, delimiter: Brace }`をreuseする。
+operation signature annotationはexisting `PatternRole::TypeAnnotation` / TypeRole recovery、body内Bindingはexisting BindingRoleを使う。
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `act A;` | head Complete、source None、explicit Bodyless Complete | zero recovery、semicolon Act-owned |
+| `act A` + EOF / owner boundary | head Complete、source None、implicit Bodyless Complete | zero recovery、boundary non-consume、synthetic tokenなし |
+| `act A = B` + EOF / owner boundary | head / source Complete、implicit Bodyless Complete | zero recovery、boundary non-consume |
+| `act A { ... }` | head Complete、source None、Braced Complete | existing block ownerへdelegate |
+| `act A:\n  statement` | head Complete、source None、Colon Indented Complete | colon Act-owned、blockはcanonical Statement sequence |
+| `act A: statement` | head Complete、source None、Colon Inline Complete | optional terminal semicolon一個だけAct-owned |
+| bare / `our` / `pub` exact `act` + EOF / owner boundary | one zero-width Missing Head | head / body Incomplete、same-cause BodyIntroducer Missingなし、boundary non-consume |
+| `my act = 1` | Act intro non-match | all recognition state rollback、existing Binding owns source、Act recoveryなし |
+| `my act A = B` | Act intro match | normal Head / Source parse |
+| exact accepted `act` + exact `=` / bare `{` / bare `:` / `;` | one Missing Head | same punctuationからsource / body retry。adjacent compound `:{`だけTypePrimary |
+| malformed head run + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same head slot retry、Head Complete |
+| malformed head run reaches `=` / body starter / boundary | nested maximal `Error(Type::Primary)` one | head Incomplete、starter / boundary non-consume、outer Head Missingを追加しない |
+| complete head + exact `=` + source TypeExpression | Source Complete | source後のbody / boundary judgeへ |
+| exact `=` + EOF / owner boundary / body starter | one zero-width Missing Source | source Incomplete、starter / boundary non-consume、same-cause BodyIntroducer Missingなし |
+| malformed source run + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same Source slot retry、Source Complete |
+| malformed source run reaches body starter / boundary | nested maximal `Error(Type::Primary)` one | Source Incomplete、starter / boundary non-consume、outer Source Missingを追加しない |
+| complete head / source + malformed introducer run + `;` / `{` / `:` | one maximal Error BodyIntroducer | actual starterからbody retry、additional Missingなし |
+| complete head / source + malformed introducer reaches owner boundary | one maximal Error BodyIntroducer | body Incomplete、additional Missingなし、boundary non-consume。runがemptyならimplicit Bodyless successなのでErrorなし |
+| literal body colon + inline Statement | Colon Inline Complete | optional terminal semicolon一個だけAct-owned |
+| literal body colon + deeper non-empty block | Colon Indented Complete | existing block recovery / separators |
+| literal body colon + EOF / semicolon / comma / matching close | one Missing Body | boundary non-consume。body slot absent時にterminal semicolonをconsumeしない |
+| literal body colon + equal-or-shallower newline | one Missing Body | post-colon trivia rollback、newline / next statement outer-owned |
+| body inline malformed run + valid canonical Statement | one maximal Error Body | same body slot retry、additional Missingなし |
+| indented first statement missing / malformed | existing IndentedStatement recovery one | Act Body Missingをduplicateしない |
+| brace body missing / mismatched `}` | existing brace close Missing / Error one | Act close recoveryを追加せずcaller boundary non-consume |
+| operation annotation colon + missing TypeExpression | existing Pattern type-annotation Missing one | Act Head / Source / Body Missingを追加しない |
+| operation TypeExpression malformed run + same-slot retry | existing TypeRole Error one | Binding Pattern annotation owns retry、Act layerは無関与 |
+| body内default Binding / nested declaration / Expression | existing inner recovery only | operation / helper semanticsをAct recoveryへ投影しない |
+| body内nested malformed Statement | inner owner recovery only | same rangeへAct Missing / Errorを重ねない |
+
+head TypeExpressionのinvalid-run safe pointはouter `Equal | Colon | LeftBrace | Semicolon`、source TypeExpressionはouter
+`Colon | LeftBrace | Semicolon`、両方ともactive close / separator、equal-or-shallower newline、ambient ownerをconsumeしない。
+body formはactual punctuationまたはapproved terminal boundaryでのみ決まり、head / source末尾wordとinline Statement先頭wordをarbitrary splitしない。
+
+one accepted `act` = one ActDeclaration nodeである。one actual `=` = at most one ActSourceClause AST value。
+one committed Missing / Error record = one recovery node。head failureがsame terminal boundaryへ達したときSource / BodyIntroducerをcascadeしない。
+source failureがsame terminal boundaryへ達したときBodyIntroducerをcascadeしない。head / source recovery後にdistinct actual next starterがあれば
+same positionから継続できる。body内signature / nested declaration failureはinner canonical Statement ownerで閉じ、Act body failureをsame causeへ
+重ねない。
+
+### Root / nested dispatch and header discovery
+
+root / nested relationshipを次で固定する。
+
+| caller | behavior |
+| --- | --- |
+| root `parse_declaration` | `Declaration::Act(ActDeclaration)`を返す |
+| direct root loop | `ActDeclaration` nodeをcommitし、same public recovery recordを返す |
+| `parse_canonical_statement` | `Statement::Act(ActDeclaration)`を返す |
+| `commit_canonical_statement` | same Act direct adapterを`Statement` wrapper内で呼ぶ |
+| braced / indented / inline statement owner | shared canonical Statement dispatchからActをacceptする |
+| header discovery | source-leading Actを`FirstNonHeader`として終了し、header factを作らない |
+
+root / nestedで別Act parserを作らない。sink-free introとisolated AST/direct continuationをpre-promotion gatesまで共有し、atomic promotion時に
+root `parse_declaration` / direct root candidate / AST canonical Statement / direct canonical Statement / header-stopをsame changeでswitchする。
+Act body内nested Actもpromotion後のshared block-driverから自然に受理する。`HeaderDeclaration::Act`やeffect / host factをparserへ作らない。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `scan_word` / visibility prefix / declaration-continuing trivia / checkpoint rollback、source range / line state。
+- one shared `recognize_statement_intro`、root / nested AST and direct-CST dispatch、header discovery stop。
+- `TypeExpressionEpisodePolicy` / `TypeExpressionScopedStopFrame` / `type_stop_is_active_in_current_episode`。
+- `parse_required_type_expression_with_outer_missing_role_and_policy` /
+  `commit_direct_type_expression_with_outer_missing_role_and_policy`。
+- one Act slot-parameterized head / source episode specとone source/body form decision driver、AST / direct-CST thin adapters。
+- `parse_canonical_statement` / `commit_canonical_statement` / direct candidate。
+- `parse_braced_statement_block_expression` / `commit_braced_statement_block_expression`、generic indented Statement sequence、
+  separator / close / dedent / ambient ownership。
+- existing Binding / Pattern / `PatternTypeAnnotation` / full TypeExpression composition。
+- `any_ambient_owner_claims`、inline canonical Statement owner scope、If companion / braced barrier / positional fence。
+
+次を共有・追加しない。
+
+- `RoleDeclaration` / `RoleBody` / `RoleColonBody` ASTまたは`RoleDeclarationRole`をAct value / recovery identityとして偽装すること。
+- Act-specific statement list、operation parser、signature parser、copy resolver、separator / close driver。
+- `ActSignature` / `ActOperation` / `ActMember` / `ActCopy` CST wrapper。
+- `TypeDelimitedOwner::Act`、`ConstructRole::Act`、Act body delimiter wrapper、synthetic semicolon。
+- `HeaderDeclaration::Act`、effect / host manifest / operation semantic fact、parser-time act registry。
+- `HostKw`、operation-tier keyword / Binding modifier、Act-specific `WhereKw` / `ViaKw`。
+- declaration companion `with`をgeneric expression `WithBodyTail`へdesugarすること。generic tailとdeclaration companionはownerが異なる。
+- existing `DerivesClause`をActへattachment pointなしで呼ぶこと。
+- Role head / body adapterをAct valueのまま直接reuseすること。shared driverへAct固有slot / recovery identityを渡すthin adapterにする。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Regular standalone surface and copy preserved:** optional visibility、exact `act`、path / type-application head、optional `= source`、
+   explicit semicolon / brace / colon body、tail-nothingを保つ。
+2. **Head normalized only to existing syntax vocabulary:** Y2はpath-like `act_name`をtoken列、tail type argumentsをTypeExpr node列として分けた。
+   Y3はone full TypeExpressionとして保持し、name + parameter ASTへnarrowしない。source bytes / path / application nestingはlosslessである。
+3. **Adjacent call widening:** Y2は`act local('t)`をinvalid tail、spaceあり`act local ('t)`だけをparameter listとした
+   （`syntax-design.md:633-635`）。Y3 full TypeExpressionは前者をTypeCallTailとしてacceptし得る。本追補はAct-specific TypeExpression subsetを
+   作らず、このparser-surface wideningを明示的divergenceとする。semantic Act head validityはfuture layerが判定する。
+4. **Implicit boundary bodyless preserved:** Role追補と異なり、Y2 Actはtail nothingを明示したため、complete head / source後のapproved boundaryを
+   Missing BodyIntroducerにしない。no token / no recoveryのBodyless AST variantとして保持する。
+5. **Operation signature shape preserved:** Y2 operationはordinary Binding Pattern annotationだった。Y3もActSignature nodeを発明せず、
+   existing PatternTypeAnnotationのfull TypeExpressionへ接続する。input / output / effect fieldへ分解しない。
+6. **Canonical body subset:** Y2 bodyは当時のfull Statement familyをacceptした。Y3はimplementation時点のcanonical Statement closed sumを共有し、
+   未実装Enum / Error / For / Where / doc declarationをAct専用に先取りしない。
+7. **`my act` collision preserved:** `my act = 1`はBinding、actual head candidateを持つ`my act next = last`はActである。
+   `our` / `pub` / bare Actのmissing-head recovery authorityとは意図的に非対称である。
+8. **Host surface deferred, not silently dropped:** Y2の`pub host act`とoperation tierは実在するが、host ABIとBinding header modifierを伴う。
+   本regular shellへpartial tokenだけを入れず、separate host-act addendumへ残す。`host`はcurrent Y3でordinary wordのままである。
+9. **Declaration companion deferred:** Y2のdirect / copied Act `with:` / `with {}`はshared declaration companion addendumへ残す。
+   generic expression WithBodyTailへ読み替えない。
+10. **Act derives deferred:** Y2 parserにはAct-owned derives経路があったが、current DRV addendumはStruct / TypeだけをAuthoritative ownerとする。
+    future Act attachment extensionまで`derives`をAct head stopにしない。
+11. **Typed recovery:** Y2のgeneric InvalidToken / silent failureをActDeclarationRole別Missing / Error、same-slot retry、no-cascadeへ置き換える。
+12. **No semantic effect claim:** latent effect追加、copy / host / operation registration、handler semantics、HIR / resolver / inference / formatterはscope外。
+13. **Header architecture:** Actはfull syntaxではvalidだがheader factではなく、source-leading occurrenceは`FirstNonHeader`である。
+
+### Known residuals and deferred scope
+
+ASOB追補が固定するcondition-based known residualはAct head / source TypeExpressionとact body内Pattern annotation TypeExpressionにも適用する。
+すなわちmissing local delimiterのままactiveなnested Pattern / TypeExpression ownerが、caller-owned Statement / arm boundaryをvisible stopとして
+受け取らず、local malformed-run / separator driverがそのgapとnext outer candidateをconsume / reinterpretできる場合、Act layerは境界を
+後段から回収できない。このfamilyはCast固有のsix fixturesへ限定されず、owner / contextの有限表を完全な上限としない。
+
+Act pre-promotion / promotion success matrixから除外できるのはASOB / Cast追補のfour-condition predicateをすべて満たし、実経路をfixtureで
+characterizeできるcaseだけである。well-delimited nested owner、caller-owned right close、strict dedent、active If companion、nested driverへ
+boundaryが見えるmissing-delimiter caseはsuccessに含める。Act-specific workaroundとしてall newline / separatorをnested TypeExpressionへcarryしない。
+
+explicit deferred surfaceは次である。
+
+- contextual `host` marker、host operation tier、host ABI / manifest / runtime capability。
+- declaration companion `with:` / `with {}`、copy source body extension、companion-only item / module semantics。
+- Act-owned derives attachment。future extensionはexisting `DerivesClause` driverをreuseするが、attachment point / priority / recoveryを別追補で固定する。
+- act copy source resolution、type argument substitution、export filtering、template materialization、copy cycle / mismatch diagnostics。
+- operation vs helper / method classification、function-shape validation、implicit Act effect augmentation、visibility、duplicate operation。
+- handlers、continuation multiplicity、effect row inference、coherence、HIR / resolver / inference / formatter。
+- inheritance / requirement / `where` / `via`、separate operation parameter syntax、Act-specific return/effect field。
+- current canonical StatementにないEnum / Error / For / Where / doc declaration body item。
+- Pattern identifier + `.field` continuation。調査したcore operation examples`read` / `write` / `return` / `get` / `set`はplain identifierなので、
+  本追補のworked exampleはDotFieldへ依存しない。Act bodyのordinary helper / methodがdotted targetを使う場合はRoleと同じPattern gapに当たる。
+
+future host / companion / derives addendumは本Act nodeのsource bytesをpost-parse scanして意味付けしない。new accepted keyword / body owner / CST shape /
+recovery authorityが必要なら、`ACT-J`のhead / source / body priorityとのattachment pointとmigration boundaryを明記する。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationはvocabulary、isolated intro、
+isolated head / source / body、signature composition、recovery、pre-promotion state matrix、atomic dispatch、final scope gateへ分ける。
+atomic promotionまでcurrent public parser behaviorを変えない。
+
+implementation gateを次で固定する。
+
+1. `ActDeclaration` / `ActKw` SyntaxKind、`ActDeclaration` / `ActSourceClause` / `ActBody` / `ActColonBody` AST、
+   `Declaration::Act` / `Statement::Act`、`StatementIntro::Act` carrier、`StatementKind::ActDeclaration`、
+   `DeclarationRole::Act(ActDeclarationRole)`、ActColonBody inline owner identityを追加する。existing exhaustive matchへ
+   unreachable-from-dispatchなmechanical armだけを足し、no ActSignature / ConstructRole / TypeDelimitedOwner / HeaderDeclaration /
+   behavior change、full suite byte-identicalを固定する。
+2. sink-free `recognize_act_statement_intro`をisolated実装し、bare / our / pub exact recognition、my + raw Identifier / SigilIdentifier
+   head candidate recognition、act_base、
+   empty adjacency、strictly-deeper continuation、EOF-independent bare cut、`acts` / `action` / `my actish` rejection、
+   `my act = 1` Binding non-match、`my act next = last` Act selection、Struct / Mod / Type / Role / Impl / Cast / Binding / Use / Operator
+   non-collision、all-state exact rollbackをdirect fixture化する。real `recognize_statement_intro`へはまだ接続しない。
+3. mandatory Headのouter-episode `Equal | Colon | LeftBrace | Semicolon` policyをisolated AST/direct adapterとして実装する。
+   `TypeExpressionEpisodePolicy` / `TypeExpressionScopedStopFrame` / `type_stop_is_active_in_current_episode`をreuseし、new counter /
+   fallbackを作らない。fresh form retry、adjacent `:{` primary、complete-tail stops、nested recursive episode suspension、malformed retry、
+   ASOB、normal / recovery / rollback state restorationを固定する。
+4. actual `=`後mandatory Sourceのouter-episode `Colon | LeftBrace | Semicolon` policyとHead / Source shared slot driverをisolated実装する。
+   source absent / Missing / Error、full / exotic source、body starter preservation、implicit boundary completion、same-cause no-cascade、
+   AST/direct parityを固定する。
+5. explicit semicolon / brace / colon / implicit boundary bodylessを使うform-aware AST isolated adapterを実装する。inline、strictly-deeper
+   indented、brace、missing head / source / bodyのAST shape / rangeを固定する。brace / indented bodyはcanonical Statement driverをreuseし、
+   Act-specific recovery identityを渡すthin wrappersだけを追加する。existing public dispatchは変更しない。
+6. direct-CST thin adapterをisolated harnessへ追加し、本追補のfour worked examplesのchild order / byte range、all trivia home、
+   lossless round trip、no ActSignature / source/body wrapper / synthetic separator / synthetic semicolon、AST-direct parityを固定する。
+7. `ACT-R`全rowをfixture化する。Head / Source / BodyIntroducer / BodyのMissing / malformed retry / terminal、actual starter preservation、
+   implicit boundary success、brace close delegation、nested Statement recovery、one range = one node = one record、same-cause no-cascadeを
+   AST/directで閉じる。production behaviorはまだ変えない。
+8. act body compositionをisolated adapterで閉じる。signature-only Binding、annotated / unannotated default Binding、full / exotic /
+   malformed operation TypeExpression、Expression / Use / Mod / Struct / Type / Role / Impl / Cast / nested currently-live declarationを
+   AST/directで固定する。PatternTypeAnnotation / Binding / inner declarationのexisting node / recovery identityだけが現れ、ActSignature /
+   operation wrapper / Act-level duplicate recordがないことをassertする。nested Actのreal body-driver acceptanceはatomic promotionへ残す。
+9. real dispatch switch前にisolated Act adapterをdirect root / indented / braced / inline ambient frameで包み、depth-2+ ambient / If companion、
+   EOF / semicolon / comma / each active right delimiter / equal-shallower newline、strictly-deeper head / source / body、normal / recovery /
+   rollbackのdeclaration-state matrixを閉じる。input / line / sink / ambient / If / delimiter / stop / indentation / Pattern layout /
+   expression-type owner / ML / positional fence / TypeExpression episode depthをevery exitでexact restoreする。
+10. `recognize_statement_intro`のCast後 / Binding前へAct introを挿し、root `parse_declaration` / direct root loop、
+    `parse_canonical_statement` / `commit_canonical_statement` / direct candidateをsame isolated adapterへatomic switchする。
+    source-leading Actがheader discoveryを`FirstNonHeader`で終了しfactを作らないこともsame changeでwireする。同じchange内でpre-promotion
+    matrixをunmodified再実行し、root / indented / braced / With inline / Mod inline / Case / Catch inline-through-owner、depth-2+ ambient /
+    If companion、all active fixed boundaries、normal / recovery / rollback、Act body内currently-live canonical Statement / nested Actを
+    real block-driverとpublic `parse_file`から閉じる。existing non-Act intro priority / fixtureを変更しない。
+11. final public regression matrixでall in-scope visibility、full / exotic / malformed head / source、explicit / implicit body forms、
+    signature-only / default / ordinary body items、root / nested interleaving、outer boundary、AST/direct parity、losslessness、one record = one node、
+    all state restoration、full `yu-syntax` suiteを閉じる。`act`がnon-intro identifier / field / Pattern / TypeExpression / expression positionで
+    ordinary wordのまま、`my act = 1`がBindingのまま、ActSignature / host / companion / derives / effect semantics / HIR / resolver /
+    inference / formatterが未実装であるscope gateをworkspace-wideに固定する。known-residual exemptionは上記ASOB four-condition predicateを
+    満たすcharacterized caseだけに限定する。
+
+### Open design questions and Claude review focus
+
+本Proposal初稿は次をdesign decision候補として置く。Claude reviewでは確定 / 修正対象として扱う。
+
+- regular standalone Actはroot `Declaration::Act` / nested `Statement::Act`がsame AST / CST ownerを共有する。
+- Act head / copy sourceはtwo full TypeExpression slotsで、old path-name / type-parameter piecesへnarrowしない。
+- `act local('t)`のTypeCall acceptanceはfull TypeExpression reuseに伴うexplicit Y2 divergenceである。
+- copy `= source`をregular Act shellに含め、copy semanticsとcompanion `with`だけを後続へ分離する。
+- complete head / source後のapproved boundaryをimplicit Bodyless successとし、RoleのMissing BodyIntroducer policyをcopyしない。
+- `my act = 1`だけはY2 contextual Binding collisionを守り、bare / our / pub Actのmissing-head cutと非対称にする。
+- intro priorityをCast後 / Binding前へ置き、existing non-Act orderを動かさない。
+- ordinary operation signatureはBinding + PatternTypeAnnotationをreuseし、ActSignature / input / output / effect wrapperを作らない。
+- contextual host marker / operation tierはBinding header shapeとhost ABI authorityを伴うため、regular shellへpartialに入れずseparate addendumへ残す。
+- declaration companion `with`とAct derives attachmentは既存future boundaryを守り、本追補でgeneric WithBodyTail / Struct-Type derivesへ誤接続しない。
+- flat CSTはEquals + source TypeExpressionをActDeclaration直下へ置き、ActSourceClause wrapperを作らない。
+- Pattern DotField gapはcore Act operation examplesへ影響しないが、ordinary body compositionのknown syntax gapとして明記する。
+- ACT-RのHead / Source / Body no-cascade、implicit bodylessとmalformed BodyIntroducerの境界、ASOB known residualの適用範囲、
+  pre-promotion state matrixとatomic real-driver matrix、semantic deferred surfaceの閉じ方を確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-27、canonical Statement / root Declarationのstandalone `act` declaration shell grammar追補案）。
