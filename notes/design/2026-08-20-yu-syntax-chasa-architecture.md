@@ -22773,3 +22773,724 @@ semantic future scopeの閉じ方を確認対象にする。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が11巡の独立レビューを経て査読・確定、ユーザ承認済み
 （2026-08-27、canonical Statement / root Declarationのstandalone `cast` declaration grammar追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`のstandalone `role` declaration shell grammar
+
+Status: Proposal（初稿、Claude査読・ユーザ承認待ち、2026-08-27）。
+
+Date: 2026-08-27。
+
+### Scope and authority
+
+本追補は、Authoritativeなcanonical Statement / root Declaration grammarとstandalone TypeExpression grammarが
+future declaration kind / future type use-siteへ残したstandalone `role` declarationを、root / nestedで同じsyntax ownerとして
+設計する。対象は次だけである。
+
+- optional declaration visibilityとexact maximal word `role`から成るstatement intro。
+- mandatory one full ordinary `TypeExpression` role head。Yulang2のwhitespace-applied input type parameterは
+  separate generic-parameter syntaxへ分解せず、このhead TypeExpressionに保持する。
+- bodyless semicolon、existing braced canonical Statement block、colon-introduced inline / indented canonical Statement body。
+- role body内のsignature-only Binding、default-body Binding、bare / equality TypeDeclarationを、実装時点の
+  canonical `Statement` closed sumとして受理するcomposition。
+- role method signatureに現れるtrailing `Pattern : TypeExpression`を、existing `BindingStatement > Pattern >
+  PatternTypeAnnotation > TypeExpression`としてfull standalone TypeExpressionへ接続すること。
+- head / body introducer / bodyのtyped recovery、ASOB、outer Statement boundary、AST / direct-CST parity。
+- root / nested shared dispatchと、source-leading Roleがheader discoveryを`FirstNonHeader`で終了するno-fact behavior。
+
+本追補は次を設計しない。
+
+- role name / input parameterのsemantic validity、kind、variance、associated type、requirement、method set、required / default
+  method classification、receiver、visibility meaning。
+- role inheritance / super-role composition、role-level `where` clause、Role-specific `via`、attribute、doc child。
+- role body itemのsemantic subset。body itemはsyntax上ordinary canonical `Statement`であり、valid memberかをparserが判定しない。
+- role implementation、conformance、associated-type equation、overlap / coherence、method selection、implicit evidence。
+- HIR lowering、resolver、inference、diagnostics wording、formatter、syntax-reference page。
+- declaration-level `where` grammarとstandalone `act` declaration。これらはTypeExpression coreが別future ownerとして残した
+  use-siteであり、本追補から先取りしない。
+
+本追補のBNF-equivalent grammarの唯一の正本は`RLD-G`、intro / head-body authorityは`RLD-J`、
+TypeExpression / Binding-signature / canonical Statement compositionは`RLD-T`、typed recoveryは`RLD-R`である。
+`RLD`はRole Declarationの略で、current documentの`DRV` / `IMD` / `CAST` / `ASOB`その他のprefixと衝突しない。
+
+### Problem statement and supersession boundary
+
+current Yulang3の`Declaration` / `Statement` / `StatementIntro` / `StatementKind`にはRole variantがなく、
+`DeclarationRole`にもRole recovery identityがない。exact word `role`はroot / nested canonical Statementでdeclaration authorityを得ず、
+oracle surfaceの`role Eq;`、`role Eq 'a: ...`、role body内のsignature-only Binding / default Binding / bare TypeDeclarationを
+one declaration ownerとして保持できない。
+
+standalone TypeExpression coreは将来の`role / act signature`について「signature colon / declaration boundaryがtype slotを所有する」
+とだけ予約し、individual use-site addendumがintroducer / stop / missing-role authorityを定めるまでwiringしないとした
+（本document:12755-12768）。Pattern annotation追補はcanonical Binding / case / catch targetの
+`PatternTypeAnnotation`を実装したが、Role ownerとRole body reachabilityはscope外へ残した
+（本document:16054-16070）。本追補はこの二つを次の限定で接続する。
+
+- Role declaration自身のmandatory headはRole-owned full TypeExpression slotである。
+- role method signatureはnew Role-specific signature parserでなく、role bodyからreachableになったexisting Bindingの
+  terminal Pattern annotationである。signature colon / RHS type recovery authorityは
+  `PatternTypeAnnotation`が既に持つものをそのまま使う。
+- Role bodyはexisting canonical Statement sequenceを使う。Role-specific member list / signature listを作らない。
+
+本追補は次をsupersedeしない。
+
+- Struct / Mod / Type / Impl / Cast / Binding / Use / OperatorHeaderのintro priorityとobservable parse / recovery。
+- Pattern annotationのprecedence、Colon ownership、TMN / positional fence、mandatory TypeExpression recovery。
+- TypeDeclarationのNominal / Equality form、Impl shell、Derives attachment、Cast body、generic `WithBodyTail`。
+- canonical Statement sequenceのseparator、brace close、indent / dedent、ASOB / If companion authority。
+- Type colon / brace role-like bodyやdeclaration-level `where`がまだ未実装であるscope boundary。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`はcommit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`を指した。parser implementation、parser-tree fixtures、surface design note、
+language report、representative standard libraryをsame treeから再確認し、次をground truthとする。
+
+1. surface grammarは`role_decl = visibility? "role" type role_body`、
+   `role_body = ";" | brace_statement_block | ":" decl_body`であった。
+   headはraw identifier / dedicated type-parameter listでなくordinary old `type` parserを使った
+   （`yulang2-oracle:spec/2026-06-06-syntax-design.md:529-555`）。implementationもRoleDecl nodeを開始し、
+   `parse_type_with_stops`へ`Colon | BraceL | Semicolon | Comma | Via`を渡した後、semicolon / brace / colon bodyへ分岐した
+   （`yulang2-oracle:crates/parser/src/stmt/role_decl.rs:14-41,51-79,121-132`）。
+2. direct fixture `role Eq;`は`RoleDecl > Role, TypeExpr(Ident Eq), Semicolon`を保持した
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:865-877`）。`my role Eq;`も同じRoleDeclへ入り、
+   optional visibility surfaceを確認できる（同`:2321-2334`）。standard libraryは`pub role`を広く使う。
+3. direct fixture `role Eq {\n  our eq: Self -> Self -> Bool\n}`はbrace block内のmethod signatureを
+   special RoleSignature nodeでなくordinary `Binding > BindingHeader > Pattern > TypeAnn > TypeExpr`として保持した
+   （同`:2654-2697`）。`role Printable:\n  our print: Self -> ()`もcolon + IndentBlock + ordinary Bindingの
+   same shapeであった（同`:2811-2848`）。
+4. standard libraryの`pub role Fold 'container:`はwhitespace-applied input parameter、bare `type item` associated declaration、
+   signature-only method（`container.fold`）、annotated default method（`container.find` / `container.contains` /
+   `container.each`、いずれもtype annotation付きの`=`定義）をone role bodyに置いた（`yulang2-oracle:lib/std/data/fold.yu:4-15`）。
+   unannotated default method（annotationなしの`=`定義）はfold.yuには現れず、次のpoint 5の`fmt.yu`だけが実例を持つ。
+   `pub role Index 'container 'key:`はtwo input parameters、
+   `type value`、`pub container.index: 'key -> value`を使った
+   （`yulang2-oracle:lib/std/data/index.yu:1-3`）。
+5. `Display` / `Debug`は`pub a.show: str`のrequired signatureと、annotationを省いた
+   `pub a.say = ...` / `pub a.dd = ...`のdefault bodyを同じrole bodyに置いた
+   （`yulang2-oracle:lib/std/core/fmt.yu:23-30`）。従ってparserはannotation presenceやdefinition absenceを
+   Role acceptance条件にできない。
+6. language reportはroleをinput type parameterとassociated typeを持つtype-class-like interfaceと説明し、
+   methodを`our` Bindingで宣言しdefault bodyも許すと記録する
+   （`yulang2-oracle:notes/design/yulang-language-report.md:278-287`）。role-specific loweringはtype argument、method、
+   associated type、requirementを登録したが、これはsurface parserのmember classificationではない。
+7. old role bodyは`parse_brace_stmt_block` / `parse_decl_body_after_colon`を使い、Role-specific member scannerを持たなかった
+   （`role_decl.rs:11,57-68,99-112`）。従ってsyntax上は当時のordinary Statement familyがbodyに入り、後段がmember semanticsを
+   判定した。
+8. head scannerは`Comma | Via`をstopに入れたが、body judgeは両tokenをvalid formとして扱わずgeneric InvalidTokenにした
+   （`role_decl.rs:25-38,51-79`）。surface noteも`role ... via ...`をinvalidと明記する
+   （`syntax-design.md:554-555`）。current Y3のImpl shellと同じく、本追補はrejected branchのdedicated token / ASTを移植しない。
+9. oracle corpus / parser / syntax noteから、role header専用のangle / parenthesized generic parameter list、super-role list、
+   role-level `where`、associated-type bound/default、Role-specific `via`のvalid surfaceは確認できなかった。
+   本追補は存在を推測して追加しない。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- optional `my` / `our` / `pub`、exact maximal `role`、ordinary full TypeExpression head、semicolon / brace / colon body。
+- whitespace TypeApplyによるY2 input parameter surface。`role Eq 'a:`をraw name + parameter Vecへ再解釈しない。
+- role body内のrequired signature、annotated / unannotated default Binding、bare / equality TypeDeclarationのordinary source shape。
+- current exact-word statement-intro discipline、sink-free recognition、accepted intro後のcut、root / nested shared continuation。
+- full ordinary standalone TypeExpression、mandatory outer missing-role override、nested TypeRole recovery、logical episode stop fencing。
+- canonical Pattern type annotation、Binding AST / CST / recovery、Binding-style definition body layout。
+- root / indented / braced / inline canonical Statement owner、ASOB original-gap ordering、If companion / Catch barrier visibility。
+- actual punctuation / separator / closeのone-owner rule、lossless trivia、one range = one recovery node = one record。
+- header discoveryがUse / OperatorHeaderだけをfactへprojectし、first full-only declarationで停止するtwo-phase architecture。
+- `role`がstatement introにならないidentifier / field / Pattern / TypeExpression / expression positionでordinary wordであること。
+
+限定して追加するのは次である。
+
+- `SyntaxKind::RoleDeclaration` / `RoleKw`、Role AST / session typed vocabulary。
+- `Declaration::Role` / `Statement::Role` / `StatementIntro::Role` / `StatementKind::RoleDeclaration`。
+- Role head outer TypeExpression episodeだけに見えるbody punctuation stops。
+- existing canonical Statement block machineryへRole-specific recovery identityを渡すthin body adapter。
+- role bodyをreal shared dispatchからreachableにすることで、existing Binding Pattern annotationのfull TypeExpressionを
+  role signature positionへ接続すること。
+
+### `RLD-G`: standalone Role grammar and layout
+
+```text
+RoleDeclaration :=
+    [ VisibilityKw Grole+ ]
+    RoleKw Grole-head
+    RequiredTypeExpression(RoleDeclaration::Head)
+    RoleBody
+
+RoleBody :=
+    BodylessSemicolon
+  | BracedStatementBlockExpression
+  | RoleColonBody
+
+RoleColonBody :=
+    BodyColon G0* RequiredCanonicalStatement(RoleDeclaration::Body) [ InlineTerminalSemicolon ]
+  | BodyColon Grole-indent IndentedStatementBlock(RoleDeclaration::IndentedStatement)
+
+RoleMethodSignatureSurface :=
+    BindingStatement(
+        target := Pattern [ PatternTypeAnnotation ],
+        definition := None | BindingDefinition
+    )
+
+VisibilityKw := MyKw | OurKw | PubKw
+RoleKw := exact maximal word "role"
+
+Grole+ := non-empty TypeChainTrivia(role_base)
+Grole-head := TypeChainTrivia(role_base)
+Grole-indent := NonEmptyStrictlyDeeperContinuationTrivia(role_base)
+G0* := maximal trivia containing no physical newline
+```
+
+`role_base`はfirst declaration starter（visibilityがあればそのkeyword、なければ`role`）をstatement positionで
+acceptした時点のactive `IndentationBaseline.column`で、frameがなければ0である。visibility--`role`間はnon-emptyの
+same-lineまたはstrictly-deeper continuationを要求する。`role`--head間はempty / same-line / strictly-deeper continuationを
+acceptする。equal-or-shallower newline / ambient owner gapをconsumeしない。`roleName` / `roller` / `my_role`をprefix splitしない。
+
+headはordinary one full TypeExpressionである。`role Eq 'a:`の`Eq 'a`はouter TypeExpression whose tail contains
+`TypeApplyArgument('a)`で、separate `RoleTypeParameterList`を作らない。path、call、arrow、parenthesized group、named record、forall、
+effect row、polymorphic variant、bracket rowをTypeExpression grammarが許す限りparserは保持し、Role-specific semantic shapeへ狭めない。
+
+outer completed head後のexact `;` / `{` / `:`はRole body ownerがTypeApplyより先に保持する。fresh outer primary位置のbare `{` / `:`も
+missing head後のbody retryに残す。ただしadjacent compound `:{`はexisting PolymorphicVariantType starterとしてTypeExpressionが先にownする。
+bare named-record headを必要とするsourceは`role ({ value: T });`のようにgroupでhead ownershipを明示する。
+
+bodyless semicolonとcolon-inline body後のone optional terminal semicolonはRoleDeclarationが所有する。brace close後、
+indented body dedent後、missing body / outer boundary後のsemicolonはouter canonical Statement ownerへ残す。
+brace / indented body内のcomma / semicolon / newline / matching closeはexisting Statement sequence ownerだけが所有し、
+Role layerはseparatorをduplicateしない。
+
+`RoleMethodSignatureSurface`はexplanatory compositionでありnew parser production / CST nodeではない。role body内の
+`our x.eq: T`はordinary Binding whose Pattern has `PatternTypeAnnotation`、`our x.eq: T = body`はsame annotation +
+BindingDefinition、`our x.eq = body`はannotationなしBindingである。Role parserはbody itemのvisibility、target shape、
+annotation presence、definition presenceをvalidationしない。
+
+### `RLD-J`: intro authority and phase judge order
+
+sink-free `recognize_role_statement_intro`はcurrent positionのbare exact `role`、または
+exact `my | our | pub` + non-empty declaration-continuing trivia + exact `role`だけをacceptする。head / bodyのsuccessを
+intro条件にせず、accepted keyword後はRole continuationへcutする。resultは次の情報を保持する。
+
+```rust
+struct RoleStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    role_keyword: WordSpan<'source>,
+    role_base: usize,
+}
+```
+
+updated `recognize_statement_intro` priorityを次で固定する。
+
+1. caller-owned EOF / statement separator / matching close / dedent / active ambient companionはexisting outer judgeが先に保持する。
+2. existing `recognize_struct_statement_intro`。
+3. existing `recognize_mod_statement_intro`。
+4. existing `recognize_type_statement_intro`。
+5. new `recognize_role_statement_intro`。
+6. existing `recognize_impl_statement_intro`。
+7. existing `recognize_cast_statement_intro`。
+8. existing `binding_statement_selected` + Binding intro。
+9. existing Use / Mod fallback、OperatorHeader、ordinary OperatorChain fallback。
+
+Yulang2 dispatcherもType / Struct / Enum / Errorの後、Impl / Cast / Actの前にRoleを置いた
+（`yulang2-oracle:crates/parser/src/stmt/mod.rs:54-78`）。current Y3に未実装のEnum / Error / Actはpriority slotとして
+先取りしない。RoleをType後 / Impl前へstrict additiveに挿し、existing introのrelative orderを動かさない。
+visibility-led `my role = value`はBinding targetでなくaccepted malformed Roleへ一意にcutする。
+
+accepted intro後のphase priorityを次で固定する。
+
+1. mandatory head entry前のoriginal gapをactive caller boundary / `any_ambient_owner_claims`へ問い、claimならHead Missingだけを置いて
+   non-consume returnする。
+2. head outer episodeではadjacent compound `:{` fresh-primary authority、actual nested close / Type continuation、
+   outer completed-tail `Colon | LeftBrace | Semicolon` body stops、ambient ownerのapproved priorityを使う。
+3. complete / recovered head後のoriginal tail gapでactual `;` / `{` / `:`が見えればRole local punctuation authority。
+4. colonをacceptしたらpost-colon triviaをone sink-free layout decisionへ渡す。physical newlineなしならexactly one inline
+   canonical Statement、newlineありかつfollowing indent `> role_base`ならexisting non-empty indented Statement sequence、
+   equal-or-shallower newlineならBody Missingとしてwhole gapをouter ownerへ返す。
+5. body starterがなければtyped BodyIntroducer recovery。outer boundary / ambient claimをconsumeせず、malformed runだけを
+   maximal Errorとしてcommitする。full TypeExpression headとcanonical Statement先頭のword surfaceが重なるため、
+   punctuationなしのword列をmissing-colon inline bodyへheuristic splitしない。
+
+AST / direct-CSTはone shared intro result、one head episode spec、one body layout decisionを使う。root / nested / direct callerへ
+spelling judgeやcolon-newline probeをcopyしない。newlineやmalformed byteをconsumeした後にASOBをre-probeしてowner authorityを
+retroactively変えない。
+
+### AST / direct-CST shape
+
+```rust
+struct RoleDeclaration<'source> {
+    visibility: Visibility,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    body: Recovered<RoleBody<'source>>,
+    range: Range<usize>,
+}
+
+enum RoleBody<'source> {
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<RoleColonBody<'source>>,
+    },
+}
+
+enum RoleColonBody<'source> {
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+`head: Incomplete`はcompletely missing / terminally malformed outer headであり、dummy role nameやempty TypeExpressionを作らない。
+`body: Incomplete`はbody formをfinishできなかったcaseで、dummy semicolon / empty blockを作らない。literal body colonは
+always completeなので`Recovered<Range>`へしない。missing-colon inline Statement recoveryは`RLD-J`で禁止する。
+
+new CST vocabularyは`RoleDeclaration` nodeと`RoleKw` tokenだけである。`RoleHeader` / `RoleBody` / `RoleColonBody` /
+`RoleSignature` / member-list / associated-type wrapper / synthetic separatorを作らない。existing visibility、TypeExpression、Colon、
+Semicolon、Statement、BindingStatement、PatternTypeAnnotation、BracedStatementBlockExpression、IndentedStatementBlock、
+Missing / Error、trivia tokenをreuseする。
+
+#### Bodyless worked example
+
+source bytes:
+
+```text
+role Eq;
+```
+
+byte-exact CST:
+
+```text
+RoleDeclaration 0..8
+  RoleKw 0..4 "role"
+  Trivia 4..5 " "
+  TypeExpression 5..7 "Eq"
+  Semicolon 7..8 ";"
+```
+
+ASTはvisibility Private、head Complete、body Bodyless、range `0..8`、recovery zeroである。
+
+#### Indented signature worked example
+
+source bytes:
+
+```text
+role Printable:
+  our print: Self -> ()
+```
+
+byte-exact ownership:
+
+```text
+RoleDeclaration 0..39
+  RoleKw 0..4 "role"
+  Trivia 4..5 " "
+  TypeExpression 5..14 "Printable"
+  Colon 14..15 ":"
+  IndentedStatementBlock 15..39
+    Trivia 15..18 "\n  "
+    Statement 18..39
+      BindingStatement 18..39
+        BindingHeader 18..39
+          OurKw 18..21 "our"
+          Trivia 21..22 " "
+          Pattern 22..39
+            IdentifierPattern 22..27 "print"
+            PatternTypeAnnotation 27..39
+              Colon 27..28 ":"
+              Trivia 28..29 " "
+              TypeExpression 29..39 "Self -> ()"
+```
+
+`PatternTypeAnnotation`のTypeExpressionは`Self`、right-associative Arrow tail、unit parenthesized type groupをordinary
+Type grammarとして所有する。RoleSignature wrapper、Role-owned signature colon、duplicate recovery recordはない。
+
+#### Braced signature worked example
+
+source bytes:
+
+```text
+role Eq {
+  our eq: Self -> Self -> Bool
+}
+```
+
+byte-exact ownership:
+
+```text
+RoleDeclaration 0..42
+  RoleKw 0..4 "role"
+  Trivia 4..5 " "
+  TypeExpression 5..7 "Eq"
+  Trivia 7..8 " "
+  BracedStatementBlockExpression 8..42
+    LBrace 8..9 "{"
+    Trivia 9..12 "\n  "
+    Statement 12..40
+      BindingStatement 12..40
+        BindingHeader 12..40
+          OurKw 12..15 "our"
+          Trivia 15..16 " "
+          Pattern 16..40
+            IdentifierPattern 16..18 "eq"
+            PatternTypeAnnotation 18..40
+              Colon 18..19 ":"
+              Trivia 19..20 " "
+              TypeExpression 20..40 "Self -> Self -> Bool"
+    BlockStatementSeparator 40..41 "\n"
+    RBrace 41..42 "}"
+```
+
+brace / separator / closeはexisting BracedStatementBlockExpression owner、signature colon / typeはexisting Pattern ownerである。
+
+#### Generic inputs, associated declaration, and signature
+
+oracle source:
+
+```text
+pub role Index 'container 'key:
+    type value
+    pub container.index: 'key -> value
+```
+
+byte-exact top-level ownership:
+
+```text
+RoleDeclaration 0..85
+  PubKw 0..3 "pub"
+  Trivia 3..4 " "
+  RoleKw 4..8 "role"
+  Trivia 8..9 " "
+  TypeExpression 9..30 "Index 'container 'key"
+  Colon 30..31 ":"
+  IndentedStatementBlock 31..85
+    Trivia 31..36 "\n    "
+    Statement 36..46
+      TypeDeclaration 36..46 "type value"
+    Trivia 46..51 "\n    "
+    Statement 51..85
+      BindingStatement 51..85 "pub container.index: 'key -> value"
+```
+
+head TypeExpressionのsource orderは`Index` primary、`'container` / `'key` TypeApplyArgumentである。bodyの
+`type value`はexisting bare Nominal TypeDeclaration、method signatureはexisting Binding / Pattern annotationである。
+parser ASTはこれらをassociated type / methodへrelabelしない。
+
+declaration rangeはsource visibilityまたはRoleKw startから、最後にcommitしたhead、bodyless semicolon、brace block close / recovery end、
+colon-inline optional terminal semicolon / statement、indented block endの最大値までである。outer separator、dedent、
+equal-or-shallower newline、ambient companion、active outer closeはrangeへ入らない。
+
+### `RLD-T`: TypeExpression, Binding signature, and canonical Statement composition
+
+#### Role head TypeExpression episode
+
+headはordinary mandatory TypeExpression entryを使う。ASTは
+`parse_required_type_expression_with_outer_missing_role_and_policy`、direct-CSTは
+`commit_direct_type_expression_with_outer_missing_role_and_policy`を使い、completely missing outer primaryだけを
+`GrammarRole::Declaration(DeclarationRole::Role(RoleDeclarationRole::Head))`へoverrideする。
+malformed primary / TypeApply / ArrowRhs / NamedRecord / Forall / EffectRow / PolymorphicVariant / BracketRowのnested Errorは
+existing `TypeRole`を保つ。Role専用TypeExpression subsetやraw name + type-variable parserを作らない。
+
+outer head episodeはincoming stop setを保ち、`Colon | LeftBrace | Semicolon`をone
+`TypeExpressionScopedStopFrame`へ追加する。stopはouter head episodeのcompleted-tail / malformed safe pointでだけvisibleで、
+Arrow RHS / Forall body / TypeApply argument / Parenthesized / Call / NamedRecord / EffectRow / BracketRow /
+PolymorphicVariantのrecursive episodeではsuspendされる。fresh outer primary policyはbare `LeftBrace | Colon`をlocally ownせず、
+missing Head後のbody retryへ残す。一方、`fresh_primary_owns_adjacent_polymorphic_variant_starter`をtrueにし、adjacent exact `:{`だけを
+bare colon stopより先にPolymorphicVariant primaryへ渡す。initial candidate / AST parse / direct commit / malformed scanner /
+same-slot retryへsame episode specを渡す。
+
+logical episodeはderives Gate 1aが実装した`TypeExpressionEpisodePolicy` / `TypeExpressionScopedStopFrame` /
+`type_stop_is_active_in_current_episode`をhard dependencyとしてreuseする。second counter、Role-specific activation query、
+raw `active_stop_set().contains(...)` ownership bypassを作らない。current implementationの
+`parse_required_type_expression_with_outer_missing_role_and_policy` /
+`commit_direct_type_expression_with_outer_missing_role_and_policy`がcandidate / recovery / retryを含むepisode lifetimeを所有する。
+
+Y2はhead outer stopsへ`Comma | Via`も入れ、両tokenをgeneric InvalidTokenへ落とした。本追補はImpl shellと同じdisciplineで
+rejected branchの`ViaKw` / Role-specific `StopKind::Via` / AST / recoveryを追加しない。word `via`はordinary current
+TypeExpression lexical policyに従う。commaはexisting caller / Type boundary policyに従う。このinvalid-input recovery divergenceは
+valid Role surfaceの追加ではなく、`RLD-R`のtyped recovery / no-cascadeへ統合する。
+
+#### Role body reuse
+
+Roleはnew member grammarを持たない。body adapterは次を直接reuseする。
+
+- brace: existing `parse_braced_statement_block_expression` / `commit_braced_statement_block_expression`、
+  `StatementSequencePolicy::BracedPrimary`、existing brace barrier / close recovery。
+- indented colon: existing private generic indented Statement sequence driverと`IndentedStatementBlock`。thin wrapperだけを追加し、
+  owner optionを`GrammarRole::Declaration(DeclarationRole::Role(RoleDeclarationRole::IndentedStatement))`へ設定する。
+  `parse_indented_impl_body` / `commit_indented_impl_body`をRoleから呼んでImpl recovery identityを偽装しない。
+- inline colon: existing `parse_canonical_statement` / `commit_canonical_statement`をexactly once呼び、
+  RoleColonBody用inline ambient owner scopeをpushする。optional terminal semicolon一個だけをRole ownerがconsumeする。
+
+body内canonical Statement familyはimplementation時点のshared closed sumをそのまま受け取る。Expression / Binding / Use / Mod /
+Struct / Type / Impl / Cast / nested Roleをowner-specific branchなしでacceptし、future Statement variantもshared entryへ追加されれば
+Role bodyへ自動的に届く。parserはbody itemをmethod / associated type / requirementへ分類し直さない。
+
+Cast Gate 4aが抽出した`classify_binding_style_body_layout` / `parse_binding_style_body` /
+`commit_binding_style_body`はRole declaration bodyのdriverではない。これらは`=`後のinline OperatorChain / indented bodyを選ぶ
+Binding-style definition helperであり、Role colon bodyのone canonical Statement / Statement sequenceとはauthorityが違う。
+ただしrole body内default method Bindingはordinary Binding parserを通じて同helperを間接的に使う。Role caller branchやRole AST builderを
+Binding helperへ追加しない。
+
+#### Method signature TypeExpression attachment
+
+role body内のsignature slotはexisting canonical Binding compositionで固定する。
+
+1. `our` / `pub` / `my` visibilityからBinding introを選ぶ。
+2. Binding mandatory targetはcanonical Patternを読む。
+3. completed Pattern後のexact annotation colonはexisting `PatternTypeAnnotation`がownする。
+4. annotation RHSはexisting `parse_required_type_expression_with_outer_missing_role_and_policy` / direct counterpartを、
+   Pattern annotation自身のpolicy / missing role / TMN / positional fenceとともに使う。
+5. following exact `=`はBindingDefinition ownerへ戻り、absenceはsignature-only Bindingとしてterminal boundaryへ返る。
+
+Role layerはsignature colon / RHS typeをpre-scanせず、`RoleDeclarationRole::Signature`を作らず、Pattern / Type recoveryをRoleへremapしない。
+これによりfull/exotic signature type、nested delimiter、malformed-newline owner、caller-owned right-close handoff、Binding definition bodyが
+Pattern annotation追補のcurrent contractをそのまま継承する。`our x.eq: T`がsemantically required methodか、
+`our x.eq: T = body`がdefault methodかはparser外である。
+
+#### ASOB and state restoration
+
+head / body-introducer / colon-body gapはoriginal unconsumed gapに対し、actual local punctuation / matching close、active caller boundary、
+`any_ambient_owner_claims`のapproved orderを一度だけ使う。ambient claimならtrivia / companion wordをconsumeせずouter ownerへ返す。
+newlineをlocal continuationとしてcommitした後にambient predicateを再質問しない。
+
+normal / missing / malformed retry / early boundary / brace missing-close / nested signature failureのevery exitで、input position、line、sink、
+ambient owner / If companion、delimiter、stop、indentation baseline、Pattern layout、expression-type owner、ML application、positional fence、
+TypeExpression episode depth / scoped frameをentry時のdepthへexact restoreする。brace / indent body、Binding / Pattern annotationのinner recoveryを
+Role layerがduplicateしない。
+
+### `RLD-R`: typed recovery and owner convergence
+
+new recovery vocabularyを次で固定する。
+
+```rust
+enum RoleDeclarationRole {
+    Head,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
+}
+
+DeclarationRole::Role(RoleDeclarationRole)
+```
+
+Roleはdelimiter ownerではないためnew `ConstructRole` / `TypeDelimitedOwner`を作らない。brace closeはexisting
+`GrammarRole::ClosingDelimiter { owner: ConstructRole::BracedStatementBlockExpression, delimiter: Brace }`をreuseする。
+signature annotationはexisting `PatternRole::TypeAnnotation` / TypeRole recovery、body内Bindingはexisting `BindingRole`を使う。
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `role R;` | head Complete、Bodyless Complete | zero recovery、semicolon Role-owned |
+| `role R { ... }` | head Complete、Braced Complete | existing block ownerへdelegate |
+| `role R:\n  statement` | head Complete、Colon Indented Complete | colon Role-owned、blockはcanonical Statement sequence |
+| `role R: statement` | head Complete、Colon Inline Complete | optional terminal semicolon一個だけRole-owned |
+| exact `role` + EOF / owner boundary | one zero-width Missing Head | head / body Incomplete、same-cause BodyIntroducer Missingなし、boundary non-consume |
+| exact `role` + exact `;` / bare `{` / bare `:` | one Missing Head | same punctuationからbody retry。adjacent compound `:{`だけはTypePrimary |
+| malformed head run + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same head slot retry、Head Complete |
+| malformed head run reaches body starter / boundary | nested maximal `Error(Type::Primary)` one | head Incomplete、starter / boundary non-consume、outer Head Missingを追加しない |
+| complete head + EOF / owner boundary | one zero-width Missing BodyIntroducer | body Incomplete、boundary non-consume |
+| complete head + malformed introducer run + `;` / `{` / `:` | one maximal Error BodyIntroducer | actual starterからbody retry、additional Missingなし |
+| complete head + malformed introducer reaches owner boundary | one maximal Error BodyIntroducer | body Incomplete、additional Missingなし、boundary non-consume |
+| literal body colon + inline Statement | Colon Inline Complete | optional terminal semicolon一個だけRole-owned |
+| literal body colon + deeper non-empty block | Colon Indented Complete | existing block recovery / separators |
+| literal body colon + EOF / semicolon / comma / matching close | one Missing Body | boundary non-consume。body slot absent時にterminal semicolonをconsumeしない |
+| literal body colon + equal-or-shallower newline | one Missing Body | post-colon trivia rollback、newline / next statement outer-owned |
+| body inline malformed run + valid canonical Statement | one maximal Error Body | same body slot retry、additional Missingなし |
+| indented first statement missing / malformed | existing IndentedStatement recovery one | Role Body Missingをduplicateしない |
+| brace body missing / mismatched `}` | existing brace close Missing / Error one | Role close recoveryを追加せずcaller boundary non-consume |
+| signature annotation colon + missing TypeExpression | existing Pattern type-annotation Missing one | Role Head / Body Missingを追加しない |
+| signature TypeExpression malformed run + same-slot retry | existing TypeRole Error one | Binding Pattern annotation owns retry、Role layerは無関与 |
+| body内bare `type item` / default Binding | existing Type / Binding recovery only | associated/default semanticsをRole recoveryへ投影しない |
+| body内nested malformed Statement | inner owner recovery only | same rangeへRole Missing / Errorを重ねない |
+
+head TypeExpressionのinvalid-run safe pointはouter `Colon | LeftBrace | Semicolon`、active close / separator、
+equal-or-shallower newline、ambient ownerをconsumeしない。body formはpunctuationでのみ始まり、head末尾wordとinline Statement先頭wordの
+arbitrary splitをしない。
+
+one accepted `role` = one RoleDeclaration nodeである。one committed Missing / Error record = one recovery node。
+head failureがsame terminal boundaryへ達したときBodyIntroducerをcascadeしない。head recovery後にdistinct actual body starterがあれば
+bodyはsame positionから継続できる。body内signature / TypeDeclaration failureはinner canonical Statement ownerで閉じ、Role body failureを
+same causeへ重ねない。
+
+### Root / nested dispatch and header discovery
+
+root / nested relationshipを次で固定する。
+
+| caller | behavior |
+| --- | --- |
+| root `parse_declaration` | `Declaration::Role(RoleDeclaration)`を返す |
+| direct root loop | `RoleDeclaration` nodeをcommitし、same public recovery recordを返す |
+| `parse_canonical_statement` | `Statement::Role(RoleDeclaration)`を返す |
+| `commit_canonical_statement` | same Role direct adapterを`Statement` wrapper内で呼ぶ |
+| braced / indented / inline statement owner | shared canonical Statement dispatchからRoleをacceptする |
+| header discovery | source-leading Roleを`FirstNonHeader`として終了し、header factを作らない |
+
+root / nestedで別Role parserを作らない。sink-free introとisolated AST/direct continuationをGate 8まで共有し、atomic promotion時に
+root `parse_declaration` / direct root candidate / AST canonical Statement / direct canonical Statement / header-stopをsame changeでswitchする。
+Role body内nested Roleもpromotion後のshared block-driverから自然に受理する。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `scan_word` / visibility prefix / declaration-continuing trivia / checkpoint rollback、source range / line state。
+- one shared `recognize_statement_intro`、root / nested AST and direct-CST dispatch、header discovery stop。
+- `TypeExpressionEpisodePolicy` / `TypeExpressionScopedStopFrame` / `type_stop_is_active_in_current_episode`。
+- `parse_required_type_expression_with_outer_missing_role_and_policy` /
+  `commit_direct_type_expression_with_outer_missing_role_and_policy`。
+- `parse_canonical_statement` / `commit_canonical_statement` / direct candidate。
+- `parse_braced_statement_block_expression` / `commit_braced_statement_block_expression`、generic indented Statement sequence、
+  separator / close / dedent / ambient ownership。
+- existing Binding / Pattern / `PatternTypeAnnotation` / full TypeExpression composition。
+- `any_ambient_owner_claims`、inline canonical Statement owner scope、If companion / braced barrier / positional fence。
+
+次を共有・追加しない。
+
+- `ImplDeclaration` / `ImplBody` / `ImplColonBody` ASTまたは`ImplRole`をRole value / recovery identityとして偽装すること。
+- Role-specific statement list、member parser、signature parser、associated-type parser、separator / close driver。
+- `RoleSignature` / `RoleMember` / `RoleAssociatedType` CST wrapper。
+- `TypeDelimitedOwner::Role`、`ConstructRole::Role`、Role body delimiter wrapper、synthetic semicolon。
+- `HeaderDeclaration::Role`、operator / import / role semantic fact、parser-time role registry。
+- Role-specific `ViaKw` / `WhereKw` / stop / AST / diagnostic。
+- `classify_binding_style_body_layout` / `parse_binding_style_body` / `commit_binding_style_body`をRole colon-body judgeとして流用すること。
+- role inheritance、where predicate、act signature、semantic member classification。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Standalone surface preserved:** optional `my` / `our` / `pub`、exact `role`、full TypeExpression head、semicolon / brace /
+   colon bodyを保つ。
+2. **Head parameters preserved as TypeExpression:** Y2の`role R 'a 'b`はordinary type applicationであった。Y3もseparate generic ASTへ
+   normalizeせずsource TypeExpressionを保持する。
+3. **Signature shape preserved:** Y2のrole method signatureはordinary Binding Pattern annotationだった。Y3もRoleSignature nodeを
+   発明せず、existing PatternTypeAnnotationのfull TypeExpressionへ接続する。
+4. **Canonical body subset:** Y2 bodyは当時のfull Statement familyをacceptした。Y3はimplementation時点のcanonical Statement
+   closed sumを共有し、未実装Where / Act / Enum / Error / For / doc declarationだけをRole専用に先取りしない。
+5. **Typed recovery:** Y2のsilent close / generic InvalidTokenをRoleDeclarationRole別Missing / Error、same-slot retry、
+   no-cascadeへ置き換える。
+6. **No punctuation-free body:** Y2 helperはEOF / equal-or-shallower newlineでpunctuation-free RoleDeclをsilent closeできたが、
+   surface grammar / fixtures / corpusはexplicit `;` / `{` / `:` bodyを示す。Y3はbody evidenceを必須とし、complete head + terminal boundaryを
+   Missing BodyIntroducerにする。
+7. **Role-specific via absent:** Y2自身が`role ... via ...`をinvalid tokenにした。Y3はrejected branchを移植せず、word `via`を
+   ordinary TypeExpression lexical policyに残す。
+8. **No semantic head restriction:** parserはheadがidentifier + sigil parametersだけか、associated type / receiverがvalidかを判定しない。
+   full TypeExpression acceptanceはsyntax shellでありsemantic Role identity claimではない。
+9. **No member semantics:** Binding / Type declarationをrequired method / default method / associated typeへ分類せず、duplicate、
+   missing required method、unknown member、variance、coherenceを検査しない。
+10. **No inheritance / where / act coupling:** super-role、role-level `where`、declaration-level where predicate、Act signatureは別addendumへ残し、
+    empty fieldやreserved wrapperを作らない。
+11. **Header architecture:** Roleはfull syntaxではvalidだがheader factではなく、source-leading occurrenceは`FirstNonHeader`である。
+12. **No HIR boundary crossing:** visibility meaning、module registration、role solving、lowering、diagnostics wording、formatterはscope外。
+
+### Known residuals and deferred scope
+
+ASOB追補が固定するcondition-based known residualはRole head TypeExpressionとrole body内Pattern annotation TypeExpressionにも適用する。
+すなわちmissing local delimiterのままactiveなnested Pattern / TypeExpression ownerが、caller-owned Statement / arm boundaryを
+visible stopとして受け取らず、local malformed-run / separator driverがそのgapとnext outer candidateをconsume / reinterpretできる場合、
+Role layerは境界を後段から回収できない。このfamilyはCast固有のsix fixturesへ限定されず、owner / contextの有限表を完全な上限としない。
+
+Role Gate 8 / 9のsuccess matrixから除外できるのはASOB / Cast追補のfour-condition predicateをすべて満たし、実経路をfixtureで
+characterizeできるcaseだけである。well-delimited nested owner、caller-owned right close、strict dedent、active If companion、
+nested driverへboundaryが見えるmissing-delimiter caseはsuccessに含める。Role-specific workaroundとしてall newline / separatorを
+nested TypeExpressionへcarryしない。
+
+explicit deferred surfaceは次である。
+
+- role head semantic decomposition、role input kinds / variance、associated type declaration / default / bounds。
+- required / default method registration、receiver normalization、visibility semantics、duplicate / missing member diagnostics。
+- super-role composition、role requirement syntax、role-level / declaration-level `where`。
+- Role-specific `via`、derives attachment owner、companion `with:`、Type colon / brace role-like bodyとのcombined judge。
+- impl conformance、coherence、evidence、HIR / resolver / inference / formatter。
+
+future constructがRole body member subsetを導入する場合も、current `Statement` bytesをpost-parseでrelabelするだけの変更を前提にしない。
+new syntax owner / CST shape / recovery authorityが必要ならseparate addendumで、canonical Statementとのpriorityとmigration boundaryを明記する。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationはvocabulary、isolated intro、
+isolated head / body、signature composition、recovery、pre-promotion state matrix、atomic dispatch、final scope gateへ分ける。
+Gate 8までcurrent public parser behaviorを変えない。
+
+implementation gateを次で固定する。
+
+1. `RoleDeclaration` / `RoleKw` SyntaxKind、`RoleDeclaration` / `RoleBody` / `RoleColonBody` AST、
+   `Declaration::Role` / `Statement::Role`、`StatementIntro::Role` carrier、`StatementKind::RoleDeclaration`、
+   `DeclarationRole::Role(RoleDeclarationRole)`、RoleColonBody inline owner identityを追加する。existing exhaustive matchへ
+   unreachable-from-dispatchなmechanical armだけを足し、no RoleSignature / ConstructRole / TypeDelimitedOwner /
+   HeaderDeclaration / behavior change、full suite byte-identicalを固定する。
+2. sink-free `recognize_role_statement_intro`をisolated実装し、bare / my / our / pub exact recognition、role_base、
+   empty adjacency `role(Eq);`、strictly-deeper continuation、EOF-independent cut、`roles` / `roleplay` / `my roleish` rejection、
+   `my role = value`のRole selection、Struct / Mod / Type / Impl / Cast / Binding / Use / Operator non-collision、
+   all-state exact rollbackをdirect fixture化する。real `recognize_statement_intro`へはまだ接続しない。
+3. mandatory headのouter-episode `Colon | LeftBrace | Semicolon` policyをisolated AST/direct adapterとして実装する。
+   derives Gate 1aの`TypeExpressionEpisodePolicy` / `TypeExpressionScopedStopFrame` /
+   `type_stop_is_active_in_current_episode`をauditし、new counter / fallbackを作らない。fresh bare `{` / `:` body retry、
+   fresh adjacent `:{` primary、complete-tail body stop、nested Arrow / Forall / TypeApply / every exotic primary suspension、
+   malformed candidate / retry parity、ASOB、normal / recovery / rollback state restorationを固定する。
+4. semicolon / brace / colon bodyを使うform-aware AST isolated adapterを実装する。bodyless、inline、strictly-deeper indented、brace、
+   missing head / bodyのAST shape / rangeを固定する。brace / indented bodyはcanonical Statement driverをreuseし、
+   Role-specific recovery identityを渡すthin wrappersだけを追加する。existing public dispatchは変更しない。
+5. direct-CST thin adapterをisolated harnessへ追加し、`role Eq;`、
+   `role Printable:\n  our print: Self -> ()`、`role Eq {\n  our eq: Self -> Self -> Bool\n}`、
+   `pub role Index 'container 'key:\n    type value\n    pub container.index: 'key -> value`のchild order / byte range、
+   all trivia home、lossless round trip、no RoleSignature / body wrapper / synthetic separator、AST-direct parityを固定する。
+6. `RLD-R`全rowをfixture化する。head / body-introducer / bodyのMissing / malformed retry / terminal、body starter preservation、
+   brace close delegation、nested Statement recovery、one range = one node = one record、same-cause no-cascadeをAST/directで閉じる。
+   production behaviorはまだ変えない。
+7. role body compositionをisolated adapterで閉じる。signature-only Binding、annotated / unannotated default Binding、full / exotic /
+   malformed signature TypeExpression、bare / equality TypeDeclaration、Expression / Use / Mod / Struct / Type / Impl / Castを
+   AST/directで固定する。PatternTypeAnnotation / Binding / TypeDeclarationのexisting node / recovery identityだけが現れ、
+   RoleSignature / RoleAssociatedType wrapperとRole-level duplicate recordがないことをassertする。nested Roleのreal body-driver
+   acceptanceはshared dispatchがRoleを知るGate 9へ残す。
+8. real dispatch switch前にisolated declaration adapterをdirect root / indented / braced / inline ambient frameで包み、depth-2+ ambient /
+   If companion、EOF / semicolon / comma / each active right delimiter / equal-shallower newline、strictly-deeper head / body、
+   normal / recovery / rollbackのdeclaration-state matrixを閉じる。input / line / sink / ambient / If / delimiter / stop / indentation /
+   Pattern layout / expression-type owner / ML / positional fence / TypeExpression episode depthをevery exitでexact restoreする。
+   actual block-driverからのnested Role acceptanceはGate 9のatomic matrixへ残し、current public parserはまだ変えない。
+9. `recognize_statement_intro`のType後 / Impl前へRole introを挿し、root `parse_declaration` / direct root loop、
+   `parse_canonical_statement` / `commit_canonical_statement` / direct candidateをsame isolated adapterへatomic switchする。
+   source-leading Roleがheader discoveryを`FirstNonHeader`で終了しfactを作らないこともsame changeでwireする。
+   **同じGate / same atomic change内で**Gate 8 suiteをunmodified再実行し、root / indented / braced / With inline / Mod inline /
+   Case / Catch inline-through-owner、depth-2+ ambient / If companion、all active fixed boundaries、normal / recovery / rollback、
+   Role body内Expression / Binding signature / Use / Mod / Struct / Type / Impl / Cast / nested Roleのfull AST/direct matrixを
+   real block-driverとpublic `parse_file`から閉じる。existing non-Role intro priority / fixtureを変更しない。
+10. final public regression matrixでall visibility、full/exotic/malformed head、three body forms、signature-only / default / associated-shaped
+    body items、root / nested interleaving、outer semicolon / ambient companion、every missing / malformed boundary、AST/direct parity、
+    losslessness、one record = one node、all state restoration、full `yu-syntax` suiteを閉じる。
+    `role`がidentifier / field / Pattern / TypeExpression / expression positionでordinary wordのまま、RoleSignature wrapper、
+    member semantics、inheritance / where / via、HIR / resolver / inference / formatterが未実装であるscope gateを固定する。
+    Gate 9でpre-provenになったpublic nested matrixを再実行し、本Gateはnew contextのfirst-time coverageを持たない。
+    known-residual exemptionは上記ASOB four-condition predicateを満たすcharacterized caseだけに限定する。
+
+### Open design questions and Claude review focus
+
+本Proposal初稿は次をdesign decision候補として置く。Claude reviewでは確定 / 修正対象として扱う。
+
+- standalone Roleはroot `Declaration::Role` / nested `Statement::Role`がsame AST / CST ownerを共有する。
+- exact bare / visibility-prefixed `role`はhead / bodyの成否に依存せずstatement authorityを得て、Type後 / Impl前へ入る。
+- headはfull mandatory TypeExpressionで、Y2 generic inputsをseparate parameter ASTへ分解しない。
+- outer headのbody stopsはepisode-scopedでnested TypeExpressionからsuspendし、fresh adjacent `:{`だけはType primaryが先にownする。
+- bodyはbodyless semicolon、existing brace Statement block、inline / indented colon canonical Statementのthree familyである。
+- role method signatureはnew RoleSignature grammarでなくexisting Binding Pattern annotationであり、full TypeExpression wiringは
+  Role body reachabilityによって成立する。
+- body loop / separator / close / indentation machineryを作らず、existing canonical Statement sequenceをthin owner adapterからreuseする。
+- bodyless / colon-inline terminal semicolonだけRole-owned、brace / indent後のsemicolonはouter-ownedである。
+- Y2のinvalid `via` stopを専用grammarとして移植せず、Role-specific where / inheritanceも追加しない。
+- source-leading Roleはheader discoveryを`FirstNonHeader`で終了し、HeaderDeclaration / role semantic factを作らない。
+- body item semantics、associated type、default method、role input variance、conformanceをsyntax addendumから完全に分離する。
+
+特に、TypeExpression coreの「role signature use-site」予約をexisting Pattern annotation compositionで満たす判断が妥当か、
+Role-specific signature node / recovery roleを作らないことがloweringのfuture needsを妨げないか、Y2 headをfull TypeExpressionのまま保つか
+name + parameter ASTへnarrowするか、bodyless punctuationを必須にするY2 silent-close divergence、Role-specific `via`をordinary word policyへ
+戻すinvalid-input divergence、fresh bare record / adjacent polymorphic variant / body braceのpriority、visibility-led RoleをType後 / Impl前へ置く
+priority、signature annotation recoveryとRole body recoveryのno-cascade、ASOB known residualの適用範囲、Gate 8 isolated matrixとGate 9
+same-change real block-driver matrix、semantic deferred surfaceの閉じ方を確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-27、canonical Statement / root Declarationのstandalone `role` declaration shell grammar追補案。Proposal初稿、
+ユーザ承認前）。
