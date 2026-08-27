@@ -6697,6 +6697,8 @@ struct DerivesAttachmentStart {
 enum DerivesOwnerTailClassifier {
     StructHeader,
     StructTrailing,
+    EnumHeader,
+    EnumTrailing,
     TypeHeader,
     TypeTrailing,
 }
@@ -6704,6 +6706,7 @@ enum DerivesOwnerTailClassifier {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DerivesOwnerTail {
     StructBodyStarter,
+    EnumBodyStarter,
     TypeDefinitionIntroducer,
     CallerBoundary,
 }
@@ -6730,8 +6733,11 @@ impl DerivesDriverSpec {
             (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Trailing) => {
                 DerivesOwnerTailClassifier::StructTrailing
             }
-            (DerivesAttachmentOwner::Enum, _) => {
-                unreachable!("Enum derives ownership is introduced in its Gate 4 integration")
+            (DerivesAttachmentOwner::Enum, DerivesAttachmentPosition::Header) => {
+                DerivesOwnerTailClassifier::EnumHeader
+            }
+            (DerivesAttachmentOwner::Enum, DerivesAttachmentPosition::Trailing) => {
+                DerivesOwnerTailClassifier::EnumTrailing
             }
             (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Header) => {
                 DerivesOwnerTailClassifier::TypeHeader
@@ -6898,6 +6904,20 @@ fn derives_role_episode_spec(
         }
         policy.fresh_primary_locally_owned_stops =
             StopSet::default().with(StopKind::LeftParenthesis);
+    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::EnumHeader {
+        // Enum's raw header leaves every actual body introducer to the later
+        // form judge. The scoped frame makes the four stops visible only to
+        // this outer RoleRef episode; recursive TypeExpression episodes own
+        // their nested punctuation as usual.
+        for stop in [
+            StopKind::LeftBrace,
+            StopKind::Colon,
+            StopKind::Equal,
+            StopKind::Semicolon,
+        ] {
+            stops = stops.with(stop);
+            scoped_stops = scoped_stops.with(stop);
+        }
     } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::TypeHeader {
         stops = stops.with(StopKind::Equal);
     }
@@ -6974,12 +6994,38 @@ where
             )
             .then_some(DerivesOwnerTail::StructBodyStarter)
         }),
+        DerivesOwnerTailClassifier::EnumHeader if declaration_exact_equals_pending(i) => {
+            Some(DerivesOwnerTail::EnumBodyStarter)
+        }
+        DerivesOwnerTailClassifier::EnumHeader => i.run(scan_punctuation).and_then(|punctuation| {
+            matches!(
+                punctuation.kind(),
+                PunctuationKind::Open(Delimiter::Brace)
+                    | PunctuationKind::Colon
+                    | PunctuationKind::Semicolon
+            )
+            .then_some(DerivesOwnerTail::EnumBodyStarter)
+        }),
         _ => None,
     };
     i.rollback(checkpoint);
     owner_tail.or_else(|| {
         derives_active_fixed_boundary_pending(i).then_some(DerivesOwnerTail::CallerBoundary)
     })
+}
+
+/// Enum opens a trailing derives attachment point only after its own braced
+/// variant body has consumed a real matching close. Colon/equals dedents and
+/// every bodyless or recovered form intentionally leave `derives` to their
+/// outer Statement owner instead.
+fn enum_body_has_actual_trailing_close(body: &Recovered<EnumBody<'_>>) -> bool {
+    matches!(
+        body,
+        Recovered::Complete(EnumBody::Braced(EnumBracedBody {
+            close: Recovered::Complete(_),
+            ..
+        }))
+    )
 }
 
 fn scan_derives_comma<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
@@ -20004,6 +20050,14 @@ mod tests {
         )
         .is_none());
         assert!(recognize(
+            " = Variant",
+            DerivesAttachmentOwner::Enum,
+            DerivesAttachmentPosition::Header,
+            OwnerContext::Root,
+            StopSet::default(),
+        )
+        .is_none());
+        assert!(recognize(
             ") derives",
             DerivesAttachmentOwner::Type,
             DerivesAttachmentPosition::Trailing,
@@ -20056,6 +20110,11 @@ mod tests {
             DerivesAttachmentPosition::Header,
             0,
         );
+        let enum_header = DerivesDriverSpec::new(
+            DerivesAttachmentOwner::Enum,
+            DerivesAttachmentPosition::Header,
+            0,
+        );
         assert_eq!(
             decide(", Debug", type_header, StopSet::default().with(StopKind::Comma)),
             DerivesDriverDecision::Comma {
@@ -20090,6 +20149,13 @@ mod tests {
             decide(" (Field)", struct_header, StopSet::default()),
             DerivesDriverDecision::OwnerTail(DerivesOwnerTail::StructBodyStarter),
         );
+        for source in [" { Variant", " : Variant", " = Variant", " ;"] {
+            assert_eq!(
+                decide(source, enum_header, StopSet::default()),
+                DerivesDriverDecision::OwnerTail(DerivesOwnerTail::EnumBodyStarter),
+                "{source:?}",
+            );
+        }
         assert_eq!(
             decide(")", type_header, StopSet::default().with(StopKind::RightParenthesis)),
             DerivesDriverDecision::OwnerTail(DerivesOwnerTail::CallerBoundary),
@@ -20105,6 +20171,296 @@ mod tests {
         assert_eq!(
             decide(" ordinary", type_header, StopSet::default()),
             DerivesDriverDecision::NoContinuation,
+        );
+    }
+
+    #[test]
+    fn enum_derives_owner_spec_isolated_ast_direct_and_braced_trailing_only() {
+        fn advance_to<E>(end: usize, i: &mut SynIn<E>)
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            while i.pos() < end {
+                i.input.next().expect("the fixture prefix remains available");
+            }
+            assert_eq!(i.pos(), end);
+        }
+
+        fn parse_ast<'source>(source: &'source str, offset: usize) -> (Vec<DerivesAttachment<'source>>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let attachments = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                advance_to(offset, &mut i);
+                let start = recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Enum,
+                    DerivesAttachmentPosition::Header,
+                    0,
+                    &mut i,
+                )
+                .expect("the complete Enum header reaches its derives clause");
+                parse_derives_attachments_isolated(start, &mut i)
+            };
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (attachments, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct(source: &str) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, SyntaxNode) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            committed.start_node(SyntaxKind::EnumDeclaration);
+            committed.probe(|probe| advance_to(4, probe.input()));
+            committed.token(SyntaxKind::EnumKw, 0..4);
+            committed.probe(|probe| advance_to(5, probe.input()));
+            committed.token(SyntaxKind::Whitespace, 4..5);
+            committed.probe(|probe| advance_to(11, probe.input()));
+            committed.token(SyntaxKind::Identifier, 5..11);
+            let attachments = committed
+                .probe(|probe| {
+                    recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Enum,
+                        DerivesAttachmentPosition::Header,
+                        0,
+                        probe.input(),
+                    )
+                })
+                .map(|start| commit_derives_attachments_isolated(start, &mut committed))
+                .expect("the complete Enum header reaches its derives clause");
+            let end = source.len();
+            committed.probe(|probe| advance_to(23, probe.input()));
+            committed.token(SyntaxKind::Colon, 22..23);
+            committed.probe(|probe| advance_to(24, probe.input()));
+            committed.token(SyntaxKind::Whitespace, 23..24);
+            committed.probe(|probe| advance_to(end, probe.input()));
+            committed.token(SyntaxKind::Identifier, 24..31);
+            committed.finish_node();
+            committed.finish_node();
+            let output = committed.into_output();
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            let records = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            (attachments, records, root)
+        }
+
+        fn parse_direct_clause(source: &str) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(HeaderOutput::new());
+            let start = committed
+                .probe(|probe| {
+                    recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Enum,
+                        DerivesAttachmentPosition::Header,
+                        0,
+                        probe.input(),
+                    )
+                })
+                .expect("the Enum derives fixture begins at its contextual keyword");
+            let attachments = commit_derives_attachments_isolated(start, &mut committed);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            (attachments, output.committed_recoveries().to_vec(), remainder)
+        }
+
+        let source = "enum Choice derives Eq: Variant";
+        let (ast, remainder) = parse_ast(source, 11);
+        assert_eq!(remainder, ": Variant");
+        assert!(matches!(ast.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Header, .. }]));
+        assert_eq!(ast[0].clause.range, 12..22);
+        let (direct, records, root) = parse_direct(source);
+        assert_eq!(direct.len(), 1);
+        assert_eq!(direct[0].position, DerivesAttachmentPosition::Header);
+        assert_eq!(direct[0].clause.range, ast[0].clause.range);
+        assert!(records.is_empty());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::EnumDeclaration, 0..31),
+                (SyntaxKind::DerivesClause, 11..22),
+                (SyntaxKind::TypeExpression, 20..22),
+            ],
+        );
+
+        let trailing_source = "enum E {} derives Eq";
+        let mut source_input = SourceInput::new(trailing_source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(trailing_source));
+        committed.start_node(SyntaxKind::Root);
+        committed.start_node(SyntaxKind::EnumDeclaration);
+        for (kind, range) in [
+            (SyntaxKind::EnumKw, 0..4),
+            (SyntaxKind::Whitespace, 4..5),
+            (SyntaxKind::Identifier, 5..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::LBrace, 7..8),
+            (SyntaxKind::RBrace, 8..9),
+        ] {
+            committed.probe(|probe| advance_to(range.end, probe.input()));
+            committed.token(kind, range);
+        }
+        let trailing_body = Recovered::Complete(EnumBody::Braced(EnumBracedBody {
+            open: 7..8,
+            variants: Vec::new(),
+            trailing_comma: None,
+            close: Recovered::Complete(8..9),
+            range: 7..9,
+        }));
+        assert!(enum_body_has_actual_trailing_close(&trailing_body));
+        let trailing = committed
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Enum,
+                    DerivesAttachmentPosition::Trailing,
+                    0,
+                    probe.input(),
+                )
+            })
+            .map(|start| commit_derives_attachments_isolated(start, &mut committed))
+            .expect("the completed braced Enum body opens its trailing attachment point");
+        assert!(matches!(trailing.as_slice(), [DirectDerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        committed.finish_node();
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(output.committed_recoveries().is_empty());
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), trailing_source);
+
+        let incoming = StopSet::default().with(StopKind::RightBracket);
+        let episode = derives_role_episode_spec(
+            DerivesDriverSpec::new(
+                DerivesAttachmentOwner::Enum,
+                DerivesAttachmentPosition::Header,
+                0,
+            ),
+            incoming,
+            3,
+            None,
+        );
+        for stop in [
+            StopKind::LeftBrace,
+            StopKind::Colon,
+            StopKind::Equal,
+            StopKind::Semicolon,
+        ] {
+            assert!(episode.stops.contains(stop), "outer Enum header stop: {stop:?}");
+            assert!(
+                episode.scoped_frame.stops.contains(stop),
+                "nested Enum header scoped stop: {stop:?}",
+            );
+        }
+        assert_eq!(episode.scoped_frame.visible_episode_depth, 4);
+        assert_eq!(episode.policy.fresh_primary_locally_owned_stops, StopSet::default());
+
+        let (ordered, remainder) = parse_ast("derives Eq derives Debug: Variant", 0);
+        assert_eq!(remainder, ": Variant");
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].clause.keyword, 0..7);
+        assert_eq!(ordered[1].clause.keyword, 11..18);
+
+        let (missing, records, remainder) = parse_direct_clause("derives : Variant");
+        assert_eq!(remainder, ": Variant");
+        assert!(matches!(missing[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)),
+        );
+
+        let (malformed, records, remainder) = parse_direct_clause("derives @: Variant");
+        assert_eq!(remainder, ": Variant");
+        assert!(matches!(malformed[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, RecoveryKind::Error);
+        assert_eq!(records[0].site.role, GrammarRole::Type(crate::session::TypeRole::Primary));
+        assert_eq!(records[0].site.range, 8..9);
+
+        let complete_braced = Recovered::Complete(EnumBody::Braced(EnumBracedBody {
+            open: 0..1,
+            variants: Vec::new(),
+            trailing_comma: None,
+            close: Recovered::Complete(1..2),
+            range: 0..2,
+        }));
+        let missing_braced = Recovered::Complete(EnumBody::Braced(EnumBracedBody {
+            open: 0..1,
+            variants: Vec::new(),
+            trailing_comma: None,
+            close: Recovered::Incomplete,
+            range: 0..1,
+        }));
+        let colon_dedent = Recovered::Complete(EnumBody::Colon {
+            colon: 0..1,
+            body: Recovered::Incomplete,
+        });
+        let equals_dedent = Recovered::Complete(EnumBody::Equals {
+            equals: 0..1,
+            body: Recovered::Incomplete,
+        });
+        let bodyless = Recovered::Complete(EnumBody::Bodyless { semicolon: Some(0..1) });
+        assert!(enum_body_has_actual_trailing_close(&complete_braced));
+        for body in [&missing_braced, &colon_dedent, &equals_dedent, &bodyless] {
+            assert!(
+                !enum_body_has_actual_trailing_close(body),
+                "only a completed braced close may open Enum trailing derives",
+            );
+        }
+        assert!(!enum_body_has_actual_trailing_close(&Recovered::Incomplete));
+        assert_eq!(
+            DerivesDriverSpec::new(
+                DerivesAttachmentOwner::Enum,
+                DerivesAttachmentPosition::Trailing,
+                0,
+            )
+            .owner_tail_classifier,
+            DerivesOwnerTailClassifier::EnumTrailing,
         );
     }
 
