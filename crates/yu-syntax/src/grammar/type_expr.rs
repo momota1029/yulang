@@ -416,6 +416,7 @@ where
         }
         if named_record_next_field_candidate(&mut i, &trivia)
             || struct_named_fields_next_field_candidate(&mut i, &trivia)
+            || enum_variant_named_fields_next_field_candidate(&mut i, &trivia)
         {
             i.rollback(checkpoint);
             break;
@@ -1251,6 +1252,7 @@ where
     }
     if named_record_next_field_candidate(i, &leading)
         || struct_named_fields_next_field_candidate(i, &leading)
+        || enum_variant_named_fields_next_field_candidate(i, &leading)
     {
         i.rollback(checkpoint);
         return None;
@@ -4704,6 +4706,33 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     if leading.is_empty()
         || trivia_has_newline(leading)
         || i.local.type_delimited_owner() != Some(TypeDelimitedOwner::StructNamedFields)
+    {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(scan_word).is_some_and(|_| {
+        let gap = consume_trivia(i);
+        !trivia_has_newline(&gap) && scan_exact_colon(i).is_some()
+    });
+    i.rollback(checkpoint);
+    candidate
+}
+
+/// Enum named payload fields use the same sink-free next-`name:` lookahead as
+/// Struct fields, but carry a distinct owner so the enclosing Enum field
+/// driver retains its Variant recovery identity.
+fn enum_variant_named_fields_next_field_candidate<E>(
+    i: &mut SynIn<E>,
+    leading: &TriviaRun,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if leading.is_empty()
+        || trivia_has_newline(leading)
+        || i.local.type_delimited_owner() != Some(TypeDelimitedOwner::VariantNamedPayload)
     {
         return false;
     }
