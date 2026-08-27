@@ -76,7 +76,8 @@
    `impl`(shellのみ)/`cast`/演算子定義は完了。
    derives・impl・castが着地した今、role/impl/enum系のownerがそれらの共有driverを
    どこまで再利用できるか、着手前に要調査。
-3. **grammar/CST/エラー回復の正規化サイト**(下記TODO参照)。
+3. **grammar/CST/エラー回復の正規化サイト**: pilot稼働中(下記参照)。次はexpressions/
+   patterns/typesの各elementページを1つずつ追加していく。
 4. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
@@ -87,53 +88,59 @@
    boundary伝播・missing delimiter・local candidate/same-spelling separator priorityを
    一般化する新しいsigned addendumが必要。
 
-## TODO: 文法・CSTをエラー含めて完全に規格化するサイトを作る
+## 文法・CSTをエラー含めて完全に規格化するサイト(`syntax-reference/`、pilot稼働中)
 
-ユーザ指示(2026-08-23): 「これまでの文書は非常に貴重な資料です。文法・CSTをエラー含めて
-完全に規格化してウェブサイトを作るTODOが欲しい」
+ユーザ指示(2026-08-23)で起票、2026-08-27にスコープ確定・pilot実装・push完了
+(commit `cc25bc2e`)。
 
-### 背景
+### 決定事項(2026-08-27、AskUserQuestionで確定)
 
-`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`は現時点で16,000行超。個々の
-grammar要素ごとに、次を単一の正本箇所として持つ設計になっている(多相variant型・bracket
-row型の設計サーガで確立した「single canonical statement」規律):
+- 技術基盤: **mdBook**。`web/`(yulang2時代のplayground/docsサイト、yulang3では
+  一括削除済み)は再利用しない。`cargo install mdbook`でこの環境に導入済み。
+- 設置場所: 新規`syntax-reference/`(`docs/`のarchitecture文書とは責務分離)。
+- 対象読者: **実装者向け**(このセッションの開発者・将来のClaude/Codexセッション)。
+  文体は簡潔・省略多め、実装ファイルへのクロスリファレンス重視。
+- 着手タイミング: **grammar確定を待たず、要素ごとに確定次第ページ化**。TypeExpression
+  残りuse-site・declaration残りvariantが未着手でも並行して進める。
+- 生成方式: 正本(`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`)からの
+  半自動抽出。Codex(Terra、要素ごとの内容は正本から機械的に転記する作業のため)が
+  1ページずつ執筆し、Claudeが実装ファイル・commit履歴と照合してfaithfulness検証する
+  運用。
 
-- 文法(BNF相当の構文規則)
-- CST shape(worked exampleでtrivia byteまで明示)
-- AST shape(Rust struct定義)
-- typed recovery contract(Missing/Errorの発火条件・range・retry位置を網羅する表)
-- yulang2からの意図的divergence一覧
+### サイト構成
 
-これは「実装のための設計文書」であって、「読者(言語ユーザ・ツール開発者)向けの参照資料」
-ではない。後者を作るには、この一次資料から要約・整形・横断索引化する変換作業が要る。
+```text
+syntax-reference/
+  book.toml
+  README.md
+  src/
+    SUMMARY.md
+    index.md
+    conventions/   # Parser共通規約(trivia/range/AST-direct parity等、stub)
+    expressions/
+    patterns/
+    types/
+    statements/     # pilot: bare-nominal-type.md 完成
+    cross-cutting/
+    indexes/
+```
 
-### スコープ(仮、着手時に確定)
+各elementページの11節template: Status/正本/last-verified commit → Scope →
+BNF grammar → judge/priority/owner boundary → byte-exact CST worked example →
+AST shape → typed recovery table → boundary/state-restoration contract →
+yulang2 divergence → known residual/deferred surface → 実装関数・fixture
+cross-reference。
 
-- 各grammar要素(tuple・operator chain・if/elsif/else・pattern各種・TypeExpression
-  各primaryなど)について、次を1ページで示す:
-  - 構文規則(BNF or railroad diagram相当)
-  - 正常系のCST例(trivia込み)
-  - 各recovery行(どんな壊れたsourceがどんなMissing/Errorになるか、before/after)
-- yulang2との既知のdivergence一覧(意図的なものだけ・理由付き)
-- 実装ファイルへのクロスリファレンス(`crates/yu-syntax/src/grammar/*.rs`のどの関数が
-  どのgrammar要素を担当するか)
+### pilotページの検証結果
 
-### 未確定事項(着手時にユーザと相談)
-
-- サイトの技術基盤: 既存の`web/`(yulang2時代のplayground/docsサイト)を拡張するか、
-  別立てにするか。yulang3ではdocs/playground自体まだ存在しない
-  (`docs/yulang3-architecture.md`の§15参照——実装が進んでからサルベージする方針)。
-- 生成方式: 設計doc(Markdown)から自動抽出するか、手動でページを書き起こすか。
-  現在の設計docはprose(自然言語)中心でmachine-readableな構造化データではないため、
-  完全自動化は難しく、半自動(正本docを参照しながら人力で整形)が現実的と見られる。
-- 対象読者: 実装者向け(このセッションの開発者)か、将来の言語ユーザ向けか——後者なら
-  文体・省略レベルが大きく変わる(`notes/style/writing-rhythm-guide.md`のpage-layer
-  assignmentが関係する)。
-- 着手タイミング: grammar自体がまだ全部確定していない(use-site配線・残りdeclaration
-  文が未着手)。全部確定してから一括で作る方が手戻りが少ないか、要素ごとに確定次第
-  ページ化していくか。
+`statements/bare-nominal-type.md`(bare nominal `type`宣言、9 gate完了済み)を
+pilotとして選定・作成。Claudeが独立に照合し、引用した実装関数8件・回帰test 7件が
+全部実在、AST struct shapeが実装と完全一致、引用commit hash 10件が全部正しい
+gate commitを指す、正本の行範囲引用(19677–20277)がbyte-precise、worked
+example 2件が正本から実際に転記されたものであることを確認済み。
 
 ### 次にやること
 
-着手する時は、まずこのTODOをEnterPlanModeまたはAskUserQuestionでスコープ確定してから
-着手する。現時点では起票のみ。
+expressions/patterns/typesの各elementから1つずつページを追加していく。優先順位は
+未確定——着手時に選ぶ。tuple/operator chainのように複数の正本節を合成する要素は、
+1ページに統合せずcross-cuttingページ参照にする方針(Sol提案どおり)。
