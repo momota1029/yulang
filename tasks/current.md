@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-27（`syntax-reference/`サイト完成に続き、standalone `role`宣言addendumがAuthoritative化、実装着手可能）
+更新: 2026-08-27（`syntax-reference/`サイト完成に続き、standalone `role`宣言addendumの10 gate実装完了）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -59,6 +59,14 @@
   behind a missing Cast-contained Pattern/TypeExpression delimiter、four-condition
   predicate)はGate 8/9で6件のrepresentative fixtureとしてcharacterize済み・未解決のまま
   残す方針(closed tableではなくcondition-based)。
+- standalone `role`宣言shell文法(RLD-G/J/T/R、10 gate計画)がAuthoritative設計どおり
+  実装完了。Gate 1のvocabularyからGate 8のpre-promotion state matrix、Gate 9のType後/
+  Impl前atomic dispatch promotion、Gate 10のfinal contextual-word/scope gateまで完走し、
+  520 tests green。role bodyはordinary canonical Statement compositionであり、
+  RoleSignature / member semantics / inheritance / where / via / HIR / resolver / inference /
+  formatterは未実装をworkspace-wide grepで確認済み。Y2 role methodのdotted Binding targetが
+  Patternの未実装DotField continuationへ依存するgapはGate 5で発見し、Role内へ推測実装せず
+  plain identifier worked exampleへ訂正したうえでPattern別addendumへdeferした。
 
 ## 既知の未修正バグ
 
@@ -69,24 +77,20 @@
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
-1. **standalone `role`宣言の実装(次すぐ着手可能)**: 追補がAuthoritative化済み
-   (下記参照)。10 gate計画(vocabulary → isolated intro → isolated head/body →
-   signature composition → recovery → pre-promotion state matrix → atomic
-   dispatch → final scope gate)で実装へ進める。
-2. **standalone `TypeExpression`の残りuse-site(where節・act signature)**: role
+1. **standalone `TypeExpression`の残りuse-site(where節・act signature)**: role
    signatureは上記で解決。where節・act signatureは、role同様「そもそも宣言文法
    自体が未実装」と判明済み(2026-08-27調査)——着手にはまず宣言family自体の設計が
    要る。where節は正本が「type-specific where clauseをYulang3に発明しない」と
-   明記していて位置付けが不明確、act signatureはrole設計の実装完了後に共有driverの
+   明記していて位置付けが不明確、act signatureはrole実装で得た共有driverの
    再利用範囲を見てから着手判断するのが良さそう。
-3. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/
-   `act`/`for`文/declaration-level `where`/doc-comment宣言。`role`は上記で着手済み。
+2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/
+   `act`/`for`文/declaration-level `where`/doc-comment宣言。`role`は実装完了。
    `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義は完了。
-4. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
+3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
    相対的な実装順序は未決定。
-5. **Cast known-residualの一般化解消**: 追補が明示的に別addendum送りにした、caller
+4. **Cast known-residualの一般化解消**: 追補が明示的に別addendum送りにした、caller
    boundary hidden behind a missing nested delimiterというcondition-based residual
    family(ASOB追補由来、Castで再確認)。nested Pattern/TypeExpressionへのcaller
    boundary伝播・missing delimiter・local candidate/same-spelling separator priorityを
@@ -116,6 +120,15 @@ bodyはbodyless semicolon/existing brace block/colon inline-indentedの3形態�
 derives Gate 1aの`TypeExpressionEpisodePolicy`等をhard dependencyとして
 再利用、cast Gate 4aの`classify_binding_style_body_layout`は明示的に
 非再利用(authorityが違うため)。intro priorityはType後/Impl前。10 gate計画。
+
+実装完了(2026-08-27): Gate 1 vocabulary/AST、Gate 2 isolated intro、Gate 3 head
+TypeExpression episode、Gate 4-5 AST/direct body adapters、Gate 6 RLD-R recovery、Gate 7
+body composition、Gate 8 state restoration、Gate 9 real dispatch、Gate 10 final public
+scope matrixを順に閉じた。Gate 5中にY2の`container.index`等がPattern DotField
+continuationを必要とする未実装gapを発見し、Roleのscopeへ推測実装せずplain identifier
+fixtureへ訂正、Pattern別追補へdeferした。Gate 10はall visibilityとcontextual `role`の
+ordinary-word positionsをpublic/direct parityで固定し、Role syntax typeがyu-syntax外へ
+漏れていないことも確認した。
 
 ## 文法・CSTをエラー含めて完全に規格化するサイト(`syntax-reference/`、pilot稼働中)
 

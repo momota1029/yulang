@@ -29626,6 +29626,99 @@ mod tests {
     }
 
     #[test]
+    fn role_gate_10_final_public_scope_and_contextual_word_matrix() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn identifier_tokens(root: &SyntaxNode, text: &str) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.text() == text)
+                .map(|token| {
+                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    syntax_range(token.text_range())
+                })
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::RoleDeclaration),
+                node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
+                "public/direct Role range parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                direct_root
+                    .descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        // Visibility stays part of the declaration intro only; all four
+        // accepted forms select one clean RoleDeclaration through public and
+        // direct root entrypoints.
+        for source in ["role Eq;", "my role Eq;", "our role Eq;", "pub role Eq;"] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::RoleDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
+                vec![0..source.len()],
+            );
+            assert!(direct.committed_recoveries().is_empty(), "visibility recovery: {source:?}");
+        }
+
+        // `role` remains contextual: it is an ordinary identifier whenever it
+        // occurs outside a canonical Statement/root Declaration introducer.
+        // The NamedRecordType source uses its existing parenthesized spelling
+        // so its field key is unquestionably in a TypeExpression position.
+        for source in [
+            "my value = object.role",
+            "my value = role",
+            "my value: role = output",
+            "my value: ({ role: Int }) = output",
+            "my result = case value:\n  role -> output",
+        ] {
+            let (public, direct_root, _) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::RoleDeclaration).is_empty(),
+                    "no RoleDeclaration outside an accepted Statement slot: {source:?}",
+                );
+                assert!(
+                    !identifier_tokens(root, "role").is_empty(),
+                    "ordinary role identifier: {source:?}",
+                );
+            }
+        }
+    }
+
+    #[test]
     fn isolated_impl_declaration_ast_selects_description_and_all_body_forms() {
         fn parse(source: &str) -> (ImplDeclaration<'_>, String) {
             let mut source_input = SourceInput::new(source);
