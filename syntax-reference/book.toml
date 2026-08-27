@@ -1,0 +1,7 @@
+[book]
+title = "yu-syntax reference"
+language = "ja"
+src = "src"
+
+[build]
+build-dir = "book"
