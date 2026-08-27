@@ -11,7 +11,7 @@ use chasa::{
 
 use crate::{
     grammar::declaration::{
-        ActDeclaration, BindingDeclaration, CastDeclaration, EnumDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
+        ActDeclaration, BindingDeclaration, CastDeclaration, EnumDeclaration, ErrorDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
         TypeDeclaration,
         UseDeclaration,
         commit_act_declaration_isolated, commit_binding_declaration, commit_cast_declaration_isolated, commit_enum_declaration_isolated, commit_impl_declaration_isolated,
@@ -215,6 +215,7 @@ pub(crate) enum Statement<'source> {
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
     Enum(EnumDeclaration<'source>),
+    Error(ErrorDeclaration<'source>),
     Type(TypeDeclaration<'source>),
     Role(RoleDeclaration<'source>),
     Impl(ImplDeclaration<'source>),
@@ -231,6 +232,7 @@ impl<'source> Statement<'source> {
             Self::Mod(declaration) => declaration.range(),
             Self::Struct(declaration) => declaration.range(),
             Self::Enum(declaration) => declaration.range(),
+            Self::Error(declaration) => declaration.range(),
             Self::Type(declaration) => declaration.range(),
             Self::Role(declaration) => declaration.range(),
             Self::Impl(declaration) => declaration.range(),
@@ -4274,6 +4276,7 @@ where
                     | StatementIntro::Mod(_)
                     | StatementIntro::Struct(_)
                     | StatementIntro::Enum(_)
+                    | StatementIntro::Error(_)
                     | StatementIntro::Type(_)
                     | StatementIntro::Role(_)
                     | StatementIntro::Impl(_)
@@ -4306,6 +4309,9 @@ where
         Some(StatementIntro::Enum(intro)) => {
             let _ = commit_enum_declaration_isolated(committed, intro);
             true
+        }
+        Some(StatementIntro::Error(_)) => {
+            unreachable!("Error dispatch is introduced in its Gate 9 promotion")
         }
         Some(StatementIntro::Type(intro)) => {
             let _ = commit_type_declaration(committed, intro);

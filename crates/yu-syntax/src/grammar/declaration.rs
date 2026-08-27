@@ -73,6 +73,7 @@ pub(crate) enum Declaration<'source> {
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
     Enum(EnumDeclaration<'source>),
+    Error(ErrorDeclaration<'source>),
     Type(TypeDeclaration<'source>),
     Role(RoleDeclaration<'source>),
     Impl(ImplDeclaration<'source>),
@@ -110,6 +111,8 @@ pub(crate) enum StatementIntro<'source> {
     Struct(StructStatementIntro<'source>),
     #[allow(dead_code)]
     Enum(EnumStatementIntro<'source>),
+    #[allow(dead_code)]
+    Error(ErrorStatementIntro<'source>),
     Type(TypeStatementIntro<'source>),
     #[allow(dead_code)]
     Role(RoleStatementIntro<'source>),
@@ -229,6 +232,20 @@ pub(crate) struct EnumStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     enum_keyword: WordSpan<'source>,
     enum_base: usize,
+}
+
+/// The sink-free prefix reserved for standalone Error declarations.
+///
+/// Gate 1 carries this source shape only. Gate 2 supplies recognition, and
+/// Gate 9 connects it to shared statement dispatch.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ErrorStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    error_keyword: WordSpan<'source>,
+    error_base: usize,
 }
 
 /// The sink-free prefix reserved for the shared Type-declaration judge.
@@ -431,6 +448,9 @@ fn parse_direct_root_candidate_with_local(
             StatementIntro::Enum(intro) => {
                 let _ = commit_enum_declaration_isolated(&mut committed, intro);
                 StatementKind::EnumDeclaration
+            }
+            StatementIntro::Error(_) => {
+                unreachable!("Error dispatch is introduced in its Gate 9 promotion")
             }
             StatementIntro::Type(intro) => {
                 let _ = commit_type_declaration(&mut committed, intro);
@@ -654,6 +674,10 @@ where
             return None;
         }
         StatementIntro::Enum(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::Error(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -15437,6 +15461,28 @@ pub(crate) struct EnumDeclaration<'source> {
 }
 
 impl EnumDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+/// A standalone Error declaration shared by root and canonical Statements.
+///
+/// Gate 1 establishes only the approved AST shape. Recognition, variant
+/// parsing, and body parsing remain unreachable until their later dedicated
+/// gates.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ErrorDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
+    body: Recovered<EnumBody<'source>>,
+    range: Range<usize>,
+}
+
+impl ErrorDeclaration<'_> {
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
     }

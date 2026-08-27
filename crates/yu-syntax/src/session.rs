@@ -1095,6 +1095,7 @@ pub(crate) enum DeclarationRole {
     Mod(ModRole),
     Struct(StructRole),
     Enum(EnumDeclarationRole),
+    Error(ErrorDeclarationRole),
     Type(TypeDeclarationRole),
     Role(RoleDeclarationRole),
     Impl(ImplRole),
@@ -1127,6 +1128,7 @@ pub(crate) enum StatementKind {
     ModDeclaration,
     StructDeclaration,
     EnumDeclaration,
+    ErrorDeclaration,
     TypeDeclaration,
     RoleDeclaration,
     ImplDeclaration,
@@ -1171,6 +1173,13 @@ pub(crate) enum StructRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum EnumDeclarationRole {
+    Name,
+    BodyIntroducer,
+    Variant(VariantDeclarationRole),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ErrorDeclarationRole {
     Name,
     BodyIntroducer,
     Variant(VariantDeclarationRole),
