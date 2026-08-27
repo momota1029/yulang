@@ -9826,6 +9826,7 @@ where
 enum DerivesAttachmentOwner {
     Struct,
     Enum,
+    Error,
     Type,
 }
 
@@ -9843,6 +9844,8 @@ enum DerivesOwnerTailClassifier {
     StructTrailing,
     EnumHeader,
     EnumTrailing,
+    ErrorHeader,
+    ErrorTrailing,
     TypeHeader,
     TypeTrailing,
 }
@@ -9851,6 +9854,7 @@ enum DerivesOwnerTailClassifier {
 enum DerivesOwnerTail {
     StructBodyStarter,
     EnumBodyStarter,
+    ErrorBodyStarter,
     TypeDefinitionIntroducer,
     CallerBoundary,
 }
@@ -9882,6 +9886,12 @@ impl DerivesDriverSpec {
             }
             (DerivesAttachmentOwner::Enum, DerivesAttachmentPosition::Trailing) => {
                 DerivesOwnerTailClassifier::EnumTrailing
+            }
+            (DerivesAttachmentOwner::Error, DerivesAttachmentPosition::Header) => {
+                DerivesOwnerTailClassifier::ErrorHeader
+            }
+            (DerivesAttachmentOwner::Error, DerivesAttachmentPosition::Trailing) => {
+                DerivesOwnerTailClassifier::ErrorTrailing
             }
             (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Header) => {
                 DerivesOwnerTailClassifier::TypeHeader
@@ -10048,8 +10058,11 @@ fn derives_role_episode_spec(
         }
         policy.fresh_primary_locally_owned_stops =
             StopSet::default().with(StopKind::LeftParenthesis);
-    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::EnumHeader {
-        // Enum's raw header leaves every actual body introducer to the later
+    } else if matches!(
+        spec.owner_tail_classifier,
+        DerivesOwnerTailClassifier::EnumHeader | DerivesOwnerTailClassifier::ErrorHeader
+    ) {
+        // Enum and Error raw headers leave every actual body introducer to the later
         // form judge. The scoped frame makes the four stops visible only to
         // this outer RoleRef episode; recursive TypeExpression episodes own
         // their nested punctuation as usual.
@@ -10149,6 +10162,18 @@ where
                     | PunctuationKind::Semicolon
             )
             .then_some(DerivesOwnerTail::EnumBodyStarter)
+        }),
+        DerivesOwnerTailClassifier::ErrorHeader if declaration_exact_equals_pending(i) => {
+            Some(DerivesOwnerTail::ErrorBodyStarter)
+        }
+        DerivesOwnerTailClassifier::ErrorHeader => i.run(scan_punctuation).and_then(|punctuation| {
+            matches!(
+                punctuation.kind(),
+                PunctuationKind::Open(Delimiter::Brace)
+                    | PunctuationKind::Colon
+                    | PunctuationKind::Semicolon
+            )
+            .then_some(DerivesOwnerTail::ErrorBodyStarter)
         }),
         _ => None,
     };
@@ -23676,6 +23701,273 @@ mod tests {
             .owner_tail_classifier,
             DerivesOwnerTailClassifier::EnumTrailing,
         );
+    }
+
+    #[test]
+    fn error_derives_owner_spec_isolated_ast_direct_and_braced_trailing_only() {
+        fn advance_to<E>(end: usize, i: &mut SynIn<E>)
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            while i.pos() < end {
+                i.input.next().expect("the fixture prefix remains available");
+            }
+            assert_eq!(i.pos(), end);
+        }
+
+        fn parse_ast<'source>(source: &'source str, offset: usize) -> (Vec<DerivesAttachment<'source>>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let attachments = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                advance_to(offset, &mut i);
+                let start = recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Error,
+                    DerivesAttachmentPosition::Header,
+                    0,
+                    &mut i,
+                )
+                .expect("the complete Error header reaches its derives clause");
+                parse_derives_attachments_isolated(start, &mut i)
+            };
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (attachments, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct_clause(
+            source: &str,
+        ) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(HeaderOutput::new());
+            let start = committed
+                .probe(|probe| {
+                    recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Error,
+                        DerivesAttachmentPosition::Header,
+                        0,
+                        probe.input(),
+                    )
+                })
+                .expect("the Error derives fixture begins at its contextual keyword");
+            let attachments = commit_derives_attachments_isolated(start, &mut committed);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            (attachments, output.committed_recoveries().to_vec(), remainder)
+        }
+
+        let source = "error Fs derives Eq: Variant";
+        let (ast, remainder) = parse_ast(source, 8);
+        assert_eq!(remainder, ": Variant");
+        assert!(matches!(ast.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Header, .. }]));
+        assert_eq!(ast[0].clause.range, 9..19);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        committed.start_node(SyntaxKind::ErrorDeclaration);
+        for (kind, range) in [
+            (SyntaxKind::ErrorKw, 0..5),
+            (SyntaxKind::Whitespace, 5..6),
+            (SyntaxKind::Identifier, 6..8),
+        ] {
+            committed.probe(|probe| advance_to(range.end, probe.input()));
+            committed.token(kind, range);
+        }
+        let direct = committed
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Error,
+                    DerivesAttachmentPosition::Header,
+                    0,
+                    probe.input(),
+                )
+            })
+            .map(|start| commit_derives_attachments_isolated(start, &mut committed))
+            .expect("the complete Error header reaches its direct derives clause");
+        committed.probe(|probe| advance_to(20, probe.input()));
+        committed.token(SyntaxKind::Colon, 19..20);
+        committed.probe(|probe| advance_to(21, probe.input()));
+        committed.token(SyntaxKind::Whitespace, 20..21);
+        committed.probe(|probe| advance_to(source.len(), probe.input()));
+        committed.token(SyntaxKind::Identifier, 21..28);
+        committed.finish_node();
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(output.committed_recoveries().is_empty());
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+        assert_eq!(local.type_expression_episode_depth(), 0);
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(direct.len(), 1);
+        assert_eq!(direct[0].position, DerivesAttachmentPosition::Header);
+        assert_eq!(direct[0].clause.range, ast[0].clause.range);
+
+        let (direct, records, remainder) = parse_direct_clause("derives Eq: Variant");
+        assert_eq!(remainder, ": Variant");
+        assert!(records.is_empty());
+        assert_eq!(direct.len(), 1);
+        assert_eq!(direct[0].position, DerivesAttachmentPosition::Header);
+        assert_eq!(direct[0].clause.range, 0..10);
+
+        let (ordered, remainder) = parse_ast("derives Eq derives Debug: Variant", 0);
+        assert_eq!(remainder, ": Variant");
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].clause.keyword, 0..7);
+        assert_eq!(ordered[1].clause.keyword, 11..18);
+
+        let (missing, records, remainder) = parse_direct_clause("derives : Variant");
+        assert_eq!(remainder, ": Variant");
+        assert!(matches!(missing[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)),
+        );
+
+        let (malformed, records, remainder) = parse_direct_clause("derives @: Variant");
+        assert_eq!(remainder, ": Variant");
+        assert!(matches!(malformed[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, RecoveryKind::Error);
+        assert_eq!(records[0].site.role, GrammarRole::Type(crate::session::TypeRole::Primary));
+        assert_eq!(records[0].site.range, 8..9);
+
+        let incoming = StopSet::default().with(StopKind::RightBracket);
+        let episode = derives_role_episode_spec(
+            DerivesDriverSpec::new(
+                DerivesAttachmentOwner::Error,
+                DerivesAttachmentPosition::Header,
+                0,
+            ),
+            incoming,
+            3,
+            None,
+        );
+        for stop in [
+            StopKind::LeftBrace,
+            StopKind::Colon,
+            StopKind::Equal,
+            StopKind::Semicolon,
+        ] {
+            assert!(episode.stops.contains(stop), "outer Error header stop: {stop:?}");
+            assert!(
+                episode.scoped_frame.stops.contains(stop),
+                "nested Error header scoped stop: {stop:?}",
+            );
+        }
+        assert_eq!(episode.scoped_frame.visible_episode_depth, 4);
+        assert_eq!(episode.policy.fresh_primary_locally_owned_stops, StopSet::default());
+
+        let complete_braced = Recovered::Complete(EnumBody::Braced(EnumBracedBody {
+            open: 0..1,
+            variants: Vec::new(),
+            trailing_comma: None,
+            close: Recovered::Complete(1..2),
+            range: 0..2,
+        }));
+        let missing_braced = Recovered::Complete(EnumBody::Braced(EnumBracedBody {
+            open: 0..1,
+            variants: Vec::new(),
+            trailing_comma: None,
+            close: Recovered::Incomplete,
+            range: 0..1,
+        }));
+        let colon_dedent = Recovered::Complete(EnumBody::Colon {
+            colon: 0..1,
+            body: Recovered::Incomplete,
+        });
+        let equals_dedent = Recovered::Complete(EnumBody::Equals {
+            equals: 0..1,
+            body: Recovered::Incomplete,
+        });
+        let implicit_bodyless = Recovered::Complete(EnumBody::Bodyless { semicolon: None });
+        let explicit_bodyless = Recovered::Complete(EnumBody::Bodyless { semicolon: Some(0..1) });
+        assert!(enum_body_has_actual_trailing_close(&complete_braced));
+        for body in [
+            &missing_braced,
+            &colon_dedent,
+            &equals_dedent,
+            &implicit_bodyless,
+            &explicit_bodyless,
+        ] {
+            assert!(
+                !enum_body_has_actual_trailing_close(body),
+                "only a completed braced close may open Error trailing derives",
+            );
+        }
+        assert!(!enum_body_has_actual_trailing_close(&Recovered::Incomplete));
+        assert_eq!(
+            DerivesDriverSpec::new(
+                DerivesAttachmentOwner::Error,
+                DerivesAttachmentPosition::Trailing,
+                0,
+            )
+            .owner_tail_classifier,
+            DerivesOwnerTailClassifier::ErrorTrailing,
+        );
+
+        let trailing_source = "error E {} derives Eq";
+        let mut source_input = SourceInput::new(trailing_source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(trailing_source));
+        committed.start_node(SyntaxKind::Root);
+        committed.start_node(SyntaxKind::ErrorDeclaration);
+        for (kind, range) in [
+            (SyntaxKind::ErrorKw, 0..5),
+            (SyntaxKind::Whitespace, 5..6),
+            (SyntaxKind::Identifier, 6..7),
+            (SyntaxKind::Whitespace, 7..8),
+            (SyntaxKind::LBrace, 8..9),
+            (SyntaxKind::RBrace, 9..10),
+        ] {
+            committed.probe(|probe| advance_to(range.end, probe.input()));
+            committed.token(kind, range);
+        }
+        let trailing = committed
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Error,
+                    DerivesAttachmentPosition::Trailing,
+                    0,
+                    probe.input(),
+                )
+            })
+            .map(|start| commit_derives_attachments_isolated(start, &mut committed))
+            .expect("the completed braced Error body opens its trailing attachment point");
+        assert!(matches!(trailing.as_slice(), [DirectDerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        committed.finish_node();
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(output.committed_recoveries().is_empty());
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), trailing_source);
     }
 
     #[test]
