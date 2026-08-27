@@ -22776,7 +22776,7 @@ semantic future scopeの閉じ方を確認対象にする。
 
 ## 追補案: canonical `Statement` / root `Declaration`のstandalone `role` declaration shell grammar
 
-Status: Proposal（初稿、Claude査読・ユーザ承認待ち、2026-08-27）。
+Status: Authoritative（ユーザ承認済み、2026-08-27）。
 
 Date: 2026-08-27。
 
@@ -23491,6 +23491,5 @@ name + parameter ASTへnarrowするか、bodyless punctuationを必須にするY
 priority、signature annotation recoveryとRole body recoveryのno-cascade、ASOB known residualの適用範囲、Gate 8 isolated matrixとGate 9
 same-change real block-driver matrix、semantic deferred surfaceの閉じ方を確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
-（2026-08-27、canonical Statement / root Declarationのstandalone `role` declaration shell grammar追補案。Proposal初稿、
-ユーザ承認前）。
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-27、canonical Statement / root Declarationのstandalone `role` declaration shell grammar追補案）。

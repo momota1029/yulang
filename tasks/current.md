@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-27（`syntax-reference/`サイト完成、全5 family・各言語41ページ、未執筆要素ゼロ）
+更新: 2026-08-27（`syntax-reference/`サイト完成に続き、standalone `role`宣言addendumがAuthoritative化、実装着手可能）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -69,15 +69,19 @@
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
-1. **standalone `TypeExpression`の各use-site配線(残り)**: role signature・where節・
-   act signature。pattern型注釈・struct field・cast(実装完了)は完了、残り3件が本体作業。
-2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/`role`/
-   `act`/`for`文/declaration-level `where`/doc-comment宣言。`type`/`struct`/`mod`/
-   `impl`(shellのみ)/`cast`/演算子定義は完了。
-   derives・impl・castが着地した今、role/impl/enum系のownerがそれらの共有driverを
-   どこまで再利用できるか、着手前に要調査。
-3. **grammar/CST/エラー回復の正規化サイト**: pilot稼働中(下記参照)。次はexpressions/
-   patterns/typesの各elementページを1つずつ追加していく。
+1. **standalone `role`宣言の実装(次すぐ着手可能)**: 追補がAuthoritative化済み
+   (下記参照)。10 gate計画(vocabulary → isolated intro → isolated head/body →
+   signature composition → recovery → pre-promotion state matrix → atomic
+   dispatch → final scope gate)で実装へ進める。
+2. **standalone `TypeExpression`の残りuse-site(where節・act signature)**: role
+   signatureは上記で解決。where節・act signatureは、role同様「そもそも宣言文法
+   自体が未実装」と判明済み(2026-08-27調査)——着手にはまず宣言family自体の設計が
+   要る。where節は正本が「type-specific where clauseをYulang3に発明しない」と
+   明記していて位置付けが不明確、act signatureはrole設計の実装完了後に共有driverの
+   再利用範囲を見てから着手判断するのが良さそう。
+3. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/
+   `act`/`for`文/declaration-level `where`/doc-comment宣言。`role`は上記で着手済み。
+   `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義は完了。
 4. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
@@ -87,6 +91,31 @@
    family(ASOB追補由来、Castで再確認)。nested Pattern/TypeExpressionへのcaller
    boundary伝播・missing delimiter・local candidate/same-spelling separator priorityを
    一般化する新しいsigned addendumが必要。
+
+### standalone `role`宣言addendum、Authoritative化(2026-08-27、commit `fb076d6e`)
+
+サイト完成直後、ユーザに次の作業候補を提示 → TypeExpression残りuse-site配線
+(role signature・where節・act signature)を選択 → 調査の結果3つとも
+「TypeExpression配線」でなく「宣言文法自体が未実装」と判明(role/act:
+`Declaration`/`Statement`/`StatementIntro`/`StatementKind`にvariantなし、
+where節: declaration-level `WhereClause`が未実装かつ正本が「type-specific
+where clauseを発明しない」と明記) → roleから着手を選択。
+
+Sol xhighへdesign委任、Proposal初稿(719行、design doc 22777–23494)を
+Claudeが査読。yulang2 oracle(`yulang2-oracle`タグ、実commit`a58eefc31e22`)の
+実sourceと全citation照合、誤り2件発見・修正(oracle commit hash誤citation、
+fold.yuが実際には持たない"unannotated default method"の誤claim——実例は
+fmt.yuのみ)。Solが挙げたopen design question 11件は全部derives/impl/cast
+既存パターンと一貫、実質的異論なし。ユーザ承認によりAuthoritative化完了。
+
+設計の要点: role headはfull mandatory TypeExpression(Y2のwhitespace-applied
+input parameterをseparate parameter ASTへ分解しない)、role method signatureは
+new RoleSignature nodeでなくexisting `Binding > Pattern > PatternTypeAnnotation
+> TypeExpression`をそのまま使う(これが今回のTypeExpression配線の本体)、
+bodyはbodyless semicolon/existing brace block/colon inline-indentedの3形態、
+derives Gate 1aの`TypeExpressionEpisodePolicy`等をhard dependencyとして
+再利用、cast Gate 4aの`classify_binding_style_body_layout`は明示的に
+非再利用(authorityが違うため)。intro priorityはType後/Impl前。10 gate計画。
 
 ## 文法・CSTをエラー含めて完全に規格化するサイト(`syntax-reference/`、pilot稼働中)
 
