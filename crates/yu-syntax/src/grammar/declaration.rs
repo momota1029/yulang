@@ -7,7 +7,7 @@ use chasa::{
     error::std::{Unexpected, UnexpectedEndOfInput},
     input::IsCut,
     parser::Parser as _,
-    prelude::{In, from_fn},
+    prelude::{In, from_fn, item},
 };
 
 use crate::{
@@ -5421,6 +5421,21 @@ where
     pending
 }
 
+/// Variant heads have the same raw lexical candidate rule as the declaration
+/// name, but keep a distinct helper so later payload code cannot accidentally
+/// inherit header-only boundary policy.
+fn enum_variant_raw_name_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_word).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
 fn enum_header_body_starter_or_boundary_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
@@ -5437,6 +5452,580 @@ where
     ));
     i.rollback(checkpoint);
     pending
+}
+
+/// The four body-local separator regimes share one stream judge.  The form
+/// controls only separator and terminal authority; variant head and payload
+/// parsing deliberately stay behind [`EnumVariantSequenceContext`] until Gate
+/// 6 supplies their real AST/direct-CST adapters.
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum EnumVariantSequenceForm {
+    Braced,
+    ColonIndented,
+    EqualsInline,
+    EqualsIndented,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct EnumVariantSeparatorSet {
+    comma: bool,
+    pipe: bool,
+}
+
+impl EnumVariantSeparatorSet {
+    #[allow(dead_code)]
+    const fn new(comma: bool, pipe: bool) -> Self {
+        Self { comma, pipe }
+    }
+}
+
+/// The invariant sequence inputs selected by the body-form judge.  In
+/// particular, the layout frame is captured by that owner once; a later
+/// variant or recovery path must never reconstruct it from an item.
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct EnumVariantSequenceSpec {
+    form: EnumVariantSequenceForm,
+    layout: LayoutDelimitedFrame,
+    declaration_base: usize,
+    explicit_separators: EnumVariantSeparatorSet,
+    matching_close: Option<Delimiter>,
+    allow_leading_pipe: bool,
+    allow_trailing_pipe: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum EnumVariantSeparator {
+    Comma(Range<usize>),
+    Pipe(Range<usize>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum EnumVariantSequenceTermination {
+    MatchingClose(Range<usize>),
+    MismatchedClose,
+    Dedent,
+    OwnerBoundary,
+    EndOfInput,
+    ItemContinuation,
+}
+
+/// Item realization is intentionally the only pluggable part of the neutral
+/// stream.  Gate 5's fixture context consumes one raw word; Gate 6 will make
+/// the same callback own `from`, named, tuple, and positional payloads.
+trait EnumVariantSequenceContext<'source> {
+    type Error: ErrorSink<usize>;
+
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R)
+    -> R;
+    fn emit_trivia(&mut self, trivia: &TriviaRun);
+    fn emit_missing_variant(&mut self);
+    fn emit_separator(&mut self, separator: EnumVariantSeparator);
+    fn set_trailing_separator(&mut self, separator: EnumVariantSeparator);
+    fn emit_matching_close(&mut self, close: Range<usize>);
+
+    /// Receives an already-selected malformed prefix, if any, with the cursor
+    /// at its raw-name retry candidate or at a terminal safe point.  Returning
+    /// false closes one incomplete item without making the stream invent a
+    /// second recovery record.
+    fn parse_variant_item(&mut self, malformed: Option<Range<usize>>) -> bool;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum EnumVariantSequencePosition {
+    Optional,
+    Required {
+        pending_boundary: Option<EnumVariantBoundary>,
+    },
+    AfterVariant,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum EnumVariantBoundary {
+    Explicit(EnumVariantSeparator),
+    LayoutNewline,
+}
+
+#[derive(Clone, Debug)]
+struct EnumVariantSequenceState {
+    position: EnumVariantSequencePosition,
+    accepted_variant: bool,
+    accepted_leading_pipe: bool,
+}
+
+impl EnumVariantSequenceState {
+    fn new(spec: EnumVariantSequenceSpec) -> Self {
+        let position = if matches!(spec.form, EnumVariantSequenceForm::Braced) {
+            EnumVariantSequencePosition::Optional
+        } else {
+            EnumVariantSequencePosition::Required {
+                pending_boundary: None,
+            }
+        };
+        Self {
+            position,
+            accepted_variant: false,
+            accepted_leading_pipe: false,
+        }
+    }
+
+    fn accepted_variant(&mut self) {
+        self.position = EnumVariantSequencePosition::AfterVariant;
+        self.accepted_variant = true;
+    }
+
+    fn qualifying_newline(&mut self) {
+        if matches!(self.position, EnumVariantSequencePosition::AfterVariant) {
+            self.position = EnumVariantSequencePosition::Required {
+                pending_boundary: Some(EnumVariantBoundary::LayoutNewline),
+            };
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum EnumVariantJudgeOrigin {
+    FreshSlot,
+    Continuation,
+}
+
+enum EnumVariantGap {
+    SameLine(TriviaRun),
+    QualifyingNewline(TriviaRun),
+    Dedent,
+    Owner,
+    ItemContinuation,
+    None,
+}
+
+struct EnumVariantSeparatorCluster {
+    trivia: TriviaRun,
+    separator: EnumVariantSeparator,
+}
+
+/// Drives only sequence evidence.  A raw word following a completed stub item
+/// on the same line is deliberately returned as [`ItemContinuation`] rather
+/// than guessed to be a second variant: Gate 6 owns its positional payload.
+#[allow(dead_code)]
+fn drive_enum_variant_sequence<'source, C>(
+    context: &mut C,
+    spec: EnumVariantSequenceSpec,
+) -> EnumVariantSequenceTermination
+where
+    C: EnumVariantSequenceContext<'source>,
+    Unexpected<char>: Into<<C::Error as ErrorSink<usize>>::Error>,
+    UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
+{
+    let mut state = EnumVariantSequenceState::new(spec);
+    let mut origin = EnumVariantJudgeOrigin::FreshSlot;
+
+    loop {
+        if context.with_input(|i| i.input.remainder().is_empty()) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            return EnumVariantSequenceTermination::EndOfInput;
+        }
+        if let Some(close) = context.with_input(|i| scan_enum_variant_matching_close(spec, i)) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            context.emit_matching_close(close.clone());
+            return EnumVariantSequenceTermination::MatchingClose(close);
+        }
+        if context.with_input(|i| enum_variant_mismatched_close_pending(spec, i)) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            return EnumVariantSequenceTermination::MismatchedClose;
+        }
+        if let Some(cluster) = context.with_input(|i| scan_enum_variant_separator_cluster(spec, i)) {
+            apply_enum_variant_separator(&mut state, spec, &cluster.separator, context);
+            if !cluster.trivia.is_empty() {
+                context.emit_trivia(&cluster.trivia);
+            }
+            context.emit_separator(cluster.separator);
+            origin = EnumVariantJudgeOrigin::FreshSlot;
+            continue;
+        }
+        if matches!(origin, EnumVariantJudgeOrigin::Continuation)
+            && context.with_input(any_ambient_owner_claims)
+        {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            return EnumVariantSequenceTermination::OwnerBoundary;
+        }
+
+        match context.with_input(|i| classify_enum_variant_gap(spec, i)) {
+            EnumVariantGap::SameLine(trivia) => {
+                let terminal_follows = context.with_input(|i| {
+                    enum_variant_same_line_trivia_precedes_terminal(spec, i)
+                });
+                if matches!(origin, EnumVariantJudgeOrigin::FreshSlot) || terminal_follows {
+                    let consumed = context.with_input(consume_enum_variant_trivia);
+                    debug_assert_eq!(consumed.range(), trivia.range());
+                    context.emit_trivia(&consumed);
+                    continue;
+                }
+                return EnumVariantSequenceTermination::ItemContinuation;
+            }
+            EnumVariantGap::QualifyingNewline(trivia) => {
+                let consumed = context.with_input(consume_enum_variant_trivia);
+                debug_assert_eq!(consumed.range(), trivia.range());
+                context.emit_trivia(&consumed);
+                state.qualifying_newline();
+                origin = EnumVariantJudgeOrigin::FreshSlot;
+                continue;
+            }
+            EnumVariantGap::Dedent => {
+                finish_enum_variant_sequence(&mut state, spec, context);
+                return EnumVariantSequenceTermination::Dedent;
+            }
+            EnumVariantGap::Owner => {
+                finish_enum_variant_sequence(&mut state, spec, context);
+                return EnumVariantSequenceTermination::OwnerBoundary;
+            }
+            EnumVariantGap::ItemContinuation => {
+                return EnumVariantSequenceTermination::ItemContinuation;
+            }
+            EnumVariantGap::None => {}
+        }
+
+        if context.with_input(|i| enum_variant_terminal_boundary_pending(spec, i)) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            return if context.with_input(|i| i.input.remainder().is_empty()) {
+                EnumVariantSequenceTermination::EndOfInput
+            } else {
+                EnumVariantSequenceTermination::OwnerBoundary
+            };
+        }
+        if context.with_input(enum_variant_raw_name_pending) {
+            if !context.parse_variant_item(None) {
+                return EnumVariantSequenceTermination::ItemContinuation;
+            }
+            state.accepted_variant();
+            origin = EnumVariantJudgeOrigin::Continuation;
+            continue;
+        }
+        if let Some(range) = context.with_input(|i| scan_enum_variant_invalid_run(spec, i)) {
+            let _retried = context.parse_variant_item(Some(range));
+            state.accepted_variant();
+            origin = EnumVariantJudgeOrigin::Continuation;
+            continue;
+        }
+
+        finish_enum_variant_sequence(&mut state, spec, context);
+        return EnumVariantSequenceTermination::ItemContinuation;
+    }
+}
+
+fn apply_enum_variant_separator<'source, C>(
+    state: &mut EnumVariantSequenceState,
+    spec: EnumVariantSequenceSpec,
+    separator: &EnumVariantSeparator,
+    context: &mut C,
+) where
+    C: EnumVariantSequenceContext<'source>,
+{
+    let pending_layout_pipe = matches!(
+        (&state.position, separator),
+        (
+            EnumVariantSequencePosition::Required {
+                pending_boundary: Some(EnumVariantBoundary::LayoutNewline),
+            },
+            EnumVariantSeparator::Pipe(_),
+        )
+    );
+    let leading_pipe = matches!(separator, EnumVariantSeparator::Pipe(_))
+        && spec.allow_leading_pipe
+        && !state.accepted_variant
+        && !state.accepted_leading_pipe
+        && matches!(
+            state.position,
+            EnumVariantSequencePosition::Optional
+                | EnumVariantSequencePosition::Required {
+                    pending_boundary: None | Some(EnumVariantBoundary::LayoutNewline),
+                }
+        );
+    if leading_pipe {
+        state.accepted_leading_pipe = true;
+    } else if !pending_layout_pipe
+        && !matches!(state.position, EnumVariantSequencePosition::AfterVariant)
+    {
+        context.emit_missing_variant();
+    }
+    state.position = EnumVariantSequencePosition::Required {
+        pending_boundary: Some(EnumVariantBoundary::Explicit(separator.clone())),
+    };
+}
+
+fn finish_enum_variant_sequence<'source, C>(
+    state: &mut EnumVariantSequenceState,
+    spec: EnumVariantSequenceSpec,
+    context: &mut C,
+) where
+    C: EnumVariantSequenceContext<'source>,
+{
+    let EnumVariantSequencePosition::Required { pending_boundary } = &state.position else {
+        return;
+    };
+    match pending_boundary {
+        Some(EnumVariantBoundary::Explicit(EnumVariantSeparator::Comma(_)))
+        | Some(EnumVariantBoundary::LayoutNewline) => {
+            if let Some(EnumVariantBoundary::Explicit(separator)) = pending_boundary {
+                context.set_trailing_separator(separator.clone());
+            }
+        }
+        Some(EnumVariantBoundary::Explicit(separator @ EnumVariantSeparator::Pipe(_)))
+            if state.accepted_variant && spec.allow_trailing_pipe =>
+        {
+            context.set_trailing_separator(separator.clone());
+        }
+        _ => context.emit_missing_variant(),
+    }
+}
+
+fn classify_enum_variant_gap<E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<E>,
+) -> EnumVariantGap
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return EnumVariantGap::Owner;
+    }
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+    if trivia.is_empty() {
+        i.rollback(checkpoint);
+        return EnumVariantGap::None;
+    }
+    if !enum_variant_trivia_has_newline(&trivia) {
+        i.rollback(checkpoint);
+        return EnumVariantGap::SameLine(trivia);
+    }
+    if matches!(spec.form, EnumVariantSequenceForm::EqualsInline) {
+        i.rollback(checkpoint);
+        return EnumVariantGap::ItemContinuation;
+    }
+    let following_indent = i.local.line().line_indent;
+    if matches!(
+        spec.form,
+        EnumVariantSequenceForm::ColonIndented | EnumVariantSequenceForm::EqualsIndented
+    ) && following_indent < spec.layout.base_indent()
+    {
+        i.rollback(checkpoint);
+        return EnumVariantGap::Dedent;
+    }
+    let boundary = spec.layout.boundary_after_trivia(&trivia, following_indent);
+    i.rollback(checkpoint);
+    match boundary {
+        LayoutDelimitedBoundary::ImplicitNewline => EnumVariantGap::QualifyingNewline(trivia),
+        LayoutDelimitedBoundary::DeeperNewline => EnumVariantGap::ItemContinuation,
+        LayoutDelimitedBoundary::None => EnumVariantGap::SameLine(trivia),
+    }
+}
+
+fn scan_enum_variant_separator_cluster<E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<E>,
+) -> Option<EnumVariantSeparatorCluster>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+    if matches!(spec.form, EnumVariantSequenceForm::EqualsInline)
+        && enum_variant_trivia_has_newline(&trivia)
+    {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(separator) = scan_enum_variant_separator_at_cursor(spec, i) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    Some(EnumVariantSeparatorCluster { trivia, separator })
+}
+
+fn scan_enum_variant_separator_at_cursor<E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<E>,
+) -> Option<EnumVariantSeparator>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if spec.explicit_separators.comma {
+        let checkpoint = i.checkpoint();
+        if let Some(punctuation) = i.run(scan_punctuation)
+            && punctuation.kind() == PunctuationKind::Comma
+        {
+            return Some(EnumVariantSeparator::Comma(punctuation.range()));
+        }
+        i.rollback(checkpoint);
+    }
+    if spec.explicit_separators.pipe {
+        let checkpoint = i.checkpoint();
+        let start = i.pos();
+        if i.skip(item('|')).is_some() {
+            return Some(EnumVariantSeparator::Pipe(start..i.pos()));
+        }
+        i.rollback(checkpoint);
+    }
+    None
+}
+
+fn enum_variant_separator_pending<E>(spec: EnumVariantSequenceSpec, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_enum_variant_separator_at_cursor(spec, i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn scan_enum_variant_matching_close<E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let delimiter = spec.matching_close?;
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Close(delimiter) {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+fn enum_variant_matching_close_pending<E>(spec: EnumVariantSequenceSpec, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_enum_variant_matching_close(spec, i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn enum_variant_mismatched_close_pending<E>(spec: EnumVariantSequenceSpec, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let Some(expected) = spec.matching_close else {
+        return false;
+    };
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(punctuation.kind(), PunctuationKind::Close(found) if found != expected)
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn enum_variant_terminal_boundary_pending<E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() || any_ambient_owner_claims(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| match punctuation.kind() {
+        PunctuationKind::Semicolon | PunctuationKind::Close(_) => true,
+        PunctuationKind::Comma => !spec.explicit_separators.comma,
+        _ => false,
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn enum_variant_same_line_trivia_precedes_terminal<E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+    let terminal = !trivia.is_empty()
+        && !enum_variant_trivia_has_newline(&trivia)
+        && (scan_enum_variant_matching_close(spec, i).is_some()
+            || enum_variant_mismatched_close_pending(spec, i)
+            || enum_variant_terminal_boundary_pending(spec, i));
+    i.rollback(checkpoint);
+    terminal
+}
+
+fn scan_enum_variant_invalid_run<E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if enum_variant_raw_name_pending(i)
+            || enum_variant_matching_close_pending(spec, i)
+            || enum_variant_mismatched_close_pending(spec, i)
+            || enum_variant_terminal_boundary_pending(spec, i)
+            || enum_variant_separator_pending(spec, i)
+        {
+            return (start < i.pos()).then_some(start..i.pos());
+        }
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(start..i.pos());
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn consume_enum_variant_trivia<E>(i: &mut SynIn<E>) -> TriviaRun
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    i.run(scan_trivia).expect("trivia scanning is total")
+}
+
+fn enum_variant_trivia_has_newline(trivia: &TriviaRun) -> bool {
+    trivia
+        .parts()
+        .iter()
+        .any(|part| matches!(part.kind(), TriviaPartKind::Newline))
 }
 
 /// This is intentionally local rather than a global reserved-word state:
@@ -29258,6 +29847,437 @@ mod tests {
         ] if left.range() == (7..9) && right.range() == (10..12)));
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
+    }
+
+    #[test]
+    fn enum_variant_sequence_driver_keeps_four_form_boundaries_and_payload_ownership_neutral() {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        enum Event {
+            Variant(Range<usize>),
+            ErrorVariant(Range<usize>),
+            MissingVariant,
+            Trivia(Range<usize>),
+            Separator(EnumVariantSeparator),
+            Trailing(EnumVariantSeparator),
+            Close(Range<usize>),
+        }
+
+        struct AstStubContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
+            i: &'context mut SynIn<'parse, 'source, 'local, E>,
+            events: Vec<Event>,
+        }
+
+        impl<'source, E> EnumVariantSequenceContext<'source>
+            for AstStubContext<'_, '_, 'source, '_, E>
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            type Error = E;
+
+            fn with_input<R>(
+                &mut self,
+                f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R,
+            ) -> R {
+                f(self.i)
+            }
+
+            fn emit_trivia(&mut self, trivia: &TriviaRun) {
+                self.events.push(Event::Trivia(trivia.range()));
+            }
+
+            fn emit_missing_variant(&mut self) {
+                self.events.push(Event::MissingVariant);
+            }
+
+            fn emit_separator(&mut self, separator: EnumVariantSeparator) {
+                self.events.push(Event::Separator(separator));
+            }
+
+            fn set_trailing_separator(&mut self, separator: EnumVariantSeparator) {
+                self.events.push(Event::Trailing(separator));
+            }
+
+            fn emit_matching_close(&mut self, close: Range<usize>) {
+                self.events.push(Event::Close(close));
+            }
+
+            fn parse_variant_item(&mut self, malformed: Option<Range<usize>>) -> bool {
+                if let Some(range) = malformed {
+                    self.events.push(Event::ErrorVariant(range));
+                }
+                let Some(word) = self.i.run(scan_word) else {
+                    return false;
+                };
+                self.events.push(Event::Variant(word.range()));
+                true
+            }
+        }
+
+        struct DirectStubContext<
+            'context,
+            'parse,
+            'source,
+            'local,
+            E: ErrorSink<usize>,
+        > {
+            committed: &'context mut Committed<'parse, 'source, 'local, E, HeaderOutput>,
+            events: Vec<Event>,
+        }
+
+        impl<'source, E> EnumVariantSequenceContext<'source>
+            for DirectStubContext<'_, '_, 'source, '_, E>
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            type Error = E;
+
+            fn with_input<R>(
+                &mut self,
+                f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R,
+            ) -> R {
+                self.committed.probe(|probe| f(probe.input()))
+            }
+
+            fn emit_trivia(&mut self, trivia: &TriviaRun) {
+                self.events.push(Event::Trivia(trivia.range()));
+            }
+
+            fn emit_missing_variant(&mut self) {
+                self.events.push(Event::MissingVariant);
+            }
+
+            fn emit_separator(&mut self, separator: EnumVariantSeparator) {
+                self.events.push(Event::Separator(separator));
+            }
+
+            fn set_trailing_separator(&mut self, separator: EnumVariantSeparator) {
+                self.events.push(Event::Trailing(separator));
+            }
+
+            fn emit_matching_close(&mut self, close: Range<usize>) {
+                self.events.push(Event::Close(close));
+            }
+
+            fn parse_variant_item(&mut self, malformed: Option<Range<usize>>) -> bool {
+                if let Some(range) = malformed {
+                    self.events.push(Event::ErrorVariant(range));
+                }
+                let word = self
+                    .committed
+                    .probe(|probe| probe.input().run(scan_word));
+                let Some(word) = word else {
+                    return false;
+                };
+                self.events.push(Event::Variant(word.range()));
+                true
+            }
+        }
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct Run {
+            termination: EnumVariantSequenceTermination,
+            events: Vec<Event>,
+            remainder: String,
+        }
+
+        fn spec(form: EnumVariantSequenceForm, base: usize) -> EnumVariantSequenceSpec {
+            match form {
+                EnumVariantSequenceForm::Braced => EnumVariantSequenceSpec {
+                    form,
+                    layout: LayoutDelimitedFrame::inline(base),
+                    declaration_base: base,
+                    explicit_separators: EnumVariantSeparatorSet::new(true, false),
+                    matching_close: Some(Delimiter::Brace),
+                    allow_leading_pipe: false,
+                    allow_trailing_pipe: false,
+                },
+                EnumVariantSequenceForm::ColonIndented => EnumVariantSequenceSpec {
+                    form,
+                    layout: LayoutDelimitedFrame::inline(base),
+                    declaration_base: base,
+                    explicit_separators: EnumVariantSeparatorSet::new(true, true),
+                    matching_close: None,
+                    allow_leading_pipe: true,
+                    allow_trailing_pipe: true,
+                },
+                EnumVariantSequenceForm::EqualsInline => EnumVariantSequenceSpec {
+                    form,
+                    layout: LayoutDelimitedFrame::inline(base),
+                    declaration_base: base,
+                    explicit_separators: EnumVariantSeparatorSet::new(false, true),
+                    matching_close: None,
+                    allow_leading_pipe: true,
+                    allow_trailing_pipe: true,
+                },
+                EnumVariantSequenceForm::EqualsIndented => EnumVariantSequenceSpec {
+                    form,
+                    layout: LayoutDelimitedFrame::inline(base),
+                    declaration_base: base,
+                    explicit_separators: EnumVariantSeparatorSet::new(true, true),
+                    matching_close: None,
+                    allow_leading_pipe: true,
+                    allow_trailing_pipe: true,
+                },
+            }
+        }
+
+        fn run_ast(source: &str, spec: EnumVariantSequenceSpec) -> Run {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (termination, events) = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                let mut context = AstStubContext {
+                    i: &mut i,
+                    events: Vec::new(),
+                };
+                let termination = drive_enum_variant_sequence(&mut context, spec);
+                (termination, context.events)
+            };
+            // Scanner probes intentionally share the ordinary parser's latest
+            // expectation sink. Gate 10 owns the full sink-restoration matrix;
+            // this neutral test fixes only sequence events and input ownership.
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "the neutral driver never cuts: {source:?}");
+            Run {
+                termination,
+                events,
+                remainder: source_input.remainder().to_owned(),
+            }
+        }
+
+        fn run_direct(source: &str, spec: EnumVariantSequenceSpec) -> Run {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (termination, events, remainder, output) = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                let mut committed = Probe::new(i).commit(HeaderOutput::new());
+                let (termination, events) = {
+                    let mut context = DirectStubContext {
+                        committed: &mut committed,
+                        events: Vec::new(),
+                    };
+                    let termination = drive_enum_variant_sequence(&mut context, spec);
+                    (termination, context.events)
+                };
+                let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+                (termination, events, remainder, committed.into_output())
+            };
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "the neutral direct driver never cuts: {source:?}");
+            assert!(output.committed_recoveries().is_empty(), "neutral direct output: {source:?}");
+            Run {
+                termination,
+                events,
+                remainder,
+            }
+        }
+
+        fn assert_neutral_parity(source: &str, spec: EnumVariantSequenceSpec) -> Run {
+            let ast = run_ast(source, spec);
+            let direct = run_direct(source, spec);
+            assert_eq!(ast, direct, "AST/direct-neutral event parity: {source:?}");
+            ast
+        }
+
+        let braced = spec(EnumVariantSequenceForm::Braced, 0);
+        let normal_brace = assert_neutral_parity("A, B}", braced);
+        assert_eq!(
+            normal_brace.termination,
+            EnumVariantSequenceTermination::MatchingClose(4..5)
+        );
+        assert_eq!(normal_brace.remainder, "");
+        assert_eq!(
+            normal_brace.events,
+            vec![
+                Event::Variant(0..1),
+                Event::Separator(EnumVariantSeparator::Comma(1..2)),
+                Event::Trivia(2..3),
+                Event::Variant(3..4),
+                Event::Close(4..5),
+            ]
+        );
+
+        let empty_brace = assert_neutral_parity("}", braced);
+        assert_eq!(empty_brace.events, vec![Event::Close(0..1)]);
+
+        let leading_comma = assert_neutral_parity(" ,}", braced);
+        assert_eq!(
+            leading_comma.events
+                .iter()
+                .filter(|event| matches!(event, Event::MissingVariant))
+                .count(),
+            1,
+            "one leading comma opens exactly one empty required slot"
+        );
+        assert!(leading_comma.events.contains(&Event::Trailing(EnumVariantSeparator::Comma(1..2))));
+
+        let trailing_brace = assert_neutral_parity("A,\n}", braced);
+        assert!(trailing_brace.events.contains(&Event::Trailing(EnumVariantSeparator::Comma(1..2))));
+        assert!(!trailing_brace.events.contains(&Event::MissingVariant));
+
+        let newline_brace = assert_neutral_parity("A\nB}", braced);
+        assert_eq!(
+            newline_brace
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    Event::Variant(range) => Some(range.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            vec![0..1, 2..3],
+            "a qualifying brace newline opens the next item without a separator node"
+        );
+
+        let repeated_comma = assert_neutral_parity("A,,B}", braced);
+        assert_eq!(
+            repeated_comma
+                .events
+                .iter()
+                .filter(|event| matches!(event, Event::MissingVariant))
+                .count(),
+            1,
+            "only the slot between repeated commas is empty"
+        );
+
+        let colon = spec(EnumVariantSequenceForm::ColonIndented, 2);
+        let colon_indented = assert_neutral_parity("| A\n  B", colon);
+        assert_eq!(colon_indented.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(
+            colon_indented
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    Event::Variant(range) => Some(range.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            vec![2..3, 6..7]
+        );
+        assert!(!colon_indented.events.contains(&Event::MissingVariant));
+
+        let colon_comma = assert_neutral_parity("A, B", colon);
+        assert_eq!(
+            colon_comma
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    Event::Variant(range) => Some(range.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            vec![0..1, 3..4],
+            "indented variants keep comma as explicit local evidence"
+        );
+
+        let colon_missing_first = assert_neutral_parity("", colon);
+        assert_eq!(colon_missing_first.events, vec![Event::MissingVariant]);
+
+        let colon_line_pipe = assert_neutral_parity("A\n  | B", colon);
+        assert_eq!(
+            colon_line_pipe
+                .events
+                .iter()
+                .filter(|event| matches!(event, Event::MissingVariant))
+                .count(),
+            0,
+            "a line-leading pipe confirms the already-open layout boundary"
+        );
+
+        let colon_dedent = assert_neutral_parity("A\nB", colon);
+        assert_eq!(colon_dedent.termination, EnumVariantSequenceTermination::Dedent);
+        assert_eq!(colon_dedent.remainder, "\nB");
+
+        let equals_inline = spec(EnumVariantSequenceForm::EqualsInline, 0);
+        let inline_pipes = assert_neutral_parity("| A | B |", equals_inline);
+        assert_eq!(inline_pipes.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(
+            inline_pipes
+                .events
+                .iter()
+                .filter(|event| matches!(event, Event::MissingVariant))
+                .count(),
+            0
+        );
+        assert!(inline_pipes.events.contains(&Event::Trailing(EnumVariantSeparator::Pipe(8..9))));
+
+        let repeated_pipe = assert_neutral_parity("A||B", equals_inline);
+        assert_eq!(
+            repeated_pipe
+                .events
+                .iter()
+                .filter(|event| matches!(event, Event::MissingVariant))
+                .count(),
+            1,
+            "only the slot between repeated pipes is empty"
+        );
+
+        let inline_newline = assert_neutral_parity("A\n  | B", equals_inline);
+        assert_eq!(inline_newline.termination, EnumVariantSequenceTermination::ItemContinuation);
+        assert_eq!(inline_newline.remainder, "\n  | B");
+
+        let equals_indented = spec(EnumVariantSequenceForm::EqualsIndented, 2);
+        let equals_indent = assert_neutral_parity("| A\n  B", equals_indented);
+        assert_eq!(equals_indent.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(
+            equals_indent
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    Event::Variant(range) => Some(range.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            vec![2..3, 6..7]
+        );
+
+        let equals_indent_trailing = assert_neutral_parity("| A\n  |", equals_indented);
+        assert!(equals_indent_trailing.events.contains(&Event::Trailing(EnumVariantSeparator::Pipe(6..7))));
+        assert!(!equals_indent_trailing.events.contains(&Event::MissingVariant));
+
+        let equals_missing_first = assert_neutral_parity("", equals_indented);
+        assert_eq!(equals_missing_first.events, vec![Event::MissingVariant]);
+
+        let malformed_retry = assert_neutral_parity("@ A, B}", braced);
+        assert!(malformed_retry.events.contains(&Event::ErrorVariant(0..2)));
+        assert!(malformed_retry.events.contains(&Event::Variant(2..3)));
+        assert!(malformed_retry.events.contains(&Event::Variant(5..6)));
+        assert!(!malformed_retry.events.contains(&Event::MissingVariant));
+
+        let malformed_boundary = assert_neutral_parity("@, B}", braced);
+        assert!(malformed_boundary.events.contains(&Event::ErrorVariant(0..1)));
+        assert!(malformed_boundary.events.contains(&Event::Variant(3..4)));
+        assert!(!malformed_boundary.events.contains(&Event::MissingVariant));
+
+        let positional_evidence = assert_neutral_parity("rect int int", equals_inline);
+        assert_eq!(
+            positional_evidence.termination,
+            EnumVariantSequenceTermination::ItemContinuation
+        );
+        assert_eq!(positional_evidence.remainder, " int int");
+        assert_eq!(positional_evidence.events, vec![Event::Variant(0..4)]);
+
+        let mismatched_close = assert_neutral_parity("A)", braced);
+        assert_eq!(
+            mismatched_close.termination,
+            EnumVariantSequenceTermination::MismatchedClose
+        );
+        assert_eq!(mismatched_close.remainder, ")");
+        assert_eq!(mismatched_close.events, vec![Event::Variant(0..1)]);
+
+        let missing_close = assert_neutral_parity("A", braced);
+        assert_eq!(missing_close.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(missing_close.events, vec![Event::Variant(0..1)]);
     }
 
     #[test]
