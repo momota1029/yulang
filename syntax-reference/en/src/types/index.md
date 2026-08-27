@@ -1,9 +1,12 @@
 # Types
 
+Authored pages:
+
+- [Standalone TypeExpression core](type-expression-core.md)
+- [Named-record types](named-record-type.md)
+
 Not yet authored:
 
-- TypeExpression core
-- Named-record type
 - `forall` type
 - Effect-row type
 - Polymorphic-variant type

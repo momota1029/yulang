@@ -18,6 +18,8 @@
 # Types
 
 - [Overview (not yet authored)](types/index.md)
+- [Standalone TypeExpression core](types/type-expression-core.md)
+- [Named-record types](types/named-record-type.md)
 
 # Statements / Declarations
 
