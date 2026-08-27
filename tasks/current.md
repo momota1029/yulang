@@ -160,6 +160,17 @@ TMN(newline owner policy)・positional fence追補まで含む複雑な履歴(co
 (翻訳ではなく、同じ正本事実を各言語で独立に書く)。引用するcommit hash・関数名・
 test名の集合が両言語で一致することをClaudeが照合する運用(pilotで確立済み)。
 
+### types/ family: 4/6完了(2026-08-27、push済み)
+
+type-expression-core・named-record-type・forall-type・effect-row-typeの4ページを
+英日両方で執筆・独立検証・push完了。commit `063da888`〜`b22a7973`。独立検証で
+実際の誤り2件を発見・修正: (1) forall-typeの前段階でtype-annotationページの
+関数名citation誤り(既に修正済み・前述)、(2) effect-row-typeのAST shape section
+がEffectRowType structに存在しない"trailing separator" fieldを主張していた
+(NamedRecordType/ParenthesizedTypeGroupの記述からの誤コピーと推定)——実際は
+apostrophe/open/items/close/rangeの5 fieldのみで、正確な記述へ修正した。
+残り2要素(多相variant型・bracket row grammar)で`types/`系完走の見込み。
+
 各elementページの11節template: Status/正本/last-verified commit → Scope →
 BNF grammar → judge/priority/owner boundary → byte-exact CST worked example →
 AST shape → typed recovery table → boundary/state-restoration contract →
