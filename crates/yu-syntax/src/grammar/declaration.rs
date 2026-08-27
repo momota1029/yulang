@@ -52,7 +52,7 @@ use crate::{
     session::{
         AmbientOwnerScopeKind, BindingRole, BracedBarrierOrigin, CommitOutput, Committed,
         CommittedRecoveryRecord, ConstructRole,
-        CastRole, DeclarationRole, Delimiter, DerivesRole, EnumDeclarationRole, VariantDeclarationRole, ExpectationSources, ExpectedSyntax,
+        CastRole, DeclarationRole, Delimiter, DerivesRole, EnumDeclarationRole, ErrorDeclarationRole, VariantDeclarationRole, ExpectationSources, ExpectedSyntax,
         FullCstOutput, GrammarRole,
         ImplRole, ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
         LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
@@ -5542,6 +5542,297 @@ where
 }
 
 fn enum_header_body_starter_or_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() || any_ambient_owner_claims(i) || declaration_exact_equals_pending(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon,
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+/// The isolated raw Error header shared by the later AST and direct-CST
+/// declaration adapters. Error names deliberately remain one raw word rather
+/// than widening to a TypeExpression episode.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ParsedErrorHeader<'source> {
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ErrorHeaderRecovery {
+    Missing { at: usize },
+    Error { range: Range<usize> },
+}
+
+/// Parses Error's mandatory raw name and optional same-line generic list.
+///
+/// The accepted-intro boundary check happens before its gap is consumed. A
+/// failed name stops this adapter immediately: derives and body ownership
+/// remain for their later gates, without a cascade from the same cause.
+#[allow(dead_code)]
+fn parse_required_error_header_isolated<'source, E>(
+    intro: &ErrorStatementIntro<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (ParsedErrorHeader<'source>, Vec<ErrorHeaderRecovery>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut recoveries = Vec::new();
+    let name_boundary = any_ambient_owner_claims(i);
+    if !name_boundary {
+        let _ = mod_trivia(intro.error_base, i);
+    }
+    let name = if name_boundary {
+        recoveries.push(ErrorHeaderRecovery::Missing { at: i.pos() });
+        Recovered::Incomplete
+    } else if let Some(name) = i.run(scan_word) {
+        Recovered::Complete(name)
+    } else if let Some(recovery) = scan_error_name_invalid_run(i) {
+        recoveries.push(ErrorHeaderRecovery::Error {
+            range: recovery.range.clone(),
+        });
+        match recovery.target {
+            ErrorNameInvalidTarget::RawName => Recovered::Complete(
+                i.run(scan_word)
+                    .expect("an Error name retry leaves its raw word at the cursor"),
+            ),
+            ErrorNameInvalidTarget::BodyStarterOrBoundary => Recovered::Incomplete,
+        }
+    } else {
+        recoveries.push(ErrorHeaderRecovery::Missing { at: i.pos() });
+        Recovered::Incomplete
+    };
+    let parameters = matches!(name, Recovered::Complete(_))
+        .then(|| scan_declaration_type_parameter_list(i).unwrap_or_default())
+        .unwrap_or_default();
+    (ParsedErrorHeader { name, parameters }, recoveries)
+}
+
+/// Direct-CST's Error header adapter scans the same decision stream, then
+/// realizes only its raw surface and typed Name recovery records.
+#[allow(dead_code)]
+fn commit_required_error_header_isolated<'parse, 'source, 'local, E, O>(
+    intro: &ErrorStatementIntro<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedErrorHeader<'source>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let (header, recoveries, header_end) = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let (header, recoveries) = parse_required_error_header_isolated(intro, i);
+        let end = i.pos();
+        i.rollback(checkpoint);
+        (header, recoveries, end)
+    });
+    commit_error_header_surface(intro.error_base, &header, &recoveries, header_end, committed);
+    header
+}
+
+fn commit_error_header_surface<'parse, 'source, 'local, E, O>(
+    error_base: usize,
+    header: &ParsedErrorHeader<'source>,
+    recoveries: &[ErrorHeaderRecovery],
+    header_end: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let name_target = recoveries
+        .first()
+        .map(error_header_recovery_start)
+        .or_else(|| match &header.name {
+            Recovered::Complete(name) => Some(name.range().start),
+            Recovered::Incomplete => None,
+        })
+        .unwrap_or(header_end);
+    let current = committed.probe(|probe| probe.input().pos());
+    if current < name_target {
+        let trivia = committed
+            .probe(|probe| mod_trivia(error_base, probe.input()))
+            .expect("the accepted Error header gap remains declaration-continuing trivia");
+        debug_assert_eq!(trivia.range(), current..name_target);
+        committed.emit_trivia(&trivia);
+    }
+    if let Some(recovery) = recoveries.first() {
+        commit_error_header_recovery(recovery.clone(), committed);
+    }
+    if let Recovered::Complete(expected) = &header.name {
+        let actual = commit_word(committed).expect("an accepted Error name remains at the cursor");
+        debug_assert_eq!(actual.range(), expected.range());
+        committed.token(SyntaxKind::Identifier, actual.range());
+    }
+    if !header.parameters.is_empty() {
+        committed.start_node(SyntaxKind::DeclarationTypeParameterList);
+        for parameter in &header.parameters {
+            let trivia = committed
+                .probe(|probe| scan_required_inline_trivia(probe.input()))
+                .expect("an accepted Error parameter retains its same-line separator");
+            committed.emit_trivia(&trivia);
+            let actual = committed
+                .probe(|probe| probe.input().run(scan_path_segment))
+                .expect("an accepted Error parameter remains at the cursor");
+            debug_assert_eq!(actual.range(), declaration_type_parameter_range(parameter));
+            committed.token(declaration_type_parameter_kind(parameter), actual.range());
+        }
+        committed.finish_node();
+    }
+    debug_assert_eq!(committed.probe(|probe| probe.input().pos()), header_end);
+}
+
+fn commit_error_header_recovery<'parse, 'source, 'local, E, O>(
+    recovery: ErrorHeaderRecovery,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    if let ErrorHeaderRecovery::Error { range } = &recovery {
+        committed.probe(|probe| {
+            let i = probe.input();
+            debug_assert_eq!(i.pos(), range.start);
+            while i.pos() < range.end {
+                i.input
+                    .next()
+                    .expect("a selected Error header error range remains available");
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            debug_assert_eq!(i.pos(), range.end);
+        });
+    }
+    emit_error_header_recovery(committed, recovery);
+}
+
+fn error_header_recovery_start(recovery: &ErrorHeaderRecovery) -> usize {
+    match recovery {
+        ErrorHeaderRecovery::Missing { at } => *at,
+        ErrorHeaderRecovery::Error { range } => range.start,
+    }
+}
+
+fn emit_error_header_recovery<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    recovery: ErrorHeaderRecovery,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let (kind, range, unexpected) = match recovery {
+        ErrorHeaderRecovery::Missing { at } => (RecoveryKind::Missing, at..at, Arc::from([])),
+        ErrorHeaderRecovery::Error { range } => {
+            let unexpected = Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]);
+            (RecoveryKind::Error, range, unexpected)
+        }
+    };
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Name));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            kind,
+            unexpected,
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Identifier,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    match kind {
+        RecoveryKind::Missing => committed.emit_missing(record),
+        RecoveryKind::Error => committed.emit_error(record),
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ErrorNameInvalidTarget {
+    RawName,
+    BodyStarterOrBoundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ErrorNameInvalidRun {
+    range: Range<usize>,
+    target: ErrorNameInvalidTarget,
+}
+
+fn scan_error_name_invalid_run<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<ErrorNameInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if error_raw_name_pending(i) {
+            return (start < i.pos()).then_some(ErrorNameInvalidRun {
+                range: start..i.pos(),
+                target: ErrorNameInvalidTarget::RawName,
+            });
+        }
+        if error_header_body_starter_or_boundary_pending(i) {
+            return (start < i.pos()).then_some(ErrorNameInvalidRun {
+                range: start..i.pos(),
+                target: ErrorNameInvalidTarget::BodyStarterOrBoundary,
+            });
+        }
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(ErrorNameInvalidRun {
+                range: start..i.pos(),
+                target: ErrorNameInvalidTarget::BodyStarterOrBoundary,
+            });
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn error_raw_name_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_word).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn error_header_body_starter_or_boundary_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -32442,6 +32733,357 @@ mod tests {
             DeclarationTypeParameter::SigilIdentifier(left),
             DeclarationTypeParameter::SigilIdentifier(right),
         ] if left.range() == (7..9) && right.range() == (10..12)));
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+    }
+
+    #[test]
+    fn error_required_header_isolated_is_raw_optional_and_recovery_exact() {
+        type DirectRecovery = (RecoveryKind, GrammarRole, Range<usize>);
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        fn assert_prepared_local(
+            local: &ParseLocal,
+            baseline: IndentationBaseline,
+            stops: StopSet,
+            scoped_frame: TypeExpressionScopedStopFrame,
+            root: AmbientOwnerScopeFrame,
+            inline: AmbientOwnerScopeFrame,
+            indented: Option<AmbientOwnerScopeFrame>,
+            companion: IfExpressionCompanionId,
+        ) {
+            assert_eq!(local.indentation_baseline(), Some(baseline));
+            assert_eq!(local.stop_set(), Some(stops));
+            assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert!(local.inline());
+            assert!(local.ml_arg());
+            assert!(local.type_ml_arg());
+            assert_eq!(
+                local.type_malformed_caller_boundary(),
+                Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+            );
+            assert_eq!(local.type_expression_episode_depth(), 1);
+            assert_eq!(
+                local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                vec![scoped_frame],
+            );
+            assert_eq!(
+                local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                indented
+                    .into_iter()
+                    .chain(Some(inline))
+                    .chain(Some(root))
+                    .collect::<Vec<_>>(),
+            );
+            assert_eq!(local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+        }
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            ambient_boundary: bool,
+        ) -> (ParsedErrorHeader<'source>, Vec<ErrorHeaderRecovery>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: 4,
+                kind: IndentationBaselineKind::Block,
+            };
+            local.push_indentation_baseline(baseline);
+            let stops = StopSet::default().with(StopKind::RightBracket);
+            local.push_stop_set(stops);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: 1,
+            }));
+            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let scoped_frame = TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: episode_depth,
+            };
+            local.push_type_expression_scoped_stop_frame(scoped_frame);
+            let root = local.push_root_statement_ambient_scope();
+            let inline = local.push_inline_canonical_statement_ambient_scope(
+                InlineStatementOwnerKind::WithBodyTail,
+            );
+            let indented = ambient_boundary.then(|| local.push_indented_statement_ambient_scope(4));
+            let companion = local.push_if_expression_companion(4, IF_WORDS);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (header, recoveries, remainder) = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                let intro = i
+                    .run(recognize_error_statement_intro)
+                    .expect("the isolated Error header fixture has an accepted intro");
+                let after_intro = i.input.remainder().to_owned();
+                let after_intro_line = i.local.line();
+                let checkpoint = i.checkpoint();
+                let (header, recoveries) = parse_required_error_header_isolated(&intro, &mut i);
+                let remainder = i.input.remainder().to_owned();
+                i.rollback(checkpoint);
+                assert_eq!(i.input.remainder(), after_intro, "AST rollback: {source:?}");
+                assert_eq!(i.local.line(), after_intro_line, "AST line: {source:?}");
+                assert_prepared_local(i.local, baseline, stops, scoped_frame, root, inline, indented, companion);
+                (header, recoveries, remainder)
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            if let Some(indented) = indented {
+                assert_eq!(local.pop_ambient_owner_scope(), Some(indented));
+            }
+            assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
+            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
+            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+            (header, recoveries, remainder)
+        }
+
+        fn parse_direct<'source>(
+            source: &'source str,
+            ambient_boundary: bool,
+        ) -> (ParsedErrorHeader<'source>, Vec<DirectRecovery>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: 4,
+                kind: IndentationBaselineKind::Block,
+            };
+            local.push_indentation_baseline(baseline);
+            let stops = StopSet::default().with(StopKind::RightBracket);
+            local.push_stop_set(stops);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: 1,
+            }));
+            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let scoped_frame = TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: episode_depth,
+            };
+            local.push_type_expression_scoped_stop_frame(scoped_frame);
+            let root = local.push_root_statement_ambient_scope();
+            let inline = local.push_inline_canonical_statement_ambient_scope(
+                InlineStatementOwnerKind::WithBodyTail,
+            );
+            let indented = ambient_boundary.then(|| local.push_indented_statement_ambient_scope(4));
+            let companion = local.push_if_expression_companion(4, IF_WORDS);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_error_statement_intro)
+                .expect("the isolated Error direct fixture has an accepted intro");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let header = commit_required_error_header_isolated(&intro, &mut committed);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            let recoveries = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            assert_prepared_local(&local, baseline, stops, scoped_frame, root, inline, indented, companion);
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            if let Some(indented) = indented {
+                assert_eq!(local.pop_ambient_owner_scope(), Some(indented));
+            }
+            assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
+            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
+            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+            (header, recoveries, remainder)
+        }
+
+        fn assert_header(
+            source: &str,
+            ambient_boundary: bool,
+            name: Option<(&str, Range<usize>)>,
+            parameters: &[(&str, Range<usize>)],
+            ast_recoveries: Vec<ErrorHeaderRecovery>,
+            direct_recoveries: Vec<DirectRecovery>,
+            remainder: &str,
+        ) {
+            let (ast, actual_ast_recoveries, ast_remainder) = parse_ast(source, ambient_boundary);
+            let (direct, actual_direct_recoveries, direct_remainder) = parse_direct(source, ambient_boundary);
+            assert_eq!(ast, direct, "AST/direct header: {source:?}");
+            assert_eq!(actual_ast_recoveries, ast_recoveries, "AST recovery: {source:?}");
+            assert_eq!(actual_direct_recoveries, direct_recoveries, "direct recovery: {source:?}");
+            assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
+            match (ast.name, name) {
+                (Recovered::Complete(actual), Some((text, range))) => {
+                    assert_eq!(actual.text(), text, "name text: {source:?}");
+                    assert_eq!(actual.range(), range, "name range: {source:?}");
+                }
+                (Recovered::Incomplete, None) => {}
+                (actual, expected) => panic!("name mismatch for {source:?}: {actual:?} vs {expected:?}"),
+            }
+            assert_eq!(ast.parameters.len(), parameters.len(), "parameter count: {source:?}");
+            for (actual, (text, range)) in ast.parameters.iter().zip(parameters) {
+                assert_eq!(declaration_type_parameter_range(actual), range.clone(), "parameter range: {source:?}");
+                let actual_text = match actual {
+                    DeclarationTypeParameter::Identifier(word)
+                    | DeclarationTypeParameter::SigilIdentifier(word) => word.text(),
+                };
+                assert_eq!(actual_text, *text, "parameter text: {source:?}");
+            }
+        }
+
+        let name_role = GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Name));
+        assert_header("error E", false, Some(("E", 6..7)), &[], vec![], vec![], "");
+        assert_header(
+            "error fs_err 't",
+            false,
+            Some(("fs_err", 6..12)),
+            &[("'t", 13..15)],
+            vec![],
+            vec![],
+            "",
+        );
+        assert_header(
+            "error E 'a 'b",
+            false,
+            Some(("E", 6..7)),
+            &[("'a", 8..10), ("'b", 11..13)],
+            vec![],
+            vec![],
+            "",
+        );
+        for (source, remainder) in [
+            ("error E derives Eq", " derives Eq"),
+            ("error E {", " {"),
+            ("error E:", ":"),
+            ("error E = A", " = A"),
+            ("error E;", ";"),
+        ] {
+            assert_header(source, false, Some(("E", 6..7)), &[], vec![], vec![], remainder);
+        }
+        assert_header(
+            "error @ E",
+            false,
+            Some(("E", 8..9)),
+            &[],
+            vec![ErrorHeaderRecovery::Error { range: 6..8 }],
+            vec![(RecoveryKind::Error, name_role, 6..8)],
+            "",
+        );
+        assert_header(
+            "error @ {",
+            false,
+            None,
+            &[],
+            vec![ErrorHeaderRecovery::Error { range: 6..8 }],
+            vec![(RecoveryKind::Error, name_role, 6..8)],
+            "{",
+        );
+        assert_header(
+            "error @",
+            false,
+            None,
+            &[],
+            vec![ErrorHeaderRecovery::Error { range: 6..7 }],
+            vec![(RecoveryKind::Error, name_role, 6..7)],
+            "",
+        );
+        assert_header(
+            "error {",
+            false,
+            None,
+            &[],
+            vec![ErrorHeaderRecovery::Missing { at: 6 }],
+            vec![(RecoveryKind::Missing, name_role, 6..6)],
+            "{",
+        );
+        assert_header(
+            "error\n  next",
+            true,
+            None,
+            &[],
+            vec![ErrorHeaderRecovery::Missing { at: 5 }],
+            vec![(RecoveryKind::Missing, name_role, 5..5)],
+            "\n  next",
+        );
+        assert_header(
+            "error E 'a @ {",
+            false,
+            Some(("E", 6..7)),
+            &[("'a", 8..10)],
+            vec![],
+            vec![],
+            " @ {",
+        );
+        assert_header(
+            "error E 'a\n  next",
+            true,
+            Some(("E", 6..7)),
+            &[("'a", 8..10)],
+            vec![],
+            vec![],
+            "\n  next",
+        );
+
+        let source = "error E 'a 'b";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut probe = Probe::new(i);
+        let intro = probe.input().run(recognize_error_statement_intro).unwrap();
+        let mut committed = probe.commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        committed.start_node(SyntaxKind::ErrorDeclaration);
+        committed.token(SyntaxKind::ErrorKw, intro.error_keyword.range());
+        let header = commit_required_error_header_isolated(&intro, &mut committed);
+        committed.finish_node();
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(output.committed_recoveries().is_empty());
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::ErrorDeclaration, 0..13),
+                (SyntaxKind::DeclarationTypeParameterList, 7..13),
+            ],
+        );
+        assert!(matches!(header.parameters.as_slice(), [
+            DeclarationTypeParameter::SigilIdentifier(left),
+            DeclarationTypeParameter::SigilIdentifier(right),
+        ] if left.range() == (8..10) && right.range() == (11..13)));
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
     }
