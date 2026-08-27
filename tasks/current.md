@@ -237,6 +237,39 @@ function/type名全部独立検証で誤りゼロ。
 残り1要素: ASOB(main page + `asob-integration-matrix.md` appendix、
 Sol推奨の2ファイル構成)。これでcross-cutting/family 3/4完了。
 
+### ASOB main page追加(2026-08-27、push済み、commit `0bd500a5`)
+
+cross-cutting最後のmechanism、ASOB(design doc 18358–19160、19 gate、
+`7b5ab178`でfinalize)のmain pageを英日で追加。Sol推奨どおりmain page限定、
+完全gate ledgerは後続appendix(`asob-integration-matrix.md`、未作成)へ委譲。
+「later integration section」(19162/19677/20278)がASOB本体でなく
+equality-type/bare-nominal-type/derives-attachmentのowning addendumだと
+確認しbacklinkのみ、ASOB独自の4 known-residual familyを正確に記述し
+Castのfour-condition predicateがfamily 4のdownstream specializationだと
+明記。
+
+独立検証でこのfamily最大の実誤り3件を発見・修正(Codex自身の検証パスが
+見逃していたもの):
+1. "Struct missing-close before an outer else"例が正本18730–18740行を
+   引用していたが、その範囲は**別の**worked example("Deliberate
+   same-column companion divergence"、内容が異なる"else: Bool }")。
+   実際のcode blockは18761–18763行——source string自体は正確だったが、
+   citationが30行分ずれて無関係な内容を指していた。
+2. "Braced owner suspends/resumes"例が18814–18821(explanation prose)を
+   引用していたが、実際のcode blockは18808–18810行。
+3. ListPattern例のcitation(18832–18840)を実際のcode block行
+   (18833–18835)へ精密化。
+4. (副次)en/jaパリティのgap 1件——`IfExpression`のbacktick wrapが
+   英語版のみで日本語版に欠けていた。
+
+6 commit hash・5実装fileにまたがる9個のtype/function・7 fixture全部を
+grep照合、修正後のworked example行・"later integration"判定を再照合、
+en/ja token集合完全一致・両mdbook build成功を確認してからcommit。
+
+これでcross-cutting/の4 mechanism全部(layout-aware-separator-authority・
+TMN・positional-fence・ASOB main page)が完成。残るのはASOB
+integration-matrix appendixのみ。
+
 ### pilotページの検証結果
 
 `statements/bare-nominal-type.md`(bare nominal `type`宣言、9 gate完了済み)を
