@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-27（cast宣言13 gate完走）
+更新: 2026-08-27（`syntax-reference/`サイト完成、全5 family・各言語41ページ、未執筆要素ゼロ）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -269,6 +269,32 @@ en/ja token集合完全一致・両mdbook build成功を確認してからcommit
 これでcross-cutting/の4 mechanism全部(layout-aware-separator-authority・
 TMN・positional-fence・ASOB main page)が完成。残るのはASOB
 integration-matrix appendixのみ。
+
+### ASOB integration matrix appendix追加、サイト完成(2026-08-27、push済み、commit `ba06fdac`)
+
+`syntax-reference/`最後のページ、ASOBのGate 1〜19完全ledger(design doc行範囲・
+実装内容・commit・主要file・代表fixtureの6列表)を英日で追加。main pageの
+section 11が委譲していた完全ledgerがこれで揃った。
+
+独立検証でこのプロジェクト最大級の実誤りを発見・修正: gate 16・17・19が
+「`5f627f1c`(final 19/19 closure)」に帰属されていたが、`git show --stat
+5f627f1c`で確認するとこのcommitは`type_expr.rs`(BracketRow専用)にしか
+触れておらず、commit message自体も"ASOB Gate 14(final ASOB gate、19/19)"
+——gate 14がBracketRow文法自体がまだ存在せずASOB作業の最初からblockされて
+いて19個中「時系列で最後に完了した」gateだったという意味であり、
+「このcommitがgate 16/17/19を実装した」という意味ではなかった。さらに
+`git log -S`でgate 16・19が引用していたfixture 2件の導入commitを追跡した
+ところ、それぞれGate 8(`a355058d`)・Gate 3(`5cafd19a`)で導入済みと判明
+——5f627f1cより2 gate分も前。3行とも「専用のgate-tagged commitなし、
+cross-construct invariant/regression gateとして先行gateの実装で累積的に
+満たされる」へ訂正し、正しい導入commitを引用し直した。
+
+これで`syntax-reference/`は全5 family(statements 7/7・patterns 4/4・
+types 6/6・expressions 9/9・cross-cutting 4 mechanism+appendix)が完成、
+各言語41ページ(index/SUMMARY含む、英日計82ファイル)、未執筆要素ゼロ。
+ユーザの「3時間自由に動いていい、一切承認する」という権限付与のもとで
+質問なしに完走した。commit範囲は`f5c3554f`(expressions着手)〜
+`ba06fdac`(サイト完成)。
 
 ### pilotページの検証結果
 
