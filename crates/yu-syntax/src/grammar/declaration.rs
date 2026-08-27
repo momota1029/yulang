@@ -926,6 +926,83 @@ where
     })
 }
 
+/// Recognizes the sink-free prefix reserved for a standalone Act declaration.
+///
+/// Unlike the other visibility-prefixed declaration introductions, `my act`
+/// preserves Yulang2's local-binding collision. It becomes an Act only when
+/// a raw TypeExpression name is visible after the keyword; the lookahead is
+/// rolled back so the later head episode owns the same bytes.
+#[allow(dead_code)]
+fn recognize_act_statement_intro<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<ActStatementIntro<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    let first = i.run(scan_word)?;
+    let act_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+        let Some(trivia) = mod_trivia(act_base, &mut i).filter(|trivia| !trivia.is_empty()) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        let Some(keyword) = i.run(scan_word) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        (Some(visibility), Some(trivia), keyword)
+    } else {
+        (None, None, first)
+    };
+    if keyword.text() != "act" {
+        i.rollback(checkpoint);
+        return None;
+    }
+    if matches!(visibility, Some(VisibilityPrefix { visibility: Visibility::Private, .. })) {
+        let head_checkpoint = i.checkpoint();
+        let head_candidate = mod_trivia(act_base, &mut i).is_some()
+            && act_raw_type_head_candidate(&mut i);
+        i.rollback(head_checkpoint);
+        if !head_candidate {
+            i.rollback(checkpoint);
+            return None;
+        }
+    }
+    Some(ActStatementIntro {
+        start,
+        visibility,
+        after_visibility,
+        act_keyword: keyword,
+        act_base,
+    })
+}
+
+/// Peeks exactly the raw TypeExpression-name forms relevant to ACT-J.
+///
+/// This deliberately matches `scan_type_name`'s lexical admission without
+/// invoking a TypeExpression episode: ordinary words and apostrophe sigils
+/// qualify, while `$` and `&` stay outside the current TypeExpression grammar.
+fn act_raw_type_head_candidate<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(scan_path_segment).is_some_and(|name| {
+        !matches!(name.text().chars().next(), Some('$' | '&'))
+    });
+    i.rollback(checkpoint);
+    candidate
+}
+
 /// Recognizes the sink-free prefix reserved for a standalone Impl declaration.
 ///
 /// This remains deliberately separate from `recognize_statement_intro` until
@@ -26427,6 +26504,263 @@ mod tests {
             ("value role", None),
         ] {
             run(source, expected);
+        }
+    }
+
+    #[test]
+    fn act_statement_intro_is_exact_isolated_and_rolls_back_every_probe_state() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct Expected<'source> {
+            visibility: Option<Visibility>,
+            after_visibility: Option<Range<usize>>,
+            keyword: Range<usize>,
+            remainder: &'source str,
+            act_base: usize,
+        }
+
+        fn run(source: &str, baseline_column: usize, expected: Option<Expected<'_>>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: baseline_column,
+                kind: IndentationBaselineKind::Block,
+            };
+            let stops = StopSet::default().with(StopKind::RightBracket);
+            let scoped_stops = StopSet::default().with(StopKind::Semicolon);
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(stops);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: 1,
+            }));
+            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let scoped_frame = TypeExpressionScopedStopFrame {
+                stops: scoped_stops,
+                visible_episode_depth: episode_depth,
+            };
+            local.push_type_expression_scoped_stop_frame(scoped_frame);
+            let root = local.push_root_statement_ambient_scope();
+            let inline = local.push_inline_canonical_statement_ambient_scope(
+                InlineStatementOwnerKind::WithBodyTail,
+            );
+            let companion = local.push_if_expression_companion(baseline_column, IF_WORDS);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+
+            {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                let checkpoint = i.checkpoint();
+                let intro = i.run(recognize_act_statement_intro);
+                match (intro, expected) {
+                    (Some(intro), Some(expected)) => {
+                        assert_eq!(
+                            intro.visibility.map(|prefix| prefix.visibility),
+                            expected.visibility,
+                            "visibility: {source:?}",
+                        );
+                        assert_eq!(
+                            intro.after_visibility.map(|trivia| trivia.range()),
+                            expected.after_visibility,
+                            "visibility gap: {source:?}",
+                        );
+                        assert_eq!(intro.start, 0, "start: {source:?}");
+                        assert_eq!(intro.act_base, expected.act_base, "base: {source:?}");
+                        assert_eq!(intro.act_keyword.range(), expected.keyword, "keyword: {source:?}");
+                        assert_eq!(i.input.remainder(), expected.remainder, "remainder: {source:?}");
+                    }
+                    (None, None) => {
+                        assert_eq!(i.pos(), 0, "failure position: {source:?}");
+                        assert_eq!(i.input.remainder(), source, "failure remainder: {source:?}");
+                        assert_eq!(i.local.line(), LineState::default(), "failure line: {source:?}");
+                        assert_eq!(i.local.indentation_baseline(), Some(baseline), "failure baseline: {source:?}");
+                        assert_eq!(i.local.stop_set(), Some(stops), "failure stops: {source:?}");
+                        assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "failure delimiter: {source:?}");
+                        assert_eq!(i.local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call), "failure expression owner: {source:?}");
+                        assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "failure type owner: {source:?}");
+                        assert!(i.local.inline(), "failure inline: {source:?}");
+                        assert!(i.local.ml_arg(), "failure ML: {source:?}");
+                        assert!(i.local.type_ml_arg(), "failure type ML: {source:?}");
+                        assert_eq!(
+                            i.local.type_malformed_caller_boundary(),
+                            Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+                            "failure positional fence: {source:?}",
+                        );
+                        assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "failure episode: {source:?}");
+                        assert_eq!(
+                            i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                            vec![scoped_frame],
+                            "failure scoped stops: {source:?}",
+                        );
+                        assert_eq!(
+                            i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                            vec![inline, root],
+                            "failure ambient stack: {source:?}",
+                        );
+                        assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                    }
+                    (actual, expected) => panic!(
+                        "Act intro mismatch for {source:?}: actual={actual:?}, expected={expected:?}"
+                    ),
+                }
+
+                i.rollback(checkpoint);
+                assert_eq!(i.pos(), 0, "input position: {source:?}");
+                assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
+                assert_eq!(i.local.line(), LineState::default(), "line: {source:?}");
+                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(i.local.stop_set(), Some(stops), "stops: {source:?}");
+                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "delimiter: {source:?}");
+                assert_eq!(
+                    i.local.expression_delimited_owner(),
+                    Some(ExpressionDelimitedOwner::Call),
+                    "expression owner: {source:?}",
+                );
+                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "type owner: {source:?}");
+                assert!(i.local.inline(), "inline: {source:?}");
+                assert!(i.local.ml_arg(), "ML: {source:?}");
+                assert!(i.local.type_ml_arg(), "type ML: {source:?}");
+                assert_eq!(
+                    i.local.type_malformed_caller_boundary(),
+                    Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+                    "positional fence: {source:?}",
+                );
+                assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "episode: {source:?}");
+                assert_eq!(
+                    i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                    vec![scoped_frame],
+                    "scoped stops: {source:?}",
+                );
+                assert_eq!(
+                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    vec![inline, root],
+                    "ambient stack: {source:?}",
+                );
+                assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+            }
+
+            assert!(expectations.take_merged().is_none(), "sink: {source:?}");
+            assert!(!is_cut, "cut: {source:?}");
+            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
+            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
+            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+        }
+
+        for (source, baseline, expected) in [
+            (
+                "act",
+                0,
+                Some(Expected {
+                    visibility: None,
+                    after_visibility: None,
+                    keyword: 0..3,
+                    remainder: "",
+                    act_base: 0,
+                }),
+            ),
+            (
+                "act(Console);",
+                2,
+                Some(Expected {
+                    visibility: None,
+                    after_visibility: None,
+                    keyword: 0..3,
+                    remainder: "(Console);",
+                    act_base: 2,
+                }),
+            ),
+            (
+                "our act",
+                2,
+                Some(Expected {
+                    visibility: Some(Visibility::Our),
+                    after_visibility: Some(3..4),
+                    keyword: 4..7,
+                    remainder: "",
+                    act_base: 2,
+                }),
+            ),
+            (
+                "pub\n    act(Console);",
+                2,
+                Some(Expected {
+                    visibility: Some(Visibility::Public),
+                    after_visibility: Some(3..8),
+                    keyword: 8..11,
+                    remainder: "(Console);",
+                    act_base: 2,
+                }),
+            ),
+            (
+                "my act next = last",
+                2,
+                Some(Expected {
+                    visibility: Some(Visibility::Private),
+                    after_visibility: Some(2..3),
+                    keyword: 3..6,
+                    remainder: " next = last",
+                    act_base: 2,
+                }),
+            ),
+            (
+                "my act 't",
+                2,
+                Some(Expected {
+                    visibility: Some(Visibility::Private),
+                    after_visibility: Some(2..3),
+                    keyword: 3..6,
+                    remainder: " 't",
+                    act_base: 2,
+                }),
+            ),
+            (
+                "my act\n    next",
+                2,
+                Some(Expected {
+                    visibility: Some(Visibility::Private),
+                    after_visibility: Some(2..3),
+                    keyword: 3..6,
+                    remainder: "\n    next",
+                    act_base: 2,
+                }),
+            ),
+            ("my act", 2, None),
+            ("my act = 1", 2, None),
+            ("my act;", 2, None),
+            ("my act {", 2, None),
+            ("my act :", 2, None),
+            ("my\nact next", 2, None),
+            ("acts", 2, None),
+            ("action", 2, None),
+            ("my actish = value", 2, None),
+            ("my_act = value", 2, None),
+            ("myact = value", 2, None),
+            ("my value = 1", 2, None),
+            ("struct S", 2, None),
+            ("mod S", 2, None),
+            ("type S", 2, None),
+            ("role R;", 2, None),
+            ("impl T;", 2, None),
+            ("cast(x): T;", 2, None),
+            ("use std", 2, None),
+            ("infix + 1 2", 2, None),
+            ("value act", 2, None),
+        ] {
+            run(source, baseline, expected);
         }
     }
 
