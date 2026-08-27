@@ -33731,6 +33731,128 @@ mod tests {
     }
 
     #[test]
+    fn enum_gate_12_final_public_scope_and_contextual_word_matrix() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn identifier_tokens(root: &SyntaxNode, text: &str) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.text() == text)
+                .map(|token| {
+                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    syntax_range(token.text_range())
+                })
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::EnumDeclaration),
+                node_ranges(&direct_root, SyntaxKind::EnumDeclaration),
+                "public/direct Enum range parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                direct_root
+                    .descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        // ENUM-J accepts the `my` visibility only when its raw name follows;
+        // bare, `our`, and `pub` are unconditional Enum cuts.
+        for source in ["enum E;", "my enum E = A", "our enum E;", "pub enum E;"] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::EnumDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::EnumDeclaration),
+                vec![0..source.len()],
+            );
+            assert!(direct.committed_recoveries().is_empty(), "visibility recovery: {source:?}");
+        }
+
+        // `enum` is contextual only at a canonical Statement/root
+        // Declaration introducer. These examples exercise existing field,
+        // expression, TypeExpression, NamedRecordType, and arm-Pattern slots.
+        for source in [
+            "my value = object.enum",
+            "my value = enum",
+            "my value: enum = output",
+            "my value: ({ enum: Int }) = output",
+            "my result = case value:\n  enum -> output",
+        ] {
+            let (public, direct_root, _) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::EnumDeclaration).is_empty(),
+                    "no EnumDeclaration outside an accepted Statement slot: {source:?}",
+                );
+                assert!(
+                    !identifier_tokens(root, "enum").is_empty(),
+                    "ordinary enum identifier: {source:?}",
+                );
+            }
+        }
+
+        // `from` becomes FromKw only immediately after an accepted EnumVariant
+        // name. Ordinary Binding and expression positions retain Identifier.
+        for source in ["my from = 1", "my value = from"] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::EnumDeclaration).is_empty(),
+                    "no EnumDeclaration for ordinary from: {source:?}",
+                );
+                assert!(
+                    !identifier_tokens(root, "from").is_empty(),
+                    "ordinary from identifier: {source:?}",
+                );
+                assert!(
+                    node_ranges(root, SyntaxKind::FromKw).is_empty(),
+                    "FromKw only belongs to an Enum variant payload: {source:?}",
+                );
+            }
+            assert!(direct.committed_recoveries().is_empty(), "from recovery: {source:?}");
+        }
+
+        // ENUM-J's `my` collision exception remains a Binding target through
+        // public and direct root dispatch after Enum promotion.
+        let (public, direct_root, direct) = parse_public_and_direct("my enum = 1");
+        for root in [&public, &direct_root] {
+            assert!(node_ranges(root, SyntaxKind::EnumDeclaration).is_empty());
+            assert_eq!(node_ranges(root, SyntaxKind::BindingStatement), vec![0..11]);
+            assert_eq!(identifier_tokens(root, "enum"), vec![3..7]);
+        }
+        assert!(direct.committed_recoveries().is_empty());
+    }
+
+    #[test]
     fn isolated_enum_declaration_direct_cst_is_byte_exact_and_matches_ast_forms() {
         fn parse_ast<'source>(source: &'source str) -> (EnumDeclaration<'source>, String) {
             let mut source_input = SourceInput::new(source);
