@@ -46,9 +46,11 @@
 - [standalone `impl` declaration shell](statements/impl-shell.md)
 - [standalone `cast` declaration](statements/cast-declaration.md)
 
-# Cross-cutting
+# Cross-cutting mechanisms
 
-- [一覧（未執筆）](cross-cutting/index.md)
+- [一覧](cross-cutting/index.md)
+- [Layout-aware separator authority](cross-cutting/layout-aware-separator-authority.md)
+- [TypeExpression malformed-newline-owner policy (TMN)](cross-cutting/tmn-malformed-newline-owner-policy.md)
 
 # 索引
 
