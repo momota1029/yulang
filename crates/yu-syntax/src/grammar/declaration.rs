@@ -16,7 +16,7 @@ use crate::{
     grammar::expression::{
         IndentedStatementBlock, OperatorChain, ParsedExpression, commit_indented_binding_body,
         commit_indented_cast_body,
-        commit_indented_impl_body, commit_indented_mod_body,
+        commit_indented_impl_body, commit_indented_mod_body, commit_indented_role_body,
         Statement, BracedStatementBlockExpression, commit_braced_statement_block_expression,
         commit_canonical_statement, parse_braced_statement_block_expression,
         parse_direct_expression_with_operators, parse_expression_with_operators,
@@ -1484,6 +1484,295 @@ where
             return Some(true);
         }
     }
+}
+
+/// Direct-CST counterpart of [`parse_role_declaration_isolated`].  Like the
+/// AST adapter, it remains deliberately outside statement dispatch until the
+/// Gate 9 atomic promotion.
+pub(crate) fn commit_role_declaration_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: RoleStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
+    committed.start_node(SyntaxKind::RoleDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::RoleKw, intro.role_keyword.range());
+
+    let head_terminated_incomplete = if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        true
+    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.role_base, probe.input())) {
+        committed.emit_trivia(&trivia);
+        matches!(
+            commit_required_role_head_type_expression_isolated(committed),
+            Recovered::Incomplete
+        )
+    } else {
+        true
+    };
+
+    commit_role_body_isolated(table, intro.role_base, committed, head_terminated_incomplete);
+    let end = committed_position(committed);
+    committed.finish_node();
+    committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+    Recovered::Complete(intro.start..end)
+}
+
+#[derive(Clone)]
+enum RoleBodyStarter {
+    Bodyless(Range<usize>),
+    Braced(Range<usize>),
+    Colon(Range<usize>),
+}
+
+fn commit_role_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    role_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    head_terminated_incomplete: bool,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        return;
+    }
+    let starter = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let starter = mod_trivia(role_base, i).and_then(|trivia| {
+            let punctuation = i.run(scan_punctuation)?;
+            let starter = match punctuation.kind() {
+                PunctuationKind::Semicolon => RoleBodyStarter::Bodyless(punctuation.range()),
+                PunctuationKind::Open(Delimiter::Brace) => RoleBodyStarter::Braced(punctuation.range()),
+                PunctuationKind::Colon => RoleBodyStarter::Colon(punctuation.range()),
+                _ => return None,
+            };
+            Some((trivia, starter))
+        });
+        i.rollback(checkpoint);
+        starter
+    });
+    let Some((trivia, starter)) = starter else {
+        let trivia = committed.probe(|probe| {
+            let i = probe.input();
+            let checkpoint = i.checkpoint();
+            let trivia = mod_trivia(role_base, i);
+            i.rollback(checkpoint);
+            trivia
+        });
+        let Some(trivia) = trivia else {
+            if !head_terminated_incomplete {
+                emit_role_body_introducer_missing(committed);
+            }
+            return;
+        };
+        let newline = committed.probe(|probe| {
+            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
+        });
+        if newline {
+            if !head_terminated_incomplete {
+                emit_role_body_introducer_missing(committed);
+            }
+            return;
+        }
+        let consumed_trivia = committed
+            .probe(|probe| mod_trivia(role_base, probe.input()))
+            .expect("the Role body-introducer recovery leaves its leading trivia at the cursor");
+        assert_eq!(consumed_trivia.range(), trivia.range());
+        committed.emit_trivia(&consumed_trivia);
+        match role_body_introducer_error_retry(committed) {
+            Some(true) => {
+                commit_role_body_isolated(table, role_base, committed, head_terminated_incomplete);
+            }
+            Some(false) => {}
+            None if !head_terminated_incomplete => emit_role_body_introducer_missing(committed),
+            None => {}
+        }
+        return;
+    };
+
+    let consumed_trivia = committed
+        .probe(|probe| mod_trivia(role_base, probe.input()))
+        .expect("the accepted Role body starter leaves its leading trivia at the cursor");
+    assert_eq!(consumed_trivia.range(), trivia.range());
+    committed.emit_trivia(&consumed_trivia);
+    let punctuation = committed
+        .probe(|probe| probe.input().run(scan_punctuation))
+        .expect("the accepted Role body starter remains at the cursor");
+    match starter {
+        RoleBodyStarter::Bodyless(range) => {
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Semicolon, range);
+        }
+        RoleBodyStarter::Braced(range) => {
+            assert_eq!(punctuation.range(), range);
+            commit_braced_statement_block_expression(table, range, committed);
+        }
+        RoleBodyStarter::Colon(range) => {
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Colon, range);
+            commit_role_colon_body_isolated(table, role_base, committed);
+        }
+    }
+}
+
+fn commit_role_colon_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    role_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scan is total");
+    let newline = committed.probe(|probe| {
+        probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
+    });
+    if newline && committed.probe(|probe| probe.input().local.line().line_indent <= role_base) {
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+        emit_role_body_missing(committed);
+        return;
+    }
+    if newline {
+        let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+        commit_indented_role_body(table, trivia, role_base, block_indent, committed);
+        return;
+    }
+    committed.emit_trivia(&trivia);
+    let ambient_scope = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_inline_canonical_statement_ambient_scope(
+                crate::session::InlineStatementOwnerKind::RoleColonBody,
+            )
+    });
+    let statement_committed = if commit_canonical_statement(table, LeadingTrivia::None, committed) {
+        true
+    } else {
+        match role_body_error_retry(table, committed) {
+            Some(true) => commit_canonical_statement(table, LeadingTrivia::None, committed),
+            Some(false) => false,
+            None => {
+                emit_role_body_missing(committed);
+                false
+            }
+        }
+    };
+    if statement_committed
+        && let Some(semicolon) = commit_character(committed, ';')
+    {
+        committed.token(SyntaxKind::Semicolon, semicolon);
+    }
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_ambient_owner_scope(),
+            Some(ambient_scope),
+        );
+    });
+}
+
+fn role_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            let i = probe.input();
+            if role_body_starter_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), true));
+            }
+            if role_body_boundary_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            let character = i.input.remainder().chars().next()?;
+            if matches!(character, '\r' | '\n') {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            i.input.next()?;
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    })?;
+    emit_role_error(
+        committed,
+        crate::session::RoleDeclarationRole::BodyIntroducer,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        recovered.0,
+    );
+    Some(recovered.1)
+}
+
+fn role_body_error_retry<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            {
+                let i = probe.input();
+                if role_body_boundary_pending(i) {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                let character = i.input.remainder().chars().next()?;
+                if matches!(character, '\r' | '\n') {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                i.input.next()?;
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            if crate::grammar::expression::direct_canonical_statement_candidate(
+                table,
+                LeadingTrivia::None,
+                probe,
+            ) {
+                let end = probe.input().pos();
+                return Some((start..end, true));
+            }
+        }
+    })?;
+    emit_role_error(
+        committed,
+        crate::session::RoleDeclarationRole::Body,
+        ExpectedSyntax::Statement,
+        recovered.0,
+    );
+    Some(recovered.1)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -7751,6 +8040,113 @@ fn emit_impl_error<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let role = GrammarRole::Declaration(DeclarationRole::Impl(impl_role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+/// Emits the one outer-body recovery owned by an accepted Role declaration.
+fn emit_role_body_introducer_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Declaration(DeclarationRole::Role(
+            crate::session::RoleDeclarationRole::BodyIntroducer,
+        ));
+        let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+            ]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_role_body_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    emit_role_missing(
+        committed,
+        crate::session::RoleDeclarationRole::Body,
+        ExpectedSyntax::Statement,
+    );
+}
+
+fn emit_role_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: crate::session::RoleDeclarationRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Declaration(DeclarationRole::Role(role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_role_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: crate::session::RoleDeclarationRole,
+    expected: ExpectedSyntax,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Role(role));
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -26668,6 +27064,19 @@ mod tests {
             );
             let remainder = committed
                 .probe(|probe| probe.input().input.remainder().to_owned());
+            if !remainder.is_empty() {
+                let trailing = committed.probe(|probe| {
+                    let i = probe.input();
+                    let start = i.pos();
+                    while i.input.next().is_some() {
+                        let mut line = i.local.line();
+                        line.at_line_start = false;
+                        i.local.set_line(line);
+                    }
+                    start..i.pos()
+                });
+                committed.token(SyntaxKind::Unknown, trailing);
+            }
             committed.finish_node();
             let output = committed.into_output();
             let recoveries = output.committed_recoveries().to_vec();
@@ -27791,6 +28200,267 @@ mod tests {
             ), "body: {source:?}");
             assert_eq!(declaration.range().end, 8, "range: {source:?}");
             assert_eq!(remainder, expected_remainder, "remainder: {source:?}");
+        }
+    }
+
+    #[test]
+    fn isolated_role_declaration_direct_cst_is_byte_exact_and_matches_ast_forms() {
+        fn parse_ast(source: &str) -> (RoleDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Role intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_role_statement_intro)
+                .expect("the isolated Role intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_role_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            let _ = is_cut;
+            (range, remainder, root, recoveries)
+        }
+
+        struct Case {
+            source: &'static str,
+            children: Vec<SyntaxKind>,
+            trivia: Vec<(SyntaxKind, Range<usize>)>,
+            head: Range<usize>,
+            body: Range<usize>,
+            body_kind: SyntaxKind,
+            item_count: usize,
+        }
+
+        for case in [
+            Case {
+                source: "role Eq;",
+                children: vec![
+                    SyntaxKind::RoleKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Semicolon,
+                ],
+                trivia: vec![(SyntaxKind::Whitespace, 4..5)],
+                head: 5..7,
+                body: 7..8,
+                body_kind: SyntaxKind::Semicolon,
+                item_count: 0,
+            },
+            Case {
+                source: "role Printable:\n  our print: Self -> ()",
+                children: vec![
+                    SyntaxKind::RoleKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Colon,
+                    SyntaxKind::IndentedStatementBlock,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 4..5),
+                    (SyntaxKind::Newline, 15..16),
+                    (SyntaxKind::Whitespace, 16..18),
+                    (SyntaxKind::Whitespace, 21..22),
+                    (SyntaxKind::Whitespace, 28..29),
+                    (SyntaxKind::Whitespace, 33..34),
+                    (SyntaxKind::Whitespace, 36..37),
+                ],
+                head: 5..14,
+                body: 15..39,
+                body_kind: SyntaxKind::IndentedStatementBlock,
+                item_count: 1,
+            },
+            Case {
+                source: "role Eq {\n  our eq: Self -> Self -> Bool\n}",
+                children: vec![
+                    SyntaxKind::RoleKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::BracedStatementBlockExpression,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 4..5),
+                    (SyntaxKind::Whitespace, 7..8),
+                    (SyntaxKind::Newline, 9..10),
+                    (SyntaxKind::Whitespace, 10..12),
+                    (SyntaxKind::Whitespace, 15..16),
+                    (SyntaxKind::Whitespace, 19..20),
+                    (SyntaxKind::Whitespace, 24..25),
+                    (SyntaxKind::Whitespace, 27..28),
+                    (SyntaxKind::Whitespace, 32..33),
+                    (SyntaxKind::Whitespace, 35..36),
+                    (SyntaxKind::Newline, 40..41),
+                ],
+                head: 5..7,
+                body: 8..42,
+                body_kind: SyntaxKind::BracedStatementBlockExpression,
+                item_count: 1,
+            },
+            Case {
+                source: "pub role Index 'container 'key:\n    type value\n    pub index: 'key -> value",
+                children: vec![
+                    SyntaxKind::PubKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::RoleKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Colon,
+                    SyntaxKind::IndentedStatementBlock,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 3..4),
+                    (SyntaxKind::Whitespace, 8..9),
+                    (SyntaxKind::Whitespace, 14..15),
+                    (SyntaxKind::Whitespace, 25..26),
+                    (SyntaxKind::Newline, 31..32),
+                    (SyntaxKind::Whitespace, 32..36),
+                    (SyntaxKind::Whitespace, 40..41),
+                    (SyntaxKind::Newline, 46..47),
+                    (SyntaxKind::Whitespace, 47..51),
+                    (SyntaxKind::Whitespace, 54..55),
+                    (SyntaxKind::Whitespace, 61..62),
+                    (SyntaxKind::Whitespace, 66..67),
+                    (SyntaxKind::Whitespace, 69..70),
+                ],
+                head: 9..30,
+                body: 31..75,
+                body_kind: SyntaxKind::IndentedStatementBlock,
+                item_count: 2,
+            },
+        ] {
+            let (ast, ast_remainder) = parse_ast(case.source);
+            let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
+            assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
+            assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert!(records.is_empty(), "recoveries: {:?}", case.source);
+
+            let declaration = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::RoleDeclaration)
+                .expect("one RoleDeclaration");
+            assert_eq!(syntax_range(declaration.text_range()), 0..case.source.len());
+            assert_eq!(
+                declaration
+                    .children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                case.children,
+                "child order: {:?}",
+                case.source,
+            );
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
+                    .map(|token| (token.kind(), syntax_range(token.text_range())))
+                    .collect::<Vec<_>>(),
+                case.trivia,
+                "all trivia has one home: {:?}",
+                case.source,
+            );
+
+            let head = declaration
+                .children()
+                .find(|node| node.kind() == SyntaxKind::TypeExpression)
+                .expect("Role head uses the ordinary TypeExpression node");
+            assert_eq!(syntax_range(head.text_range()), case.head, "head range: {:?}", case.source);
+            assert!(matches!(ast.head, Recovered::Complete(ref head) if head.range() == case.head));
+
+            let body_node = declaration
+                .children_with_tokens()
+                .find(|element| element.kind() == case.body_kind)
+                .expect("Role form has only its existing CST owner");
+            assert_eq!(syntax_range(body_node.text_range()), case.body, "body range: {:?}", case.source);
+            match case.body_kind {
+                SyntaxKind::Semicolon => assert!(matches!(ast.body,
+                    Recovered::Complete(RoleBody::Bodyless { .. })
+                )),
+                SyntaxKind::IndentedStatementBlock => {
+                    let block = declaration
+                        .children()
+                        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+                        .expect("colon indented body reuses the canonical block");
+                    assert_eq!(
+                        block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(),
+                        case.item_count,
+                    );
+                    assert!(matches!(&ast.body,
+                        Recovered::Complete(RoleBody::Colon {
+                            body: Recovered::Complete(RoleColonBody::Indented { block: ast_block }),
+                            ..
+                        }) if ast_block.range() == case.body && ast_block.statements().len() == case.item_count));
+                }
+                SyntaxKind::BracedStatementBlockExpression => {
+                    let block = declaration
+                        .children()
+                        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+                        .expect("brace body reuses the canonical block");
+                    assert_eq!(
+                        block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(),
+                        case.item_count,
+                    );
+                    assert!(matches!(&ast.body,
+                        Recovered::Complete(RoleBody::Braced { block: ast_block })
+                            if ast_block.range() == case.body));
+                }
+                _ => unreachable!("only existing Role body owners are expected"),
+            }
+
+            // The direct tree is intentionally flat at the Role boundary:
+            // there is no RoleSignature/body wrapper or Role-owned synthetic
+            // separator; braces retain their existing block separator owner.
+            assert!(
+                !declaration.children().any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::BindingBody | SyntaxKind::ImplDescription | SyntaxKind::CastBody
+                )),
+                "Role must not borrow another declaration's wrapper: {:?}",
+                case.source,
+            );
         }
     }
 
