@@ -31125,6 +31125,225 @@ mod tests {
     }
 
     #[test]
+    fn isolated_act_body_reuses_every_current_canonical_statement_variant() {
+        #[derive(Clone, Copy, Debug)]
+        enum ExpectedStatement {
+            Binding,
+            Use,
+            Mod,
+            Struct,
+            Type,
+            Role,
+            Impl,
+            Cast,
+            Expression,
+        }
+
+        impl ExpectedStatement {
+            fn matches_ast(self, statement: &Statement<'_>) -> bool {
+                matches!(
+                    (self, statement),
+                    (Self::Binding, Statement::Binding(_))
+                        | (Self::Use, Statement::Use(_))
+                        | (Self::Mod, Statement::Mod(_))
+                        | (Self::Struct, Statement::Struct(_))
+                        | (Self::Type, Statement::Type(_))
+                        | (Self::Role, Statement::Role(_))
+                        | (Self::Impl, Statement::Impl(_))
+                        | (Self::Cast, Statement::Cast(_))
+                        | (Self::Expression, Statement::Expression(_))
+                )
+            }
+
+            fn direct_kind(self) -> SyntaxKind {
+                match self {
+                    Self::Binding => SyntaxKind::BindingStatement,
+                    Self::Use => SyntaxKind::UseDeclaration,
+                    Self::Mod => SyntaxKind::ModDeclaration,
+                    Self::Struct => SyntaxKind::StructDeclaration,
+                    Self::Type => SyntaxKind::TypeDeclaration,
+                    Self::Role => SyntaxKind::RoleDeclaration,
+                    Self::Impl => SyntaxKind::ImplDeclaration,
+                    Self::Cast => SyntaxKind::CastDeclaration,
+                    Self::Expression => SyntaxKind::OperatorChain,
+                }
+            }
+        }
+
+        #[derive(Clone, Copy, Debug)]
+        enum BodyForm {
+            Braced,
+            Indented,
+            Inline,
+        }
+
+        impl BodyForm {
+            fn source(self, item: &str) -> String {
+                match self {
+                    Self::Braced => format!("act R {{ {item} }}"),
+                    Self::Indented => format!("act R:\n  {item}"),
+                    Self::Inline => format!("act R: {item}"),
+                }
+            }
+
+            fn direct_block_kind(self) -> Option<SyntaxKind> {
+                match self {
+                    Self::Braced => Some(SyntaxKind::BracedStatementBlockExpression),
+                    Self::Indented => Some(SyntaxKind::IndentedStatementBlock),
+                    Self::Inline => None,
+                }
+            }
+        }
+
+        fn parse_ast(source: &str) -> (ActDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Act intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_act_statement_intro)
+                .expect("the isolated Act intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_act_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            let _ = is_cut;
+            (range, remainder, root, recoveries)
+        }
+
+        struct Case {
+            item: &'static str,
+            expected: ExpectedStatement,
+        }
+
+        // These are precisely the currently-live canonical Statement cases.
+        // Act remains excluded because Gate 10 has not yet promoted its own
+        // dispatcher arm; nested Act acceptance belongs to that atomic gate.
+        let cases = [
+            Case { item: "our x: Int", expected: ExpectedStatement::Binding },
+            Case { item: "use std::core", expected: ExpectedStatement::Use },
+            Case { item: "mod inner;", expected: ExpectedStatement::Mod },
+            Case { item: "struct S {}", expected: ExpectedStatement::Struct },
+            Case { item: "type Alias = Int", expected: ExpectedStatement::Type },
+            Case { item: "role Inner;", expected: ExpectedStatement::Role },
+            Case { item: "impl Int;", expected: ExpectedStatement::Impl },
+            Case { item: "cast(x: A): B;", expected: ExpectedStatement::Cast },
+            Case { item: "value", expected: ExpectedStatement::Expression },
+        ];
+
+        for form in [BodyForm::Braced, BodyForm::Indented, BodyForm::Inline] {
+            for case in &cases {
+                let source = form.source(case.item);
+                let (ast, ast_remainder) = parse_ast(&source);
+                let (direct_range, direct_remainder, root, recoveries) = commit_direct(&source);
+                assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
+                assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
+                assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+                assert!(recoveries.is_empty(), "inner recovery: {source:?}");
+
+                let ast_matches_expected = match (form, &ast.body) {
+                    (
+                        BodyForm::Braced,
+                        Recovered::Complete(ActBody::Braced { block }),
+                    ) => block.range().start < block.range().end,
+                    (
+                        BodyForm::Indented,
+                        Recovered::Complete(ActBody::Colon {
+                            body: Recovered::Complete(ActColonBody::Indented { block }),
+                            ..
+                        }),
+                    ) => {
+                        let [Recovered::Complete(statement)] = block.statements() else {
+                            panic!("expected one Act indented body statement: {source:?}");
+                        };
+                        case.expected.matches_ast(statement)
+                    }
+                    (
+                        BodyForm::Inline,
+                        Recovered::Complete(ActBody::Colon {
+                            body: Recovered::Complete(ActColonBody::Inline { statement }),
+                            ..
+                        }),
+                    ) => case.expected.matches_ast(statement),
+                    _ => false,
+                };
+                assert!(ast_matches_expected, "AST variant: {source:?}");
+
+                let declaration = root
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::ActDeclaration)
+                    .expect("one ActDeclaration");
+                let direct_owner = match form.direct_block_kind() {
+                    Some(block_kind) => declaration
+                        .children()
+                        .find(|node| node.kind() == block_kind)
+                        .expect("Act body reuses its existing block owner")
+                        .children()
+                        .find(|node| node.kind() == SyntaxKind::Statement)
+                        .expect("one direct canonical Statement"),
+                    None => declaration.clone(),
+                };
+                assert!(
+                    direct_owner
+                        .children()
+                        .any(|node| node.kind() == case.expected.direct_kind()),
+                    "direct variant: {source:?}",
+                );
+                assert!(
+                    !declaration.children().any(|node| matches!(
+                        node.kind(),
+                        SyntaxKind::BindingBody | SyntaxKind::ImplDescription | SyntaxKind::CastBody
+                    )),
+                    "Act has no borrowed or synthetic body wrapper: {source:?}",
+                );
+            }
+        }
+    }
+
+    #[test]
     fn isolated_role_declaration_ast_selects_all_body_forms_and_preserves_boundaries() {
         fn parse(source: &str) -> (RoleDeclaration<'_>, String) {
             let mut source_input = SourceInput::new(source);
