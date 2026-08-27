@@ -13,11 +13,11 @@ use crate::{
     grammar::declaration::{
         BindingDeclaration, CastDeclaration, ImplDeclaration, ModDeclaration, Recovered, StatementIntro, StructDeclaration, TypeDeclaration,
         UseDeclaration,
-        commit_binding_declaration, commit_impl_declaration_isolated, commit_type_declaration,
+        commit_binding_declaration, commit_cast_declaration_isolated, commit_impl_declaration_isolated, commit_type_declaration,
         commit_use_declaration,
         parse_binding_declaration_with_operators,
         commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
-        parse_impl_declaration_isolated, parse_struct_declaration, parse_type_declaration,
+        parse_cast_declaration_form_aware_isolated, parse_impl_declaration_isolated, parse_struct_declaration, parse_type_declaration,
         parse_use_declaration,
         recognize_statement_intro,
     },
@@ -1499,6 +1499,9 @@ where
         Some(StatementIntro::Impl(_)) => i
             .run(from_fn(|i| parse_impl_declaration_isolated(table, i)))
             .map(Statement::Impl),
+        Some(StatementIntro::Cast(_)) => i
+            .run(from_fn(|i| parse_cast_declaration_form_aware_isolated(table, i)))
+            .map(Statement::Cast),
         _ => i.run(from_fn(|i| parse_operator_chain(table, i))).map(Statement::Expression),
     }
 }
@@ -4140,6 +4143,7 @@ where
                     | StatementIntro::Struct(_)
                     | StatementIntro::Type(_)
                     | StatementIntro::Impl(_)
+                    | StatementIntro::Cast(_)
             )
         ) {
             i.rollback(checkpoint);
@@ -4172,8 +4176,9 @@ where
             let _ = commit_impl_declaration_isolated(table, committed, intro);
             true
         }
-        Some(StatementIntro::Cast(_)) => {
-            unreachable!("Cast dispatch is introduced in its Gate 8 promotion")
+        Some(StatementIntro::Cast(intro)) => {
+            let _ = commit_cast_declaration_isolated(table, intro, committed);
+            true
         }
         Some(StatementIntro::Operator(_)) | None => {
             parse_direct_operator_chain(table, leading, committed).is_some()
@@ -4202,6 +4207,7 @@ where
                 | StatementIntro::Struct(_)
                 | StatementIntro::Type(_)
                 | StatementIntro::Impl(_)
+                | StatementIntro::Cast(_)
         )
     );
     i.rollback(checkpoint);

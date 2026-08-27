@@ -384,8 +384,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_impl_declaration_isolated(operators, &mut committed, intro);
                 StatementKind::ImplDeclaration
             }
-            StatementIntro::Cast(_) => {
-                unreachable!("Cast dispatch is introduced in its Gate 8 promotion")
+            StatementIntro::Cast(intro) => {
+                let _ = commit_cast_declaration_isolated(operators, intro, &mut committed);
+                StatementKind::CastDeclaration
             }
             StatementIntro::Operator(intro) => {
                 if matches!(
@@ -655,6 +656,10 @@ where
 
     if let Some(intro) = i.run(recognize_impl_statement_intro) {
         return Some(StatementIntro::Impl(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_cast_statement_intro) {
+        return Some(StatementIntro::Cast(intro));
     }
 
     if binding_statement_selected(&mut i) {
@@ -2066,7 +2071,7 @@ where
 
 /// Gate 4b's isolated, form-aware Cast AST adapter.  It deliberately builds
 /// no CST and remains unreachable from real statement dispatch until Gate 8.
-fn parse_cast_declaration_form_aware_isolated<'source, E>(
+pub(crate) fn parse_cast_declaration_form_aware_isolated<'source, E>(
     table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<CastDeclaration<'source>>
@@ -2567,7 +2572,7 @@ where
 
 /// Gate 5's full direct-CST isolated adapter.  It stays deliberately outside
 /// real statement dispatch until the Gate 8 atomic promotion.
-fn commit_cast_declaration_isolated<'parse, 'source, 'local, E, O>(
+pub(crate) fn commit_cast_declaration_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     intro: CastStatementIntro<'source>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -10774,6 +10779,10 @@ where
         parse_type_declaration.map(Declaration::Type),
         from_fn(|i| parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
             .map(Declaration::Impl),
+        from_fn(|i| {
+            parse_cast_declaration_form_aware_isolated(&crate::operator::OperatorTable::empty(), i)
+        })
+        .map(Declaration::Cast),
         parse_use_declaration.map(Declaration::Use),
         parse_operator_header.map(Declaration::OperatorHeader),
         parse_binding_declaration.map(Declaration::Binding),
@@ -27545,6 +27554,295 @@ mod tests {
                 "one record = one recovery node: {source:?}",
             );
             assert!(expectations.take_merged().is_none(), "full-CST sink: {source:?}");
+        }
+    }
+
+    #[test]
+    fn cast_gate_8_real_dispatch_is_atomic_across_root_and_canonical_owners() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                node_ranges(&direct_root, SyntaxKind::CastDeclaration),
+                "public/direct Cast range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> Range<usize> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Cast(declaration) = i
+                .run(parse_declaration)
+                .expect("the promoted root parser recognizes Cast")
+            else {
+                panic!("the exact Cast intro must win root declaration dispatch")
+            };
+            assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(!is_cut, "root AST cut: {source:?}");
+            declaration.range()
+        }
+
+        // Root promotion selects Declaration::Cast for every body family and
+        // keeps its standalone semicolon / equals ownership exact.
+        for source in [
+            "cast(x): T;",
+            "pub cast(x: A): B = value",
+            "cast(x): T =\n  my value = body",
+        ] {
+            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration), vec![0..source.len()]);
+            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+        }
+
+        // Existing full canonical-Statement owners reach the same promoted
+        // adapter; Catch + With carries the depth-2 ambient-owner route.
+        for source in [
+            "my block = { cast(x): T;\n  my value = 1 }",
+            "cast(x): T =\n  cast(y): U;\n  my value = 1",
+            "my value = base with: cast(x): T;",
+            "mod Outer: cast(x): T;",
+            "my result = case action:\n  A -> value with: cast(x): T;\n  B -> fallback",
+            "my result = catch action {\n  A -> value with: cast(x): T;\n  B -> fallback}",
+            "my result = if condition:\n  cast(x): T;\nelse: fallback",
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert!(!node_ranges(&public, SyntaxKind::CastDeclaration).is_empty(), "owner: {source:?}");
+            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+        }
+
+        // The Cast indented body is a real canonical Statement sequence, not
+        // a Cast-only subgrammar. Every current statement family stays live.
+        let body_source = concat!(
+            "cast(value): T =\n",
+            "  value;\n",
+            "  my item = value;\n",
+            "  use std;\n",
+            "  mod Nested;\n",
+            "  struct NestedStruct;\n",
+            "  type NestedType;\n",
+            "  impl NestedImpl;\n",
+            "  cast(inner): U;",
+        );
+        let (public, direct_root, direct) = parse_public_and_direct(body_source);
+        assert!(direct.committed_recoveries().is_empty());
+        for (kind, count) in [
+            (SyntaxKind::CastDeclaration, 2),
+            (SyntaxKind::BindingStatement, 1),
+            (SyntaxKind::UseDeclaration, 1),
+            (SyntaxKind::ModDeclaration, 1),
+            (SyntaxKind::StructDeclaration, 1),
+            (SyntaxKind::TypeDeclaration, 1),
+            (SyntaxKind::ImplDeclaration, 1),
+        ] {
+            assert_eq!(node_ranges(&public, kind).len(), count, "public {kind:?}");
+            assert_eq!(node_ranges(&direct_root, kind).len(), count, "direct {kind:?}");
+        }
+
+        // Each fixed outer boundary stays with its caller after a completed
+        // Cast target/form episode. Recovery remains Cast-owned and local.
+        for source in [
+            "cast(x): T;\nmy next = 1",
+            "cast(x): T = value; my next = 1",
+            "my block = { cast(x): T;\n  my next = 1 }",
+            "my result = if condition:\n  cast(x): T;\nelse: fallback",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(direct.committed_recoveries().is_empty(), "boundary recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                node_ranges(&direct_root, SyntaxKind::CastDeclaration),
+                "boundary parity: {source:?}",
+            );
+        }
+
+        for (source, kind, role, range) in [
+            (
+                "cast(x): T",
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Cast(CastRole::BodyIntroducer)),
+                10..10,
+            ),
+            (
+                "cast(x): T @;",
+                RecoveryKind::Error,
+                GrammarRole::Declaration(DeclarationRole::Cast(CastRole::BodyIntroducer)),
+                11..12,
+            ),
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration), vec![0..source.len()]);
+            let [record] = direct.committed_recoveries() else {
+                panic!("one promoted Cast recovery expected: {source:?}")
+            };
+            assert_eq!(
+                (record.kind, record.site.role, record.site.range.clone()),
+                (kind, role, range),
+                "typed recovery: {source:?}",
+            );
+        }
+
+        // Recovery uses the same production canonical entry in every owner;
+        // the malformed body-introducer episode cannot consume its following
+        // sibling or ambient companion.
+        for source in [
+            "my block = { cast(x): T @;\n  my value = 1 }",
+            "cast(x): T =\n  cast(y): U @;\n  my value = 1",
+            "my value = base with: cast(x): T @;",
+            "mod Outer: cast(x): T @;",
+            "my result = case action:\n  A -> value with: cast(x): T @;\n  B -> fallback",
+            "my result = catch action {\n  A -> value with: cast(x): T @;\n  B -> fallback}",
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert!(!node_ranges(&public, SyntaxKind::CastDeclaration).is_empty(), "recovery owner: {source:?}");
+            let records: Vec<_> = direct
+                .committed_recoveries()
+                .iter()
+                .filter(|record| {
+                    record.kind == RecoveryKind::Error
+                        && record.site.role
+                            == GrammarRole::Declaration(DeclarationRole::Cast(
+                                CastRole::BodyIntroducer,
+                            ))
+                })
+                .collect();
+            assert_eq!(records.len(), 1, "recovery owner: {source:?}");
+            let start = source.find('@').expect("fixture has one malformed byte");
+            assert_eq!(records[0].site.range, start..start + 1, "recovery owner: {source:?}");
+        }
+
+        // Cast is full-only: header discovery stops before both bare and
+        // visibility-prefixed Cast without projecting a header fact.
+        for source in ["cast(x): T;", "pub cast(x: A): B = value"] {
+            let source: Arc<crate::SourceText> = Arc::from(source);
+            let header = crate::scan_header(source);
+            assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+            assert_eq!(header.coverage().range(), &(0..0));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
+        }
+
+        // Gate 8's documented known-residual representatives satisfy all four
+        // predicate conditions. These rows fix their *current* whole-source
+        // behavior (not a successful recovery contract): losslessness and
+        // AST/direct parity still hold, while the shown next candidate remains
+        // local to the unclosed owner rather than becoming an outer statement.
+        for (source, cast_range, statement_count, recovery_ranges) in [
+            (
+                "my result = catch action {\n  A -> value with: cast([x @\n  B -> fallback\n}",
+                46..72,
+                1,
+                &[54..58, 60..63, 72..72, 72..72][..],
+            ),
+            (
+                "my result = catch action:\n  A -> value with: cast((x @\n  B -> fallback",
+                45..70,
+                1,
+                &[
+                    53..54, 54..55, 55..56, 56..57, 57..58, 58..59, 59..60,
+                    60..61, 61..62, 62..63, 63..64, 64..65, 65..66, 66..67,
+                    67..68, 68..69, 69..70, 70..70, 70..70,
+                ][..],
+            ),
+            ("cast({x\nB", 0..9, 0, &[9..9, 9..9][..]),
+            (
+                "my result = case action:\n  A -> value with: cast(x: '[@\n  B -> fallback",
+                44..71,
+                1,
+                &[54..55, 71..71, 71..71][..],
+            ),
+            ("cast(x): '[A\nB", 0..14, 0, &[14..14, 14..14][..]),
+            (
+                "my result = case value: A -> value with: cast([x @, B -> fallback",
+                41..65,
+                1,
+                &[49..52, 54..57, 65..65, 65..65][..],
+            ),
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                vec![cast_range],
+                "known residual Cast range: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::Statement).len(),
+                statement_count,
+                "known residual outer candidate discovery: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::Statement).len(),
+                statement_count,
+                "known residual direct outer candidate discovery: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public)
+                    .into_iter()
+                    .map(|(_, range)| range)
+                    .collect::<Vec<_>>(),
+                recovery_ranges,
+                "known residual public recovery: {source:?}",
+            );
+            assert_eq!(
+                direct
+                    .committed_recoveries()
+                    .iter()
+                    .map(|record| record.site.range.clone())
+                    .collect::<Vec<_>>(),
+                recovery_ranges,
+                "known residual direct recovery: {source:?}",
+            );
         }
     }
 
