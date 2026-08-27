@@ -4,8 +4,5 @@
 
 - [Pattern core と parenthesized pattern](pattern-core.md)
 - [List pattern](list-pattern.md)
-
-未執筆の要素:
-
-- Record pattern
-- Trailing `Pattern : TypeExpression` annotation
+- [Record pattern](record-pattern.md)
+- [Trailing `Pattern : TypeExpression` annotation](type-annotation.md)

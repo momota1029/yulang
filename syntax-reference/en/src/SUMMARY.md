@@ -12,6 +12,8 @@
 - [Overview (not yet authored)](patterns/index.md)
 - [Pattern core and parenthesized patterns](patterns/pattern-core.md)
 - [List patterns](patterns/list-pattern.md)
+- [Record patterns](patterns/record-pattern.md)
+- [Trailing `Pattern : TypeExpression` annotations](patterns/type-annotation.md)
 
 # Types
 

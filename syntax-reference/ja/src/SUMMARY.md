@@ -12,6 +12,8 @@
 - [一覧（未執筆）](patterns/index.md)
 - [Pattern core と parenthesized pattern](patterns/pattern-core.md)
 - [List pattern](patterns/list-pattern.md)
+- [Record pattern](patterns/record-pattern.md)
+- [Trailing `Pattern : TypeExpression` annotation](patterns/type-annotation.md)
 
 # Types
 

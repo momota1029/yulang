@@ -4,8 +4,5 @@ Authored pages:
 
 - [Pattern core and parenthesized patterns](pattern-core.md)
 - [List patterns](list-pattern.md)
-
-Not yet authored:
-
-- Record pattern
-- Trailing `Pattern : TypeExpression` annotation
+- [Record patterns](record-pattern.md)
+- [Trailing `Pattern : TypeExpression` annotations](type-annotation.md)
