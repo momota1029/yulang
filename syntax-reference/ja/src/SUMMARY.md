@@ -8,6 +8,8 @@
 - [一覧（未執筆）](expressions/index.md)
 - [Parenthesized expression list](expressions/parenthesized-expression.md)
 - [Dynamic operator chain](expressions/operator-chain.md)
+- [Colon application](expressions/colon-application.md)
+- [`if` / `elsif` / `else` expression](expressions/if-expression.md)
 
 # Patterns
 
