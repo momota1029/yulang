@@ -181,17 +181,21 @@ driver rewrite・active-newline境界バグ修正を含む)とbracket row gramma
 
 これで`statements/`(7/7)・`patterns/`(4/4)・`types/`(6/6)の3 familyが完成。
 
-### expressions/ family: 8/9完了(2026-08-27、push済み)
+### expressions/ family: 9/9完成(2026-08-27、push済み)
 
 ユーザから「3時間は自由に動いていい、一切承認する」と権限付与を受け、質問なしで
 連続実行中。parenthesized-expression + operator-chain → colon-application +
 if-expression → braced-statement-block + case-catch → call/field/path/ML-application
-tails + index/projection tailsの4バッチで8/9完了(commit `f5c3554f`〜`7251863a`)。
-call/field/path/MLとindex/projectionは隣接する2つのfixed-tail addendum
-(design doc 9695–10182 / 10184–10660)で、Codexは正しくpage単位を分離した
-(内容を無理に1ページへ統合しなかった)。実装関数26件・fixture 14件・commit
-hash 13件・AST struct/enum 12種を独立検証、誤りゼロ。残り1要素(WithBodyTail)、
-続けて`cross-cutting/`(4要素)。
+tails + index/projection tails → WithBodyTailの5バッチで完走(commit
+`f5c3554f`〜`ded1788d`)。call/field/path/MLとindex/projectionは隣接する2つの
+fixed-tail addendum(design doc 9695–10182 / 10184–10660)で、Codexは正しく
+page単位を分離した(内容を無理に1ページへ統合しなかった)。WithBodyTailは
+declaration companionではなくgeneric-expression terminal tail専用の単一addendum
+(10662–11085)と正確に確認。実装関数34件・fixture 17件・commit hash 15件・
+AST struct/enum 13種を独立検証、誤りゼロ。
+
+これで`statements/`(7/7)・`patterns/`(4/4)・`types/`(6/6)・`expressions/`(9/9)の
+4 familyが完成、英日52ページ。残り`cross-cutting/`(4要素、未着手)。
 
 各elementページの11節template: Status/正本/last-verified commit → Scope →
 BNF grammar → judge/priority/owner boundary → byte-exact CST worked example →
