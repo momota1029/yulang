@@ -10,7 +10,4 @@
 - [`case` / `catch` expression](case-catch.md)
 - [Call / field / path / ML-application tail](call-field-path-tails.md)
 - [Index / projection tail](index-projection-tails.md)
-
-未執筆の要素:
-
-- `WithBodyTail`
+- [`WithBodyTail`](with-body-tail.md)

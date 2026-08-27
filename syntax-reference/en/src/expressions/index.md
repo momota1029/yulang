@@ -10,7 +10,4 @@ Authored pages:
 - [`case` / `catch` expressions](case-catch.md)
 - [Call, field, path, and ML-application tails](call-field-path-tails.md)
 - [Index and projection tails](index-projection-tails.md)
-
-Not yet authored:
-
-- `WithBodyTail`
+- [`WithBodyTail`](with-body-tail.md)

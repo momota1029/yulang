@@ -14,6 +14,7 @@
 - [`case` / `catch` expressions](expressions/case-catch.md)
 - [Call, field, path, and ML-application tails](expressions/call-field-path-tails.md)
 - [Index and projection tails](expressions/index-projection-tails.md)
+- [`WithBodyTail`](expressions/with-body-tail.md)
 
 # Patterns
 
