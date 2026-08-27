@@ -27847,6 +27847,182 @@ mod tests {
     }
 
     #[test]
+    fn cast_gate_9_final_public_boundary_matrix_closes_scope_and_parity() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn identifier_tokens(root: &SyntaxNode, text: &str) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.text() == text)
+                .map(|token| {
+                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    syntax_range(token.text_range())
+                })
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                node_ranges(&direct_root, SyntaxKind::CastDeclaration),
+                "public/direct Cast range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> Range<usize> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Cast(declaration) = i
+                .run(parse_declaration)
+                .expect("the final root matrix starts with Cast")
+            else {
+                panic!("the exact Cast intro must select Declaration::Cast")
+            };
+            assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            declaration.range()
+        }
+
+        // Re-audit all visibility forms, canonical Pattern shapes, full/exotic
+        // targets, and each body family through public and direct root entry.
+        for (source, cast_count) in [
+            ("cast(x): T;", 1),
+            ("my cast(x: A): B = value", 1),
+            ("our cast({x = value}): '[A; B] T;", 1),
+            ("pub cast([x]): (A -> B) = value", 1),
+            ("cast(x: A): B =\n  value;\n  my nested = value;\n  cast(y): C;", 2),
+        ] {
+            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(direct.committed_recoveries().is_empty(), "success recovery: {source:?}");
+            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration).len(), cast_count);
+            assert_eq!(node_ranges(&direct_root, SyntaxKind::CastDeclaration).len(), cast_count);
+        }
+
+        // Re-run Gate 8's already-proven public interleaving and ambient
+        // boundaries without introducing another context family here.
+        for source in [
+            "cast(x): T;\nmy next = 1",
+            "my value = base with: cast(x): T;",
+            "mod Outer: cast(x): T;",
+            "my result = case action:\n  A -> value with: cast(x): T;\n  B -> fallback",
+            "my result = catch action {\n  A -> value with: cast(x): T;\n  B -> fallback}",
+            "my result = if condition:\n  cast(x): T;\nelse: fallback",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(direct.committed_recoveries().is_empty(), "outer boundary: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                node_ranges(&direct_root, SyntaxKind::CastDeclaration),
+                "outer boundary parity: {source:?}",
+            );
+        }
+
+        // Every remaining ordinary recovery family is success-covered here;
+        // none of these has the four-condition known-residual predicate.
+        for source in [
+            "cast x): B;",
+            "cast(@): B;",
+            "cast(x @): B;",
+            "cast(x: A: B;",
+            "cast(x) B;",
+            "cast(x: A);",
+            "cast(x): ;",
+            "cast(x): @;",
+            "cast(x: A): B",
+            "cast(x: A): B @;",
+            "cast(x: A): B =",
+            "cast(x: A): B = @;",
+            "cast(x: A): B =\n  @",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration).len(), 1, "recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                node_ranges(&direct_root, SyntaxKind::CastDeclaration),
+                "recovery range parity: {source:?}",
+            );
+            assert!(!direct.committed_recoveries().is_empty(), "recovery expected: {source:?}");
+        }
+
+        // `cast` is contextual: only a real declaration intro owns it. These
+        // public-entrypoint cases cover expression, field, Pattern, and
+        // TypeExpression positions without fabricating a Cast declaration.
+        for source in [
+            "my value = cast",
+            "struct Fields { cast: Int }",
+            "my result = case value: cast -> output",
+            "type Alias = (cast Value)",
+        ] {
+            let (public, direct_root, _) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::CastDeclaration).is_empty(),
+                    "no CastDeclaration outside an accepted Statement slot: {source:?}",
+                );
+                assert!(
+                    !identifier_tokens(root, "cast").is_empty(),
+                    "ordinary cast identifier: {source:?}",
+                );
+            }
+        }
+
+        // Gate 8's six known-residual representatives remain deliberately
+        // untouched and are re-run by their own unmodified fixture above.
+        // This gate neither normalizes them nor extends their exemption.
+    }
+
+    #[test]
     fn isolated_impl_declaration_restores_full_boundary_state_before_promotion() {
         const IF_WORDS: &[&str] = &["elsif", "else"];
 
