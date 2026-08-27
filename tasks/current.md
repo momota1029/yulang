@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-27（後半）
+更新: 2026-08-27（cast宣言13 gate完走）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -38,15 +38,27 @@
   共有TypeExpression episode機構自体は無傷)。Type-attached `impl`・`with:` companion・
   Type colon/brace role-like body・Impl-specific `via`は別addendumへ明示的にdefer。
 - standalone `cast`宣言文法(CAST-G/J/T/R、13 gate計画)がAuthoritative化済み(2026-08-27)、
-  実装は未着手。yulang2の`cast(x: from_ty): to_ty = body`構文を土台に設計。独立レビュー
+  同日中に全13 gate(1・2・3a-i/ii/iii・3b・4a/4b・5・6・7・8・9)を実装・push完了、511
+  tests green。yulang2の`cast(x: from_ty): to_ty = body`構文を土台に設計。設計レビューは
   11巡を要した(derives 5巡・impl-shell 3巡より大幅に多い)——CastのPattern-slot recovery
   がPattern annotation・nested delimiter・arm-sequence newline authorityと絡む部分が
   難所で、round 4〜7は既知residualの正確な境界線を閉じた表からcondition-based記述へ
   転換する過程、round 8〜10はGate 3の実装契約(shared driver・outer_stops伝播範囲)の
-  精密化だった。副産物でPattern本体の既存バグ(`ParenthesizedPattern`のAST/direct
-  不一致、`c852d878`まで遡る既存gap)も発見し、Gate 3a-ii(neutral convergence)として
-  修正計画に組み込み済み。Cast-specific `via`・rule登録・暗黙変換適用・expected-type
-  境界処理・coherence・HIR/resolver/inference/formatterは明示的にscope外。
+  精密化だった。実装でもGate 3bが7回の委譲(Terra 5回連続非収束→Sol xhighへエスカレーション)
+  を要した最難関gateで、`cast((x @): B;`のようなnested Parenthesized回復後にCast自身の
+  target colonがPattern本体の型注釈へ誤飲込まれる本質的な合成バグを発見・解決
+  (`PatternMandatorySlotPolicy`に`recovered_primary_tail_stops`フィールドを追加)。
+  副産物でPattern本体の既存バグ(`ParenthesizedPattern`のAST/direct不一致、`c852d878`
+  まで遡る既存gap)も発見し、Gate 3a-iiで修正。Gate 4aでBinding-style body layout
+  decisionを`classify_binding_style_body_layout`/`parse_binding_style_body`/
+  `commit_binding_style_body`として中立化、derives/implに続く3例目の共有infra切り出し。
+  Gate 8(atomic dispatch promotion)は`recognize_statement_intro`のImpl後/Binding前へ
+  挿入、既存non-Cast優先順位・fixtureは無傷。Cast-specific `via`・rule登録・暗黙変換適用・
+  expected-type境界処理・coherence・HIR/resolver/inference/formatterは明示的にscope外
+  (Gate 9でworkspace全体grepにより未実装を確認済み)。既知residual(caller boundary hidden
+  behind a missing Cast-contained Pattern/TypeExpression delimiter、four-condition
+  predicate)はGate 8/9で6件のrepresentative fixtureとしてcharacterize済み・未解決のまま
+  残す方針(closed tableではなくcondition-based)。
 
 ## 既知の未修正バグ
 
@@ -57,15 +69,11 @@
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
-0. **standalone `cast`宣言の実装(13 gate)**: Authoritative設計済み・未着手。derivesの
-   Gate 1a・impl shellの実装パターン(isolated harness→atomic promotion)を踏襲。
-   Gate 3a-ii(Parenthesized close-recovery neutral convergence)はPattern本体の
-   pre-existing bug修正を兼ねるため、他gateより先に着手する価値がある。
 1. **standalone `TypeExpression`の各use-site配線(残り)**: role signature・where節・
-   act signature。pattern型注釈・struct field・cast(設計完了)は完了、残り3件が本体作業。
+   act signature。pattern型注釈・struct field・cast(実装完了)は完了、残り3件が本体作業。
 2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/`role`/
    `act`/`for`文/declaration-level `where`/doc-comment宣言。`type`/`struct`/`mod`/
-   `impl`(shellのみ)/`cast`(設計完了、実装待ち)/演算子定義は完了・設計完了。
+   `impl`(shellのみ)/`cast`/演算子定義は完了。
    derives・impl・castが着地した今、role/impl/enum系のownerがそれらの共有driverを
    どこまで再利用できるか、着手前に要調査。
 3. **grammar/CST/エラー回復の正規化サイト**(下記TODO参照)。
@@ -73,6 +81,11 @@
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
    相対的な実装順序は未決定。
+5. **Cast known-residualの一般化解消**: 追補が明示的に別addendum送りにした、caller
+   boundary hidden behind a missing nested delimiterというcondition-based residual
+   family(ASOB追補由来、Castで再確認)。nested Pattern/TypeExpressionへのcaller
+   boundary伝播・missing delimiter・local candidate/same-spelling separator priorityを
+   一般化する新しいsigned addendumが必要。
 
 ## TODO: 文法・CSTをエラー含めて完全に規格化するサイトを作る
 
