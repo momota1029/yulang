@@ -935,6 +935,7 @@ define_stop_kinds!(
     Derives,
     Via,
     LeftParenthesis,
+    Pipe,
 );
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -967,6 +968,8 @@ pub(crate) enum TypeDelimitedOwner {
     BracketRow,
     PolymorphicVariant,
     StructNamedFields,
+    VariantNamedPayload,
+    VariantTuplePayload,
 }
 
 /// Operator-independent regions whose terminators suspend outer layout rules.
@@ -1091,6 +1094,7 @@ pub(crate) enum DeclarationRole {
     Binding(BindingRole),
     Mod(ModRole),
     Struct(StructRole),
+    Enum(EnumDeclarationRole),
     Type(TypeDeclarationRole),
     Role(RoleDeclarationRole),
     Impl(ImplRole),
@@ -1122,6 +1126,7 @@ pub(crate) enum StatementKind {
     BindingDeclaration,
     ModDeclaration,
     StructDeclaration,
+    EnumDeclaration,
     TypeDeclaration,
     RoleDeclaration,
     ImplDeclaration,
@@ -1162,6 +1167,28 @@ pub(crate) enum StructRole {
     FieldColon,
     FieldType,
     FieldSeparator,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum EnumDeclarationRole {
+    Name,
+    BodyIntroducer,
+    Variant(VariantDeclarationRole),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum VariantDeclarationRole {
+    Item,
+    Name,
+    Separator,
+    FromType,
+    PositionalPayload,
+    NamedField,
+    NamedFieldName,
+    NamedFieldColon,
+    NamedFieldType,
+    NamedFieldSeparator,
+    TupleFieldType,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1236,6 +1263,9 @@ pub(crate) enum ConstructRole {
     PolymorphicVariantType,
     StructNamedFields,
     StructTupleFields,
+    EnumBracedVariantBody,
+    VariantNamedPayload,
+    VariantTuplePayload,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1975,7 +2005,7 @@ mod tests {
     }
 
     #[test]
-    fn stop_set_widening_preserves_existing_bits_and_appends_derives_vocabulary() {
+    fn stop_set_widening_preserves_existing_bits_and_appends_declaration_vocabulary() {
         let expected = [
             StopKind::Newline,
             StopKind::Comma,
@@ -1995,6 +2025,7 @@ mod tests {
             StopKind::Derives,
             StopKind::Via,
             StopKind::LeftParenthesis,
+            StopKind::Pipe,
         ];
         assert_eq!(StopKind::ALL, expected.as_slice());
         for (bit, stop) in StopKind::ALL.iter().copied().enumerate() {

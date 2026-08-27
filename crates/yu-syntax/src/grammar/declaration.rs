@@ -72,6 +72,7 @@ pub(crate) enum Declaration<'source> {
     OperatorHeader(OperatorHeaderDeclaration<'source>),
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
+    Enum(EnumDeclaration<'source>),
     Type(TypeDeclaration<'source>),
     Role(RoleDeclaration<'source>),
     Impl(ImplDeclaration<'source>),
@@ -107,6 +108,8 @@ pub(crate) enum StatementIntro<'source> {
     Operator(OperatorStatementIntro<'source>),
     Mod(ModStatementIntro<'source>),
     Struct(StructStatementIntro<'source>),
+    #[allow(dead_code)]
+    Enum(EnumStatementIntro<'source>),
     Type(TypeStatementIntro<'source>),
     #[allow(dead_code)]
     Role(RoleStatementIntro<'source>),
@@ -213,6 +216,20 @@ pub(crate) struct StructStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     struct_keyword: WordSpan<'source>,
     struct_base: usize,
+}
+
+/// The sink-free prefix reserved for standalone Enum declarations.
+///
+/// Gate 1 carries this source shape only. Gate 2 supplies recognition, and
+/// Gate 11 connects it to shared statement dispatch.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EnumStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    enum_keyword: WordSpan<'source>,
+    enum_base: usize,
 }
 
 /// The sink-free prefix reserved for the shared Type-declaration judge.
@@ -411,6 +428,9 @@ fn parse_direct_root_candidate_with_local(
             StatementIntro::Struct(intro) => {
                 let _ = commit_struct_declaration(&mut committed, intro);
                 StatementKind::StructDeclaration
+            }
+            StatementIntro::Enum(_) => {
+                unreachable!("Enum dispatch is introduced in its Gate 11 promotion")
             }
             StatementIntro::Type(intro) => {
                 let _ = commit_type_declaration(&mut committed, intro);
@@ -630,6 +650,10 @@ where
             return None;
         }
         StatementIntro::Struct(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::Enum(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -6291,6 +6315,7 @@ where
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DerivesAttachmentOwner {
     Struct,
+    Enum,
     Type,
 }
 
@@ -6338,6 +6363,9 @@ impl DerivesDriverSpec {
             }
             (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Trailing) => {
                 DerivesOwnerTailClassifier::StructTrailing
+            }
+            (DerivesAttachmentOwner::Enum, _) => {
+                unreachable!("Enum derives ownership is introduced in its Gate 4 integration")
             }
             (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Header) => {
                 DerivesOwnerTailClassifier::TypeHeader
@@ -12239,6 +12267,112 @@ impl StructDeclaration<'_> {
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
     }
+}
+
+/// A standalone Enum declaration shared by root and canonical Statements.
+///
+/// Gate 1 establishes only the approved AST shape. Recognition, variant
+/// parsing, and body parsing remain unreachable until their later dedicated
+/// gates.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EnumDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
+    body: Recovered<EnumBody<'source>>,
+    range: Range<usize>,
+}
+
+impl EnumDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum EnumBody<'source> {
+    Bodyless {
+        semicolon: Option<Range<usize>>,
+    },
+    Braced(EnumBracedBody<'source>),
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<EnumIndentedVariantBody<'source>>,
+    },
+    Equals {
+        equals: Range<usize>,
+        body: Recovered<EnumEqualsVariantBody<'source>>,
+    },
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EnumBracedBody<'source> {
+    open: Range<usize>,
+    variants: Vec<Recovered<EnumVariant<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum EnumEqualsVariantBody<'source> {
+    Inline {
+        variants: Vec<Recovered<EnumVariant<'source>>>,
+        trailing_pipe: Option<Range<usize>>,
+        range: Range<usize>,
+    },
+    Indented(EnumIndentedVariantBody<'source>),
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EnumIndentedVariantBody<'source> {
+    base_indent: usize,
+    block_indent: usize,
+    variants: Vec<Recovered<EnumVariant<'source>>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EnumVariant<'source> {
+    name: Recovered<WordSpan<'source>>,
+    payload: EnumVariantPayload<'source>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum EnumVariantPayload<'source> {
+    Unit,
+    From {
+        keyword: Range<usize>,
+        type_expr: Recovered<Box<TypeExpression<'source>>>,
+        range: Range<usize>,
+    },
+    Named {
+        open: Range<usize>,
+        fields: Vec<Recovered<StructNamedField<'source>>>,
+        trailing_comma: Option<Range<usize>>,
+        close: Recovered<Range<usize>>,
+        range: Range<usize>,
+    },
+    Tuple {
+        open: Range<usize>,
+        fields: Vec<Recovered<StructTupleField<'source>>>,
+        trailing_comma: Option<Range<usize>>,
+        close: Recovered<Range<usize>>,
+        range: Range<usize>,
+    },
+    Positional {
+        types: Vec<Recovered<Box<TypeExpression<'source>>>>,
+        range: Range<usize>,
+    },
 }
 
 /// A parser-side Type declaration.  Its form remains syntax-only: alias,

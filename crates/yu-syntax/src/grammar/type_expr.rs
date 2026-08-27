@@ -7,7 +7,7 @@ mod polymorphic_variant;
 
 use std::{marker::PhantomData, ops::Range, sync::Arc};
 
-use chasa::{Back as _, ErrorSink, Input as _, error::std::{Unexpected, UnexpectedEndOfInput}, prelude::from_fn};
+use chasa::{Back as _, ErrorSink, Input as _, error::std::{Unexpected, UnexpectedEndOfInput}, prelude::{from_fn, item}};
 
 use crate::{
     grammar::{
@@ -2264,6 +2264,9 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::StructNamedFields => {
                 unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
             }
+            TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
+                unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
+            }
         }
     }
 
@@ -2277,6 +2280,9 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantTagSeparator,
             TypeDelimitedOwner::StructNamedFields => {
                 unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+            }
+            TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
+                unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
             }
         }
     }
@@ -2294,12 +2300,18 @@ impl TypeDelimitedSpec {
                 TypeDelimitedOwner::StructNamedFields => {
                     unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
                 }
+                TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
+                    unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
+                }
             },
             matching_kind: self.shape.close_kind(),
             missing_after_mismatch: match self.owner {
                 TypeDelimitedOwner::EffectRow => MissingAfterMismatch::Suppress,
                 TypeDelimitedOwner::StructNamedFields => {
                     unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+                }
+                TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
+                    unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
                 }
                 _ => MissingAfterMismatch::Emit,
             },
@@ -4601,6 +4613,13 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     if punctuation.kind() == PunctuationKind::Semicolon { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
 }
 
+fn scan_exact_pipe<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let start = i.pos();
+    i.skip(item('|'))?;
+    Some(start..i.pos())
+}
+
 fn scan_exact_colon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
@@ -5539,6 +5558,7 @@ where
         StopKind::Derives => i.run(scan_word).is_some_and(|word| word.text() == "derives"),
         StopKind::Via => i.run(scan_word).is_some_and(|word| word.text() == "via"),
         StopKind::LeftParenthesis => scan_open_parenthesis(i).is_some(),
+        StopKind::Pipe => scan_exact_pipe(i).is_some(),
     };
     i.rollback(checkpoint);
     pending
