@@ -91,7 +91,9 @@
 ## 文法・CSTをエラー含めて完全に規格化するサイト(`syntax-reference/`、pilot稼働中)
 
 ユーザ指示(2026-08-23)で起票、2026-08-27にスコープ確定・pilot実装・push完了
-(commit `cc25bc2e`)。
+(commit `cc25bc2e`)。同日中に英語版・日本語版の並行構成へ再編(commit `6edb534d`)
+——ユーザ指示「英語版と日本語版が欲しい。英語版の方があなたは参照しやすい。
+日本語版の方は私が読みやすい」。
 
 ### 決定事項(2026-08-27、AskUserQuestionで確定)
 
@@ -106,24 +108,36 @@
   半自動抽出。Codex(Terra、要素ごとの内容は正本から機械的に転記する作業のため)が
   1ページずつ執筆し、Claudeが実装ファイル・commit履歴と照合してfaithfulness検証する
   運用。
+- 多言語化: gettext系(`mdbook-i18n-helpers`)は採用せず、`en/`・`ja/`それぞれ
+  独立した軽量mdBook bookとして持つ(共有SUMMARY/翻訳同期の仕組みなし)。両言語とも
+  独立して正本を要約し、機械翻訳の下訳にしない。`en/`は将来のClaude/Codex
+  セッションの横断参照用、`ja/`はユーザの読解用。
 
 ### サイト構成
 
 ```text
 syntax-reference/
-  book.toml
-  README.md
-  src/
-    SUMMARY.md
-    index.md
-    conventions/   # Parser共通規約(trivia/range/AST-direct parity等、stub)
-    expressions/
-    patterns/
-    types/
-    statements/     # pilot: bare-nominal-type.md 完成
-    cross-cutting/
-    indexes/
+  README.md          # bilingual概要、build/serve手順
+  en/
+    book.toml         # language = "en"
+    src/
+      SUMMARY.md
+      index.md
+      conventions/   # Parser共通規約(trivia/range/AST-direct parity等、stub)
+      expressions/
+      patterns/
+      types/
+      statements/     # pilot: bare-nominal-type.md 完成
+      cross-cutting/
+      indexes/
+  ja/
+    book.toml         # language = "ja"
+    src/               # en/と同じ構造、日本語
 ```
+
+ページ追加時は、`en/`・`ja/`両方に同じelementの11節ページを別々に執筆する
+(翻訳ではなく、同じ正本事実を各言語で独立に書く)。引用するcommit hash・関数名・
+test名の集合が両言語で一致することをClaudeが照合する運用(pilotで確立済み)。
 
 各elementページの11節template: Status/正本/last-verified commit → Scope →
 BNF grammar → judge/priority/owner boundary → byte-exact CST worked example →
