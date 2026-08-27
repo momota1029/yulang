@@ -1348,6 +1348,124 @@ where
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ActHeadTypeExpressionEpisodeSpec {
+    stops: StopSet,
+    scoped_frame: TypeExpressionScopedStopFrame,
+    policy: TypeExpressionEpisodePolicy,
+    outer_role: GrammarRole,
+}
+
+/// One outer Act head owns its source/body punctuation only in its logical
+/// TypeExpression episode. Recursive TypeExpression episodes retain the raw
+/// stop bits while the scoped frame suspends Act's authority there.
+fn act_head_type_expression_episode_spec(
+    incoming: StopSet,
+    current_episode_depth: usize,
+) -> ActHeadTypeExpressionEpisodeSpec {
+    let scoped_stops = StopSet::default()
+        .with(StopKind::Equal)
+        .with(StopKind::Colon)
+        .with(StopKind::LeftBrace)
+        .with(StopKind::Semicolon);
+    ActHeadTypeExpressionEpisodeSpec {
+        stops: incoming
+            .with(StopKind::Equal)
+            .with(StopKind::Colon)
+            .with(StopKind::LeftBrace)
+            .with(StopKind::Semicolon),
+        scoped_frame: TypeExpressionScopedStopFrame {
+            stops: scoped_stops,
+            visible_episode_depth: current_episode_depth + 1,
+        },
+        policy: TypeExpressionEpisodePolicy {
+            fresh_primary_locally_owned_stops: StopSet::default(),
+            fresh_primary_owns_adjacent_polymorphic_variant_starter: true,
+        },
+        outer_role: GrammarRole::Declaration(DeclarationRole::Act(
+            crate::session::ActDeclarationRole::Head,
+        )),
+    }
+}
+
+fn parse_required_act_head_type_expression_isolated<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode = act_head_type_expression_episode_spec(
+        i.local.stop_set().unwrap_or_default(),
+        i.local.type_expression_episode_depth(),
+    );
+    i.local.push_stop_set(episode.stops);
+    i.local
+        .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    let parsed = i
+        .run(from_fn(|i| {
+            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
+                Some(episode.outer_role),
+                episode.policy,
+                i,
+            ))
+        }))
+        .expect("the mandatory Act head TypeExpression entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(episode.scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    match parsed {
+        Recovered::Complete(parsed) => Recovered::Complete(Box::new(parsed)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    }
+}
+
+fn commit_required_act_head_type_expression_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode = committed.probe(|probe| {
+        let i = probe.input();
+        act_head_type_expression_episode_spec(
+            i.local.stop_set().unwrap_or_default(),
+            i.local.type_expression_episode_depth(),
+        )
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(episode.stops);
+        i.local
+            .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    });
+    let parsed = commit_direct_type_expression_with_outer_missing_role_and_policy(
+        Some(episode.outer_role),
+        episode.policy,
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(episode.scoped_frame),
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    });
+    let range = parsed.range();
+    if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    }
+}
+
 /// Parses one accepted Role continuation without making Role reachable from
 /// the public statement dispatcher.  The prefix, head episode, and body
 /// punctuation each retain their own authority so Gate 9 can promote this
@@ -28476,6 +28594,438 @@ mod tests {
         // Normal and malformed paths may both be rolled back as a caller
         // transaction after restoring every outer ParseLocal frame.
         for source in ["Eq;", "@:{ A };"] {
+            let result = parse_slot(source);
+            assert!(result.range.is_some(), "rollback parse: {source:?}");
+            assert_eq!(result.remainder, source, "rollback remainder: {source:?}");
+        }
+    }
+
+    #[test]
+    fn act_head_type_expression_episode_is_phase_exact_nested_and_state_balanced() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct SlotResult {
+            range: Option<Range<usize>>,
+            remainder: String,
+            recoveries: Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
+        }
+
+        fn prepare_local(with_gate_two_state: bool) -> (
+            ParseLocal,
+            IndentationBaseline,
+            StopSet,
+            TypeExpressionScopedStopFrame,
+            AmbientOwnerScopeFrame,
+            AmbientOwnerScopeFrame,
+            IfExpressionCompanionId,
+        ) {
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: 2,
+                kind: IndentationBaselineKind::Block,
+            };
+            let incoming = StopSet::default().with(StopKind::RightBracket);
+            let scoped_stops = StopSet::default().with(StopKind::Semicolon);
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(incoming);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(with_gate_two_state);
+            local.set_ml_arg(with_gate_two_state);
+            local.set_type_ml_arg(with_gate_two_state);
+            local.set_type_malformed_caller_boundary(with_gate_two_state.then_some(
+                TypeMalformedCallerBoundaryFence { trivia_start: 1 },
+            ));
+            let outer_episode =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let outer_frame = TypeExpressionScopedStopFrame {
+                stops: scoped_stops,
+                visible_episode_depth: outer_episode,
+            };
+            local.push_type_expression_scoped_stop_frame(outer_frame);
+            let root = local.push_root_statement_ambient_scope();
+            let inline = local.push_inline_canonical_statement_ambient_scope(
+                InlineStatementOwnerKind::WithBodyTail,
+            );
+            let companion = local.push_if_expression_companion(2, IF_WORDS);
+            (
+                local,
+                baseline,
+                incoming,
+                outer_frame,
+                root,
+                inline,
+                companion,
+            )
+        }
+
+        fn assert_local_restored(
+            local: &ParseLocal,
+            baseline: IndentationBaseline,
+            incoming: StopSet,
+            outer_frame: TypeExpressionScopedStopFrame,
+            root: AmbientOwnerScopeFrame,
+            inline: AmbientOwnerScopeFrame,
+            companion: IfExpressionCompanionId,
+            with_gate_two_state: bool,
+        ) {
+            assert_eq!(local.line(), LineState::default());
+            assert_eq!(local.indentation_baseline(), Some(baseline));
+            assert_eq!(local.stop_set(), Some(incoming));
+            assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(
+                local.expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call),
+            );
+            assert_eq!(local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert_eq!(local.inline(), with_gate_two_state);
+            assert_eq!(local.ml_arg(), with_gate_two_state);
+            assert_eq!(local.type_ml_arg(), with_gate_two_state);
+            assert_eq!(
+                local.type_malformed_caller_boundary(),
+                with_gate_two_state.then_some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+            );
+            assert_eq!(local.type_expression_episode_depth(), 1);
+            assert_eq!(
+                local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![outer_frame],
+            );
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![inline, root],
+            );
+            assert_eq!(
+                local.if_expression_companion().map(|frame| frame.id()),
+                Some(companion),
+            );
+        }
+
+        fn parse_slot(source: &str) -> SlotResult {
+            let mut source_input = SourceInput::new(source);
+            let (mut local, baseline, incoming, outer_frame, root, inline, companion) =
+                prepare_local(true);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let parsed = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let checkpoint = i.checkpoint();
+                let parsed = parse_required_act_head_type_expression_isolated(&mut i);
+                assert_local_restored(
+                    i.local,
+                    baseline,
+                    incoming,
+                    outer_frame,
+                    root,
+                    inline,
+                    companion,
+                    true,
+                );
+                i.rollback(checkpoint);
+                assert_eq!(i.pos(), 0, "AST rollback position: {source:?}");
+                assert_eq!(i.input.remainder(), source, "AST rollback remainder: {source:?}");
+                assert_local_restored(
+                    i.local,
+                    baseline,
+                    incoming,
+                    outer_frame,
+                    root,
+                    inline,
+                    companion,
+                    true,
+                );
+                parsed
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            SlotResult {
+                range: match parsed {
+                    Recovered::Complete(parsed) => Some(parsed.range()),
+                    Recovered::Incomplete => None,
+                },
+                remainder: source_input.remainder().to_owned(),
+                recoveries: Vec::new(),
+            }
+        }
+
+        fn parse_slot_without_rollback(source: &str) -> SlotResult {
+            let mut source_input = SourceInput::new(source);
+            let (mut local, baseline, incoming, outer_frame, root, inline, companion) =
+                prepare_local(false);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let parsed = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_required_act_head_type_expression_isolated(&mut i)
+            };
+            assert_local_restored(
+                &local,
+                baseline,
+                incoming,
+                outer_frame,
+                root,
+                inline,
+                companion,
+                false,
+            );
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            SlotResult {
+                range: match parsed {
+                    Recovered::Complete(parsed) => Some(parsed.range()),
+                    Recovered::Incomplete => None,
+                },
+                remainder: source_input.remainder().to_owned(),
+                recoveries: Vec::new(),
+            }
+        }
+
+        fn commit_slot(source: &str) -> SlotResult {
+            let mut source_input = SourceInput::new(source);
+            let (mut local, baseline, incoming, outer_frame, root, inline, companion) =
+                prepare_local(false);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let probe = Probe::new(i);
+            let mut committed = probe.commit(HeaderOutput::new());
+            let parsed = commit_required_act_head_type_expression_isolated(&mut committed);
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            assert_local_restored(
+                &local,
+                baseline,
+                incoming,
+                outer_frame,
+                root,
+                inline,
+                companion,
+                false,
+            );
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            SlotResult {
+                range: match parsed {
+                    Recovered::Complete(range) => Some(range),
+                    Recovered::Incomplete => None,
+                },
+                remainder,
+                recoveries: output
+                    .committed_recoveries()
+                    .iter()
+                    .map(|record| {
+                        (
+                            record.kind,
+                            record.site.role,
+                            record.site.range.clone(),
+                        )
+                    })
+                    .collect(),
+            }
+        }
+
+        fn assert_complete(source: &str, expected_range: Range<usize>, expected_remainder: &str) {
+            let ast = parse_slot_without_rollback(source);
+            let direct = commit_slot(source);
+            assert_eq!(ast.range, Some(expected_range.clone()), "AST range: {source:?}");
+            assert_eq!(direct.range, Some(expected_range), "direct range: {source:?}");
+            assert_eq!(ast.remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct.remainder, expected_remainder, "direct remainder: {source:?}");
+            assert!(direct.recoveries.is_empty(), "direct recovery: {source:?}");
+        }
+
+        fn assert_missing(source: &str) {
+            let ast = parse_slot_without_rollback(source);
+            let direct = commit_slot(source);
+            assert_eq!(ast.range, None, "AST range: {source:?}");
+            assert_eq!(direct.range, None, "direct range: {source:?}");
+            assert_eq!(ast.remainder, source, "AST remainder: {source:?}");
+            assert_eq!(direct.remainder, source, "direct remainder: {source:?}");
+            assert_eq!(
+                direct.recoveries,
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Declaration(DeclarationRole::Act(
+                        crate::session::ActDeclarationRole::Head,
+                    )),
+                    0..0,
+                )],
+                "direct recovery: {source:?}",
+            );
+        }
+
+        // Bare form punctuation belongs to Act's later source/body judge;
+        // adjacent `:{` remains the one fresh-primary exception.
+        assert_complete(":{ A }= Source", 0..6, "= Source");
+        for source in ["=", ":", ": { A }", "{ x: Int }"] {
+            assert_missing(source);
+        }
+
+        // The scoped frame is visible after a completed outer head only.
+        for (source, range, remainder) in [
+            ("Eq= Source", 0..2, "= Source"),
+            ("Eq;", 0..2, ";"),
+            ("Eq:{ A }", 0..2, ":{ A }"),
+            ("Eq { x: Int }", 0..2, " { x: Int }"),
+        ] {
+            assert_complete(source, range, remainder);
+        }
+
+        // Completed exotic heads use the same outer stop frame as a bare
+        // identifier head; each Act form starter remains for the next judge.
+        for (head, tail) in [
+            ("({ x: Int })", "= Source"),
+            ("for 'a: A", ";"),
+            ("([derives Eq] T)", " { x: Int }"),
+            ("(:{ A derives Eq })", ": body"),
+        ] {
+            let source = format!("{head}{tail}");
+            assert_complete(&source, 0..head.len(), tail);
+        }
+
+        // Every recursively-owned episode suspends the Act head's stops:
+        // Arrow RHS, Forall body, TypeApply argument, parenthesized/call,
+        // named-record/effect-row/bracket-row, and polymorphic-variant.
+        for source in [
+            "Int -> { x: Int }",
+            "for 'a: { x: Int }",
+            "F ({ x: Int })",
+            "({ x: Int })",
+            "(A; B)",
+            "'[derives Eq]",
+            "([derives Eq] T)",
+            "(:{ A derives Eq })",
+        ] {
+            assert_complete(source, 0..source.len(), "");
+        }
+
+        // Equal is likewise suspended in nested TypeExpression episodes:
+        // these nested malformed forms consume their own `=` rather than
+        // returning it as Act's outer source-clause boundary.
+        for source in [
+            "Int -> { x = Int }",
+            "for 'a: { x = Int }",
+            "F ({ x = Int })",
+            "({ x = Int })",
+            "(A; { x = Int })",
+            "([derives Eq] { x = Int })",
+            "(:{ A = B })",
+        ] {
+            let ast = parse_slot_without_rollback(source);
+            let direct = commit_slot(source);
+            assert_eq!(ast.range, Some(0..source.len()), "AST nested Equal: {source:?}");
+            assert_eq!(direct.range, Some(0..source.len()), "direct nested Equal: {source:?}");
+            assert_eq!(ast.remainder, "", "AST nested Equal: {source:?}");
+            assert_eq!(direct.remainder, "", "direct nested Equal: {source:?}");
+        }
+
+        // ACT-T defines the same depth rule for Arrow RHS, Forall body,
+        // TypeApply argument, parenthesized group, Call, NamedRecord,
+        // EffectRow, BracketRow, and PolymorphicVariant. The raw Equal bit is
+        // present in the frame but inactive at every such nested depth.
+        for nested_owner in [
+            "Arrow RHS",
+            "Forall body",
+            "TypeApply argument",
+            "Parenthesized group",
+            "Call",
+            "NamedRecord",
+            "EffectRow",
+            "BracketRow",
+            "PolymorphicVariant",
+        ] {
+            let mut local = ParseLocal::new();
+            let episode = act_head_type_expression_episode_spec(
+                StopSet::default(),
+                local.type_expression_episode_depth(),
+            );
+            local.push_stop_set(episode.stops);
+            local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+            let outer = local.push_type_expression_episode(episode.policy);
+            assert_eq!(outer, episode.scoped_frame.visible_episode_depth, "{nested_owner}");
+            let mut source_input = SourceInput::new("");
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            assert!(
+                type_stop_is_active_in_current_episode(&i, StopKind::Equal),
+                "outer Equal: {nested_owner}",
+            );
+            drop(i);
+            let nested = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            assert_eq!(nested, outer + 1, "{nested_owner}");
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            assert!(
+                !type_stop_is_active_in_current_episode(&i, StopKind::Equal),
+                "nested Equal: {nested_owner}",
+            );
+            drop(i);
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default()),
+            );
+            assert_eq!(local.pop_type_expression_episode(), Some(episode.policy));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(episode.scoped_frame),
+            );
+            assert_eq!(local.pop_stop_set(), Some(episode.stops));
+        }
+
+        // A malformed outer primary retains TypeRole, then retries the same
+        // slot and reaches Act's outer Equal stop without a cascade.
+        let source = "@:{ A }= Source";
+        let ast = parse_slot_without_rollback(source);
+        let direct = commit_slot(source);
+        assert_eq!(ast.range, Some(1..7));
+        assert_eq!(direct.range, Some(1..7));
+        assert_eq!(ast.remainder, "= Source");
+        assert_eq!(direct.remainder, "= Source");
+        assert_eq!(
+            direct.recoveries,
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                0..1,
+            )],
+        );
+
+        // Normal and malformed paths may both be rolled back as a caller
+        // transaction after restoring every outer ParseLocal frame.
+        for source in ["Eq= Source", "@:{ A }= Source"] {
             let result = parse_slot(source);
             assert!(result.range.is_some(), "rollback parse: {source:?}");
             assert_eq!(result.remainder, source, "rollback remainder: {source:?}");
