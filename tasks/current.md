@@ -195,13 +195,38 @@ declaration companionではなくgeneric-expression terminal tail専用の単一
 AST struct/enum 13種を独立検証、誤りゼロ。
 
 これで`statements/`(7/7)・`patterns/`(4/4)・`types/`(6/6)・`expressions/`(9/9)の
-4 familyが完成、英日52ページ。残り`cross-cutting/`(4要素、未着手)。
+4 familyが完成、英日52ページ。残り`cross-cutting/`(4要素)。
 
 各elementページの11節template: Status/正本/last-verified commit → Scope →
 BNF grammar → judge/priority/owner boundary → byte-exact CST worked example →
 AST shape → typed recovery table → boundary/state-restoration contract →
 yulang2 divergence → known residual/deferred surface → 実装関数・fixture
 cross-reference。
+
+### cross-cutting/ family: 2/4完了(2026-08-27、push済み)
+
+expressions完走直後、残り最終familyへ着手。cross-cuttingのmechanismは単一BNF
+production/単一AST nodeを持たないため、grammar-element用11節templateがそのまま
+使えない——着手前にSol xhigh(document構造判断のため)へ調査+template適応案を
+委任。1回目の応答がtool-level cache TTLエラーでtruncateされたため、続きの
+section(proposed template・ASOB scale recommendation)だけを再送させて全文回収。
+
+適応後のtemplate: section 3(BNF grammar)を"canonical rule and decision
+procedure"、section 6(single AST shape)を"participating parser state and
+adoption matrix"に置換、他9節は既存templateの精神を保持。ASOBは19 gate・
+6 implementation file・design doc約803行と他3件合計より大幅に大きいため、
+main page + `asob-integration-matrix.md`appendixの2ファイル構成をSolが推奨
+(per-gate 19ページ分割は非推奨——gate番号はimplementation sequenceであり
+概念単位ではないため)。
+
+layout-aware-separator-authority(design doc 9314–9693) + TMN(16557–16860、
+`TMN-B/P/C/S`)の2 mechanismを英日で追加(commit `1d028643`)。TMN実装
+commit列(9件)が本セッション既知の「TMN Slice D/E/F/G」タスク群と一致することを
+確認。両page共worked example・function/type名・commit hash全部独立検証で
+誤りゼロ。SUMMARY.mdの"Cross-cutting"を"Cross-cutting mechanisms"へ改名し
+pilot placeholder(概要のみ・未執筆)から実ページ2件へ差し替え。
+
+残り2要素: positional fence(16862–17289)、ASOB(main + appendix)。
 
 ### pilotページの検証結果
 
