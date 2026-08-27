@@ -226,7 +226,16 @@ commit列(9件)が本セッション既知の「TMN Slice D/E/F/G」タスク群
 誤りゼロ。SUMMARY.mdの"Cross-cutting"を"Cross-cutting mechanisms"へ改名し
 pilot placeholder(概要のみ・未執筆)から実ページ2件へ差し替え。
 
-残り2要素: positional fence(16862–17289)、ASOB(main + appendix)。
+続けてpositional fence(design doc 16862–17289、比較appendix 17291–17399、
+実装12 commit)を追加(commit `4e4be29e`)。TMNが「malformed newlineが
+handoffするか」を決め、positional fenceはその「caller owns this
+boundary」という事実をParseLocal-scoped rollback-owned ambient stateとして
+任意の深さのnestingを越えて伝播させる実装権限——旧`caller_owned_boundary`
+bool方式を置換した経緯を正確に反映。worked trace 4件・commit 12件・
+function/type名全部独立検証で誤りゼロ。
+
+残り1要素: ASOB(main page + `asob-integration-matrix.md` appendix、
+Sol推奨の2ファイル構成)。これでcross-cutting/family 3/4完了。
 
 ### pilotページの検証結果
 
