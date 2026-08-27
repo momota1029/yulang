@@ -22864,7 +22864,15 @@ language report、representative standard libraryをsame treeから再確認し�
    unannotated default method（annotationなしの`=`定義）はfold.yuには現れず、次のpoint 5の`fmt.yu`だけが実例を持つ。
    `pub role Index 'container 'key:`はtwo input parameters、
    `type value`、`pub container.index: 'key -> value`を使った
-   （`yulang2-oracle:lib/std/data/index.yu:1-3`）。
+   （`yulang2-oracle:lib/std/data/index.yu:1-3`）。**注記（Gate 5実装時に発見）**: `container.fold` /
+   `container.find` / `container.contains` / `container.each` / `container.index` /
+   `a.show` / `a.say` / `a.dd`はいずれもY2の`Pattern > Ident + Field(DotField)`という
+   identifier + `.field` continuationを使うdotted Binding targetであり、standalone Patternは
+   このcontinuationをまだ実装していない（yu-syntax全体をgrepしてもDotField相当のPattern機能は
+   存在しない）。したがってこのpoint自体はY2 oracleの事実として正確だが、下の
+   worked example（「Generic inputs, associated declaration, and signature」）はこの
+   dotted-target継続を使わないplain identifier targetへ差し替えてある。詳細は
+   「Known residuals and deferred scope」の新規deferred item参照。
 5. `Display` / `Debug`は`pub a.show: str`のrequired signatureと、annotationを省いた
    `pub a.say = ...` / `pub a.dd = ...`のdefault bodyを同じrole bodyに置いた
    （`yulang2-oracle:lib/std/core/fmt.yu:23-30`）。従ってparserはannotation presenceやdefinition absenceを
@@ -23151,31 +23159,35 @@ brace / separator / closeはexisting BracedStatementBlockExpression owner、sign
 
 #### Generic inputs, associated declaration, and signature
 
-oracle source:
+adapted source（oracleの`lib/std/data/index.yu`は`pub container.index: 'key -> value`という
+identifier + `.field`のdotted Binding targetを使うが、standalone Patternはまだこのcontinuation
+（Y2の`DotField`相当）をparseしない——下の「Known residuals and deferred scope」に新規追加した
+deferred item参照。この worked exampleはexisting grammarでparse可能なplain identifier targetへ
+差し替えた）:
 
 ```text
 pub role Index 'container 'key:
     type value
-    pub container.index: 'key -> value
+    pub index: 'key -> value
 ```
 
 byte-exact top-level ownership:
 
 ```text
-RoleDeclaration 0..85
+RoleDeclaration 0..75
   PubKw 0..3 "pub"
   Trivia 3..4 " "
   RoleKw 4..8 "role"
   Trivia 8..9 " "
   TypeExpression 9..30 "Index 'container 'key"
   Colon 30..31 ":"
-  IndentedStatementBlock 31..85
+  IndentedStatementBlock 31..75
     Trivia 31..36 "\n    "
     Statement 36..46
       TypeDeclaration 36..46 "type value"
     Trivia 46..51 "\n    "
-    Statement 51..85
-      BindingStatement 51..85 "pub container.index: 'key -> value"
+    Statement 51..75
+      BindingStatement 51..75 "pub index: 'key -> value"
 ```
 
 head TypeExpressionのsource orderは`Index` primary、`'container` / `'key` TypeApplyArgumentである。bodyの
@@ -23406,6 +23418,13 @@ explicit deferred surfaceは次である。
 - super-role composition、role requirement syntax、role-level / declaration-level `where`。
 - Role-specific `via`、derives attachment owner、companion `with:`、Type colon / brace role-like bodyとのcombined judge。
 - impl conformance、coherence、evidence、HIR / resolver / inference / formatter。
+- **Pattern の identifier + `.field` continuation（Y2の`DotField`相当）。** Y2のrole method signatureは
+  `container.fold`、`container.index`、`a.show`のようなdotted Binding targetを日常的に使うが、standalone
+  Patternはこのcontinuationを実装していない（Gate 5実装時に発見、yu-syntax全体を検索して確認）。本追補は
+  role bodyをexisting canonical Statement / Binding / Patternへcomposeするだけなので、この機能自体は
+  Role追補のscopeではない——Patternの別addendumが必要である。それが未着手の間、Y2 oracleのrole body
+  worked example（`container.fold`等）はplain identifier target（`fold`等）でしか byte-exact round-trip
+  しない。この制約はrole bodyのsemantic member classificationとは別軸であり、syntax-onlyのgapである。
 
 future constructがRole body member subsetを導入する場合も、current `Statement` bytesをpost-parseでrelabelするだけの変更を前提にしない。
 new syntax owner / CST shape / recovery authorityが必要ならseparate addendumで、canonical Statementとのpriorityとmigration boundaryを明記する。
