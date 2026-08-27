@@ -30,7 +30,7 @@ use crate::{
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
-        AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin, BracedStatementBlockRole, ColonApplicationRole,
+        AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin, BracedStatementBlockRole, CastRole, ColonApplicationRole,
         CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
         ExpressionDelimitedOwner,
         IfExpressionCompanionId,
@@ -3148,6 +3148,35 @@ where
     )
 }
 
+/// Reuses the canonical indented statement sequence while preserving the
+/// declaration-specific recovery identity of a Cast definition body.
+pub(crate) fn parse_indented_cast_body<'source, E>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndentedStatementBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            stops_for_if_companion: false,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Cast(
+                CastRole::IndentedStatement,
+            ))),
+        },
+        i,
+    )
+}
+
 pub(crate) fn parse_indented_mod_body<'source, E>(
     table: &OperatorTable,
     opening_trivia: TriviaRun,
@@ -3673,6 +3702,35 @@ pub(crate) fn commit_indented_binding_body<'parse, 'source, 'local, E, O>(
         IndentedStatementBlockOptions {
             stops_for_if_companion: false,
             statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement))),
+        },
+        committed,
+    );
+}
+
+/// Reuses the canonical indented statement sequence while preserving the
+/// declaration-specific recovery identity of a Cast definition body.
+pub(crate) fn commit_indented_cast_body<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            stops_for_if_companion: false,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Cast(
+                CastRole::IndentedStatement,
+            ))),
         },
         committed,
     );

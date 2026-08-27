@@ -15,11 +15,12 @@ use crate::{
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
     grammar::expression::{
         IndentedStatementBlock, OperatorChain, ParsedExpression, commit_indented_binding_body,
+        commit_indented_cast_body,
         commit_indented_impl_body, commit_indented_mod_body,
         Statement, BracedStatementBlockExpression, commit_braced_statement_block_expression,
         commit_canonical_statement, parse_braced_statement_block_expression,
         parse_direct_expression_with_operators, parse_expression_with_operators,
-        parse_indented_binding_body, parse_indented_impl_body, parse_indented_mod_body,
+        parse_indented_binding_body, parse_indented_cast_body, parse_indented_impl_body, parse_indented_mod_body,
         parse_canonical_statement,
     },
     grammar::{
@@ -1247,6 +1248,13 @@ struct ParsedCastSignature<'source> {
     form_handoff: bool,
 }
 
+/// The direct-CST counterpart of [`ParsedCastSignature`].  Keeping the
+/// already-decided form handoff out of the direct form judge means the latter
+/// never re-probes a Pattern or TypeExpression boundary.
+struct CommittedCastSignature {
+    form_handoff: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CommittedCastTargetPhase {
     target: Recovered<Range<usize>>,
@@ -2065,7 +2073,7 @@ where
                 .map(|expression| CastBody::Inline { expression })
         },
         |trivia, block_indent, i| CastBody::Indented {
-            block: parse_indented_binding_body(table, trivia, cast_base, block_indent, i),
+            block: parse_indented_cast_body(table, trivia, cast_base, block_indent, i),
         },
         i,
     )
@@ -2093,14 +2101,144 @@ where
     let errors_checkpoint =
         committed.probe(|probe| probe.input().errors_checkpoint());
     committed.start_node(SyntaxKind::CastDeclaration);
+    let _ = commit_cast_signature_after_intro_isolated(table, &intro, committed);
+    let end = committed.probe(|probe| probe.input().pos());
+    committed.finish_node();
+    committed.probe(|probe| {
+        probe.input().errors_rollback(errors_checkpoint);
+    });
+    Recovered::Complete(intro.start..end)
+}
+
+/// Emits Gate 3b's already-decided Cast prefix without choosing its form.
+/// Both the prefix-only fixture harness and Gate 5's full declaration adapter
+/// call this one continuation so their Pattern/Target ownership stays exact.
+fn commit_cast_signature_after_intro_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    intro: &CastStatementIntro<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> CommittedCastSignature
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
     if let Some(visibility) = &intro.visibility {
         emit_visibility(committed, visibility);
         if let Some(trivia) = &intro.after_visibility { committed.emit_trivia(trivia); }
     }
     committed.token(SyntaxKind::CastKw, intro.cast_keyword.range());
     let pattern = commit_cast_pattern_isolated(table, intro.cast_base, committed);
-    if pattern.handoff == CastPatternHandoff::Target {
-        let _ = commit_cast_target_isolated(intro.cast_base, committed);
+    let form_handoff = match pattern.handoff {
+        CastPatternHandoff::Target => {
+            commit_cast_target_isolated(intro.cast_base, committed).handoff == CastTargetHandoff::Form
+        }
+        CastPatternHandoff::Form => true,
+        CastPatternHandoff::Boundary => false,
+    };
+    CommittedCastSignature { form_handoff }
+}
+
+/// Gate 5's direct-CST form judge.  It shares the Binding-style body layout
+/// decision but owns CastBody emission and Cast-specific recovery identity.
+fn commit_cast_form_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    cast_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        return Recovered::Incomplete;
+    }
+
+    let bodyless = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let semicolon = mod_trivia(cast_base, i)
+            .and_then(|_| i.run(scan_punctuation))
+            .filter(|punctuation| punctuation.kind() == PunctuationKind::Semicolon)
+            .map(|punctuation| punctuation.range());
+        i.rollback(checkpoint);
+        semicolon
+    });
+    if bodyless.is_some() {
+        let trivia = committed
+            .probe(|probe| mod_trivia(cast_base, probe.input()))
+            .expect("the committed bodyless Cast trivia was already classified");
+        committed.emit_trivia(&trivia);
+        let semicolon = commit_character(committed, ';')
+            .expect("the committed bodyless Cast semicolon was already classified");
+        committed.token(SyntaxKind::Semicolon, semicolon.clone());
+        return Recovered::Complete(semicolon.clone());
+    }
+
+    let equals = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let equals = mod_trivia(cast_base, i).and_then(|_| i.run(scan_declaration_exact_equals));
+        i.rollback(checkpoint);
+        equals
+    });
+    if equals.is_none() {
+        return Recovered::Incomplete;
+    }
+    let trivia = committed
+        .probe(|probe| mod_trivia(cast_base, probe.input()))
+        .expect("the committed Cast definition trivia was already classified");
+    committed.emit_trivia(&trivia);
+    let equals = committed
+        .probe(|probe| probe.input().run(scan_declaration_exact_equals))
+        .expect("the committed Cast definition equals was already classified");
+    committed.token(SyntaxKind::Equals, equals.clone());
+
+    let body_start = committed.probe(|probe| probe.input().pos());
+    committed.start_node(SyntaxKind::CastBody);
+    let body = commit_binding_style_body(
+        table,
+        cast_base,
+        GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Body)),
+        |expression| expression.range(),
+        |opening_trivia, block_indent, committed| {
+            commit_indented_cast_body(
+                table,
+                opening_trivia,
+                cast_base,
+                block_indent,
+                committed,
+            );
+            body_start..committed.probe(|probe| probe.input().pos())
+        },
+        committed,
+    );
+    committed.finish_node();
+    let end = match body {
+        Recovered::Complete(range) => range.end,
+        Recovered::Incomplete => equals.end,
+    };
+    Recovered::Complete(equals.start..end)
+}
+
+/// Gate 5's full direct-CST isolated adapter.  It stays deliberately outside
+/// real statement dispatch until the Gate 8 atomic promotion.
+fn commit_cast_declaration_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    intro: CastStatementIntro<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
+    committed.start_node(SyntaxKind::CastDeclaration);
+    let signature = commit_cast_signature_after_intro_isolated(table, &intro, committed);
+    if signature.form_handoff {
+        let _ = commit_cast_form_isolated(table, intro.cast_base, committed);
     }
     let end = committed.probe(|probe| probe.input().pos());
     committed.finish_node();
@@ -25443,6 +25581,260 @@ mod tests {
                     && range == &(14..15)
                     && matches!(body, Recovered::Incomplete)));
         assert_eq!(boundary.range(), 0..15);
+    }
+
+    #[test]
+    fn isolated_cast_declaration_direct_cst_is_byte_exact_and_matches_ast_forms() {
+        fn parse_ast(source: &str) -> (CastDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_cast_declaration_form_aware_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    i,
+                )
+                .expect("the isolated Cast intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            let _ = is_cut;
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_cast_statement_intro)
+                .expect("the isolated Cast intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_cast_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                intro,
+                &mut committed,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            let _ = is_cut;
+            (range, remainder, root, recoveries)
+        }
+
+        struct Case {
+            source: &'static str,
+            children: Vec<SyntaxKind>,
+            trivia: Vec<(SyntaxKind, Range<usize>)>,
+            body: Range<usize>,
+            indented: bool,
+        }
+
+        for case in [
+            Case {
+                source: "cast(x: A): B;",
+                children: vec![
+                    SyntaxKind::CastKw,
+                    SyntaxKind::CastPattern,
+                    SyntaxKind::CastTarget,
+                    SyntaxKind::Semicolon,
+                ],
+                trivia: vec![(SyntaxKind::Whitespace, 7..8), (SyntaxKind::Whitespace, 11..12)],
+                body: 0..0,
+                indented: false,
+            },
+            Case {
+                source: "pub cast(x: A): B = x",
+                children: vec![
+                    SyntaxKind::PubKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::CastKw,
+                    SyntaxKind::CastPattern,
+                    SyntaxKind::CastTarget,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::Equals,
+                    SyntaxKind::CastBody,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 3..4),
+                    (SyntaxKind::Whitespace, 11..12),
+                    (SyntaxKind::Whitespace, 15..16),
+                    (SyntaxKind::Whitespace, 17..18),
+                    (SyntaxKind::Whitespace, 19..20),
+                ],
+                body: 19..21,
+                indented: false,
+            },
+            Case {
+                source: "cast(x: A): B =\n  x",
+                children: vec![
+                    SyntaxKind::CastKw,
+                    SyntaxKind::CastPattern,
+                    SyntaxKind::CastTarget,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::Equals,
+                    SyntaxKind::CastBody,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 7..8),
+                    (SyntaxKind::Whitespace, 11..12),
+                    (SyntaxKind::Whitespace, 13..14),
+                    (SyntaxKind::Newline, 15..16),
+                    (SyntaxKind::Whitespace, 16..18),
+                ],
+                body: 15..19,
+                indented: true,
+            },
+        ] {
+            let (ast, ast_remainder) = parse_ast(case.source);
+            let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
+            assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
+            assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert!(records.is_empty(), "recoveries: {:?}", case.source);
+
+            let declaration = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::CastDeclaration)
+                .expect("one CastDeclaration");
+            assert_eq!(syntax_range(declaration.text_range()), 0..case.source.len());
+            assert_eq!(
+                declaration
+                    .children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                case.children,
+                "child order: {:?}",
+                case.source,
+            );
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
+                    .map(|token| (token.kind(), syntax_range(token.text_range())))
+                    .collect::<Vec<_>>(),
+                case.trivia,
+                "all trivia has one home: {:?}",
+                case.source,
+            );
+            assert!(
+                !root.descendants().any(|node| node.kind() == SyntaxKind::BindingBody),
+                "Cast must never emit BindingBody: {:?}",
+                case.source,
+            );
+
+            if case.body.is_empty() {
+                assert!(matches!(ast.form, Recovered::Complete(CastForm::Bodyless { .. })));
+                assert!(
+                    !declaration.children().any(|node| node.kind() == SyntaxKind::CastBody),
+                    "bodyless Cast has no synthetic body wrapper",
+                );
+            } else {
+                let body = declaration
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::CastBody)
+                    .expect("definition emits exactly one CastBody");
+                assert_eq!(syntax_range(body.text_range()), case.body, "body range: {:?}", case.source);
+                if case.indented {
+                    let block = body
+                        .children()
+                        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+                        .expect("indented Cast body reuses the canonical block");
+                    assert_eq!(syntax_range(block.text_range()), case.body);
+                    assert_eq!(
+                        block
+                            .children_with_tokens()
+                            .next()
+                            .expect("opening trivia belongs to the block")
+                            .kind(),
+                        SyntaxKind::Newline,
+                    );
+                    assert!(matches!(&ast.form,
+                        Recovered::Complete(CastForm::Definition { body, .. })
+                            if matches!(body, Recovered::Complete(CastBody::Indented { block })
+                                if block.range() == case.body)));
+                } else {
+                    let expression = body
+                        .children()
+                        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+                        .expect("inline Cast body owns its expression directly");
+                    assert_eq!(syntax_range(expression.text_range()), 20..21);
+                    assert!(matches!(&ast.form,
+                        Recovered::Complete(CastForm::Definition { body, .. })
+                            if matches!(body, Recovered::Complete(CastBody::Inline { expression })
+                                if expression.range() == (20..21))));
+                }
+            }
+        }
+
+        let oracle = "pub cast(x: int): user_id = user_id { raw: x }";
+        let (ast, ast_remainder) = parse_ast(oracle);
+        let (direct_range, direct_remainder, root, records) = commit_direct(oracle);
+        assert_eq!(ast_remainder, "");
+        assert_eq!(direct_remainder, "");
+        assert_eq!(direct_range, Recovered::Complete(ast.range()));
+        assert!(records.is_empty());
+        assert!(matches!(&ast.form,
+            Recovered::Complete(CastForm::Definition { body, .. })
+                if matches!(body, Recovered::Complete(CastBody::Inline { expression })
+                    if expression.range() == (28..46))));
+
+        let declaration = root
+            .children()
+            .find(|node| node.kind() == SyntaxKind::CastDeclaration)
+            .expect("one oracle CastDeclaration");
+        let body = declaration
+            .children()
+            .find(|node| node.kind() == SyntaxKind::CastBody)
+            .expect("one oracle CastBody");
+        assert_eq!(syntax_range(body.text_range()), 27..46);
+        let expression = body
+            .children()
+            .find(|node| node.kind() == SyntaxKind::OperatorChain)
+            .expect("ordinary inline expression owns the brace application");
+        assert_eq!(syntax_range(expression.text_range()), 28..46);
+        let ml_argument = expression
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::MlArgument)
+            .expect("ordinary inline expression contains its ML argument");
+        let braced = ml_argument
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("ML argument owns the braced expression");
+        assert_eq!(syntax_range(braced.text_range()), 36..46);
+        assert!(
+            declaration
+                .children()
+                .all(|node| node.kind() != SyntaxKind::BracedStatementBlockExpression),
+            "the brace is neither a Cast form nor a declaration body opener",
+        );
+        assert!(
+            !body.children_with_tokens().any(|element| element.kind() == SyntaxKind::LBrace),
+            "the CastBody owns no brace opener token",
+        );
     }
 
     #[test]
