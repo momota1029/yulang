@@ -14,12 +14,12 @@ use crate::{
         ActDeclaration, BindingDeclaration, CastDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
         TypeDeclaration,
         UseDeclaration,
-        commit_binding_declaration, commit_cast_declaration_isolated, commit_impl_declaration_isolated,
+        commit_act_declaration_isolated, commit_binding_declaration, commit_cast_declaration_isolated, commit_impl_declaration_isolated,
         commit_role_declaration_isolated, commit_type_declaration,
         commit_use_declaration,
         parse_binding_declaration_with_operators,
         commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
-        parse_cast_declaration_form_aware_isolated, parse_impl_declaration_isolated,
+        parse_act_declaration_isolated, parse_cast_declaration_form_aware_isolated, parse_impl_declaration_isolated,
         parse_role_declaration_isolated, parse_struct_declaration, parse_type_declaration,
         parse_use_declaration,
         recognize_statement_intro,
@@ -1512,6 +1512,9 @@ where
         Some(StatementIntro::Cast(_)) => i
             .run(from_fn(|i| parse_cast_declaration_form_aware_isolated(table, i)))
             .map(Statement::Cast),
+        Some(StatementIntro::Act(_)) => i
+            .run(from_fn(|i| parse_act_declaration_isolated(table, i)))
+            .map(Statement::Act),
         _ => i.run(from_fn(|i| parse_operator_chain(table, i))).map(Statement::Expression),
     }
 }
@@ -4269,6 +4272,7 @@ where
                     | StatementIntro::Role(_)
                     | StatementIntro::Impl(_)
                     | StatementIntro::Cast(_)
+                    | StatementIntro::Act(_)
             )
         ) {
             i.rollback(checkpoint);
@@ -4309,8 +4313,9 @@ where
             let _ = commit_cast_declaration_isolated(table, intro, committed);
             true
         }
-        Some(StatementIntro::Act(_)) => {
-            unreachable!("Act dispatch is introduced in its Gate 10 promotion")
+        Some(StatementIntro::Act(intro)) => {
+            let _ = commit_act_declaration_isolated(table, committed, intro);
+            true
         }
         Some(StatementIntro::Operator(_)) | None => {
             parse_direct_operator_chain(table, leading, committed).is_some()
@@ -4341,6 +4346,7 @@ where
                 | StatementIntro::Role(_)
                 | StatementIntro::Impl(_)
                 | StatementIntro::Cast(_)
+                | StatementIntro::Act(_)
         )
     );
     i.rollback(checkpoint);

@@ -428,8 +428,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_cast_declaration_isolated(operators, intro, &mut committed);
                 StatementKind::CastDeclaration
             }
-            StatementIntro::Act(_) => {
-                unreachable!("Act dispatch is introduced in its Gate 10 promotion")
+            StatementIntro::Act(intro) => {
+                let _ = commit_act_declaration_isolated(operators, &mut committed, intro);
+                StatementKind::ActDeclaration
             }
             StatementIntro::Operator(intro) => {
                 if matches!(
@@ -715,6 +716,10 @@ where
 
     if let Some(intro) = i.run(recognize_cast_statement_intro) {
         return Some(StatementIntro::Cast(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_act_statement_intro) {
+        return Some(StatementIntro::Act(intro));
     }
 
     if binding_statement_selected(&mut i) {
@@ -1672,7 +1677,7 @@ where
 
 /// Parses one accepted Act continuation without making Act reachable from
 /// the public statement dispatcher. The Head/Source slots and the body-form
-/// judge stay distinct so Gate 10 can promote this exact adapter atomically.
+/// judge remain distinct after Gate 10's atomic promotion.
 pub(crate) fn parse_act_declaration_isolated<'source, E>(
     table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
@@ -1957,9 +1962,8 @@ where
     }
 }
 
-/// Direct-CST counterpart of [`parse_act_declaration_isolated`]. Like the
-/// AST adapter, it remains deliberately outside statement dispatch until the
-/// Gate 10 atomic promotion.
+/// Direct-CST counterpart of [`parse_act_declaration_isolated`]. Gate 10
+/// promotes this exact adapter into shared statement dispatch.
 pub(crate) fn commit_act_declaration_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -12821,6 +12825,8 @@ where
             parse_cast_declaration_form_aware_isolated(&crate::operator::OperatorTable::empty(), i)
         })
         .map(Declaration::Cast),
+        from_fn(|i| parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::Act),
         parse_use_declaration.map(Declaration::Use),
         parse_operator_header.map(Declaration::OperatorHeader),
         parse_binding_declaration.map(Declaration::Binding),
@@ -31749,6 +31755,151 @@ mod tests {
                 "one record = one recovery node: {source:?}",
             );
             assert!(expectations.take_merged().is_none(), "full-CST sink: {source:?}");
+        }
+    }
+
+    #[test]
+    fn act_gate_10_real_dispatch_is_atomic_across_root_and_canonical_owners() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ActDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ActDeclaration),
+                "public/direct Act range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> Range<usize> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Act(declaration) = i
+                .run(parse_declaration)
+                .expect("the promoted root parser recognizes Act")
+            else {
+                panic!("the exact Act intro must win root declaration dispatch")
+            };
+            assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(!is_cut, "root AST cut: {source:?}");
+            declaration.range()
+        }
+
+        // Root AST, public parse_file, and direct root all select the same
+        // promoted continuation for the three Act body forms.
+        for source in [
+            "act Console::Read;",
+            "act a:\n  our r: a -> b",
+            "act Eq {\n  our eq: Self -> Self -> Bool\n}",
+        ] {
+            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::ActDeclaration), vec![0..source.len()]);
+            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+        }
+
+        // Act reaches canonical Statement dispatch from existing block owners.
+        // The Role case proves the AST canonical arm; the braced Binding body
+        // proves the direct block driver reaches the same committed adapter.
+        for source in [
+            "role Outer:\n  act A;\n  my value = 1",
+            "my block = { act A;\n  my value = 1 }",
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert!(
+                !node_ranges(&public, SyntaxKind::ActDeclaration).is_empty(),
+                "canonical owner: {source:?}",
+            );
+            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+        }
+
+        // The `my act` lookahead remains a Binding collision exception after
+        // Act has joined shared recognition; it must not construct Act CST.
+        let (public, direct_root, direct) = parse_public_and_direct("my act = 1");
+        assert!(node_ranges(&public, SyntaxKind::ActDeclaration).is_empty());
+        assert_eq!(node_ranges(&public, SyntaxKind::BindingStatement), vec![0..10]);
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            node_ranges(&direct_root, SyntaxKind::BindingStatement),
+        );
+        assert!(direct.committed_recoveries().is_empty());
+
+        // Promoted recovery keeps Act's own typed identity through both public
+        // and direct root paths.
+        let (public, _, direct) = parse_public_and_direct("act A @;");
+        assert_eq!(node_ranges(&public, SyntaxKind::ActDeclaration), vec![0..8]);
+        let [record] = direct.committed_recoveries() else {
+            panic!("one promoted Act recovery expected")
+        };
+        assert_eq!(
+            (record.kind, record.site.role, record.site.range.clone()),
+            (
+                RecoveryKind::Error,
+                GrammarRole::Declaration(DeclarationRole::Act(
+                    crate::session::ActDeclarationRole::BodyIntroducer,
+                )),
+                6..7,
+            ),
+        );
+
+        // Act remains full-only: header discovery stops immediately and
+        // creates neither import nor operator facts.
+        for source in ["act A;", "pub act A;"] {
+            let source: Arc<crate::SourceText> = Arc::from(source);
+            let header = crate::scan_header(source);
+            assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+            assert_eq!(header.coverage().range(), &(0..0));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
         }
     }
 
