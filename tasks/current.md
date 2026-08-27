@@ -127,13 +127,25 @@ syntax-reference/
       expressions/
       patterns/
       types/
-      statements/     # pilot: bare-nominal-type.md 完成
+      statements/     # 7/7完成 (下記参照)
       cross-cutting/
       indexes/
   ja/
     book.toml         # language = "ja"
     src/               # en/と同じ構造、日本語
 ```
+
+### statements/ family: 7/7完成(2026-08-27、push済み)
+
+bare-nominal-type・equality-type・binding-use・mod-declaration・struct-declaration・
+derives-attachment・impl-shell・cast-declarationの8ページ(7要素、binding/useは
+1ページに統合)を英日両方で執筆・独立検証・push完了。commit
+`cc25bc2e`〜`587ea716`。各ページで関数名・test名・commit hash・design doc行範囲・
+worked exampleのbyte range・AST struct shapeを実装/正本と照合し、mod-declarationの
+初稿で1件(worked exampleが正本に実在しない)実際の問題を発見・修正した。
+
+残りfamily: expressions(9要素)・patterns(4要素)・types(6要素)・
+cross-cutting(4要素)。優先順位は未確定、着手時に選ぶ。
 
 ページ追加時は、`en/`・`ja/`両方に同じelementの11節ページを別々に執筆する
 (翻訳ではなく、同じ正本事実を各言語で独立に書く)。引用するcommit hash・関数名・
