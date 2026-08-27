@@ -52,6 +52,7 @@
 - [Layout-aware separator authority](cross-cutting/layout-aware-separator-authority.md)
 - [TypeExpression malformed-newline-owner policy (TMN)](cross-cutting/tmn-malformed-newline-owner-policy.md)
 - [TypeExpression malformed caller-boundary positional fence](cross-cutting/positional-fence.md)
+- [Ambient statement-owner boundary (ASOB)](cross-cutting/ambient-statement-owner-boundary.md)
 
 # 索引
 
