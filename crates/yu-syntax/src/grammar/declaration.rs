@@ -21,6 +21,7 @@ use crate::{
         commit_canonical_statement, parse_braced_statement_block_expression,
         parse_direct_expression_with_operators, parse_expression_with_operators,
         parse_indented_binding_body, parse_indented_cast_body, parse_indented_impl_body, parse_indented_mod_body,
+        parse_indented_role_body,
         parse_canonical_statement,
     },
     grammar::{
@@ -1238,6 +1239,250 @@ where
         Recovered::Incomplete
     } else {
         Recovered::Complete(range)
+    }
+}
+
+/// Parses one accepted Role continuation without making Role reachable from
+/// the public statement dispatcher.  The prefix, head episode, and body
+/// punctuation each retain their own authority so Gate 9 can promote this
+/// exact adapter atomically.
+pub(crate) fn parse_role_declaration_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<RoleDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    let declaration = (|| {
+        let intro = i.run(recognize_role_statement_intro)?;
+        let visibility = intro
+            .visibility
+            .map_or(Visibility::Private, |prefix| prefix.visibility);
+        let head = if any_ambient_owner_claims(&mut i) {
+            Recovered::Incomplete
+        } else {
+            let checkpoint = i.checkpoint();
+            if mod_trivia(intro.role_base, &mut i).is_some() {
+                parse_required_role_head_type_expression_isolated(&mut i)
+            } else {
+                i.rollback(checkpoint);
+                Recovered::Incomplete
+            }
+        };
+        let body = parse_role_body_ast(table, intro.role_base, &mut i);
+        let end = i.pos();
+        Some(RoleDeclaration {
+            visibility,
+            head,
+            body,
+            range: intro.start..end,
+        })
+    })();
+    i.errors_rollback(errors_checkpoint);
+    declaration
+}
+
+fn parse_role_body_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    role_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<RoleBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return Recovered::Incomplete;
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(role_base, i) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        if role_body_introducer_error_retry_ast(i).is_some_and(|retry| retry) {
+            return parse_role_body_ast(table, role_base, i);
+        }
+        return Recovered::Incomplete;
+    };
+    match punctuation.kind() {
+        PunctuationKind::Semicolon => Recovered::Complete(RoleBody::Bodyless {
+            semicolon: punctuation.range(),
+        }),
+        PunctuationKind::Open(Delimiter::Brace) => Recovered::Complete(RoleBody::Braced {
+            block: parse_braced_statement_block_expression(table, punctuation.range(), i),
+        }),
+        PunctuationKind::Colon => Recovered::Complete(RoleBody::Colon {
+            colon: punctuation.range(),
+            body: parse_role_colon_body_ast(table, role_base, i)
+                .map_or(Recovered::Incomplete, Recovered::Complete),
+        }),
+        _ => {
+            i.rollback(checkpoint);
+            if role_body_introducer_error_retry_ast(i).is_some_and(|retry| retry) {
+                parse_role_body_ast(table, role_base, i)
+            } else {
+                Recovered::Incomplete
+            }
+        }
+    }
+}
+
+fn parse_role_colon_body_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    role_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<RoleColonBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia)?;
+    if i.input.source()[trivia.range()].contains(['\r', '\n']) {
+        if i.local.line().line_indent <= role_base {
+            i.rollback(checkpoint);
+            return None;
+        }
+        let block_indent = i.local.line().line_indent;
+        return Some(RoleColonBody::Indented {
+            block: parse_indented_role_body(table, trivia, role_base, block_indent, i),
+        });
+    }
+    let ambient_scope = i
+        .local
+        .push_inline_canonical_statement_ambient_scope(
+            crate::session::InlineStatementOwnerKind::RoleColonBody,
+        );
+    let statement = i
+        .run(from_fn(|i| parse_canonical_statement(table, i)))
+        .or_else(|| {
+            role_body_error_retry_ast(table, i)
+                .is_some_and(|retry| retry)
+                .then(|| i.run(from_fn(|i| parse_canonical_statement(table, i))))
+                .flatten()
+        });
+    let body = statement.map(|statement| {
+        let terminal = i.checkpoint();
+        if i
+            .run(scan_punctuation)
+            .is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon)
+        {
+            i.rollback(terminal);
+        }
+        RoleColonBody::Inline {
+            statement: Box::new(statement),
+        }
+    });
+    assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
+    body
+}
+
+fn role_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+fn role_body_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Comma
+            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
+            | PunctuationKind::Open(Delimiter::Brace)
+            | PunctuationKind::Colon
+            | PunctuationKind::Semicolon
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+/// AST half of the one maximal Role body-introducer invalid run.  The direct
+/// emission is deliberately deferred to Gate 5, but starter/boundary input
+/// ownership already matches that future committed path.
+fn role_body_introducer_error_retry_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if role_body_starter_pending(i) {
+            return (start < i.pos()).then_some(true);
+        }
+        if role_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn role_body_error_retry_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if role_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        let checkpoint = i.checkpoint();
+        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        i.rollback(checkpoint);
+        if candidate {
+            return Some(true);
+        }
     }
 }
 
@@ -27417,6 +27662,135 @@ mod tests {
             let result = parse_slot(source);
             assert!(result.range.is_some(), "rollback parse: {source:?}");
             assert_eq!(result.remainder, source, "rollback remainder: {source:?}");
+        }
+    }
+
+    #[test]
+    fn isolated_role_declaration_ast_selects_all_body_forms_and_preserves_boundaries() {
+        fn parse(source: &str) -> (RoleDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Role intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        let bodyless_source = "role Eq;";
+        let (bodyless, remainder) = parse(bodyless_source);
+        assert_eq!(bodyless.range(), 0..bodyless_source.len());
+        assert!(matches!(
+            bodyless.head,
+            Recovered::Complete(ref head) if head.range() == (5..7)
+        ));
+        assert!(matches!(
+            bodyless.body,
+            Recovered::Complete(RoleBody::Bodyless { ref semicolon }) if *semicolon == (7..8)
+        ));
+        assert_eq!(remainder, "");
+
+        let indented_source = "role Printable:\n  our print: Self -> ()";
+        let (indented, remainder) = parse(indented_source);
+        assert_eq!(indented.range(), 0..indented_source.len());
+        assert!(matches!(
+            indented.body,
+            Recovered::Complete(RoleBody::Colon {
+                body: Recovered::Complete(RoleColonBody::Indented { ref block }),
+                ..
+            }) if block.statements().len() == 1
+        ));
+        assert_eq!(remainder, "");
+
+        let braced_source = "role Eq {\n  our eq: Self -> Self -> Bool\n}";
+        let (braced, remainder) = parse(braced_source);
+        assert_eq!(braced.range(), 0..braced_source.len());
+        assert!(matches!(
+            braced.body,
+            Recovered::Complete(RoleBody::Braced { ref block }) if block.range() == (8..braced_source.len())
+        ));
+        assert_eq!(remainder, "");
+
+        // A missing head may hand the actual body punctuation to the Role
+        // form judge, but an EOF head failure never cascades into a second
+        // body-introducer slot.
+        for (source, expected_body) in [
+            ("role", None),
+            ("role;", Some((4..5, "semicolon"))),
+            ("role {}", Some((5..6, "brace"))),
+            ("role:", Some((4..5, "colon"))),
+        ] {
+            let (declaration, remainder) = parse(source);
+            assert!(matches!(declaration.head, Recovered::Incomplete), "head: {source:?}");
+            match expected_body {
+                None => assert!(matches!(declaration.body, Recovered::Incomplete), "body: {source:?}"),
+                Some((range, "semicolon")) => assert!(matches!(
+                    declaration.body,
+                    Recovered::Complete(RoleBody::Bodyless { semicolon }) if semicolon == range
+                ), "body: {source:?}"),
+                Some((range, "brace")) => assert!(matches!(
+                    declaration.body,
+                    Recovered::Complete(RoleBody::Braced { ref block }) if block.range().start == range.start
+                ), "body: {source:?}"),
+                Some((range, "colon")) => assert!(matches!(
+                    declaration.body,
+                    Recovered::Complete(RoleBody::Colon { colon, body: Recovered::Incomplete }) if colon == range
+                ), "body: {source:?}"),
+                Some(_) => unreachable!(),
+            }
+            assert_eq!(remainder, "", "remainder: {source:?}");
+        }
+
+        let missing_introducer_source = "role Eq";
+        let (missing_introducer, remainder) = parse(missing_introducer_source);
+        assert!(matches!(missing_introducer.head, Recovered::Complete(_)));
+        assert!(matches!(missing_introducer.body, Recovered::Incomplete));
+        assert_eq!(missing_introducer.range(), 0..missing_introducer_source.len());
+        assert_eq!(remainder, "");
+
+        // One malformed introducer run retries at its real starter; another
+        // yields the comma boundary without inventing a punctuation-free body.
+        let (malformed_retry, remainder) = parse("role Eq @;");
+        assert!(matches!(
+            malformed_retry.body,
+            Recovered::Complete(RoleBody::Bodyless { semicolon }) if semicolon == (9..10)
+        ));
+        assert_eq!(remainder, "");
+        let (malformed_boundary, remainder) = parse("role Eq @,");
+        assert!(matches!(malformed_boundary.body, Recovered::Incomplete));
+        assert_eq!(malformed_boundary.range(), 0..9);
+        assert_eq!(remainder, ",");
+
+        // A literal colon never owns its terminal/equal-or-shallower boundary.
+        for (source, expected_remainder) in [
+            ("role Eq:", ""),
+            ("role Eq:;", ";"),
+            ("role Eq:,", ","),
+            ("role Eq:)", ")"),
+            ("role Eq:\nnext", "\nnext"),
+        ] {
+            let (declaration, remainder) = parse(source);
+            assert!(matches!(
+                declaration.body,
+                Recovered::Complete(RoleBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
+            ), "body: {source:?}");
+            assert_eq!(declaration.range().end, 8, "range: {source:?}");
+            assert_eq!(remainder, expected_remainder, "remainder: {source:?}");
         }
     }
 
