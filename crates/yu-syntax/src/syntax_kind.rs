@@ -35,6 +35,7 @@ pub enum SyntaxKind {
     CastPattern,
     CastTarget,
     CastBody,
+    ActDeclaration,
     DeclarationTypeParameterList,
     DerivesClause,
     TestModuleMarker,
@@ -113,6 +114,7 @@ pub enum SyntaxKind {
     RoleKw,
     ImplKw,
     CastKw,
+    ActKw,
     ForKw,
     RealmKw,
     BandKw,
@@ -212,6 +214,7 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::CastPattern as u16 => SyntaxKind::CastPattern,
             value if value == SyntaxKind::CastTarget as u16 => SyntaxKind::CastTarget,
             value if value == SyntaxKind::CastBody as u16 => SyntaxKind::CastBody,
+            value if value == SyntaxKind::ActDeclaration as u16 => SyntaxKind::ActDeclaration,
             value if value == SyntaxKind::DeclarationTypeParameterList as u16 => {
                 SyntaxKind::DeclarationTypeParameterList
             }
@@ -304,6 +307,7 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::RoleKw as u16 => SyntaxKind::RoleKw,
             value if value == SyntaxKind::ImplKw as u16 => SyntaxKind::ImplKw,
             value if value == SyntaxKind::CastKw as u16 => SyntaxKind::CastKw,
+            value if value == SyntaxKind::ActKw as u16 => SyntaxKind::ActKw,
             value if value == SyntaxKind::ForKw as u16 => SyntaxKind::ForKw,
             value if value == SyntaxKind::RealmKw as u16 => SyntaxKind::RealmKw,
             value if value == SyntaxKind::BandKw as u16 => SyntaxKind::BandKw,

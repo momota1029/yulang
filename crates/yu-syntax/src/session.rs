@@ -227,6 +227,7 @@ pub(crate) enum InlineStatementOwnerKind {
     ModColonBody,
     ImplColonBody,
     RoleColonBody,
+    ActColonBody,
 }
 
 /// Identity for one complete IfExpression companion lifetime.
@@ -1094,6 +1095,7 @@ pub(crate) enum DeclarationRole {
     Role(RoleDeclarationRole),
     Impl(ImplRole),
     Cast(CastRole),
+    Act(ActDeclarationRole),
     Derives(DerivesRole),
 }
 
@@ -1124,6 +1126,7 @@ pub(crate) enum StatementKind {
     RoleDeclaration,
     ImplDeclaration,
     CastDeclaration,
+    ActDeclaration,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1180,6 +1183,15 @@ pub(crate) enum ImplRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum RoleDeclarationRole {
     Head,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ActDeclarationRole {
+    Head,
+    Source,
     BodyIntroducer,
     Body,
     IndentedStatement,

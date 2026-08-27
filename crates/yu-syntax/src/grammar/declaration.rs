@@ -75,6 +75,7 @@ pub(crate) enum Declaration<'source> {
     Role(RoleDeclaration<'source>),
     Impl(ImplDeclaration<'source>),
     Cast(CastDeclaration<'source>),
+    Act(ActDeclaration<'source>),
 }
 
 /// A declaration shape that can contribute a source-leading header fact.
@@ -112,6 +113,8 @@ pub(crate) enum StatementIntro<'source> {
     Impl(ImplStatementIntro<'source>),
     #[allow(dead_code)]
     Cast(CastStatementIntro<'source>),
+    #[allow(dead_code)]
+    Act(ActStatementIntro<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -149,6 +152,20 @@ pub(crate) struct RoleStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     role_keyword: WordSpan<'source>,
     role_base: usize,
+}
+
+/// The sink-free prefix reserved for standalone Act declarations.
+///
+/// Gate 1 carries this source shape only. Gate 2 supplies recognition, and
+/// Gate 10 connects it to shared statement dispatch.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ActStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    act_keyword: WordSpan<'source>,
+    act_base: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -410,6 +427,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_cast_declaration_isolated(operators, intro, &mut committed);
                 StatementKind::CastDeclaration
             }
+            StatementIntro::Act(_) => {
+                unreachable!("Act dispatch is introduced in its Gate 10 promotion")
+            }
             StatementIntro::Operator(intro) => {
                 if matches!(
                     commit_operator_header(&mut committed, intro),
@@ -624,6 +644,10 @@ where
             return None;
         }
         StatementIntro::Cast(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::Act(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -10988,6 +11012,49 @@ pub(crate) enum RoleBody<'source> {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RoleColonBody<'source> {
+    Inline { statement: Box<Statement<'source>> },
+    Indented { block: IndentedStatementBlock<'source> },
+}
+
+/// A standalone Act declaration shared by root and canonical Statements.
+///
+/// Gate 1 establishes only the approved AST shape. Recognition and body
+/// parsing remain unreachable until their later dedicated gates.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ActDeclaration<'source> {
+    visibility: Visibility,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    source: Option<ActSourceClause<'source>>,
+    body: Recovered<ActBody<'source>>,
+    range: Range<usize>,
+}
+
+impl ActDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ActSourceClause<'source> {
+    equals: Range<usize>,
+    source: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ActBody<'source> {
+    Bodyless { semicolon: Option<Range<usize>> },
+    Braced { block: BracedStatementBlockExpression<'source> },
+    Colon { colon: Range<usize>, body: Recovered<ActColonBody<'source>> },
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ActColonBody<'source> {
     Inline { statement: Box<Statement<'source>> },
     Indented { block: IndentedStatementBlock<'source> },
 }

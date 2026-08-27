@@ -11,7 +11,7 @@ use chasa::{
 
 use crate::{
     grammar::declaration::{
-        BindingDeclaration, CastDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
+        ActDeclaration, BindingDeclaration, CastDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
         TypeDeclaration,
         UseDeclaration,
         commit_binding_declaration, commit_cast_declaration_isolated, commit_impl_declaration_isolated,
@@ -218,6 +218,7 @@ pub(crate) enum Statement<'source> {
     Role(RoleDeclaration<'source>),
     Impl(ImplDeclaration<'source>),
     Cast(CastDeclaration<'source>),
+    Act(ActDeclaration<'source>),
 }
 
 impl<'source> Statement<'source> {
@@ -232,6 +233,7 @@ impl<'source> Statement<'source> {
             Self::Role(declaration) => declaration.range(),
             Self::Impl(declaration) => declaration.range(),
             Self::Cast(declaration) => declaration.range(),
+            Self::Act(declaration) => declaration.range(),
         }
     }
 }
@@ -4249,6 +4251,9 @@ where
         Some(StatementIntro::Cast(intro)) => {
             let _ = commit_cast_declaration_isolated(table, intro, committed);
             true
+        }
+        Some(StatementIntro::Act(_)) => {
+            unreachable!("Act dispatch is introduced in its Gate 10 promotion")
         }
         Some(StatementIntro::Operator(_)) | None => {
             parse_direct_operator_chain(table, leading, committed).is_some()
