@@ -28842,6 +28842,180 @@ mod tests {
     }
 
     #[test]
+    fn isolated_role_body_reuses_every_current_canonical_statement_variant() {
+        #[derive(Clone, Copy, Debug)]
+        enum ExpectedStatement {
+            Binding,
+            Use,
+            Mod,
+            Struct,
+            Type,
+            Impl,
+            Cast,
+            Expression,
+        }
+
+        impl ExpectedStatement {
+            fn matches_ast(self, statement: &Statement<'_>) -> bool {
+                matches!(
+                    (self, statement),
+                    (Self::Binding, Statement::Binding(_))
+                        | (Self::Use, Statement::Use(_))
+                        | (Self::Mod, Statement::Mod(_))
+                        | (Self::Struct, Statement::Struct(_))
+                        | (Self::Type, Statement::Type(_))
+                        | (Self::Impl, Statement::Impl(_))
+                        | (Self::Cast, Statement::Cast(_))
+                        | (Self::Expression, Statement::Expression(_))
+                )
+            }
+
+            fn direct_kind(self) -> SyntaxKind {
+                match self {
+                    Self::Binding => SyntaxKind::BindingStatement,
+                    Self::Use => SyntaxKind::UseDeclaration,
+                    Self::Mod => SyntaxKind::ModDeclaration,
+                    Self::Struct => SyntaxKind::StructDeclaration,
+                    Self::Type => SyntaxKind::TypeDeclaration,
+                    Self::Impl => SyntaxKind::ImplDeclaration,
+                    Self::Cast => SyntaxKind::CastDeclaration,
+                    Self::Expression => SyntaxKind::OperatorChain,
+                }
+            }
+        }
+
+        fn parse_ast(source: &str) -> (RoleDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Role intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(source: &str) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_role_statement_intro)
+                .expect("the isolated Role intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_role_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            let _ = is_cut;
+            (range, remainder, root, recoveries)
+        }
+
+        struct Case {
+            source: &'static str,
+            expected: ExpectedStatement,
+        }
+
+        for case in [
+            // Existing PatternTypeAnnotation composition: signature-only,
+            // annotated default, unannotated default, and a Forall RHS.
+            Case { source: "role R:\n  our x: Int", expected: ExpectedStatement::Binding },
+            Case { source: "role R:\n  our x: Int = 0", expected: ExpectedStatement::Binding },
+            Case { source: "role R:\n  our x = 0", expected: ExpectedStatement::Binding },
+            Case { source: "role R:\n  our x: for 'a: 'a -> 'a", expected: ExpectedStatement::Binding },
+            // The remaining current canonical Statement sum, including the
+            // equality TypeDeclaration form and isolated Impl/Cast adapters.
+            Case { source: "role R:\n  type Alias = Int", expected: ExpectedStatement::Type },
+            Case { source: "role R:\n  value", expected: ExpectedStatement::Expression },
+            Case { source: "role R:\n  use std::core", expected: ExpectedStatement::Use },
+            Case { source: "role R:\n  mod inner;", expected: ExpectedStatement::Mod },
+            Case { source: "role R:\n  struct S {}", expected: ExpectedStatement::Struct },
+            Case { source: "role R:\n  impl Int;", expected: ExpectedStatement::Impl },
+            Case { source: "role R:\n  cast(x: A): B;", expected: ExpectedStatement::Cast },
+        ] {
+            let (ast, ast_remainder) = parse_ast(case.source);
+            let (direct_range, direct_remainder, root, recoveries) = commit_direct(case.source);
+            assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
+            assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert!(recoveries.is_empty(), "inner recovery: {:?}", case.source);
+
+            let Recovered::Complete(RoleBody::Colon {
+                body: Recovered::Complete(RoleColonBody::Indented { block }),
+                ..
+            }) = &ast.body else {
+                panic!("expected complete Role indented body: {:?}", case.source);
+            };
+            let [Recovered::Complete(statement)] = block.statements() else {
+                panic!("expected exactly one Role body statement: {:?}", case.source);
+            };
+            assert!(case.expected.matches_ast(statement), "AST variant: {:?}", case.source);
+
+            let declaration = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::RoleDeclaration)
+                .expect("one RoleDeclaration");
+            assert_eq!(
+                root.descendants().filter(|node| node.kind() == SyntaxKind::RoleDeclaration).count(),
+                1,
+                "Role bodies must not introduce a nested Role wrapper: {:?}",
+                case.source,
+            );
+            let block = declaration
+                .children()
+                .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+                .expect("Role colon body reuses the canonical indented block");
+            let statement = block
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Statement)
+                .expect("one direct canonical Statement");
+            assert!(
+                statement.children().any(|node| node.kind() == case.expected.direct_kind()),
+                "direct variant: {:?}",
+                case.source,
+            );
+            assert!(
+                !declaration.children().any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::BindingBody | SyntaxKind::ImplDescription | SyntaxKind::CastBody
+                )),
+                "Role has no borrowed or synthetic body wrapper: {:?}",
+                case.source,
+            );
+        }
+    }
+
+    #[test]
     fn isolated_impl_declaration_ast_selects_description_and_all_body_forms() {
         fn parse(source: &str) -> (ImplDeclaration<'_>, String) {
             let mut source_input = SourceInput::new(source);
