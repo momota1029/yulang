@@ -21,6 +21,8 @@
 - [Bare nominal `type` declaration](statements/bare-nominal-type.md)
 - [Equality `type` declaration](statements/equality-type.md)
 - [Canonical Binding / Use](statements/binding-use.md)
+- [`mod` declaration](statements/mod-declaration.md)
+- [`struct` declaration](statements/struct-declaration.md)
 
 # Cross-cutting
 
