@@ -10,6 +10,8 @@
 - [Dynamic operator chains](expressions/operator-chain.md)
 - [Colon application](expressions/colon-application.md)
 - [`if` / `elsif` / `else` expressions](expressions/if-expression.md)
+- [Brace-delimited statement blocks](expressions/braced-statement-block.md)
+- [`case` / `catch` expressions](expressions/case-catch.md)
 
 # Patterns
 
