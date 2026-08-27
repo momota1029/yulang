@@ -19,6 +19,8 @@
 
 - [一覧](statements/index.md)
 - [Bare nominal `type` declaration](statements/bare-nominal-type.md)
+- [Equality `type` declaration](statements/equality-type.md)
+- [Canonical Binding / Use](statements/binding-use.md)
 
 # Cross-cutting
 
