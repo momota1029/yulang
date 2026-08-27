@@ -20,8 +20,8 @@ use crate::{
         Statement, BracedStatementBlockExpression, commit_braced_statement_block_expression,
         commit_canonical_statement, parse_braced_statement_block_expression,
         parse_direct_expression_with_operators, parse_expression_with_operators,
-        parse_indented_binding_body, parse_indented_cast_body, parse_indented_impl_body, parse_indented_mod_body,
-        parse_indented_role_body,
+        parse_indented_act_body, parse_indented_binding_body, parse_indented_cast_body,
+        parse_indented_impl_body, parse_indented_mod_body, parse_indented_role_body,
         parse_canonical_statement,
     },
     grammar::{
@@ -1667,6 +1667,293 @@ where
         source,
         range: actual_equals.start..end,
     })
+}
+
+/// Parses one accepted Act continuation without making Act reachable from
+/// the public statement dispatcher. The Head/Source slots and the body-form
+/// judge stay distinct so Gate 10 can promote this exact adapter atomically.
+pub(crate) fn parse_act_declaration_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<ActDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    let declaration = (|| {
+        let intro = i.run(recognize_act_statement_intro)?;
+        let visibility = intro
+            .visibility
+            .map_or(Visibility::Private, |prefix| prefix.visibility);
+        let head = if any_ambient_owner_claims(&mut i) {
+            Recovered::Incomplete
+        } else {
+            let checkpoint = i.checkpoint();
+            if mod_trivia(intro.act_base, &mut i).is_some() {
+                parse_required_act_head_type_expression_isolated(&mut i)
+            } else {
+                i.rollback(checkpoint);
+                Recovered::Incomplete
+            }
+        };
+        let source = parse_act_source_clause_after_head_isolated(intro.act_base, &mut i);
+        let head_and_source_complete = matches!(head, Recovered::Complete(_))
+            && source
+                .as_ref()
+                .is_none_or(|clause| matches!(clause.source, Recovered::Complete(_)));
+        let body = parse_act_body_ast(table, intro.act_base, head_and_source_complete, &mut i);
+        let end = i.pos();
+        Some(ActDeclaration {
+            visibility,
+            head,
+            source,
+            body,
+            range: intro.start..end,
+        })
+    })();
+    i.errors_rollback(errors_checkpoint);
+    declaration
+}
+
+fn parse_act_body_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    act_base: usize,
+    head_and_source_complete: bool,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<ActBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return head_and_source_complete
+            .then_some(ActBody::Bodyless { semicolon: None })
+            .map_or(Recovered::Incomplete, Recovered::Complete);
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(act_base, i) else {
+        i.rollback(checkpoint);
+        if head_and_source_complete && act_body_implicit_boundary_pending(act_base, i) {
+            return Recovered::Complete(ActBody::Bodyless { semicolon: None });
+        }
+        return Recovered::Incomplete;
+    };
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        if head_and_source_complete && act_body_implicit_boundary_pending(act_base, i) {
+            return Recovered::Complete(ActBody::Bodyless { semicolon: None });
+        }
+        if act_body_introducer_error_retry_ast(act_base, i).is_some_and(|retry| retry) {
+            return parse_act_body_ast(table, act_base, head_and_source_complete, i);
+        }
+        return Recovered::Incomplete;
+    };
+    match punctuation.kind() {
+        PunctuationKind::Semicolon => Recovered::Complete(ActBody::Bodyless {
+            semicolon: Some(punctuation.range()),
+        }),
+        PunctuationKind::Open(Delimiter::Brace) => Recovered::Complete(ActBody::Braced {
+            block: parse_braced_statement_block_expression(table, punctuation.range(), i),
+        }),
+        PunctuationKind::Colon => Recovered::Complete(ActBody::Colon {
+            colon: punctuation.range(),
+            body: parse_act_colon_body_ast(table, act_base, i)
+                .map_or(Recovered::Incomplete, Recovered::Complete),
+        }),
+        _ => {
+            i.rollback(checkpoint);
+            if head_and_source_complete && act_body_implicit_boundary_pending(act_base, i) {
+                return Recovered::Complete(ActBody::Bodyless { semicolon: None });
+            }
+            if act_body_introducer_error_retry_ast(act_base, i).is_some_and(|retry| retry) {
+                parse_act_body_ast(table, act_base, head_and_source_complete, i)
+            } else {
+                Recovered::Incomplete
+            }
+        }
+    }
+}
+
+fn parse_act_colon_body_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    act_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<ActColonBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia)?;
+    if i.input.source()[trivia.range()].contains(['\r', '\n']) {
+        if i.local.line().line_indent <= act_base {
+            i.rollback(checkpoint);
+            return None;
+        }
+        let block_indent = i.local.line().line_indent;
+        return Some(ActColonBody::Indented {
+            block: parse_indented_act_body(table, trivia, act_base, block_indent, i),
+        });
+    }
+    let ambient_scope = i
+        .local
+        .push_inline_canonical_statement_ambient_scope(
+            crate::session::InlineStatementOwnerKind::ActColonBody,
+        );
+    let statement = i
+        .run(from_fn(|i| parse_canonical_statement(table, i)))
+        .or_else(|| {
+            act_body_error_retry_ast(table, i)
+                .is_some_and(|retry| retry)
+                .then(|| i.run(from_fn(|i| parse_canonical_statement(table, i))))
+                .flatten()
+        });
+    let body = statement.map(|statement| {
+        let terminal = i.checkpoint();
+        if i
+            .run(scan_punctuation)
+            .is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon)
+        {
+            i.rollback(terminal);
+        }
+        ActColonBody::Inline {
+            statement: Box::new(statement),
+        }
+    });
+    assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
+    body
+}
+
+fn act_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+/// Tests an Act tail without consuming it. Unlike Role's mandatory body,
+/// this recognizes the caller-owned boundary that completes tail-nothing.
+fn act_body_implicit_boundary_pending<E>(act_base: usize, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) || i.input.remainder().is_empty() {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = match mod_trivia(act_base, i) {
+        None => i
+            .run(scan_trivia)
+            .is_some_and(|trivia| i.input.source()[trivia.range()].contains(['\r', '\n'])),
+        Some(_) if i.input.remainder().is_empty() => true,
+        Some(_) => i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+            punctuation.kind(),
+            PunctuationKind::Comma
+                | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
+        )),
+    };
+    i.rollback(checkpoint);
+    pending
+}
+
+fn act_colon_body_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Semicolon
+            | PunctuationKind::Comma
+            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+/// AST half of the one maximal Act body-introducer invalid run. Direct-CST
+/// emission is intentionally left to Gate 6; this only preserves the same
+/// starter and boundary ownership for the AST adapter.
+fn act_body_introducer_error_retry_ast<'source, E>(
+    act_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if act_body_starter_pending(i) {
+            return (start < i.pos()).then_some(true);
+        }
+        if act_body_implicit_boundary_pending(act_base, i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn act_body_error_retry_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if act_colon_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        let checkpoint = i.checkpoint();
+        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        i.rollback(checkpoint);
+        if candidate {
+            return Some(true);
+        }
+    }
 }
 
 /// Parses one accepted Role continuation without making Role reachable from
@@ -29495,6 +29782,7 @@ mod tests {
             ("A = ({ x: Int }) { body }", 4..16, " { body }"),
             ("A = for 'a: B:", 4..13, ":"),
             ("A = (:{ A derives Eq })", 4..23, ""),
+            ("A = var 't", 4..10, ""),
         ] {
             let (ast, direct) = assert_ast_direct(source);
             assert_eq!(ast.source, Some((2..3, Some(expected_source.clone()), 2..expected_source.end)));
@@ -29579,6 +29867,142 @@ mod tests {
             let result = parse_ast(source, true);
             assert!(result.head.is_some(), "rollback head: {source:?}");
             assert_eq!(result.remainder, source, "rollback remainder: {source:?}");
+        }
+    }
+
+    #[test]
+    fn isolated_act_declaration_ast_selects_all_body_forms_and_preserves_boundaries() {
+        fn parse(source: &str) -> (ActDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Act intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        let bodyless_source = "act Console::Read;";
+        let (bodyless, remainder) = parse(bodyless_source);
+        assert_eq!(bodyless.range(), 0..bodyless_source.len());
+        assert!(matches!(
+            bodyless.head,
+            Recovered::Complete(ref head) if head.range() == (4..17)
+        ));
+        assert!(bodyless.source.is_none());
+        assert!(matches!(
+            bodyless.body,
+            Recovered::Complete(ActBody::Bodyless { semicolon: Some(ref semicolon) })
+                if *semicolon == (17..18)
+        ));
+        assert_eq!(remainder, "");
+
+        // Tail-nothing after a complete copy source is a success, rather
+        // than Role-style BodyIntroducer recovery.
+        let implicit_source = "act local 't = var 't";
+        let (implicit, remainder) = parse(implicit_source);
+        assert_eq!(implicit.range(), 0..implicit_source.len());
+        assert!(matches!(
+            implicit.head,
+            Recovered::Complete(ref head) if head.range() == (4..12)
+        ));
+        assert!(matches!(
+            implicit.source,
+            Some(ActSourceClause {
+                ref equals,
+                source: Recovered::Complete(ref source),
+                ref range,
+            }) if *equals == (13..14) && source.range() == (15..21) && *range == (13..21)
+        ));
+        assert!(matches!(
+            implicit.body,
+            Recovered::Complete(ActBody::Bodyless { semicolon: None })
+        ));
+        assert_eq!(remainder, "");
+
+        let indented_source = "act a:\n  our r: a -> b";
+        let (indented, remainder) = parse(indented_source);
+        assert_eq!(indented.range(), 0..indented_source.len());
+        assert!(matches!(
+            indented.body,
+            Recovered::Complete(ActBody::Colon {
+                body: Recovered::Complete(ActColonBody::Indented { ref block }),
+                ..
+            }) if block.statements().len() == 1
+        ));
+        assert_eq!(remainder, "");
+
+        let braced_source = "act Eq {\n  our eq: Self -> Self -> Bool\n}";
+        let (braced, remainder) = parse(braced_source);
+        assert_eq!(braced.range(), 0..braced_source.len());
+        assert!(matches!(
+            braced.body,
+            Recovered::Complete(ActBody::Braced { ref block }) if block.range() == (7..braced_source.len())
+        ));
+        assert_eq!(remainder, "");
+
+        // Missing Head remains distinct from tail-nothing after a complete
+        // head/source: it does not invent an implicit bodyless success.
+        let (missing_head, remainder) = parse("act");
+        assert!(matches!(missing_head.head, Recovered::Incomplete));
+        assert!(matches!(missing_head.body, Recovered::Incomplete));
+        assert_eq!(remainder, "");
+
+        for source in ["act A", "act A = B"] {
+            let (declaration, remainder) = parse(source);
+            assert!(matches!(declaration.head, Recovered::Complete(_)), "head: {source:?}");
+            assert!(matches!(
+                declaration.body,
+                Recovered::Complete(ActBody::Bodyless { semicolon: None })
+            ), "implicit bodyless: {source:?}");
+            assert_eq!(remainder, "", "remainder: {source:?}");
+        }
+
+        // A non-empty malformed introducer run is not tail-nothing: it
+        // retries at a real starter, or leaves the next owner boundary.
+        let (malformed_retry, remainder) = parse("act A @;");
+        assert!(matches!(
+            malformed_retry.body,
+            Recovered::Complete(ActBody::Bodyless { semicolon: Some(semicolon) })
+                if semicolon == (7..8)
+        ));
+        assert_eq!(remainder, "");
+        let (malformed_boundary, remainder) = parse("act A @,");
+        assert!(matches!(malformed_boundary.body, Recovered::Incomplete));
+        assert_eq!(malformed_boundary.range(), 0..7);
+        assert_eq!(remainder, ",");
+
+        // A literal colon owns itself, but never its terminal or dedented
+        // boundary; its missing body remains a Body recovery slot.
+        for (source, expected_remainder) in [
+            ("act A:", ""),
+            ("act A:;", ";"),
+            ("act A:,", ","),
+            ("act A:)", ")"),
+            ("act A:\nnext", "\nnext"),
+        ] {
+            let (declaration, remainder) = parse(source);
+            assert!(matches!(
+                declaration.body,
+                Recovered::Complete(ActBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
+            ), "body: {source:?}");
+            assert_eq!(declaration.range().end, 6, "range: {source:?}");
+            assert_eq!(remainder, expected_remainder, "remainder: {source:?}");
         }
     }
 
