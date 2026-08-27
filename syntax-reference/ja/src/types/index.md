@@ -4,10 +4,10 @@
 
 - [Standalone TypeExpression core](type-expression-core.md)
 - [Named-record type](named-record-type.md)
+- [`forall` type](forall-type.md)
+- [Effect-row type](effect-row-type.md)
 
 未執筆の要素:
 
-- `forall` type
-- Effect-row type
 - Polymorphic-variant type
 - Bracket-row grammar

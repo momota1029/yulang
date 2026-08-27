@@ -20,6 +20,8 @@
 - [一覧（未執筆）](types/index.md)
 - [Standalone TypeExpression core](types/type-expression-core.md)
 - [Named-record type](types/named-record-type.md)
+- [`forall` type](types/forall-type.md)
+- [Effect-row type](types/effect-row-type.md)
 
 # Statements / Declarations
 
