@@ -1236,6 +1236,17 @@ struct ParsedCastTargetPhase<'source> {
     handoff: CastTargetHandoff,
 }
 
+/// The already-decided Cast prefix shared by Gate 3b's signature fixtures and
+/// Gate 4b's form-aware AST adapter.  The boolean preserves whether the
+/// prefix lattice established positive form-starter authority without making
+/// the form judge re-probe Pattern or TypeExpression decisions.
+struct ParsedCastSignature<'source> {
+    visibility: Visibility,
+    pattern: Recovered<CastPattern<'source>>,
+    target: Recovered<CastTarget<'source>>,
+    form_handoff: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CommittedCastTargetPhase {
     target: Recovered<Range<usize>>,
@@ -1944,24 +1955,131 @@ where
 {
     let errors_checkpoint = i.errors_checkpoint();
     let intro = i.run(recognize_cast_statement_intro)?;
-    let visibility = intro
-        .visibility
-        .map_or(Visibility::Private, |prefix| prefix.visibility);
-    let pattern = parse_cast_pattern_isolated(table, intro.cast_base, &mut i);
-    let target = if pattern.handoff == CastPatternHandoff::Target {
-        parse_cast_target_isolated(intro.cast_base, &mut i).target
-    } else {
-        Recovered::Incomplete
-    };
+    let signature = parse_cast_signature_after_intro_isolated(table, &intro, &mut i);
     let declaration = CastDeclaration {
-        visibility,
-        pattern: pattern.pattern,
-        target,
+        visibility: signature.visibility,
+        pattern: signature.pattern,
+        target: signature.target,
         form: Recovered::Incomplete,
         range: intro.start..i.pos(),
     };
     i.errors_rollback(errors_checkpoint);
     Some(declaration)
+}
+
+/// Gate 3b's Pattern/Target prefix composition, kept separate from the
+/// declaration form so later consumers never duplicate its handoff logic.
+fn parse_cast_signature_after_intro_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    intro: &CastStatementIntro<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParsedCastSignature<'source>
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let visibility = intro
+        .visibility
+        .as_ref()
+        .map_or(Visibility::Private, |prefix| prefix.visibility);
+    let pattern = parse_cast_pattern_isolated(table, intro.cast_base, i);
+    let (target, form_handoff) = match pattern.handoff {
+        CastPatternHandoff::Target => {
+            let target = parse_cast_target_isolated(intro.cast_base, i);
+            (target.target, target.handoff == CastTargetHandoff::Form)
+        }
+        CastPatternHandoff::Form => (Recovered::Incomplete, true),
+        CastPatternHandoff::Boundary => (Recovered::Incomplete, false),
+    };
+    ParsedCastSignature {
+        visibility,
+        pattern: pattern.pattern,
+        target,
+        form_handoff,
+    }
+}
+
+/// Gate 4b's isolated, form-aware Cast AST adapter.  It deliberately builds
+/// no CST and remains unreachable from real statement dispatch until Gate 8.
+fn parse_cast_declaration_form_aware_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<CastDeclaration<'source>>
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    let intro = i.run(recognize_cast_statement_intro)?;
+    let signature = parse_cast_signature_after_intro_isolated(table, &intro, &mut i);
+    let form = signature
+        .form_handoff
+        .then(|| parse_cast_form_isolated(table, intro.cast_base, &mut i))
+        .unwrap_or(Recovered::Incomplete);
+    let declaration = CastDeclaration {
+        visibility: signature.visibility,
+        pattern: signature.pattern,
+        target: signature.target,
+        form,
+        range: intro.start..i.pos(),
+    };
+    i.errors_rollback(errors_checkpoint);
+    Some(declaration)
+}
+
+/// Selects the only two standalone Cast forms.  The post-equals body uses the
+/// neutral Binding-style layout decision but supplies Cast-owned AST builders.
+fn parse_cast_form_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    cast_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<CastForm<'source>>
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return Recovered::Incomplete;
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(cast_base, i) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    if let Some(semicolon) = i.run(scan_punctuation).and_then(|punctuation| {
+        (punctuation.kind() == PunctuationKind::Semicolon).then_some(punctuation.range())
+    }) {
+        return Recovered::Complete(CastForm::Bodyless { semicolon });
+    }
+
+    i.rollback(checkpoint.clone());
+    let Some(_) = mod_trivia(cast_base, i) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    let Some(equals) = i.run(scan_declaration_exact_equals) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    let body = parse_binding_style_body(
+        cast_base,
+        |_trivia, i| {
+            i.run(from_fn(|i| parse_expression_with_operators(table, i)))
+                .map(|expression| CastBody::Inline { expression })
+        },
+        |trivia, block_indent, i| CastBody::Indented {
+            block: parse_indented_binding_body(table, trivia, cast_base, block_indent, i),
+        },
+        i,
+    )
+    .map_or(Recovered::Incomplete, Recovered::Complete);
+    let end = match &body {
+        Recovered::Complete(CastBody::Inline { expression }) => expression.range().end,
+        Recovered::Complete(CastBody::Indented { block }) => block.range().end,
+        Recovered::Incomplete => equals.end,
+    };
+    Recovered::Complete(CastForm::Definition {
+        equals: equals.clone(),
+        body,
+        range: equals.start..end,
+    })
 }
 
 fn commit_cast_signature_isolated<'parse, 'source, 'local, E, O>(
@@ -25231,6 +25349,100 @@ mod tests {
             assert_eq!(ast_stops, expected_outer_stops, "AST stops: {:?}", case.source);
             assert_eq!(direct_stops, expected_outer_stops, "direct stops: {:?}", case.source);
         }
+    }
+
+    #[test]
+    fn isolated_cast_form_uses_the_neutral_binding_style_layout_without_binding_identity() {
+        fn parse(source: &str) -> (CastDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_cast_declaration_form_aware_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    i,
+                )
+                .expect("accepted Cast intro owns its isolated continuation")
+            };
+            let remainder = source_input.remainder().to_owned();
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, remainder)
+        }
+
+        let (bodyless, remainder) = parse("cast(x: A): B;");
+        assert_eq!(remainder, "");
+        assert_eq!(bodyless.range(), 0..14);
+        assert!(matches!(bodyless.form,
+            Recovered::Complete(CastForm::Bodyless { semicolon }) if semicolon == (13..14)));
+
+        let (inline, remainder) = parse("pub cast(x: A): B = x");
+        assert_eq!(remainder, "");
+        assert_eq!(inline.visibility, Visibility::Public);
+        assert_eq!(inline.range(), 0..21);
+        assert!(matches!(&inline.form,
+            Recovered::Complete(CastForm::Definition { equals, body, range })
+                if equals == &(18..19)
+                    && range == &(18..21)
+                    && matches!(body,
+                        Recovered::Complete(CastBody::Inline { expression })
+                            if expression.range() == (20..21))));
+
+        let indented_source = "cast(x: A): B =\n  x";
+        let (indented, remainder) = parse(indented_source);
+        assert_eq!(remainder, "");
+        assert_eq!(indented.range(), 0..indented_source.len());
+        assert!(matches!(&indented.form,
+            Recovered::Complete(CastForm::Definition { equals, body, range })
+                if equals == &(14..15)
+                    && range == &(14..indented_source.len())
+                    && matches!(body,
+                        Recovered::Complete(CastBody::Indented { block })
+                            if block.range() == (15..indented_source.len()))));
+
+        let (missing_target, remainder) = parse("cast(x: A);");
+        assert_eq!(remainder, "");
+        assert!(matches!(missing_target.target, Recovered::Incomplete));
+        assert!(matches!(&missing_target.form,
+            Recovered::Complete(CastForm::Bodyless { semicolon }) if semicolon == &(10..11)));
+        assert_eq!(missing_target.range(), 0..11);
+
+        let (missing_form, remainder) = parse("cast(x: A): B");
+        assert_eq!(remainder, "");
+        assert!(matches!(missing_form.target, Recovered::Complete(_)));
+        assert!(matches!(missing_form.form, Recovered::Incomplete));
+        assert_eq!(missing_form.range(), 0..13);
+
+        let (non_exact_equals, remainder) = parse("cast(x: A): B == value");
+        assert_eq!(remainder, " == value");
+        assert!(matches!(non_exact_equals.form, Recovered::Incomplete));
+        assert_eq!(non_exact_equals.range(), 0..13);
+
+        let (missing_body, remainder) = parse("cast(x: A): B =");
+        assert_eq!(remainder, "");
+        assert!(matches!(&missing_body.form,
+            Recovered::Complete(CastForm::Definition { equals, body, range })
+                if equals == &(14..15)
+                    && range == &(14..15)
+                    && matches!(body, Recovered::Incomplete)));
+        assert_eq!(missing_body.range(), 0..15);
+
+        let boundary_source = "cast(x: A): B =\ncast(y: C): D;";
+        let (boundary, remainder) = parse(boundary_source);
+        assert_eq!(remainder, "\ncast(y: C): D;");
+        assert!(matches!(&boundary.form,
+            Recovered::Complete(CastForm::Definition { equals, body, range })
+                if equals == &(14..15)
+                    && range == &(14..15)
+                    && matches!(body, Recovered::Incomplete)));
+        assert_eq!(boundary.range(), 0..15);
     }
 
     #[test]
