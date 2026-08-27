@@ -6570,6 +6570,15 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
+    // Named and tuple payload delimiters are owned immediately after the raw
+    // variant name. Their grammar has no required payload trivia, so `B(T)`
+    // and `A { field: T }` must outrank both unit and positional evidence.
+    if let Some(open) = enum_variant_payload_open(Delimiter::Brace, i) {
+        return parse_enum_variant_named_payload_ast(form, open, i);
+    }
+    if let Some(open) = enum_variant_payload_open(Delimiter::Parenthesis, i) {
+        return parse_enum_variant_tuple_payload_ast(form, open, i);
+    }
     let Some(_) = consume_enum_variant_payload_trivia(i) else {
         return EnumVariantPayload::Unit;
     };
@@ -7206,6 +7215,18 @@ fn commit_enum_variant_payload<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    if let Some(open) = committed.probe(|probe| {
+        enum_variant_payload_open(Delimiter::Brace, probe.input())
+    }) {
+        commit_enum_variant_named_payload(form, open, committed);
+        return;
+    }
+    if let Some(open) = committed.probe(|probe| {
+        enum_variant_payload_open(Delimiter::Parenthesis, probe.input())
+    }) {
+        commit_enum_variant_tuple_payload(form, open, committed);
+        return;
+    }
     let gap = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()));
     let Some(gap) = gap else { return; };
     if let Some(keyword) = committed.probe(|probe| enum_variant_exact_from_pending(probe.input())) {
@@ -7691,6 +7712,272 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
     }
+}
+
+/// Direct-CST counterpart of [`parse_enum_declaration_isolated`]. It emits
+/// only the approved declaration, variant, shared field, and derives CST
+/// vocabulary; body-form and sequence facts stay as source-order children
+/// until Gate 11 promotes this adapter into public dispatch.
+pub(crate) fn commit_enum_declaration_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: EnumStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
+    committed.start_node(SyntaxKind::EnumDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::EnumKw, intro.enum_keyword.range());
+
+    let header = commit_required_enum_header_isolated(&intro, committed);
+    let header_complete = matches!(header.name, Recovered::Complete(_));
+    if header_complete {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Enum,
+                DerivesAttachmentPosition::Header,
+                intro.enum_base,
+                probe.input(),
+            )
+        }) {
+            let _ = commit_derives_attachments_isolated(start, committed);
+        }
+    }
+
+    let has_actual_braced_close = header_complete
+        && commit_enum_body_isolated(intro.enum_base, committed);
+    if has_actual_braced_close {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Enum,
+                DerivesAttachmentPosition::Trailing,
+                intro.enum_base,
+                probe.input(),
+            )
+        }) {
+            let _ = commit_derives_attachments_isolated(start, committed);
+        }
+    }
+
+    let end = committed_position(committed);
+    committed.finish_node();
+    committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+    Recovered::Complete(intro.start..end)
+}
+
+#[derive(Clone)]
+enum DirectEnumBodyStarter {
+    Bodyless(Range<usize>),
+    Braced(Range<usize>),
+    Colon(Range<usize>),
+    Equals(Range<usize>),
+}
+
+fn enum_direct_body_starter<E>(
+    enum_base: usize,
+    i: &mut SynIn<E>,
+) -> Option<(TriviaRun, DirectEnumBodyStarter)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let result = (|| {
+        let trivia = mod_trivia(enum_base, i)?;
+        if let Some(equals) = i.run(scan_declaration_exact_equals) {
+            return Some((trivia, DirectEnumBodyStarter::Equals(equals)));
+        }
+        let punctuation = i.run(scan_punctuation)?;
+        let starter = match punctuation.kind() {
+            PunctuationKind::Semicolon => DirectEnumBodyStarter::Bodyless(punctuation.range()),
+            PunctuationKind::Open(Delimiter::Brace) => DirectEnumBodyStarter::Braced(punctuation.range()),
+            PunctuationKind::Colon => DirectEnumBodyStarter::Colon(punctuation.range()),
+            _ => return None,
+        };
+        Some((trivia, starter))
+    })();
+    i.rollback(checkpoint);
+    result
+}
+
+/// Emits one complete Enum body form. Missing and malformed body recovery is
+/// deliberately left to Gate 9's recovery matrix; this Gate 8 adapter fixes
+/// the valid direct-CST shape and the source ownership needed by that matrix.
+fn commit_enum_body_isolated<'parse, 'source, 'local, E, O>(
+    enum_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if committed.probe(|probe| enum_body_implicit_boundary_pending(enum_base, probe.input())) {
+        return false;
+    }
+    let starter = committed.probe(|probe| enum_direct_body_starter(enum_base, probe.input()));
+    let Some((trivia, starter)) = starter else {
+        return false;
+    };
+    let consumed_trivia = committed
+        .probe(|probe| mod_trivia(enum_base, probe.input()))
+        .expect("the selected Enum body starter retains its declaration-continuing trivia");
+    assert_eq!(consumed_trivia.range(), trivia.range());
+    committed.emit_trivia(&consumed_trivia);
+
+    match starter {
+        DirectEnumBodyStarter::Bodyless(range) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("the selected Enum semicolon remains at the cursor");
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Semicolon, range);
+            false
+        }
+        DirectEnumBodyStarter::Braced(range) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("the selected Enum brace remains at the cursor");
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::LBrace, range);
+            commit_enum_braced_body_isolated(enum_base, committed)
+        }
+        DirectEnumBodyStarter::Colon(range) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("the selected Enum colon remains at the cursor");
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Colon, range);
+            commit_enum_colon_body_isolated(enum_base, committed);
+            false
+        }
+        DirectEnumBodyStarter::Equals(range) => {
+            let equals = committed
+                .probe(|probe| probe.input().run(scan_declaration_exact_equals))
+                .expect("the selected Enum equals remains at the cursor");
+            assert_eq!(equals, range);
+            committed.token(SyntaxKind::Equals, range);
+            commit_enum_equals_body_isolated(enum_base, committed);
+            false
+        }
+    }
+}
+
+fn commit_enum_braced_body_isolated<'parse, 'source, 'local, E, O>(
+    enum_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let layout = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let opening = i.run(scan_trivia).expect("trivia scanning is total");
+        let layout = LayoutDelimitedFrame::after_opening_trivia(
+            enum_base,
+            &opening,
+            i.local.line().line_indent,
+        );
+        i.rollback(checkpoint);
+        layout
+    });
+    matches!(
+        commit_enum_variant_sequence_with_payload(
+            enum_variant_sequence_spec(EnumVariantSequenceForm::Braced, layout, enum_base),
+            committed,
+        ),
+        EnumVariantSequenceTermination::MatchingClose(_)
+    )
+}
+
+fn commit_enum_colon_body_isolated<'parse, 'source, 'local, E, O>(
+    enum_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scanning is total");
+    let valid_indent = committed.probe(|probe| {
+        enum_variant_trivia_has_newline(&trivia)
+            && probe.input().local.line().line_indent > enum_base
+    });
+    if !valid_indent {
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+        return;
+    }
+    let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+    committed.emit_trivia(&trivia);
+    let _ = commit_enum_variant_sequence_with_payload(
+        enum_variant_sequence_spec(
+            EnumVariantSequenceForm::ColonIndented,
+            LayoutDelimitedFrame::inline(block_indent),
+            enum_base,
+        ),
+        committed,
+    );
+}
+
+fn commit_enum_equals_body_isolated<'parse, 'source, 'local, E, O>(
+    enum_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scanning is total");
+    if enum_variant_trivia_has_newline(&trivia) {
+        let valid_indent = committed.probe(|probe| probe.input().local.line().line_indent > enum_base);
+        if !valid_indent {
+            committed.probe(|probe| probe.input().rollback(checkpoint));
+            return;
+        }
+        let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+        committed.emit_trivia(&trivia);
+        let _ = commit_enum_variant_sequence_with_payload(
+            enum_variant_sequence_spec(
+                EnumVariantSequenceForm::EqualsIndented,
+                LayoutDelimitedFrame::inline(block_indent),
+                enum_base,
+            ),
+            committed,
+        );
+        return;
+    }
+    committed.emit_trivia(&trivia);
+    let _ = commit_enum_variant_sequence_with_payload(
+        enum_variant_sequence_spec(
+            EnumVariantSequenceForm::EqualsInline,
+            LayoutDelimitedFrame::inline(enum_base),
+            enum_base,
+        ),
+        committed,
+    );
 }
 
 /// This is intentionally local rather than a global reserved-word state:
@@ -32456,6 +32743,219 @@ mod tests {
             Recovered::Complete(EnumBody::Bodyless { semicolon: None })
         ));
         assert_eq!(outer_boundary.range(), 0..6);
+    }
+
+    #[test]
+    fn isolated_enum_declaration_direct_cst_is_byte_exact_and_matches_ast_forms() {
+        fn parse_ast<'source>(source: &'source str) -> (EnumDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_enum_declaration_isolated(i)
+                    .expect("the isolated Enum direct fixture has an accepted intro")
+            };
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "AST adapter must not cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_enum_statement_intro)
+                .expect("the isolated Enum direct fixture has an accepted intro");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_enum_declaration_isolated(&mut committed, intro);
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct adapter must not cut: {source:?}");
+            (range, remainder, root, recoveries)
+        }
+
+        fn outline(node: &SyntaxNode, entries: &mut Vec<(SyntaxKind, Range<usize>)>) {
+            for element in node.children_with_tokens() {
+                entries.push((element.kind(), syntax_range(element.text_range())));
+                if let Some(child) = element.into_node() {
+                    outline(&child, entries);
+                }
+            }
+        }
+
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum BodyForm {
+            Braced(usize),
+            Colon(usize),
+            EqualsInline(usize),
+            EqualsIndented(usize),
+        }
+
+        struct Case {
+            source: &'static str,
+            body: BodyForm,
+            derives: usize,
+            expected: &'static [(SyntaxKind, usize, usize)],
+        }
+
+        let cases = [
+            Case {
+                source: "enum E { A, B }",
+                body: BodyForm::Braced(2),
+                derives: 0,
+                expected: &[
+                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 6), (SyntaxKind::Whitespace, 6, 7),
+                    (SyntaxKind::LBrace, 7, 8), (SyntaxKind::Whitespace, 8, 9),
+                    (SyntaxKind::EnumVariant, 9, 10), (SyntaxKind::Identifier, 9, 10),
+                    (SyntaxKind::Comma, 10, 11), (SyntaxKind::Whitespace, 11, 12),
+                    (SyntaxKind::EnumVariant, 12, 13), (SyntaxKind::Identifier, 12, 13),
+                    (SyntaxKind::Whitespace, 13, 14), (SyntaxKind::RBrace, 14, 15),
+                ],
+            },
+            Case {
+                source: "enum opt 't = nil | just 't",
+                body: BodyForm::EqualsInline(2),
+                derives: 0,
+                expected: &[
+                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 8), (SyntaxKind::DeclarationTypeParameterList, 8, 11),
+                    (SyntaxKind::Whitespace, 8, 9), (SyntaxKind::SigilIdentifier, 9, 11),
+                    (SyntaxKind::Whitespace, 11, 12), (SyntaxKind::Equals, 12, 13),
+                    (SyntaxKind::Whitespace, 13, 14), (SyntaxKind::EnumVariant, 14, 17),
+                    (SyntaxKind::Identifier, 14, 17), (SyntaxKind::Whitespace, 17, 18),
+                    (SyntaxKind::Pipe, 18, 19), (SyntaxKind::Whitespace, 19, 20),
+                    (SyntaxKind::EnumVariant, 20, 27), (SyntaxKind::Identifier, 20, 24),
+                    (SyntaxKind::Whitespace, 24, 25), (SyntaxKind::TypeExpression, 25, 27),
+                    (SyntaxKind::SigilIdentifier, 25, 27),
+                ],
+            },
+            Case {
+                source: "enum tree =\n    leaf\n    | node int",
+                body: BodyForm::EqualsIndented(2),
+                derives: 0,
+                expected: &[
+                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 9), (SyntaxKind::Whitespace, 9, 10),
+                    (SyntaxKind::Equals, 10, 11), (SyntaxKind::Newline, 11, 12),
+                    (SyntaxKind::Whitespace, 12, 16), (SyntaxKind::EnumVariant, 16, 20),
+                    (SyntaxKind::Identifier, 16, 20), (SyntaxKind::Newline, 20, 21),
+                    (SyntaxKind::Whitespace, 21, 25), (SyntaxKind::Pipe, 25, 26),
+                    (SyntaxKind::Whitespace, 26, 27), (SyntaxKind::EnumVariant, 27, 35),
+                    (SyntaxKind::Identifier, 27, 31), (SyntaxKind::Whitespace, 31, 32),
+                    (SyntaxKind::TypeExpression, 32, 35), (SyntaxKind::Identifier, 32, 35),
+                ],
+            },
+            Case {
+                source: "enum E { A { x: int }, B(int, str) }",
+                body: BodyForm::Braced(2),
+                derives: 0,
+                expected: &[
+                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 6), (SyntaxKind::Whitespace, 6, 7),
+                    (SyntaxKind::LBrace, 7, 8), (SyntaxKind::Whitespace, 8, 9),
+                    (SyntaxKind::EnumVariant, 9, 21), (SyntaxKind::Identifier, 9, 10),
+                    (SyntaxKind::Whitespace, 10, 11), (SyntaxKind::LBrace, 11, 12),
+                    (SyntaxKind::Whitespace, 12, 13), (SyntaxKind::StructField, 13, 19),
+                    (SyntaxKind::Identifier, 13, 14), (SyntaxKind::Colon, 14, 15),
+                    (SyntaxKind::Whitespace, 15, 16), (SyntaxKind::TypeExpression, 16, 19),
+                    (SyntaxKind::Identifier, 16, 19), (SyntaxKind::Whitespace, 19, 20),
+                    (SyntaxKind::RBrace, 20, 21), (SyntaxKind::Comma, 21, 22),
+                    (SyntaxKind::Whitespace, 22, 23), (SyntaxKind::EnumVariant, 23, 34),
+                    (SyntaxKind::Identifier, 23, 24), (SyntaxKind::LParen, 24, 25),
+                    (SyntaxKind::StructField, 25, 28), (SyntaxKind::TypeExpression, 25, 28),
+                    (SyntaxKind::Identifier, 25, 28), (SyntaxKind::Comma, 28, 29),
+                    (SyntaxKind::Whitespace, 29, 30), (SyntaxKind::StructField, 30, 33),
+                    (SyntaxKind::TypeExpression, 30, 33), (SyntaxKind::Identifier, 30, 33),
+                    (SyntaxKind::RParen, 33, 34), (SyntaxKind::Whitespace, 34, 35),
+                    (SyntaxKind::RBrace, 35, 36),
+                ],
+            },
+            Case {
+                source: "enum choice derives Eq:\n    none\n    number int",
+                body: BodyForm::Colon(2),
+                derives: 1,
+                expected: &[
+                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 11), (SyntaxKind::DerivesClause, 11, 22),
+                    (SyntaxKind::Whitespace, 11, 12), (SyntaxKind::DerivesKw, 12, 19),
+                    (SyntaxKind::Whitespace, 19, 20), (SyntaxKind::TypeExpression, 20, 22),
+                    (SyntaxKind::Identifier, 20, 22), (SyntaxKind::Colon, 22, 23),
+                    (SyntaxKind::Newline, 23, 24), (SyntaxKind::Whitespace, 24, 28),
+                    (SyntaxKind::EnumVariant, 28, 32), (SyntaxKind::Identifier, 28, 32),
+                    (SyntaxKind::Newline, 32, 33), (SyntaxKind::Whitespace, 33, 37),
+                    (SyntaxKind::EnumVariant, 37, 47), (SyntaxKind::Identifier, 37, 43),
+                    (SyntaxKind::Whitespace, 43, 44), (SyntaxKind::TypeExpression, 44, 47),
+                    (SyntaxKind::Identifier, 44, 47),
+                ],
+            },
+        ];
+
+        for case in cases {
+            let source = case.source;
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, root, records) = commit_direct(source);
+            assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert!(records.is_empty(), "recoveries: {source:?}");
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            let declaration = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::EnumDeclaration)
+                .expect("one EnumDeclaration");
+            assert_eq!(syntax_range(declaration.text_range()), 0..source.len());
+            assert!(
+                !root.descendants().any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Error
+                )),
+                "valid worked example has no recovery node: {source:?}",
+            );
+            let mut entries = Vec::new();
+            outline(&declaration, &mut entries);
+            let expected = case
+                .expected
+                .iter()
+                .map(|&(kind, start, end)| (kind, start..end))
+                .collect::<Vec<_>>();
+            assert_eq!(entries, expected, "byte-exact CST outline: {source:?}");
+
+            assert_eq!(ast.derives.len(), case.derives, "derives: {source:?}");
+            let body = match &ast.body {
+                Recovered::Complete(EnumBody::Braced(body)) => BodyForm::Braced(body.variants.len()),
+                Recovered::Complete(EnumBody::Colon { body: Recovered::Complete(body), .. }) => {
+                    BodyForm::Colon(body.variants.len())
+                }
+                Recovered::Complete(EnumBody::Equals {
+                    body: Recovered::Complete(EnumEqualsVariantBody::Inline { variants, .. }),
+                    ..
+                }) => BodyForm::EqualsInline(variants.len()),
+                Recovered::Complete(EnumBody::Equals {
+                    body: Recovered::Complete(EnumEqualsVariantBody::Indented(body)),
+                    ..
+                }) => BodyForm::EqualsIndented(body.variants.len()),
+                unexpected => panic!("unexpected AST body for {source:?}: {unexpected:?}"),
+            };
+            assert_eq!(body, case.body, "AST/direct body form: {source:?}");
+        }
     }
 
     #[test]
