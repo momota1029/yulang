@@ -6177,6 +6177,124 @@ where
     committed_statement
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum BindingStyleBodyLayout {
+    Inline { trivia: TriviaRun },
+    Indented {
+        opening_trivia: TriviaRun,
+        block_indent: usize,
+    },
+    OuterBoundary,
+}
+
+/// Classifies the body after an already-committed `=`-style introducer.
+///
+/// The shallow-newline branch rolls back the trivia so the surrounding
+/// statement owner keeps that boundary.  The two builders deliberately stay
+/// owner-supplied: the shared decision owns layout and recovery timing, not a
+/// declaration's AST/CST identity.
+fn classify_binding_style_body_layout<E>(
+    base_indent: usize,
+    i: &mut SynIn<E>,
+) -> BindingStyleBodyLayout
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    let has_newline = i.input.source()[trivia.range()].contains(['\r', '\n']);
+    if !has_newline {
+        return BindingStyleBodyLayout::Inline { trivia };
+    }
+    let block_indent = i.local.line().line_indent;
+    if block_indent > base_indent {
+        BindingStyleBodyLayout::Indented {
+            opening_trivia: trivia,
+            block_indent,
+        }
+    } else {
+        i.rollback(checkpoint);
+        BindingStyleBodyLayout::OuterBoundary
+    }
+}
+
+/// AST half of the reusable Binding-style inline-or-indented body decision.
+fn parse_binding_style_body<'source, E, Body>(
+    base_indent: usize,
+    parse_inline: impl FnOnce(TriviaRun, &mut SynIn<'_, 'source, '_, E>) -> Option<Body>,
+    parse_indented: impl FnOnce(TriviaRun, usize, &mut SynIn<'_, 'source, '_, E>) -> Body,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Body>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    match classify_binding_style_body_layout(base_indent, i) {
+        BindingStyleBodyLayout::Inline { trivia } => parse_inline(trivia, i),
+        BindingStyleBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => Some(parse_indented(opening_trivia, block_indent, i)),
+        BindingStyleBodyLayout::OuterBoundary => None,
+    }
+}
+
+/// Direct-CST half of the reusable Binding-style inline-or-indented body
+/// decision.  The owner supplies its body builders and recovery role while
+/// this helper owns the exact trivia, indentation, retry, and boundary split.
+fn commit_binding_style_body<'parse, 'source, 'local, E, O, Body>(
+    operators: &crate::operator::OperatorTable,
+    base_indent: usize,
+    body_role: GrammarRole,
+    commit_inline: impl FnOnce(ParsedExpression<O::Checkpoint>) -> Body,
+    commit_indented: impl FnOnce(
+        TriviaRun,
+        usize,
+        &mut Committed<'parse, 'source, 'local, E, O>,
+    ) -> Body,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Body>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    match committed.probe(|probe| classify_binding_style_body_layout(base_indent, probe.input())) {
+        BindingStyleBodyLayout::OuterBoundary => {
+            emit_expression_missing_with_role(committed, body_role);
+            Recovered::Incomplete
+        }
+        BindingStyleBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => Recovered::Complete(commit_indented(opening_trivia, block_indent, committed)),
+        BindingStyleBodyLayout::Inline { trivia } => {
+            let leading = if trivia.is_empty() {
+                LeadingTrivia::None
+            } else {
+                LeadingTrivia::Present
+            };
+            committed.emit_trivia(&trivia);
+            let body = parse_direct_expression_with_operators(operators, leading, committed).or_else(|| {
+                direct_expression_error_retry(operators, body_role, committed)
+                    .then(|| parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed))
+                    .flatten()
+            });
+            match body {
+                Some(body) => Recovered::Complete(commit_inline(body)),
+                None => {
+                    emit_expression_missing_with_role(committed, body_role);
+                    Recovered::Incomplete
+                }
+            }
+        }
+    }
+}
+
 fn commit_binding_body<'parse, 'source, 'local, E, O>(
     operators: &crate::operator::OperatorTable,
     binding_base: usize,
@@ -6189,37 +6307,24 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let body_start = committed.probe(|probe| probe.input().pos());
-    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
-    let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
-    let has_newline = committed.probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
-    if has_newline && committed.probe(|probe| probe.input().local.line().line_indent <= binding_base) {
-        committed.probe(|probe| probe.input().rollback(checkpoint));
-        emit_binding_missing(committed, BindingRole::Body, ExpectedSyntax::Expression);
-        return Recovered::Incomplete;
-    }
-    if has_newline {
-        let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
-        commit_indented_binding_body(operators, trivia, binding_base, block_indent, committed);
-        let end = committed.probe(|probe| probe.input().pos());
-        return Recovered::Complete(ParsedBindingBody::new(body_start..end));
-    }
-    let leading = if trivia.is_empty() { LeadingTrivia::None } else { LeadingTrivia::Present };
-    committed.emit_trivia(&trivia);
-    let body = parse_direct_expression_with_operators(operators, leading, committed)
-        .or_else(|| {
-            direct_expression_error_retry(
+    commit_binding_style_body(
+        operators,
+        binding_base,
+        GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+        |expression| ParsedBindingBody::new(expression.range()),
+        |trivia, block_indent, committed| {
+            commit_indented_binding_body(
                 operators,
-                GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+                trivia,
+                binding_base,
+                block_indent,
                 committed,
-            ).then(|| parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed)).flatten()
-        });
-    match body {
-        Some(body) => Recovered::Complete(ParsedBindingBody::new(body.range())),
-        None => {
-            emit_binding_missing(committed, BindingRole::Body, ExpectedSyntax::Expression);
-            Recovered::Incomplete
-        }
-    }
+            );
+            let end = committed.probe(|probe| probe.input().pos());
+            ParsedBindingBody::new(body_start..end)
+        },
+        committed,
+    )
 }
 
 /// Emits the recovery record shared by every missing inline separator. The
@@ -6365,6 +6470,38 @@ where
     });
     committed.emit_error(record);
     retry
+}
+
+/// Emits the one owner-selected Missing record for a mandatory Binding-style
+/// expression body after its layout decision has reached a terminal boundary.
+fn emit_expression_missing_with_role<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: GrammarRole,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
 }
 
 fn direct_expression_candidate<'parse, 'source, 'local, E, O>(
@@ -12252,21 +12389,17 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let checkpoint = i.checkpoint();
-    let trivia = i.run(scan_trivia)?;
-    let has_newline = i.input.source()[trivia.range()].contains(['\r', '\n']);
-    if has_newline {
-        if i.local.line().line_indent <= binding_base {
-            i.rollback(checkpoint);
-            return None;
-        }
-        let block_indent = i.local.line().line_indent;
-        return Some(BindingBody::Indented {
+    parse_binding_style_body(
+        binding_base,
+        |_trivia, i| {
+            i.run(from_fn(|i| parse_expression_with_operators(table, i)))
+                .map(|expression| BindingBody::Inline { expression })
+        },
+        |trivia, block_indent, i| BindingBody::Indented {
             block: parse_indented_binding_body(table, trivia, binding_base, block_indent, i),
-        });
-    }
-    let expression = i.run(from_fn(|i| parse_expression_with_operators(table, i)))?;
-    Some(BindingBody::Inline { expression })
+        },
+        i,
+    )
 }
 
 fn binding_trivia<E>(binding_base: usize, i: &mut SynIn<E>) -> Option<TriviaRun>
@@ -14580,6 +14713,148 @@ mod tests {
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             1
+        );
+    }
+
+    #[test]
+    fn binding_style_body_layout_extraction_preserves_binding_ast_direct_contract() {
+        let operators = crate::operator::OperatorTable::empty();
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            local: &mut ParseLocal,
+        ) -> (BindingDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(local);
+            let declaration = i
+                .run(from_fn(|i| parse_binding_declaration_with_operators(
+                    &crate::operator::OperatorTable::empty(),
+                    i,
+                )))
+                .expect("binding declaration");
+            let remainder = i.input.remainder().to_owned();
+            (declaration, remainder)
+        }
+
+        let inline_source = "my value = value";
+        let mut inline_local = ParseLocal::new();
+        let (inline_ast, inline_remainder) = parse_ast(inline_source, &mut inline_local);
+        assert_eq!(inline_remainder, "");
+        assert!(matches!(inline_ast.definition(), Some(definition)
+            if matches!(definition.body(), Recovered::Complete(BindingBody::Inline { expression })
+                if expression.range() == (11..16))));
+
+        let (inline_direct, inline_output) =
+            parse_direct_binding_with_output(inline_source, &operators);
+        assert!(matches!(inline_direct.definition(), Some(definition)
+            if matches!(definition.body(), Recovered::Complete(body) if body.range() == (11..16))));
+        assert!(inline_output.committed_recoveries().is_empty());
+        let inline_root = SyntaxNode::new_root(inline_output.finish_complete());
+        assert_eq!(inline_root.to_string(), inline_source);
+        assert_eq!(
+            inline_root.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::BindingHeader, SyntaxKind::BindingBody],
+        );
+        let inline_body = inline_root
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BindingBody)
+            .expect("direct body node");
+        assert_eq!(syntax_range(inline_body.text_range()), 10..16);
+        assert_eq!(inline_body.to_string(), " value");
+
+        let indented_source = "my value =\n  my nested = value";
+        let mut indented_local = ParseLocal::new();
+        let (indented_ast, indented_remainder) = parse_ast(indented_source, &mut indented_local);
+        assert_eq!(indented_remainder, "");
+        assert!(matches!(indented_ast.definition(), Some(definition)
+            if matches!(definition.body(), Recovered::Complete(BindingBody::Indented { block })
+                if block.range() == (10..indented_source.len()))));
+
+        let (indented_direct, indented_output) =
+            parse_direct_binding_with_output(indented_source, &operators);
+        assert!(matches!(indented_direct.definition(), Some(definition)
+            if matches!(definition.body(), Recovered::Complete(body)
+                if body.range() == (10..indented_source.len()))));
+        assert!(indented_output.committed_recoveries().is_empty());
+        let indented_root = SyntaxNode::new_root(indented_output.finish_complete());
+        assert_eq!(indented_root.to_string(), indented_source);
+        let indented_body = indented_root
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BindingBody)
+            .expect("direct indented body node");
+        assert_eq!(syntax_range(indented_body.text_range()), 10..indented_source.len());
+        assert_eq!(indented_body.to_string(), "\n  my nested = value");
+
+        let missing_source = "my value =";
+        let missing_output = parse_direct_root_candidate(missing_source, &operators, &[]);
+        let [missing] = missing_output.committed_recoveries() else {
+            panic!("missing Binding body must emit exactly one recovery");
+        };
+        assert_eq!(missing.kind, RecoveryKind::Missing);
+        assert_eq!(
+            missing.site.role,
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+        );
+        assert_eq!(missing.site.range, 10..10);
+        assert_eq!(
+            SyntaxNode::new_root(missing_output.green().clone()).to_string(),
+            missing_source,
+        );
+
+        let retry_source = "my value = @@value";
+        let retry_output = parse_direct_root_candidate(retry_source, &operators, &[]);
+        let [retry] = retry_output.committed_recoveries() else {
+            panic!("one malformed Binding body run must emit exactly one recovery");
+        };
+        assert_eq!(retry.kind, RecoveryKind::Error);
+        assert_eq!(
+            retry.site.role,
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+        );
+        assert_eq!(retry.site.range, 11..13);
+        assert_eq!(
+            SyntaxNode::new_root(retry_output.green().clone()).to_string(),
+            retry_source,
+        );
+
+        let outer_boundary_source = "my value =\nmy next";
+        let outer_stops = StopSet::default().with(StopKind::RightBracket);
+        let mut outer_local = ParseLocal::new();
+        outer_local.push_stop_set(outer_stops);
+        outer_local.push_delimiter(Delimiter::Parenthesis);
+        let (outer_ast, outer_remainder) = parse_ast(outer_boundary_source, &mut outer_local);
+        assert!(matches!(outer_ast.definition(), Some(definition)
+            if matches!(definition.body(), Recovered::Incomplete)));
+        assert_eq!(outer_remainder, "\nmy next");
+        assert_eq!(outer_local.stop_set(), Some(outer_stops));
+        assert_eq!(outer_local.delimiter(), Some(Delimiter::Parenthesis));
+        assert_eq!(outer_local.pop_delimiter(), Some(Delimiter::Parenthesis));
+        assert_eq!(outer_local.pop_stop_set(), Some(outer_stops));
+
+        let outer_output = parse_direct_root_candidate(outer_boundary_source, &operators, &[]);
+        let outer_records = outer_output.committed_recoveries();
+        assert_eq!(
+            outer_records.len(),
+            1,
+            "outer boundary must emit its one Binding body recovery: {outer_records:#?}",
+        );
+        let outer_missing = &outer_records[0];
+        assert_eq!(outer_missing.kind, RecoveryKind::Missing);
+        assert_eq!(
+            outer_missing.site.role,
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+        );
+        assert_eq!(outer_missing.site.range, 10..10);
+        assert_eq!(
+            SyntaxNode::new_root(outer_output.green().clone()).to_string(),
+            outer_boundary_source,
         );
     }
 
