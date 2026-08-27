@@ -1,9 +1,12 @@
 # Expressions
 
+執筆済みページ:
+
+- [Parenthesized expression list（unit / group / tuple）](parenthesized-expression.md)
+- [Dynamic operator chain](operator-chain.md)
+
 未執筆の要素:
 
-- Parenthesized expression list（unit / group / tuple）
-- Dynamic operator chain
 - Colon application
 - `if` / `elsif` / `else`
 - Brace-delimited statement block

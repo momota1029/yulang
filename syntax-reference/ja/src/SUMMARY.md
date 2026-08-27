@@ -6,6 +6,8 @@
 # Expressions
 
 - [一覧（未執筆）](expressions/index.md)
+- [Parenthesized expression list](expressions/parenthesized-expression.md)
+- [Dynamic operator chain](expressions/operator-chain.md)
 
 # Patterns
 
