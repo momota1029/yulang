@@ -1,7 +1,7 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-27（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走に続き、
-standalone `act`宣言addendumの11 gate実装も完了）
+更新: 2026-08-28（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
+standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -79,6 +79,22 @@ standalone `act`宣言addendumの11 gate実装も完了）
   設計レビューは誤りゼロで着地(role Gate 10の教訓——contextual-word例を検証せず
   書いた自分自身の誤り——を実装側で確実に踏襲)。host act tier・operation
   registration・derives attachment拡張・`with:` companionは別addendumへ明示的にdefer。
+- standalone `enum`宣言文法(ENUM-G/J/T/R、12 gate計画)がAuthoritative設計どおり
+  実装完了。Gate 1のvocabularyからGate 5の4形態(brace/colon/equals-inline/
+  equals-indented)共通variant-sequence driver、Gate 6のvariant payload driver
+  (Unit/From/Named/Tuple/Positional、Struct field-loop抽出込み)、Gate 9の
+  ENUM-R recovery matrix、Gate 11のStruct後/Enum/Mod前atomic dispatch
+  promotion、Gate 12のfinal contextual-word/scope gateまで完走し、542 tests
+  green。role/actと違い、headはfull TypeExpressionでなくoracle通りraw Name +
+  DeclarationTypeParameter list、bodyは4形態(brace/colon-indented/equals
+  inline/equals-indented)、variantはUnit/from/named/tuple/positionalの5payload
+  形。Gate 8で実装中に発見した実バグ(variant名直後の隣接`(`/`{`がpayload
+  優先判定から漏れていた)を修正、Gate 11のatomic promotion後にderives
+  clause既存Gate 9 fixtureの"`enum E derives Eq`はderivesを持たない"という
+  旧前提がEnum実装完了で不成立になった(Enumが正式なderives header owner
+  になったため)ことをClaudeが直接特定・修正。designレビューはoracle
+  citation13箇所・worked example3件のbyte range手計算含め誤りゼロ。`error`
+  宣言をvariant-sequence/payload core再利用前提でdeferred scopeへ明記済み。
 
 ## 既知の未修正バグ
 
@@ -96,10 +112,12 @@ standalone `act`宣言addendumの11 gate実装も完了）
    (2026-08-27調査)——着手にはまず宣言family自体の設計が要るうえ、正本が
    「type-specific where clauseをYulang3に発明しない」と明記していて位置付けが
    不明確。
-2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/
-   `for`文/declaration-level `where`/doc-comment宣言。`role`/`act`は実装完了。
-   `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。
-3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
+2. **canonical Statement / root Declarationの残りvariant**: `error`/`for`文/
+   declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`は実装完了。
+   `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。`error`は
+   enum addendum自身がvariant-sequence/payload core再利用前提でdeferred
+   scopeへ明記済み(Task #24が起票済み)——次に着手するならこれが最有力候補。
+3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(残りはError/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
    相対的な実装順序は未決定。
