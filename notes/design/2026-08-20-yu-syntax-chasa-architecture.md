@@ -24316,3 +24316,1000 @@ implementation gateを次で固定する。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-27、canonical Statement / root Declarationのstandalone `act` declaration shell grammar追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`のstandalone `enum` declaration grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-27）。
+
+Date: 2026-08-27。
+
+### Scope and authority
+
+本追補は、Authoritativeなcanonical Statement / root Declaration grammar、standalone TypeExpression grammar、
+layout-aware comma-or-newline sequence authority、shared `derives` attachment grammarがfuture declaration ownerへ残した
+standalone `enum` declarationを、root / nestedで同じsyntax ownerとして設計する。対象は次だけである。
+
+- optional declaration visibilityとexact maximal word `enum`から成るstatement intro。
+- mandatory raw declaration nameと、existing `DeclarationTypeParameter` surfaceを使うzero-or-more same-line type variable。
+- shared `DerivesClause` driverへ接続するEnum header attachmentと、actual completed braced body後だけのsafe trailing attachment。
+- explicit / implicit bodyless form、brace-delimited variant sequence、colon-introduced indented variant sequence、
+  exact `=`後のinline / indented variant sequence。
+- raw variant nameと、unit / exact contextual `from` TypeExpression / named struct-like payload / tuple struct-like payload /
+  whitespace-separated positional TypeExpression payloadのfive surface。
+- variant sequenceのcomma / pipe / layout-newline authority、payload TypeExpression episode fencing、typed recovery、ASOB、
+  outer Statement boundary、AST / direct-CST parity。
+- root / nested shared dispatchと、source-leading Enumがheader discoveryを`FirstNonHeader`で終了するno-fact behavior。
+
+本追補は次を設計しない。
+
+- variant constructor / pattern registration、nominal identity、tag representation、layout、discriminant、visibility meaning。
+- variant payload field access、constructor call convention、duplicate name / field、exhaustiveness、variance、kind、recursive type validation。
+- declaration companion `with:` / `with {}`、companion-only item、Enum method / module semantics。
+- `error` declaration。ErrorはYulang2でEnumのvariant parserを直接reuseしたが、keyword、declaration identity、semantic meaning、
+  derives owner、recovery identityを本Enum nodeへ偽装せず、separate addendumで接続する。
+- HIR lowering、resolver、inference、diagnostics wording、formatter、syntax-reference page。
+- enum body内canonical Statement。variant bodyはStatement blockではなくvariant sequenceである。
+
+本追補のBNF-equivalent grammarの唯一の正本は`ENUM-G`、intro / form / sequence authorityは`ENUM-J`、
+variant payload TypeExpression / field-list compositionは`ENUM-T`、typed recoveryは`ENUM-R`である。
+`ENUM`はEnum Declarationの略で、current documentの`DRV` / `IMD` / `CAST` / `ASOB` / `RLD` / `ACT`その他のprefixと
+衝突しない。
+
+### Problem statement and supersession boundary
+
+current Yulang3の`SyntaxKind`、`Declaration`、`Statement`、`StatementIntro`、`StatementKind`、`DeclarationRole`には
+Enum vocabularyがない。exact word `enum`はroot / nested canonical Statementでdeclaration authorityを得ず、
+oracle surfaceの`enum opt 't = nil | just 't`、`enum E { A, B }`、colon-indented body、named / tuple payloadを
+one declaration ownerとして保持できない。
+
+current Struct / Type implementationにはraw declaration name、`DeclarationTypeParameterList`、named / tuple field grammar、
+shared `DerivesClause` attachmentがある。standalone TypeExpressionにはlogical episode fencingとcaller-supplied stop policy、
+polymorphic-variant implementationにはlayout-aware item / repeated whitespace payloadのjudge precedentがある。しかし、これらを
+Enum keywordなしで組み合わせても、次は決まらない。
+
+- `my enum = 1`をBindingへ戻すcontextual named-head lookahead。
+- header type variableとfirst variantのowner境界。
+- `=`がType equalityでなくEnum body introducerであること。
+- comma / pipe / layout newlineのform-specific separator authority。
+- variant name後の`from` / `{` / `(` / positional payloadのpriority。
+- positional payload item間のwhitespaceをouter TypeApplyへ吸わせないepisode policy。
+- one malformed variantからnext separator / variantへ収束するsame-slot retry / no-cascade。
+- Enum-specific AST / CST / recovery identityとDerives attachment point。
+
+本追補は次をsupersedeしない。
+
+- Struct / Mod / Type / Role / Impl / Cast / Act / Binding / Use / OperatorHeaderのexisting relative intro priorityとparse / recovery。
+- StructDeclarationのbody / field recovery、TypeDeclarationのparameter / form grammar、DerivesClause自身のgrammar / recovery。
+- TypeExpression、TMN、positional fence、ASOB、layout-aware sequence authorityのcanonical rule。
+- Pattern / polymorphic variant typeのpipe / comma ownership。
+- `enum`がnon-intro identifier / field / Pattern / TypeExpression / expression positionでordinary wordであるcurrent lexical policy。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`のpeeled commitは
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`であった。surface note、parser implementation、direct parser-tree fixture、
+language report、representative corpusをsame commit treeから再確認し、次をground truthとする。
+
+1. surface grammarは`visibility? "enum" ident type_vars enum_body? with_or_stop`で、bodyはbrace、colon-indent、
+   equals inline / indentのthree introducer familyだった。brace separatorはcomma、inline equals separatorはpipe、
+   indented formではline-leading pipeを許した
+   （`yulang2-oracle:spec/2026-06-06-syntax-design.md:468-482`）。body自体がoptionalなので、complete header後の
+   statement stopはvalid bodyless surfaceである。
+2. variant grammarはraw `ident`後にoptional `from type`、named struct fields、tuple struct fields、またはone-or-more
+   positional typeを持った（同`:484-494`）。surface examplesはinline generic enum、multiple positional payload、
+   equals-indent、brace unit variants、named / tuple payload、companion `with:`を列挙した（同`:496-507`）。
+3. implementationはEnumDecl nodeへvisibility / keyword / mandatory nameを入れ、`scan_decl_type_vars`、
+   `parse_header_derives`、body judge、`finish_with_or_stmt_stop`へ進んだ
+   （`yulang2-oracle:crates/parser/src/stmt/enum_decl.rs:17-63,132-143`）。header derivesのouter stopsは
+   `{` / `:` / `=` / `with` / `;`だった（同`:40-52`）。
+4. braceはgeneric delimited-list machine、colonはindent-list machine、equalsはpost-equals triviaがdeeper newlineなら
+   indent-list、otherwise inline pipe loopへ分岐した（同`:63-113,146-195`）。inline implementationはpipeを
+   literal separatorとしてconsumeし、first variant前 / last variant後のpipeもsource-level loopとして受理できる。
+   surface noteがline-leading pipeをindent formだけについて明記した点よりimplementationの方が広いが、挙動自体はcode上明確である。
+5. variant judgeはname後same-lineのexact contextual `from`を最優先しmandatory full typeへ渡し、次に`{`をStruct named fields、
+   `(`をStruct tuple fieldsへdelegateし、それ以外をpositional payload listへ渡した
+   （同`:198-249`）。positional payloadごとに`ml_arg = true`をscopeし、`rect int int`をtwo sibling TypeExprとして保ちながら、
+   `list(int)`のcallをone TypeExpr内に保った（同`:252-285`）。
+6. indent variant machineはoptional leading pipeをconsumeし、comma / pipeをexplicit separatorとして列挙した。
+   brace machineはcommaだけをseparator、`}`をcloseとした（同`:288-347`）。従ってvariant body formごとに
+   explicit separator setが異なり、one global pipe-listへflattenできない。
+7. direct fixture `enum E { A, B }`はtwo `EnumVariant`とliteral commaを保持した
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1466-1487`）。
+   `enum opt 't = nil | just 't`はseparate `TypeVars`、literal pipe、`just`のone payload TypeExprを保持した
+   （同`:1537-1559`）。
+8. direct fixture `enum shape = circle int | rect int int`は`circle`にone、`rect`にtwo sibling payload TypeExprを持った
+   （同`:1563-1590`）。`enum box = boxed list(int)`はcall payloadをone TypeExprとして保持した
+   （同`:1594-1618`）。このtwo fixtureがouter positional splitとnested TypeExpression continuationのboundaryを固定する。
+9. direct fixture `enum tree =\n    leaf\n    | node int`はdeeper equals-indent body、line-leading pipe、two variantsを保持した
+   （同`:1622-1643`）。language reportの`enum color:\n  red\n  green\n  blue`はcolon-indented unit variantsのactual surfaceである
+   （`yulang2-oracle:notes/design/yulang-language-report.md:259-276`）。
+10. `my enum E = A`はEnumDeclであるdirect fixtureがある
+    （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:2284-2299`）。old dispatcherは`my`だけ、contextual named-declaration
+    keyword後にraw Identifier / SigilIdentifierが見えるときEnumへ入り、それ以外をBindingへrollbackした
+    （`yulang2-oracle:crates/parser/src/stmt/mod.rs:159-205,310-316`）。bare / `our` / `pub` Enumはnormal declaration branchで
+    keyword受理後にEnumへ入った（同`:64-85,243-264`）。
+11. old dispatch orderはUse / Mod / Type / Struct / Enum / Error / Role / Impl / Cast / Act / Forだった
+    （同`:64-85`）。current Y3のimplemented exact-intro chainはStruct / Mod / Type / Role / Impl / Cast / Act / Bindingなので、
+    EnumはStruct後 / Mod前へstrict additiveに置けばY2のStruct後という関係とexisting Y3 relative orderを両方保てる。
+12. Enumはheader / common tailでshared derives parserを使用した（`enum_decl.rs:40-52,141-143`、
+    `yulang2-oracle:crates/parser/src/stmt/type_decl.rs:278-345`）。corpusにも
+    `enum choice derives Eq:`と`enum choice derives Debug:`がある
+    （`yulang2-oracle:tests/yulang/regressions/runtime/derive_eq_structural.yu:3-5`;
+    `derive_debug_structural.yu:4-7`）。current DRV追補自身もfuture Enum / Error / Act ownerはsame shared clause driver / ASTを
+    reuseすると明記した（本document:20863-20867）。
+13. language reportはEnumをnominal variant typeとし、constructorをvalue / patternとして登録すると述べた
+    （`yulang2-oracle:notes/design/yulang-language-report.md:259-276`）。これはparser ASTのvariant source shapeから先のsemantic scopeである。
+14. Y2 Error parserはbrace / colon / equals bodyの全branchでEnumのthree variant-sequence functionsを直接呼んだ
+    （`yulang2-oracle:crates/parser/src/stmt/error_decl.rs:12-48,56-118`）。従ってfuture Errorはvariant body driverを
+    reuseすべきだが、ErrorDeclarationをEnumDeclarationへparseする根拠にはならない。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- optional `my` / `our` / `pub`、exact maximal `enum`、mandatory raw name、same-line declaration type variables。
+- optional body、explicit semicolon、brace、colon-indent、equals inline / indentのsurface。
+- unit、`from`、named、tuple、multiple positional payloadと、payload内full ordinary TypeExpression。
+- `my enum`のnamed-head lookahead。`my enum E = A`はEnum、`my enum = 1`はBindingである非対称性。
+- header derivesのordinary source shapeとsource-order attachment collection。
+- exact-word statement-intro discipline、sink-free recognition、accepted intro後のcut、root / nested shared continuation。
+- layout-aware sequenceのbase snapshot、explicit separator + newline cluster、deeper continuation、no synthetic separator rule。
+- full ordinary TypeExpression、logical episode stop fencing、nested TypeRole recovery、ML-argument state restoration。
+- ASOB original-gap ordering、outer separator / right close / dedent / If companion ownership。
+- lossless trivia、actual punctuation / closeのone-owner rule、one range = one recovery node = one record。
+- header discoveryがUse / OperatorHeaderだけをfactへprojectし、first full-only declarationで停止するarchitecture。
+- `enum` / `from` / `derives`がauthorityのないidentifier positionでordinary wordであること。
+
+限定して追加するのは次である。
+
+- `SyntaxKind::EnumDeclaration` / `EnumVariant` / `EnumKw` / contextual committed `FromKw`、Enum AST / session typed vocabulary。
+- `Declaration::Enum` / `Statement::Enum` / `StatementIntro::Enum` / `StatementKind::EnumDeclaration`。
+- `DeclarationRole::Enum(EnumDeclarationRole)`とneutral variant-sequence / payload recovery vocabulary。
+- exact `Pipe`のEnum-local scannerとepisode-scoped `StopKind::Pipe`。existing `SyntaxKind::Pipe` tokenはreuseする。
+- shared Derives driverのEnum owner / header / safe trailing classifier。
+- existing layout / field / TypeExpression machineryへEnum-specific owner identityを渡すthin adapters。
+
+### `ENUM-G`: standalone Enum grammar and layout
+
+```text
+EnumDeclaration :=
+    [ VisibilityKw Genum+ ]
+    EnumKw Genum-name
+    RequiredRawIdentifier(EnumDeclaration::Name)
+    { Gparam+ DeclarationTypeParameter }
+    { HeaderDerivesAttachment(Enum) }
+    EnumBody
+    [ TrailingDerivesAttachment(EnumBraced) ]
+
+EnumBody :=
+    ImplicitBoundaryBodyless
+  | BodylessSemicolon
+  | EnumBracedBody
+  | EnumColonBody
+  | EnumEqualsBody
+
+EnumBracedBody :=
+    LBrace OpeningTrivia
+    [ EnumVariant { EnumBraceBoundary EnumVariant } [ EnumBraceBoundary ] ]
+    RBrace
+
+EnumBraceBoundary :=
+    ExplicitCommaBoundary
+  | ImplicitNewlineBoundary(enum_brace_base)
+
+EnumColonBody :=
+    Colon Genum-indent EnumIndentedVariantBlock
+
+EnumEqualsBody :=
+    Equals G0* EnumInlineVariantSequence
+  | Equals Genum-indent EnumIndentedVariantBlock
+
+EnumInlineVariantSequence :=
+    [ Pipe G0* ]
+    RequiredEnumVariant
+    { G0* Pipe G0* RequiredEnumVariant }
+    [ G0* Pipe ]
+
+EnumIndentedVariantBlock :=
+    [ Pipe G0* ] RequiredEnumVariant
+    { EnumIndentedBoundary RequiredEnumVariant }
+    [ EnumIndentedBoundary ]
+
+EnumIndentedBoundary :=
+    ExplicitCommaBoundary
+  | ExplicitPipeBoundary
+  | ImplicitNewlineBoundary(enum_variant_block_indent) [ Pipe G0* ]
+
+EnumVariant :=
+    RequiredRawIdentifier(EnumVariant::Name)
+    [ EnumVariantPayload ]
+
+EnumVariantPayload :=
+    FromKw Gfrom RequiredTypeExpression(EnumVariant::FromType)
+  | EnumNamedPayload
+  | EnumTuplePayload
+  | EnumPositionalPayload+
+
+EnumNamedPayload :=
+    LBrace StructLikeNamedFields RBrace
+
+EnumTuplePayload :=
+    LParen StructLikeTupleFields RParen
+
+EnumPositionalPayload :=
+    Gpayload+ RequiredTypeExpression(EnumVariant::PositionalPayload, outer_ml_arg = true)
+
+VisibilityKw := MyKw | OurKw | PubKw
+EnumKw := exact maximal word "enum"
+FromKw := exact contextual word "from" after an accepted EnumVariant name
+
+Genum+ := non-empty declaration-continuing trivia(enum_base)
+Genum-name := declaration-continuing trivia(enum_base)
+Gparam+ := non-empty same-line trivia
+Genum-indent := non-empty trivia containing physical newline whose following indent > enum_base
+Gfrom := TypeChainTrivia(enum_variant_base)
+Gpayload+ := non-empty same-line trivia or strictly-deeper Type continuation trivia
+G0* := maximal trivia containing no physical newline
+```
+
+`enum_base`はfirst declaration starter（visibilityがあればそのkeyword、なければ`enum`）をstatement positionでacceptした時点の
+active `IndentationBaseline.column`で、frameがなければ0である。visibility--`enum`間はnon-emptyのsame-lineまたはstrictly-deeper
+continuationを要求する。`enum`--name間はempty / same-line / strictly-deeper continuationをacceptする。
+equal-or-shallower newline / ambient owner gapをconsumeしない。`enums` / `enumerate` / `my_enum`をprefix splitしない。
+
+nameはone raw Identifierで、full TypeExpressionではない。type variableはexisting `DeclarationTypeParameter` lexical surfaceを
+same-lineでgreedy scanし、exact `derives`、actual `{` / `:` / `=` / `;`、caller boundaryで終了する。zero parameterはvalidなので
+source-absent `DeclarationTypeParameterList`やMissing parameterを作らない。parameter-like malformed byteをraw parameterへ推測せず、
+header後のnon-empty malformed runとしてBodyIntroducer recoveryへ渡す。
+
+bodyはoptionalである。complete name / parameters / header derives後、actual starterなしでEOF / outer separator / matching close /
+equal-or-shallower newline / ambient ownerへ達した場合は`ImplicitBoundaryBodyless`としてCompleteになる。これはzero-width Missingでなく、
+source token / synthetic semicolon / recovery recordを持たないactual successである。actual `;`はexplicit BodylessでEnum-ownedである。
+nameがIncompleteのsame boundaryではbodyをcompleteにせず、same-cause BodyIntroducer Missingも追加しない。
+
+brace bodyは`LayoutDelimitedFrame::after_opening_trivia`でbaseを一度だけcaptureする。literal commaまたはqualifying newlineをvariant boundary、
+deeper newlineをcurrent variant payload TypeExpression continuationとする。newline-before-comma / comma-after-newlineはone boundary cluster、
+literal commaがauthorityを持つ。trailing comma / trailing implicit newlineはvalidで、implicit boundaryのsynthetic separatorを作らない。
+
+colonはphysical deeper newlineを必須にし、inline colon variantを作らない。equalsはpost-equals maximal triviaにphysical newlineがなく
+first variantがsame lineならinline pipe sequence、physical newlineがありfollowing indent `> enum_base`ならindented sequence、
+equal-or-shallower newline / caller-owned gapならselected Equals bodyのVariant Missingとしてwhole gapを返す。
+
+equals-inlineはliteral pipeだけをvariant separatorにする。ただしseparator judgeはshared layout authorityとASOBを使い、
+pipe前後のtrivia内newlineを勝手にlocal separatorへ昇格しない。current canonical Statement ownerがnewlineをclaimすればbodyはそこで終了し、
+strictly-deeper newlineはcurrent payload TypeExpression continuationへ残す。equals-indent / colon-indentではsame-block newlineがimplicit boundary、
+line-leading pipeはそのsame logical boundaryのexplicit evidenceでありempty variantを作らない。oracle implementationが受理した
+leading / trailing pipeをboth equals modesで保つ。repeated same-line pipeだけがrequired empty variant slotを作る。
+
+variant name後、same-line exact contextual `from`、actual `{`、actual `(`、positional TypePrimary candidateの順にpayload formをjudgeする。
+unit variantはどれもないcaseである。`from`後はone full ordinary TypeExpressionでouter ML applicationを許す。
+positional payloadはeach outer itemで`type_ml_arg = true`をscopeし、`rect int int`をtwo payload itemへ分ける一方、
+`boxed list(int)`のcall、group、named record、forall、effect row、polymorphic variant、bracket row、arrow RHS内のcontinuationをone itemに保つ。
+
+variant name直後の`{` / `(`はnamed / tuple payloadが先にownする。positional payloadとしてbare NamedRecordType / parenthesized groupを
+意図するsourceは`((T))`や`({ x: T })`のようにouter payload delimiterとinner TypeExpression delimiterをsourceで区別する。
+`from` formなら`from ({ x: T })`をordinary full TypeExpressionとして保持する。
+
+Header derivesはcomplete Nameとparameter scan後、body judge前にshared `DerivesClause` driverを使う。Enum Header RoleRef outer episodeには
+`LeftBrace | Colon | Equal | Semicolon`をone scoped frameで渡し、nested TypeExpression episodeではsuspendする。
+Trailing derivesはactual completed braced bodyのmatching `}`後だけに与える。equals inlineではword `derives`がlast variantのpositional payloadに
+なり得て、colon / equals indented dedentはouter Statement boundaryなので、これらをheuristic trailing attachmentへしない。
+
+### `ENUM-J`: intro authority and phase judge order
+
+sink-free `recognize_enum_statement_intro`は次をacceptする。
+
+- current positionのbare exact `enum`。
+- exact `our | pub` + non-empty declaration-continuing trivia + exact `enum`。
+- exact `my` + non-empty declaration-continuing trivia + exact `enum`に続き、raw Identifier / SigilIdentifier head candidateが見えるcase。
+
+third ruleだけはY2 contextual named-declaration collisionを保持する。`my enum E = A`はEnum、`my enum = 1`、`my enum` + EOF /
+semicolon / body punctuationはEnumへcutせずexisting Binding authorityへfull rollbackする。raw head candidateはpeekだけでconsumeせず、
+accepted introのcursorは`enum`後のoriginal head gap先頭に置く。bare / `our` / `pub` Enumはname / derives / body successをintro条件にせず、
+accepted keyword後はEnum continuationへcutする。resultは次を保持する。
+
+```rust
+struct EnumStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    enum_keyword: WordSpan<'source>,
+    enum_base: usize,
+}
+```
+
+updated `recognize_statement_intro` priorityを次で固定する。
+
+1. caller-owned EOF / statement separator / matching close / dedent / active ambient companion。
+2. existing `recognize_struct_statement_intro`。
+3. new `recognize_enum_statement_intro`。
+4. existing `recognize_mod_statement_intro`。
+5. existing `recognize_type_statement_intro`。
+6. existing `recognize_role_statement_intro`。
+7. existing `recognize_impl_statement_intro`。
+8. existing `recognize_cast_statement_intro`。
+9. existing `recognize_act_statement_intro`。
+10. existing `binding_statement_selected` + Binding intro。
+11. existing Use / Mod fallback、OperatorHeader、ordinary OperatorChain fallback。
+
+current Y3のnon-Enum relative orderを動かさず、Y2でStruct直後だったEnumだけをStruct後 / Mod前へadditiveに挿す。
+Error / For / Whereは未実装なのでpriority slotを先取りしない。
+
+accepted intro後のphase priorityを次で固定する。
+
+1. name entry前のoriginal gapをactive caller boundary / `any_ambient_owner_claims`へ問い、claimならName Missingだけを置いてnon-consume return。
+2. raw Nameのliteral / malformed same-slot retry。NameがCompleteならsame-line type variable scanへ進み、IncompleteならDerives / body recoveryをcascadeしない。
+3. complete Name / parameters後のvalid pointでexact contextual header `derives`をshared driverへ渡す。clause後はsame body judgeへ戻る。
+4. original tail gapにactual `;` / `{` / `:` / `=`があればEnum local punctuation authority。
+5. starterなしのclean approved boundaryならImplicitBoundaryBodyless success。non-empty malformed runだけBodyIntroducer Errorにし、
+   actual starter / boundaryからsame slot retryする。
+6. body form選択後はform-specific sequence ownerがexplicit separator、layout newline、variant slot、close / dedentを一度だけjudgeする。
+7. variant slotではname recovery、payload-form priority、payload TypeExpression episode、next sequence boundaryの順に進む。
+   separator / close / caller boundaryをError runへconsumeしない。
+8. actual completed braced close後だけTrailing Derives pointを開き、no clauseならouter Statement ownerへsame cursorで返す。
+
+AST / direct-CSTはone shared intro result、one header slot driver、one derives driver、one form judge、one variant-sequence decision stream、
+one payload-form driverを使う。root / nested / direct callerへ`my` lookahead、pipe/newline cluster、variant retryをcopyしない。
+
+### AST / direct-CST shape
+
+```rust
+struct EnumDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
+    body: Recovered<EnumBody<'source>>,
+    range: Range<usize>,
+}
+
+enum EnumBody<'source> {
+    Bodyless {
+        semicolon: Option<Range<usize>>,
+    },
+    Braced(EnumBracedBody<'source>),
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<EnumIndentedVariantBody<'source>>,
+    },
+    Equals {
+        equals: Range<usize>,
+        body: Recovered<EnumEqualsVariantBody<'source>>,
+    },
+}
+
+struct EnumBracedBody<'source> {
+    open: Range<usize>,
+    variants: Vec<Recovered<EnumVariant<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+enum EnumEqualsVariantBody<'source> {
+    Inline {
+        variants: Vec<Recovered<EnumVariant<'source>>>,
+        trailing_pipe: Option<Range<usize>>,
+        range: Range<usize>,
+    },
+    Indented(EnumIndentedVariantBody<'source>),
+}
+
+struct EnumIndentedVariantBody<'source> {
+    base_indent: usize,
+    block_indent: usize,
+    variants: Vec<Recovered<EnumVariant<'source>>>,
+    range: Range<usize>,
+}
+
+struct EnumVariant<'source> {
+    name: Recovered<WordSpan<'source>>,
+    payload: EnumVariantPayload<'source>,
+    range: Range<usize>,
+}
+
+enum EnumVariantPayload<'source> {
+    Unit,
+    From {
+        keyword: Range<usize>,
+        type_expr: Recovered<Box<TypeExpression<'source>>>,
+        range: Range<usize>,
+    },
+    Named {
+        open: Range<usize>,
+        fields: Vec<Recovered<StructNamedField<'source>>>,
+        trailing_comma: Option<Range<usize>>,
+        close: Recovered<Range<usize>>,
+        range: Range<usize>,
+    },
+    Tuple {
+        open: Range<usize>,
+        fields: Vec<Recovered<StructTupleField<'source>>>,
+        trailing_comma: Option<Range<usize>>,
+        close: Recovered<Range<usize>>,
+        range: Range<usize>,
+    },
+    Positional {
+        types: Vec<Recovered<Box<TypeExpression<'source>>>>,
+        range: Range<usize>,
+    },
+}
+```
+
+`parameters`はliteral accepted itemsだけを保持し、optional list absence / malformed BodyIntroducer bytesをdummy parameterへしない。
+`body: Incomplete`はName failure、non-empty malformed body introducer、literal colon / equals後のmissing block / first variant等、
+selected declarationをfinishできなかったcaseである。clean complete header boundaryは
+`Bodyless { semicolon: None }` Complete、actual semicolonは`Some(range)`である。
+
+literal `{` / `:` / `=`はalways complete introducerなので`Recovered<Range>`へしない。actual introducer後のmissing first variantは
+inner body / variant slotをIncompleteにする。unit payloadはsource-absent successであり、payload Missingではない。
+actual `from`後はFrom variantが存在し、そのmandatory typeだけがIncompleteになれる。
+
+new CST vocabularyは`EnumDeclaration` / `EnumVariant` node、`EnumKw` / `FromKw` tokenだけである。
+`EnumHeader` / `EnumBody` / `EnumVariantPayload` / `EnumVariantList` / separator wrapper / source-absent separator / synthetic semicolonを作らない。
+existing visibility、`DeclarationTypeParameterList`、`DerivesClause`、`StructField`、TypeExpression、punctuation、Missing / Error、trivia tokenを
+EnumDeclaration / EnumVariant直下へsource orderで置く。named / tuple payloadのfield nodeはexisting `StructField` shapeをreuseするが、
+recovery ownerは`ENUM-R`のtyped specから渡し、`DeclarationRole::Struct`を偽装しない。
+
+#### Brace unit variants
+
+oracle fixtureをそのまま使う。
+
+```yu
+enum E { A, B }
+```
+
+```text
+EnumDeclaration 0..15
+  EnumKw 0..4 "enum"
+  Trivia 4..5 " "
+  Identifier 5..6 "E"
+  Trivia 6..7 " "
+  LBrace 7..8 "{"
+  Trivia 8..9 " "
+  EnumVariant 9..10
+    Identifier 9..10 "A"
+  Comma 10..11 ","
+  Trivia 11..12 " "
+  EnumVariant 12..13
+    Identifier 12..13 "B"
+  Trivia 13..14 " "
+  RBrace 14..15 "}"
+```
+
+ASTはname Complete、parameters / derives empty、Braced body with two Unit variants、close Complete、range `0..15`、recovery zeroである。
+source literalとold treeは`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1466-1487`にある。
+
+#### Inline generic enum and one positional payload
+
+oracle fixtureをそのまま使う。
+
+```yu
+enum opt 't = nil | just 't
+```
+
+```text
+EnumDeclaration 0..27
+  EnumKw 0..4 "enum"
+  Trivia 4..5 " "
+  Identifier 5..8 "opt"
+  DeclarationTypeParameterList 8..11
+    Trivia 8..9 " "
+    SigilIdentifier 9..11 "'t"
+  Trivia 11..12 " "
+  Equals 12..13 "="
+  Trivia 13..14 " "
+  EnumVariant 14..17
+    Identifier 14..17 "nil"
+  Trivia 17..18 " "
+  Pipe 18..19 "|"
+  Trivia 19..20 " "
+  EnumVariant 20..27
+    Identifier 20..24 "just"
+    Trivia 24..25 " "
+    TypeExpression 25..27 "'t"
+```
+
+ASTはparameter `9..11`、Equals Inline、Unit `nil`、one positional payloadを持つ`just`、range `0..27`である。
+source literalとold treeは`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1537-1559`にある。
+
+#### Equals-indented variants and optional line-leading pipe
+
+oracle fixtureをそのまま使う。
+
+```yu
+enum tree =
+    leaf
+    | node int
+```
+
+```text
+EnumDeclaration 0..35
+  EnumKw 0..4 "enum"
+  Trivia 4..5 " "
+  Identifier 5..9 "tree"
+  Trivia 9..10 " "
+  Equals 10..11 "="
+  Trivia 11..16 "\n    "
+  EnumVariant 16..20
+    Identifier 16..20 "leaf"
+  Trivia 20..25 "\n    "
+  Pipe 25..26 "|"
+  Trivia 26..27 " "
+  EnumVariant 27..35
+    Identifier 27..31 "node"
+    Trivia 31..32 " "
+    TypeExpression 32..35 "int"
+```
+
+`EnumIndentedVariantBody`は説明上のAST名で、同名CST wrapperは作らない。direct CSTではTrivia / EnumVariant / Pipeが
+EnumDeclaration直下に並ぶ。source literalとold treeは
+`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1622-1643`にある。
+
+#### Named and tuple payloads
+
+surface noteのliteralをそのまま使う。direct parser-tree fixtureではなく、verified grammar branchのY3 byte-exact fixtureである。
+
+```yu
+enum E { A { x: int }, B(int, str) }
+```
+
+```text
+EnumDeclaration 0..36
+  EnumKw 0..4 "enum"
+  Trivia 4..5 " "
+  Identifier 5..6 "E"
+  Trivia 6..7 " "
+  LBrace 7..8 "{"
+  Trivia 8..9 " "
+  EnumVariant 9..21
+    Identifier 9..10 "A"
+    Trivia 10..11 " "
+    LBrace 11..12 "{"
+    Trivia 12..13 " "
+    StructField 13..19
+      Identifier 13..14 "x"
+      Colon 14..15 ":"
+      Trivia 15..16 " "
+      TypeExpression 16..19 "int"
+    Trivia 19..20 " "
+    RBrace 20..21 "}"
+  Comma 21..22 ","
+  Trivia 22..23 " "
+  EnumVariant 23..34
+    Identifier 23..24 "B"
+    LParen 24..25 "("
+    StructField 25..28
+      TypeExpression 25..28 "int"
+    Comma 28..29 ","
+    Trivia 29..30 " "
+    StructField 30..33
+      TypeExpression 30..33 "str"
+    RParen 33..34 ")"
+  Trivia 34..35 " "
+  RBrace 35..36 "}"
+```
+
+source literalは`yulang2-oracle:spec/2026-06-06-syntax-design.md:498-507`、implementation branchは
+`yulang2-oracle:crates/parser/src/stmt/enum_decl.rs:198-249`にある。named / tuple closeとfield recoveryはembedded field grammar owner、
+outer `}` / commaはEnum braced sequence ownerである。
+
+#### Header derives and colon-indented body
+
+oracle regression sourceをone declarationとして使う。
+
+```yu
+enum choice derives Eq:
+    none
+    number int
+```
+
+```text
+EnumDeclaration 0..47
+  EnumKw 0..4 "enum"
+  Trivia 4..5 " "
+  Identifier 5..11 "choice"
+  Trivia 11..12 " "
+  DerivesClause 12..22
+    DerivesKw 12..19 "derives"
+    Trivia 19..20 " "
+    TypeExpression 20..22 "Eq"
+  Colon 22..23 ":"
+  Trivia 23..28 "\n    "
+  EnumVariant 28..32
+    Identifier 28..32 "none"
+  Trivia 32..37 "\n    "
+  EnumVariant 37..47
+    Identifier 37..43 "number"
+    Trivia 43..44 " "
+    TypeExpression 44..47 "int"
+```
+
+source literalは`yulang2-oracle:tests/yulang/regressions/runtime/derive_eq_structural.yu:3-5`にある。
+DerivesClauseはexisting shared node / ASTで、Enum-specific derives wrapperを作らない。
+
+`EnumDeclaration.range`はvisibilityまたはEnumKw startから、最後にcommitしたheader attachment、explicit semicolon、body item、
+matching / recovered close、last safe trailing clauseのendまでである。implicit bodyless、boundary non-consume recovery、indent dedentでは
+outer trivia / separator / closeをrangeへ含めない。
+
+### `ENUM-T`: variant TypeExpression, field payload, and sequence composition
+
+#### Variant payload TypeExpression episodes
+
+Enumはpayload modeをtyped specで分ける。
+
+```rust
+enum EnumVariantTypeExpressionSlot {
+    FromType,
+    PositionalPayload,
+}
+
+struct EnumVariantTypeExpressionEpisodeSpec {
+    stops: StopSet,
+    scoped_frame: TypeExpressionScopedStopFrame,
+    policy: TypeExpressionEpisodePolicy,
+    outer_role: GrammarRole,
+    outer_ml_arg: bool,
+}
+```
+
+form ownerが渡すouter stopはBraceで`Comma | RightBrace`、Equals Inlineでnew `Pipe`、Indentedで
+`Comma | Pipe | Newline`とactive outer boundaryである。これらをone `TypeExpressionScopedStopFrame`へ入れ、各outer payload slotの
+completed-tail / malformed safe pointだけでvisibleにする。Arrow RHS、Forall body、TypeApply argument、Parenthesized group、Call、
+NamedRecord、EffectRow、BracketRow、PolymorphicVariantのnested recursive episodeではsame raw bitsをsuspendする。
+
+FromTypeはordinary full mandatory TypeExpressionで`outer_ml_arg = false`、PositionalPayloadはone item episodeごとに
+`outer_ml_arg = true`である。後者はcurrent polymorphic-variant payloadが`type_ml_arg`をsave / set / restoreして
+one sibling payloadずつparseするprecedentをreuseする
+（`crates/yu-syntax/src/grammar/type_expr/polymorphic_variant.rs:416-504,799-878,1000-1040`）。
+Enum-specific TypeExpression subset、raw type-name parser、TypeApply post-splitを作らない。
+
+both slotのouter missing-role overrideは
+`GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(...)))`のcorresponding
+`VariantDeclarationRole::FromType` / `PositionalPayload`だけである。completely missing outer primary以外のmalformed primary、
+TypeApply、ArrowRhs、NamedRecord、Forall、EffectRow、PolymorphicVariant、BracketRow recoveryはexisting TypeRoleを保つ。
+
+implementationはexisting `TypeExpressionEpisodePolicy` / `TypeExpressionScopedStopFrame` /
+`type_stop_is_active_in_current_episode`、
+`parse_required_type_expression_with_outer_missing_role_and_policy` /
+`commit_direct_type_expression_with_outer_missing_role_and_policy`をhard dependencyとしてreuseする
+（`crates/yu-syntax/src/session.rs:890-902`、
+`crates/yu-syntax/src/grammar/type_expr.rs:492-547,1057-1123,5825-5837`）。
+Enum-specific episode counter、raw `active_stop_set().contains(...)` bypass、AST/direct別stop judgeを作らない。
+
+`StopKind::Pipe`はEnum payload episode / sequenceだけのscoped punctuation stopで、source-wide operator tableやPattern alternationを変えない。
+exact scannerはPatternのone-character sink-free pipe recognizerと同じ lexical disciplineを使う
+（`crates/yu-syntax/src/grammar/pattern.rs:1591-1599`）。accepted Enum separatorだけをexisting `SyntaxKind::Pipe`としてcommitする。
+
+#### Named / tuple payload field grammar
+
+named payloadとtuple payloadはStruct declarationが既に実装したfield item grammar、layout base、comma-or-newline boundary、
+trailing comma、typed mandatory TypeExpression、close recoveryをdecision levelでreuseする。Y2も
+`parse_struct_named_fields_after_open` / `parse_struct_tuple_fields_after_open`を直接呼んだ
+（`yulang2-oracle:crates/parser/src/stmt/enum_decl.rs:225-233`）。
+
+ただしEnumから`parse_struct_*_body`を呼んで`DeclarationRole::Struct`やStruct body rangeを偽装しない。
+existing field loopをone owner-parameterized shared driverへextractし、Enum adapterはneutral
+`VariantFieldDriverSpec`を渡す。AST valueはshape-identicalなexisting `StructNamedField` / `StructTupleField`をreuseし、direct CSTは
+existing `StructField` nodeをreuseする。field / separator / close recovery identityだけを`ENUM-R`のVariant role / neutral ConstructRoleへ
+mapする。Struct public behavior / recovery identityはbyte-identicalに保つ。
+
+named / tuple payload内のnewlineはown `LayoutDelimitedFrame`をpushし、outer Enum variant sequence frameをsuspendする。
+inner matching close後にouter comma / pipe / layout authorityをrestoreする。field TypeExpressionはneutral
+`TypeDelimitedOwner::VariantNamedPayload` / `VariantTuplePayload`を使い、outer Enum separator stopはnested type episodeでsuspendする。
+
+#### Variant sequence decision stream
+
+AST / direct-CST共通の`drive_enum_variant_sequence(spec)`は次をtyped inputとして受ける。
+
+```rust
+enum EnumVariantSequenceForm {
+    Braced,
+    ColonIndented,
+    EqualsInline,
+    EqualsIndented,
+}
+
+struct EnumVariantSequenceSpec {
+    form: EnumVariantSequenceForm,
+    layout: LayoutDelimitedFrame,
+    declaration_base: usize,
+    explicit_separators: EnumVariantSeparatorSet,
+    matching_close: Option<Delimiter>,
+    allow_leading_pipe: bool,
+    allow_trailing_pipe: bool,
+}
+```
+
+driverはitem positionをOptional / Required / AfterVariantで追い、explicit comma / pipe、qualifying newline、close / dedent / outer owner、
+variant head candidate、malformed runをone streaming judgeで裁定する。polymorphic-variant typeの`transition` / `drive`が持つ
+required-slot / layout / recovery architectureをprecedentにするが
+（`crates/yu-syntax/src/grammar/type_expr/polymorphic_variant.rs:14-94,288-415`）、Enum variant / payload grammarを
+PolymorphicVariantType nodeやTypeRoleへ偽装しない。
+
+explicit separator + qualifying newlineはone boundary clusterである。leading / trailing pipeを許すformではone pipeをempty itemにしない。
+repeated pipe、leading / repeated comma、separator間のempty required slotだけone Missing Variantを作る。qualifying newlineだけは
+source-absent separator node / Missing commaを作らない。deeper newlineはcurrent payload TypeExpressionへ戻し、driverがnext variantへ
+promoteしない。
+
+malformed variant runはnext raw variant-name retry candidate、actual separator、matching close、dedent / caller boundaryをsafe pointにする。
+raw nameがsame slotで見えればone Error Variant / Name record後にComplete variantへretryする。separator / boundaryへ届けば
+one Incomplete variantを閉じ、actual separator / following layout boundaryが開くnext slotからsequenceを継続する。
+one malformed itemでwhole bodyをabandonしない。
+
+#### Derives composition
+
+`DerivesAttachmentOwner`へEnum、`DerivesOwnerTailClassifier`へEnumHeader / EnumTrailingを追加し、existing
+`recognize_derives_attachment_start` / `drive_derives_clauses`、AST parser、direct emitterをreuseする
+（`crates/yu-syntax/src/grammar/declaration.rs:6292-6468,6611-7060`）。Enum-specific clause parser / recovery tableをcopyしない。
+
+Enum HeaderはName Complete / parameters scan後、body recoveryがbyteをconsumeする前にだけauthorityを持つ。Header RoleRefのouter episodeは
+body starter four-stop frameを使う。Enum Trailingはactual completed braced close後だけで、missing / mismatched close、colon / equals dedent、
+implicit / explicit bodyless後にはauthorityを持たない。attachment collectionはexisting `DerivesAttachmentPosition::Header / Trailing`と
+source orderを保つ。
+
+#### ASOB and state restoration
+
+name / body judge、each sequence boundary、payload TypeExpression entry、embedded field entry、trailing derives pointのoriginal gapで
+`any_ambient_owner_claims`をapproved orderに従い一度だけ問う。Enum local punctuation / pipe / layout newline authorityはaccepted Enum ownerの
+current frameでactual evidenceがある場合だけで、outer semicolon / comma / matching close、equal-or-shallower dedent、If / Case / Catch companionを
+越えない。newlineやmalformed byteをconsumeした後にambient predicateを再質問してowner authorityをretroactively変えない。
+
+normal / Missing / Error / same-slot retry / speculative rollbackのevery exitでinput、line state、sink、ambient owner stack、If companion stack、
+delimiter stack、stop-set stack、indentation baseline、Pattern layout、expression/type-delimited owner、ML flags、positional fence、
+TypeExpression episode depth / scoped frameをentry時へexact restoreする。inner field / Type recoveryをEnum layerがduplicateしない。
+
+### `ENUM-R`: typed recovery and owner convergence
+
+new recovery vocabularyを次で固定する。
+
+```rust
+enum EnumDeclarationRole {
+    Name,
+    BodyIntroducer,
+    Variant(VariantDeclarationRole),
+}
+
+enum VariantDeclarationRole {
+    Item,
+    Name,
+    Separator,
+    FromType,
+    PositionalPayload,
+    NamedField,
+    NamedFieldName,
+    NamedFieldColon,
+    NamedFieldType,
+    NamedFieldSeparator,
+    TupleFieldType,
+}
+
+DeclarationRole::Enum(EnumDeclarationRole)
+```
+
+optional type-variable listにはMissing roleを作らない。lexically accepted raw parameterだけがlist itemで、otherwiseはlist absent / completeとなり、
+following non-empty invalid bytesはBodyIntroducerのmalformed runである。named / tuple payloadのmatching closeはneutral
+`ConstructRole::VariantNamedPayload` / `VariantTuplePayload`、outer brace body closeは`ConstructRole::EnumBracedVariantBody`を使う。
+Enum-specific delimiter stackやsource-absent close tokenを作らない。
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `enum E` + EOF / owner boundary | Name Complete、implicit Bodyless Complete | zero recovery、boundary non-consume、synthetic semicolonなし |
+| `enum E;` | Name Complete、explicit Bodyless Complete | zero recovery、semicolon Enum-owned |
+| bare / `our` / `pub` exact `enum` + EOF / owner boundary | one zero-width Missing Name | body Incomplete、BodyIntroducer Missingなし、boundary non-consume |
+| `my enum = 1` / `my enum` + terminal | Enum intro non-match | all probe state rollback、Binding / outer owner free、Enum recoveryなし |
+| `my enum E = A` | Enum intro match | normal Name / Equals body |
+| accepted `enum` + exact `{` / `:` / `=` / `;` | one Missing Name | same punctuationからbody retry、additional BodyIntroducer Missingなし |
+| malformed Name run + raw Identifier | one maximal Error Name | same Name slot retry、Name Complete |
+| malformed Name run reaches body starter / boundary | one maximal Error Name | Name Incomplete、starter / boundary non-consume、outer Missingなし |
+| zero type variables | empty parameter Vec | no Missing。same body / derives judgeへ |
+| one-or-more raw type variables | complete parameter Vec | exact `derives` / body starter / same-line lexical non-parameterで終了 |
+| parameter後のnon-empty malformed header run + body starter | one maximal Error BodyIntroducer | actual starterからbody retry。TypeParameter Missingを発明しない |
+| complete header + clean approved boundary | implicit Bodyless Complete | zero recovery |
+| complete header + malformed introducer + actual starter | one maximal Error BodyIntroducer | starterからsame form slot retry、additional Missingなし |
+| complete header + malformed introducer reaches boundary | one maximal Error BodyIntroducer | body Incomplete、boundary non-consume。run emptyならimplicit Bodyless success |
+| `{}` | Braced Complete、zero variants | close / recovery zero |
+| brace complete variant + comma / qualifying newline + next variant | two Complete variants | one boundary、synthetic separator / Missingなし |
+| brace leading / repeated comma | one Missing Variant per empty required slot | comma consumed once、next slot retry |
+| brace trailing comma / trailing implicit newline + `}` | Complete body | trailing commaだけAST marker、empty variantなし |
+| brace missing / mismatched `}` | existing neutral close Missing / Error one | outer close / boundary non-consume、Enum Item Missingをduplicateしない |
+| literal `:` + deeper first variant | Colon body Complete | newline / block owned by Enum sequence |
+| literal `:` + EOF / equal-shallower newline / owner boundary | one Missing Variant Item | whole post-colon gap non-consume、BodyIntroducer Missingなし |
+| literal `=` + same-line first variant | Equals Inline Complete | literal pipe sequenceへ |
+| literal `=` + deeper first variant | Equals Indented Complete | layout blockへ |
+| literal `=` + EOF / equal-shallower newline / owner boundary | one Missing Variant Item | post-equals gap non-consume |
+| equals / indent leading single pipe + variant | one Complete variant | pipe accepted marker、Missing itemなし |
+| completed variant + trailing single pipe at body terminal | Complete sequence with trailing pipe | no Missing variant |
+| repeated same-line pipe | one Missing Variant Item between pipes | second boundary opens next slot |
+| malformed variant run + raw name before boundary | one maximal Error Variant Name | same item retry、Complete variant、additional Missingなし |
+| malformed variant run reaches separator / close / dedent | one maximal Error Variant Item | item Incomplete、boundary non-consume then next slot / close convergence |
+| complete variant name with no payload evidence | Unit payload | zero recovery |
+| exact `from` + TypeExpression | From Complete | one full TypeExpression; whitespace TypeApply allowed |
+| exact `from` + separator / close / boundary | one Missing FromType | boundary non-consume、PositionalPayload Missingを追加しない |
+| malformed FromType + valid TypePrimary | nested Type Error one | same FromType retry、Complete |
+| malformed FromType reaches variant boundary | nested Type Error one | From payload Incomplete、outer FromType Missingなし |
+| positional payload candidate(s) | one Complete TypeExpression per outer item | `type_ml_arg = true` scope、nested continuationはitem内 |
+| malformed positional payload + valid TypePrimary | nested Type Error one | same payload retry、additional Enum Missingなし |
+| malformed positional payload reaches variant boundary | nested Type Error one | current payload Incomplete、boundary non-consume |
+| named payload field missing / malformed | one Variant NamedField role record | shared field driver retry、Variant Item / Enum Body recoveryをduplicateしない |
+| tuple payload field TypeExpression missing / malformed | one Variant TupleFieldType or nested Type record | shared field driver owns、outer variant sequence uninvolved |
+| header derives role / via missing / malformed | existing DerivesRole recovery only | body starter preservation、Enum duplicateなし |
+| actual completed braced close + trailing derives | existing DerivesAttachment / clause recovery | source order、outer separator non-consume |
+| missing braced close / equals or colon dedentの`derives` | no trailing attachment authority | close / outer Statement ownerを保つ |
+
+one accepted `enum` = one EnumDeclaration node、one accepted variant head = one EnumVariant nodeである。
+one committed Missing / Error record = one recovery node。Name failureがsame terminal boundaryへ達したときparameter / BodyIntroducerをcascadeしない。
+header derives failureへEnum recoveryを重ねない。variant Item / Name failureがseparatorへ達したときpayload Missingをcascadeせず、
+actual separator後のnext variantはdistinct slotとして続行する。payload / embedded field failureはinner slotで閉じ、Enum body failureをsame causeへ
+重ねない。
+
+same-line raw words after a complete variant name are positional payload evidenceであり、missing pipe / commaをheuristicに発明しない。
+next variant authorityはliteral separatorまたはqualifying layout boundaryからだけ始まる。このruleにより`rect int int`をone variant + two payload、
+malformed list separator recoveryをsource evidenceのないvariant splitへ変えない。
+
+### Root / nested dispatch and header discovery
+
+root / nested relationshipを次で固定する。
+
+| caller | behavior |
+| --- | --- |
+| root `parse_declaration` | `Declaration::Enum(EnumDeclaration)`を返す |
+| direct root loop | `EnumDeclaration` nodeをcommitし、same public recovery recordを返す |
+| `parse_canonical_statement` | `Statement::Enum(EnumDeclaration)`を返す |
+| `commit_canonical_statement` | same Enum direct adapterを`Statement` wrapper内で呼ぶ |
+| braced / indented / inline statement owner | shared canonical Statement dispatchからEnumをacceptする |
+| header discovery | source-leading Enumを`FirstNonHeader`として終了し、header factを作らない |
+
+root / nestedで別Enum parserを作らない。sink-free introとisolated AST/direct continuationをpre-promotion gatesまで共有し、atomic promotion時に
+root `parse_declaration` / direct root candidate / AST canonical Statement / direct canonical Statement / header-stopをsame changeでswitchする。
+`HeaderDeclaration::Enum`、constructor / nominal fact、variant registryをparserへ作らない。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `scan_word` / `scan_path_segment`、visibility prefix、declaration-continuing trivia、checkpoint rollback、source range / line state。
+- existing `DeclarationTypeParameter` / `DeclarationTypeParameterList` scanner / direct emitter。Enum-specific generic syntaxを作らない。
+- one shared `recognize_statement_intro`、root / nested AST and direct-CST dispatch、header discovery stop。
+- `LayoutDelimitedFrame` / `LayoutDelimitedBoundary`、indentation baseline、comma-newline cluster invariant。
+- `TypeExpressionEpisodePolicy` / `TypeExpressionScopedStopFrame` / `type_stop_is_active_in_current_episode`。
+- ordinary mandatory TypeExpression entry、`type_ml_arg` save / restore、nested TypeRole recovery。
+- owner-parameterized named / tuple field decision driver、existing `StructField` CST / field AST value shape。
+- `recognize_derives_attachment_start` / `drive_derives_clauses` / `DerivesAttachment` / `DerivesClause`。
+- `any_ambient_owner_claims`、ASOB / If companion / positional fence、active close / outer Statement boundary。
+- one variant-sequence decision driver、one payload-form driver、AST / direct-CST thin adapters。
+
+次を共有・追加しない。
+
+- `StructDeclaration` / `StructBody`をEnum bodyとして偽装すること。field item grammarだけをtyped owner specで共有する。
+- `PolymorphicVariantType` / `PolymorphicVariantTag` / TypeRoleをEnum value / recovery identityとして偽装すること。
+- Enum-specific Statement list、constructor / pattern parser、semantic tag table、field accessor generation。
+- `EnumHeader` / `EnumBody` / `EnumVariantPayload` CST wrapper、empty separator、synthetic pipe / comma / semicolon。
+- `HeaderDeclaration::Enum`、parser-time nominal / constructor fact、HIR object。
+- declaration companion `with`をgeneric expression `WithBodyTail`へdesugarすること。
+- ErrorDeclaration placeholder / keyword / dispatch arm。Errorはseparate owner addendumまで追加しない。
+- TypeExpression stopをsource-wideにPipeへ広げること、Pattern alternation pipeをEnum separatorへ流用すること。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Core standalone surface preserved:** optional visibility、raw Name / type variables、optional body、semicolon / brace / colon / equals、
+   unit / from / named / tuple / positional variant payloadを保つ。
+2. **Contextual `my enum` preserved:** raw head candidateがあるcaseだけEnumへ入り、`my enum = 1`はBindingへ戻る。
+   bare / `our` / `pub`はmissing Name recovery authorityを持つ。
+3. **Typed raw header:** Role / Actと異なりEnum headをfull TypeExpressionへwidenしない。oracleの`ident type_vars`を
+   `WordSpan + Vec<DeclarationTypeParameter>`として保つ。
+4. **Full payload TypeExpression:** `from`はone ordinary full type、positional payloadはouter ML splitを保ったfull type itemである。
+   raw identifier-only payload parserを作らない。
+5. **Layout-aware CST:** Y2 generic list machineのempty Separator nodeを移植せず、literal trivia / item hierarchyでimplicit boundaryを表す。
+   explicit separator + newline clusterをone boundaryへnormalizeする。
+6. **Leading / trailing pipe:** surface proseはindent formのline-leading pipeだけを明記したが、inline parser loopはfirst / last positionのpipeも
+   明確に受理した。本追補はimplementation behaviorを保ち、single leading / trailing pipeをvalid、repeated pipeだけempty slot recoveryとする。
+7. **Derives owner extension:** Y2 Enumはshared header / common tail helperを使った。Y3もshared DRV driver / ASTをreuseするが、
+   safe trailing authorityはactual completed braced close後だけに限定する。equals payload wordとindent dedentをheuristicにtrailing clauseへしない。
+8. **Declaration companion deferred:** Y2の`with:` / `with {}`は実在するが、shared declaration companion ownerがcurrent Y3にない。
+   generic WithBodyTailへ読み替えずseparate addendumへ残す。
+9. **Typed recovery:** Y2のsilent list stop / generic InvalidTokenをEnum / Variant role別Missing / Error、same-slot retry、no-cascadeへ置き換える。
+10. **No semantic constructor claim:** nominal identity、constructor value / pattern、payload layout、exhaustiveness、lowering / resolver / inference /
+    formatterはscope外である。
+11. **Canonical body distinction:** Enum variant bodyはcanonical Statement blockでない。Role / Act body driverをreuseせず、nested declaration / expressionを
+    variant itemへ昇格しない。
+12. **Header architecture:** Enumはfull syntaxではvalidだがheader factではなく、source-leading occurrenceは`FirstNonHeader`である。
+
+### Known residuals and deferred scope
+
+ASOB追補のcondition-based known residualはEnum variant payload TypeExpression、named / tuple field TypeExpression、header / trailing derives RoleRefにも
+適用する。missing local delimiterのままactiveなnested TypeExpression ownerがcaller-owned Statement / variant / close boundaryをvisible stopとして
+受け取らず、local malformed-run / separator driverがそのgapとnext outer candidateをconsume / reinterpretできる場合、Enum layerは境界を
+後段から回収できない。
+
+Enum pre-promotion / promotion success matrixから除外できるのはASOB / Cast追補のfour-condition predicateをすべて満たし、実経路をfixtureで
+characterizeできるcaseだけである。well-delimited nested owner、matching right close、strict dedent、active If companion、nested driverへboundaryが
+見えるmissing-delimiter caseはsuccessに含める。Enum-specific workaroundとしてall pipe / newline / closeをnested TypeExpressionへcarryしない。
+
+explicit deferred surfaceは次である。
+
+- declaration companion `with:` / `with {}`、companion member / derives item、constructor module attachment。
+- trailing derivesのequals / colon-indented form。future extensionはpayload / dedent ambiguityとASOB orderingを別追補で固定する。
+- constructor / pattern registration、variant namespace、qualified path、field accessor、nominal type lowering、recursive type / variance / kind check。
+- duplicate variant / field、empty enum validity、representation / discriminant、exhaustiveness / unreachable pattern diagnostic。
+- HIR / resolver / inference / diagnostics wording / formatter / syntax-reference page。
+- **standalone `error` declaration。** Y2 `error_decl.rs`はEnumのbrace / colon / equals variant parserを直接reuseした。
+  next Error addendumは本追補の`drive_enum_variant_sequence`相当をneutral variant-sequence coreとしてreuseし、payload form / layout /
+  TypeExpression episode / field driverを共有する。ただし`ErrorDeclaration` / `ErrorKw` / `StatementIntro::Error` / Error recovery identity /
+  derives attachment / semantic error propagationをEnumへaliasせず、own authorityを設計する。
+- declaration-level `where`、Enum-specific `via`、attributes / doc children、explicit discriminant syntax。oracleでvalid surfaceを確認できないため追加しない。
+
+future Error / companion / semantic addendumはEnum CST bytesをpost-parse rescanして意味付けしない。new keyword / owner / CST shape /
+recovery authorityが必要なら、本追補のvariant-sequence driverへtyped owner specを追加し、Enum behaviorをbyte-identicalに保つ。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationはvocabulary、isolated intro / header、
+Derives owner、neutral variant sequence、payload / field composition、AST / direct adapters、recovery、pre-promotion state matrix、atomic dispatch、
+final scope gateへ分ける。atomic promotionまでcurrent public parser behaviorを変えない。
+
+implementation gateを次で固定する。
+
+1. `EnumDeclaration` / `EnumVariant` / `EnumKw` / `FromKw` SyntaxKind、本追補のEnum AST、`Declaration::Enum` /
+   `Statement::Enum`、`StatementIntro::Enum` carrier、`StatementKind::EnumDeclaration`、
+   `DeclarationRole::Enum(EnumDeclarationRole)` / `VariantDeclarationRole`、neutral close / type-delimited owner、scoped
+   `StopKind::Pipe`を追加する。Derives owner enumへunreachable mechanical variantだけを足し、no dispatch / behavior change、full suite byte-identicalを固定する。
+2. sink-free `recognize_enum_statement_intro`をisolated実装し、bare / our / pub unconditional exact recognition、my + raw Identifier /
+   SigilIdentifier lookahead、enum_base、empty adjacency、strictly-deeper continuation、`enums` / `enumerate` / `my enumish` rejection、
+   `my enum = 1` Binding rollback、`my enum E = A` Enum selection、all-state exact rollbackをfixture化する。
+3. mandatory raw Name / optional same-line `DeclarationTypeParameter` header driverをAST/direct isolated実装する。Name Missing / malformed retry、
+   zero/multiple parameters、exact derives / four body starter preservation、optional-list no-Missing、range / trivia / rollback parityを固定する。
+4. shared Derives driverへEnum Header / actual-complete Braced Trailing owner specを追加する。Header RoleRefの
+   `LeftBrace | Colon | Equal | Semicolon` scoped stop suspension、header + body、braced trailing + outer boundary、missing close non-authority、
+   existing Struct / Type byte-identical behaviorをisolated fixtureで固定する。
+5. `LayoutDelimitedFrame`を使うneutral variant-sequence decision driverをisolated実装する。Brace comma/newline、Equals pipe、
+   Colon / Equals indented newline + optional pipe/comma、leading / trailing pipe、boundary cluster、required-slot transition、close / dedent、
+   malformed same-slot retry、AST/direct-neutral event parityを固定する。
+6. variant payload driverをisolated実装する。Unit / contextual From / Named / Tuple / Positional priority、From full TypeExpression、
+   positional outer ML split、Pipe / comma / close / newline episode fencing、every nested TypeExpression suspension、normal / recovery / rollbackを固定する。
+   same gateでStruct field loopをowner-parameterized neutral coreへextractし、Struct behaviorをbyte-identicalにした上でEnum named / tuple adapterを接続する。
+7. explicit / implicit bodyless、Braced、Colon Indented、Equals Inline / Indentedを選ぶform-aware AST isolated adapterを実装する。
+   Name / derives / body interaction、range、empty body、first variant Missing、outer boundary ownershipを固定し、public dispatchは変更しない。
+8. direct-CST thin adapterをisolated harnessへ追加し、本追補のfive worked examplesのchild order / byte range、all trivia home、
+   lossless round trip、no header/body/payload/separator wrapper / synthetic token、AST-direct parityを固定する。
+9. `ENUM-R`全rowをAST / directでfixture化する。Name / BodyIntroducer / Variant / payload / field / close / derivesのMissing / Error、
+   separator cluster、same-slot retry、one range = one node = one record、same-cause no-cascade、sequence continuationを閉じる。
+10. real dispatch前にisolated Enum adapterをdirect root / indented / braced / inline ambient frameで包み、depth-2+ ambient / If companion、
+    EOF / semicolon / comma / each active right delimiter / equal-shallower newline、normal / recovery / rollbackのstate matrixを閉じる。
+    input / line / sink / ambient / If / delimiter / stop / indentation / Pattern layout / expression-type owner / ML / positional fence /
+    TypeExpression episode depthをevery exitでexact restoreする。
+11. `recognize_statement_intro`のStruct後 / Mod前へEnum introを挿し、root `parse_declaration` / direct root loop、
+    `parse_canonical_statement` / `commit_canonical_statement` / direct candidateをsame isolated adapterへatomic switchする。
+    source-leading Enumのheader `FirstNonHeader`もsame changeでwireし、pre-promotion matrixをunmodified再実行、root / nested public
+    `parse_file`、all body forms / derives / variant payload、existing non-Enum intro / fixtureのzero regressionを固定する。
+12. final public regression matrixでall visibility、`my enum` collision、raw Name / type variables、all body / payload forms、layout / boundary、
+    malformed recovery、AST/direct parity、losslessness、one record = one node、all state restoration、full `yu-syntax` suiteを閉じる。
+    `enum` / `from`がnon-authority positionでordinary word、companion / Error / semantics / HIR / resolver / inference / formatterが未実装である
+    scope gateをworkspace-wideに固定する。known-residual exemptionはASOB four-condition predicateを満たすcharacterized caseだけに限定する。
+
+### Open design questions and Claude review focus
+
+本Proposal初稿は次をdesign decision候補として置く。Claude reviewでは確定 / 修正対象として扱う。
+
+- Enum headerはRole / Actのfull TypeExpression headでなく、oracleどおりraw Name + declaration type variablesである。
+- optional type-variable listにMissing slotを作らず、parameter-like intentを推測できないinvalid bytesはBodyIntroducer recoveryへ収束させる。
+- `my enum`はActと同じraw named-head lookahead、bare / our / pubはkeyword時点cutである。
+- intro priorityをStruct後 / Mod前へ置き、current non-Enum orderを動かさない。
+- body omissionをimplicit Bodyless successとし、actual semicolonだけsource tokenとして保持する。
+- Braceはcomma + layout newline、Equals inlineはliteral pipe、Colon / Equals indentはlayout newline + optional pipe/commaを使い、
+  explicit separator / newline clusterをone boundaryにする。
+- oracle implementationのleading / trailing inline pipeをpreserveし、repeated pipeだけrequired empty slot recoveryとする。
+- variant payload priorityをFrom -> Named -> Tuple -> Positionalとし、Positionalだけouter ML applicationをsuspendする。
+- named / tuple payloadはStruct field item shapeをreuseするが、StructDeclaration / StructRoleを偽装せずtyped owner coreへ抽出する。
+- Derivesはshared driverをHeaderとactual-complete Braced Trailingへ接続し、equals payload / indent dedent越しのtrailing attachmentはdeferする。
+- Errorはnext addendumでneutral variant sequence / payload coreをreuseするが、Enum AST / recovery / dispatchへaliasしない。
+- ASOB known residual、variant malformed-run safe point、separator後Missing cardinality、field / payload no-cascade、pre-promotion state matrix、
+  semantic deferred surfaceの閉じ方を確認対象にする。
+
+特に、Y2 inline loopが許したleading / trailing pipeをvalid surfaceとして固定する判断、colon / equals-indentでcommaをY2 implementationどおり
+受理する判断、same-line raw wordをalways positional payload evidenceとしてmissing separator recoveryを発明しないこと、optional parametersの
+malformed intentをBodyIntroducerへ置くこと、Struct field driverのowner parameterization、Enum header derives RoleRefのfour-stop episode、
+actual completed braceだけのtrailing derives restriction、Error forward dependency、Gate 10 pre-promotion matrixとGate 11 atomic promotionの境界を
+重点review対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
