@@ -8,9 +8,9 @@
 - [`if` / `elsif` / `else` expression](if-expression.md)
 - [Brace-delimited statement block](braced-statement-block.md)
 - [`case` / `catch` expression](case-catch.md)
+- [Call / field / path / ML-application tail](call-field-path-tails.md)
+- [Index / projection tail](index-projection-tails.md)
 
 未執筆の要素:
 
-- Call / field / path / ML application tails
-- Index / projection tails
 - `WithBodyTail`

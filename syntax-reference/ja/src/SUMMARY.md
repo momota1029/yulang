@@ -12,6 +12,8 @@
 - [`if` / `elsif` / `else` expression](expressions/if-expression.md)
 - [Brace-delimited statement block](expressions/braced-statement-block.md)
 - [`case` / `catch` expression](expressions/case-catch.md)
+- [Call / field / path / ML-application tail](expressions/call-field-path-tails.md)
+- [Index / projection tail](expressions/index-projection-tails.md)
 
 # Patterns
 
