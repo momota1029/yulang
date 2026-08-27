@@ -71,6 +71,7 @@ pub(crate) enum Declaration<'source> {
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
     Type(TypeDeclaration<'source>),
+    Role(RoleDeclaration<'source>),
     Impl(ImplDeclaration<'source>),
     Cast(CastDeclaration<'source>),
 }
@@ -105,6 +106,8 @@ pub(crate) enum StatementIntro<'source> {
     Struct(StructStatementIntro<'source>),
     Type(TypeStatementIntro<'source>),
     #[allow(dead_code)]
+    Role(RoleStatementIntro<'source>),
+    #[allow(dead_code)]
     Impl(ImplStatementIntro<'source>),
     #[allow(dead_code)]
     Cast(CastStatementIntro<'source>),
@@ -131,6 +134,20 @@ pub(crate) struct CastStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     cast_keyword: WordSpan<'source>,
     cast_base: usize,
+}
+
+/// The sink-free prefix reserved for standalone Role declarations.
+///
+/// Gate 1 carries this source shape only. Gate 2 supplies recognition, and
+/// Gate 9 connects it to shared statement dispatch.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RoleStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    role_keyword: WordSpan<'source>,
+    role_base: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -380,6 +397,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_type_declaration(&mut committed, intro);
                 StatementKind::TypeDeclaration
             }
+            StatementIntro::Role(_) => {
+                unreachable!("Role dispatch is introduced in its Gate 9 promotion")
+            }
             StatementIntro::Impl(intro) => {
                 let _ = commit_impl_declaration_isolated(operators, &mut committed, intro);
                 StatementKind::ImplDeclaration
@@ -590,6 +610,10 @@ where
             return None;
         }
         StatementIntro::Type(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::Role(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -10121,6 +10145,40 @@ pub(crate) enum ImplBody<'source> {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ImplColonBody<'source> {
+    Inline { statement: Box<Statement<'source>> },
+    Indented { block: IndentedStatementBlock<'source> },
+}
+
+/// A standalone Role declaration shared by root and canonical Statements.
+///
+/// Gate 1 establishes only the approved AST shape. Recognition and body
+/// parsing remain unreachable until their later dedicated gates.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RoleDeclaration<'source> {
+    visibility: Visibility,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    body: Recovered<RoleBody<'source>>,
+    range: Range<usize>,
+}
+
+impl RoleDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum RoleBody<'source> {
+    Bodyless { semicolon: Range<usize> },
+    Braced { block: BracedStatementBlockExpression<'source> },
+    Colon { colon: Range<usize>, body: Recovered<RoleColonBody<'source>> },
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum RoleColonBody<'source> {
     Inline { statement: Box<Statement<'source>> },
     Indented { block: IndentedStatementBlock<'source> },
 }
