@@ -1460,6 +1460,64 @@ fn emit_cast_slot_recovery<'parse, 'source, 'local, E, O>(
     );
 }
 
+/// `;` and an exact declaration `=` are both positive, Cast-owned evidence
+/// for the form slot.  Keep the two alternatives in its one recovery record
+/// instead of making a malformed run manufacture two independent misses.
+fn emit_cast_body_introducer_recovery<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let kind = if range.is_empty() {
+        RecoveryKind::Missing
+    } else {
+        RecoveryKind::Error
+    };
+    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::BodyIntroducer));
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let unexpected = match kind {
+            RecoveryKind::Missing => Arc::from([]),
+            RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+        };
+        let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            kind,
+            unexpected,
+            Arc::from([
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Equals,
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
+            ]),
+            0,
+        )
+    });
+    match kind {
+        RecoveryKind::Missing => committed.emit_missing(record),
+        RecoveryKind::Error => committed.emit_error(record),
+    }
+}
+
 fn emit_cast_pattern_close_recovery<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     range: Range<usize>,
@@ -2064,12 +2122,20 @@ where
     };
     let Some(equals) = i.run(scan_declaration_exact_equals) else {
         i.rollback(checkpoint);
-        return Recovered::Incomplete;
+        return cast_body_introducer_error_retry_ast(i)
+            .filter(|retry| *retry)
+            .map_or(Recovered::Incomplete, |_| parse_cast_form_isolated(table, cast_base, i));
     };
     let body = parse_binding_style_body(
         cast_base,
         |_trivia, i| {
             i.run(from_fn(|i| parse_expression_with_operators(table, i)))
+                .or_else(|| {
+                    cast_inline_body_error_retry_ast(table, i)
+                        .is_some_and(|retry| retry)
+                        .then(|| i.run(from_fn(|i| parse_expression_with_operators(table, i))))
+                        .flatten()
+                })
                 .map(|expression| CastBody::Inline { expression })
         },
         |trivia, block_indent, i| CastBody::Indented {
@@ -2183,7 +2249,40 @@ where
         equals
     });
     if equals.is_none() {
-        return Recovered::Incomplete;
+        let trivia = committed.probe(|probe| {
+            let i = probe.input();
+            let checkpoint = i.checkpoint();
+            let trivia = mod_trivia(cast_base, i);
+            i.rollback(checkpoint);
+            trivia
+        });
+        let Some(trivia) = trivia else {
+            let at = committed.probe(|probe| probe.input().pos());
+            emit_cast_body_introducer_recovery(committed, at..at);
+            return Recovered::Incomplete;
+        };
+        let newline = committed.probe(|probe| {
+            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
+        });
+        if newline {
+            let at = committed.probe(|probe| probe.input().pos());
+            emit_cast_body_introducer_recovery(committed, at..at);
+            return Recovered::Incomplete;
+        }
+        let consumed_trivia = committed
+            .probe(|probe| mod_trivia(cast_base, probe.input()))
+            .expect("the Cast form recovery leaves its trivia at the cursor");
+        assert_eq!(consumed_trivia.range(), trivia.range());
+        committed.emit_trivia(&consumed_trivia);
+        return match cast_body_introducer_error_retry(committed) {
+            Some(true) => commit_cast_form_isolated(table, cast_base, committed),
+            Some(false) => Recovered::Incomplete,
+            None => {
+                let at = committed.probe(|probe| probe.input().pos());
+                emit_cast_body_introducer_recovery(committed, at..at);
+                Recovered::Incomplete
+            }
+        };
     }
     let trivia = committed
         .probe(|probe| mod_trivia(cast_base, probe.input()))
@@ -2211,6 +2310,7 @@ where
             );
             body_start..committed.probe(|probe| probe.input().pos())
         },
+        |committed| cast_inline_body_error_retry(table, committed),
         committed,
     );
     committed.finish_node();
@@ -2219,6 +2319,250 @@ where
         Recovered::Incomplete => equals.end,
     };
     Recovered::Complete(equals.start..end)
+}
+
+fn cast_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        punctuation.kind() == PunctuationKind::Semicolon
+    }) || i.run(scan_declaration_exact_equals).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+/// A Cast form has no authority over a following declaration, caller close,
+/// or target colon.  Those are safe points for the one BodyIntroducer error
+/// episode and remain unconsumed for their real owner.
+fn cast_body_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Comma
+            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
+            | PunctuationKind::Colon
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+/// AST half of the BodyIntroducer recovery lattice.  Direct CST realizes the
+/// matching typed Error below; both leave the discovered starter/boundary in
+/// place for the same-slot retry or its outer owner.
+fn cast_body_introducer_error_retry_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if cast_body_starter_pending(i) {
+            return (start < i.pos()).then_some(true);
+        }
+        if cast_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        let operator_run = declaration_operator_character(character);
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        if operator_run {
+            while i
+                .input
+                .remainder()
+                .chars()
+                .next()
+                .is_some_and(declaration_operator_character)
+            {
+                i.input.next()?;
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            continue;
+        }
+    }
+}
+
+fn cast_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            let i = probe.input();
+            if cast_body_starter_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), true));
+            }
+            if cast_body_boundary_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            };
+            if matches!(character, '\r' | '\n') {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            let operator_run = declaration_operator_character(character);
+            i.input.next()?;
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if operator_run {
+                while i
+                    .input
+                    .remainder()
+                    .chars()
+                    .next()
+                    .is_some_and(declaration_operator_character)
+                {
+                    i.input.next()?;
+                    let mut line = i.local.line();
+                    line.at_line_start = false;
+                    i.local.set_line(line);
+                }
+                continue;
+            }
+        }
+    })?;
+    emit_cast_body_introducer_recovery(committed, recovered.0);
+    Some(recovered.1)
+}
+
+fn cast_inline_body_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+        punctuation.kind(),
+        PunctuationKind::Semicolon
+            | PunctuationKind::Comma
+            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
+    ));
+    i.rollback(checkpoint);
+    pending
+}
+
+fn cast_inline_body_error_retry_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if cast_inline_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < i.pos()).then_some(false);
+        };
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        let checkpoint = i.checkpoint();
+        let candidate = i.run(from_fn(|i| parse_expression_with_operators(table, i))).is_some();
+        i.rollback(checkpoint);
+        if candidate {
+            return Some(true);
+        }
+    }
+}
+
+fn cast_inline_body_error_retry<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> BindingStyleInlineRecovery
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            {
+                let i = probe.input();
+                if cast_inline_body_boundary_pending(i) {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                let Some(character) = i.input.remainder().chars().next() else {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                };
+                if matches!(character, '\r' | '\n') {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                i.input.next()?;
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            if crate::grammar::expression::direct_expression_nud_candidate(
+                table,
+                LeadingTrivia::None,
+                probe,
+            ) {
+                let end = probe.input().pos();
+                return Some((start..end, true));
+            }
+        }
+    });
+    let Some((range, retry)) = recovered else {
+        return BindingStyleInlineRecovery::None;
+    };
+    emit_cast_slot_recovery(
+        committed,
+        CastRole::Body,
+        ExpectedSyntax::Expression,
+        range,
+    );
+    if retry {
+        BindingStyleInlineRecovery::Retry
+    } else {
+        BindingStyleInlineRecovery::TerminalError
+    }
 }
 
 /// Gate 5's full direct-CST isolated adapter.  It stays deliberately outside
@@ -6443,6 +6787,17 @@ enum BindingStyleBodyLayout {
     OuterBoundary,
 }
 
+/// The shared layout helper does not decide whether an owner-specific
+/// malformed inline run is terminal.  Binding preserves its established
+/// Missing-after-retry behavior; Cast uses the terminal variant to avoid
+/// stacking a second Missing over its one Error episode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BindingStyleInlineRecovery {
+    None,
+    Retry,
+    TerminalError,
+}
+
 /// Classifies the body after an already-committed `=`-style introducer.
 ///
 /// The shallow-newline branch rolls back the trivia so the surrounding
@@ -6511,6 +6866,9 @@ fn commit_binding_style_body<'parse, 'source, 'local, E, O, Body>(
         usize,
         &mut Committed<'parse, 'source, 'local, E, O>,
     ) -> Body,
+    inline_error_retry: impl FnOnce(
+        &mut Committed<'parse, 'source, 'local, E, O>,
+    ) -> BindingStyleInlineRecovery,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Recovered<Body>
 where
@@ -6535,17 +6893,20 @@ where
                 LeadingTrivia::Present
             };
             committed.emit_trivia(&trivia);
+            let mut recovery = BindingStyleInlineRecovery::None;
             let body = parse_direct_expression_with_operators(operators, leading, committed).or_else(|| {
-                direct_expression_error_retry(operators, body_role, committed)
+                recovery = inline_error_retry(committed);
+                (recovery == BindingStyleInlineRecovery::Retry)
                     .then(|| parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed))
                     .flatten()
             });
             match body {
                 Some(body) => Recovered::Complete(commit_inline(body)),
-                None => {
+                None if recovery != BindingStyleInlineRecovery::TerminalError => {
                     emit_expression_missing_with_role(committed, body_role);
                     Recovered::Incomplete
                 }
+                None => Recovered::Incomplete,
             }
         }
     }
@@ -6578,6 +6939,15 @@ where
             );
             let end = committed.probe(|probe| probe.input().pos());
             ParsedBindingBody::new(body_start..end)
+        },
+        |committed| {
+            direct_expression_error_retry(
+                operators,
+                GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+                committed,
+            )
+            .then_some(BindingStyleInlineRecovery::Retry)
+            .unwrap_or(BindingStyleInlineRecovery::None)
         },
         committed,
     )
@@ -25559,9 +25929,9 @@ mod tests {
         assert_eq!(missing_form.range(), 0..13);
 
         let (non_exact_equals, remainder) = parse("cast(x: A): B == value");
-        assert_eq!(remainder, " == value");
+        assert_eq!(remainder, "");
         assert!(matches!(non_exact_equals.form, Recovered::Incomplete));
-        assert_eq!(non_exact_equals.range(), 0..13);
+        assert_eq!(non_exact_equals.range(), 0..22);
 
         let (missing_body, remainder) = parse("cast(x: A): B =");
         assert_eq!(remainder, "");
@@ -25834,6 +26204,219 @@ mod tests {
         assert!(
             !body.children_with_tokens().any(|element| element.kind() == SyntaxKind::LBrace),
             "the CastBody owns no brace opener token",
+        );
+    }
+
+    #[test]
+    fn isolated_cast_declaration_recovery_rows_are_typed_non_cascading_and_lossless() {
+        type Recovery = (RecoveryKind, GrammarRole, Range<usize>);
+
+        fn parse_ast(source: &str) -> (CastDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_cast_declaration_form_aware_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    i,
+                )
+                .expect("the isolated Cast intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_cast_statement_intro)
+                .expect("the isolated Cast intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_cast_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                intro,
+                &mut committed,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            if !remainder.is_empty() {
+                let trailing = committed.probe(|probe| {
+                    let i = probe.input();
+                    let start = i.pos();
+                    while i.input.next().is_some() {
+                        let mut line = i.local.line();
+                        line.at_line_start = false;
+                        i.local.set_line(line);
+                    }
+                    start..i.pos()
+                });
+                committed.token(SyntaxKind::Unknown, trailing);
+            }
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            let _ = is_cut;
+            (range, remainder, root, records)
+        }
+
+        let cast_role = |role| GrammarRole::Declaration(DeclarationRole::Cast(role));
+        let recoveries = |records: &[CommittedRecoveryRecord]| -> Vec<Recovery> {
+            records
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect()
+        };
+
+        struct Case {
+            source: &'static str,
+            remainder: &'static str,
+            records: Vec<Recovery>,
+        }
+
+        let cases = vec![
+            Case {
+                source: "cast(x: A): B",
+                remainder: "",
+                records: vec![(
+                    RecoveryKind::Missing,
+                    cast_role(CastRole::BodyIntroducer),
+                    13..13,
+                )],
+            },
+            Case {
+                source: "cast(x: A): B @;",
+                remainder: "",
+                records: vec![(
+                    RecoveryKind::Error,
+                    cast_role(CastRole::BodyIntroducer),
+                    14..15,
+                )],
+            },
+            Case {
+                source: "cast(x: A): B @@",
+                remainder: "",
+                records: vec![(
+                    RecoveryKind::Error,
+                    cast_role(CastRole::BodyIntroducer),
+                    14..16,
+                )],
+            },
+            Case {
+                source: "cast(x: A): B == value",
+                remainder: "",
+                records: vec![(
+                    RecoveryKind::Error,
+                    cast_role(CastRole::BodyIntroducer),
+                    14..22,
+                )],
+            },
+            Case {
+                source: "cast(x: A): B =",
+                remainder: "",
+                records: vec![(RecoveryKind::Missing, cast_role(CastRole::Body), 15..15)],
+            },
+            Case {
+                source: "cast(x: A): B =;",
+                remainder: ";",
+                records: vec![(RecoveryKind::Missing, cast_role(CastRole::Body), 15..15)],
+            },
+            Case {
+                source: "cast(x: A): B = @;",
+                remainder: ";",
+                records: vec![(RecoveryKind::Error, cast_role(CastRole::Body), 16..17)],
+            },
+            Case {
+                source: "cast(x: A): B = @x",
+                remainder: "",
+                records: vec![(RecoveryKind::Error, cast_role(CastRole::Body), 16..17)],
+            },
+            Case {
+                source: "cast(x: A);",
+                remainder: "",
+                records: vec![(
+                    RecoveryKind::Missing,
+                    cast_role(CastRole::TargetIntroducer),
+                    10..10,
+                )],
+            },
+            Case {
+                source: "cast(x: A)=",
+                remainder: "",
+                records: vec![
+                    (
+                        RecoveryKind::Missing,
+                        cast_role(CastRole::TargetIntroducer),
+                        10..10,
+                    ),
+                    (RecoveryKind::Missing, cast_role(CastRole::Body), 11..11),
+                ],
+            },
+            Case {
+                source: "cast(x: A): B =\ncast(y: C): D;",
+                remainder: "\ncast(y: C): D;",
+                records: vec![(RecoveryKind::Missing, cast_role(CastRole::Body), 15..15)],
+            },
+        ];
+
+        for case in cases {
+            let (ast, ast_remainder) = parse_ast(case.source);
+            let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
+            assert_eq!(ast_remainder, case.remainder, "AST remainder: {:?}", case.source);
+            assert_eq!(direct_remainder, case.remainder, "direct remainder: {:?}", case.source);
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert_eq!(recoveries(&records), case.records, "recoveries: {:?}", case.source);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                records.len(),
+                "one range = one node = one record: {:?}",
+                case.source,
+            );
+        }
+
+        let indented = "cast(x: A): B =\n  @";
+        let (_ast, ast_remainder) = parse_ast(indented);
+        let (_range, direct_remainder, root, records) = commit_direct(indented);
+        assert_eq!(ast_remainder, "@");
+        assert_eq!(direct_remainder, "");
+        assert!(records.iter().any(|record| {
+            record.site.role == cast_role(CastRole::IndentedStatement)
+        }));
+        assert!(!records.iter().any(|record| {
+            record.site.role == cast_role(CastRole::Body)
+        }));
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            records.len(),
+            "the indented Statement owns its own recovery",
         );
     }
 
