@@ -1,6 +1,7 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-27（`syntax-reference/`サイト完成に続き、standalone `role`宣言addendumの10 gate実装完了）
+更新: 2026-08-27（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走に続き、
+standalone `act`宣言addendumの11 gate実装も完了）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -67,6 +68,17 @@
   formatterは未実装をworkspace-wide grepで確認済み。Y2 role methodのdotted Binding targetが
   Patternの未実装DotField continuationへ依存するgapはGate 5で発見し、Role内へ推測実装せず
   plain identifier worked exampleへ訂正したうえでPattern別addendumへdeferした。
+- standalone `act`宣言shell文法(ACT-G/J/T/R、11 gate計画)がAuthoritative設計どおり
+  実装完了。Gate 1のvocabularyからGate 7のACT-R recovery matrix、Gate 8のbody
+  composition matrix、Gate 9のstate-restoration matrix、Gate 10のCast後/Binding前
+  atomic dispatch promotion、Gate 11のfinal contextual-word/scope gateまで完走し、
+  530 tests green。roleと違い、Actは三段slot(Head→Source→BodyIntroducer)の
+  no-cascade recoveryと、`my act = 1`(Binding target)対`my act A = B`(Act intro)を
+  raw head candidate lookaheadで区別する非対称`my`衝突規則、および明示tail-nothing時の
+  implicit boundary bodyless success(Missing化しない)という3点でroleより複雑だった。
+  設計レビューは誤りゼロで着地(role Gate 10の教訓——contextual-word例を検証せず
+  書いた自分自身の誤り——を実装側で確実に踏襲)。host act tier・operation
+  registration・derives attachment拡張・`with:` companionは別addendumへ明示的にdefer。
 
 ## 既知の未修正バグ
 
@@ -77,15 +89,16 @@
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
-1. **standalone `TypeExpression`の残りuse-site(where節・act signature)**: role
-   signatureは上記で解決。where節・act signatureは、role同様「そもそも宣言文法
-   自体が未実装」と判明済み(2026-08-27調査)——着手にはまず宣言family自体の設計が
-   要る。where節は正本が「type-specific where clauseをYulang3に発明しない」と
-   明記していて位置付けが不明確、act signatureはrole実装で得た共有driverの
-   再利用範囲を見てから着手判断するのが良さそう。
+1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
+   signatureは上記で解決(role method signatureはexisting Binding Pattern
+   TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
+   where節は、role/act同様「そもそも宣言文法自体が未実装」と判明済み
+   (2026-08-27調査)——着手にはまず宣言family自体の設計が要るうえ、正本が
+   「type-specific where clauseをYulang3に発明しない」と明記していて位置付けが
+   不明確。
 2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/
-   `act`/`for`文/declaration-level `where`/doc-comment宣言。`role`は実装完了。
-   `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義は完了。
+   `for`文/declaration-level `where`/doc-comment宣言。`role`/`act`は実装完了。
+   `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。
 3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
@@ -129,6 +142,37 @@ continuationを必要とする未実装gapを発見し、Roleのscopeへ推測�
 fixtureへ訂正、Pattern別追補へdeferした。Gate 10はall visibilityとcontextual `role`の
 ordinary-word positionsをpublic/direct parityで固定し、Role syntax typeがyu-syntax外へ
 漏れていないことも確認した。
+
+### standalone `act`宣言addendum、Authoritative化・11 gate実装完了(2026-08-27)
+
+role完走直後、ユーザから次候補を「どれでもいいですよ」と一任され、act宣言を選択。
+Sol xhighへdesign委任、role Gate 3で確定したoracle commit hash二重citation
+(タグオブジェクト`1ec55fdfd33d...`と実commit`a58eefc31e22...`を区別)を最初から
+正しく踏襲、Claude独立レビューで実誤りゼロ判定(role addendumの2件から改善)。
+ユーザ承認によりAuthoritative化。
+
+設計の要点: `ActDeclaration`は`[visibility] act Head [= Source] Body`の3-slotで、
+headはfull mandatory TypeExpression、sourceはoptional `= TypeExpression`(copy
+source)、bodyはbodyless(explicit `;` / implicit tail-nothing)・brace・colon
+inline-indentedの3形態。role/derives/impl/castの共有TypeExpression episode
+infrastructureをhard reuseしつつ、role単一slotのHead→BodyIntroducerと異なり
+Head→Source→BodyIntroducerの3段no-cascade recoveryを新規設計。intro priorityは
+Cast後/Binding前。`my act = 1`はBinding target(rollback)、`my act A = B`は
+raw head candidate lookaheadでAct intro選択という非対称衝突規則も新規。
+
+実装完了: Gate 1 vocabulary/AST、Gate 2 isolated intro(`my act`非対称
+lookahead)、Gate 3 head episode、Gate 4 slot-parameterized head/source shared
+driver、Gate 5-6 AST/direct body adapters、Gate 7 ACT-R recovery matrix(3段
+no-cascade chain確認)、Gate 8 body composition matrix(Role含む9 live Statement
+construct全部が全body formで合成可能と確認)、Gate 9 pre-promotion
+state-restoration matrix、Gate 10 real dispatch atomic promotion(Cast後/
+Binding前へ挿入、既存優先順位無傷)、Gate 11 final public scope/contextual-word
+matrixを同日中に完走、511→530 tests green。Gate 11では、role Gate 10で
+Claude自身が犯した誤り(検証していない`my role = value`をordinary word例として
+誤指定)を教訓に、全contextual-word例を追加前に文法対応状況と照合する規律を徹底し、
+誤りゼロで着地した。host act tier・operation registration/classification・
+derives attachment拡張・declaration companion `with:`・copy source resolutionは
+addendum自身が別addendumへ明示的にdefer。
 
 ## 文法・CSTをエラー含めて完全に規格化するサイト(`syntax-reference/`、pilot稼働中)
 
