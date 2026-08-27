@@ -30702,6 +30702,429 @@ mod tests {
     }
 
     #[test]
+    fn isolated_act_declaration_recovery_contract_is_typed_and_non_cascading() {
+        type Recovery = (RecoveryKind, GrammarRole, Range<usize>);
+
+        fn parse_ast(source: &str) -> (ActDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Act intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            let _ = is_cut;
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(source: &str) -> (Recovered<Range<usize>>, String, Vec<Recovery>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_act_statement_intro)
+                .expect("the isolated Act intro establishes authority");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let range = commit_act_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            let _ = is_cut;
+            (
+                range,
+                remainder,
+                output
+                    .committed_recoveries()
+                    .iter()
+                    .map(|record| {
+                        (
+                            record.kind,
+                            record.site.role,
+                            record.site.range.clone(),
+                        )
+                    })
+                    .collect(),
+            )
+        }
+
+        fn direct_recovery_node_count(source: &str) -> usize {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_act_statement_intro)
+                .expect("the isolated Act intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let _ = commit_act_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            assert!(
+                committed
+                    .probe(|probe| probe.input().input.remainder().is_empty()),
+                "full direct fixture must be consumed: {source:?}",
+            );
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output.committed_recoveries().len();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless direct fixture: {source:?}");
+            assert!(expectations.take_merged().is_none(), "tree sink: {source:?}");
+            let _ = is_cut;
+            let nodes = root
+                .descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count();
+            assert_eq!(nodes, records, "one recovery node per record: {source:?}");
+            nodes
+        }
+
+        let act = |role| GrammarRole::Declaration(DeclarationRole::Act(role));
+        let type_primary = GrammarRole::Type(crate::session::TypeRole::Primary);
+
+        // Gate 2 already fixes `my act = 1` as an intro rollback and `my act
+        // A = B` as an Act intro.  Here the accepted declaration owns only
+        // its Head slot: EOF and malformed-head boundaries must not cascade
+        // into Source or BodyIntroducer recovery.
+        for (source, expected_remainder, expected_records, head_complete) in [
+            (
+                "act",
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    act(crate::session::ActDeclarationRole::Head),
+                    3..3,
+                )],
+                false,
+            ),
+            (
+                "act @A",
+                "",
+                vec![(RecoveryKind::Error, type_primary, 4..5)],
+                true,
+            ),
+            (
+                "act @;",
+                "",
+                vec![(RecoveryKind::Error, type_primary, 4..5)],
+                false,
+            ),
+            (
+                "act @,",
+                ",",
+                vec![(RecoveryKind::Error, type_primary, 4..5)],
+                false,
+            ),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, records) = commit_direct(source);
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(records, expected_records, "records: {source:?}");
+            assert_eq!(matches!(ast.head, Recovered::Complete(_)), head_complete);
+            assert!(
+                records.iter().all(|(_, role, _)| {
+                    *role != act(crate::session::ActDeclarationRole::Source)
+                        && *role != act(crate::session::ActDeclarationRole::BodyIntroducer)
+                }),
+                "head recovery must not cascade: {source:?}",
+            );
+            if !source.ends_with(',') {
+                assert_eq!(direct_recovery_node_count(source), records.len());
+            }
+        }
+
+        // An actual equals starts the second slot.  Its Missing/Error outcome
+        // never manufactures a third, BodyIntroducer recovery; clean EOF
+        // after a complete source is already covered by Gate 6's implicit
+        // bodyless byte-exact fixture.
+        for (source, expected_remainder, expected_records, source_complete) in [
+            (
+                "act A =",
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    act(crate::session::ActDeclarationRole::Source),
+                    7..7,
+                )],
+                false,
+            ),
+            (
+                "act A =;",
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    act(crate::session::ActDeclarationRole::Source),
+                    7..7,
+                )],
+                false,
+            ),
+            (
+                "act A = @B",
+                "",
+                vec![(RecoveryKind::Error, type_primary, 8..9)],
+                true,
+            ),
+            (
+                "act A = @;",
+                "",
+                vec![(RecoveryKind::Error, type_primary, 8..9)],
+                false,
+            ),
+            (
+                "act A = @,",
+                ",",
+                vec![(RecoveryKind::Error, type_primary, 8..9)],
+                false,
+            ),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, records) = commit_direct(source);
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(records, expected_records, "records: {source:?}");
+            assert_eq!(
+                ast.source
+                    .as_ref()
+                    .is_some_and(|source| matches!(source.source, Recovered::Complete(_))),
+                source_complete,
+                "source same-slot retry shape: {source:?}",
+            );
+            assert!(
+                records.iter().all(|(_, role, _)| {
+                    *role != act(crate::session::ActDeclarationRole::BodyIntroducer)
+                }),
+                "source recovery must not cascade: {source:?}",
+            );
+            if !source.ends_with(',') && !source.ends_with(';') {
+                assert_eq!(direct_recovery_node_count(source), records.len());
+            }
+        }
+
+        // A non-empty body-introducer run retries at actual punctuation, or
+        // preserves the caller comma.  This differs from a clean tail
+        // boundary, which Gate 5/6 already establish as implicit Bodyless.
+        for (source, expected_remainder, expected_range, bodyless) in [
+            ("act A @;", "", 6..7, true),
+            ("act A @,", ",", 6..7, false),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, records) = commit_direct(source);
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Error,
+                    act(crate::session::ActDeclarationRole::BodyIntroducer),
+                    expected_range,
+                )],
+            );
+            assert_eq!(
+                matches!(ast.body, Recovered::Complete(ActBody::Bodyless { .. })),
+                bodyless,
+            );
+            if !source.ends_with(',') {
+                assert_eq!(direct_recovery_node_count(source), 1);
+            }
+        }
+
+        // Colon retains all terminal and dedented caller boundaries while
+        // committing exactly one Act Body Missing record.
+        for (source, expected_remainder) in [
+            ("act A:", ""),
+            ("act A:;", ";"),
+            ("act A:,", ","),
+            ("act A:)", ")"),
+            ("act A:\nnext", "\nnext"),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, records) = commit_direct(source);
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Missing,
+                    act(crate::session::ActDeclarationRole::Body),
+                    6..6,
+                )],
+                "colon body record: {source:?}",
+            );
+            assert!(matches!(
+                ast.body,
+                Recovered::Complete(ActBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
+            ));
+            if expected_remainder.is_empty() {
+                assert_eq!(direct_recovery_node_count(source), 1);
+            }
+        }
+
+        // The outer Body slot retries only malformed inline trivia.  Once a
+        // canonical statement has started, every remaining recovery belongs
+        // to that inner owner rather than Act.
+        let (ast, ast_remainder) = parse_ast("act A: @ our x: Int");
+        let (direct_range, direct_remainder, records) = commit_direct("act A: @ our x: Int");
+        assert_eq!(ast_remainder, "");
+        assert_eq!(direct_remainder, "");
+        assert_eq!(direct_range, Recovered::Complete(ast.range()));
+        assert_eq!(
+            records,
+            vec![(
+                RecoveryKind::Error,
+                act(crate::session::ActDeclarationRole::Body),
+                7..9,
+            )],
+        );
+        assert_eq!(direct_recovery_node_count("act A: @ our x: Int"), 1);
+
+        for (source, expected_records) in [
+            (
+                "act A:\n  ",
+                vec![(
+                    RecoveryKind::Missing,
+                    act(crate::session::ActDeclarationRole::IndentedStatement),
+                    9..9,
+                )],
+            ),
+            (
+                "act A:\n  our @x = value",
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                    13..14,
+                )],
+            ),
+            (
+                "act A { our x: Int",
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::ClosingDelimiter {
+                        owner: crate::session::ConstructRole::BracedStatementBlockExpression,
+                        delimiter: crate::session::Delimiter::Brace,
+                    },
+                    18..18,
+                )],
+            ),
+            (
+                "act A:\n  our x:",
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Pattern(crate::session::PatternRole::TypeAnnotation),
+                    15..15,
+                )],
+            ),
+            (
+                "act A:\n  our x: @Int",
+                vec![(RecoveryKind::Error, type_primary, 16..17)],
+            ),
+            (
+                "act A:\n  type",
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Name)),
+                    13..13,
+                )],
+            ),
+            (
+                "act A:\n  x.",
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Expression(crate::session::ExpressionRole::FieldName),
+                    11..11,
+                )],
+            ),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, records) = commit_direct(source);
+            assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(records, expected_records, "inner recovery: {source:?}");
+            assert!(
+                records.iter().all(|(_, recovery_role, _)| {
+                    *recovery_role != act(crate::session::ActDeclarationRole::Body)
+                }),
+                "inner recovery must not duplicate Act Body: {source:?}",
+            );
+            assert_eq!(direct_recovery_node_count(source), records.len());
+        }
+
+        let mismatched_source = "act A { our x: Int]";
+        let (mismatched_ast, mismatched_ast_remainder) = parse_ast(mismatched_source);
+        let (mismatched_direct_range, mismatched_remainder, mismatched_records) =
+            commit_direct(mismatched_source);
+        assert_eq!(mismatched_ast_remainder, "]");
+        assert!(matches!(mismatched_ast.body, Recovered::Complete(ActBody::Braced { .. })));
+        assert_eq!(mismatched_direct_range, Recovered::Complete(0..19));
+        assert_eq!(mismatched_remainder, "");
+        assert_eq!(
+            mismatched_records,
+            vec![
+                (
+                    RecoveryKind::Error,
+                    GrammarRole::ClosingDelimiter {
+                        owner: crate::session::ConstructRole::BracedStatementBlockExpression,
+                        delimiter: crate::session::Delimiter::Brace,
+                    },
+                    18..19,
+                ),
+                (
+                    RecoveryKind::Missing,
+                    GrammarRole::ClosingDelimiter {
+                        owner: crate::session::ConstructRole::BracedStatementBlockExpression,
+                        delimiter: crate::session::Delimiter::Brace,
+                    },
+                    19..19,
+                ),
+            ],
+        );
+        assert_eq!(direct_recovery_node_count(mismatched_source), 2);
+    }
+
+    #[test]
     fn isolated_role_declaration_ast_selects_all_body_forms_and_preserves_boundaries() {
         fn parse(source: &str) -> (RoleDeclaration<'_>, String) {
             let mut source_input = SourceInput::new(source);
