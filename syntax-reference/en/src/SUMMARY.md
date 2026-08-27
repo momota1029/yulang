@@ -25,6 +25,7 @@
 - [`struct` declaration](statements/struct-declaration.md)
 - [Shared `derives` clause attachment](statements/derives-attachment.md)
 - [Standalone `impl` declaration shell](statements/impl-shell.md)
+- [Standalone `cast` declaration](statements/cast-declaration.md)
 
 # Cross-cutting
 

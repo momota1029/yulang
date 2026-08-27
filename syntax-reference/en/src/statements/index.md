@@ -11,7 +11,4 @@ Authored pages:
 - [`struct` declaration](struct-declaration.md)
 - [Shared `derives` clause attachment](derives-attachment.md)
 - [Standalone `impl` declaration shell](impl-shell.md)
-
-Not yet authored:
-
-- Standalone `cast`
+- [Standalone `cast` declaration](cast-declaration.md)
