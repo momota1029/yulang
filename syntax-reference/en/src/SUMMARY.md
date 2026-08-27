@@ -51,6 +51,7 @@
 - [Overview](cross-cutting/index.md)
 - [Layout-aware separator authority](cross-cutting/layout-aware-separator-authority.md)
 - [TypeExpression malformed-newline-owner policy (TMN)](cross-cutting/tmn-malformed-newline-owner-policy.md)
+- [TypeExpression malformed caller-boundary positional fence](cross-cutting/positional-fence.md)
 
 # Index
 
