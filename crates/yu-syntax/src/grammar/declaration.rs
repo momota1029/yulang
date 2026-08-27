@@ -31904,6 +31904,109 @@ mod tests {
     }
 
     #[test]
+    fn act_gate_11_final_public_scope_and_contextual_word_matrix() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn identifier_tokens(root: &SyntaxNode, text: &str) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.text() == text)
+                .map(|token| {
+                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    syntax_range(token.text_range())
+                })
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ActDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ActDeclaration),
+                "public/direct Act range parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                direct_root
+                    .descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        // Visibility belongs to the declaration introducer. The `my` form is
+        // admitted only because the following `A` is ACT-J's required raw
+        // head candidate; bare, `our`, and `pub` are unconditional Act cuts.
+        for source in ["act A;", "my act A;", "our act A;", "pub act A;"] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::ActDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::ActDeclaration),
+                vec![0..source.len()],
+            );
+            assert!(direct.committed_recoveries().is_empty(), "visibility recovery: {source:?}");
+        }
+
+        // `act` remains contextual outside a canonical Statement/root
+        // Declaration introducer. These are independently supported by the
+        // field, expression, TypeExpression, NamedRecordType, and arm-Pattern
+        // scanners respectively.
+        for source in [
+            "my value = object.act",
+            "my value = act",
+            "my value: act = output",
+            "my value: ({ act: Int }) = output",
+            "my result = case value:\n  act -> output",
+        ] {
+            let (public, direct_root, _) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::ActDeclaration).is_empty(),
+                    "no ActDeclaration outside an accepted Statement slot: {source:?}",
+                );
+                assert!(
+                    !identifier_tokens(root, "act").is_empty(),
+                    "ordinary act identifier: {source:?}",
+                );
+            }
+        }
+
+        // ACT-J's only `my act` collision exception remains an ordinary
+        // Binding target through public and direct root dispatch.
+        let (public, direct_root, direct) = parse_public_and_direct("my act = 1");
+        for root in [&public, &direct_root] {
+            assert!(node_ranges(root, SyntaxKind::ActDeclaration).is_empty());
+            assert_eq!(node_ranges(root, SyntaxKind::BindingStatement), vec![0..10]);
+            assert_eq!(identifier_tokens(root, "act"), vec![3..6]);
+        }
+        assert!(direct.committed_recoveries().is_empty());
+    }
+
+    #[test]
     fn isolated_role_declaration_ast_selects_all_body_forms_and_preserves_boundaries() {
         fn parse(source: &str) -> (RoleDeclaration<'_>, String) {
             let mut source_input = SourceInput::new(source);
