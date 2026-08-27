@@ -9,9 +9,9 @@ Authored pages:
 - [Canonical Binding / Use](binding-use.md)
 - [`mod` declaration](mod-declaration.md)
 - [`struct` declaration](struct-declaration.md)
+- [Shared `derives` clause attachment](derives-attachment.md)
+- [Standalone `impl` declaration shell](impl-shell.md)
 
 Not yet authored:
 
-- Shared `derives` attachment
-- Standalone `impl` shell
 - Standalone `cast`

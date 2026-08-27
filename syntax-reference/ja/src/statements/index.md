@@ -9,9 +9,9 @@
 - [Canonical Binding / Use](binding-use.md)
 - [`mod` declaration](mod-declaration.md)
 - [`struct` declaration](struct-declaration.md)
+- [shared `derives` clause attachment](derives-attachment.md)
+- [standalone `impl` declaration shell](impl-shell.md)
 
 未執筆の要素:
 
-- Shared `derives` attachment
-- Standalone `impl` shell
 - Standalone `cast`

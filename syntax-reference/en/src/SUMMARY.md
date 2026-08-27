@@ -23,6 +23,8 @@
 - [Canonical Binding / Use](statements/binding-use.md)
 - [`mod` declaration](statements/mod-declaration.md)
 - [`struct` declaration](statements/struct-declaration.md)
+- [Shared `derives` clause attachment](statements/derives-attachment.md)
+- [Standalone `impl` declaration shell](statements/impl-shell.md)
 
 # Cross-cutting
 
