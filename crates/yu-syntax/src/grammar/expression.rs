@@ -14,11 +14,13 @@ use crate::{
         BindingDeclaration, CastDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
         TypeDeclaration,
         UseDeclaration,
-        commit_binding_declaration, commit_cast_declaration_isolated, commit_impl_declaration_isolated, commit_type_declaration,
+        commit_binding_declaration, commit_cast_declaration_isolated, commit_impl_declaration_isolated,
+        commit_role_declaration_isolated, commit_type_declaration,
         commit_use_declaration,
         parse_binding_declaration_with_operators,
         commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
-        parse_cast_declaration_form_aware_isolated, parse_impl_declaration_isolated, parse_struct_declaration, parse_type_declaration,
+        parse_cast_declaration_form_aware_isolated, parse_impl_declaration_isolated,
+        parse_role_declaration_isolated, parse_struct_declaration, parse_type_declaration,
         parse_use_declaration,
         recognize_statement_intro,
     },
@@ -1499,6 +1501,9 @@ where
             .map(Statement::Mod),
         Some(StatementIntro::Struct(_)) => i.run(parse_struct_declaration).map(Statement::Struct),
         Some(StatementIntro::Type(_)) => i.run(parse_type_declaration).map(Statement::Type),
+        Some(StatementIntro::Role(_)) => i
+            .run(from_fn(|i| parse_role_declaration_isolated(table, i)))
+            .map(Statement::Role),
         Some(StatementIntro::Impl(_)) => i
             .run(from_fn(|i| parse_impl_declaration_isolated(table, i)))
             .map(Statement::Impl),
@@ -4202,6 +4207,7 @@ where
                     | StatementIntro::Mod(_)
                     | StatementIntro::Struct(_)
                     | StatementIntro::Type(_)
+                    | StatementIntro::Role(_)
                     | StatementIntro::Impl(_)
                     | StatementIntro::Cast(_)
             )
@@ -4232,8 +4238,9 @@ where
             let _ = commit_type_declaration(committed, intro);
             true
         }
-        Some(StatementIntro::Role(_)) => {
-            unreachable!("Role dispatch is introduced in its Gate 9 promotion")
+        Some(StatementIntro::Role(intro)) => {
+            let _ = commit_role_declaration_isolated(table, committed, intro);
+            true
         }
         Some(StatementIntro::Impl(intro)) => {
             let _ = commit_impl_declaration_isolated(table, committed, intro);
@@ -4269,6 +4276,7 @@ where
                 | StatementIntro::Mod(_)
                 | StatementIntro::Struct(_)
                 | StatementIntro::Type(_)
+                | StatementIntro::Role(_)
                 | StatementIntro::Impl(_)
                 | StatementIntro::Cast(_)
         )

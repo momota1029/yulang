@@ -398,8 +398,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_type_declaration(&mut committed, intro);
                 StatementKind::TypeDeclaration
             }
-            StatementIntro::Role(_) => {
-                unreachable!("Role dispatch is introduced in its Gate 9 promotion")
+            StatementIntro::Role(intro) => {
+                let _ = commit_role_declaration_isolated(operators, &mut committed, intro);
+                StatementKind::RoleDeclaration
             }
             StatementIntro::Impl(intro) => {
                 let _ = commit_impl_declaration_isolated(operators, &mut committed, intro);
@@ -677,6 +678,10 @@ where
 
     if let Some(intro) = i.run(recognize_type_statement_intro) {
         return Some(StatementIntro::Type(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_role_statement_intro) {
+        return Some(StatementIntro::Role(intro));
     }
 
     if let Some(intro) = i.run(recognize_impl_statement_intro) {
@@ -11639,6 +11644,8 @@ where
     i.choice((
         parse_struct_declaration.map(Declaration::Struct),
         parse_type_declaration.map(Declaration::Type),
+        from_fn(|i| parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::Role),
         from_fn(|i| parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
             .map(Declaration::Impl),
         from_fn(|i| {
@@ -29416,6 +29423,205 @@ mod tests {
                 "one record = one recovery node: {source:?}",
             );
             assert!(expectations.take_merged().is_none(), "full-CST sink: {source:?}");
+        }
+    }
+
+    #[test]
+    fn role_gate_9_real_dispatch_is_atomic_across_root_and_canonical_owners() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::RoleDeclaration),
+                node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
+                "public/direct Role range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> Range<usize> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Role(declaration) = i
+                .run(parse_declaration)
+                .expect("the promoted root parser recognizes Role")
+            else {
+                panic!("the exact Role intro must win root declaration dispatch")
+            };
+            assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(!is_cut, "root AST cut: {source:?}");
+            declaration.range()
+        }
+
+        // The public root, direct root, and root AST entry all select the
+        // same Role continuation for the three body forms.
+        for source in [
+            "role Eq;",
+            "role Printable:\n  our print: Self -> ()",
+            "role Eq {\n  our eq: Self -> Self -> Bool\n}",
+        ] {
+            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::RoleDeclaration), vec![0..source.len()]);
+            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+        }
+
+        // Every existing canonical Statement owner now reaches the promoted
+        // Role adapter. Catch + With carries the depth-2 inline owner walk.
+        for source in [
+            "my block = { role Eq;\n  my value = 1 }",
+            "role Outer:\n  role Eq;\n  my value = 1",
+            "my value = base with: role Eq;",
+            "mod Outer: role Eq;",
+            "my result = case action:\n  A -> value with: role Eq;\n  B -> fallback",
+            "my result = catch action {\n  A -> value with: role Eq;\n  B -> fallback}",
+            "my result = if condition:\n  role Eq;\nelse: fallback",
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert!(
+                !node_ranges(&public, SyntaxKind::RoleDeclaration).is_empty(),
+                "owner: {source:?}",
+            );
+            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+        }
+
+        // Role bodies are ordinary canonical Statement sequences. Existing
+        // declaration and expression owners retain their own node identities,
+        // and nested Role becomes reachable only through this promotion.
+        let body_source = concat!(
+            "role Container:\n",
+            "  value;\n",
+            "  our signature: Self -> Bool;\n",
+            "  my item = value;\n",
+            "  use std;\n",
+            "  mod Nested;\n",
+            "  struct NestedStruct;\n",
+            "  type NestedType;\n",
+            "  impl NestedImpl;\n",
+            "  cast(inner): U;\n",
+            "  role NestedRole;",
+        );
+        let (public, direct_root, direct) = parse_public_and_direct(body_source);
+        assert!(direct.committed_recoveries().is_empty(), "role body recovery");
+        for (kind, count) in [
+            (SyntaxKind::RoleDeclaration, 2),
+            (SyntaxKind::BindingStatement, 2),
+            (SyntaxKind::UseDeclaration, 1),
+            (SyntaxKind::ModDeclaration, 1),
+            (SyntaxKind::StructDeclaration, 1),
+            (SyntaxKind::TypeDeclaration, 1),
+            (SyntaxKind::ImplDeclaration, 1),
+            (SyntaxKind::CastDeclaration, 1),
+        ] {
+            assert_eq!(node_ranges(&public, kind).len(), count, "public {kind:?}");
+            assert_eq!(node_ranges(&direct_root, kind).len(), count, "direct {kind:?}");
+        }
+        assert!(!node_ranges(&public, SyntaxKind::OperatorChain).is_empty());
+
+        // Completed Role punctuation and active outer statement boundaries
+        // retain their pre-promotion ownership; recovery remains Role-local.
+        for source in [
+            "role Eq;\nmy next = 1",
+            "my block = { role Eq;\n  my next = 1 }",
+            "my result = if condition:\n  role Eq;\nelse: fallback",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(direct.committed_recoveries().is_empty(), "boundary recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::RoleDeclaration),
+                node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
+                "boundary parity: {source:?}",
+            );
+        }
+
+        for (source, kind, role, range) in [
+            (
+                "role",
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Role(
+                    crate::session::RoleDeclarationRole::Head,
+                )),
+                4..4,
+            ),
+            (
+                "role Eq @;",
+                RecoveryKind::Error,
+                GrammarRole::Declaration(DeclarationRole::Role(
+                    crate::session::RoleDeclarationRole::BodyIntroducer,
+                )),
+                8..9,
+            ),
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::RoleDeclaration), vec![0..source.len()]);
+            let [record] = direct.committed_recoveries() else {
+                panic!("one promoted Role recovery expected: {source:?}")
+            };
+            assert_eq!(
+                (record.kind, record.site.role, record.site.range.clone()),
+                (kind, role, range),
+                "typed recovery: {source:?}",
+            );
+        }
+
+        // Role is full-only: header discovery stops at its exact intro and
+        // projects neither an import nor an operator fact.
+        for source in ["role Eq;", "pub role Printable:\n  our print: Self -> ()"] {
+            let source: Arc<crate::SourceText> = Arc::from(source);
+            let header = crate::scan_header(source);
+            assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+            assert_eq!(header.coverage().range(), &(0..0));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
         }
     }
 
