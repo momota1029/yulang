@@ -180,7 +180,15 @@ driver rewrite・active-newline境界バグ修正を含む)とbracket row gramma
 "trailing separatorの誤citation"の再発防止)。
 
 これで`statements/`(7/7)・`patterns/`(4/4)・`types/`(6/6)の3 familyが完成。
-残りは`expressions/`(9要素)・`cross-cutting/`(4要素)。
+
+### expressions/ family: 6/9完了(2026-08-27、push済み)
+
+ユーザから「3時間は自由に動いていい、一切承認する」と権限付与を受け、質問なしで
+連続実行中。parenthesized-expression + operator-chain → colon-application +
+if-expression → braced-statement-block + case-catchの3バッチで6/9完了(commit
+`f5c3554f`〜`66e91e34`)。case-catchはこのfamily最大の複雑さ(struct/enum 13種)
+だったが、field単位検証で誤りゼロ。残り3要素(Call/field/path/ML application
+tails・Index/projection tails・WithBodyTail)、続けて`cross-cutting/`(4要素)。
 
 各elementページの11節template: Status/正本/last-verified commit → Scope →
 BNF grammar → judge/priority/owner boundary → byte-exact CST worked example →
