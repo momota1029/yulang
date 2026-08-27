@@ -16,7 +16,8 @@ use crate::{
     grammar::expression::{
         IndentedStatementBlock, OperatorChain, ParsedExpression, commit_indented_binding_body,
         commit_indented_cast_body,
-        commit_indented_impl_body, commit_indented_mod_body, commit_indented_role_body,
+        commit_indented_act_body, commit_indented_impl_body, commit_indented_mod_body,
+        commit_indented_role_body,
         Statement, BracedStatementBlockExpression, commit_braced_statement_block_expression,
         commit_canonical_statement, parse_braced_statement_block_expression,
         parse_direct_expression_with_operators, parse_expression_with_operators,
@@ -1954,6 +1955,313 @@ where
             return Some(true);
         }
     }
+}
+
+/// Direct-CST counterpart of [`parse_act_declaration_isolated`]. Like the
+/// AST adapter, it remains deliberately outside statement dispatch until the
+/// Gate 10 atomic promotion.
+pub(crate) fn commit_act_declaration_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: ActStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
+    committed.start_node(SyntaxKind::ActDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::ActKw, intro.act_keyword.range());
+
+    let head_terminated_incomplete = if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        true
+    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.act_base, probe.input())) {
+        committed.emit_trivia(&trivia);
+        matches!(
+            commit_required_act_head_type_expression_isolated(committed),
+            Recovered::Incomplete
+        )
+    } else {
+        true
+    };
+    let source = commit_act_source_clause_after_head_isolated(intro.act_base, committed);
+    let source_terminated_incomplete = source
+        .as_ref()
+        .is_some_and(|source| matches!(source.source, Recovered::Incomplete));
+    commit_act_body_isolated(
+        table,
+        intro.act_base,
+        !head_terminated_incomplete && !source_terminated_incomplete,
+        committed,
+    );
+    let end = committed_position(committed);
+    committed.finish_node();
+    committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+    Recovered::Complete(intro.start..end)
+}
+
+#[derive(Clone)]
+enum ActBodyStarter {
+    Bodyless(Range<usize>),
+    Braced(Range<usize>),
+    Colon(Range<usize>),
+}
+
+fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    act_base: usize,
+    head_and_source_complete: bool,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        return;
+    }
+    let starter = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let starter = mod_trivia(act_base, i).and_then(|trivia| {
+            let punctuation = i.run(scan_punctuation)?;
+            let starter = match punctuation.kind() {
+                PunctuationKind::Semicolon => ActBodyStarter::Bodyless(punctuation.range()),
+                PunctuationKind::Open(Delimiter::Brace) => ActBodyStarter::Braced(punctuation.range()),
+                PunctuationKind::Colon => ActBodyStarter::Colon(punctuation.range()),
+                _ => return None,
+            };
+            Some((trivia, starter))
+        });
+        i.rollback(checkpoint);
+        starter
+    });
+    let Some((trivia, starter)) = starter else {
+        if head_and_source_complete
+            && committed.probe(|probe| act_body_implicit_boundary_pending(act_base, probe.input()))
+        {
+            // Tail-nothing is a completed body form. It deliberately emits
+            // neither a recovery node nor a synthetic semicolon/token.
+            return;
+        }
+        let trivia = committed.probe(|probe| {
+            let i = probe.input();
+            let checkpoint = i.checkpoint();
+            let trivia = mod_trivia(act_base, i);
+            i.rollback(checkpoint);
+            trivia
+        });
+        let Some(trivia) = trivia else {
+            if !head_and_source_complete {
+                return;
+            }
+            emit_act_body_introducer_missing(committed);
+            return;
+        };
+        let newline = committed.probe(|probe| {
+            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
+        });
+        if newline {
+            if !head_and_source_complete {
+                return;
+            }
+            emit_act_body_introducer_missing(committed);
+            return;
+        }
+        let consumed_trivia = committed
+            .probe(|probe| mod_trivia(act_base, probe.input()))
+            .expect("the Act body-introducer recovery leaves its leading trivia at the cursor");
+        assert_eq!(consumed_trivia.range(), trivia.range());
+        committed.emit_trivia(&consumed_trivia);
+        match act_body_introducer_error_retry(act_base, committed) {
+            Some(true) => {
+                commit_act_body_isolated(table, act_base, head_and_source_complete, committed);
+            }
+            Some(false) => {}
+            None if head_and_source_complete => emit_act_body_introducer_missing(committed),
+            None => {}
+        }
+        return;
+    };
+
+    let consumed_trivia = committed
+        .probe(|probe| mod_trivia(act_base, probe.input()))
+        .expect("the accepted Act body starter leaves its leading trivia at the cursor");
+    assert_eq!(consumed_trivia.range(), trivia.range());
+    committed.emit_trivia(&consumed_trivia);
+    let punctuation = committed
+        .probe(|probe| probe.input().run(scan_punctuation))
+        .expect("the accepted Act body starter remains at the cursor");
+    match starter {
+        ActBodyStarter::Bodyless(range) => {
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Semicolon, range);
+        }
+        ActBodyStarter::Braced(range) => {
+            assert_eq!(punctuation.range(), range);
+            commit_braced_statement_block_expression(table, range, committed);
+        }
+        ActBodyStarter::Colon(range) => {
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Colon, range);
+            commit_act_colon_body_isolated(table, act_base, committed);
+        }
+    }
+}
+
+fn commit_act_colon_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    act_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scan is total");
+    let newline = committed.probe(|probe| {
+        probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
+    });
+    if newline && committed.probe(|probe| probe.input().local.line().line_indent <= act_base) {
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+        emit_act_body_missing(committed);
+        return;
+    }
+    if newline {
+        let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+        commit_indented_act_body(table, trivia, act_base, block_indent, committed);
+        return;
+    }
+    committed.emit_trivia(&trivia);
+    let ambient_scope = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_inline_canonical_statement_ambient_scope(
+                crate::session::InlineStatementOwnerKind::ActColonBody,
+            )
+    });
+    let statement_committed = if commit_canonical_statement(table, LeadingTrivia::None, committed) {
+        true
+    } else {
+        match act_body_error_retry(table, committed) {
+            Some(true) => commit_canonical_statement(table, LeadingTrivia::None, committed),
+            Some(false) => false,
+            None => {
+                emit_act_body_missing(committed);
+                false
+            }
+        }
+    };
+    if statement_committed
+        && let Some(semicolon) = commit_character(committed, ';')
+    {
+        committed.token(SyntaxKind::Semicolon, semicolon);
+    }
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_ambient_owner_scope(),
+            Some(ambient_scope),
+        );
+    });
+}
+
+fn act_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    act_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            let i = probe.input();
+            if act_body_starter_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), true));
+            }
+            if act_body_implicit_boundary_pending(act_base, i) {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            let character = i.input.remainder().chars().next()?;
+            if matches!(character, '\r' | '\n') {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            i.input.next()?;
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    })?;
+    emit_act_error(
+        committed,
+        crate::session::ActDeclarationRole::BodyIntroducer,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        recovered.0,
+    );
+    Some(recovered.1)
+}
+
+fn act_body_error_retry<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            {
+                let i = probe.input();
+                if act_colon_body_boundary_pending(i) {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                let character = i.input.remainder().chars().next()?;
+                if matches!(character, '\r' | '\n') {
+                    return (start < i.pos()).then_some((start..i.pos(), false));
+                }
+                i.input.next()?;
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            if crate::grammar::expression::direct_canonical_statement_candidate(
+                table,
+                LeadingTrivia::None,
+                probe,
+            ) {
+                let end = probe.input().pos();
+                return Some((start..end, true));
+            }
+        }
+    })?;
+    emit_act_error(
+        committed,
+        crate::session::ActDeclarationRole::Body,
+        ExpectedSyntax::Statement,
+        recovered.0,
+    );
+    Some(recovered.1)
 }
 
 /// Parses one accepted Role continuation without making Role reachable from
@@ -8861,6 +9169,115 @@ fn emit_role_error<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let role = GrammarRole::Declaration(DeclarationRole::Role(role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+/// Emits the one outer-body recovery owned by an accepted Act declaration.
+/// A complete Act tail-nothing form never reaches this emitter: it is a
+/// successful implicit bodyless form, not a missing body introducer.
+fn emit_act_body_introducer_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Declaration(DeclarationRole::Act(
+            crate::session::ActDeclarationRole::BodyIntroducer,
+        ));
+        let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+            ]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_act_body_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    emit_act_missing(
+        committed,
+        crate::session::ActDeclarationRole::Body,
+        ExpectedSyntax::Statement,
+    );
+}
+
+fn emit_act_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    act_role: crate::session::ActDeclarationRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Declaration(DeclarationRole::Act(act_role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_act_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    act_role: crate::session::ActDeclarationRole,
+    expected: ExpectedSyntax,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Act(act_role));
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -30003,6 +30420,284 @@ mod tests {
             ), "body: {source:?}");
             assert_eq!(declaration.range().end, 6, "range: {source:?}");
             assert_eq!(remainder, expected_remainder, "remainder: {source:?}");
+        }
+    }
+
+    #[test]
+    fn isolated_act_declaration_direct_cst_is_byte_exact_and_matches_ast_forms() {
+        fn parse_ast(source: &str) -> (ActDeclaration<'_>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(from_fn(|i| {
+                    parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                }))
+                .expect("the isolated Act intro establishes authority")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_act_statement_intro)
+                .expect("the isolated Act intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_act_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            let _ = is_cut;
+            (range, remainder, root, recoveries)
+        }
+
+        struct Case {
+            source: &'static str,
+            children: Vec<SyntaxKind>,
+            trivia: Vec<(SyntaxKind, Range<usize>)>,
+            head: Range<usize>,
+            source_type: Option<Range<usize>>,
+            body: Option<(SyntaxKind, Range<usize>, usize)>,
+        }
+
+        for case in [
+            Case {
+                source: "act Console::Read;",
+                children: vec![
+                    SyntaxKind::ActKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Semicolon,
+                ],
+                trivia: vec![(SyntaxKind::Whitespace, 3..4)],
+                head: 4..17,
+                source_type: None,
+                body: Some((SyntaxKind::Semicolon, 17..18, 0)),
+            },
+            Case {
+                source: "act local 't = var 't",
+                children: vec![
+                    SyntaxKind::ActKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::Equals,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 3..4),
+                    (SyntaxKind::Whitespace, 9..10),
+                    (SyntaxKind::Whitespace, 12..13),
+                    (SyntaxKind::Whitespace, 14..15),
+                    (SyntaxKind::Whitespace, 18..19),
+                ],
+                head: 4..12,
+                source_type: Some(15..21),
+                body: None,
+            },
+            Case {
+                source: "act a:\n    our r: a -> b",
+                children: vec![
+                    SyntaxKind::ActKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Colon,
+                    SyntaxKind::IndentedStatementBlock,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 3..4),
+                    (SyntaxKind::Newline, 6..7),
+                    (SyntaxKind::Whitespace, 7..11),
+                    (SyntaxKind::Whitespace, 14..15),
+                    (SyntaxKind::Whitespace, 17..18),
+                    (SyntaxKind::Whitespace, 19..20),
+                    (SyntaxKind::Whitespace, 22..23),
+                ],
+                head: 4..5,
+                source_type: None,
+                body: Some((SyntaxKind::IndentedStatementBlock, 6..24, 1)),
+            },
+            Case {
+                source: "act Eq {\n  our eq: Self -> Self -> Bool\n}",
+                children: vec![
+                    SyntaxKind::ActKw,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::TypeExpression,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::BracedStatementBlockExpression,
+                ],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 3..4),
+                    (SyntaxKind::Whitespace, 6..7),
+                    (SyntaxKind::Newline, 8..9),
+                    (SyntaxKind::Whitespace, 9..11),
+                    (SyntaxKind::Whitespace, 14..15),
+                    (SyntaxKind::Whitespace, 18..19),
+                    (SyntaxKind::Whitespace, 23..24),
+                    (SyntaxKind::Whitespace, 26..27),
+                    (SyntaxKind::Whitespace, 31..32),
+                    (SyntaxKind::Whitespace, 34..35),
+                    (SyntaxKind::Newline, 39..40),
+                ],
+                head: 4..6,
+                source_type: None,
+                body: Some((SyntaxKind::BracedStatementBlockExpression, 7..41, 1)),
+            },
+        ] {
+            let (ast, ast_remainder) = parse_ast(case.source);
+            let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
+            assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
+            assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert!(records.is_empty(), "recoveries: {:?}", case.source);
+
+            let declaration = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::ActDeclaration)
+                .expect("one ActDeclaration");
+            assert_eq!(syntax_range(declaration.text_range()), 0..case.source.len());
+            assert_eq!(
+                declaration
+                    .children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                case.children,
+                "child order: {:?}",
+                case.source,
+            );
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
+                    .map(|token| (token.kind(), syntax_range(token.text_range())))
+                    .collect::<Vec<_>>(),
+                case.trivia,
+                "all trivia has one home: {:?}",
+                case.source,
+            );
+
+            let type_expressions = declaration
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .collect::<Vec<_>>();
+            assert_eq!(syntax_range(type_expressions[0].text_range()), case.head);
+            assert!(matches!(ast.head, Recovered::Complete(ref head) if head.range() == case.head));
+            match case.source_type {
+                Some(source_range) => {
+                    assert_eq!(type_expressions.len(), 2, "source node: {:?}", case.source);
+                    assert_eq!(syntax_range(type_expressions[1].text_range()), source_range);
+                    assert!(matches!(
+                        ast.source,
+                        Some(ActSourceClause { source: Recovered::Complete(ref source), .. })
+                            if source.range() == source_range
+                    ));
+                    assert!(matches!(
+                        ast.body,
+                        Recovered::Complete(ActBody::Bodyless { semicolon: None })
+                    ));
+                    assert!(
+                        !declaration
+                            .children_with_tokens()
+                            .any(|element| element.kind() == SyntaxKind::Semicolon),
+                        "implicit bodyless must not synthesize a semicolon: {:?}",
+                        case.source,
+                    );
+                }
+                None => {
+                    assert_eq!(type_expressions.len(), 1, "no source node: {:?}", case.source);
+                    assert!(ast.source.is_none());
+                }
+            }
+
+            match case.body {
+                Some((SyntaxKind::Semicolon, body_range, _)) => {
+                    let semicolon = declaration
+                        .children_with_tokens()
+                        .find(|element| element.kind() == SyntaxKind::Semicolon)
+                        .expect("explicit bodyless semicolon");
+                    assert_eq!(syntax_range(semicolon.text_range()), body_range);
+                    assert!(matches!(
+                        ast.body,
+                        Recovered::Complete(ActBody::Bodyless { semicolon: Some(ref semicolon) })
+                            if *semicolon == body_range
+                    ));
+                }
+                Some((body_kind, body_range, item_count)) => {
+                    let block = declaration
+                        .children()
+                        .find(|node| node.kind() == body_kind)
+                        .expect("Act body reuses its existing CST owner");
+                    assert_eq!(syntax_range(block.text_range()), body_range);
+                    assert_eq!(
+                        block
+                            .children()
+                            .filter(|node| node.kind() == SyntaxKind::Statement)
+                            .count(),
+                        item_count,
+                    );
+                    match body_kind {
+                        SyntaxKind::IndentedStatementBlock => assert!(matches!(
+                            ast.body,
+                            Recovered::Complete(ActBody::Colon {
+                                body: Recovered::Complete(ActColonBody::Indented { ref block }),
+                                ..
+                            }) if block.range() == body_range && block.statements().len() == item_count
+                        )),
+                        SyntaxKind::BracedStatementBlockExpression => assert!(matches!(
+                            ast.body,
+                            Recovered::Complete(ActBody::Braced { ref block })
+                                if block.range() == body_range
+                        )),
+                        _ => unreachable!("only existing Act body owners are expected"),
+                    }
+                }
+                None => {}
+            }
+
+            // Exact direct children prove the Act boundary is flat: there is
+            // no ActSignature/source/body wrapper or synthetic separator.
+            assert!(
+                !declaration.descendants().any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::BindingBody | SyntaxKind::ImplDescription | SyntaxKind::CastBody
+                )),
+                "worked examples have no recovery or borrowed wrapper: {:?}",
+                case.source,
+            );
         }
     }
 
