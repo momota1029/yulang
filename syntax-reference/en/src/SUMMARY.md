@@ -22,6 +22,8 @@
 - [Named-record types](types/named-record-type.md)
 - [`forall` types](types/forall-type.md)
 - [Effect-row types](types/effect-row-type.md)
+- [Polymorphic-variant types](types/polymorphic-variant-type.md)
+- [Bracket-row grammar](types/bracket-row-grammar.md)
 
 # Statements / Declarations
 
