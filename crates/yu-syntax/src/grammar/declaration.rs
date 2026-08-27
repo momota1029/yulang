@@ -7317,6 +7317,382 @@ where
     drive_enum_variant_sequence(&mut context, spec)
 }
 
+/// Parses one accepted Enum continuation without making Enum reachable from
+/// the public statement dispatcher. Header derives, body-form selection, and
+/// the variant sequence stay on this one isolated path until Gate 11 promotes
+/// the same adapter atomically.
+#[allow(dead_code)]
+fn parse_enum_declaration_isolated<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<EnumDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    let declaration = (|| {
+        let intro = i.run(recognize_enum_statement_intro)?;
+        let (header, _recoveries) = parse_required_enum_header_isolated(&intro, &mut i);
+        let header_complete = matches!(header.name, Recovered::Complete(_));
+        let mut derives = header_complete
+            .then(|| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Enum,
+                    DerivesAttachmentPosition::Header,
+                    intro.enum_base,
+                    &mut i,
+                )
+                .map(|start| parse_derives_attachments_isolated(start, &mut i))
+                .unwrap_or_default()
+            })
+            .unwrap_or_default();
+        let body = header_complete
+            .then(|| parse_enum_body_ast(intro.enum_base, &mut i))
+            .unwrap_or(Recovered::Incomplete);
+        if enum_body_has_actual_trailing_close(&body) {
+            if let Some(start) = recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Enum,
+                DerivesAttachmentPosition::Trailing,
+                intro.enum_base,
+                &mut i,
+            ) {
+                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+            }
+        }
+        let header_end = match &header.name {
+            Recovered::Complete(name) => header
+                .parameters
+                .last()
+                .map_or_else(|| name.range().end, declaration_type_parameter_end),
+            Recovered::Incomplete => intro.enum_keyword.range().end,
+        };
+        let body_end = enum_body_range_end(&body).unwrap_or(header_end);
+        let derives_end = derives
+            .last()
+            .map_or(0, |attachment| attachment.clause.range.end);
+        Some(EnumDeclaration {
+            visibility: intro
+                .visibility
+                .map_or(Visibility::Private, |prefix| prefix.visibility),
+            name: header.name,
+            parameters: header.parameters,
+            derives,
+            body,
+            range: intro.start..header_end.max(body_end).max(derives_end),
+        })
+    })();
+    i.errors_rollback(errors_checkpoint);
+    declaration
+}
+
+fn declaration_type_parameter_end(parameter: &DeclarationTypeParameter<'_>) -> usize {
+    declaration_type_parameter_range(parameter).end
+}
+
+fn enum_body_range_end(body: &Recovered<EnumBody<'_>>) -> Option<usize> {
+    match body {
+        Recovered::Incomplete => None,
+        Recovered::Complete(EnumBody::Bodyless {
+            semicolon: Some(semicolon),
+        }) => Some(semicolon.end),
+        Recovered::Complete(EnumBody::Bodyless { semicolon: None }) => None,
+        Recovered::Complete(EnumBody::Braced(body)) => Some(body.range.end),
+        Recovered::Complete(EnumBody::Colon { colon, body }) => match body {
+            Recovered::Complete(body) => Some(body.range.end),
+            Recovered::Incomplete => Some(colon.end),
+        },
+        Recovered::Complete(EnumBody::Equals { equals, body }) => match body {
+            Recovered::Complete(EnumEqualsVariantBody::Inline { range, .. }) => Some(range.end),
+            Recovered::Complete(EnumEqualsVariantBody::Indented(body)) => Some(body.range.end),
+            Recovered::Incomplete => Some(equals.end),
+        },
+    }
+}
+
+fn enum_variant_sequence_spec(
+    form: EnumVariantSequenceForm,
+    layout: LayoutDelimitedFrame,
+    declaration_base: usize,
+) -> EnumVariantSequenceSpec {
+    match form {
+        EnumVariantSequenceForm::Braced => EnumVariantSequenceSpec {
+            form,
+            layout,
+            declaration_base,
+            explicit_separators: EnumVariantSeparatorSet::new(true, false),
+            matching_close: Some(Delimiter::Brace),
+            allow_leading_pipe: false,
+            allow_trailing_pipe: false,
+        },
+        EnumVariantSequenceForm::ColonIndented | EnumVariantSequenceForm::EqualsIndented => {
+            EnumVariantSequenceSpec {
+                form,
+                layout,
+                declaration_base,
+                explicit_separators: EnumVariantSeparatorSet::new(true, true),
+                matching_close: None,
+                allow_leading_pipe: true,
+                allow_trailing_pipe: true,
+            }
+        }
+        EnumVariantSequenceForm::EqualsInline => EnumVariantSequenceSpec {
+            form,
+            layout,
+            declaration_base,
+            explicit_separators: EnumVariantSeparatorSet::new(false, true),
+            matching_close: None,
+            allow_leading_pipe: true,
+            allow_trailing_pipe: true,
+        },
+    }
+}
+
+fn parse_enum_body_ast<'source, E>(
+    enum_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<EnumBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if enum_body_implicit_boundary_pending(enum_base, i) {
+        return Recovered::Complete(EnumBody::Bodyless { semicolon: None });
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(enum_base, i) else {
+        i.rollback(checkpoint);
+        return Recovered::Complete(EnumBody::Bodyless { semicolon: None });
+    };
+
+    if let Some(equals) = i.run(scan_declaration_exact_equals) {
+        return Recovered::Complete(EnumBody::Equals {
+            equals: equals.clone(),
+            body: parse_enum_equals_body_ast(enum_base, equals, i),
+        });
+    }
+    let punctuation_checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation);
+    match punctuation.map(|punctuation| (punctuation.kind(), punctuation.range())) {
+        Some((PunctuationKind::Semicolon, semicolon)) => {
+            Recovered::Complete(EnumBody::Bodyless {
+                semicolon: Some(semicolon),
+            })
+        }
+        Some((PunctuationKind::Open(Delimiter::Brace), open)) => {
+            Recovered::Complete(EnumBody::Braced(parse_enum_braced_body_ast(
+                enum_base, open, i,
+            )))
+        }
+        Some((PunctuationKind::Colon, colon)) => Recovered::Complete(EnumBody::Colon {
+            colon: colon.clone(),
+            body: parse_enum_colon_body_ast(enum_base, colon, i),
+        }),
+        _ => {
+            i.rollback(punctuation_checkpoint);
+            i.rollback(checkpoint);
+            match enum_body_introducer_error_retry_ast(enum_base, i) {
+                Some(true) => parse_enum_body_ast(enum_base, i),
+                Some(false) | None => Recovered::Incomplete,
+            }
+        }
+    }
+}
+
+fn parse_enum_braced_body_ast<'source, E>(
+    enum_base: usize,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> EnumBracedBody<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let opening = i.run(scan_trivia).expect("trivia scanning is total");
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        enum_base,
+        &opening,
+        i.local.line().line_indent,
+    );
+    let sequence = parse_enum_variant_sequence_with_payload(
+        enum_variant_sequence_spec(EnumVariantSequenceForm::Braced, layout, enum_base),
+        i,
+    );
+    let end = match &sequence.close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    EnumBracedBody {
+        open: open.clone(),
+        variants: sequence.variants,
+        trailing_comma: sequence.trailing_comma,
+        close: sequence.close,
+        range: open.start..end,
+    }
+}
+
+fn parse_enum_colon_body_ast<'source, E>(
+    enum_base: usize,
+    colon: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<EnumIndentedVariantBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+    if !enum_variant_trivia_has_newline(&trivia) || i.local.line().line_indent <= enum_base {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    }
+    let block_indent = i.local.line().line_indent;
+    let sequence = parse_enum_variant_sequence_with_payload(
+        enum_variant_sequence_spec(
+            EnumVariantSequenceForm::ColonIndented,
+            LayoutDelimitedFrame::inline(block_indent),
+            enum_base,
+        ),
+        i,
+    );
+    let end = i.pos();
+    let _ = sequence.trailing_pipe;
+    Recovered::Complete(EnumIndentedVariantBody {
+        base_indent: enum_base,
+        block_indent,
+        variants: sequence.variants,
+        range: colon.end..end,
+    })
+}
+
+fn parse_enum_equals_body_ast<'source, E>(
+    enum_base: usize,
+    equals: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<EnumEqualsVariantBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+    if enum_variant_trivia_has_newline(&trivia) {
+        if i.local.line().line_indent <= enum_base {
+            i.rollback(checkpoint);
+            return Recovered::Incomplete;
+        }
+        let block_indent = i.local.line().line_indent;
+        let sequence = parse_enum_variant_sequence_with_payload(
+            enum_variant_sequence_spec(
+                EnumVariantSequenceForm::EqualsIndented,
+                LayoutDelimitedFrame::inline(block_indent),
+                enum_base,
+            ),
+            i,
+        );
+        let end = i.pos();
+        let _ = sequence.trailing_pipe;
+        return Recovered::Complete(EnumEqualsVariantBody::Indented(
+            EnumIndentedVariantBody {
+                base_indent: enum_base,
+                block_indent,
+                variants: sequence.variants,
+                range: equals.end..end,
+            },
+        ));
+    }
+    let sequence = parse_enum_variant_sequence_with_payload(
+        enum_variant_sequence_spec(
+            EnumVariantSequenceForm::EqualsInline,
+            LayoutDelimitedFrame::inline(enum_base),
+            enum_base,
+        ),
+        i,
+    );
+    let end = i.pos();
+    Recovered::Complete(EnumEqualsVariantBody::Inline {
+        variants: sequence.variants,
+        trailing_pipe: sequence.trailing_pipe,
+        range: equals.end..end,
+    })
+}
+
+fn enum_body_implicit_boundary_pending<E>(enum_base: usize, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) || i.input.remainder().is_empty() {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = match mod_trivia(enum_base, i) {
+        None => i
+            .run(scan_trivia)
+            .is_some_and(|trivia| enum_variant_trivia_has_newline(&trivia)),
+        Some(_) if i.input.remainder().is_empty() => true,
+        Some(_) => i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+            punctuation.kind(),
+            PunctuationKind::Comma
+                | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
+        )),
+    };
+    i.rollback(checkpoint);
+    pending
+}
+
+fn enum_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_declaration_exact_equals).is_some()
+        || i.run(scan_punctuation).is_some_and(|punctuation| matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
+        ));
+    i.rollback(checkpoint);
+    pending
+}
+
+/// Consumes one maximal malformed Enum body-introducer run. The AST path has
+/// no recovery nodes yet, but it must reach the same starter or caller-owned
+/// boundary that Gate 8's direct-CST adapter will record.
+fn enum_body_introducer_error_retry_ast<'source, E>(
+    enum_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if enum_body_starter_pending(i) {
+            return (start < i.pos()).then_some(true);
+        }
+        if enum_body_implicit_boundary_pending(enum_base, i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
 /// This is intentionally local rather than a global reserved-word state:
 /// declaration parameters accept only words that the historical scanner would
 /// have classified as ordinary identifiers at this grammar position.
@@ -31884,6 +32260,202 @@ mod tests {
             );
             assert_eq!(recovery.site.range, at..at, "{source:?}");
         }
+    }
+
+    #[test]
+    fn isolated_enum_declaration_ast_selects_every_body_form_and_keeps_ranges_local() {
+        fn parse<'source>(source: &'source str) -> (EnumDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_enum_declaration_isolated(i)
+                    .expect("the isolated Enum form fixture has an accepted intro")
+            };
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "the isolated Enum adapter must not cut: {source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        let (implicit, remainder) = parse("enum E");
+        assert_eq!(remainder, "");
+        assert_eq!(implicit.range(), 0..6);
+        assert!(matches!(
+            implicit.body,
+            Recovered::Complete(EnumBody::Bodyless { semicolon: None })
+        ));
+
+        let (explicit, remainder) = parse("enum E;");
+        assert_eq!(remainder, "");
+        assert_eq!(explicit.range(), 0..7);
+        match explicit.body {
+            Recovered::Complete(EnumBody::Bodyless {
+                semicolon: Some(semicolon),
+            }) => assert_eq!(semicolon, 6..7),
+            other => panic!("explicit bodyless Enum body mismatch: {other:?}"),
+        }
+
+        let (braced, remainder) = parse("enum E { A, B }");
+        assert_eq!(remainder, "");
+        assert_eq!(braced.range(), 0..15);
+        match braced.body {
+            Recovered::Complete(EnumBody::Braced(body)) => {
+                assert_eq!(body.range, 7..15);
+                assert_eq!(body.variants.len(), 2);
+                assert_eq!(body.close, Recovered::Complete(14..15));
+            }
+            other => panic!("braced Enum body mismatch: {other:?}"),
+        }
+
+        let (colon, remainder) = parse("enum E:\n  A\n  B");
+        assert_eq!(remainder, "");
+        match colon.body {
+            Recovered::Complete(EnumBody::Colon {
+                colon: colon_range,
+                body: Recovered::Complete(body),
+            }) => {
+                assert_eq!(colon_range, 6..7);
+                assert_eq!(body.base_indent, 0);
+                assert_eq!(body.block_indent, 2);
+                assert_eq!(body.variants.len(), 2);
+            }
+            other => panic!("colon-indented Enum body mismatch: {other:?}"),
+        }
+
+        let (inline, remainder) = parse("enum opt 't = nil | just 't");
+        assert_eq!(remainder, "");
+        assert_eq!(inline.range(), 0..27);
+        assert_eq!(inline.parameters.len(), 1);
+        match inline.body {
+            Recovered::Complete(EnumBody::Equals {
+                equals,
+                body: Recovered::Complete(EnumEqualsVariantBody::Inline { variants, .. }),
+            }) => {
+                assert_eq!(equals, 12..13);
+                assert_eq!(variants.len(), 2);
+                assert!(matches!(
+                    variants[0],
+                    Recovered::Complete(EnumVariant {
+                        payload: EnumVariantPayload::Unit,
+                        ..
+                    })
+                ));
+                assert!(matches!(
+                    variants[1],
+                    Recovered::Complete(EnumVariant {
+                        payload: EnumVariantPayload::Positional { .. },
+                        ..
+                    })
+                ));
+            }
+            other => panic!("equals-inline Enum body mismatch: {other:?}"),
+        }
+
+        let (indented, remainder) = parse("enum tree =\n    leaf\n    | node int");
+        assert_eq!(remainder, "");
+        assert_eq!(indented.range(), 0..35);
+        match indented.body {
+            Recovered::Complete(EnumBody::Equals {
+                equals,
+                body: Recovered::Complete(EnumEqualsVariantBody::Indented(body)),
+            }) => {
+                assert_eq!(equals, 10..11);
+                assert_eq!(body.base_indent, 0);
+                assert_eq!(body.block_indent, 4);
+                assert_eq!(body.variants.len(), 2);
+            }
+            other => panic!("equals-indented Enum body mismatch: {other:?}"),
+        }
+
+        let source = "enum choice derives Eq:\n    none\n    number int";
+        let (header_derives, remainder) = parse(source);
+        assert_eq!(remainder, "");
+        assert_eq!(header_derives.derives.len(), 1);
+        assert_eq!(header_derives.derives[0].position, DerivesAttachmentPosition::Header);
+        assert_eq!(header_derives.derives[0].clause.range, 12..22);
+        assert_eq!(header_derives.range(), 0..source.len());
+        assert!(matches!(
+            header_derives.body,
+            Recovered::Complete(EnumBody::Colon {
+                body: Recovered::Complete(_),
+                ..
+            })
+        ));
+
+        let (trailing_derives, remainder) = parse("enum E { A } derives Eq");
+        assert_eq!(remainder, "");
+        assert_eq!(trailing_derives.derives.len(), 1);
+        assert_eq!(
+            trailing_derives.derives[0].position,
+            DerivesAttachmentPosition::Trailing
+        );
+        assert_eq!(trailing_derives.range(), 0..23);
+
+        for source in ["enum { A }", "enum @ { A }"] {
+            let (declaration, _) = parse(source);
+            assert!(matches!(declaration.name, Recovered::Incomplete), "{source:?}");
+            assert!(matches!(declaration.body, Recovered::Incomplete), "{source:?}");
+            assert!(declaration.derives.is_empty(), "{source:?}");
+            assert_eq!(declaration.range(), 0..4, "{source:?}");
+        }
+
+        let (body_retry, remainder) = parse("enum E @;");
+        assert_eq!(remainder, "");
+        match body_retry.body {
+            Recovered::Complete(EnumBody::Bodyless {
+                semicolon: Some(semicolon),
+            }) => assert_eq!(semicolon, 8..9),
+            other => panic!("body retry did not reach Enum semicolon: {other:?}"),
+        }
+
+        let (colon_boundary, remainder) = parse("enum E:\nnext");
+        assert_eq!(remainder, "\nnext");
+        assert!(matches!(
+            colon_boundary.body,
+            Recovered::Complete(EnumBody::Colon {
+                body: Recovered::Incomplete,
+                ..
+            })
+        ));
+        assert_eq!(colon_boundary.range(), 0..7);
+
+        let (equals_boundary, remainder) = parse("enum E =\nnext");
+        assert_eq!(remainder, "\nnext");
+        assert!(matches!(
+            equals_boundary.body,
+            Recovered::Complete(EnumBody::Equals {
+                body: Recovered::Incomplete,
+                ..
+            })
+        ));
+        assert_eq!(equals_boundary.range(), 0..8);
+
+        let (missing_brace_close, remainder) = parse("enum E { A");
+        assert_eq!(remainder, "");
+        assert!(matches!(
+            missing_brace_close.body,
+            Recovered::Complete(EnumBody::Braced(EnumBracedBody {
+                close: Recovered::Incomplete,
+                ..
+            }))
+        ));
+        assert_eq!(missing_brace_close.range(), 0..10);
+
+        let (malformed_boundary, remainder) = parse("enum E @, next");
+        assert_eq!(remainder, ", next");
+        assert!(matches!(malformed_boundary.body, Recovered::Incomplete));
+        assert_eq!(malformed_boundary.range(), 0..6);
+
+        let (outer_boundary, remainder) = parse("enum E, next");
+        assert_eq!(remainder, ", next");
+        assert!(matches!(
+            outer_boundary.body,
+            Recovered::Complete(EnumBody::Bodyless { semicolon: None })
+        ));
+        assert_eq!(outer_boundary.range(), 0..6);
     }
 
     #[test]
