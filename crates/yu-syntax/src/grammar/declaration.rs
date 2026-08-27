@@ -5852,16 +5852,20 @@ where
 
 /// The four body-local separator regimes share one stream judge.  The form
 /// controls only separator and terminal authority; variant head and payload
-/// parsing deliberately stay behind [`EnumVariantSequenceContext`] until Gate
+/// parsing deliberately stay behind [`VariantDeclarationSequenceContext`] until Gate
 /// 6 supplies their real AST/direct-CST adapters.
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum EnumVariantSequenceForm {
+enum VariantDeclarationSequenceForm {
     Braced,
     ColonIndented,
     EqualsInline,
     EqualsIndented,
 }
+
+/// Backward-compatible fixture spelling for the neutral sequence-form type.
+/// Production adapters use `VariantDeclarationSequenceForm` directly.
+type EnumVariantSequenceForm = VariantDeclarationSequenceForm;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct EnumVariantSeparatorSet {
@@ -5881,8 +5885,8 @@ impl EnumVariantSeparatorSet {
 /// variant or recovery path must never reconstruct it from an item.
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct EnumVariantSequenceSpec {
-    form: EnumVariantSequenceForm,
+struct VariantDeclarationSequenceSpec {
+    form: VariantDeclarationSequenceForm,
     layout: LayoutDelimitedFrame,
     declaration_base: usize,
     explicit_separators: EnumVariantSeparatorSet,
@@ -5890,6 +5894,10 @@ struct EnumVariantSequenceSpec {
     allow_leading_pipe: bool,
     allow_trailing_pipe: bool,
 }
+
+/// Backward-compatible fixture spelling for the neutral sequence spec.
+/// Production adapters use `VariantDeclarationSequenceSpec` directly.
+type EnumVariantSequenceSpec = VariantDeclarationSequenceSpec;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum EnumVariantSeparator {
@@ -5910,7 +5918,7 @@ enum EnumVariantSequenceTermination {
 /// Item realization is intentionally the only pluggable part of the neutral
 /// stream.  Gate 5's fixture context consumes one raw word; Gate 6 will make
 /// the same callback own `from`, named, tuple, and positional payloads.
-trait EnumVariantSequenceContext<'source> {
+trait VariantDeclarationSequenceContext<'source> {
     type Error: ErrorSink<usize>;
 
     fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R)
@@ -6004,12 +6012,12 @@ struct EnumVariantSeparatorCluster {
 /// on the same line is deliberately returned as [`ItemContinuation`] rather
 /// than guessed to be a second variant: Gate 6 owns its positional payload.
 #[allow(dead_code)]
-fn drive_enum_variant_sequence<'source, C>(
+fn drive_variant_declaration_sequence<'source, C>(
     context: &mut C,
-    spec: EnumVariantSequenceSpec,
+    spec: VariantDeclarationSequenceSpec,
 ) -> EnumVariantSequenceTermination
 where
-    C: EnumVariantSequenceContext<'source>,
+    C: VariantDeclarationSequenceContext<'source>,
     Unexpected<char>: Into<<C::Error as ErrorSink<usize>>::Error>,
     UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
 {
@@ -6109,13 +6117,28 @@ where
     }
 }
 
+/// The former Enum-named entry point remains only for Gate 5's existing
+/// neutral sequence fixture; declaration adapters call the renamed core.
+#[allow(dead_code)]
+fn drive_enum_variant_sequence<'source, C>(
+    context: &mut C,
+    spec: VariantDeclarationSequenceSpec,
+) -> EnumVariantSequenceTermination
+where
+    C: VariantDeclarationSequenceContext<'source>,
+    Unexpected<char>: Into<<C::Error as ErrorSink<usize>>::Error>,
+    UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
+{
+    drive_variant_declaration_sequence(context, spec)
+}
+
 fn apply_enum_variant_separator<'source, C>(
     state: &mut EnumVariantSequenceState,
     spec: EnumVariantSequenceSpec,
     separator: &EnumVariantSeparator,
     context: &mut C,
 ) where
-    C: EnumVariantSequenceContext<'source>,
+    C: VariantDeclarationSequenceContext<'source>,
 {
     let pending_layout_pipe = matches!(
         (&state.position, separator),
@@ -6154,7 +6177,7 @@ fn finish_enum_variant_sequence<'source, C>(
     spec: EnumVariantSequenceSpec,
     context: &mut C,
 ) where
-    C: EnumVariantSequenceContext<'source>,
+    C: VariantDeclarationSequenceContext<'source>,
 {
     let EnumVariantSequencePosition::Required { pending_boundary } = &state.position else {
         return;
@@ -6433,6 +6456,8 @@ enum VariantFieldDriverSpec {
     Struct,
     EnumNamed,
     EnumTuple,
+    ErrorNamed,
+    ErrorTuple,
 }
 
 impl VariantFieldDriverSpec {
@@ -6441,6 +6466,8 @@ impl VariantFieldDriverSpec {
             Self::Struct => TypeDelimitedOwner::StructNamedFields,
             Self::EnumNamed => TypeDelimitedOwner::VariantNamedPayload,
             Self::EnumTuple => TypeDelimitedOwner::VariantTuplePayload,
+            Self::ErrorNamed => TypeDelimitedOwner::VariantNamedPayload,
+            Self::ErrorTuple => TypeDelimitedOwner::VariantTuplePayload,
         }
     }
 
@@ -6455,7 +6482,87 @@ impl VariantFieldDriverSpec {
             Self::EnumTuple => GrammarRole::Declaration(DeclarationRole::Enum(
                 EnumDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
             )),
+            Self::ErrorNamed => GrammarRole::Declaration(DeclarationRole::Error(
+                ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldType),
+            )),
+            Self::ErrorTuple => GrammarRole::Declaration(DeclarationRole::Error(
+                ErrorDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
+            )),
         }
+    }
+
+    fn tuple_payload(self) -> Self {
+        match self {
+            Self::EnumNamed | Self::EnumTuple => Self::EnumTuple,
+            Self::ErrorNamed | Self::ErrorTuple => Self::ErrorTuple,
+            Self::Struct => Self::Struct,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum VariantDeclarationOwner {
+    Enum,
+    Error,
+}
+
+/// The sole owner-specific input to the otherwise neutral variant sequence
+/// and payload core. Form, layout, separators, and close authority remain in
+/// `VariantDeclarationSequenceSpec`; this spec changes only recovery owners.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct VariantDeclarationOwnerSpec {
+    owner: VariantDeclarationOwner,
+    declaration_base: usize,
+    item_role: GrammarRole,
+    from_type_role: GrammarRole,
+    positional_payload_role: GrammarRole,
+    field_driver: VariantFieldDriverSpec,
+}
+
+impl VariantDeclarationOwnerSpec {
+    fn variant_role(self, role: VariantDeclarationRole) -> GrammarRole {
+        match self.owner {
+            VariantDeclarationOwner::Enum => GrammarRole::Declaration(DeclarationRole::Enum(
+                EnumDeclarationRole::Variant(role),
+            )),
+            VariantDeclarationOwner::Error => GrammarRole::Declaration(DeclarationRole::Error(
+                ErrorDeclarationRole::Variant(role),
+            )),
+        }
+    }
+}
+
+fn enum_variant_declaration_owner_spec(declaration_base: usize) -> VariantDeclarationOwnerSpec {
+    VariantDeclarationOwnerSpec {
+        owner: VariantDeclarationOwner::Enum,
+        declaration_base,
+        item_role: GrammarRole::Declaration(DeclarationRole::Enum(
+            EnumDeclarationRole::Variant(VariantDeclarationRole::Item),
+        )),
+        from_type_role: GrammarRole::Declaration(DeclarationRole::Enum(
+            EnumDeclarationRole::Variant(VariantDeclarationRole::FromType),
+        )),
+        positional_payload_role: GrammarRole::Declaration(DeclarationRole::Enum(
+            EnumDeclarationRole::Variant(VariantDeclarationRole::PositionalPayload),
+        )),
+        field_driver: VariantFieldDriverSpec::EnumNamed,
+    }
+}
+
+fn error_variant_declaration_owner_spec(declaration_base: usize) -> VariantDeclarationOwnerSpec {
+    VariantDeclarationOwnerSpec {
+        owner: VariantDeclarationOwner::Error,
+        declaration_base,
+        item_role: GrammarRole::Declaration(DeclarationRole::Error(
+            ErrorDeclarationRole::Variant(VariantDeclarationRole::Item),
+        )),
+        from_type_role: GrammarRole::Declaration(DeclarationRole::Error(
+            ErrorDeclarationRole::Variant(VariantDeclarationRole::FromType),
+        )),
+        positional_payload_role: GrammarRole::Declaration(DeclarationRole::Error(
+            ErrorDeclarationRole::Variant(VariantDeclarationRole::PositionalPayload),
+        )),
+        field_driver: VariantFieldDriverSpec::ErrorNamed,
     }
 }
 
@@ -6478,9 +6585,10 @@ struct EnumVariantTypeExpressionEpisodeSpec {
 /// frame deliberately makes the Enum separator visible only at this item's
 /// completed-tail and malformed-safe points; nested TypeExpression episodes
 /// keep the same raw stop bits but do not inherit that ownership.
-fn enum_variant_type_expression_episode_spec(
+fn variant_declaration_type_expression_episode_spec(
+    owner: VariantDeclarationOwnerSpec,
     slot: EnumVariantTypeExpressionSlot,
-    form: EnumVariantSequenceForm,
+    form: VariantDeclarationSequenceForm,
     incoming: StopSet,
     current_episode_depth: usize,
 ) -> EnumVariantTypeExpressionEpisodeSpec {
@@ -6496,14 +6604,10 @@ fn enum_variant_type_expression_episode_spec(
                 .with(StopKind::Newline)
         }
     };
-    let outer_role = GrammarRole::Declaration(DeclarationRole::Enum(
-        EnumDeclarationRole::Variant(match slot {
-            EnumVariantTypeExpressionSlot::FromType => VariantDeclarationRole::FromType,
-            EnumVariantTypeExpressionSlot::PositionalPayload => {
-                VariantDeclarationRole::PositionalPayload
-            }
-        }),
-    ));
+    let outer_role = match slot {
+        EnumVariantTypeExpressionSlot::FromType => owner.from_type_role,
+        EnumVariantTypeExpressionSlot::PositionalPayload => owner.positional_payload_role,
+    };
     let stops = match form {
         EnumVariantSequenceForm::Braced => incoming
             .with(StopKind::Comma)
@@ -6535,7 +6639,8 @@ fn enum_variant_type_expression_episode_spec(
 /// outer Enum variant-payload slot.  Their scoped stops therefore name only
 /// the local comma and matching parenthesis while preserving outer stops
 /// underneath for the enclosing field-loop close handoff.
-fn enum_variant_tuple_field_type_expression_episode_spec(
+fn variant_declaration_tuple_field_type_expression_episode_spec(
+    field_driver: VariantFieldDriverSpec,
     incoming: StopSet,
     current_episode_depth: usize,
 ) -> EnumVariantTypeExpressionEpisodeSpec {
@@ -6555,16 +6660,15 @@ fn enum_variant_tuple_field_type_expression_episode_spec(
             fresh_primary_locally_owned_stops: StopSet::default(),
             fresh_primary_owns_adjacent_polymorphic_variant_starter: true,
         },
-        outer_role: GrammarRole::Declaration(DeclarationRole::Enum(
-            EnumDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
-        )),
+        outer_role: field_driver.tuple_payload().type_role(),
         outer_ml_arg: false,
     }
 }
 
-fn parse_required_enum_variant_type_expression<'source, E>(
+fn parse_required_variant_declaration_type_expression<'source, E>(
+    owner: VariantDeclarationOwnerSpec,
     slot: EnumVariantTypeExpressionSlot,
-    form: EnumVariantSequenceForm,
+    form: VariantDeclarationSequenceForm,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Recovered<Box<TypeExpression<'source>>>
 where
@@ -6572,7 +6676,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let episode = enum_variant_type_expression_episode_spec(
+    let episode = variant_declaration_type_expression_episode_spec(
+        owner,
         slot,
         form,
         i.local.stop_set().unwrap_or_default(),
@@ -6604,9 +6709,10 @@ where
     }
 }
 
-fn commit_required_enum_variant_type_expression<'parse, 'source, 'local, E, O>(
+fn commit_required_variant_declaration_type_expression<'parse, 'source, 'local, E, O>(
+    owner: VariantDeclarationOwnerSpec,
     slot: EnumVariantTypeExpressionSlot,
-    form: EnumVariantSequenceForm,
+    form: VariantDeclarationSequenceForm,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Recovered<Range<usize>>
 where
@@ -6617,7 +6723,8 @@ where
 {
     let episode = committed.probe(|probe| {
         let i = probe.input();
-        enum_variant_type_expression_episode_spec(
+        variant_declaration_type_expression_episode_spec(
+            owner,
             slot,
             form,
             i.local.stop_set().unwrap_or_default(),
@@ -6654,7 +6761,8 @@ where
     }
 }
 
-fn parse_required_enum_variant_tuple_field_type_expression<'source, E>(
+fn parse_required_variant_declaration_tuple_field_type_expression<'source, E>(
+    field_driver: VariantFieldDriverSpec,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Recovered<Box<TypeExpression<'source>>>
 where
@@ -6662,7 +6770,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let episode = enum_variant_tuple_field_type_expression_episode_spec(
+    let episode = variant_declaration_tuple_field_type_expression_episode_spec(
+        field_driver,
         i.local.stop_set().unwrap_or_default(),
         i.local.type_expression_episode_depth(),
     );
@@ -6689,7 +6798,8 @@ where
     }
 }
 
-fn commit_required_enum_variant_tuple_field_type_expression<'parse, 'source, 'local, E, O>(
+fn commit_required_variant_declaration_tuple_field_type_expression<'parse, 'source, 'local, E, O>(
+    field_driver: VariantFieldDriverSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Recovered<Range<usize>>
 where
@@ -6700,7 +6810,8 @@ where
 {
     let episode = committed.probe(|probe| {
         let i = probe.input();
-        enum_variant_tuple_field_type_expression_episode_spec(
+        variant_declaration_tuple_field_type_expression_episode_spec(
+            field_driver,
             i.local.stop_set().unwrap_or_default(),
             i.local.type_expression_episode_depth(),
         )
@@ -6930,8 +7041,11 @@ where
                 ))
             }))
             .expect("mandatory Struct tuple field TypeExpression is total"),
-        VariantFieldDriverSpec::EnumNamed | VariantFieldDriverSpec::EnumTuple => {
-            match parse_required_enum_variant_tuple_field_type_expression(i) {
+        VariantFieldDriverSpec::EnumNamed
+        | VariantFieldDriverSpec::EnumTuple
+        | VariantFieldDriverSpec::ErrorNamed
+        | VariantFieldDriverSpec::ErrorTuple => {
+            match parse_required_variant_declaration_tuple_field_type_expression(spec, i) {
                 Recovered::Complete(type_expr) => Recovered::Complete(*type_expr),
                 Recovered::Incomplete => Recovered::Incomplete,
             }
@@ -6956,8 +7070,9 @@ where
 /// from the declaration header and real statement dispatch; Gate 7 owns that
 /// form-level composition.  The priority is intentionally syntactic and
 /// left-to-right so `from`, `{`, and `(` never leak into positional parsing.
-fn parse_enum_variant_payload_ast<'source, E>(
-    form: EnumVariantSequenceForm,
+fn parse_variant_declaration_payload_ast<'source, E>(
+    owner: VariantDeclarationOwnerSpec,
+    form: VariantDeclarationSequenceForm,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> EnumVariantPayload<'source>
 where
@@ -6970,17 +7085,18 @@ where
     // variant name. Their grammar has no required payload trivia, so `B(T)`
     // and `A { field: T }` must outrank both unit and positional evidence.
     if let Some(open) = enum_variant_payload_open(Delimiter::Brace, i) {
-        return parse_enum_variant_named_payload_ast(form, open, i);
+        return parse_variant_declaration_named_payload_ast(owner, form, open, i);
     }
     if let Some(open) = enum_variant_payload_open(Delimiter::Parenthesis, i) {
-        return parse_enum_variant_tuple_payload_ast(form, open, i);
+        return parse_variant_declaration_tuple_payload_ast(owner, form, open, i);
     }
     let Some(_) = consume_enum_variant_payload_trivia(i) else {
         return EnumVariantPayload::Unit;
     };
     if let Some(keyword) = enum_variant_exact_from_pending(i) {
         let _ = consume_enum_variant_payload_trivia(i);
-        let type_expr = parse_required_enum_variant_type_expression(
+        let type_expr = parse_required_variant_declaration_type_expression(
+            owner,
             EnumVariantTypeExpressionSlot::FromType,
             form,
             i,
@@ -6992,13 +7108,14 @@ where
         return EnumVariantPayload::From { keyword: keyword.clone(), type_expr, range: keyword.start..end };
     }
     if let Some(open) = enum_variant_payload_open(Delimiter::Brace, i) {
-        return parse_enum_variant_named_payload_ast(form, open, i);
+        return parse_variant_declaration_named_payload_ast(owner, form, open, i);
     }
     if let Some(open) = enum_variant_payload_open(Delimiter::Parenthesis, i) {
-        return parse_enum_variant_tuple_payload_ast(form, open, i);
+        return parse_variant_declaration_tuple_payload_ast(owner, form, open, i);
     }
     if enum_variant_positional_payload_pending(form, i) {
-        let first = parse_required_enum_variant_type_expression(
+        let first = parse_required_variant_declaration_type_expression(
+            owner,
             EnumVariantTypeExpressionSlot::PositionalPayload,
             form,
             i,
@@ -7016,7 +7133,8 @@ where
                 i.rollback(position);
                 break;
             }
-            types.push(parse_required_enum_variant_type_expression(
+            types.push(parse_required_variant_declaration_type_expression(
+                owner,
                 EnumVariantTypeExpressionSlot::PositionalPayload,
                 form,
                 i,
@@ -7036,8 +7154,9 @@ where
     EnumVariantPayload::Unit
 }
 
-fn parse_enum_variant_named_payload_ast<'source, E>(
-    _form: EnumVariantSequenceForm,
+fn parse_variant_declaration_named_payload_ast<'source, E>(
+    owner: VariantDeclarationOwnerSpec,
+    _form: VariantDeclarationSequenceForm,
     open: Range<usize>,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> EnumVariantPayload<'source>
@@ -7076,7 +7195,7 @@ where
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
-        let field = parse_variant_named_field_ast(VariantFieldDriverSpec::EnumNamed, true, i)
+        let field = parse_variant_named_field_ast(owner.field_driver, true, i)
             .map(Recovered::Complete)
             .unwrap_or(Recovered::Incomplete);
         let incomplete = matches!(field, Recovered::Incomplete);
@@ -7113,8 +7232,9 @@ where
     EnumVariantPayload::Named { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
 }
 
-fn parse_enum_variant_tuple_payload_ast<'source, E>(
-    _form: EnumVariantSequenceForm,
+fn parse_variant_declaration_tuple_payload_ast<'source, E>(
+    owner: VariantDeclarationOwnerSpec,
+    _form: VariantDeclarationSequenceForm,
     open: Range<usize>,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> EnumVariantPayload<'source>
@@ -7149,7 +7269,7 @@ where
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
-        let field = parse_variant_tuple_field_ast(VariantFieldDriverSpec::EnumTuple, i);
+        let field = parse_variant_tuple_field_ast(owner.field_driver.tuple_payload(), i);
         let incomplete = matches!(field, Recovered::Incomplete);
         fields.push(field);
         if incomplete || any_ambient_owner_claims(i) {
@@ -7195,14 +7315,15 @@ struct ParsedEnumVariantSequence<'source> {
 
 struct AstEnumVariantPayloadContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
     i: &'context mut SynIn<'parse, 'source, 'local, E>,
-    spec: EnumVariantSequenceSpec,
+    spec: VariantDeclarationSequenceSpec,
+    owner: VariantDeclarationOwnerSpec,
     variants: Vec<Recovered<EnumVariant<'source>>>,
     trailing_comma: Option<Range<usize>>,
     trailing_pipe: Option<Range<usize>>,
     close: Recovered<Range<usize>>,
 }
 
-impl<'source, E> EnumVariantSequenceContext<'source>
+impl<'source, E> VariantDeclarationSequenceContext<'source>
     for AstEnumVariantPayloadContext<'_, '_, 'source, '_, E>
 where
     E: ErrorSink<usize>,
@@ -7254,7 +7375,7 @@ where
             self.variants.push(Recovered::Incomplete);
             return true;
         };
-        let payload = parse_enum_variant_payload_ast(self.spec.form, self.i);
+        let payload = parse_variant_declaration_payload_ast(self.owner, self.spec.form, self.i);
         let end = match &payload {
             EnumVariantPayload::Unit => name.range().end,
             EnumVariantPayload::From { range, .. }
@@ -7274,8 +7395,9 @@ where
 /// The Gate 6 payload adapter replaces Gate 5's raw-word stub without taking
 /// ownership of an Enum header or body-form starter.  Later form adapters
 /// supply the frame and consume the returned close/boundary fact.
-fn parse_enum_variant_sequence_with_payload<'source, E>(
-    spec: EnumVariantSequenceSpec,
+fn parse_variant_declaration_sequence_with_payload<'source, E>(
+    spec: VariantDeclarationSequenceSpec,
+    owner: VariantDeclarationOwnerSpec,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> ParsedEnumVariantSequence<'source>
 where
@@ -7286,12 +7408,14 @@ where
     let mut context = AstEnumVariantPayloadContext {
         i,
         spec,
+        owner,
         variants: Vec::new(),
         trailing_comma: None,
         trailing_pipe: None,
         close: Recovered::Incomplete,
     };
-    let termination = drive_enum_variant_sequence(&mut context, spec);
+    debug_assert_eq!(spec.declaration_base, owner.declaration_base);
+    let termination = drive_variant_declaration_sequence(&mut context, spec);
     ParsedEnumVariantSequence {
         variants: context.variants,
         trailing_comma: context.trailing_comma,
@@ -7301,8 +7425,26 @@ where
     }
 }
 
-fn emit_enum_variant_missing<'parse, 'source, 'local, E, O>(
-    role: VariantDeclarationRole,
+/// Retains the Enum-only fixture entry point while production body adapters
+/// pass their owner spec explicitly to the neutral core.
+fn parse_enum_variant_sequence_with_payload<'source, E>(
+    spec: EnumVariantSequenceSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParsedEnumVariantSequence<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_variant_declaration_sequence_with_payload(
+        spec,
+        enum_variant_declaration_owner_spec(spec.declaration_base),
+        i,
+    )
+}
+
+fn emit_variant_declaration_missing<'parse, 'source, 'local, E, O>(
+    role: GrammarRole,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     expected: ExpectedSyntax,
 ) where
@@ -7311,9 +7453,6 @@ fn emit_enum_variant_missing<'parse, 'source, 'local, E, O>(
 {
     let record = committed.probe(|probe| {
         let i = probe.input();
-        let role = GrammarRole::Declaration(DeclarationRole::Enum(
-            EnumDeclarationRole::Variant(role),
-        ));
         let at = i.pos();
         CommittedRecoveryRecord::new(
             i.local,
@@ -7339,7 +7478,11 @@ fn emit_enum_variant_item_missing<'parse, 'source, 'local, E, O>(
     O: CommitOutput<'source>,
 {
     committed.start_node(SyntaxKind::EnumVariant);
-    emit_enum_variant_missing(VariantDeclarationRole::Item, committed, ExpectedSyntax::Identifier);
+    emit_variant_declaration_missing(
+        enum_variant_declaration_owner_spec(0).item_role,
+        committed,
+        ExpectedSyntax::Identifier,
+    );
     committed.finish_node();
 }
 
@@ -7458,8 +7601,8 @@ where
     debug_assert_eq!(i.pos(), range.end);
 }
 
-fn emit_enum_variant_error<'parse, 'source, 'local, E, O>(
-    role: VariantDeclarationRole,
+fn emit_variant_declaration_error<'parse, 'source, 'local, E, O>(
+    role: GrammarRole,
     range: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     expected: ExpectedSyntax,
@@ -7469,9 +7612,6 @@ fn emit_enum_variant_error<'parse, 'source, 'local, E, O>(
 {
     let record = committed.probe(|probe| {
         let i = probe.input();
-        let role = GrammarRole::Declaration(DeclarationRole::Enum(
-            EnumDeclarationRole::Variant(role),
-        ));
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey { role, range: range.clone() },
@@ -7541,8 +7681,11 @@ fn commit_variant_tuple_field<'parse, 'source, 'local, E, O>(
         VariantFieldDriverSpec::Struct => {
             let _ = commit_direct_type_expression_with_outer_missing_role(Some(spec.type_role()), committed);
         }
-        VariantFieldDriverSpec::EnumNamed | VariantFieldDriverSpec::EnumTuple => {
-            let _ = commit_required_enum_variant_tuple_field_type_expression(committed);
+        VariantFieldDriverSpec::EnumNamed
+        | VariantFieldDriverSpec::EnumTuple
+        | VariantFieldDriverSpec::ErrorNamed
+        | VariantFieldDriverSpec::ErrorTuple => {
+            let _ = commit_required_variant_declaration_tuple_field_type_expression(spec, committed);
         }
     }
     if let Some(owner) = owner {
@@ -7553,8 +7696,9 @@ fn commit_variant_tuple_field<'parse, 'source, 'local, E, O>(
     committed.finish_node();
 }
 
-fn commit_enum_variant_named_payload<'parse, 'source, 'local, E, O>(
-    _form: EnumVariantSequenceForm,
+fn commit_variant_declaration_named_payload<'parse, 'source, 'local, E, O>(
+    owner: VariantDeclarationOwnerSpec,
+    _form: VariantDeclarationSequenceForm,
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -7598,22 +7742,22 @@ fn commit_enum_variant_named_payload<'parse, 'source, 'local, E, O>(
         }
         if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
             committed.start_node(SyntaxKind::StructField);
-            emit_variant_field_missing(VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Item, committed, ExpectedSyntax::Identifier);
+            emit_variant_field_missing(owner.field_driver, VariantFieldRecoverySlot::Item, committed, ExpectedSyntax::Identifier);
             committed.finish_node();
             committed.token(SyntaxKind::Comma, comma);
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
         }
-        if !commit_variant_named_field(VariantFieldDriverSpec::EnumNamed, true, committed) {
+        if !commit_variant_named_field(owner.field_driver, true, committed) {
             if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
                 committed.start_node(SyntaxKind::StructField);
-                emit_variant_field_error(VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Item, committed, run.range.clone(), ExpectedSyntax::Identifier);
+                emit_variant_field_error(owner.field_driver, VariantFieldRecoverySlot::Item, committed, run.range.clone(), ExpectedSyntax::Identifier);
                 committed.probe(|probe| consume_source_range(run.range, probe.input()));
                 committed.finish_node();
             } else {
                 committed.start_node(SyntaxKind::StructField);
-                emit_variant_field_missing(VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Item, committed, ExpectedSyntax::Identifier);
+                emit_variant_field_missing(owner.field_driver, VariantFieldRecoverySlot::Item, committed, ExpectedSyntax::Identifier);
                 committed.finish_node();
                 emit_variant_payload_missing_close(ConstructRole::VariantNamedPayload, Delimiter::Brace, committed);
                 break;
@@ -7645,8 +7789,9 @@ fn commit_enum_variant_named_payload<'parse, 'source, 'local, E, O>(
     });
 }
 
-fn commit_enum_variant_tuple_payload<'parse, 'source, 'local, E, O>(
-    _form: EnumVariantSequenceForm,
+fn commit_variant_declaration_tuple_payload<'parse, 'source, 'local, E, O>(
+    owner: VariantDeclarationOwnerSpec,
+    _form: VariantDeclarationSequenceForm,
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -7679,7 +7824,7 @@ fn commit_enum_variant_tuple_payload<'parse, 'source, 'local, E, O>(
             break;
         }
         if committed.probe(|probe| scan_struct_comma_pending(probe.input())) {
-            commit_variant_tuple_field(VariantFieldDriverSpec::EnumTuple, committed);
+            commit_variant_tuple_field(owner.field_driver.tuple_payload(), committed);
             let comma = committed
                 .probe(|probe| scan_struct_comma(probe.input()))
                 .expect("the empty Enum tuple field slot is followed by its comma");
@@ -7688,7 +7833,7 @@ fn commit_enum_variant_tuple_payload<'parse, 'source, 'local, E, O>(
             committed.emit_trivia(&trivia);
             continue;
         }
-        commit_variant_tuple_field(VariantFieldDriverSpec::EnumTuple, committed);
+        commit_variant_tuple_field(owner.field_driver.tuple_payload(), committed);
         let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
@@ -7711,8 +7856,9 @@ fn commit_enum_variant_tuple_payload<'parse, 'source, 'local, E, O>(
     });
 }
 
-fn commit_enum_variant_payload<'parse, 'source, 'local, E, O>(
-    form: EnumVariantSequenceForm,
+fn commit_variant_declaration_payload<'parse, 'source, 'local, E, O>(
+    owner: VariantDeclarationOwnerSpec,
+    form: VariantDeclarationSequenceForm,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -7724,13 +7870,13 @@ fn commit_enum_variant_payload<'parse, 'source, 'local, E, O>(
     if let Some(open) = committed.probe(|probe| {
         enum_variant_payload_open(Delimiter::Brace, probe.input())
     }) {
-        commit_enum_variant_named_payload(form, open, committed);
+        commit_variant_declaration_named_payload(owner, form, open, committed);
         return;
     }
     if let Some(open) = committed.probe(|probe| {
         enum_variant_payload_open(Delimiter::Parenthesis, probe.input())
     }) {
-        commit_enum_variant_tuple_payload(form, open, committed);
+        commit_variant_declaration_tuple_payload(owner, form, open, committed);
         return;
     }
     let gap = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()));
@@ -7741,22 +7887,32 @@ fn commit_enum_variant_payload<'parse, 'source, 'local, E, O>(
         if let Some(trivia) = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input())) {
             committed.emit_trivia(&trivia);
         }
-        let _ = commit_required_enum_variant_type_expression(EnumVariantTypeExpressionSlot::FromType, form, committed);
+        let _ = commit_required_variant_declaration_type_expression(
+            owner,
+            EnumVariantTypeExpressionSlot::FromType,
+            form,
+            committed,
+        );
         return;
     }
     if let Some(open) = committed.probe(|probe| enum_variant_payload_open(Delimiter::Brace, probe.input())) {
         committed.emit_trivia(&gap);
-        commit_enum_variant_named_payload(form, open, committed);
+        commit_variant_declaration_named_payload(owner, form, open, committed);
         return;
     }
     if let Some(open) = committed.probe(|probe| enum_variant_payload_open(Delimiter::Parenthesis, probe.input())) {
         committed.emit_trivia(&gap);
-        commit_enum_variant_tuple_payload(form, open, committed);
+        commit_variant_declaration_tuple_payload(owner, form, open, committed);
         return;
     }
     if committed.probe(|probe| enum_variant_positional_payload_pending(form, probe.input())) {
         committed.emit_trivia(&gap);
-        let _ = commit_required_enum_variant_type_expression(EnumVariantTypeExpressionSlot::PositionalPayload, form, committed);
+        let _ = commit_required_variant_declaration_type_expression(
+            owner,
+            EnumVariantTypeExpressionSlot::PositionalPayload,
+            form,
+            committed,
+        );
         loop {
             let checkpoint = committed.probe(|probe| probe.input().checkpoint());
             let Some(trivia) = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input())) else { break; };
@@ -7765,7 +7921,12 @@ fn commit_enum_variant_payload<'parse, 'source, 'local, E, O>(
                 break;
             }
             committed.emit_trivia(&trivia);
-            let _ = commit_required_enum_variant_type_expression(EnumVariantTypeExpressionSlot::PositionalPayload, form, committed);
+            let _ = commit_required_variant_declaration_type_expression(
+                owner,
+                EnumVariantTypeExpressionSlot::PositionalPayload,
+                form,
+                committed,
+            );
         }
         return;
     }
@@ -7774,10 +7935,11 @@ fn commit_enum_variant_payload<'parse, 'source, 'local, E, O>(
 
 struct DirectEnumVariantPayloadContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>> {
     committed: &'context mut Committed<'parse, 'source, 'local, E, O>,
-    spec: EnumVariantSequenceSpec,
+    spec: VariantDeclarationSequenceSpec,
+    owner: VariantDeclarationOwnerSpec,
 }
 
-impl<'source, E, O> EnumVariantSequenceContext<'source>
+impl<'source, E, O> VariantDeclarationSequenceContext<'source>
     for DirectEnumVariantPayloadContext<'_, '_, 'source, '_, E, O>
 where
     E: ErrorSink<usize>,
@@ -7795,7 +7957,7 @@ where
 
     fn emit_missing_variant(&mut self) {
         self.committed.start_node(SyntaxKind::EnumVariant);
-        emit_enum_variant_missing(VariantDeclarationRole::Item, self.committed, ExpectedSyntax::Identifier);
+        emit_variant_declaration_missing(self.owner.item_role, self.committed, ExpectedSyntax::Identifier);
         self.committed.finish_node();
     }
 
@@ -7818,11 +7980,11 @@ where
             let has_raw_name_retry = self
                 .committed
                 .probe(|probe| enum_variant_raw_name_pending(probe.input()));
-            emit_enum_variant_error(
+            emit_variant_declaration_error(
                 if has_raw_name_retry {
-                    VariantDeclarationRole::Name
+                    self.owner.variant_role(VariantDeclarationRole::Name)
                 } else {
-                    VariantDeclarationRole::Item
+                    self.owner.item_role
                 },
                 range.clone(),
                 self.committed,
@@ -7834,17 +7996,39 @@ where
             }
         }
         let Some(name) = self.committed.probe(|probe| probe.input().run(scan_word)) else {
-            emit_enum_variant_missing(VariantDeclarationRole::Name, self.committed, ExpectedSyntax::Identifier);
+            emit_variant_declaration_missing(
+                self.owner.variant_role(VariantDeclarationRole::Name),
+                self.committed,
+                ExpectedSyntax::Identifier,
+            );
             self.committed.finish_node();
             return true;
         };
         self.committed.token(SyntaxKind::Identifier, name.range());
-        commit_enum_variant_payload(self.spec.form, self.committed);
+        commit_variant_declaration_payload(self.owner, self.spec.form, self.committed);
         self.committed.finish_node();
         true
     }
 }
 
+fn commit_variant_declaration_sequence_with_payload<'parse, 'source, 'local, E, O>(
+    spec: VariantDeclarationSequenceSpec,
+    owner: VariantDeclarationOwnerSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> EnumVariantSequenceTermination
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    debug_assert_eq!(spec.declaration_base, owner.declaration_base);
+    let mut context = DirectEnumVariantPayloadContext { committed, spec, owner };
+    drive_variant_declaration_sequence(&mut context, spec)
+}
+
+/// Retains Enum's fixture entry point while its declaration adapters call
+/// the neutral core with their owner spec explicitly.
 fn commit_enum_variant_sequence_with_payload<'parse, 'source, 'local, E, O>(
     spec: EnumVariantSequenceSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -7855,8 +8039,11 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let mut context = DirectEnumVariantPayloadContext { committed, spec };
-    drive_enum_variant_sequence(&mut context, spec)
+    commit_variant_declaration_sequence_with_payload(
+        spec,
+        enum_variant_declaration_owner_spec(spec.declaration_base),
+        committed,
+    )
 }
 
 /// Parses one accepted Enum continuation shared by isolated fixtures and
@@ -7951,13 +8138,13 @@ fn enum_body_range_end(body: &Recovered<EnumBody<'_>>) -> Option<usize> {
     }
 }
 
-fn enum_variant_sequence_spec(
-    form: EnumVariantSequenceForm,
+fn variant_declaration_sequence_spec(
+    form: VariantDeclarationSequenceForm,
     layout: LayoutDelimitedFrame,
     declaration_base: usize,
-) -> EnumVariantSequenceSpec {
+) -> VariantDeclarationSequenceSpec {
     match form {
-        EnumVariantSequenceForm::Braced => EnumVariantSequenceSpec {
+        VariantDeclarationSequenceForm::Braced => VariantDeclarationSequenceSpec {
             form,
             layout,
             declaration_base,
@@ -7966,8 +8153,9 @@ fn enum_variant_sequence_spec(
             allow_leading_pipe: false,
             allow_trailing_pipe: false,
         },
-        EnumVariantSequenceForm::ColonIndented | EnumVariantSequenceForm::EqualsIndented => {
-            EnumVariantSequenceSpec {
+        VariantDeclarationSequenceForm::ColonIndented
+        | VariantDeclarationSequenceForm::EqualsIndented => {
+            VariantDeclarationSequenceSpec {
                 form,
                 layout,
                 declaration_base,
@@ -7977,7 +8165,7 @@ fn enum_variant_sequence_spec(
                 allow_trailing_pipe: true,
             }
         }
-        EnumVariantSequenceForm::EqualsInline => EnumVariantSequenceSpec {
+        VariantDeclarationSequenceForm::EqualsInline => VariantDeclarationSequenceSpec {
             form,
             layout,
             declaration_base,
@@ -8057,8 +8245,9 @@ where
         &opening,
         i.local.line().line_indent,
     );
-    let sequence = parse_enum_variant_sequence_with_payload(
-        enum_variant_sequence_spec(EnumVariantSequenceForm::Braced, layout, enum_base),
+    let sequence = parse_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(VariantDeclarationSequenceForm::Braced, layout, enum_base),
+        enum_variant_declaration_owner_spec(enum_base),
         i,
     );
     let end = match &sequence.close {
@@ -8091,12 +8280,13 @@ where
         return Recovered::Incomplete;
     }
     let block_indent = i.local.line().line_indent;
-    let sequence = parse_enum_variant_sequence_with_payload(
-        enum_variant_sequence_spec(
-            EnumVariantSequenceForm::ColonIndented,
+    let sequence = parse_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::ColonIndented,
             LayoutDelimitedFrame::inline(block_indent),
             enum_base,
         ),
+        enum_variant_declaration_owner_spec(enum_base),
         i,
     );
     let end = i.pos();
@@ -8127,12 +8317,13 @@ where
             return Recovered::Incomplete;
         }
         let block_indent = i.local.line().line_indent;
-        let sequence = parse_enum_variant_sequence_with_payload(
-            enum_variant_sequence_spec(
-                EnumVariantSequenceForm::EqualsIndented,
+        let sequence = parse_variant_declaration_sequence_with_payload(
+            variant_declaration_sequence_spec(
+                VariantDeclarationSequenceForm::EqualsIndented,
                 LayoutDelimitedFrame::inline(block_indent),
                 enum_base,
             ),
+            enum_variant_declaration_owner_spec(enum_base),
             i,
         );
         let end = i.pos();
@@ -8146,12 +8337,13 @@ where
             },
         ));
     }
-    let sequence = parse_enum_variant_sequence_with_payload(
-        enum_variant_sequence_spec(
-            EnumVariantSequenceForm::EqualsInline,
+    let sequence = parse_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::EqualsInline,
             LayoutDelimitedFrame::inline(enum_base),
             enum_base,
         ),
+        enum_variant_declaration_owner_spec(enum_base),
         i,
     );
     let end = i.pos();
@@ -8439,8 +8631,9 @@ where
         i.rollback(checkpoint);
         layout
     });
-    match commit_enum_variant_sequence_with_payload(
-        enum_variant_sequence_spec(EnumVariantSequenceForm::Braced, layout, enum_base),
+    match commit_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(VariantDeclarationSequenceForm::Braced, layout, enum_base),
+        enum_variant_declaration_owner_spec(enum_base),
         committed,
     ) {
         EnumVariantSequenceTermination::MatchingClose(_) => true,
@@ -8491,12 +8684,13 @@ fn commit_enum_colon_body_isolated<'parse, 'source, 'local, E, O>(
     }
     let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
     committed.emit_trivia(&trivia);
-    let _ = commit_enum_variant_sequence_with_payload(
-        enum_variant_sequence_spec(
-            EnumVariantSequenceForm::ColonIndented,
+    let _ = commit_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::ColonIndented,
             LayoutDelimitedFrame::inline(block_indent),
             enum_base,
         ),
+        enum_variant_declaration_owner_spec(enum_base),
         committed,
     );
 }
@@ -8523,23 +8717,25 @@ fn commit_enum_equals_body_isolated<'parse, 'source, 'local, E, O>(
         }
         let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
         committed.emit_trivia(&trivia);
-        let _ = commit_enum_variant_sequence_with_payload(
-            enum_variant_sequence_spec(
-                EnumVariantSequenceForm::EqualsIndented,
+        let _ = commit_variant_declaration_sequence_with_payload(
+            variant_declaration_sequence_spec(
+                VariantDeclarationSequenceForm::EqualsIndented,
                 LayoutDelimitedFrame::inline(block_indent),
                 enum_base,
             ),
+            enum_variant_declaration_owner_spec(enum_base),
             committed,
         );
         return;
     }
     committed.emit_trivia(&trivia);
-    let _ = commit_enum_variant_sequence_with_payload(
-        enum_variant_sequence_spec(
-            EnumVariantSequenceForm::EqualsInline,
+    let _ = commit_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::EqualsInline,
             LayoutDelimitedFrame::inline(enum_base),
             enum_base,
         ),
+        enum_variant_declaration_owner_spec(enum_base),
         committed,
     );
 }
@@ -17355,6 +17551,24 @@ fn variant_field_recovery_role(
         ),
         (VariantFieldDriverSpec::EnumTuple, _) => GrammarRole::Declaration(DeclarationRole::Enum(
             EnumDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
+        )),
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Item) => GrammarRole::Declaration(
+            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedField)),
+        ),
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Name) => GrammarRole::Declaration(
+            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldName)),
+        ),
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Colon) => GrammarRole::Declaration(
+            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldColon)),
+        ),
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Type) => GrammarRole::Declaration(
+            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldType)),
+        ),
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Separator) => GrammarRole::Declaration(
+            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator)),
+        ),
+        (VariantFieldDriverSpec::ErrorTuple, _) => GrammarRole::Declaration(DeclarationRole::Error(
+            ErrorDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
         )),
     }
 }
@@ -33398,7 +33612,7 @@ mod tests {
             events: Vec<Event>,
         }
 
-        impl<'source, E> EnumVariantSequenceContext<'source>
+        impl<'source, E> VariantDeclarationSequenceContext<'source>
             for AstStubContext<'_, '_, 'source, '_, E>
         where
             E: ErrorSink<usize>,
@@ -33457,7 +33671,7 @@ mod tests {
             events: Vec<Event>,
         }
 
-        impl<'source, E> EnumVariantSequenceContext<'source>
+        impl<'source, E> VariantDeclarationSequenceContext<'source>
             for DirectStubContext<'_, '_, 'source, '_, E>
         where
             E: ErrorSink<usize>,
@@ -33954,6 +34168,168 @@ mod tests {
         assert!(!is_cut);
         assert_eq!(output.committed_recoveries().len(), 0);
         assert_eq!(output.finish_complete().to_string(), source);
+    }
+
+    #[test]
+    fn error_variant_owner_spec_reuses_all_forms_and_payloads_with_error_roles() {
+        fn spec(
+            form: VariantDeclarationSequenceForm,
+            declaration_base: usize,
+            layout_base: usize,
+        ) -> VariantDeclarationSequenceSpec {
+            variant_declaration_sequence_spec(
+                form,
+                LayoutDelimitedFrame::inline(layout_base),
+                declaration_base,
+            )
+        }
+
+        fn parse<'source>(
+            source: &'source str,
+            spec: VariantDeclarationSequenceSpec,
+        ) -> ParsedEnumVariantSequence<'source> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let parsed = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_variant_declaration_sequence_with_payload(
+                    spec,
+                    error_variant_declaration_owner_spec(spec.declaration_base),
+                    &mut i,
+                )
+            };
+            assert!(!is_cut, "isolated Error owner never cuts: {source:?}");
+            let _ = expectations.take_merged();
+            parsed
+        }
+
+        fn direct(
+            source: &str,
+            spec: VariantDeclarationSequenceSpec,
+        ) -> Vec<CommittedRecoveryRecord> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let output = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+                committed.start_node(SyntaxKind::Root);
+                let _ = commit_variant_declaration_sequence_with_payload(
+                    spec,
+                    error_variant_declaration_owner_spec(spec.declaration_base),
+                    &mut committed,
+                );
+                committed.finish_node();
+                committed.into_output()
+            };
+            assert!(!is_cut, "isolated Error owner never cuts: {source:?}");
+            let _ = expectations.take_merged();
+            let recoveries = output.committed_recoveries().to_vec();
+            assert_eq!(output.finish_complete().to_string(), source, "lossless: {source:?}");
+            recoveries
+        }
+
+        let cases = [
+            (
+                VariantDeclarationSequenceForm::Braced,
+                0,
+                0,
+                "Unit, From from Int, Named { field: Int }, Tuple (Int), Pos Int}",
+            ),
+            (
+                VariantDeclarationSequenceForm::ColonIndented,
+                0,
+                2,
+                "Unit\n  From from Int\n  Named { field: Int }\n  Tuple (Int)\n  Pos Int",
+            ),
+            (
+                VariantDeclarationSequenceForm::EqualsInline,
+                0,
+                0,
+                "Unit | From from Int | Named { field: Int } | Tuple (Int) | Pos Int",
+            ),
+            (
+                VariantDeclarationSequenceForm::EqualsIndented,
+                0,
+                2,
+                "Unit\n  | From from Int\n  | Named { field: Int }\n  | Tuple (Int)\n  | Pos Int",
+            ),
+        ];
+        for (form, declaration_base, layout_base, source) in cases {
+            let sequence_spec = spec(form, declaration_base, layout_base);
+            let parsed = parse(source, sequence_spec);
+            let variants = parsed
+                .variants
+                .iter()
+                .map(|variant| match variant {
+                    Recovered::Complete(variant) => variant,
+                    Recovered::Incomplete => panic!("complete Error-owned variant: {source:?}"),
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(variants.len(), 5, "all payload forms: {source:?}");
+            assert!(matches!(variants[0].payload, EnumVariantPayload::Unit));
+            assert!(matches!(variants[1].payload, EnumVariantPayload::From { .. }));
+            assert!(matches!(variants[2].payload, EnumVariantPayload::Named { .. }));
+            assert!(matches!(variants[3].payload, EnumVariantPayload::Tuple { .. }));
+            assert!(matches!(variants[4].payload, EnumVariantPayload::Positional { .. }));
+            assert!(direct(source, sequence_spec).is_empty(), "valid Error sequence: {source:?}");
+        }
+
+        let item_role = GrammarRole::Declaration(DeclarationRole::Error(
+            ErrorDeclarationRole::Variant(VariantDeclarationRole::Item),
+        ));
+        for (form, declaration_base, layout_base, source) in [
+            (VariantDeclarationSequenceForm::Braced, 0, 0, "@}"),
+            (VariantDeclarationSequenceForm::ColonIndented, 0, 2, "@"),
+            (VariantDeclarationSequenceForm::EqualsInline, 0, 0, "@"),
+            (VariantDeclarationSequenceForm::EqualsIndented, 0, 2, "@"),
+        ] {
+            let records = direct(source, spec(form, declaration_base, layout_base));
+            assert!(records.iter().any(|record| {
+                record.kind == RecoveryKind::Error && record.site.role == item_role
+            }), "Error item identity in {form:?}: {records:?}");
+        }
+
+        let missing_from = direct(
+            "From from, Next}",
+            spec(VariantDeclarationSequenceForm::Braced, 0, 0),
+        );
+        assert!(missing_from.iter().any(|record| {
+            record.kind == RecoveryKind::Missing
+                && record.site.role
+                    == GrammarRole::Declaration(DeclarationRole::Error(
+                        ErrorDeclarationRole::Variant(VariantDeclarationRole::FromType),
+                    ))
+        }));
+
+        let missing_named_name = direct(
+            "Named { : Int }}",
+            spec(VariantDeclarationSequenceForm::Braced, 0, 0),
+        );
+        assert!(missing_named_name.iter().any(|record| {
+            record.kind == RecoveryKind::Missing
+                && record.site.role
+                    == GrammarRole::Declaration(DeclarationRole::Error(
+                        ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldName),
+                    ))
+        }));
+
+        let missing_tuple_field = direct(
+            "Tuple (,)}",
+            spec(VariantDeclarationSequenceForm::Braced, 0, 0),
+        );
+        assert!(missing_tuple_field.iter().any(|record| {
+            record.kind == RecoveryKind::Missing
+                && record.site.role
+                    == GrammarRole::Declaration(DeclarationRole::Error(
+                        ErrorDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
+                    ))
+        }));
     }
 
     #[test]
