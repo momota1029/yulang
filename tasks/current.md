@@ -169,7 +169,18 @@ type-expression-core・named-record-type・forall-type・effect-row-typeの4ペ�
 がEffectRowType structに存在しない"trailing separator" fieldを主張していた
 (NamedRecordType/ParenthesizedTypeGroupの記述からの誤コピーと推定)——実際は
 apostrophe/open/items/close/rangeの5 fieldのみで、正確な記述へ修正した。
-残り2要素(多相variant型・bracket row grammar)で`types/`系完走の見込み。
+
+### types/ family: 6/6完成(2026-08-27、push済み)
+
+残り2要素、多相variant型(このプロジェクト最難の設計サーガ、実装7 commit・shared
+driver rewrite・active-newline境界バグ修正を含む)とbracket row grammar
+(leading/trailing非対称2位置grammar)を英日両方で追加。commit
+`b22a7973`〜`b9f1d6cf`。今回はsection 6のAST struct fieldを1つずつ実装と
+照合する追加検証を行い、誤りゼロで着地(前回effect-row-typeで発見した
+"trailing separatorの誤citation"の再発防止)。
+
+これで`statements/`(7/7)・`patterns/`(4/4)・`types/`(6/6)の3 familyが完成。
+残りは`expressions/`(9要素)・`cross-cutting/`(4要素)。
 
 各elementページの11節template: Status/正本/last-verified commit → Scope →
 BNF grammar → judge/priority/owner boundary → byte-exact CST worked example →
