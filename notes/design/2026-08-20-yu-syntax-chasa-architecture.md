@@ -25313,3 +25313,533 @@ actual completed braceだけのtrailing derives restriction、Error forward depe
 重点review対象にする。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+
+## 追補案: canonical `Statement` / root `Declaration`のstandalone `error` declaration grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-28）。
+
+Date: 2026-08-28。
+
+### Scope and authority
+
+本追補は、Authoritativeなcanonical Statement / root Declaration grammarとstandalone Enum追補がdeferした
+standalone `error` declarationを、root / nestedで同じsyntax ownerとして設計する。対象は次だけである。
+
+- optional declaration visibilityとexact maximal word `error`から成るstatement intro。
+- mandatory raw declaration nameとexisting `DeclarationTypeParameter` surfaceを使うzero-or-more same-line type variable。
+- shared `DerivesClause` driverへ接続するError header attachmentと、actual completed braced body後だけのsafe trailing attachment。
+- Enumと同じexplicit / implicit bodyless、brace、colon-indent、equals-inline / equals-indent variant body。
+- existing Enum variant-sequence / payload / field coreへError owner identityを渡すthin AST / direct-CST adapter。
+- Error-specific typed recovery、ASOB、outer Statement boundary、AST / direct-CST parity、root / nested shared dispatch。
+- source-leading Errorがheader discoveryを`FirstNonHeader`で終了するno-fact behavior。
+
+本追補は次を設計しない。
+
+- error effect、`fail`、`wrap`、`up`、effect-row propagation、automatic upcast、constructor / pattern registration。
+- declaration companion `with:` / `with {}`、companion member、generated helper / module semantics。
+- HIR lowering、resolver、inference、diagnostics wording、formatter、syntax-reference page。
+- Enum variant grammarの別実装、Error-specific separator / payload / field grammar。
+- Error body内canonical Statement。bodyはStatement blockでなくshared variant sequenceである。
+
+本追補のBNF-equivalent grammarの唯一の正本は`ERROR-G`、intro / form authorityは`ERROR-J`、
+Enum coreへのtyped compositionは`ERROR-T`、typed recoveryは`ERROR-R`である。`ERROR`はError Declarationの略で、
+current documentの`DRV` / `IMD` / `CAST` / `ASOB` / `RLD` / `ACT` / `ENUM`その他のprefixと衝突しない。
+
+### Problem statement and supersession boundary
+
+current Yulang3の`SyntaxKind`、`Declaration`、`Statement`、`StatementIntro`、`StatementKind`、`DeclarationRole`には
+Error declaration vocabularyがない。exact word `error`はroot / nested canonical Statementでdeclaration authorityを得ず、
+oracle surfaceの`error fs_err:`や`error io_err:`をone declaration ownerとして保持できない。
+
+一方、current Enum implementationはraw declaration header、all body forms、layout-aware variant sequence、unit / from / named / tuple /
+positional payload、full TypeExpression episode fencing、Struct field-loop reuse、Derives attachment、AST / direct-CST parityを既に持つ。
+Errorのsurfaceはchecked-in Y2 specificationで`enum_body`を直接参照し、Y2 parserもbrace / colon / equals branchからEnum helperを
+直接呼んだ。従ってErrorのためにsecond sequence / payload implementationを作る理由はない。しかし、shared syntax mechanicsだけでは
+次は決まらない。
+
+- `my error = 1`をBindingへ戻すcontextual named-head lookahead。
+- Error-specific declaration / keyword / intro / range / recovery identity。
+- shared driverがEnum recoveryでなくError recoveryをemitするowner parameterization。
+- shared Derives driverのError header / safe trailing authority。
+- Enum直後へ置くintro priorityとroot / nested / header discoveryのatomic switch。
+- syntax-only Error declarationとfuture semantic error propagationの境界。
+
+本追補は次をsupersedeしない。
+
+- Struct / Enum / Mod / Type / Role / Impl / Cast / Act / Binding / Use / OperatorHeaderのexisting relative intro priority。
+- Authoritative `ENUM-G` / `ENUM-J` / `ENUM-T`のvariant body / separator / payload grammarと`ENUM-R`のslot semantics。
+- EnumDeclaration / Enum recovery identity、Struct field recovery、DerivesClause自身のgrammar / recovery。
+- TypeExpression、TMN、positional fence、ASOB、layout-aware sequence authorityのcanonical rule。
+- `error` / `from`がnon-authority identifier / field / Pattern / TypeExpression / expression positionでordinary wordであるlexical policy。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`のpeeled commitは
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`であった。spec、parser implementation、direct parser-tree fixture、
+representative user-facing exampleをsame commit treeから再確認し、次をground truthとする。
+
+1. checked-in surface specificationはErrorを`visibility? "error" ident type_vars enum_body?`とし、bodyは明示的に
+   `enum_body`と同じvariant parserを使うと定めた
+   （`yulang2-oracle:spec/2026-06-06-syntax-design.md:510-527`）。従ってnormative surfaceはEnumと同じbrace、colon-indent、
+   equals inline / indent、same five payload formである。
+2. implementationは`ErrorDecl` nodeへvisibility / keyword / mandatory raw nameを入れ、`scan_decl_type_vars`、
+   `parse_header_derives`、body judge、`finish_with_or_stmt_stop`へ進んだ
+   （`yulang2-oracle:crates/parser/src/stmt/error_decl.rs:12-55,116-118`）。header derivesのstop setは
+   `{` / `:` / `=` / `with` / `;`で、Enum implementationと同じだった（同`:31-48`;
+   `yulang2-oracle:crates/parser/src/stmt/enum_decl.rs:33-55`）。
+3. brace branchは`parse_enum_variants_after_open`、colon branchは`parse_enum_variants_indent_block`、equals branchは
+   `parse_enum_variants_inline`を直接呼んだ（`error_decl.rs:56-97`）。shared helpersはbrace comma / close、indent newline + optional
+   comma / pipe、inline pipe、unit / from / named / tuple / positional payloadを実装した
+   （`yulang2-oracle:crates/parser/src/stmt/enum_decl.rs:146-347`）。
+4. Y2 implementationにはone control-flow divergenceがある。Enum `=` branchはpost-equals deeper newlineをindent helperへ分岐した
+   （`enum_decl.rs:89-113`）のに対し、Error `=` branchは常にinline helperへ渡し、そのhelperはnewlineで終了した
+   （`error_decl.rs:80-97`; `enum_decl.rs:163-195`）。これはchecked-in grammarの`enum_body`共有と一致しない。
+   Y3はnormative specificationとcurrent shared Enum coreを採り、ErrorでもEqualsIndentedを受理する。この差をsilentに
+   「Y2 implementationと完全同一」とは呼ばない。
+5. direct fixture `error fs_err:\n  not_found str\n  denied str`はErrorDecl直下にtwo `EnumVariant`を持ち、各variantは
+   one positional TypeExprを持った
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1685-1710`）。
+6. direct fixture `error io_err:\n  fs from fs_err`はvariant name、literal contextual `from`、one TypeExprを保持した
+   （同`:1712-1732`）。Y2 token kindはordinary Identだったが、Y3 Enum追補はaccepted payload introducerだけを`FromKw`へcommitする。
+7. `my error E:\n  failed`はErrorDeclであるdirect fixtureがある（同`:2302-2318）。`my error = 1`はBindingであり、
+   Pattern target `error`を保持した（同`:1734-1754`）。old dispatcherは`my`だけ、contextual named-declaration keyword後に
+   raw Identifier / SigilIdentifierが見えるcaseでErrorへ入り、それ以外をBindingへrollbackした
+   （`yulang2-oracle:crates/parser/src/stmt/mod.rs:159-205,310-316`）。
+8. bare / `our` / `pub` Errorはnormal declaration branchでkeyword受理後にError parserへ入った
+   （`stmt/mod.rs:64-85,243-264`）。old dispatch orderはUse / Mod / Type / Struct / Enum / Error / Role / Impl / Cast / Act / Forで、
+   ErrorはEnum直後だった（同`:64-85`）。
+9. `mod error;`はmodule nameとしてordinary contextual wordだったdirect fixtureがある
+   （`stmt_grammar.rs:1756-1766`）。authority外の`error`をreserved wordへ広げない。
+10. user-facing exampleは`pub error fs_err:`とtwo positional variantsを示し、`from` variantからeffect conversion / generated helperへ
+    semanticsが続くと説明した（`yulang2-oracle:README.md:83-116`）。本追補は前半のsyntaxだけを扱い、semantic claimをしない。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- optional `my` / `our` / `pub`、exact maximal `error`、mandatory raw name、same-line declaration type variables。
+- optional body、explicit semicolon、brace、colon-indent、equals inline / indent。
+- unit、contextual `from`、named、tuple、multiple positional payloadとpayload内full ordinary TypeExpression。
+- `my error`のnamed-head lookahead。`my error E = A`はError、`my error = 1`はBindingである非対称性。
+- header derivesのordinary source shapeとsource-order attachment collection。
+- exact-word statement-intro discipline、sink-free recognition、accepted intro後のcut、root / nested shared continuation。
+- `ENUM-J`のlayout-aware separator / leading-trailing pipe / required-slot / malformed retry rule。
+- `ENUM-T`のpayload priority、TypeExpression episode fencing、outer ML split、field-loop composition。
+- ASOB original-gap ordering、outer separator / matching close / dedent / If companion ownership。
+- lossless trivia、actual punctuation / closeのone-owner rule、one range = one recovery node = one record。
+- header discoveryがfirst full-only declarationで停止し、Error factを作らないarchitecture。
+
+限定して追加するのは次である。
+
+- `SyntaxKind::ErrorDeclaration` / `ErrorKw`、Error declaration AST / session vocabulary。
+- `Declaration::Error` / `Statement::Error` / `StatementIntro::Error` / `StatementKind::ErrorDeclaration`。
+- `DeclarationRole::Error(ErrorDeclarationRole)`。variant inner roleはneutral existing `VariantDeclarationRole`をreuseする。
+- shared variant sequence / payload contextのError owner mapping。
+- shared Derives driverのError owner / header / safe trailing classifier。
+
+### `ERROR-G`: standalone Error grammar and layout
+
+```text
+ErrorDeclaration :=
+    [ VisibilityKw Gerror+ ]
+    ErrorKw Gerror-name
+    RequiredRawIdentifier(ErrorDeclaration::Name)
+    { Gparam+ DeclarationTypeParameter }
+    { HeaderDerivesAttachment(Error) }
+    ErrorBody
+    [ TrailingDerivesAttachment(ErrorBraced) ]
+
+ErrorBody := SharedVariantDeclarationBody(Error)
+
+SharedVariantDeclarationBody(Error) :=
+    ImplicitBoundaryBodyless
+  | BodylessSemicolon
+  | EnumBracedBody
+  | EnumColonBody
+  | EnumEqualsBody
+
+VisibilityKw := MyKw | OurKw | PubKw
+ErrorKw := exact maximal word "error"
+Gerror+ := non-empty declaration-continuing trivia(error_base)
+Gerror-name := declaration-continuing trivia(error_base)
+Gparam+ := non-empty same-line trivia
+```
+
+`EnumBracedBody` / `EnumColonBody` / `EnumEqualsBody`はnew Error grammarの別名でなく、Authoritative `ENUM-G`のproductionを
+そのまま参照する。従ってErrorはEnumと同じfour sequence form（Braced / ColonIndented / EqualsInline / EqualsIndented）、
+同じ`EnumVariant` / `EnumVariantPayload`、same separator / boundary / payload priorityを持つ。Error-specific grammarはkeyword、header、
+owner identity、attachment pointだけである。
+
+`error_base`はfirst declaration starterをstatement positionでacceptした時点のactive `IndentationBaseline.column`で、frameがなければ0である。
+visibility--`error`間はnon-empty declaration-continuing triviaを要求する。`error`--name間はempty / same-line / strictly-deeper
+continuationをacceptし、equal-or-shallower newline / ambient owner gapをconsumeしない。`errors` / `errorish` / `my_error`をprefix splitしない。
+
+nameはone raw Identifierでfull TypeExpressionではない。type variableはexisting `DeclarationTypeParameter`をsame-lineでgreedy scanし、
+exact `derives`、actual `{` / `:` / `=` / `;`、caller boundaryで終了する。zero parameterはvalidで、Missing parameter listを作らない。
+
+complete header後のclean approved boundaryは`Bodyless { semicolon: None }` Complete、actual `;`は
+`Bodyless { semicolon: Some(range) }`である。actual `{` / `:` / `=`後のform judge、first variant requirement、inline-vs-indented split、
+comma / pipe / layout-newline boundary、unit / from / named / tuple / positional payloadは`ENUM-G`を変更せずreuseする。
+
+Header derivesはcomplete Name / parameter scan後、body judge前にshared driverへ渡す。Trailing derivesはactual completed braced bodyの
+matching `}`後だけにauthorityを与える。equals / colon dedent、implicit / explicit bodyless、missing / mismatched close後の`derives`を
+Error trailing attachmentへ推測しない。
+
+### `ERROR-J`: intro authority and phase judge order
+
+sink-free `recognize_error_statement_intro`は次をacceptする。
+
+- current positionのbare exact `error`。
+- exact `our | pub` + non-empty declaration-continuing trivia + exact `error`。
+- exact `my` + non-empty declaration-continuing trivia + exact `error`に続き、raw Identifier / SigilIdentifier head candidateが見えるcase。
+
+third ruleだけY2のcontextual named-declaration collisionを保つ。`my error E = A`はError、`my error = 1`はBindingである。
+`my error` + EOF / semicolon / `{` / `:` / `=`はErrorへcutせず、all stateをrollbackしてBinding authorityへ戻す。
+bare / `our` / `pub` ErrorはName / body successをintro条件にせず、accepted keyword後はError continuationへcutする。
+lookaheadはhead candidateをconsumeせず、success cursorはname parse直前である。
+
+current Y3のnon-Error relative orderを動かさず、ErrorだけをEnum後 / Mod前へadditiveに挿す。
+
+1. caller-owned boundary check。
+2. Struct。
+3. Enum。
+4. Error（new）。
+5. Mod。
+6. Type。
+7. Role。
+8. Impl。
+9. Cast。
+10. Act。
+11. Binding。
+12. Use / Mod-fallback / OperatorHeader / OperatorChain。
+
+accepted intro後のphase priorityは次である。
+
+1. original `Gerror-name` gapでASOBを問い、claimedならzero-width Name Missing、gap non-consume。
+2. raw Nameをliteral / malformed same-slot retryで閉じる。Name Incompleteならparameter / derives / BodyIntroducerをcascadeしない。
+3. same-line parameters後のvalid pointでexact contextual header `derives`をshared driverへ渡す。
+4. original tail gapでactual `;` / `{` / `:` / `=`をError local punctuation authorityとしてjudgeする。
+5. actual body starterならshared variant body driverへError owner specを渡す。
+6. clean approved boundaryならimplicit Bodyless Complete、non-empty malformed runならBodyIntroducer Error後にsame form judgeへretryする。
+7. actual completed braced close後だけTrailing derivesをshared driverへ渡す。
+8. outer Statement ownerへseparator / close / dedent / companionを返す。
+
+### AST / direct-CST shape
+
+```rust
+struct ErrorDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
+    body: Recovered<EnumBody<'source>>,
+    range: Range<usize>,
+}
+```
+
+`EnumBody` / `EnumVariant` / `EnumVariantPayload`のAST valueと`EnumVariant` CST nodeはshared variant syntax vocabularyとしてreuseする。
+これは`ErrorDeclaration`を`EnumDeclaration`へaliasすることではない。declaration node、intro、range、recovery outer owner、derives ownerは
+Error固有であり、shared body valueをError adapterが構築する。Y2 direct fixtureも`ErrorDecl`直下に`EnumVariant`を置いた
+（`stmt_grammar.rs:1685-1732,2302-2318`）。
+
+new CST vocabularyは`ErrorDeclaration` nodeと`ErrorKw` tokenだけである。accepted `from`はexisting `FromKw`、variantはexisting
+`EnumVariant`、fieldはexisting `StructField`、type variable / derives / TypeExpression / punctuation / Missing / Error / triviaはexisting
+node / tokenをsource orderで置く。`ErrorHeader` / `ErrorBody` / `ErrorVariant` / payload / list / separator wrapper、synthetic tokenを作らない。
+
+#### Positional variants
+
+oracle fixtureをそのまま使う。
+
+```yu
+error fs_err:
+  not_found str
+  denied str
+```
+
+```text
+ErrorDeclaration 0..42
+  ErrorKw 0..5 "error"
+  Trivia 5..6 " "
+  Identifier 6..12 "fs_err"
+  Colon 12..13 ":"
+  Trivia 13..16 "\n  "
+  EnumVariant 16..29
+    Identifier 16..25 "not_found"
+    Trivia 25..26 " "
+    TypeExpression 26..29 "str"
+  Trivia 29..32 "\n  "
+  EnumVariant 32..42
+    Identifier 32..38 "denied"
+    Trivia 38..39 " "
+    TypeExpression 39..42 "str"
+```
+
+source literalとold treeは`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1685-1710`にある。
+
+#### `from` variant
+
+oracle fixtureをそのまま使う。
+
+```yu
+error io_err:
+  fs from fs_err
+```
+
+```text
+ErrorDeclaration 0..30
+  ErrorKw 0..5 "error"
+  Trivia 5..6 " "
+  Identifier 6..12 "io_err"
+  Colon 12..13 ":"
+  Trivia 13..16 "\n  "
+  EnumVariant 16..30
+    Identifier 16..18 "fs"
+    Trivia 18..19 " "
+    FromKw 19..23 "from"
+    Trivia 23..24 " "
+    TypeExpression 24..30 "fs_err"
+```
+
+source literalとold treeは`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1712-1732`にある。
+
+#### contextual `my error`
+
+oracle fixtureをそのまま使う。
+
+```yu
+my error E:
+  failed
+```
+
+```text
+ErrorDeclaration 0..20
+  MyKw 0..2 "my"
+  Trivia 2..3 " "
+  ErrorKw 3..8 "error"
+  Trivia 8..9 " "
+  Identifier 9..10 "E"
+  Colon 10..11 ":"
+  Trivia 11..14 "\n  "
+  EnumVariant 14..20
+    Identifier 14..20 "failed"
+```
+
+source literalとold treeは`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:2302-2318`にある。
+
+`ErrorDeclaration.range`はvisibilityまたはErrorKw startから、最後にcommitしたheader attachment、explicit semicolon、body item、
+matching / recovered close、last safe trailing clauseのendまでである。implicit bodyless、boundary non-consume recovery、indent dedentでは
+outer trivia / separator / closeを含めない。
+
+### `ERROR-T`: typed reuse of Enum variant machinery
+
+#### Neutral owner parameterization
+
+existing `drive_enum_variant_sequence` / `EnumVariantSequenceForm` / `EnumVariantSequenceSpec`とpayload contextをgrammar変更せず
+neutral coreへmechanicalにparameterizeする。internal neutral entryは`drive_variant_declaration_sequence`、form / specは
+`VariantDeclarationSequenceForm` / `VariantDeclarationSequenceSpec`とし、Enum / Error thin adapterがsame transition streamを呼ぶ。
+rename自体をpublic APIにせず、existing Enum fixturesをunmodifiedで通す。
+
+```rust
+enum VariantDeclarationOwner {
+    Enum,
+    Error,
+}
+
+struct VariantDeclarationOwnerSpec {
+    owner: VariantDeclarationOwner,
+    declaration_base: usize,
+    item_role: GrammarRole,
+    from_type_role: GrammarRole,
+    positional_payload_role: GrammarRole,
+    field_driver: VariantFieldDriverSpec,
+}
+```
+
+sequence form、layout frame、separator set、matching close、leading / trailing pipe flagはexisting Enum specから一切分岐しない。
+owner specが変えるのはouter recovery identityとdeclaration range sinkだけである。Error adapterは
+`DeclarationRole::Error(ErrorDeclarationRole::Variant(...))`を渡し、Enum adapterはexisting Enum roleを渡す。
+one ownerのdriver中にkeyword文字列で分岐しない。
+
+#### Payload / TypeExpression / field composition
+
+payload priority、TypeExpression slot、outer stops、`type_ml_arg` scope、nested episode suspensionはAuthoritative `ENUM-T`をそのまま使う。
+FromType / PositionalPayloadのcompletely missing outer primaryだけError owner roleへmapし、malformed primary / TypeApply / ArrowRhs /
+NamedRecord / Forall / EffectRow / PolymorphicVariant / BracketRowはexisting TypeRoleを保つ。
+
+named / tuple payloadはexisting `VariantFieldDriverSpec`へError owner rolesを追加する。AST valueはexisting
+`StructNamedField` / `StructTupleField`、direct CSTは`StructField`をreuseする。Struct / Enum roleを偽装せず、Errorの
+`VariantDeclarationRole::NamedField* / TupleFieldType`を渡す。Struct / Enum behaviorをbyte-identicalに保つ。
+
+`FromKw` / `StopKind::Pipe` / exact pipe scanner / layout authorityはEnumで導入済みのsame scoped mechanismをreuseする。
+Error-specific Pipe stop、episode counter、raw `active_stop_set().contains(...)` bypass、AST/direct別judgeを作らない。
+
+#### Derives composition
+
+`DerivesAttachmentOwner::Error`、`DerivesOwnerTailClassifier::ErrorHeader / ErrorTrailing`を追加し、existing
+`recognize_derives_attachment_start` / `drive_derives_clauses`をreuseする。Error Header RoleRef outer episodeは
+`LeftBrace | Colon | Equal | Semicolon`をone scoped frameへ入れ、nested TypeExpression episodeでsuspendする。
+
+Error TrailingはEnumと同じactual completed braced close後だけauthorityを持つ。Y2 Errorがheader parserとcommon tailを共有した事実は
+shared clause利用の根拠だが、completed-close restriction自体はY3のone-owner / ASOB safety ruleである。missing / mismatched close、
+equals / colon dedent、implicit / explicit bodyless後にはtrailing attachmentを開始しない。
+
+#### ASOB and state restoration
+
+name / body judge、each sequence boundary、payload TypeExpression、embedded field、trailing derivesのoriginal gapで
+`any_ambient_owner_claims`をapproved orderに従い一度だけ問う。Error local punctuation / pipe / layout authorityはaccepted Error owner内の
+actual evidenceだけに限り、outer semicolon / comma / matching close、equal-or-shallower dedent、If / Case / Catch companionを越えない。
+
+normal / Missing / Error / same-slot retry / rollbackのevery exitでinput、line、sink、ambient / If / delimiter / stop / indentation、
+Pattern layout、expression/type owner、ML flags、positional fence、TypeExpression episode depth / scoped frameをentry時へexact restoreする。
+
+### `ERROR-R`: typed recovery table
+
+```rust
+enum ErrorDeclarationRole {
+    Name,
+    BodyIntroducer,
+    Variant(VariantDeclarationRole),
+}
+```
+
+`VariantDeclarationRole`はEnumで導入済みのneutral inner-slot vocabulary
+（Item / Name / Separator / FromType / PositionalPayload / NamedField / NamedFieldName / NamedFieldColon / NamedFieldType /
+NamedFieldSeparator / TupleFieldType）をreuseする。outer pathが`DeclarationRole::Error(ErrorDeclarationRole::Variant(...))`なので、
+recovery recordをEnum ownerへaliasしない。
+
+| source / state | owner and recovery | continuation / non-consume |
+| --- | --- | --- |
+| `my error = 1` / `my error` + EOF or body punctuation | no Error recovery | intro全rollback、Binding authority |
+| `my error E = A` | Error normal | raw-head lookaheadはnameをconsumeしない |
+| bare / our / pub exact `error` + EOF / owner boundary | one zero-width Missing Name | boundary non-consume、parameter / BodyIntroducer cascadeなし |
+| accepted `error` + exact `{` / `:` / `=` / `;` | one Missing Name | same punctuationからbody retry、additional Missingなし |
+| malformed Name run + raw Identifier | one maximal Error Name | same slot retry、Complete Name |
+| malformed Name run reaches starter / boundary | one maximal Error Name、Name Incomplete | parameter / derives / BodyIntroducer cascadeなし |
+| zero / one-or-more declaration type variables | empty / literal parameter Vec | optional-list Missingなし、four starter preserved |
+| complete header + clean approved boundary | Bodyless Complete、semicolon None | zero recovery、boundary non-consume |
+| actual semicolon | Bodyless Complete、semicolon Some | literal token one-owner |
+| non-empty malformed body introducer + actual starter | one maximal Error BodyIntroducer | starter non-consume、same body judge retry |
+| non-empty malformed body introducer + boundary | one maximal Error BodyIntroducer、body Incomplete | clean empty runならimplicit BodylessなのでErrorなし |
+| brace / colon / equals sequence boundary rows | same `ENUM-R` Variant roles | Error outer pathだけ変更、separator / close / dedent cardinality同一 |
+| malformed variant + raw name / boundary | one Error Variant Name or Item | same-slot retry / next-slot convergence、whole bodyをabandonしない |
+| unit / from / named / tuple / positional payload rows | same `ENUM-R` inner slot semantics | Error duplicateなし、TypeRole / field role ownership維持 |
+| header derives missing / malformed | existing DerivesRole recovery only | starter preservation、Error duplicateなし |
+| actual completed braced close + trailing derives | existing DerivesAttachment / clause recovery | source order、outer boundary non-consume |
+| missing close / equals or colon dedentの`derives` | no trailing attachment authority | close / outer Statement ownerを保つ |
+
+`ENUM-R`のbrace empty、leading / repeated / trailing comma、colon / equals first-item Missing、leading / trailing / repeated pipe、
+malformed item retry、FromType / positional / field recovery rowはmechanicsを再定義せず、このtableの「same `ENUM-R`」rowへnormatively importする。
+fixtureはError outer roleへ置換したrecord pathとsame cardinalityを全rowで確認する。
+
+one accepted `error` = one ErrorDeclaration node、one accepted variant head = one existing EnumVariant node、
+one committed Missing / Error record = one recovery nodeである。Name failureへparameter / BodyIntroducerをcascadeしない。
+variant name / item failureへpayload Missingをcascadeしない。payload / field / Type failureへError body recoveryを重ねない。
+same-line raw words after complete variant nameはpositional payload evidenceで、missing separator splitを発明しない。
+
+### Root / nested dispatch and header discovery
+
+| caller | behavior |
+| --- | --- |
+| root `parse_declaration` | `Declaration::Error(ErrorDeclaration)`を返す |
+| direct root loop | `ErrorDeclaration` nodeをcommitする |
+| `parse_canonical_statement` | `Statement::Error(ErrorDeclaration)`を返す |
+| `commit_canonical_statement` | same Error direct adapterを`Statement` wrapper内で呼ぶ |
+| braced / indented / inline statement owner | shared canonical Statement dispatchからErrorをacceptする |
+| header discovery | source-leading Errorを`FirstNonHeader`として終了し、header factを作らない |
+
+root / nestedで別Error parserを作らない。sink-free introとisolated AST/direct continuationをpre-promotion gatesまで共有し、atomic promotionで
+root / direct root / AST canonical / direct canonical / header stopをsame changeへswitchする。`HeaderDeclaration::Error`、effect / constructor fact、
+variant registryをparserへ作らない。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- visibility / exact word / raw name / `DeclarationTypeParameter` scanner、range / line / checkpoint machinery。
+- Enumのfour-form variant-sequence transition、separator cluster、payload priority、TypeExpression episode / ML split。
+- existing `EnumBody` / `EnumVariant` / `EnumVariantPayload` AST valueと`EnumVariant` / `FromKw` CST vocabulary。
+- `VariantFieldDriverSpec`、Struct field AST / CST value、neutral field recovery mapping。
+- `DerivesAttachment` / `DerivesClause` driver、Header / safe Trailing position。
+- ASOB、layout / delimiter / stop / indentation / ambient owner、root / nested canonical dispatch。
+
+次を共有・追加しない。
+
+- ErrorDeclarationをEnumDeclarationへparse / aliasすること、Enum roleをError recoveryとしてemitすること。
+- Error-specific copy of variant sequence、payload parser、field loop、Pipe scanner、TypeExpression episode counter。
+- `ErrorVariant` / `ErrorBody` / payload / separator CST wrapper、synthetic pipe / comma / semicolon。
+- Error bodyをRole / Act canonical Statement bodyとしてparseすること。
+- parser-time effect / constructor / conversion / helper fact、`HeaderDeclaration::Error`。
+- declaration companion `with`、semantic `from` upcast、effect row / generated method lowering。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Shared grammar preserved:** keyword以外のheader / body / payload surfaceはchecked-in specの`enum_body`共有を保つ。
+2. **Equals-indent discrepancy named:** Y2 Error implementationだけequals-indent dispatchを欠いたが、specはsame `enum_body`を要求した。
+   Y3はAuthoritative Enum coreをreuseしてEqualsIndentedを受理する。
+3. **Contextual `my error` preserved:** raw head候補があるcaseだけErrorへ入り、`my error = 1`はBindingへ戻る。
+4. **Distinct declaration authority:** body valuesはsharedでもErrorDeclaration / ErrorKw / intro / range / derives / recoveryは独立する。
+5. **Shared `EnumVariant` vocabulary:** Y2 direct treeとcurrent Y3 vocabularyに合わせ、ErrorVariant wrapperを追加しない。
+6. **Typed recovery:** Y2 silent stop / generic failureをError outer role + neutral inner roleのMissing / Errorへ置換する。
+7. **Derives owner extension:** Headerとactual completed braced close後だけshared driverへ接続し、dedent越しに推測しない。
+8. **Companion deferred:** Y2 parserの`with` handlingをgeneric WithBodyTailへ読み替えない。
+9. **No semantic error claim:** fail / wrap / up / generated helpers / effect propagationはsyntax ASTから先のscopeである。
+10. **Header architecture:** Errorはfull syntaxだがheader factでなく、source-leading occurrenceは`FirstNonHeader`である。
+
+### Known residuals and deferred scope
+
+ASOB追補のfour-condition known residualはError variant payload TypeExpression、named / tuple field TypeExpression、header / trailing derives
+RoleRefにもEnumと同じ条件で適用する。Error-specific workaroundとしてall pipe / newline / closeをnested TypeExpressionへcarryしない。
+
+explicit deferred surfaceは次である。
+
+- declaration companion `with:` / `with {}`、companion member / derives item。
+- trailing derivesのequals / colon-indented form。
+- error effect declaration semantics、`fail`、constructor / pattern、`wrap` / `up`、from conversion、effect-row propagation。
+- duplicate error / variant / field、empty error validity、representation、exhaustiveness、recursive payload validation。
+- HIR / resolver / inference / diagnostics wording / formatter / syntax-reference page。
+- declaration-level `where`、Error-specific `via`、attributes / doc children、explicit discriminant syntax。
+
+future semantic addendumはError CST bytesをpost-parse rescanしない。constructor / effect / conversion factが必要ならError ASTからlowerし、
+parser recovery identityやEnum sequence ownerをsemantic meaningへ流用しない。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationは次の10 gateへ分ける。
+atomic promotionまでcurrent public parser behaviorを変えない。
+
+1. `ErrorDeclaration` / `ErrorKw` SyntaxKind、Error AST、`Declaration::Error` / `Statement::Error`、
+   `StatementIntro::Error` carrier、`StatementKind::ErrorDeclaration`、`DeclarationRole::Error(ErrorDeclarationRole)`を追加する。
+   Derives ownerへunreachable mechanical variantだけを足し、no dispatch / behavior change、full suite byte-identicalを固定する。
+2. sink-free `recognize_error_statement_intro`をisolated実装し、bare / our / pub unconditional recognition、my raw-head lookahead、
+   `my error = 1` rollback、exact-word / indentation / all-state restoreをfixture化する。
+3. mandatory raw Name / optional same-line `DeclarationTypeParameter` header adapterをAST/direct isolated実装する。
+   Name Missing / malformed retry、zero/multiple parameter、derives / body starter preservation、no-cascadeを固定する。
+4. shared Derives driverへError Header / actual-complete Braced Trailing owner specを追加する。four-stop episode、missing close non-authority、
+   Struct / Enum / Type behavior byte-identicalを固定する。
+5. existing Enum sequence / payload contextをneutral `VariantDeclarationOwnerSpec`へextractし、Enum behaviorをbyte-identicalに保ったまま
+   Error ownerを追加する。all four form、all payload、field / Type recovery identityをisolated fixtureで固定する。
+6. form-aware Error AST adapterとdirect-CST adapterをisolated実装し、本追補のthree worked exampleをbyte-exact、lossless、
+   AST-direct parity、zero recoveryで固定する。
+7. `ERROR-R`全rowとimportした`ENUM-R` variant / payload rowをError outer roleでfixture化する。one record = one node、same-slot retry、
+   no-cascade、separator / close / dedent preservationを閉じる。
+8. isolated Error adapterをroot / indented / braced / inline ambient、depth-2+ / If companion、all fixed boundary、normal / recovery / rollbackで包み、
+   input / line / sink / ambient / delimiter / stop / indentation / TypeExpression episodeその他all state exact restoreを固定する。
+9. `recognize_statement_intro`のEnum後 / Mod前へErrorを挿し、root / direct root / AST canonical / direct canonical / header stopを
+   same changeでatomic promotionする。public root / nested fixture、existing non-Error order / behavior zero regressionを固定する。
+10. final public matrixでall visibility、`my error` collision、all body / payload / derives / malformed form、AST/direct parity、losslessness、
+    full suiteを閉じる。`error` / `from`のordinary-word positionとsemantic / companion / HIR未実装scopeをworkspace-wideに固定する。
+
+### Open design questions and Claude review focus
+
+本Proposal初稿は次をreview対象として置く。
+
+- Y2 checked-in grammarを優先し、ErrorのEqualsIndentedをY2 parser implementationの欠落に合わせて削らない判断。
+- Error body AST / direct CSTでexisting `EnumBody` / `EnumVariant` vocabularyを共有し、declaration / recovery ownerだけを分離する判断。
+- existing enum-prefixed internal sequence namesをneutral coreへmechanical rename / parameterizeし、Enum fixtureをunmodifiedで保つ境界。
+- `my error`をEnum / Actと同じraw named-head lookahead、bare / our / pubをkeyword時点cutにする判断。
+- intro priorityをEnum後 / Mod前へ置き、current non-Error relative orderを動かさない判断。
+- Error Header / actual completed Braced Trailingだけをshared Derives driverへ接続する判断。
+- `ERROR-R`がvariant mechanicsを再記述せず`ENUM-R`をowner substitution付きでnormatively importする書き方。
+- Error semantic propagation / generated helpersをparser scopeから完全にdeferする境界。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
