@@ -23,8 +23,12 @@ use crate::{
         parse_canonical_statement,
     },
     grammar::{
-        pattern::{ParsedPattern, Pattern, parse_direct_pattern_with_outer_missing_role,
-            parse_pattern_with_outer_missing_role},
+        pattern::{ParsedPattern, Pattern, PatternMandatorySlotPolicy,
+            commit_direct_pattern_with_outer_missing_role_and_policy,
+            pattern_nud_candidate_input,
+            parse_direct_pattern_with_outer_missing_role,
+            parse_pattern_with_outer_missing_role,
+            parse_required_pattern_with_outer_missing_role_and_policy},
         type_expr::{
             TypeExpression, commit_direct_type_expression_with_outer_missing_role,
             commit_direct_type_expression_with_outer_missing_role_and_policy,
@@ -45,7 +49,7 @@ use crate::{
     session::{
         AmbientOwnerScopeKind, BindingRole, BracedBarrierOrigin, CommitOutput, Committed,
         CommittedRecoveryRecord, ConstructRole,
-        DeclarationRole, Delimiter, DerivesRole, ExpectationSources, ExpectedSyntax,
+        CastRole, DeclarationRole, Delimiter, DerivesRole, ExpectationSources, ExpectedSyntax,
         FullCstOutput, GrammarRole,
         ImplRole, ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
         LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
@@ -244,6 +248,7 @@ impl<'source, C> ParsedBindingDeclaration<'source, C> {
     pub(crate) fn definition(&self) -> Option<&ParsedBindingDefinition<C>> {
         self.definition.as_ref()
     }
+
 }
 
 impl<C> ParsedBindingDefinition<C> {
@@ -1041,6 +1046,950 @@ where
     } else {
         Recovered::Complete(range)
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct CastTargetEpisodeSpec {
+    stops: StopSet,
+    scoped_frame: TypeExpressionScopedStopFrame,
+    policy: TypeExpressionEpisodePolicy,
+    outer_role: GrammarRole,
+}
+
+/// The target type sees Cast's form punctuation only for its own outer
+/// TypeExpression episode. Recursive TypeExpression owners retain the raw
+/// bits, while the scoped frame suspends the Cast authority beneath them.
+fn cast_target_episode_spec(
+    incoming: StopSet,
+    current_episode_depth: usize,
+    ambient_newline_owner: Option<DeclarationBracedNewlineOwner>,
+) -> CastTargetEpisodeSpec {
+    let mut stops = incoming
+        .with(StopKind::Equal)
+        .with(StopKind::Semicolon);
+    let mut scoped_stops = StopSet::default()
+        .with(StopKind::Equal)
+        .with(StopKind::Semicolon);
+    if ambient_newline_owner.is_some() {
+        stops = stops.with(StopKind::Newline);
+        scoped_stops = scoped_stops.with(StopKind::Newline);
+    }
+    CastTargetEpisodeSpec {
+        stops,
+        scoped_frame: TypeExpressionScopedStopFrame {
+            stops: scoped_stops,
+            visible_episode_depth: current_episode_depth + 1,
+        },
+        policy: TypeExpressionEpisodePolicy::default(),
+        outer_role: GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType)),
+    }
+}
+
+fn parse_required_cast_target_type_isolated<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode = cast_target_episode_spec(
+        i.local.stop_set().unwrap_or_default(),
+        i.local.type_expression_episode_depth(),
+        declaration_braced_newline_owner_for_physical_newline(i.local),
+    );
+    i.local.push_stop_set(episode.stops);
+    i.local
+        .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    let parsed = i
+        .run(from_fn(|i| {
+            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
+                Some(episode.outer_role),
+                episode.policy,
+                i,
+            ))
+        }))
+        .expect("the mandatory Cast target type entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(episode.scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    match parsed {
+        Recovered::Complete(parsed) => Recovered::Complete(Box::new(parsed)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    }
+}
+
+fn commit_required_cast_target_type_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode = committed.probe(|probe| {
+        let i = probe.input();
+        cast_target_episode_spec(
+            i.local.stop_set().unwrap_or_default(),
+            i.local.type_expression_episode_depth(),
+            declaration_braced_newline_owner_for_physical_newline(i.local),
+        )
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(episode.stops);
+        i.local
+            .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    });
+    let parsed = commit_direct_type_expression_with_outer_missing_role_and_policy(
+        Some(episode.outer_role),
+        episode.policy,
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(episode.scoped_frame),
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    });
+    let range = parsed.range();
+    if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    }
+}
+
+fn cast_pattern_policy() -> PatternMandatorySlotPolicy {
+    PatternMandatorySlotPolicy {
+        fresh_primary_recovery_stops: StopSet::default()
+            .with(StopKind::Colon)
+            .with(StopKind::Equal),
+        recovered_primary_tail_stops: StopSet::default().with(StopKind::Colon),
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CastPrefixPhase {
+    PatternIntroducer,
+    PatternClose,
+    TargetIntroducer,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CastPrefixTarget {
+    OpenPattern,
+    Pattern,
+    LocalPatternClose,
+    OuterPatternClose,
+    TargetColon,
+    TargetType,
+    Form,
+    Boundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CastPrefixInvalidRun {
+    range: Range<usize>,
+    target: CastPrefixTarget,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CastPatternHandoff {
+    Target,
+    Form,
+    Boundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ParsedCastPatternPhase<'source> {
+    pattern: Recovered<CastPattern<'source>>,
+    handoff: CastPatternHandoff,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CommittedCastPatternPhase {
+    pattern: Recovered<Range<usize>>,
+    handoff: CastPatternHandoff,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CommittedCastPatternValue {
+    range: Range<usize>,
+    complete: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CastTargetHandoff {
+    Form,
+    Boundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ParsedCastTargetPhase<'source> {
+    target: Recovered<CastTarget<'source>>,
+    handoff: CastTargetHandoff,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CommittedCastTargetPhase {
+    target: Recovered<Range<usize>>,
+    handoff: CastTargetHandoff,
+}
+
+fn cast_target_type_candidate_input<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
+    let candidate = i.run(parse_type_expression).is_some();
+    i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
+    candidate
+}
+
+fn cast_prefix_outer_boundary_pending<E>(cast_base: usize, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() || any_ambient_owner_claims(i) {
+        return true;
+    }
+    if i.input.remainder().starts_with([',', ']', '}']) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let continues = mod_trivia(cast_base, i).is_some();
+    i.rollback(checkpoint);
+    !continues
+}
+
+fn cast_prefix_target<E>(
+    phase: CastPrefixPhase,
+    cast_base: usize,
+    has_local_pattern_frame: bool,
+    i: &mut SynIn<E>,
+) -> Option<CastPrefixTarget>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if phase == CastPrefixPhase::PatternIntroducer {
+        if i.input.remainder().starts_with('(') {
+            return Some(CastPrefixTarget::OpenPattern);
+        }
+        // Composite Pattern NUDs such as `:symbol` outrank Cast's target
+        // colon exactly as the neutral fresh-primary policy requires.
+        if pattern_nud_candidate_input(i) {
+            return Some(CastPrefixTarget::Pattern);
+        }
+    }
+    if phase == CastPrefixPhase::TargetIntroducer
+        && i.input.remainder().starts_with(':')
+    {
+        return Some(CastPrefixTarget::TargetColon);
+    }
+    if i.input.remainder().starts_with(')') {
+        return Some(if has_local_pattern_frame
+            && i.local.delimiter() == Some(Delimiter::Parenthesis)
+        {
+            CastPrefixTarget::LocalPatternClose
+        } else {
+            CastPrefixTarget::OuterPatternClose
+        });
+    }
+    if i.input.remainder().starts_with(':') {
+        return Some(CastPrefixTarget::TargetColon);
+    }
+    if i.input.remainder().starts_with([';', '=']) {
+        return Some(CastPrefixTarget::Form);
+    }
+    if phase == CastPrefixPhase::TargetIntroducer && cast_target_type_candidate_input(i) {
+        return Some(CastPrefixTarget::TargetType);
+    }
+    cast_prefix_outer_boundary_pending(cast_base, i).then_some(CastPrefixTarget::Boundary)
+}
+
+/// Advances one prefix-slot invalid episode but leaves the first actual
+/// retry candidate or downstream punctuation untouched. Trivia after the
+/// first malformed byte belongs to the same Error range; a caller-owned
+/// equal-or-shallower newline remains non-consuming.
+fn scan_cast_prefix_invalid_run<E>(
+    phase: CastPrefixPhase,
+    cast_base: usize,
+    has_local_pattern_frame: bool,
+    i: &mut SynIn<E>,
+) -> CastPrefixInvalidRun
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if let Some(target) = cast_prefix_target(phase, cast_base, has_local_pattern_frame, i) {
+            return CastPrefixInvalidRun {
+                range: start..i.pos(),
+                target,
+            };
+        }
+        let trivia_checkpoint = i.checkpoint();
+        if let Some(trivia) = i.run(scan_trivia).filter(|trivia| !trivia.is_empty()) {
+            debug_assert!(trivia.range().start >= start);
+            continue;
+        }
+        i.rollback(trivia_checkpoint);
+        i.input
+            .next()
+            .expect("a non-boundary Cast invalid byte remains available");
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn cast_pattern_handoff(target: CastPrefixTarget) -> CastPatternHandoff {
+    match target {
+        CastPrefixTarget::LocalPatternClose | CastPrefixTarget::TargetColon => {
+            CastPatternHandoff::Target
+        }
+        CastPrefixTarget::Form => CastPatternHandoff::Form,
+        CastPrefixTarget::OuterPatternClose | CastPrefixTarget::Boundary => {
+            CastPatternHandoff::Boundary
+        }
+        CastPrefixTarget::OpenPattern
+        | CastPrefixTarget::Pattern
+        | CastPrefixTarget::TargetType => {
+            unreachable!("a completed Cast pattern phase cannot hand off to this target")
+        }
+    }
+}
+
+fn emit_cast_recovery<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+    kind: RecoveryKind,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let unexpected = match kind {
+            RecoveryKind::Missing => Arc::from([]),
+            RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+        };
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            kind,
+            unexpected,
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    match kind {
+        RecoveryKind::Missing => committed.emit_missing(record),
+        RecoveryKind::Error => committed.emit_error(record),
+    }
+}
+
+fn emit_cast_slot_recovery<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: CastRole,
+    expected: ExpectedSyntax,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let kind = if range.is_empty() {
+        RecoveryKind::Missing
+    } else {
+        RecoveryKind::Error
+    };
+    emit_cast_recovery(
+        committed,
+        GrammarRole::Declaration(DeclarationRole::Cast(role)),
+        expected,
+        kind,
+        range,
+    );
+}
+
+fn emit_cast_pattern_close_recovery<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let kind = if range.is_empty() {
+        RecoveryKind::Missing
+    } else {
+        RecoveryKind::Error
+    };
+    emit_cast_recovery(
+        committed,
+        GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::CastPattern,
+            delimiter: Delimiter::Parenthesis,
+        },
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+            Delimiter::Parenthesis,
+        )),
+        kind,
+        range,
+    );
+}
+
+fn parse_required_cast_pattern_value_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<Pattern<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    i.run(from_fn(|i| {
+        Some(parse_required_pattern_with_outer_missing_role_and_policy(
+            table,
+            Some(GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern))),
+            cast_pattern_policy(),
+            i,
+        ))
+    }))
+    .expect("the mandatory Cast pattern entry is total")
+}
+
+fn commit_required_cast_pattern_value_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> CommittedCastPatternValue
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let parsed = commit_direct_pattern_with_outer_missing_role_and_policy(
+        table,
+        LeadingTrivia::None,
+        Some(GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern))),
+        cast_pattern_policy(),
+        committed,
+    );
+    CommittedCastPatternValue {
+        range: parsed.range(),
+        complete: parsed.is_complete(),
+    }
+}
+
+fn parse_cast_pattern_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    cast_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParsedCastPatternPhase<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading_checkpoint = i.checkpoint();
+    if mod_trivia(cast_base, i).is_none() {
+        i.rollback(leading_checkpoint);
+        return ParsedCastPatternPhase {
+            pattern: Recovered::Incomplete,
+            handoff: CastPatternHandoff::Boundary,
+        };
+    }
+    let introducer = scan_cast_prefix_invalid_run(
+        CastPrefixPhase::PatternIntroducer,
+        cast_base,
+        false,
+        i,
+    );
+    let has_group_evidence = matches!(
+        introducer.target,
+        CastPrefixTarget::OpenPattern | CastPrefixTarget::Pattern
+    );
+    if !has_group_evidence {
+        return ParsedCastPatternPhase {
+            pattern: Recovered::Incomplete,
+            handoff: cast_pattern_handoff(introducer.target),
+        };
+    }
+    let open = if introducer.target == CastPrefixTarget::OpenPattern {
+        i.run(from_fn(|mut i| scan_character(&mut i, '(')))
+    } else {
+        None
+    };
+    let has_local_frame = open.is_some();
+    if has_local_frame {
+        let _ = mod_trivia(cast_base, i);
+    }
+    let value_start = i.pos();
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
+        .with(StopKind::RightParenthesis);
+    i.local.push_stop_set(stops);
+    if has_local_frame {
+        i.local.push_delimiter(Delimiter::Parenthesis);
+    }
+    let value = parse_required_cast_pattern_value_isolated(table, i);
+    let value_complete = matches!(value, Recovered::Complete(_));
+    let close_trivia_checkpoint = i.checkpoint();
+    if mod_trivia(cast_base, i).is_none() {
+        i.rollback(close_trivia_checkpoint);
+    }
+    let (close, handoff) = if !value_complete {
+        let target = cast_prefix_target(
+            CastPrefixPhase::PatternClose,
+            cast_base,
+            has_local_frame,
+            i,
+        )
+        .unwrap_or(CastPrefixTarget::Boundary);
+        if target == CastPrefixTarget::LocalPatternClose {
+            let close = i
+                .run(from_fn(|mut i| scan_character(&mut i, ')')))
+                .expect("the inspected Cast-local close remains available");
+            (Recovered::Complete(close), CastPatternHandoff::Target)
+        } else {
+            (Recovered::Incomplete, cast_pattern_handoff(target))
+        }
+    } else {
+        let recovery = scan_cast_prefix_invalid_run(
+            CastPrefixPhase::PatternClose,
+            cast_base,
+            has_local_frame,
+            i,
+        );
+        if recovery.target == CastPrefixTarget::LocalPatternClose {
+            let close = i
+                .run(from_fn(|mut i| scan_character(&mut i, ')')))
+                .expect("the inspected Cast-local close remains available");
+            (Recovered::Complete(close), CastPatternHandoff::Target)
+        } else {
+            (
+                Recovered::Incomplete,
+                cast_pattern_handoff(recovery.target),
+            )
+        }
+    };
+    if has_local_frame {
+        assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
+    }
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let start = open.as_ref().map_or(value_start, |range| range.start);
+    let end = i.pos().max(start);
+    ParsedCastPatternPhase {
+        pattern: Recovered::Complete(CastPattern {
+            open: open.map_or(Recovered::Incomplete, Recovered::Complete),
+            value,
+            close,
+            range: start..end,
+        }),
+        handoff,
+    }
+}
+
+fn commit_cast_pattern_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    cast_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> CommittedCastPatternPhase
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed.probe(|probe| mod_trivia(cast_base, probe.input()));
+    let Some(leading) = leading else {
+        let at = committed.probe(|probe| probe.input().pos());
+        emit_cast_slot_recovery(
+            committed,
+            CastRole::PatternIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(
+                Delimiter::Parenthesis,
+            )),
+            at..at,
+        );
+        return CommittedCastPatternPhase {
+            pattern: Recovered::Incomplete,
+            handoff: CastPatternHandoff::Boundary,
+        };
+    };
+    committed.emit_trivia(&leading);
+    let introducer = committed.probe(|probe| {
+        scan_cast_prefix_invalid_run(
+            CastPrefixPhase::PatternIntroducer,
+            cast_base,
+            false,
+            probe.input(),
+        )
+    });
+    let has_group_evidence = matches!(
+        introducer.target,
+        CastPrefixTarget::OpenPattern | CastPrefixTarget::Pattern
+    );
+    if !has_group_evidence {
+        emit_cast_slot_recovery(
+            committed,
+            CastRole::PatternIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(
+                Delimiter::Parenthesis,
+            )),
+            introducer.range,
+        );
+        return CommittedCastPatternPhase {
+            pattern: Recovered::Incomplete,
+            handoff: cast_pattern_handoff(introducer.target),
+        };
+    }
+    committed.start_node(SyntaxKind::CastPattern);
+    if introducer.target == CastPrefixTarget::Pattern || !introducer.range.is_empty() {
+        emit_cast_slot_recovery(
+            committed,
+            CastRole::PatternIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(
+                Delimiter::Parenthesis,
+            )),
+            introducer.range.clone(),
+        );
+    }
+    let open = if introducer.target == CastPrefixTarget::OpenPattern {
+        commit_character(committed, '(')
+    } else {
+        None
+    };
+    if let Some(open) = &open {
+        committed.token(SyntaxKind::LParen, open.clone());
+    }
+    let has_local_frame = open.is_some();
+    if has_local_frame {
+        if let Some(trivia) = committed.probe(|probe| mod_trivia(cast_base, probe.input())) {
+            committed.emit_trivia(&trivia);
+        }
+    }
+    let value_start = committed.probe(|probe| probe.input().pos());
+    let stops = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
+            .with(StopKind::RightParenthesis)
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(stops);
+        if has_local_frame {
+            i.local.push_delimiter(Delimiter::Parenthesis);
+        }
+    });
+    let value = commit_required_cast_pattern_value_isolated(table, committed);
+    if let Some(trivia) = committed.probe(|probe| mod_trivia(cast_base, probe.input())) {
+        committed.emit_trivia(&trivia);
+    }
+    let (close, handoff) = if !value.complete {
+        let target = committed.probe(|probe| {
+            cast_prefix_target(
+                CastPrefixPhase::PatternClose,
+                cast_base,
+                has_local_frame,
+                probe.input(),
+            )
+            .unwrap_or(CastPrefixTarget::Boundary)
+        });
+        if target == CastPrefixTarget::LocalPatternClose {
+            let close = commit_character(committed, ')')
+                .expect("the inspected Cast-local close remains available");
+            committed.token(SyntaxKind::RParen, close.clone());
+            (Some(close), CastPatternHandoff::Target)
+        } else {
+            (None, cast_pattern_handoff(target))
+        }
+    } else {
+        let recovery = committed.probe(|probe| {
+            scan_cast_prefix_invalid_run(
+                CastPrefixPhase::PatternClose,
+                cast_base,
+                has_local_frame,
+                probe.input(),
+            )
+        });
+        if recovery.range.is_empty() && recovery.target == CastPrefixTarget::LocalPatternClose {
+            let close = commit_character(committed, ')')
+                .expect("the inspected Cast-local close remains available");
+            committed.token(SyntaxKind::RParen, close.clone());
+            (Some(close), CastPatternHandoff::Target)
+        } else {
+            emit_cast_pattern_close_recovery(committed, recovery.range);
+            if recovery.target == CastPrefixTarget::LocalPatternClose {
+                let close = commit_character(committed, ')')
+                    .expect("the inspected Cast-local close remains available");
+                committed.token(SyntaxKind::RParen, close.clone());
+                (Some(close), CastPatternHandoff::Target)
+            } else {
+                (None, cast_pattern_handoff(recovery.target))
+            }
+        }
+    };
+    committed.probe(|probe| {
+        let i = probe.input();
+        if has_local_frame {
+            assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
+        }
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+    });
+    let start = open.as_ref().map_or(value_start, |range| range.start);
+    let end = committed.probe(|probe| probe.input().pos()).max(start);
+    committed.finish_node();
+    let _ = close;
+    CommittedCastPatternPhase {
+        pattern: Recovered::Complete(start..end),
+        handoff,
+    }
+}
+
+fn parse_cast_target_isolated<'source, E>(
+    cast_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParsedCastTargetPhase<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    if mod_trivia(cast_base, i).is_none() {
+        i.rollback(checkpoint);
+        return ParsedCastTargetPhase {
+            target: Recovered::Incomplete,
+            handoff: CastTargetHandoff::Boundary,
+        };
+    }
+    let introducer = scan_cast_prefix_invalid_run(
+        CastPrefixPhase::TargetIntroducer,
+        cast_base,
+        false,
+        i,
+    );
+    let has_target_evidence = matches!(
+        introducer.target,
+        CastPrefixTarget::TargetColon | CastPrefixTarget::TargetType
+    );
+    if !has_target_evidence {
+        return ParsedCastTargetPhase {
+            target: Recovered::Incomplete,
+            handoff: if introducer.target == CastPrefixTarget::Form {
+                CastTargetHandoff::Form
+            } else {
+                CastTargetHandoff::Boundary
+            },
+        };
+    }
+    let colon = if introducer.target == CastPrefixTarget::TargetColon {
+        i.run(from_fn(|mut i| scan_character(&mut i, ':')))
+    } else {
+        None
+    };
+    if colon.is_some() {
+        let _ = mod_trivia(cast_base, i);
+    }
+    let value_start = i.pos();
+    let value = parse_required_cast_target_type_isolated(i);
+    let complete = matches!(value, Recovered::Complete(_));
+    let start = colon.as_ref().map_or(value_start, |range| range.start);
+    let end = i.pos().max(start);
+    ParsedCastTargetPhase {
+        target: Recovered::Complete(CastTarget {
+            colon: colon.map_or(Recovered::Incomplete, Recovered::Complete),
+            value,
+            range: start..end,
+        }),
+        handoff: if complete || i.input.remainder().starts_with([';', '=']) {
+            CastTargetHandoff::Form
+        } else {
+            CastTargetHandoff::Boundary
+        },
+    }
+}
+
+fn commit_cast_target_isolated<'parse, 'source, 'local, E, O>(
+    cast_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> CommittedCastTargetPhase
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed.probe(|probe| mod_trivia(cast_base, probe.input()));
+    let Some(leading) = leading else {
+        let at = committed.probe(|probe| probe.input().pos());
+        emit_cast_slot_recovery(
+            committed,
+            CastRole::TargetIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+            at..at,
+        );
+        return CommittedCastTargetPhase {
+            target: Recovered::Incomplete,
+            handoff: CastTargetHandoff::Boundary,
+        };
+    };
+    committed.emit_trivia(&leading);
+    let introducer = committed.probe(|probe| {
+        scan_cast_prefix_invalid_run(
+            CastPrefixPhase::TargetIntroducer,
+            cast_base,
+            false,
+            probe.input(),
+        )
+    });
+    let has_target_evidence = matches!(
+        introducer.target,
+        CastPrefixTarget::TargetColon | CastPrefixTarget::TargetType
+    );
+    if !has_target_evidence {
+        emit_cast_slot_recovery(
+            committed,
+            CastRole::TargetIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+            introducer.range,
+        );
+        return CommittedCastTargetPhase {
+            target: Recovered::Incomplete,
+            handoff: if introducer.target == CastPrefixTarget::Form {
+                CastTargetHandoff::Form
+            } else {
+                CastTargetHandoff::Boundary
+            },
+        };
+    }
+    committed.start_node(SyntaxKind::CastTarget);
+    if introducer.target == CastPrefixTarget::TargetType || !introducer.range.is_empty() {
+        emit_cast_slot_recovery(
+            committed,
+            CastRole::TargetIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+            introducer.range.clone(),
+        );
+    }
+    let colon = if introducer.target == CastPrefixTarget::TargetColon {
+        commit_character(committed, ':')
+    } else {
+        None
+    };
+    if let Some(colon) = &colon {
+        committed.token(SyntaxKind::Colon, colon.clone());
+    }
+    if colon.is_some() {
+        if let Some(trivia) = committed.probe(|probe| mod_trivia(cast_base, probe.input())) {
+            committed.emit_trivia(&trivia);
+        }
+    }
+    let value_start = committed.probe(|probe| probe.input().pos());
+    let value = commit_required_cast_target_type_isolated(committed);
+    let complete = matches!(value, Recovered::Complete(_));
+    let start = colon.as_ref().map_or(value_start, |range| range.start);
+    let end = committed.probe(|probe| probe.input().pos()).max(start);
+    committed.finish_node();
+    CommittedCastTargetPhase {
+        target: Recovered::Complete(start..end),
+        handoff: if complete
+            || committed.probe(|probe| probe.input().input.remainder().starts_with([';', '=']))
+        {
+            CastTargetHandoff::Form
+        } else {
+            CastTargetHandoff::Boundary
+        },
+    }
+}
+
+fn parse_cast_signature_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<CastDeclaration<'source>>
+where
+    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    let intro = i.run(recognize_cast_statement_intro)?;
+    let visibility = intro
+        .visibility
+        .map_or(Visibility::Private, |prefix| prefix.visibility);
+    let pattern = parse_cast_pattern_isolated(table, intro.cast_base, &mut i);
+    let target = if pattern.handoff == CastPatternHandoff::Target {
+        parse_cast_target_isolated(intro.cast_base, &mut i).target
+    } else {
+        Recovered::Incomplete
+    };
+    let declaration = CastDeclaration {
+        visibility,
+        pattern: pattern.pattern,
+        target,
+        form: Recovered::Incomplete,
+        range: intro.start..i.pos(),
+    };
+    i.errors_rollback(errors_checkpoint);
+    Some(declaration)
+}
+
+fn commit_cast_signature_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    intro: CastStatementIntro<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint =
+        committed.probe(|probe| probe.input().errors_checkpoint());
+    committed.start_node(SyntaxKind::CastDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility { committed.emit_trivia(trivia); }
+    }
+    committed.token(SyntaxKind::CastKw, intro.cast_keyword.range());
+    let pattern = commit_cast_pattern_isolated(table, intro.cast_base, committed);
+    if pattern.handoff == CastPatternHandoff::Target {
+        let _ = commit_cast_target_isolated(intro.cast_base, committed);
+    }
+    let end = committed.probe(|probe| probe.input().pos());
+    committed.finish_node();
+    committed.probe(|probe| {
+        probe.input().errors_rollback(errors_checkpoint);
+    });
+    Recovered::Complete(intro.start..end)
 }
 
 /// Shared AST Impl continuation used by root and canonical Statement dispatch.
@@ -23632,6 +24581,380 @@ mod tests {
             ("value cast", None),
         ] {
             run(source, expected);
+        }
+    }
+
+    #[test]
+    fn isolated_cast_signature_prefix_lattice_is_typed_lossless_and_ast_direct_exact() {
+        fn parse_ast(
+            source: &str,
+            outer_parenthesis: bool,
+        ) -> (CastDeclaration<'_>, String, Option<Delimiter>, Option<StopSet>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            if outer_parenthesis {
+                local.push_stop_set(
+                    StopSet::default().with(StopKind::RightParenthesis),
+                );
+                local.push_delimiter(Delimiter::Parenthesis);
+            }
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_cast_signature_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    i,
+                )
+                .expect("the isolated Cast intro establishes authority")
+            };
+            let merged = expectations.take_merged();
+            assert!(merged.is_none(), "AST sink: {source:?}: {merged:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (
+                declaration,
+                source_input.remainder().to_owned(),
+                local.delimiter(),
+                local.stop_set(),
+            )
+        }
+
+        fn commit_direct(
+            source: &str,
+            outer_parenthesis: bool,
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+            Option<Delimiter>,
+            Option<StopSet>,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            if outer_parenthesis {
+                local.push_stop_set(
+                    StopSet::default().with(StopKind::RightParenthesis),
+                );
+                local.push_delimiter(Delimiter::Parenthesis);
+            }
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_cast_statement_intro)
+                .expect("the isolated Cast intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_cast_signature_isolated(
+                &crate::operator::OperatorTable::empty(),
+                intro,
+                &mut committed,
+            );
+            let remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            if !remainder.is_empty() {
+                let trailing = committed.probe(|probe| {
+                    let i = probe.input();
+                    let start = i.pos();
+                    while i.input.next().is_some() {
+                        let mut line = i.local.line();
+                        line.at_line_start = false;
+                        i.local.set_line(line);
+                    }
+                    start..i.pos()
+                });
+                committed.token(SyntaxKind::Unknown, trailing);
+            }
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            let merged = expectations.take_merged();
+            assert!(merged.is_none(), "direct sink: {source:?}: {merged:?}");
+            let _ = is_cut;
+            (
+                range,
+                remainder,
+                root,
+                recoveries,
+                local.delimiter(),
+                local.stop_set(),
+            )
+        }
+
+        type Recovery = (RecoveryKind, GrammarRole, Range<usize>);
+        let recoveries = |records: &[CommittedRecoveryRecord]| -> Vec<Recovery> {
+            records
+                .iter()
+                .map(|record| {
+                    (
+                        record.kind,
+                        record.site.role,
+                        record.site.range.clone(),
+                    )
+                })
+                .collect()
+        };
+        let cast_role = |role| GrammarRole::Declaration(DeclarationRole::Cast(role));
+        let close_role = |owner| GrammarRole::ClosingDelimiter {
+            owner,
+            delimiter: Delimiter::Parenthesis,
+        };
+
+        struct Case {
+            source: &'static str,
+            outer_parenthesis: bool,
+            remainder: &'static str,
+            pattern_range: Option<Range<usize>>,
+            target_range: Option<Range<usize>>,
+            records: Vec<Recovery>,
+        }
+
+        let cases = vec![
+            Case {
+                source: "cast(x: A): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..10),
+                target_range: Some(10..13),
+                records: vec![],
+            },
+            Case {
+                source: "cast(@): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..7),
+                target_range: Some(7..10),
+                records: vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                    5..6,
+                )],
+            },
+            Case {
+                source: "cast(@x): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..8),
+                target_range: Some(8..11),
+                records: vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                    5..6,
+                )],
+            },
+            Case {
+                source: "cast x): B;",
+                outer_parenthesis: false,
+                remainder: "): B;",
+                pattern_range: Some(5..6),
+                target_range: None,
+                records: vec![
+                    (
+                        RecoveryKind::Missing,
+                        cast_role(CastRole::PatternIntroducer),
+                        5..5,
+                    ),
+                    (
+                        RecoveryKind::Missing,
+                        close_role(ConstructRole::CastPattern),
+                        6..6,
+                    ),
+                ],
+            },
+            Case {
+                source: "cast @ )",
+                outer_parenthesis: true,
+                remainder: ")",
+                pattern_range: None,
+                target_range: None,
+                records: vec![(
+                    RecoveryKind::Error,
+                    cast_role(CastRole::PatternIntroducer),
+                    5..7,
+                )],
+            },
+            Case {
+                source: "cast(x @): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..9),
+                target_range: Some(9..12),
+                records: vec![(
+                    RecoveryKind::Error,
+                    close_role(ConstructRole::CastPattern),
+                    7..8,
+                )],
+            },
+            Case {
+                source: "cast((x @): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..10),
+                target_range: Some(10..13),
+                records: vec![
+                    (
+                        RecoveryKind::Error,
+                        close_role(ConstructRole::ParenthesizedPattern),
+                        8..9,
+                    ),
+                    (
+                        RecoveryKind::Missing,
+                        close_role(ConstructRole::CastPattern),
+                        10..10,
+                    ),
+                ],
+            },
+            Case {
+                source: "cast([x): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..8),
+                target_range: Some(8..11),
+                records: vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::ListPattern,
+                        delimiter: Delimiter::Bracket,
+                    },
+                    7..7,
+                )],
+            },
+            Case {
+                source: "cast({x): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..8),
+                target_range: Some(8..11),
+                records: vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::RecordPattern,
+                        delimiter: Delimiter::Brace,
+                    },
+                    7..7,
+                )],
+            },
+            Case {
+                source: "cast(x: '[A): B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..12),
+                target_range: Some(12..15),
+                records: vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::EffectRowType,
+                        delimiter: Delimiter::Bracket,
+                    },
+                    11..11,
+                )],
+            },
+            Case {
+                source: "cast(x: A: B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..9),
+                target_range: Some(9..12),
+                records: vec![(
+                    RecoveryKind::Missing,
+                    close_role(ConstructRole::CastPattern),
+                    9..9,
+                )],
+            },
+            Case {
+                source: "cast(x) B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..7),
+                target_range: Some(8..9),
+                records: vec![(
+                    RecoveryKind::Missing,
+                    cast_role(CastRole::TargetIntroducer),
+                    8..8,
+                )],
+            },
+            Case {
+                source: "cast(x) @: B;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..7),
+                target_range: Some(9..12),
+                records: vec![(
+                    RecoveryKind::Error,
+                    cast_role(CastRole::TargetIntroducer),
+                    8..9,
+                )],
+            },
+            Case {
+                source: "cast({x = value}): '[A; B] T;",
+                outer_parenthesis: false,
+                remainder: ";",
+                pattern_range: Some(4..17),
+                target_range: Some(17..28),
+                records: vec![],
+            },
+        ];
+
+        for case in cases {
+            let (ast, ast_remainder, ast_delimiter, ast_stops) =
+                parse_ast(case.source, case.outer_parenthesis);
+            let (direct_range, direct_remainder, root, records, direct_delimiter, direct_stops) =
+                commit_direct(case.source, case.outer_parenthesis);
+            assert_eq!(ast_remainder, case.remainder, "AST remainder: {:?}", case.source);
+            assert_eq!(direct_remainder, case.remainder, "direct remainder: {:?}", case.source);
+            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert_eq!(
+                match &ast.pattern {
+                    Recovered::Complete(pattern) => Some(pattern.range.clone()),
+                    Recovered::Incomplete => None,
+                },
+                case.pattern_range,
+                "AST pattern range: {:?}",
+                case.source,
+            );
+            assert_eq!(
+                match &ast.target {
+                    Recovered::Complete(target) => Some(target.range.clone()),
+                    Recovered::Incomplete => None,
+                },
+                case.target_range,
+                "AST target range: {:?}",
+                case.source,
+            );
+            assert_eq!(recoveries(&records), case.records, "recoveries: {:?}", case.source);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                records.len(),
+                "one node = one record: {:?}",
+                case.source,
+            );
+            let expected_outer_delimiter = case
+                .outer_parenthesis
+                .then_some(Delimiter::Parenthesis);
+            let expected_outer_stops = case.outer_parenthesis.then_some(
+                StopSet::default().with(StopKind::RightParenthesis),
+            );
+            assert_eq!(ast_delimiter, expected_outer_delimiter, "AST delimiter: {:?}", case.source);
+            assert_eq!(direct_delimiter, expected_outer_delimiter, "direct delimiter: {:?}", case.source);
+            assert_eq!(ast_stops, expected_outer_stops, "AST stops: {:?}", case.source);
+            assert_eq!(direct_stops, expected_outer_stops, "direct stops: {:?}", case.source);
         }
     }
 

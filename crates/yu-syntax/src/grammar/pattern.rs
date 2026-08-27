@@ -51,11 +51,16 @@ enum PatternPrecedence {
     Alias = 3,
 }
 
-/// Additional caller-owned boundaries for one mandatory Pattern slot's fresh
-/// primary recovery only.
+/// Additional caller-owned boundaries for one mandatory Pattern slot.
+///
+/// Fresh-primary stops apply before the slot has accepted a NUD.  Recovered
+/// primary-tail stops apply only after that outermost NUD's own delimited
+/// close recovery consumed an error episode; recursive Pattern entries keep
+/// using the default policy and therefore retain their ordinary tails.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct PatternMandatorySlotPolicy {
     pub(crate) fresh_primary_recovery_stops: StopSet,
+    pub(crate) recovered_primary_tail_stops: StopSet,
 }
 
 /// The two pattern primaries with the same comma-delimited container contract.
@@ -486,18 +491,25 @@ where
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ParsedPattern<C> {
     range: Range<usize>,
+    complete: bool,
     marker: PhantomData<C>,
 }
 
 impl<C> ParsedPattern<C> {
-    fn new(range: Range<usize>) -> Self {
+    fn new(range: Range<usize>, complete: bool) -> Self {
         Self {
             range,
+            complete,
             marker: PhantomData,
         }
     }
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
+    }
+
+    /// Whether the mandatory outer primary ultimately accepted a Pattern NUD.
+    pub(crate) fn is_complete(&self) -> bool {
+        self.complete
     }
 }
 
@@ -529,13 +541,20 @@ where
 {
     let start = i.pos();
     let pattern_continuation_base = pattern_continuation_base(&i);
+    let mut primary_close_recovered = false;
     let head = match i.run(from_fn(|i| recognize_pattern_nud_with_fresh_primary_policy(policy, i))) {
-        Some(nud) => Recovered::Complete(parse_pattern_primary(table, nud, &mut i)),
+        Some(nud) => {
+            let (primary, close_recovered) = parse_pattern_primary(table, nud, &mut i);
+            primary_close_recovered = close_recovered;
+            Recovered::Complete(primary)
+        }
         None if recover_pattern_primary_ast_with_fresh_primary_policy(policy, &mut i) => {
             let nud = i
                 .run(from_fn(|i| recognize_pattern_nud_with_fresh_primary_policy(policy, i)) )
                 .expect("AST recovery stops at a pattern primary");
-            Recovered::Complete(parse_pattern_primary(table, nud, &mut i))
+            let (primary, close_recovered) = parse_pattern_primary(table, nud, &mut i);
+            primary_close_recovered = close_recovered;
+            Recovered::Complete(primary)
         }
         None => Recovered::Incomplete,
     };
@@ -544,9 +563,18 @@ where
     }
     let mut tails = Vec::new();
     let mut type_annotation = None;
-    while let Some(led) = i.run(from_fn(|i| {
-        recognize_pattern_led(minimum, pattern_continuation_base, i)
-    })) {
+    while !primary_close_recovered
+        || !recovered_primary_tail_stop_pending(
+            policy,
+            pattern_continuation_base,
+            &mut i,
+        )
+    {
+        let Some(led) = i.run(from_fn(|i| {
+            recognize_pattern_led(minimum, pattern_continuation_base, i)
+        })) else {
+            break;
+        };
         match led {
             PatternLedRecognition::Alias { keyword, .. } => {
                 consume_trivia(&mut i);
@@ -633,30 +661,41 @@ fn parse_pattern_primary<'source, E>(
     table: &OperatorTable,
     nud: PatternNudRecognition<'source>,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> PatternPrimary<'source>
+) -> (PatternPrimary<'source>, bool)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     match nud {
-        PatternNudRecognition::Name(name) => PatternPrimary::Identifier(name),
-        PatternNudRecognition::Integer(integer) => PatternPrimary::Integer(integer),
-        PatternNudRecognition::Symbol { colon, name } => PatternPrimary::Symbol(SymbolPattern {
-            range: colon.start..name.range().end,
-            colon,
-            name: Recovered::Complete(name),
-        }),
-        PatternNudRecognition::MalformedSymbol { colon } => PatternPrimary::Symbol(SymbolPattern {
-            range: colon.clone(),
-            colon,
-            name: Recovered::Incomplete,
-        }),
+        PatternNudRecognition::Name(name) => (PatternPrimary::Identifier(name), false),
+        PatternNudRecognition::Integer(integer) => (PatternPrimary::Integer(integer), false),
+        PatternNudRecognition::Symbol { colon, name } => (
+            PatternPrimary::Symbol(SymbolPattern {
+                range: colon.start..name.range().end,
+                colon,
+                name: Recovered::Complete(name),
+            }),
+            false,
+        ),
+        PatternNudRecognition::MalformedSymbol { colon } => (
+            PatternPrimary::Symbol(SymbolPattern {
+                range: colon.clone(),
+                colon,
+                name: Recovered::Incomplete,
+            }),
+            false,
+        ),
         PatternNudRecognition::Parenthesized { open } => {
-            PatternPrimary::Parenthesized(parse_parenthesized_pattern(table, open, i))
+            let (pattern, close_recovered) = parse_parenthesized_pattern(table, open, i);
+            (PatternPrimary::Parenthesized(pattern), close_recovered)
         }
-        PatternNudRecognition::List { open } => PatternPrimary::List(parse_list_pattern(table, open, i)),
-        PatternNudRecognition::Record { open } => PatternPrimary::Record(parse_record_pattern(table, open, i)),
+        PatternNudRecognition::List { open } => {
+            (PatternPrimary::List(parse_list_pattern(table, open, i)), false)
+        }
+        PatternNudRecognition::Record { open } => {
+            (PatternPrimary::Record(parse_record_pattern(table, open, i)), false)
+        }
     }
 }
 
@@ -688,7 +727,7 @@ where
     let opening_trivia = consume_trivia(i);
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
-    let (items, trailing_comma, close) =
+    let (items, trailing_comma, close, _) =
         parse_pattern_delimited_items_ast(policy, layout, caller_close_stops, i, |i| {
             parse_list_item_ast(table, i)
         });
@@ -737,7 +776,7 @@ where
     let opening_trivia = consume_trivia(i);
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
-    let (items, trailing_comma, close) =
+    let (items, trailing_comma, close, _) =
         parse_pattern_delimited_items_ast(policy, layout, caller_close_stops, i, |i| {
             parse_record_item_ast(table, i)
         });
@@ -879,7 +918,7 @@ fn parse_parenthesized_pattern<'source, E>(
     table: &OperatorTable,
     open: Range<usize>,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> ParenthesizedPattern<'source>
+) -> (ParenthesizedPattern<'source>, bool)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -892,7 +931,7 @@ where
     let opening_trivia = consume_trivia(i);
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
-    let (elements, trailing_comma, close) = parse_pattern_delimited_items_ast(
+    let (elements, trailing_comma, close, close_recovered) = parse_pattern_delimited_items_ast(
         policy,
         layout,
         caller_close_stops,
@@ -908,13 +947,16 @@ where
     };
     pop_pattern_layout_baseline(layout, i);
     pop_pattern_delimited_scope(policy, caller_close_stops, i);
-    ParenthesizedPattern {
-        open: open.clone(),
-        elements,
-        trailing_comma,
-        close,
-        range: open.start..end,
-    }
+    (
+        ParenthesizedPattern {
+            open: open.clone(),
+            elements,
+            trailing_comma,
+            close,
+            range: open.start..end,
+        },
+        close_recovered,
+    )
 }
 
 /// Runs the comma/close/retry control flow shared by the two fixed pattern
@@ -929,6 +971,7 @@ fn parse_pattern_delimited_items_ast<'source, E, Item>(
     Vec<Recovered<Item>>,
     Option<Range<usize>>,
     Recovered<Range<usize>>,
+    bool,
 )
 where
     E: ErrorSink<usize>,
@@ -937,6 +980,7 @@ where
 {
     let mut items = Vec::new();
     let mut trailing_comma = None;
+    let mut close_recovered = false;
     let close = if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
         Recovered::Complete(close)
     } else if outer_pattern_close_stop_pending(policy, caller_close_stops, i) {
@@ -976,7 +1020,10 @@ where
                     ParenthesizedPatternCloseRecoveryStep::Complete { close } => {
                         break 'items Recovered::Complete(close);
                     }
-                    ParenthesizedPatternCloseRecoveryStep::Error { .. } => continue,
+                    ParenthesizedPatternCloseRecoveryStep::Error { .. } => {
+                        close_recovered = true;
+                        continue;
+                    }
                     ParenthesizedPatternCloseRecoveryStep::Missing { .. } => {
                         break 'items Recovered::Incomplete;
                     }
@@ -990,7 +1037,7 @@ where
                 .map_or(Recovered::Incomplete, Recovered::Complete);
         }
     };
-    (items, trailing_comma, close)
+    (items, trailing_comma, close, close_recovered)
 }
 
 /// Shares the direct Parenthesized close scanner's cursor decisions with the
@@ -1192,6 +1239,32 @@ where
     let stops = policy.fresh_primary_recovery_stops;
     (stops.contains(StopKind::Colon) && colon_pending(i))
         || (stops.contains(StopKind::Equal) && exact_equals_pending_input(i))
+}
+
+/// Keeps a recovered outer primary's annotation-looking colon available to
+/// the mandatory slot owner.  The probe uses the same trivia eligibility as
+/// the canonical annotation LED and always restores the input and line state.
+fn recovered_primary_tail_stop_pending<E>(
+    policy: PatternMandatorySlotPolicy,
+    pattern_continuation_base: usize,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !policy
+        .recovered_primary_tail_stops
+        .contains(StopKind::Colon)
+    {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = consume_pattern_annotation_trivia(pattern_continuation_base, i).is_some()
+        && colon_pending(i);
+    i.rollback(checkpoint);
+    pending
 }
 
 fn arm_stop_pending<E>(i: &mut SynIn<E>) -> bool
@@ -1692,8 +1765,9 @@ where
     let start = committed_position(committed);
     let pattern_continuation_base = committed.probe(|probe| pattern_continuation_base(probe.input()));
     committed.start_node(SyntaxKind::Pattern);
+    let mut primary_close_recovered = false;
     let primary_accepted = if let Some(nud) = committed.probe(|probe| probe_pattern_nud_with_fresh_primary_policy(policy, probe)) {
-        commit_direct_primary(table, nud, committed);
+        primary_close_recovered = commit_direct_primary(table, nud, committed);
         true
     } else if committed.probe(pipe_pending) {
         // The RHS of `A | | B` owns a missing primary at the second pipe;
@@ -1702,7 +1776,13 @@ where
         false
     } else if let Some(retry) = direct_pattern_primary_error_retry_with_fresh_primary_policy(policy, committed, primary_role) {
         if retry {
-            commit_direct_primary(table, committed.probe(|probe| probe_pattern_nud_with_fresh_primary_policy(policy, probe)).expect("recovery retried a pattern NUD"), committed);
+            primary_close_recovered = commit_direct_primary(
+                table,
+                committed
+                    .probe(|probe| probe_pattern_nud_with_fresh_primary_policy(policy, probe))
+                    .expect("recovery retried a pattern NUD"),
+                committed,
+            );
             true
         } else {
             if policy.fresh_primary_recovery_stops == StopSet::default() {
@@ -1717,10 +1797,21 @@ where
     if !primary_accepted && policy.fresh_primary_recovery_stops != StopSet::default() {
         let end = committed_position(committed);
         committed.finish_node();
-        return Some(ParsedPattern::new(start..end));
+        return Some(ParsedPattern::new(start..end, false));
     }
 
     loop {
+        if primary_close_recovered
+            && committed.probe(|probe| {
+                recovered_primary_tail_stop_pending(
+                    policy,
+                    pattern_continuation_base,
+                    probe.input(),
+                )
+            })
+        {
+            break;
+        }
         let Some(led) = committed.probe(|probe| {
             probe_pattern_led(minimum, pattern_continuation_base, probe)
         }) else {
@@ -1792,7 +1883,7 @@ where
     }
     let end = committed_position(committed);
     committed.finish_node();
-    Some(ParsedPattern::new(start..end))
+    Some(ParsedPattern::new(start..end, primary_accepted))
 }
 
 fn probe_pattern_nud<'parse, 'source, 'local, E>(
@@ -1900,7 +1991,8 @@ fn commit_direct_primary<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     nud: PatternNudRecognition<'source>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where
+) -> bool
+where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
@@ -1916,17 +2008,20 @@ fn commit_direct_primary<'parse, 'source, 'local, E, O>(
             };
             committed.token(kind, name.range());
             committed.finish_node();
+            false
         }
         PatternNudRecognition::Integer(integer) => {
             committed.start_node(SyntaxKind::IntegerPattern);
             committed.token(SyntaxKind::Integer, integer.range());
             committed.finish_node();
+            false
         }
         PatternNudRecognition::Symbol { colon, name } => {
             committed.start_node(SyntaxKind::SymbolPattern);
             committed.token(SyntaxKind::Colon, colon);
             committed.token(SyntaxKind::Identifier, name.range());
             committed.finish_node();
+            false
         }
         PatternNudRecognition::MalformedSymbol { colon } => {
             committed.start_node(SyntaxKind::SymbolPattern);
@@ -1937,12 +2032,19 @@ fn commit_direct_primary<'parse, 'source, 'local, E, O>(
                 ExpectedSyntax::Identifier,
             );
             committed.finish_node();
+            false
         }
         PatternNudRecognition::Parenthesized { open } => {
             commit_direct_parenthesized_pattern(table, open, committed)
         }
-        PatternNudRecognition::List { open } => commit_direct_list_pattern(table, open, committed),
-        PatternNudRecognition::Record { open } => commit_direct_record_pattern(table, open, committed),
+        PatternNudRecognition::List { open } => {
+            commit_direct_list_pattern(table, open, committed);
+            false
+        }
+        PatternNudRecognition::Record { open } => {
+            commit_direct_record_pattern(table, open, committed);
+            false
+        }
     }
 }
 
@@ -1969,7 +2071,7 @@ fn commit_direct_list_pattern<'parse, 'source, 'local, E, O>(
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
     committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(
+    let _ = commit_direct_pattern_delimited_items(
         table,
         policy,
         layout,
@@ -2038,7 +2140,7 @@ fn commit_direct_record_pattern<'parse, 'source, 'local, E, O>(
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
     committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(
+    let _ = commit_direct_pattern_delimited_items(
         table,
         policy,
         layout,
@@ -2199,7 +2301,8 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where
+) -> bool
+where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
@@ -2225,7 +2328,7 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
         StopSet::default(),
         caller_close_stops,
         committed,
-    );
+    )
 }
 
 /// Runs the comma/close/retry control flow shared by parenthesized and list
@@ -2237,7 +2340,8 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
     outer_stops: StopSet,
     caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where
+) -> bool
+where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
@@ -2245,14 +2349,14 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
 {
     if direct_pattern_delimited_close(policy, committed) {
         finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-        return;
+        return false;
     }
     if committed.probe(|probe| {
         outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
     }) {
         emit_pattern_delimited_close_missing(policy, committed);
         finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-        return;
+        return false;
     }
 
     loop {
@@ -2260,7 +2364,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
             emit_pattern_delimited_close_missing(policy, committed);
             finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-            return;
+            return false;
         }
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
@@ -2270,27 +2374,27 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
             committed.emit_trivia(&trivia);
             if direct_pattern_delimited_close(policy, committed) {
                 finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-                return;
+                return false;
             }
             if committed.probe(|probe| {
                 outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
             }) {
                 emit_pattern_delimited_close_missing(policy, committed);
                 finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-                return;
+                return false;
             }
             continue;
         }
         if direct_pattern_delimited_close(policy, committed) {
             finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-            return;
+            return false;
         }
         if committed.probe(|probe| {
             outer_pattern_close_stop_pending(policy, caller_close_stops, probe.input())
         }) {
             emit_pattern_delimited_close_missing(policy, committed);
             finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-            return;
+            return false;
         }
         if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline {
             continue;
@@ -2303,16 +2407,17 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
             );
             continue;
         }
-        if recover_pattern_delimited_separator_or_close(
+        let (continue_items, close_recovered) = recover_pattern_delimited_separator_or_close(
             policy,
             outer_stops,
             caller_close_stops,
             committed,
-        ) {
+        );
+        if continue_items {
             continue;
         }
         finish_pattern_delimited_scope(policy, layout, caller_close_stops, committed);
-        return;
+        return close_recovered;
     }
 }
 
@@ -2359,7 +2464,7 @@ fn recover_pattern_delimited_separator_or_close<'parse, 'source, 'local, E, O>(
     outer_stops: StopSet,
     caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> bool
+) -> (bool, bool)
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -2368,14 +2473,32 @@ where
 {
     match policy {
         PatternDelimitedPolicy::Parenthesized => {
-            recover_pattern_delimited_close(policy, caller_close_stops, committed);
-            false
+            (
+                false,
+                recover_pattern_delimited_close(policy, caller_close_stops, committed),
+            )
         }
         PatternDelimitedPolicy::List => {
-            recover_list_separator_or_close(policy, outer_stops, caller_close_stops, committed)
+            (
+                recover_list_separator_or_close(
+                    policy,
+                    outer_stops,
+                    caller_close_stops,
+                    committed,
+                ),
+                false,
+            )
         }
         PatternDelimitedPolicy::Record => {
-            recover_record_separator_or_close(policy, outer_stops, caller_close_stops, committed)
+            (
+                recover_record_separator_or_close(
+                    policy,
+                    outer_stops,
+                    caller_close_stops,
+                    committed,
+                ),
+                false,
+            )
         }
     }
 }
@@ -2580,28 +2703,31 @@ fn recover_pattern_delimited_close<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
     caller_close_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where
+) -> bool
+where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     debug_assert_eq!(policy, PatternDelimitedPolicy::Parenthesized);
+    let mut recovered = false;
     loop {
         match committed.probe(|probe| {
             drive_parenthesized_pattern_close_recovery(caller_close_stops, probe.input())
         }) {
             ParenthesizedPatternCloseRecoveryStep::Complete { close } => {
                 committed.token(SyntaxKind::RParen, close);
-                return;
+                return recovered;
             }
             ParenthesizedPatternCloseRecoveryStep::Error { range, unexpected } => {
                 emit_pattern_delimited_close_error(policy, committed, range, unexpected);
+                recovered = true;
             }
             ParenthesizedPatternCloseRecoveryStep::Missing { at } => {
                 debug_assert_eq!(at, committed_position(committed));
                 emit_pattern_delimited_close_missing(policy, committed);
-                return;
+                return recovered;
             }
         }
     }
@@ -3084,8 +3210,14 @@ mod tests {
         assert_eq!(SyntaxNode::new_root(binding.green().clone()).to_string(), "my x: Int = 0");
         assert!(binding.committed_recoveries().is_empty());
 
-        let colon = PatternMandatorySlotPolicy { fresh_primary_recovery_stops: StopSet::default().with(StopKind::Colon) };
-        let equal = PatternMandatorySlotPolicy { fresh_primary_recovery_stops: StopSet::default().with(StopKind::Equal) };
+        let colon = PatternMandatorySlotPolicy {
+            fresh_primary_recovery_stops: StopSet::default().with(StopKind::Colon),
+            ..PatternMandatorySlotPolicy::default()
+        };
+        let equal = PatternMandatorySlotPolicy {
+            fresh_primary_recovery_stops: StopSet::default().with(StopKind::Equal),
+            ..PatternMandatorySlotPolicy::default()
+        };
         for (source, policy) in [("@: target", colon), ("@= target", equal)] {
             let (ast, remainder) = parse_required_with_policy(source, policy);
             assert!(matches!(ast, Recovered::Incomplete), "{source:?}: {ast:#?}");
@@ -3112,6 +3244,38 @@ mod tests {
             assert_eq!(remainder, "", "{source:?}");
             assert!(recoveries.is_empty(), "{source:?}: {recoveries:#?}");
         }
+
+        let recovered_tail = PatternMandatorySlotPolicy {
+            recovered_primary_tail_stops: StopSet::default().with(StopKind::Colon),
+            ..PatternMandatorySlotPolicy::default()
+        };
+        let (recovered, remainder) = parse_required_with_policy("(x @): Int", recovered_tail);
+        assert!(matches!(recovered, Recovered::Complete(pattern) if pattern.range() == (0..5)));
+        assert_eq!(remainder, ": Int");
+        let (remainder, recoveries) =
+            parse_direct_required_with_policy("(x @): Int", recovered_tail);
+        assert_eq!(remainder, ": Int");
+        assert!(matches!(recoveries.as_slice(), [record]
+            if record.kind == RecoveryKind::Error
+                && record.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ParenthesizedPattern,
+                    delimiter: Delimiter::Parenthesis,
+                }
+                && record.site.range == (3..4)), "{recoveries:#?}");
+
+        // Without the explicit recovered-tail reservation, the canonical
+        // Pattern grammar still owns its ordinary type annotation.
+        let (ordinary, remainder) = parse_required_with_policy(
+            "(x @): Int",
+            PatternMandatorySlotPolicy::default(),
+        );
+        assert!(matches!(ordinary, Recovered::Complete(pattern)
+            if pattern.type_annotation().is_some() && pattern.range() == (0..10)));
+        assert_eq!(remainder, "");
+        let (annotated, remainder) = parse_required_with_policy("x: Int", recovered_tail);
+        assert!(matches!(annotated, Recovered::Complete(pattern)
+            if pattern.type_annotation().is_some()));
+        assert_eq!(remainder, "");
     }
 
     #[test]
