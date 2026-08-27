@@ -1,8 +1,11 @@
 # Patterns
 
+Authored pages:
+
+- [Pattern core and parenthesized patterns](pattern-core.md)
+- [List patterns](list-pattern.md)
+
 Not yet authored:
 
-- Pattern core / parenthesized pattern
-- List pattern
 - Record pattern
 - Trailing `Pattern : TypeExpression` annotation
