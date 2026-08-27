@@ -14,12 +14,12 @@ use crate::{
         ActDeclaration, BindingDeclaration, CastDeclaration, EnumDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
         TypeDeclaration,
         UseDeclaration,
-        commit_act_declaration_isolated, commit_binding_declaration, commit_cast_declaration_isolated, commit_impl_declaration_isolated,
+        commit_act_declaration_isolated, commit_binding_declaration, commit_cast_declaration_isolated, commit_enum_declaration_isolated, commit_impl_declaration_isolated,
         commit_role_declaration_isolated, commit_type_declaration,
         commit_use_declaration,
         parse_binding_declaration_with_operators,
         commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
-        parse_act_declaration_isolated, parse_cast_declaration_form_aware_isolated, parse_impl_declaration_isolated,
+        parse_act_declaration_isolated, parse_cast_declaration_form_aware_isolated, parse_enum_declaration_isolated, parse_impl_declaration_isolated,
         parse_role_declaration_isolated, parse_struct_declaration, parse_type_declaration,
         parse_use_declaration,
         recognize_statement_intro,
@@ -1504,6 +1504,9 @@ where
             .run(from_fn(|i| parse_mod_declaration_with_operators(table, i)))
             .map(Statement::Mod),
         Some(StatementIntro::Struct(_)) => i.run(parse_struct_declaration).map(Statement::Struct),
+        Some(StatementIntro::Enum(_)) => i
+            .run(from_fn(parse_enum_declaration_isolated))
+            .map(Statement::Enum),
         Some(StatementIntro::Type(_)) => i.run(parse_type_declaration).map(Statement::Type),
         Some(StatementIntro::Role(_)) => i
             .run(from_fn(|i| parse_role_declaration_isolated(table, i)))
@@ -4270,6 +4273,7 @@ where
                     | StatementIntro::Use(_)
                     | StatementIntro::Mod(_)
                     | StatementIntro::Struct(_)
+                    | StatementIntro::Enum(_)
                     | StatementIntro::Type(_)
                     | StatementIntro::Role(_)
                     | StatementIntro::Impl(_)
@@ -4299,8 +4303,9 @@ where
             let _ = commit_struct_declaration(committed, intro);
             true
         }
-        Some(StatementIntro::Enum(_)) => {
-            unreachable!("Enum dispatch is introduced in its Gate 11 promotion")
+        Some(StatementIntro::Enum(intro)) => {
+            let _ = commit_enum_declaration_isolated(committed, intro);
+            true
         }
         Some(StatementIntro::Type(intro)) => {
             let _ = commit_type_declaration(committed, intro);
@@ -4347,6 +4352,7 @@ where
                 | StatementIntro::Use(_)
                 | StatementIntro::Mod(_)
                 | StatementIntro::Struct(_)
+                | StatementIntro::Enum(_)
                 | StatementIntro::Type(_)
                 | StatementIntro::Role(_)
                 | StatementIntro::Impl(_)

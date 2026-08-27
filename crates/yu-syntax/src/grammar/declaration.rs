@@ -428,8 +428,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_struct_declaration(&mut committed, intro);
                 StatementKind::StructDeclaration
             }
-            StatementIntro::Enum(_) => {
-                unreachable!("Enum dispatch is introduced in its Gate 11 promotion")
+            StatementIntro::Enum(intro) => {
+                let _ = commit_enum_declaration_isolated(&mut committed, intro);
+                StatementKind::EnumDeclaration
             }
             StatementIntro::Type(intro) => {
                 let _ = commit_type_declaration(&mut committed, intro);
@@ -719,6 +720,10 @@ where
 {
     if let Some(intro) = i.run(recognize_struct_statement_intro) {
         return Some(StatementIntro::Struct(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_enum_statement_intro) {
+        return Some(StatementIntro::Enum(intro));
     }
 
     if let Some(intro) = i.run(recognize_mod_statement_intro) {
@@ -7463,12 +7468,11 @@ where
     drive_enum_variant_sequence(&mut context, spec)
 }
 
-/// Parses one accepted Enum continuation without making Enum reachable from
-/// the public statement dispatcher. Header derives, body-form selection, and
-/// the variant sequence stay on this one isolated path until Gate 11 promotes
-/// the same adapter atomically.
+/// Parses one accepted Enum continuation shared by isolated fixtures and
+/// Gate 11's promoted public statement dispatch. Header derives, body-form
+/// selection, and the variant sequence remain on this one path.
 #[allow(dead_code)]
-fn parse_enum_declaration_isolated<'source, E>(
+pub(crate) fn parse_enum_declaration_isolated<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<EnumDeclaration<'source>>
 where
@@ -7842,7 +7846,7 @@ where
 /// Direct-CST counterpart of [`parse_enum_declaration_isolated`]. It emits
 /// only the approved declaration, variant, shared field, and derives CST
 /// vocabulary; body-form and sequence facts stay as source-order children
-/// until Gate 11 promotes this adapter into public dispatch.
+/// after Gate 11 promotes this adapter into public dispatch.
 pub(crate) fn commit_enum_declaration_isolated<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: EnumStatementIntro<'source>,
@@ -16097,6 +16101,7 @@ where
 {
     i.choice((
         parse_struct_declaration.map(Declaration::Struct),
+        from_fn(parse_enum_declaration_isolated).map(Declaration::Enum),
         parse_type_declaration.map(Declaration::Type),
         from_fn(|i| parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
             .map(Declaration::Role),
@@ -25908,13 +25913,17 @@ mod tests {
         // `derives` and `via` are contextual only inside an accepted clause.
         // These are real parser entrypoints, not isolated clause probes; even
         // a malformed Struct close must not invent a trailing attachment.
+        // `enum E derives Eq` is deliberately absent here: once Enum joined
+        // shared dispatch it became a real Header derives owner (see the
+        // enum-declaration addendum's ENUM-T "Derives composition" and its
+        // own Gate 11 real-dispatch fixture), so that source is no longer a
+        // negative case for this matrix.
         for source in [
             "my derives = 1\nmy via = 2",
             "struct Fields { derives: Int, via: String }",
             "type Nested = (derives via)",
             "struct Open { field: Int derives Eq",
             "my result = value with: derives Eq",
-            "enum E derives Eq",
             "impl Eq derives Debug",
         ] {
             let (public, direct_root, _) = parse_public_and_direct(source);
@@ -33548,6 +33557,176 @@ mod tests {
             assert_eq!(direct_local.line(), direct_before_line, "direct rollback line: {source:?}");
             assert!(direct_expectations.take_merged().is_none(), "direct rollback sink: {source:?}");
             assert!(!direct_cut, "direct rollback cut: {source:?}");
+        }
+    }
+
+    #[test]
+    fn enum_gate_11_real_dispatch_is_atomic_across_root_and_canonical_owners() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::EnumDeclaration),
+                node_ranges(&direct_root, SyntaxKind::EnumDeclaration),
+                "public/direct Enum range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> Range<usize> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Enum(declaration) = i
+                .run(parse_declaration)
+                .expect("the promoted root parser recognizes Enum")
+            else {
+                panic!("the exact Enum intro must win root declaration dispatch")
+            };
+            assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(!is_cut, "root AST cut: {source:?}");
+            declaration.range()
+        }
+
+        // Root AST, public parse_file, and direct root all select the same
+        // promoted continuation for Enum's body and payload forms.
+        for source in [
+            "enum E { A, B }",
+            "enum opt 't = nil | just 't",
+            "enum tree =\n    leaf\n    | node int",
+            "enum E { A { x: int }, B(int, str) }",
+            "enum choice derives Eq:\n    none\n    number int",
+        ] {
+            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::EnumDeclaration),
+                vec![0..source.len()],
+                "root Enum node: {source:?}",
+            );
+            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+        }
+
+        let nested_ast_source = "enum E { A, B }";
+        let mut source_input = SourceInput::new(nested_ast_source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let table = crate::operator::OperatorTable::empty();
+        let Some(Statement::Enum(declaration)) =
+            i.run(from_fn(|i| parse_canonical_statement(&table, i)))
+        else {
+            panic!("the promoted canonical Statement dispatcher recognizes Enum")
+        };
+        assert_eq!(declaration.range(), 0..nested_ast_source.len());
+        assert_eq!(i.input.remainder(), "");
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+
+        // Existing canonical statement owners reach the same promoted Enum
+        // continuation in both indented and braced bodies.
+        for source in [
+            "role Outer:\n  enum E { A, B }\n  my value = 1",
+            "my block = { enum E { A, B }\n  my value = 1 }",
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert!(
+                !node_ranges(&public, SyntaxKind::EnumDeclaration).is_empty(),
+                "canonical owner: {source:?}",
+            );
+            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+        }
+
+        // Enum retains its contextual `my` collision after joining shared
+        // recognition: the rejected Enum intro leaves Binding authority.
+        let (public, direct_root, direct) = parse_public_and_direct("my enum = 1");
+        assert!(node_ranges(&public, SyntaxKind::EnumDeclaration).is_empty());
+        assert_eq!(node_ranges(&public, SyntaxKind::BindingStatement), vec![0..11]);
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            node_ranges(&direct_root, SyntaxKind::BindingStatement),
+        );
+        assert!(direct.committed_recoveries().is_empty());
+
+        // Promoted malformed-body recovery remains Enum-owned through both
+        // public and direct root paths.
+        let (public, _, direct) = parse_public_and_direct("enum E @;");
+        assert_eq!(node_ranges(&public, SyntaxKind::EnumDeclaration), vec![0..9]);
+        let [record] = direct.committed_recoveries() else {
+            panic!("one promoted Enum recovery expected")
+        };
+        assert_eq!(
+            (record.kind, record.site.role, record.site.range.clone()),
+            (
+                RecoveryKind::Error,
+                GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::BodyIntroducer)),
+                7..8,
+            ),
+        );
+
+        // Enum is full-only: source-leading recognition stops header scanning
+        // without creating import, operator, or nominal header facts.
+        for source in ["enum E { A, B }", "pub enum E;"] {
+            let source: Arc<crate::SourceText> = Arc::from(source);
+            let header = crate::scan_header(source);
+            assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+            assert_eq!(header.coverage().range(), &(0..0));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
         }
     }
 
