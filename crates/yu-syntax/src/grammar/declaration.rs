@@ -40191,6 +40191,230 @@ mod tests {
     }
 
     #[test]
+    fn for_gate_10_final_public_matrix() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn identifier_tokens(root: &SyntaxNode, text: &str) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Identifier && token.text() == text)
+                .map(|token| syntax_range(token.text_range()))
+                .collect()
+        }
+
+        fn recovery_node_ranges(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ForStatement),
+                node_ranges(&direct_root, SyntaxKind::ForStatement),
+                "public/direct For range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_node_ranges(&public),
+                recovery_node_ranges(&direct_root),
+                "public/direct recovery-node parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_node_ranges(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        // FOR-J's label probe accepts only a composite followed by a real
+        // pattern, and leaves the colliding composite to the Pattern slot.
+        for source in [
+            "for 'outer x in xs: x",
+            "for 'x in xs: x",
+            "for 'outer in xs: x",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ForStatement),
+                vec![0..source.len()],
+                "label dispatch: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::ForStatement),
+                vec![0..source.len()],
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "label recovery: {source:?}"
+            );
+        }
+
+        // Every FOR-G body form, including the labelled indented spelling,
+        // reaches the public root and direct root without recovery.
+        for source in [
+            "for x in xs: x",
+            "for x in xs:\n  x",
+            "for x in xs { x }",
+            "for 'outer x in xs:\n  x",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ForStatement),
+                vec![0..source.len()],
+                "body form: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::ForStatement),
+                vec![0..source.len()],
+            );
+            assert!(direct.committed_recoveries().is_empty());
+        }
+
+        // Root and nested statement owners compose with For, without giving
+        // its inline or indented body ownership of an outer sibling.
+        for (source, expected_for_ranges, expected_bindings) in [
+            (
+                "for x in xs:\n  for y in ys:\n    y",
+                vec![0..33, 15..33],
+                Vec::new(),
+            ),
+            (
+                "my value = if ready:\n  for x in xs:\n    x",
+                vec![23..41],
+                vec![0..41],
+            ),
+            ("role R:\n  for x in xs:\n    x", vec![10..28], Vec::new()),
+            ("act A:\n  for x in xs:\n    x", vec![9..27], Vec::new()),
+            ("for x in xs:\n  x\nmy y = z", vec![0..16], vec![17..25]),
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ForStatement),
+                expected_for_ranges,
+                "nested/root interleaving: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ForStatement),
+                node_ranges(&direct_root, SyntaxKind::ForStatement),
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::BindingStatement),
+                expected_bindings,
+                "sibling ownership: {source:?}",
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "nested/root recovery: {source:?}"
+            );
+        }
+
+        // Re-run every FOR-R recovery family through the promoted public
+        // entrypoints: Pattern, `in`, iterable, body selection, and delegated
+        // braced-body recovery all retain one-record/one-node parity.
+        for source in [
+            "for",
+            "for in xs: x",
+            "for : x",
+            "for @ x in xs: x",
+            "for x xs: x",
+            "for x { x }",
+            "for x in: x",
+            "for x in",
+            "for x in @ xs: x",
+            "for x in xs:\nnext",
+            "for x in xs:",
+            "for x in xs",
+            "for x in xs @: x",
+            "for x in xs { x",
+            "for x in xs { @ }",
+            "for x in xs { x]",
+            "for 'x",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(
+                !node_ranges(&public, SyntaxKind::ForStatement).is_empty(),
+                "public malformed For owner: {source:?}",
+            );
+            assert!(
+                !recovery_node_ranges(&direct_root).is_empty(),
+                "public malformed For recovery: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_node_ranges(&public).len(),
+                "public recovery cardinality: {source:?}",
+            );
+        }
+
+        // `ForKw` remains type-position vocabulary for ForallType, while a
+        // statement-position For does not become a type primary.
+        let (public, direct_root, direct) = parse_public_and_direct("my value: for 'a: T = output");
+        for root in [&public, &direct_root] {
+            assert!(node_ranges(root, SyntaxKind::ForStatement).is_empty());
+            assert_eq!(node_ranges(root, SyntaxKind::ForallType), vec![10..19]);
+        }
+        assert!(direct.committed_recoveries().is_empty());
+
+        // `for` and `in` retain ordinary-word status outside their exact
+        // statement-intro and header-keyword positions.
+        for source in [
+            "my for = value",
+            "my value = for",
+            "my value = object.for",
+            "my in = value",
+            "my value = in",
+            "my value = object.in",
+            "for x in xs: for",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    !identifier_tokens(root, if source.contains("for") { "for" } else { "in" })
+                        .is_empty(),
+                    "ordinary word: {source:?}"
+                );
+            }
+            if source != "for x in xs: for" {
+                assert!(node_ranges(&public, SyntaxKind::ForStatement).is_empty());
+            }
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "ordinary-word recovery: {source:?}"
+            );
+        }
+    }
+
+    #[test]
     fn enum_required_header_isolated_is_raw_optional_and_recovery_exact() {
         type DirectRecovery = (RecoveryKind, GrammarRole, Range<usize>);
         const IF_WORDS: &[&str] = &["elsif", "else"];
