@@ -7639,6 +7639,21 @@ fn emit_enum_variant_item_missing<'parse, 'source, 'local, E, O>(
     committed.finish_node();
 }
 
+fn emit_error_variant_item_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.start_node(SyntaxKind::EnumVariant);
+    emit_variant_declaration_missing(
+        error_variant_declaration_owner_spec(0).item_role,
+        committed,
+        ExpectedSyntax::Identifier,
+    );
+    committed.finish_node();
+}
+
 fn emit_enum_declaration_error<'parse, 'source, 'local, E, O>(
     enum_role: EnumDeclarationRole,
     range: Range<usize>,
@@ -7651,6 +7666,41 @@ fn emit_enum_declaration_error<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let role = GrammarRole::Declaration(DeclarationRole::Enum(enum_role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn emit_error_declaration_error<'parse, 'source, 'local, E, O>(
+    error_role: ErrorDeclarationRole,
+    range: Range<usize>,
+    expected: ExpectedSyntax,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Error(error_role));
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -9378,10 +9428,29 @@ where
     }
     let starter = committed.probe(|probe| enum_direct_body_starter(error_base, probe.input()));
     let Some((trivia, starter)) = starter else {
-        // Gate 7 assigns Error-specific body-introducer recovery. Gate 6 only
-        // needs the successful form adapter and must leave a clean boundary
-        // bodyless without borrowing Enum recovery identity.
-        return false;
+        let trivia = committed.probe(|probe| {
+            let i = probe.input();
+            let checkpoint = i.checkpoint();
+            let trivia = mod_trivia(error_base, i);
+            i.rollback(checkpoint);
+            trivia
+        });
+        if let Some(trivia) = trivia {
+            let newline = committed
+                .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
+            if newline {
+                return false;
+            }
+            let consumed = committed
+                .probe(|probe| mod_trivia(error_base, probe.input()))
+                .expect("the Error body-introducer recovery retains its leading trivia");
+            assert_eq!(consumed.range(), trivia.range());
+            committed.emit_trivia(&consumed);
+        }
+        match error_body_introducer_error_retry(error_base, committed) {
+            Some(true) => return commit_error_body_isolated(error_base, committed),
+            Some(false) | None => return false,
+        }
     };
     let consumed_trivia = committed
         .probe(|probe| mod_trivia(error_base, probe.input()))
@@ -9448,18 +9517,39 @@ where
         i.rollback(checkpoint);
         layout
     });
-    matches!(
-        commit_variant_declaration_sequence_with_payload(
-            variant_declaration_sequence_spec(
-                VariantDeclarationSequenceForm::Braced,
-                layout,
-                error_base
-            ),
-            error_variant_declaration_owner_spec(error_base),
-            committed,
+    match commit_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::Braced,
+            layout,
+            error_base,
         ),
-        EnumVariantSequenceTermination::MatchingClose(_)
-    )
+        error_variant_declaration_owner_spec(error_base),
+        committed,
+    ) {
+        EnumVariantSequenceTermination::MatchingClose(_) => true,
+        EnumVariantSequenceTermination::MismatchedClose => {
+            let range = committed.probe(|probe| {
+                let i = probe.input();
+                let checkpoint = i.checkpoint();
+                let range = i
+                    .run(scan_punctuation)
+                    .map(|punctuation| punctuation.range());
+                i.rollback(checkpoint);
+                range.expect("a mismatched Error brace close remains at the cursor")
+            });
+            committed.probe(|probe| consume_source_range(range.clone(), probe.input()));
+            emit_enum_braced_close_error(range, committed);
+            emit_enum_braced_close_missing(committed);
+            false
+        }
+        EnumVariantSequenceTermination::Dedent
+        | EnumVariantSequenceTermination::OwnerBoundary
+        | EnumVariantSequenceTermination::EndOfInput
+        | EnumVariantSequenceTermination::ItemContinuation => {
+            emit_enum_braced_close_missing(committed);
+            false
+        }
+    }
 }
 
 fn commit_error_colon_body_isolated<'parse, 'source, 'local, E, O>(
@@ -9471,11 +9561,14 @@ fn commit_error_colon_body_isolated<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
     let trivia = committed
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scanning is total");
     let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
     if !enum_variant_trivia_has_newline(&trivia) || block_indent <= error_base {
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+        emit_error_variant_item_missing(committed);
         return;
     }
     committed.emit_trivia(&trivia);
@@ -9499,12 +9592,15 @@ fn commit_error_equals_body_isolated<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
     let trivia = committed
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scanning is total");
     if enum_variant_trivia_has_newline(&trivia) {
         let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
         if block_indent <= error_base {
+            committed.probe(|probe| probe.input().rollback(checkpoint));
+            emit_error_variant_item_missing(committed);
             return;
         }
         committed.emit_trivia(&trivia);
@@ -9529,6 +9625,45 @@ fn commit_error_equals_body_isolated<'parse, 'source, 'local, E, O>(
         error_variant_declaration_owner_spec(error_base),
         committed,
     );
+}
+
+fn error_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    error_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        loop {
+            let i = probe.input();
+            if enum_body_starter_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), true));
+            }
+            if enum_body_implicit_boundary_pending(error_base, i) {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            let character = i.input.remainder().chars().next()?;
+            if matches!(character, '\r' | '\n') {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            i.input.next()?;
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    })?;
+    emit_error_declaration_error(
+        ErrorDeclarationRole::BodyIntroducer,
+        recovered.0,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        committed,
+    );
+    Some(recovered.1)
 }
 
 /// This is intentionally local rather than a global reserved-word state:
@@ -21292,6 +21427,336 @@ mod tests {
             let mut actual = Vec::new();
             outline(&declaration, &mut actual);
             assert_eq!(actual, expected, "byte-exact CST: {source:?}");
+        }
+    }
+
+    #[test]
+    fn error_gate_7_recovery_matrix_uses_error_outer_roles() {
+        type Recovery = (RecoveryKind, GrammarRole, Range<usize>);
+
+        fn ast<'source>(source: &'source str) -> (ErrorDeclaration<'source>, String) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let declaration = parse_error_declaration_isolated(
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("accepted isolated Error intro");
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!cut, "AST cut: {source:?}");
+            (declaration, input.remainder().to_owned())
+        }
+
+        fn direct(source: &str) -> (Recovered<Range<usize>>, String, Vec<Recovery>) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_error_statement_intro)
+                .expect("accepted Error intro");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_error_declaration_isolated(&mut committed, intro);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect::<Vec<_>>();
+            if remainder.is_empty() {
+                let root = SyntaxNode::new_root(output.finish_complete());
+                assert_eq!(
+                    root.descendants()
+                        .filter(|node| matches!(
+                            node.kind(),
+                            SyntaxKind::Missing | SyntaxKind::Error
+                        ))
+                        .count(),
+                    records.len(),
+                    "one direct recovery node per record: {source:?}",
+                );
+                assert_eq!(
+                    root.to_string(),
+                    source,
+                    "lossless direct recovery: {source:?}"
+                );
+            }
+            assert!(sink.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!cut, "direct cut: {source:?}");
+            (range, remainder, records)
+        }
+
+        fn run<'source>(
+            source: &'source str,
+        ) -> (
+            ErrorDeclaration<'source>,
+            String,
+            Recovered<Range<usize>>,
+            String,
+            Vec<Recovery>,
+        ) {
+            let (declaration, ast_remainder) = ast(source);
+            let (direct_range, direct_remainder, records) = direct(source);
+            (
+                declaration,
+                ast_remainder,
+                direct_range,
+                direct_remainder,
+                records,
+            )
+        }
+
+        let error_role = |role| GrammarRole::Declaration(DeclarationRole::Error(role));
+        let variant_role = |role| error_role(ErrorDeclarationRole::Variant(role));
+        let close_role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::EnumBracedVariantBody,
+            delimiter: Delimiter::Brace,
+        };
+
+        for (source, remainder, at) in [
+            ("error", "", 5),
+            ("our error", "", 9),
+            ("pub error", "", 9),
+            ("error {", "{", 6),
+            ("error :", ":", 6),
+            ("error =", "=", 6),
+            ("error ;", ";", 6),
+        ] {
+            let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
+            assert!(
+                matches!(ast.name, Recovered::Incomplete),
+                "Name: {source:?}"
+            );
+            assert!(
+                matches!(ast.body, Recovered::Incomplete),
+                "body cascade: {source:?}"
+            );
+            assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
+            assert!(
+                matches!(direct_range, Recovered::Complete(range) if range.start == ast.range().start)
+            );
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Missing,
+                    error_role(ErrorDeclarationRole::Name),
+                    at..at
+                )],
+            );
+        }
+
+        for (source, remainder, expected, complete_name) in [
+            (
+                "error @ E;",
+                "",
+                vec![(
+                    RecoveryKind::Error,
+                    error_role(ErrorDeclarationRole::Name),
+                    6..8,
+                )],
+                true,
+            ),
+            (
+                "error @;",
+                ";",
+                vec![(
+                    RecoveryKind::Error,
+                    error_role(ErrorDeclarationRole::Name),
+                    6..7,
+                )],
+                false,
+            ),
+        ] {
+            let (ast, ast_remainder, _, direct_remainder, records) = run(source);
+            assert_eq!(
+                matches!(ast.name, Recovered::Complete(_)),
+                complete_name,
+                "Name retry: {source:?}"
+            );
+            assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
+            assert_eq!(records, expected, "Name recovery: {source:?}");
+            assert!(
+                records
+                    .iter()
+                    .all(|(_, role, _)| *role != error_role(ErrorDeclarationRole::BodyIntroducer))
+            );
+        }
+
+        for (source, remainder, expected) in [
+            (
+                "error E 'a @ { A }",
+                "",
+                vec![(
+                    RecoveryKind::Error,
+                    error_role(ErrorDeclarationRole::BodyIntroducer),
+                    11..13,
+                )],
+            ),
+            (
+                "error E @;",
+                "",
+                vec![(
+                    RecoveryKind::Error,
+                    error_role(ErrorDeclarationRole::BodyIntroducer),
+                    8..9,
+                )],
+            ),
+            (
+                "error E @,",
+                ",",
+                vec![(
+                    RecoveryKind::Error,
+                    error_role(ErrorDeclarationRole::BodyIntroducer),
+                    8..9,
+                )],
+            ),
+        ] {
+            let (_, ast_remainder, _, direct_remainder, records) = run(source);
+            assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
+            assert_eq!(records, expected, "BodyIntroducer recovery: {source:?}");
+        }
+
+        for (source, expected) in [
+            ("error E", vec![]),
+            ("error E;", vec![]),
+            ("error E {}", vec![]),
+            (
+                "error E {,A}",
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    10..10,
+                )],
+            ),
+            (
+                "error E {A,,B}",
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    12..12,
+                )],
+            ),
+            ("error E {A,}", vec![]),
+            (
+                "error E {A",
+                vec![(RecoveryKind::Missing, close_role, 10..10)],
+            ),
+        ] {
+            let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
+            assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
+            assert_eq!(records, expected, "braced recovery: {source:?}");
+        }
+
+        let (_, ast_remainder, direct_range, direct_remainder, records) = run("error E {A]");
+        assert_eq!(ast_remainder, "]");
+        assert_eq!(direct_remainder, "");
+        assert_eq!(direct_range, Recovered::Complete(0..11));
+        assert_eq!(
+            records,
+            vec![
+                (RecoveryKind::Error, close_role, 10..11),
+                (RecoveryKind::Missing, close_role, 11..11),
+            ],
+        );
+
+        for source in [
+            "error E:",
+            "error E:;",
+            "error E:,",
+            "error E:)",
+            "error E:\nnext",
+        ] {
+            let (_, _, _, _, records) = run(source);
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    8..8
+                )],
+                "colon first-item recovery: {source:?}",
+            );
+        }
+        for source in [
+            "error E =",
+            "error E =;",
+            "error E =,",
+            "error E =)",
+            "error E =\nnext",
+        ] {
+            let (_, _, _, _, records) = run(source);
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    9..9
+                )],
+                "equals first-item recovery: {source:?}",
+            );
+        }
+
+        for (source, expected_role) in [
+            ("error E = | A |", None),
+            ("error E = A || B", Some(VariantDeclarationRole::Item)),
+            ("error E { @ A, B }", Some(VariantDeclarationRole::Name)),
+            ("error E { @, B }", Some(VariantDeclarationRole::Item)),
+            (
+                "error E { From from, Next }",
+                Some(VariantDeclarationRole::FromType),
+            ),
+            (
+                "error E { Named { : Int }, Next }",
+                Some(VariantDeclarationRole::NamedFieldName),
+            ),
+            (
+                "error E { Tuple (, Int) }",
+                Some(VariantDeclarationRole::TupleFieldType),
+            ),
+        ] {
+            let (_, ast_remainder, _, direct_remainder, records) = run(source);
+            assert_eq!(ast_remainder, "", "AST recovery: {source:?}");
+            assert_eq!(direct_remainder, "", "direct recovery: {source:?}");
+            match expected_role {
+                None => assert!(records.is_empty(), "valid pipe recovery: {source:?}"),
+                Some(role) => {
+                    assert_eq!(records.len(), 1, "one imported ENUM-R record: {source:?}");
+                    assert_eq!(
+                        records[0].1,
+                        variant_role(role),
+                        "Error outer role: {source:?}"
+                    );
+                }
+            }
+        }
+
+        for source in [
+            "error E { From from @ Int, Next }",
+            "error E { Rect @ Int, Next }",
+        ] {
+            let (_, _, _, direct_remainder, records) = run(source);
+            assert_eq!(direct_remainder, "", "payload recovery: {source:?}");
+            assert_eq!(records.len(), 1, "one nested Type recovery: {source:?}");
+            assert!(
+                matches!(records[0].1, GrammarRole::Type(_)),
+                "Type role stays inner: {source:?}"
+            );
         }
     }
 
