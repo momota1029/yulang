@@ -4781,13 +4781,14 @@ where
     )
 }
 
-/// Reuses the canonical indented statement sequence while preserving the
-/// declaration-specific recovery identity of an Impl colon body.
-pub(crate) fn parse_indented_impl_body<'source, E>(
+/// Reuses the canonical indented statement sequence for the shared Impl-tail
+/// grammar while preserving its caller-provided recovery identity.
+pub(crate) fn parse_indented_impl_tail_body<'source, E>(
     table: &OperatorTable,
     opening_trivia: TriviaRun,
     base_indent: usize,
     block_indent: usize,
+    statement_role: GrammarRole,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> IndentedStatementBlock<'source>
 where
@@ -4802,9 +4803,7 @@ where
         block_indent,
         IndentedStatementBlockOptions {
             stops_for_if_companion: false,
-            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Impl(
-                crate::session::ImplRole::IndentedStatement,
-            ))),
+            statement_role: Some(statement_role),
         },
         i,
     )
@@ -5444,13 +5443,13 @@ pub(crate) fn commit_indented_mod_body<'parse, 'source, 'local, E, O>(
     );
 }
 
-/// Reuses the canonical indented statement sequence while preserving the
-/// declaration-specific recovery identity of an Impl colon body.
-pub(crate) fn commit_indented_impl_body<'parse, 'source, 'local, E, O>(
+/// Direct-CST counterpart of [`parse_indented_impl_tail_body`].
+pub(crate) fn commit_indented_impl_tail_body<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     opening_trivia: TriviaRun,
     base_indent: usize,
     block_indent: usize,
+    statement_role: GrammarRole,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -5465,9 +5464,7 @@ pub(crate) fn commit_indented_impl_body<'parse, 'source, 'local, E, O>(
         block_indent,
         IndentedStatementBlockOptions {
             stops_for_if_companion: false,
-            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Impl(
-                crate::session::ImplRole::IndentedStatement,
-            ))),
+            statement_role: Some(statement_role),
         },
         committed,
     );

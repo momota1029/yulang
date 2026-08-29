@@ -17,12 +17,12 @@ use crate::{
         BracedStatementBlockExpression, IndentedStatementBlock, IntroducedBodyLayout,
         OperatorChain, ParsedExpression, Statement, commit_braced_statement_block_expression,
         commit_canonical_statement, commit_indented_act_body, commit_indented_binding_body,
-        commit_indented_cast_body, commit_indented_for_body, commit_indented_impl_body,
+        commit_indented_cast_body, commit_indented_for_body, commit_indented_impl_tail_body,
         commit_indented_mod_body, commit_indented_role_body,
         parse_braced_statement_block_expression, parse_canonical_statement,
         parse_direct_expression_with_operators, parse_expression_with_operators,
         parse_indented_act_body, parse_indented_binding_body, parse_indented_cast_body,
-        parse_indented_for_body, parse_indented_impl_body, parse_indented_mod_body,
+        parse_indented_for_body, parse_indented_impl_tail_body, parse_indented_mod_body,
         parse_indented_role_body, probe_apostrophe_sigil_word, recognize_introduced_body_layout,
     },
     grammar::{
@@ -57,7 +57,7 @@ use crate::{
         IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, LayoutRole,
         ModRole, OperatorHeaderRole, ParseLocal, Probe, RecoveryKind, RecoverySiteKey,
         RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, StopKind, StopSet, SynIn,
-        SyntaxExpectation, TypeDelimitedOwner, TypeExpressionEpisodePolicy,
+        SyntaxExpectation, TypeDeclarationRole, TypeDelimitedOwner, TypeExpressionEpisodePolicy,
         TypeExpressionScopedStopFrame, UnexpectedSyntax, VariantDeclarationRole,
         any_ambient_owner_claims,
     },
@@ -2267,6 +2267,40 @@ enum ImplTypeExpressionSlot {
     Description,
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ImplTailOwner {
+    Standalone,
+    TypeAttached,
+}
+
+/// The sole owner-specific input to the shared post-keyword Impl grammar.
+/// Intro recognition, visibility, and the outer declaration node stay with
+/// the caller; this spec selects only layout and outer recovery ownership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ImplTailOwnerSpec {
+    owner: ImplTailOwner,
+    owner_base: usize,
+}
+
+impl ImplTailOwnerSpec {
+    fn grammar_role(self, role: ImplRole) -> GrammarRole {
+        match self.owner {
+            ImplTailOwner::Standalone => GrammarRole::Declaration(DeclarationRole::Impl(role)),
+            ImplTailOwner::TypeAttached => GrammarRole::Declaration(DeclarationRole::Type(
+                TypeDeclarationRole::AttachedImpl(role),
+            )),
+        }
+    }
+}
+
+fn standalone_impl_tail_owner_spec(owner_base: usize) -> ImplTailOwnerSpec {
+    ImplTailOwnerSpec {
+        owner: ImplTailOwner::Standalone,
+        owner_base,
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ImplTypeExpressionEpisodeSpec {
     stops: StopSet,
@@ -2279,6 +2313,7 @@ struct ImplTypeExpressionEpisodeSpec {
 /// logical episode. Nested TypeExpression episodes retain the raw stop bits
 /// while the scoped frame suspends their ownership there.
 fn impl_type_expression_episode_spec(
+    owner_spec: ImplTailOwnerSpec,
     slot: ImplTypeExpressionSlot,
     incoming: StopSet,
     current_episode_depth: usize,
@@ -2309,11 +2344,12 @@ fn impl_type_expression_episode_spec(
             fresh_primary_locally_owned_stops,
             fresh_primary_owns_adjacent_polymorphic_variant_starter: true,
         },
-        outer_role: GrammarRole::Declaration(DeclarationRole::Impl(role)),
+        outer_role: owner_spec.grammar_role(role),
     }
 }
 
-fn parse_required_impl_type_expression_isolated<'source, E>(
+fn parse_required_impl_tail_type_expression<'source, E>(
+    owner_spec: ImplTailOwnerSpec,
     slot: ImplTypeExpressionSlot,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Recovered<Box<TypeExpression<'source>>>
@@ -2323,6 +2359,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let episode = impl_type_expression_episode_spec(
+        owner_spec,
         slot,
         i.local.stop_set().unwrap_or_default(),
         i.local.type_expression_episode_depth(),
@@ -2352,7 +2389,8 @@ where
     }
 }
 
-fn commit_required_impl_type_expression_isolated<'parse, 'source, 'local, E, O>(
+fn commit_required_impl_tail_type_expression<'parse, 'source, 'local, E, O>(
+    owner_spec: ImplTailOwnerSpec,
     slot: ImplTypeExpressionSlot,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Recovered<Range<usize>>
@@ -2365,6 +2403,7 @@ where
     let episode = committed.probe(|probe| {
         let i = probe.input();
         impl_type_expression_episode_spec(
+            owner_spec,
             slot,
             i.local.stop_set().unwrap_or_default(),
             i.local.type_expression_episode_depth(),
@@ -2395,6 +2434,33 @@ where
     } else {
         Recovered::Complete(range)
     }
+}
+
+#[cfg(test)]
+fn parse_required_impl_type_expression_isolated<'source, E>(
+    slot: ImplTypeExpressionSlot,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_required_impl_tail_type_expression(standalone_impl_tail_owner_spec(0), slot, i)
+}
+
+#[cfg(test)]
+fn commit_required_impl_type_expression_isolated<'parse, 'source, 'local, E, O>(
+    slot: ImplTypeExpressionSlot,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_required_impl_tail_type_expression(standalone_impl_tail_owner_spec(0), slot, committed)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -5643,9 +5709,16 @@ where
     Recovered::Complete(intro.start..end)
 }
 
-/// Shared AST Impl continuation used by root and canonical Statement dispatch.
-/// The isolated name remains so the pre-promotion Gate 4-7 fixtures exercise
-/// exactly the same core promoted by Gate 8.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ParsedImplTail<'source> {
+    head: Recovered<Box<TypeExpression<'source>>>,
+    description: Option<ImplDescription<'source>>,
+    body: Recovered<ImplBody<'source>>,
+}
+
+/// Standalone AST adapter used by root and canonical Statement dispatch.
+/// Intro recognition and declaration realization stay here; the post-keyword
+/// grammar is shared with the future Type-owned adapter.
 pub(crate) fn parse_impl_declaration_isolated<'source, E>(
     table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
@@ -5661,24 +5734,17 @@ where
         let visibility = intro
             .visibility
             .map_or(Visibility::Private, |prefix| prefix.visibility);
-        let head = if any_ambient_owner_claims(&mut i) {
-            Recovered::Incomplete
-        } else {
-            let checkpoint = i.checkpoint();
-            if mod_trivia(intro.impl_base, &mut i).is_some() {
-                parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Head, &mut i)
-            } else {
-                i.rollback(checkpoint);
-                Recovered::Incomplete
-            }
-        };
-        let (description, body) = parse_impl_after_head_ast(table, intro.impl_base, &mut i);
+        let tail = parse_impl_tail_ast(
+            table,
+            standalone_impl_tail_owner_spec(intro.impl_base),
+            &mut i,
+        );
         let end = i.pos();
         Some(ImplDeclaration {
             visibility,
-            head,
-            description,
-            body,
+            head: tail.head,
+            description: tail.description,
+            body: tail.body,
             range: intro.start..end,
         })
     })();
@@ -5686,9 +5752,38 @@ where
     declaration
 }
 
+fn parse_impl_tail_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    owner_spec: ImplTailOwnerSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParsedImplTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let head = if any_ambient_owner_claims(i) {
+        Recovered::Incomplete
+    } else {
+        let checkpoint = i.checkpoint();
+        if mod_trivia(owner_spec.owner_base, i).is_some() {
+            parse_required_impl_tail_type_expression(owner_spec, ImplTypeExpressionSlot::Head, i)
+        } else {
+            i.rollback(checkpoint);
+            Recovered::Incomplete
+        }
+    };
+    let (description, body) = parse_impl_after_head_ast(table, owner_spec, i);
+    ParsedImplTail {
+        head,
+        description,
+        body,
+    }
+}
+
 fn parse_impl_after_head_ast<'source, E>(
     table: &crate::operator::OperatorTable,
-    impl_base: usize,
+    owner_spec: ImplTailOwnerSpec,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> (
     Option<ImplDescription<'source>>,
@@ -5703,7 +5798,7 @@ where
         return (None, Recovered::Incomplete);
     }
     let checkpoint = i.checkpoint();
-    let Some(_) = mod_trivia(impl_base, i) else {
+    let Some(_) = mod_trivia(owner_spec.owner_base, i) else {
         i.rollback(checkpoint);
         return (None, Recovered::Incomplete);
     };
@@ -5712,7 +5807,7 @@ where
     });
     let Some(colon) = colon else {
         i.rollback(checkpoint);
-        return (None, parse_impl_body_ast(table, impl_base, i));
+        return (None, parse_impl_body_ast(table, owner_spec, i));
     };
 
     let description_trivia_checkpoint = i.checkpoint();
@@ -5720,22 +5815,25 @@ where
     if i.input.source()[description_trivia.range()].contains(['\r', '\n']) {
         i.rollback(description_trivia_checkpoint);
         i.rollback(checkpoint);
-        return (None, parse_impl_body_ast(table, impl_base, i));
+        return (None, parse_impl_body_ast(table, owner_spec, i));
     }
-    let value =
-        parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Description, i);
+    let value = parse_required_impl_tail_type_expression(
+        owner_spec,
+        ImplTypeExpressionSlot::Description,
+        i,
+    );
     let description = ImplDescription {
         colon: colon.clone(),
         value,
         range: colon.start..i.pos(),
     };
-    let body = parse_impl_body_ast(table, impl_base, i);
+    let body = parse_impl_body_ast(table, owner_spec, i);
     (Some(description), body)
 }
 
 fn parse_impl_body_ast<'source, E>(
     table: &crate::operator::OperatorTable,
-    impl_base: usize,
+    owner_spec: ImplTailOwnerSpec,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Recovered<ImplBody<'source>>
 where
@@ -5747,14 +5845,14 @@ where
         return Recovered::Incomplete;
     }
     let checkpoint = i.checkpoint();
-    let Some(_) = mod_trivia(impl_base, i) else {
+    let Some(_) = mod_trivia(owner_spec.owner_base, i) else {
         i.rollback(checkpoint);
         return Recovered::Incomplete;
     };
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         if impl_body_introducer_error_retry_ast(i).is_some_and(|retry| retry) {
-            return parse_impl_body_ast(table, impl_base, i);
+            return parse_impl_body_ast(table, owner_spec, i);
         }
         return Recovered::Incomplete;
     };
@@ -5767,13 +5865,13 @@ where
         }),
         PunctuationKind::Colon => Recovered::Complete(ImplBody::Colon {
             colon: punctuation.range(),
-            body: parse_impl_colon_body_ast(table, impl_base, i)
+            body: parse_impl_colon_body_ast(table, owner_spec, i)
                 .map_or(Recovered::Incomplete, Recovered::Complete),
         }),
         _ => {
             i.rollback(checkpoint);
             if impl_body_introducer_error_retry_ast(i).is_some_and(|retry| retry) {
-                return parse_impl_body_ast(table, impl_base, i);
+                return parse_impl_body_ast(table, owner_spec, i);
             }
             Recovered::Incomplete
         }
@@ -5782,7 +5880,7 @@ where
 
 fn parse_impl_colon_body_ast<'source, E>(
     table: &crate::operator::OperatorTable,
-    impl_base: usize,
+    owner_spec: ImplTailOwnerSpec,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<ImplColonBody<'source>>
 where
@@ -5793,13 +5891,20 @@ where
     let checkpoint = i.checkpoint();
     let trivia = i.run(scan_trivia)?;
     if i.input.source()[trivia.range()].contains(['\r', '\n']) {
-        if i.local.line().line_indent <= impl_base {
+        if i.local.line().line_indent <= owner_spec.owner_base {
             i.rollback(checkpoint);
             return None;
         }
         let block_indent = i.local.line().line_indent;
         return Some(ImplColonBody::Indented {
-            block: parse_indented_impl_body(table, trivia, impl_base, block_indent, i),
+            block: parse_indented_impl_tail_body(
+                table,
+                trivia,
+                owner_spec.owner_base,
+                block_indent,
+                owner_spec.grammar_role(ImplRole::IndentedStatement),
+                i,
+            ),
         });
     }
     let ambient_scope = i.local.push_inline_canonical_statement_ambient_scope(
@@ -5828,8 +5933,8 @@ where
     body
 }
 
-/// Direct-CST counterpart of [`parse_impl_declaration_isolated`], shared by
-/// root and canonical Statement dispatch after Gate 8's atomic promotion.
+/// Standalone direct-CST adapter. The caller-owned wrapper ends at `ImplKw`;
+/// [`commit_impl_tail`] emits only the shared post-keyword continuation.
 pub(crate) fn commit_impl_declaration_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -5850,27 +5955,10 @@ where
         }
     }
     committed.token(SyntaxKind::ImplKw, intro.impl_keyword.range());
-
-    let head_terminated_incomplete = if committed
-        .probe(|probe| any_ambient_owner_claims(probe.input()))
-    {
-        true
-    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.impl_base, probe.input()))
-    {
-        committed.emit_trivia(&trivia);
-        matches!(
-            commit_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Head, committed),
-            Recovered::Incomplete
-        )
-    } else {
-        true
-    };
-
-    commit_impl_after_head_isolated(
+    commit_impl_tail(
         table,
-        intro.impl_base,
+        standalone_impl_tail_owner_spec(intro.impl_base),
         committed,
-        head_terminated_incomplete,
     );
     let end = committed_position(committed);
     committed.finish_node();
@@ -5880,9 +5968,41 @@ where
     Recovered::Complete(intro.start..end)
 }
 
-fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
+fn commit_impl_tail<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
-    impl_base: usize,
+    owner_spec: ImplTailOwnerSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let head_terminated_incomplete =
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            true
+        } else if let Some(trivia) =
+            committed.probe(|probe| mod_trivia(owner_spec.owner_base, probe.input()))
+        {
+            committed.emit_trivia(&trivia);
+            matches!(
+                commit_required_impl_tail_type_expression(
+                    owner_spec,
+                    ImplTypeExpressionSlot::Head,
+                    committed,
+                ),
+                Recovered::Incomplete
+            )
+        } else {
+            true
+        };
+
+    commit_impl_after_head(table, owner_spec, committed, head_terminated_incomplete);
+}
+
+fn commit_impl_after_head<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     head_terminated_incomplete: bool,
 ) where
@@ -5897,7 +6017,7 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
     let description = committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let result = mod_trivia(impl_base, i).and_then(|leading| {
+        let result = mod_trivia(owner_spec.owner_base, i).and_then(|leading| {
             let colon = i.run(scan_punctuation).and_then(|punctuation| {
                 (punctuation.kind() == PunctuationKind::Colon).then_some(punctuation.range())
             })?;
@@ -5908,13 +6028,13 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
         result
     });
     let Some((leading, colon)) = description else {
-        commit_impl_body_isolated(table, impl_base, committed, head_terminated_incomplete);
+        commit_impl_body(table, owner_spec, committed, head_terminated_incomplete);
         return;
     };
 
     let consumed_leading = committed
-        .probe(|probe| mod_trivia(impl_base, probe.input()))
-        .expect("the isolated description probe leaves its leading trivia at the cursor");
+        .probe(|probe| mod_trivia(owner_spec.owner_base, probe.input()))
+        .expect("the shared description probe leaves its leading trivia at the cursor");
     assert_eq!(consumed_leading.range(), leading.range());
     committed.emit_trivia(&consumed_leading);
     committed.start_node(SyntaxKind::ImplDescription);
@@ -5927,14 +6047,15 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scan is total");
     committed.emit_trivia(&trivia);
-    let description = commit_required_impl_type_expression_isolated(
+    let description = commit_required_impl_tail_type_expression(
+        owner_spec,
         ImplTypeExpressionSlot::Description,
         committed,
     );
     committed.finish_node();
-    commit_impl_body_isolated(
+    commit_impl_body(
         table,
-        impl_base,
+        owner_spec,
         committed,
         head_terminated_incomplete || matches!(description, Recovered::Incomplete),
     );
@@ -5947,9 +6068,9 @@ enum ImplBodyStarter {
     Colon(Range<usize>),
 }
 
-fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
+fn commit_impl_body<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
-    impl_base: usize,
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     upstream_slot_terminated_incomplete: bool,
 ) where
@@ -5964,7 +6085,7 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
     let starter = committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let starter = mod_trivia(impl_base, i).and_then(|trivia| {
+        let starter = mod_trivia(owner_spec.owner_base, i).and_then(|trivia| {
             let punctuation = i.run(scan_punctuation)?;
             let starter = match punctuation.kind() {
                 PunctuationKind::Semicolon => ImplBodyStarter::Bodyless(punctuation.range()),
@@ -5983,13 +6104,13 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
         let trivia = committed.probe(|probe| {
             let i = probe.input();
             let checkpoint = i.checkpoint();
-            let trivia = mod_trivia(impl_base, i);
+            let trivia = mod_trivia(owner_spec.owner_base, i);
             i.rollback(checkpoint);
             trivia
         });
         let Some(trivia) = trivia else {
             if !upstream_slot_terminated_incomplete {
-                emit_impl_body_introducer_missing(committed);
+                emit_impl_tail_body_introducer_missing(owner_spec, committed);
             }
             return;
         };
@@ -5997,34 +6118,34 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
             .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
         if newline {
             if !upstream_slot_terminated_incomplete {
-                emit_impl_body_introducer_missing(committed);
+                emit_impl_tail_body_introducer_missing(owner_spec, committed);
             }
             return;
         }
         let consumed_trivia = committed
-            .probe(|probe| mod_trivia(impl_base, probe.input()))
+            .probe(|probe| mod_trivia(owner_spec.owner_base, probe.input()))
             .expect("the Impl body-introducer recovery leaves its leading trivia at the cursor");
         assert_eq!(consumed_trivia.range(), trivia.range());
         committed.emit_trivia(&consumed_trivia);
-        match impl_body_introducer_error_retry(committed) {
+        match impl_body_introducer_error_retry(owner_spec, committed) {
             Some(true) => {
-                commit_impl_body_isolated(
+                commit_impl_body(
                     table,
-                    impl_base,
+                    owner_spec,
                     committed,
                     upstream_slot_terminated_incomplete,
                 );
             }
             Some(false) => {}
             None if !upstream_slot_terminated_incomplete => {
-                emit_impl_body_introducer_missing(committed)
+                emit_impl_tail_body_introducer_missing(owner_spec, committed)
             }
             None => {}
         }
         return;
     };
     let consumed_trivia = committed
-        .probe(|probe| mod_trivia(impl_base, probe.input()))
+        .probe(|probe| mod_trivia(owner_spec.owner_base, probe.input()))
         .expect("the accepted Impl body starter leaves its leading trivia at the cursor");
     assert_eq!(consumed_trivia.range(), trivia.range());
     committed.emit_trivia(&consumed_trivia);
@@ -6043,14 +6164,14 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
         ImplBodyStarter::Colon(range) => {
             assert_eq!(punctuation.range(), range);
             committed.token(SyntaxKind::Colon, range);
-            commit_impl_colon_body_isolated(table, impl_base, committed);
+            commit_impl_colon_body(table, owner_spec, committed);
         }
     }
 }
 
-fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
+fn commit_impl_colon_body<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
-    impl_base: usize,
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -6064,14 +6185,23 @@ fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
         .expect("trivia scan is total");
     let newline = committed
         .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
-    if newline && committed.probe(|probe| probe.input().local.line().line_indent <= impl_base) {
+    if newline
+        && committed.probe(|probe| probe.input().local.line().line_indent <= owner_spec.owner_base)
+    {
         committed.probe(|probe| probe.input().rollback(checkpoint));
-        emit_impl_body_missing(committed);
+        emit_impl_tail_body_missing(owner_spec, committed);
         return;
     }
     if newline {
         let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
-        commit_indented_impl_body(table, trivia, impl_base, block_indent, committed);
+        commit_indented_impl_tail_body(
+            table,
+            trivia,
+            owner_spec.owner_base,
+            block_indent,
+            owner_spec.grammar_role(ImplRole::IndentedStatement),
+            committed,
+        );
         return;
     }
     committed.emit_trivia(&trivia);
@@ -6086,11 +6216,11 @@ fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
     let statement_committed = if commit_canonical_statement(table, LeadingTrivia::None, committed) {
         true
     } else {
-        match impl_body_error_retry(table, committed) {
+        match impl_body_error_retry(table, owner_spec, committed) {
             Some(true) => commit_canonical_statement(table, LeadingTrivia::None, committed),
             Some(false) => false,
             None => {
-                emit_impl_body_missing(committed);
+                emit_impl_tail_body_missing(owner_spec, committed);
                 false
             }
         }
@@ -6216,6 +6346,7 @@ where
 }
 
 fn impl_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<bool>
 where
@@ -6246,7 +6377,8 @@ where
             i.local.set_line(line);
         }
     })?;
-    emit_impl_error(
+    emit_impl_tail_error(
+        owner_spec,
         committed,
         ImplRole::BodyIntroducer,
         ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
@@ -6257,6 +6389,7 @@ where
 
 fn impl_body_error_retry<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<bool>
 where
@@ -6294,7 +6427,8 @@ where
             }
         }
     })?;
-    emit_impl_error(
+    emit_impl_tail_error(
+        owner_spec,
         committed,
         ImplRole::Body,
         ExpectedSyntax::Statement,
@@ -14880,10 +15014,11 @@ fn emit_mod_body_introducer_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-/// Emits the one outer-body recovery owned by an accepted Impl declaration.
-/// The AST path represents the same terminal slot as `ImplBody::Incomplete`;
-/// direct CST additionally materializes the typed missing recovery node.
-fn emit_impl_body_introducer_missing<'parse, 'source, 'local, E, O>(
+/// Emits the one outer-body recovery owned by an accepted Impl tail. The AST
+/// path represents the same terminal slot as `ImplBody::Incomplete`; direct
+/// CST additionally materializes the owner-mapped missing recovery node.
+fn emit_impl_tail_body_introducer_missing<'parse, 'source, 'local, E, O>(
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -14892,7 +15027,7 @@ fn emit_impl_body_introducer_missing<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer));
+        let role = owner_spec.grammar_role(ImplRole::BodyIntroducer);
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
@@ -14934,16 +15069,23 @@ fn emit_impl_body_introducer_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-fn emit_impl_body_missing<'parse, 'source, 'local, E, O>(
+fn emit_impl_tail_body_missing<'parse, 'source, 'local, E, O>(
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    emit_impl_missing(committed, ImplRole::Body, ExpectedSyntax::Statement);
+    emit_impl_tail_missing(
+        owner_spec,
+        committed,
+        ImplRole::Body,
+        ExpectedSyntax::Statement,
+    );
 }
 
-fn emit_impl_missing<'parse, 'source, 'local, E, O>(
+fn emit_impl_tail_missing<'parse, 'source, 'local, E, O>(
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     role: ImplRole,
     expected: ExpectedSyntax,
@@ -14954,7 +15096,7 @@ fn emit_impl_missing<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = GrammarRole::Declaration(DeclarationRole::Impl(role));
+        let role = owner_spec.grammar_role(role);
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -14975,7 +15117,8 @@ fn emit_impl_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-fn emit_impl_error<'parse, 'source, 'local, E, O>(
+fn emit_impl_tail_error<'parse, 'source, 'local, E, O>(
+    owner_spec: ImplTailOwnerSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     impl_role: ImplRole,
     expected: ExpectedSyntax,
@@ -14986,7 +15129,7 @@ fn emit_impl_error<'parse, 'source, 'local, E, O>(
 {
     let record = committed.probe(|probe| {
         let i = probe.input();
-        let role = GrammarRole::Declaration(DeclarationRole::Impl(impl_role));
+        let role = owner_spec.grammar_role(impl_role);
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
