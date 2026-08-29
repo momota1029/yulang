@@ -5807,6 +5807,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let errors_checkpoint = i.errors_checkpoint();
     let leading = i
         .run(scan_trivia)
         .expect("the accepted Type-attached Impl gap remains at the cursor");
@@ -5823,13 +5824,15 @@ where
         i,
     );
     let end = i.pos();
-    TypeAttachedImpl {
+    let attached = TypeAttachedImpl {
         impl_keyword: keyword.range(),
         head: tail.head,
         description: tail.description,
         body: tail.body,
         range: keyword.range().start..end,
-    }
+    };
+    i.errors_rollback(errors_checkpoint);
+    attached
 }
 
 fn parse_impl_after_head_ast<'source, E>(
@@ -6031,6 +6034,12 @@ fn commit_impl_tail<'parse, 'source, 'local, E, O>(
 {
     let head_terminated_incomplete =
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            emit_impl_tail_missing(
+                owner_spec,
+                committed,
+                ImplRole::Head,
+                ExpectedSyntax::TypeExpression,
+            );
             true
         } else if let Some(trivia) =
             committed.probe(|probe| mod_trivia(owner_spec.owner_base, probe.input()))
@@ -6045,6 +6054,12 @@ fn commit_impl_tail<'parse, 'source, 'local, E, O>(
                 Recovered::Incomplete
             )
         } else {
+            emit_impl_tail_missing(
+                owner_spec,
+                committed,
+                ImplRole::Head,
+                ExpectedSyntax::TypeExpression,
+            );
             true
         };
 
@@ -6067,6 +6082,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
     let leading = committed
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("the accepted Type-attached Impl gap remains at the cursor");
@@ -6083,7 +6099,9 @@ where
         type_attached_impl_tail_owner_spec(start.type_base),
         committed,
     );
-    Recovered::Complete(keyword.range().start..committed_position(committed))
+    let range = Recovered::Complete(keyword.range().start..committed_position(committed));
+    committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+    range
 }
 
 fn commit_impl_after_head<'parse, 'source, 'local, E, O>(
@@ -6098,6 +6116,9 @@ fn commit_impl_after_head<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        if !head_terminated_incomplete {
+            emit_impl_tail_body_introducer_missing(owner_spec, committed);
+        }
         return;
     }
     let description = committed.probe(|probe| {
@@ -6166,6 +6187,9 @@ fn commit_impl_body<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        if !upstream_slot_terminated_incomplete {
+            emit_impl_tail_body_introducer_missing(owner_spec, committed);
+        }
         return;
     }
     let starter = committed.probe(|probe| {
@@ -33314,6 +33338,1146 @@ mod tests {
             ),
             "Gate 4 must not promote AttachedImpl through the public Type path",
         );
+    }
+
+    #[test]
+    fn type_attached_impl_gate_5_recovery_boundary_and_state_matrix_is_total_before_promotion() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Copy, Debug)]
+        enum Context {
+            Root,
+            RootState,
+            Indented,
+            Braced,
+            InlineAmbient,
+            CatchInline,
+            NestedIf,
+        }
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct State {
+            baseline: Option<IndentationBaseline>,
+            stops: Option<StopSet>,
+            delimiter: Option<Delimiter>,
+            expression_owner: Option<ExpressionDelimitedOwner>,
+            type_owner: Option<TypeDelimitedOwner>,
+            inline: bool,
+            ml_arg: bool,
+            type_ml_arg: bool,
+            positional_fence: Option<TypeMalformedCallerBoundaryFence>,
+            ambient: Vec<AmbientOwnerScopeFrame>,
+            if_depth: usize,
+            innermost_if: Option<IfExpressionCompanionId>,
+            type_episode_depth: usize,
+            type_episode_policy: Option<TypeExpressionEpisodePolicy>,
+            scoped_type_stops: Vec<TypeExpressionScopedStopFrame>,
+            lexical_mode: Option<crate::session::EmbeddedLexicalMode>,
+            staged_header_facts: usize,
+            operator_probes: usize,
+        }
+
+        fn snapshot(local: &ParseLocal) -> State {
+            State {
+                baseline: local.indentation_baseline(),
+                stops: local.stop_set(),
+                delimiter: local.delimiter(),
+                expression_owner: local.expression_delimited_owner(),
+                type_owner: local.type_delimited_owner(),
+                inline: local.inline(),
+                ml_arg: local.ml_arg(),
+                type_ml_arg: local.type_ml_arg(),
+                positional_fence: local.type_malformed_caller_boundary(),
+                ambient: local.ambient_owner_scope_frames().copied().collect(),
+                if_depth: local.if_expression_companion_depth(),
+                innermost_if: local.if_expression_companion().map(|frame| frame.id()),
+                type_episode_depth: local.type_expression_episode_depth(),
+                type_episode_policy: local.type_expression_episode_policy(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
+                lexical_mode: local.lexical_mode(),
+                staged_header_facts: local.staged_header_fact_count(),
+                operator_probes: local.operator_probe_count(),
+            }
+        }
+
+        fn install_context(local: &mut ParseLocal, context: Context, stop: StopKind) {
+            if matches!(context, Context::Root) {
+                local.push_stop_set(StopSet::default().with(stop));
+                return;
+            }
+            let base = matches!(context, Context::Indented | Context::NestedIf)
+                .then_some(2)
+                .unwrap_or(0);
+            local.push_indentation_baseline(IndentationBaseline {
+                column: base,
+                kind: IndentationBaselineKind::Block,
+            });
+            local.push_stop_set(StopSet::default().with(stop));
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: usize::MAX,
+            }));
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            local.push_type_expression_scoped_stop_frame(TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: episode_depth,
+            });
+            local.push_root_statement_ambient_scope();
+            match context {
+                Context::Root => unreachable!("plain root returned before state installation"),
+                Context::RootState => {}
+                Context::Indented => {
+                    local.push_indented_statement_ambient_scope(2);
+                }
+                Context::Braced => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    );
+                }
+                Context::InlineAmbient => {
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+                Context::CatchInline => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::ModColonBody,
+                    );
+                }
+                Context::NestedIf => {
+                    local.push_indented_statement_ambient_scope(2);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                }
+            }
+        }
+
+        fn skip_prefix<E>(prefix_len: usize, i: &mut SynIn<E>)
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            while i.pos() < prefix_len {
+                i.input.next().expect("the matrix prefix remains available");
+            }
+            if prefix_len > 0 {
+                i.local.set_line(LineState {
+                    at_line_start: false,
+                    ..i.local.line()
+                });
+            }
+        }
+
+        fn parse_isolated<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> TypeDeclaration<'source>
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            let intro = i
+                .run(recognize_type_statement_intro)
+                .expect("the Gate 5 AST harness starts with Type");
+            let mut header_recoveries = Vec::new();
+            let shared =
+                parse_type_declaration_shared_header_phase(&intro, i, &mut header_recoveries);
+            assert!(
+                header_recoveries.is_empty(),
+                "AttachedImpl requires a complete Type header"
+            );
+
+            let mut derives = Vec::new();
+            if matches!(shared.name, Recovered::Complete(_))
+                && let Some(start) = recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    intro.type_base,
+                    i,
+                )
+            {
+                let mut next_start = Some(start);
+                while let Some(start) = next_start.take() {
+                    let (attachment, repeated) = parse_derives_clause_isolated(
+                        start,
+                        type_attached_impl_header_derives_driver_spec(intro.type_base),
+                        i,
+                    );
+                    derives.push(attachment);
+                    next_start = repeated;
+                }
+            }
+
+            let start =
+                match classify_type_declaration_post_header(&shared.name, intro.type_base, i) {
+                    TypeDeclarationPostHeaderDecision::AttachedImpl(start) => start,
+                    decision => panic!("the Gate 5 harness requires AttachedImpl: {decision:?}"),
+                };
+            let attached = parse_type_attached_impl_isolated(
+                &crate::operator::OperatorTable::empty(),
+                start,
+                i,
+            );
+            TypeDeclaration {
+                visibility: intro
+                    .visibility
+                    .map_or(Visibility::Private, |prefix| prefix.visibility),
+                name: shared.name,
+                parameters: shared.parameters,
+                derives,
+                form: Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)),
+                range: intro.start..i.pos(),
+            }
+        }
+
+        fn commit_isolated<'parse, 'source, 'local, E, O>(
+            intro: TypeStatementIntro<'source>,
+            committed: &mut Committed<'parse, 'source, 'local, E, O>,
+        ) -> Range<usize>
+        where
+            E: ErrorSink<usize>,
+            O: CommitOutput<'source>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            committed.start_node(SyntaxKind::TypeDeclaration);
+            if let Some(visibility) = &intro.visibility {
+                emit_visibility(committed, visibility);
+                if let Some(trivia) = &intro.after_visibility {
+                    committed.emit_trivia(trivia);
+                }
+            }
+            committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
+
+            let (shared, header_recoveries, shared_end) = committed.probe(|probe| {
+                let i = probe.input();
+                let checkpoint = i.checkpoint();
+                let mut recoveries = Vec::new();
+                let shared = parse_type_declaration_shared_header_phase(&intro, i, &mut recoveries);
+                let end = i.pos();
+                i.rollback(checkpoint);
+                (shared, recoveries, end)
+            });
+            assert!(
+                header_recoveries.is_empty(),
+                "AttachedImpl requires a complete Type header"
+            );
+            commit_type_declaration_header_surface(
+                intro.type_base,
+                &ParsedTypeDeclarationHeader {
+                    name: shared.name.clone(),
+                    parameters: shared.parameters.clone(),
+                    equals: Recovered::Incomplete,
+                    rhs_retry: false,
+                },
+                header_recoveries,
+                shared_end,
+                committed,
+            );
+
+            let derives_start = committed.probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    intro.type_base,
+                    probe.input(),
+                )
+            });
+            let mut next_start = derives_start;
+            while let Some(start) = next_start.take() {
+                let (_, repeated) = commit_derives_clause_isolated(
+                    start,
+                    type_attached_impl_header_derives_driver_spec(intro.type_base),
+                    committed,
+                );
+                next_start = repeated;
+            }
+
+            let start = match committed.probe(|probe| {
+                classify_type_declaration_post_header(&shared.name, intro.type_base, probe.input())
+            }) {
+                TypeDeclarationPostHeaderDecision::AttachedImpl(start) => start,
+                decision => panic!("the Gate 5 harness requires AttachedImpl: {decision:?}"),
+            };
+            let _ = commit_type_attached_impl_isolated(
+                &crate::operator::OperatorTable::empty(),
+                start,
+                committed,
+            );
+            let range = intro.start..committed_position(committed);
+            committed.finish_node();
+            range
+        }
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+        ) -> (TypeDeclaration<'source>, String, LineState) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                skip_prefix(prefix_len, &mut i);
+                let before = snapshot(i.local);
+                let declaration = parse_isolated(&mut i);
+                assert_eq!(snapshot(&local), before, "AST state: {source:?}");
+                declaration
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (
+                declaration,
+                source_input.remainder().to_owned(),
+                local.line(),
+            )
+        }
+
+        fn commit_direct(
+            source: &str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+        ) -> (
+            Range<usize>,
+            String,
+            LineState,
+            Vec<CommittedRecoveryRecord>,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (range, remainder, records) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(chasa::prelude::uncut(chasa::prelude::from_fn_once(|i| {
+                    let mut probe = Probe::new(i);
+                    skip_prefix(prefix_len, probe.input());
+                    let before = snapshot(probe.input().local);
+                    let intro = probe
+                        .input()
+                        .run(recognize_type_statement_intro)
+                        .expect("the Gate 5 direct harness starts with Type");
+                    let mut committed = probe.commit(HeaderOutput::new());
+                    let range = commit_isolated(intro, &mut committed);
+                    let remainder =
+                        committed.probe(|probe| probe.input().input.remainder().to_owned());
+                    let after = committed.probe(|probe| snapshot(probe.input().local));
+                    assert_eq!(after, before, "direct state: {source:?}");
+                    let records = committed.into_output().committed_recoveries().to_vec();
+                    Some((range, remainder, records))
+                })))
+                .expect("the uncut direct Type-attached Impl matrix adapter is total")
+            };
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
+            assert!(!is_cut, "direct cut: {source:?}");
+            (range, remainder, local.line(), records)
+        }
+
+        fn commit_full(source: &str) -> (SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("the full Gate 5 harness starts with Type");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let _ = commit_isolated(intro, &mut committed);
+            committed.finish_node();
+            committed.probe(|probe| {
+                assert_eq!(
+                    probe.input().input.remainder(),
+                    "",
+                    "full cursor: {source:?}"
+                )
+            });
+            let output = committed.into_output();
+            let records = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "full losslessness: {source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                records.len(),
+                "one range = one node = one record: {source:?}",
+            );
+            assert!(
+                root.descendants()
+                    .all(|node| node.kind() != SyntaxKind::ImplDeclaration),
+                "Type ownership must stay flat: {source:?}",
+            );
+            assert!(
+                expectations.take_merged().is_none(),
+                "full sink: {source:?}"
+            );
+            let _ = is_cut;
+            (root, records)
+        }
+
+        fn attached<'a, 'source>(
+            declaration: &'a TypeDeclaration<'source>,
+        ) -> &'a TypeAttachedImpl<'source> {
+            let Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)) =
+                &declaration.form
+            else {
+                panic!("the isolated form must remain AttachedImpl")
+            };
+            attached
+        }
+
+        fn attached_role(role: ImplRole) -> GrammarRole {
+            GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::AttachedImpl(
+                role,
+            )))
+        }
+
+        fn recovery_tuples(
+            records: &[CommittedRecoveryRecord],
+        ) -> Vec<(RecoveryKind, GrammarRole, Range<usize>)> {
+            records
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect()
+        }
+
+        fn assert_case<'source>(
+            source: &'source str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+            expected_remainder: &str,
+        ) -> (TypeDeclaration<'source>, Vec<CommittedRecoveryRecord>) {
+            let (ast, ast_remainder, ast_line) = parse_ast(source, prefix_len, context, stop);
+            let (direct_range, direct_remainder, direct_line, records) =
+                commit_direct(source, prefix_len, context, stop);
+            assert_eq!(ast.range, direct_range, "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(ast_line, direct_line, "line state: {source:?}");
+            (ast, records)
+        }
+
+        // TAI-R: the complete bodyless form owns its terminal semicolon.
+        let source = "type Box 't impl Pick Int;";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        assert!(records.is_empty(), "{:?}", recovery_tuples(&records));
+        assert!(matches!(
+            attached(&declaration).head,
+            Recovered::Complete(ref head) if head.range() == (17..25)
+        ));
+        assert!(matches!(
+            attached(&declaration).body,
+            Recovered::Complete(ImplBody::Bodyless { ref semicolon }) if *semicolon == (25..26)
+        ));
+        let _ = commit_full(source);
+
+        // TAI-R: EOF, punctuation, and equal-or-shallower owner boundaries
+        // leave exactly one Head Missing and never cascade BodyIntroducer.
+        for (source, stop, remainder) in [
+            ("type Box impl", StopKind::RightBracket, ""),
+            ("type Box impl, tail", StopKind::Comma, ", tail"),
+            ("type Box impl) tail", StopKind::RightParenthesis, ") tail"),
+            ("type Box impl] tail", StopKind::RightBracket, "] tail"),
+            ("type Box impl} tail", StopKind::RightBrace, "} tail"),
+            ("type Box impl\nnext", StopKind::RightBracket, "\nnext"),
+        ] {
+            let (declaration, records) = assert_case(source, 0, Context::Root, stop, remainder);
+            assert!(matches!(attached(&declaration).head, Recovered::Incomplete));
+            assert!(matches!(attached(&declaration).body, Recovered::Incomplete));
+            let at = "type Box impl".len();
+            assert_eq!(
+                recovery_tuples(&records),
+                vec![(RecoveryKind::Missing, attached_role(ImplRole::Head), at..at)],
+                "missing head boundary: {source:?}",
+            );
+        }
+        let _ = commit_full("type Box impl");
+
+        // TAI-R: a missing head yields the unchanged literal body starter for
+        // same-position retry, including the newline-bearing body colon.
+        for source in [
+            "type Box impl;",
+            "type Box impl { my value = 1 }",
+            "type Box impl:\n  my value = 1",
+        ] {
+            let (declaration, records) =
+                assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+            assert!(matches!(attached(&declaration).head, Recovered::Incomplete));
+            assert_eq!(records.len(), 1, "one Head Missing: {source:?}");
+            assert_eq!(records[0].site.role, attached_role(ImplRole::Head));
+            assert!(matches!(
+                attached(&declaration).body,
+                Recovered::Complete(_)
+            ));
+            let _ = commit_full(source);
+        }
+
+        // TAI-R: adjacent `:{` remains one fresh polymorphic-variant head.
+        let source = "type Box impl:{ A };";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        assert!(records.is_empty());
+        assert!(matches!(
+            attached(&declaration).head,
+            Recovered::Complete(ref head) if head.range() == (13..19)
+        ));
+        assert!(attached(&declaration).description.is_none());
+        assert!(matches!(
+            attached(&declaration).body,
+            Recovered::Complete(ImplBody::Bodyless { .. })
+        ));
+        let _ = commit_full(source);
+
+        // TAI-R: malformed head recovery retains nested TypeRole ownership,
+        // retries a valid primary, or yields the body starter / caller boundary.
+        for (source, remainder, complete_head) in [
+            ("type Box impl @T;", "", true),
+            ("type Box impl @;", "", false),
+            ("type Box impl @, tail", ", tail", false),
+        ] {
+            let (declaration, records) = assert_case(
+                source,
+                0,
+                Context::Root,
+                if remainder.is_empty() {
+                    StopKind::RightBracket
+                } else {
+                    StopKind::Comma
+                },
+                remainder,
+            );
+            assert_eq!(
+                matches!(attached(&declaration).head, Recovered::Complete(_)),
+                complete_head,
+                "head retry: {source:?}",
+            );
+            let error = source.find('@').expect("malformed head fixture");
+            assert_eq!(
+                recovery_tuples(&records),
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                    error..error + 1,
+                )],
+                "nested head recovery only: {source:?}",
+            );
+            if remainder.is_empty() {
+                let _ = commit_full(source);
+            }
+        }
+
+        // TAI-R: a complete or recovered head without a body owns exactly one
+        // BodyIntroducer Missing, never Type's DefinitionIntroducer / Rhs.
+        for source in ["type Box impl T", "type Box impl @T"] {
+            let (_, records) = assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+            let body_records = records
+                .iter()
+                .filter(|record| record.site.role == attached_role(ImplRole::BodyIntroducer))
+                .count();
+            assert_eq!(body_records, 1, "one body-introducer recovery: {source:?}");
+            assert!(records.iter().all(|record| {
+                !matches!(
+                    record.site.role,
+                    GrammarRole::Declaration(DeclarationRole::Type(
+                        TypeDeclarationRole::DefinitionIntroducer | TypeDeclarationRole::Rhs
+                    ))
+                )
+            }));
+            let _ = commit_full(source);
+        }
+        for (stop, punctuation) in [
+            (StopKind::Comma, ","),
+            (StopKind::RightParenthesis, ")"),
+            (StopKind::RightBracket, "]"),
+            (StopKind::RightBrace, "}"),
+        ] {
+            let source = format!("type Box impl T{punctuation} tail");
+            let (_, records) = assert_case(
+                &source,
+                0,
+                Context::Root,
+                stop,
+                &format!("{punctuation} tail"),
+            );
+            assert_eq!(
+                recovery_tuples(&records),
+                vec![(
+                    RecoveryKind::Missing,
+                    attached_role(ImplRole::BodyIntroducer),
+                    15..15,
+                )],
+                "complete-head boundary: {source:?}",
+            );
+        }
+
+        // TAI-R: one malformed body-introducer run is owner-mapped, then each
+        // actual starter retries without an additional Missing.
+        for source in [
+            "type Box impl T @;",
+            "type Box impl T @ { my value = 1 }",
+            "type Box impl T @: my value = 1;",
+        ] {
+            let (declaration, records) =
+                assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+            assert!(matches!(
+                attached(&declaration).body,
+                Recovered::Complete(_)
+            ));
+            let error = source.find('@').expect("malformed introducer fixture");
+            let recovery_end = error
+                + source[error..]
+                    .find(|character| matches!(character, ';' | '{' | ':'))
+                    .expect("the fixture has a retry starter");
+            assert_eq!(
+                recovery_tuples(&records),
+                vec![(
+                    RecoveryKind::Error,
+                    attached_role(ImplRole::BodyIntroducer),
+                    error..recovery_end,
+                )],
+                "body-introducer retry: {source:?}",
+            );
+            let _ = commit_full(source);
+        }
+
+        // TAI-R: the first same-line colon owns a complete description and
+        // returns to the body judge at the same cursor.
+        let source = "type Box impl T: D;";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        assert!(records.is_empty());
+        assert!(matches!(
+            attached(&declaration).description,
+            Some(ImplDescription { value: Recovered::Complete(ref value), .. })
+                if value.range() == (17..18)
+        ));
+        assert!(matches!(
+            attached(&declaration).body,
+            Recovered::Complete(ImplBody::Bodyless { .. })
+        ));
+        let _ = commit_full(source);
+
+        // TAI-R's blocking source: Pick Int is the complete head; the final
+        // colon opens a same-line description whose missing value is the sole
+        // recovery. The same EOF cannot also create BodyIntroducer recovery.
+        let source = "type Box 't impl Pick Int:";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        let blocking_attached = attached(&declaration);
+        assert!(matches!(
+            blocking_attached.head,
+            Recovered::Complete(ref head) if head.range() == (17..25)
+        ));
+        assert!(matches!(
+            blocking_attached.description,
+            Some(ImplDescription {
+                ref colon,
+                value: Recovered::Incomplete,
+                ref range,
+            }) if *colon == (25..26) && *range == (25..26)
+        ));
+        assert!(matches!(blocking_attached.body, Recovered::Incomplete));
+        assert_eq!(
+            recovery_tuples(&records),
+            vec![(
+                RecoveryKind::Missing,
+                attached_role(ImplRole::Description),
+                26..26,
+            )],
+        );
+        assert!(records.iter().all(|record| {
+            !matches!(
+                record.site.role,
+                GrammarRole::Declaration(DeclarationRole::Type(
+                    TypeDeclarationRole::DefinitionIntroducer
+                        | TypeDeclarationRole::Rhs
+                        | TypeDeclarationRole::AttachedImpl(ImplRole::BodyIntroducer)
+                ))
+            )
+        }));
+        let (root, full_records) = commit_full(source);
+        assert_eq!(recovery_tuples(&full_records), recovery_tuples(&records));
+        assert!(
+            root.descendants()
+                .all(|node| node.kind() != SyntaxKind::ImplDeclaration)
+        );
+
+        // TAI-R: a malformed description run retains nested TypeRole recovery
+        // and retries the same description slot before the body semicolon.
+        let source = "type Box impl T: @D;";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        assert!(matches!(
+            attached(&declaration).description,
+            Some(ImplDescription {
+                value: Recovered::Complete(_),
+                ..
+            })
+        ));
+        let error = source.find('@').expect("malformed description fixture");
+        assert_eq!(
+            recovery_tuples(&records),
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                error..error + 1,
+            )],
+        );
+        let _ = commit_full(source);
+
+        // TAI-R: inline and indented canonical Statement bodies reuse their
+        // existing owners; the inline terminal semicolon is Type-owned.
+        for source in [
+            "type Box impl T: D: my value = 1;",
+            "type Box impl T:\n  my value = 1",
+        ] {
+            let (declaration, records) =
+                assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+            assert!(records.is_empty(), "complete colon body: {source:?}");
+            assert!(matches!(
+                attached(&declaration).body,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Complete(_),
+                    ..
+                })
+            ));
+            let _ = commit_full(source);
+        }
+
+        // A brace or indented body ends before the caller's following
+        // semicolon; only bodyless and colon-inline forms own one themselves.
+        for (source, remainder) in [
+            ("type Box impl T { my value = 1 }; tail", "; tail"),
+            ("type Box impl T:\n  my value = 1\n; tail", "\n; tail"),
+        ] {
+            let (declaration, records) =
+                assert_case(source, 0, Context::Root, StopKind::Semicolon, remainder);
+            assert!(records.is_empty(), "outer semicolon: {source:?}");
+            assert!(matches!(
+                attached(&declaration).body,
+                Recovered::Complete(_)
+            ));
+        }
+
+        // TAI-R: an absent literal-colon body is one Body Missing. EOF,
+        // semicolon, comma, matching closes, and equal-or-shallower newline
+        // remain unconsumed when they belong to the caller.
+        for (source, stop, remainder) in [
+            ("type Box impl T: D:", StopKind::RightBracket, ""),
+            ("type Box impl T: D:; tail", StopKind::Semicolon, "; tail"),
+            ("type Box impl T: D:, tail", StopKind::Comma, ", tail"),
+            (
+                "type Box impl T: D:) tail",
+                StopKind::RightParenthesis,
+                ") tail",
+            ),
+            (
+                "type Box impl T: D:] tail",
+                StopKind::RightBracket,
+                "] tail",
+            ),
+            ("type Box impl T: D:} tail", StopKind::RightBrace, "} tail"),
+            ("type Box impl T:\nnext", StopKind::RightBracket, "\nnext"),
+        ] {
+            let (declaration, records) = assert_case(source, 0, Context::Root, stop, remainder);
+            assert!(matches!(
+                attached(&declaration).body,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
+            ));
+            assert_eq!(records.len(), 1, "one Body Missing: {source:?}");
+            assert_eq!(records[0].kind, RecoveryKind::Missing);
+            assert_eq!(records[0].site.role, attached_role(ImplRole::Body));
+        }
+        let _ = commit_full("type Box impl T: D:");
+
+        // TAI-R: brace close and malformed nested Statement recovery stay
+        // entirely with their existing inner owners.
+        for source in [
+            "type Box impl T { my value = 1",
+            "type Box impl T { type Item = @Int }",
+        ] {
+            let (_, records) = assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+            assert!(!records.is_empty(), "delegated inner recovery: {source:?}");
+            assert!(records.iter().all(|record| {
+                !matches!(
+                    record.site.role,
+                    GrammarRole::Declaration(DeclarationRole::Type(
+                        TypeDeclarationRole::AttachedImpl(_)
+                    ))
+                )
+            }));
+            let _ = commit_full(source);
+        }
+
+        // TAI-R: the isolated Type-header derives spec hands exact `impl`
+        // across without consuming it as a RoleReference.
+        let source = "type T derives Eq impl Pick;";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        assert!(records.is_empty());
+        assert!(matches!(
+            declaration.derives.as_slice(),
+            [DerivesAttachment {
+                clause: DerivesClause { roles, .. },
+                ..
+            }] if matches!(roles.as_slice(), [Recovered::Complete(_)])
+        ));
+        assert!(matches!(
+            attached(&declaration).head,
+            Recovered::Complete(_)
+        ));
+        let _ = commit_full(source);
+
+        let source = "type T derives impl Pick;";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        assert!(matches!(
+            declaration.derives.as_slice(),
+            [DerivesAttachment {
+                clause: DerivesClause { roles, .. },
+                ..
+            }] if matches!(roles.as_slice(), [Recovered::Incomplete])
+        ));
+        assert!(matches!(
+            attached(&declaration).head,
+            Recovered::Complete(_)
+        ));
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference))
+        );
+        assert_eq!(records[0].site.range, 15..15);
+        let _ = commit_full(source);
+
+        // TAI-R: absent exact `impl` delegates byte-for-byte to every existing
+        // Type disposition, and the sink-free decision restores its cursor.
+        for (source, expected) in [
+            (
+                "type T",
+                TypeDeclarationFormDisposition::Nominal {
+                    owns_trailing_trivia_through: 6,
+                },
+            ),
+            ("type T = U", TypeDeclarationFormDisposition::Equality),
+            (
+                "type T ('a)",
+                TypeDeclarationFormDisposition::EqualityRecovery,
+            ),
+            ("type", TypeDeclarationFormDisposition::Incomplete),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, Context::Root, StopKind::RightBracket);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let intro = i
+                    .run(recognize_type_statement_intro)
+                    .expect("existing Type disposition fixture");
+                let mut recoveries = Vec::new();
+                let shared =
+                    parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
+                let position = i.pos();
+                let line = i.local.line();
+                let state = snapshot(i.local);
+                assert_eq!(
+                    classify_type_declaration_post_header(&shared.name, intro.type_base, &mut i,),
+                    TypeDeclarationPostHeaderDecision::Existing(expected),
+                    "existing disposition: {source:?}",
+                );
+                assert_eq!(i.pos(), position, "existing input: {source:?}");
+                assert_eq!(i.local.line(), line, "existing line: {source:?}");
+                assert_eq!(snapshot(i.local), state, "existing state: {source:?}");
+            }
+            assert!(
+                expectations.take_merged().is_none(),
+                "existing sink: {source:?}"
+            );
+            assert!(!is_cut, "existing cut: {source:?}");
+        }
+
+        // TAI-R: `via` is an ordinary head word, never derives-only ViaKw.
+        let source = "type T impl Eq via key;";
+        let (declaration, records) =
+            assert_case(source, 0, Context::Root, StopKind::RightBracket, "");
+        assert!(records.is_empty());
+        assert!(matches!(
+            attached(&declaration).head,
+            Recovered::Complete(ref head) if head.range() == (12..22)
+        ));
+        let (root, _) = commit_full(source);
+        assert!(
+            root.descendants_with_tokens()
+                .all(|element| element.kind() != SyntaxKind::ViaKw)
+        );
+
+        // Gate 5 canonical-owner matrix: root, indented, braced, inline,
+        // catch-inline depth-2 ambient, and depth-2 If companions all preserve
+        // the caller's complete local state around normal AttachedImpl exits.
+        for (source, prefix_len, context, remainder) in [
+            ("type Box impl T;", 0, Context::RootState, ""),
+            ("  type Box impl T;", 2, Context::Indented, ""),
+            ("type Box impl T;", 0, Context::Braced, ""),
+            (
+                "value with: type Box impl T; fallback",
+                "value with: ".len(),
+                Context::InlineAmbient,
+                " fallback",
+            ),
+            (
+                "A -> value with: type Box impl T;\n  B -> fallback",
+                "A -> value with: ".len(),
+                Context::CatchInline,
+                "\n  B -> fallback",
+            ),
+            (
+                "type Box impl T;\nelse: fallback",
+                0,
+                Context::NestedIf,
+                "\nelse: fallback",
+            ),
+        ] {
+            let (_, records) = assert_case(
+                source,
+                prefix_len,
+                context,
+                StopKind::RightBracket,
+                remainder,
+            );
+            assert!(records.is_empty(), "canonical context: {context:?}");
+        }
+
+        // Strictly deeper Type continuation reaches AttachedImpl; an equal
+        // header newline and an If companion remain outer-owned.
+        let (_, records) = assert_case(
+            "type Box\n  impl Pick;",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+            "",
+        );
+        assert!(records.is_empty());
+
+        let source = "type Box\nimpl Pick;";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        install_context(&mut local, Context::Root, StopKind::RightBracket);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        {
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let intro = i.run(recognize_type_statement_intro).unwrap();
+            let mut recoveries = Vec::new();
+            let shared =
+                parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
+            let position = i.pos();
+            let state = snapshot(i.local);
+            assert!(matches!(
+                classify_type_declaration_post_header(&shared.name, intro.type_base, &mut i,),
+                TypeDeclarationPostHeaderDecision::Existing(
+                    TypeDeclarationFormDisposition::Nominal { .. }
+                )
+            ));
+            assert_eq!(i.pos(), position);
+            assert_eq!(snapshot(i.local), state);
+        }
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+
+        let (_, records) = assert_case(
+            "type Box impl T\nelse: fallback",
+            0,
+            Context::NestedIf,
+            StopKind::RightBracket,
+            "\nelse: fallback",
+        );
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            records[0].site.role,
+            attached_role(ImplRole::BodyIntroducer)
+        );
+
+        // Normal, Missing, Error, same-slot retry, and missing-brace-close
+        // paths all remain exactly caller-rollbackable on AST and direct
+        // adapters, including input/line/sink and every ParseLocal stack.
+        for source in [
+            "type Box impl T;",
+            "type Box impl",
+            "type Box impl @T;",
+            "type Box impl T @;",
+            "type Box impl T: @D;",
+            "type Box impl T { my value = 1",
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, Context::NestedIf, StopKind::RightBracket);
+            let input_checkpoint = source_input.checkpoint();
+            let local_checkpoint = local.checkpoint();
+            let before = snapshot(&local);
+            let before_line = local.line();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let _ = parse_isolated(&mut i);
+            }
+            source_input.rollback(input_checkpoint);
+            local.rollback(local_checkpoint);
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "AST rollback input: {source:?}"
+            );
+            assert_eq!(snapshot(&local), before, "AST rollback state: {source:?}");
+            assert_eq!(local.line(), before_line, "AST rollback line: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "AST rollback sink: {source:?}"
+            );
+            assert!(!is_cut, "AST rollback cut: {source:?}");
+
+            let mut direct_source = SourceInput::new(source);
+            let mut direct_local = ParseLocal::new();
+            install_context(&mut direct_local, Context::NestedIf, StopKind::RightBracket);
+            let direct_input_checkpoint = direct_source.checkpoint();
+            let direct_local_checkpoint = direct_local.checkpoint();
+            let direct_before = snapshot(&direct_local);
+            let direct_before_line = direct_local.line();
+            let mut direct_expectations = chasa::LatestSink::new();
+            let mut direct_cut = false;
+            {
+                let mut i = In::new(
+                    &mut direct_source,
+                    &mut direct_expectations,
+                    IsCut::new(&mut direct_cut),
+                )
+                .set_local(&mut direct_local);
+                i.run(chasa::prelude::uncut(chasa::prelude::from_fn_once(|i| {
+                    let mut probe = Probe::new(i);
+                    let intro = probe
+                        .input()
+                        .run(recognize_type_statement_intro)
+                        .expect("direct rollback Type intro");
+                    let mut committed = probe.commit(HeaderOutput::new());
+                    let _ = commit_isolated(intro, &mut committed);
+                    let _ = committed.into_output();
+                    Some(())
+                })))
+                .expect("the uncut direct rollback adapter is total");
+            }
+            direct_source.rollback(direct_input_checkpoint);
+            direct_local.rollback(direct_local_checkpoint);
+            assert_eq!(
+                direct_source.remainder(),
+                source,
+                "direct rollback input: {source:?}"
+            );
+            assert_eq!(
+                snapshot(&direct_local),
+                direct_before,
+                "direct rollback state: {source:?}"
+            );
+            assert_eq!(
+                direct_local.line(),
+                direct_before_line,
+                "direct rollback line: {source:?}"
+            );
+            assert!(
+                direct_expectations.take_merged().is_none(),
+                "direct rollback sink: {source:?}"
+            );
+            assert!(!direct_cut, "direct rollback cut: {source:?}");
+        }
+
+        // Gate 6 alone promotes the isolated form into real Type dispatch.
+        let source = "type Box 't impl Pick Int:";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let public = {
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            parse_type_declaration(i).expect("the public path still recognizes Type")
+        };
+        assert!(!matches!(
+            public.form,
+            Recovered::Complete(TypeDeclarationForm::AttachedImpl(_))
+        ));
     }
 
     #[test]
