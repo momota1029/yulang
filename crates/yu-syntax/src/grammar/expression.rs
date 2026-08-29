@@ -11,17 +11,17 @@ use chasa::{
 
 use crate::{
     grammar::declaration::{
-        ActDeclaration, BindingDeclaration, CastDeclaration, EnumDeclaration, ErrorDeclaration, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro, StructDeclaration,
-        TypeDeclaration,
-        UseDeclaration,
-        commit_act_declaration_isolated, commit_binding_declaration, commit_cast_declaration_isolated, commit_enum_declaration_isolated, commit_impl_declaration_isolated,
-        commit_role_declaration_isolated, commit_type_declaration,
-        commit_use_declaration,
-        parse_binding_declaration_with_operators,
-        commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
-        parse_act_declaration_isolated, parse_cast_declaration_form_aware_isolated, parse_enum_declaration_isolated, parse_impl_declaration_isolated,
-        parse_role_declaration_isolated, parse_struct_declaration, parse_type_declaration,
-        parse_use_declaration,
+        ActDeclaration, BindingDeclaration, CastDeclaration, EnumDeclaration, ErrorDeclaration,
+        ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro,
+        StructDeclaration, TypeDeclaration, UseDeclaration, commit_act_declaration_isolated,
+        commit_binding_declaration, commit_cast_declaration_isolated,
+        commit_enum_declaration_isolated, commit_impl_declaration_isolated, commit_mod_declaration,
+        commit_role_declaration_isolated, commit_struct_declaration, commit_type_declaration,
+        commit_use_declaration, parse_act_declaration_isolated,
+        parse_binding_declaration_with_operators, parse_cast_declaration_form_aware_isolated,
+        parse_enum_declaration_isolated, parse_impl_declaration_isolated,
+        parse_mod_declaration_with_operators, parse_role_declaration_isolated,
+        parse_struct_declaration, parse_type_declaration, parse_use_declaration,
         recognize_statement_intro,
     },
     grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
@@ -33,15 +33,15 @@ use crate::{
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
-        AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin, BracedStatementBlockRole, CastRole, ColonApplicationRole,
-        CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
-        ExpressionDelimitedOwner,
-        IfExpressionCompanionId,
-        InlineStatementOwnerKind,
-        CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
-        IndentationBaselineKind, Probe, RecoveryKind,
-        ActDeclarationRole, LayoutDelimitedBoundary, LayoutDelimitedFrame, RecoverySiteKey, RoleDeclarationRole, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax, WithBodyRole, any_ambient_owner_claims, if_continuation_owner,
+        ActDeclarationRole, AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin,
+        BracedStatementBlockRole, CaseLikeRole, CastRole, ColonApplicationRole, CommitOutput,
+        Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
+        ExpectationSources, ExpectedSyntax, ExpressionDelimitedOwner, ExpressionRole, GrammarRole,
+        IfExpressionCompanionId, IfExpressionRole, IndentationBaseline, IndentationBaselineKind,
+        InlineStatementOwnerKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, Probe,
+        RecoveryKind, RecoverySiteKey, RoleDeclarationRole, StopKind, StopSet, SynIn,
+        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax, WithBodyRole,
+        any_ambient_owner_claims, if_continuation_owner,
     },
     syntax_kind::SyntaxKind,
 };
@@ -80,8 +80,12 @@ pub(crate) enum OperatorChainItem<'source> {
         range: Range<usize>,
     },
     TerminalOuter(TerminalOuterTail<'source>),
-    MissingOperand { range: Range<usize> },
-    Error { range: Range<usize> },
+    MissingOperand {
+        range: Range<usize>,
+    },
+    Error {
+        range: Range<usize>,
+    },
 }
 
 /// A fixed-spelling postfix continuation.  These remain flat source-order
@@ -186,8 +190,12 @@ pub(crate) struct WithBodyTail<'source> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum WithBody<'source> {
-    Inline { statement: Box<Statement<'source>> },
-    Indented { block: IndentedStatementBlock<'source> },
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -251,8 +259,12 @@ pub(crate) struct IndentedStatementBlock<'source> {
 }
 
 impl<'source> IndentedStatementBlock<'source> {
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
-    pub(crate) fn statements(&self) -> &[Recovered<Statement<'source>>] { &self.statements }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+    pub(crate) fn statements(&self) -> &[Recovered<Statement<'source>>] {
+        &self.statements
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -264,7 +276,9 @@ pub(crate) struct BracedStatementBlockExpression<'source> {
 }
 
 impl<'source> BracedStatementBlockExpression<'source> {
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -283,9 +297,15 @@ pub(crate) struct OperatorUse<'source> {
 }
 
 impl<'source> OperatorUse<'source> {
-    pub(crate) fn text(&self) -> &'source str { self.text }
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
-    pub(crate) fn role(&self) -> OperatorRole { self.role }
+    pub(crate) fn text(&self) -> &'source str {
+        self.text
+    }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+    pub(crate) fn role(&self) -> OperatorRole {
+        self.role
+    }
 }
 
 /// A primary expression; dynamic operator structure lives in [`OperatorChain`].
@@ -369,43 +389,122 @@ impl PrimaryExpression<'_> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum CaseLikeFamily { Case, Catch }
+enum CaseLikeFamily {
+    Case,
+    Catch,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ArmSequencePolicy {
     CaseInline,
     CatchInlineSingle,
-    Indented { family: CaseLikeFamily, base_indent: usize, arm_indent: usize },
+    Indented {
+        family: CaseLikeFamily,
+        base_indent: usize,
+        arm_indent: usize,
+    },
     CatchBraced,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CaseLikeLabel<'source> { text: &'source str, range: Range<usize> }
+pub(crate) struct CaseLikeLabel<'source> {
+    text: &'source str,
+    range: Range<usize>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CaseExpression<'source> { keyword: WordSpan<'source>, label: Option<CaseLikeLabel<'source>>, scrutinee: Recovered<Box<OperatorChain<'source>>>, block: Recovered<CaseBlock<'source>>, base_indent: usize, range: Range<usize> }
+pub(crate) struct CaseExpression<'source> {
+    keyword: WordSpan<'source>,
+    label: Option<CaseLikeLabel<'source>>,
+    scrutinee: Recovered<Box<OperatorChain<'source>>>,
+    block: Recovered<CaseBlock<'source>>,
+    base_indent: usize,
+    range: Range<usize>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CatchExpression<'source> { keyword: WordSpan<'source>, label: Option<CaseLikeLabel<'source>>, scrutinee: Recovered<Box<OperatorChain<'source>>>, block: Recovered<CatchBlock<'source>>, base_indent: usize, range: Range<usize> }
+pub(crate) struct CatchExpression<'source> {
+    keyword: WordSpan<'source>,
+    label: Option<CaseLikeLabel<'source>>,
+    scrutinee: Recovered<Box<OperatorChain<'source>>>,
+    block: Recovered<CatchBlock<'source>>,
+    base_indent: usize,
+    range: Range<usize>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CaseBlock<'source> { colon: Recovered<Range<usize>>, arms: Recovered<ArmSequence<CaseArm<'source>>>, layout: ColonArmLayout, range: Range<usize> }
+pub(crate) struct CaseBlock<'source> {
+    colon: Recovered<Range<usize>>,
+    arms: Recovered<ArmSequence<CaseArm<'source>>>,
+    layout: ColonArmLayout,
+    range: Range<usize>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum CatchBlock<'source> { Colon { colon: Recovered<Range<usize>>, arms: Recovered<ArmSequence<CatchArm<'source>>>, layout: ColonArmLayout, range: Range<usize> }, Braced { open: Range<usize>, arms: Recovered<ArmSequence<CatchArm<'source>>>, close: Recovered<Range<usize>>, range: Range<usize> } }
+pub(crate) enum CatchBlock<'source> {
+    Colon {
+        colon: Recovered<Range<usize>>,
+        arms: Recovered<ArmSequence<CatchArm<'source>>>,
+        layout: ColonArmLayout,
+        range: Range<usize>,
+    },
+    Braced {
+        open: Range<usize>,
+        arms: Recovered<ArmSequence<CatchArm<'source>>>,
+        close: Recovered<Range<usize>>,
+        range: Range<usize>,
+    },
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ColonArmLayout { Inline, Indented { base_indent: usize, arm_indent: usize } }
+pub(crate) enum ColonArmLayout {
+    Inline,
+    Indented {
+        base_indent: usize,
+        arm_indent: usize,
+    },
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ArmSequence<A> { arms: Vec<Recovered<A>>, trailing_comma: Option<Range<usize>> }
+pub(crate) struct ArmSequence<A> {
+    arms: Vec<Recovered<A>>,
+    trailing_comma: Option<Range<usize>>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CaseArm<'source> { pattern: Recovered<Pattern<'source>>, guard: Option<Recovered<CaseGuard<'source>>>, arrow: Recovered<Range<usize>>, body: Recovered<ArmBody<'source>>, terminator: Option<Range<usize>>, range: Range<usize> }
+pub(crate) struct CaseArm<'source> {
+    pattern: Recovered<Pattern<'source>>,
+    guard: Option<Recovered<CaseGuard<'source>>>,
+    arrow: Recovered<Range<usize>>,
+    body: Recovered<ArmBody<'source>>,
+    terminator: Option<Range<usize>>,
+    range: Range<usize>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CatchArm<'source> { pattern: Recovered<Pattern<'source>>, handler: Option<Recovered<Pattern<'source>>>, guard: Option<Recovered<CatchGuard<'source>>>, arrow: Recovered<Range<usize>>, body: Recovered<ArmBody<'source>>, terminator: Option<Range<usize>>, range: Range<usize> }
+pub(crate) struct CatchArm<'source> {
+    pattern: Recovered<Pattern<'source>>,
+    handler: Option<Recovered<Pattern<'source>>>,
+    guard: Option<Recovered<CatchGuard<'source>>>,
+    arrow: Recovered<Range<usize>>,
+    body: Recovered<ArmBody<'source>>,
+    terminator: Option<Range<usize>>,
+    range: Range<usize>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CaseGuard<'source> { keyword: ArmGuardKeyword<'source>, condition: Recovered<Box<OperatorChain<'source>>>, range: Range<usize> }
+pub(crate) struct CaseGuard<'source> {
+    keyword: ArmGuardKeyword<'source>,
+    condition: Recovered<Box<OperatorChain<'source>>>,
+    range: Range<usize>,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CatchGuard<'source> { keyword: ArmGuardKeyword<'source>, condition: Recovered<Box<OperatorChain<'source>>>, range: Range<usize> }
+pub(crate) struct CatchGuard<'source> {
+    keyword: ArmGuardKeyword<'source>,
+    condition: Recovered<Box<OperatorChain<'source>>>,
+    range: Range<usize>,
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ArmGuardKeyword<'source> { If(WordSpan<'source>), Where(WordSpan<'source>) }
+pub(crate) enum ArmGuardKeyword<'source> {
+    If(WordSpan<'source>),
+    Where(WordSpan<'source>),
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum ArmBody<'source> { Inline(Box<OperatorChain<'source>>), Indented(IndentedStatementBlock<'source>) }
-
+pub(crate) enum ArmBody<'source> {
+    Inline(Box<OperatorChain<'source>>),
+    Indented(IndentedStatementBlock<'source>),
+}
 
 /// The source extent of one decimal integer literal.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -459,7 +558,10 @@ pub(crate) struct ParsedExpression<C> {
 
 impl<C> ParsedExpression<C> {
     fn new(range: Range<usize>) -> Self {
-        Self { range, marker: PhantomData }
+        Self {
+            range,
+            marker: PhantomData,
+        }
     }
 
     pub(crate) fn range(&self) -> Range<usize> {
@@ -502,12 +604,18 @@ where
         let nud = i.run(from_fn(|i| recognize_nud(table, leading, i)))?;
         match nud {
             NudRecognition::Prefix(operator) => {
-                items.push(OperatorChainItem::PrefixUse(operator_use(&operator, OperatorRole::Prefix)));
+                items.push(OperatorChainItem::PrefixUse(operator_use(
+                    &operator,
+                    OperatorRole::Prefix,
+                )));
                 leading = LeadingTrivia::None;
             }
             NudRecognition::Parenthesized { open } => {
                 i.cut();
-                let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+                let incoming_base = i
+                    .local
+                    .indentation_baseline()
+                    .map_or(0, |baseline| baseline.column);
                 push_parenthesized_expression_scope(&mut i);
                 let opening_trivia = consume_trivia(&mut i).expect("trivia scanning is total");
                 let layout = LayoutDelimitedFrame::after_opening_trivia(
@@ -543,7 +651,11 @@ where
                             LayoutDelimitedBoundary::DeeperNewline => {
                                 break Some(i.run(recognize_parenthesized_close)?);
                             }
-                            LayoutDelimitedBoundary::None if expression_nud_candidate_input(table, &mut i) => continue,
+                            LayoutDelimitedBoundary::None
+                                if expression_nud_candidate_input(table, &mut i) =>
+                            {
+                                continue;
+                            }
                             LayoutDelimitedBoundary::None => {
                                 break Some(i.run(recognize_parenthesized_close)?);
                             }
@@ -552,35 +664,48 @@ where
                 };
                 pop_layout_delimited_baseline(layout, &mut i);
                 pop_parenthesized_expression_scope(&mut i);
-                items.push(OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
-                    elements,
-                    trailing_comma,
-                    range: open.start..close.map_or(i.pos(), |close| close.end),
-                }));
+                items.push(OperatorChainItem::Primary(
+                    PrimaryExpression::Parenthesized {
+                        elements,
+                        trailing_comma,
+                        range: open.start..close.map_or(i.pos(), |close| close.end),
+                    },
+                ));
                 break;
             }
             NudRecognition::BracedStatementBlock { open } => {
                 i.cut();
-                items.push(OperatorChainItem::Primary(PrimaryExpression::BracedStatementBlock(
-                    parse_braced_statement_block_expression(table, open, &mut i),
-                )));
+                items.push(OperatorChainItem::Primary(
+                    PrimaryExpression::BracedStatementBlock(
+                        parse_braced_statement_block_expression(table, open, &mut i),
+                    ),
+                ));
                 break;
             }
-            NudRecognition::If { keyword, base_indent } => {
+            NudRecognition::If {
+                keyword,
+                base_indent,
+            } => {
                 i.cut();
                 items.push(OperatorChainItem::Primary(PrimaryExpression::If(
                     parse_if_expression(table, keyword, base_indent, &mut i),
                 )));
                 break;
             }
-            NudRecognition::Case { keyword, base_indent } => {
+            NudRecognition::Case {
+                keyword,
+                base_indent,
+            } => {
                 i.cut();
                 items.push(OperatorChainItem::Primary(PrimaryExpression::Case(
                     parse_case_expression(table, keyword, base_indent, &mut i),
                 )));
                 break;
             }
-            NudRecognition::Catch { keyword, base_indent } => {
+            NudRecognition::Catch {
+                keyword,
+                base_indent,
+            } => {
                 i.cut();
                 items.push(OperatorChainItem::Primary(PrimaryExpression::Catch(
                     parse_catch_expression(table, keyword, base_indent, &mut i),
@@ -588,15 +713,22 @@ where
                 break;
             }
             NudRecognition::Identifier(identifier) => {
-                items.push(OperatorChainItem::Primary(PrimaryExpression::Identifier(identifier)));
+                items.push(OperatorChainItem::Primary(PrimaryExpression::Identifier(
+                    identifier,
+                )));
                 break;
             }
             NudRecognition::Integer(integer) => {
-                items.push(OperatorChainItem::Primary(PrimaryExpression::Integer(integer)));
+                items.push(OperatorChainItem::Primary(PrimaryExpression::Integer(
+                    integer,
+                )));
                 break;
             }
             NudRecognition::Nullfix(operator) => {
-                items.push(OperatorChainItem::NullfixUse(operator_use(&operator, OperatorRole::Nullfix)));
+                items.push(OperatorChainItem::NullfixUse(operator_use(
+                    &operator,
+                    OperatorRole::Nullfix,
+                )));
                 break;
             }
         }
@@ -610,7 +742,9 @@ where
         if let Some(with) = i.run(recognize_with_body_tail) {
             i.cut();
             let tail = parse_with_body_tail(table, with, &mut i);
-            items.push(OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(tail)));
+            items.push(OperatorChainItem::TerminalOuter(
+                TerminalOuterTail::WithBody(tail),
+            ));
             break;
         }
 
@@ -618,11 +752,17 @@ where
             match tail {
                 LedRecognition::Infix { operator, .. } => {
                     i.cut();
-                    items.push(OperatorChainItem::InfixUse(operator_use(&operator, OperatorRole::Infix)));
+                    items.push(OperatorChainItem::InfixUse(operator_use(
+                        &operator,
+                        OperatorRole::Infix,
+                    )));
                     items.extend(i.run(from_fn(|i| parse_operator_chain_operand(table, i)))?);
                 }
                 LedRecognition::Suffix { operator, .. } => {
-                    items.push(OperatorChainItem::SuffixUse(operator_use(&operator, OperatorRole::Suffix)));
+                    items.push(OperatorChainItem::SuffixUse(operator_use(
+                        &operator,
+                        OperatorRole::Suffix,
+                    )));
                 }
             }
             continue;
@@ -630,7 +770,9 @@ where
 
         if let Some(tail) = i.run(recognize_fixed_postfix) {
             i.cut();
-            items.push(OperatorChainItem::FixedPostfix(parse_fixed_postfix_tail(table, tail, &mut i)));
+            items.push(OperatorChainItem::FixedPostfix(parse_fixed_postfix_tail(
+                table, tail, &mut i,
+            )));
             continue;
         }
 
@@ -638,12 +780,16 @@ where
             i.cut();
             let previous = i.local.ml_arg();
             i.local.set_ml_arg(true);
-            let argument = i.run(from_fn(|i| parse_operator_chain(table, i)))
+            let argument = i
+                .run(from_fn(|i| parse_operator_chain(table, i)))
                 .or_else(|| parse_dangling_prefix_ast(table, &mut i));
             i.local.set_ml_arg(previous);
             let argument = argument?;
             let range = argument.range();
-            items.push(OperatorChainItem::MlArgument { argument: Box::new(argument), range });
+            items.push(OperatorChainItem::MlArgument {
+                argument: Box::new(argument),
+                range,
+            });
             continue;
         }
 
@@ -657,7 +803,9 @@ where
                 ColonApplicationRhsRecognition::Inline { .. } => {
                     let outer_owns_sequence = outer_owns_inline_argument_sequence(&i);
                     let arguments = if outer_owns_sequence {
-                        vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)]
+                        vec![Recovered::Complete(
+                            i.run(from_fn(|i| parse_operator_chain(table, i)))?,
+                        )]
                     } else {
                         let stop_set = active_stop_set(&i).with(StopKind::Comma);
                         i.local.push_stop_set(stop_set);
@@ -696,13 +844,13 @@ where
                     )
                 }
             };
-            items.push(OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
-                ColonApplicationTail {
+            items.push(OperatorChainItem::TerminalOuter(
+                TerminalOuterTail::ColonApplication(ColonApplicationTail {
                     colon: colon.colon,
                     rhs,
                     range: colon_start..end,
-                },
-            )));
+                }),
+            ));
             break;
         }
         break;
@@ -725,34 +873,64 @@ where
 
 fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
     match item {
-        OperatorChainItem::PrefixUse(operator) | OperatorChainItem::NullfixUse(operator)
-        | OperatorChainItem::InfixUse(operator) | OperatorChainItem::SuffixUse(operator) => operator.range.end,
+        OperatorChainItem::PrefixUse(operator)
+        | OperatorChainItem::NullfixUse(operator)
+        | OperatorChainItem::InfixUse(operator)
+        | OperatorChainItem::SuffixUse(operator) => operator.range.end,
         OperatorChainItem::Primary(primary) => primary.range().end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(tail)) => tail.range.end,
-        OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Tuple(tail))) => tail.range.end,
-        OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Record(tail))) => tail.range.end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Tuple(
+            tail,
+        ))) => tail.range.end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Record(
+            tail,
+        ))) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(tail)) => tail.range.end,
         OperatorChainItem::MlArgument { range, .. } => range.end,
-        OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(tail)) => tail.range.end,
+        OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(tail)) => {
+            tail.range.end
+        }
         OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(tail)) => tail.range.end,
-        OperatorChainItem::MissingOperand { range } | OperatorChainItem::Error { range } => range.end,
+        OperatorChainItem::MissingOperand { range } | OperatorChainItem::Error { range } => {
+            range.end
+        }
     }
 }
 
-fn operator_use<'source>(operator: &ScannedOperator<'source>, role: OperatorRole) -> OperatorUse<'source> {
-    OperatorUse { text: operator.text(), range: operator.range(), role }
+fn operator_use<'source>(
+    operator: &ScannedOperator<'source>,
+    role: OperatorRole,
+) -> OperatorUse<'source> {
+    OperatorUse {
+        text: operator.text(),
+        range: operator.range(),
+        role,
+    }
 }
 
 /// Sink-free NUD result shared by AST tests and the direct continuation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum NudRecognition<'source> {
-    Parenthesized { open: Range<usize> },
-    BracedStatementBlock { open: Range<usize> },
-    If { keyword: WordSpan<'source>, base_indent: usize },
-    Case { keyword: WordSpan<'source>, base_indent: usize },
-    Catch { keyword: WordSpan<'source>, base_indent: usize },
+    Parenthesized {
+        open: Range<usize>,
+    },
+    BracedStatementBlock {
+        open: Range<usize>,
+    },
+    If {
+        keyword: WordSpan<'source>,
+        base_indent: usize,
+    },
+    Case {
+        keyword: WordSpan<'source>,
+        base_indent: usize,
+    },
+    Catch {
+        keyword: WordSpan<'source>,
+        base_indent: usize,
+    },
     Identifier(WordSpan<'source>),
     Integer(IntegerLiteral<'source>),
     Prefix(ScannedOperator<'source>),
@@ -777,12 +955,30 @@ enum LedRecognition<'source> {
 /// already-authoritative field and path forms.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FixedPostfixRecognition {
-    Call { open: Range<usize> },
-    Index { open: Range<usize> },
-    ProjectionTuple { leading: TriviaRun, dot: Range<usize>, open: Range<usize> },
-    ProjectionRecord { leading: TriviaRun, dot: Range<usize>, open: Range<usize> },
-    Field { leading: TriviaRun, dot: Range<usize> },
-    Path { leading: TriviaRun, separator: Range<usize> },
+    Call {
+        open: Range<usize>,
+    },
+    Index {
+        open: Range<usize>,
+    },
+    ProjectionTuple {
+        leading: TriviaRun,
+        dot: Range<usize>,
+        open: Range<usize>,
+    },
+    ProjectionRecord {
+        leading: TriviaRun,
+        dot: Range<usize>,
+        open: Range<usize>,
+    },
+    Field {
+        leading: TriviaRun,
+        dot: Range<usize>,
+    },
+    Path {
+        leading: TriviaRun,
+        separator: Range<usize>,
+    },
 }
 
 fn recognize_fixed_postfix<'source, E>(
@@ -805,25 +1001,39 @@ where
     };
     match punctuation.kind() {
         PunctuationKind::Open(Delimiter::Parenthesis) if leading.is_empty() => {
-            Some(FixedPostfixRecognition::Call { open: punctuation.range() })
+            Some(FixedPostfixRecognition::Call {
+                open: punctuation.range(),
+            })
         }
         PunctuationKind::Open(Delimiter::Bracket) if leading.is_empty() => {
-            Some(FixedPostfixRecognition::Index { open: punctuation.range() })
+            Some(FixedPostfixRecognition::Index {
+                open: punctuation.range(),
+            })
         }
         PunctuationKind::Dot if matches!(i.input.remainder().chars().next(), Some('(')) => {
             let open = i.input.next()?;
-            Some(FixedPostfixRecognition::ProjectionTuple { leading, dot: punctuation.range(), open: (i.pos() - open.len_utf8())..i.pos() })
+            Some(FixedPostfixRecognition::ProjectionTuple {
+                leading,
+                dot: punctuation.range(),
+                open: (i.pos() - open.len_utf8())..i.pos(),
+            })
         }
         PunctuationKind::Dot if matches!(i.input.remainder().chars().next(), Some('{')) => {
             let open = i.input.next()?;
-            Some(FixedPostfixRecognition::ProjectionRecord { leading, dot: punctuation.range(), open: (i.pos() - open.len_utf8())..i.pos() })
+            Some(FixedPostfixRecognition::ProjectionRecord {
+                leading,
+                dot: punctuation.range(),
+                open: (i.pos() - open.len_utf8())..i.pos(),
+            })
         }
-        PunctuationKind::Dot => {
-            Some(FixedPostfixRecognition::Field { leading, dot: punctuation.range() })
-        }
-        PunctuationKind::ColonColon => {
-            Some(FixedPostfixRecognition::Path { leading, separator: punctuation.range() })
-        }
+        PunctuationKind::Dot => Some(FixedPostfixRecognition::Field {
+            leading,
+            dot: punctuation.range(),
+        }),
+        PunctuationKind::ColonColon => Some(FixedPostfixRecognition::Path {
+            leading,
+            separator: punctuation.range(),
+        }),
         _ => {
             i.rollback(checkpoint);
             None
@@ -845,7 +1055,8 @@ where
     }
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(&mut i)?;
-    if trivia.is_empty() || !trivia_continues_chain(&trivia, &i)
+    if trivia.is_empty()
+        || !trivia_continues_chain(&trivia, &i)
         || !ml_argument_candidate_input(table, &mut i)
     {
         i.rollback(checkpoint);
@@ -855,50 +1066,86 @@ where
 }
 
 fn ml_argument_candidate_input<E>(table: &OperatorTable, i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     expression_nud_candidate_input(table, i) || dangling_prefix_candidate_input(table, i)
 }
 
 fn dangling_prefix_candidate_input<E>(table: &OperatorTable, i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
     let remainder = i.input.remainder();
-    let entry = table.entries_with_sites().map(|(entry, _)| entry)
+    let entry = table
+        .entries_with_sites()
+        .map(|(entry, _)| entry)
         .filter(|entry| remainder.starts_with(entry.spelling()))
         .max_by_key(|entry| entry.spelling().len())
         .filter(|entry| entry.fixities().prefix().is_some() && !entry.fixities().is_nullfix());
     let accepted = entry.is_some_and(|entry| {
-        for _ in entry.spelling().chars() { if i.input.next().is_none() { return false; } }
+        for _ in entry.spelling().chars() {
+            if i.input.next().is_none() {
+                return false;
+            }
+        }
         let _ = consume_trivia(i);
-        i.input.remainder().is_empty() || matches!(i.input.remainder().chars().next(), Some(')' | ']' | '}' | ',' | ';' | ':'))
+        i.input.remainder().is_empty()
+            || matches!(
+                i.input.remainder().chars().next(),
+                Some(')' | ']' | '}' | ',' | ';' | ':')
+            )
     });
     i.rollback(checkpoint);
     accepted
 }
 
-fn parse_dangling_prefix_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<OperatorChain<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_dangling_prefix_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<OperatorChain<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     dangling_prefix_candidate_input(table, i).then_some(())?;
     let start = i.pos();
     let remainder = i.input.remainder();
-    let entry = table.entries_with_sites().map(|(entry, _)| entry)
+    let entry = table
+        .entries_with_sites()
+        .map(|(entry, _)| entry)
         .filter(|entry| remainder.starts_with(entry.spelling()))
         .max_by_key(|entry| entry.spelling().len())?;
-    for _ in entry.spelling().chars() { i.input.next()?; }
+    for _ in entry.spelling().chars() {
+        i.input.next()?;
+    }
     let end = i.pos();
     consume_trivia(i)?;
     let missing_at = i.pos();
-    Some(OperatorChain::new(vec![
-        OperatorChainItem::PrefixUse(OperatorUse { text: &i.input.source()[start..end], range: start..end, role: OperatorRole::Prefix }),
-        OperatorChainItem::MissingOperand { range: missing_at..missing_at },
-    ], start..end))
+    Some(OperatorChain::new(
+        vec![
+            OperatorChainItem::PrefixUse(OperatorUse {
+                text: &i.input.source()[start..end],
+                range: start..end,
+                role: OperatorRole::Prefix,
+            }),
+            OperatorChainItem::MissingOperand {
+                range: missing_at..missing_at,
+            },
+        ],
+        start..end,
+    ))
 }
 
 fn ml_argument_context_allows<E>(i: &SynIn<E>) -> bool
-where E: ErrorSink<usize>,
+where
+    E: ErrorSink<usize>,
 {
     i.local.expression_delimited_owner().is_some()
         || (i.local.delimiter().is_none() && active_stop_set(i) == StopSet::default())
@@ -915,13 +1162,19 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     match tail {
-        FixedPostfixRecognition::Call { open } => FixedPostfixTail::Call(parse_call_tail(table, open, i)),
-        FixedPostfixRecognition::Index { open } => FixedPostfixTail::Index(parse_index_tail(table, open, i)),
-        FixedPostfixRecognition::ProjectionTuple { dot, open, .. } => {
-            FixedPostfixTail::Projection(ProjectionTail::Tuple(parse_projection_tuple_tail(table, dot, open, i)))
+        FixedPostfixRecognition::Call { open } => {
+            FixedPostfixTail::Call(parse_call_tail(table, open, i))
         }
+        FixedPostfixRecognition::Index { open } => {
+            FixedPostfixTail::Index(parse_index_tail(table, open, i))
+        }
+        FixedPostfixRecognition::ProjectionTuple { dot, open, .. } => FixedPostfixTail::Projection(
+            ProjectionTail::Tuple(parse_projection_tuple_tail(table, dot, open, i)),
+        ),
         FixedPostfixRecognition::ProjectionRecord { dot, open, .. } => {
-            FixedPostfixTail::Projection(ProjectionTail::Record(parse_projection_record_tail(table, dot, open, i)))
+            FixedPostfixTail::Projection(ProjectionTail::Record(parse_projection_record_tail(
+                table, dot, open, i,
+            )))
         }
         FixedPostfixRecognition::Field { dot, .. } => {
             let name = if let Some(name) = i.run(scan_word) {
@@ -963,13 +1216,24 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let incoming_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     i.local.push_delimiter(Delimiter::Parenthesis);
-    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis);
+    let stops = active_stop_set(i)
+        .with(StopKind::Comma)
+        .with(StopKind::Semicolon)
+        .with(StopKind::RightParenthesis);
     i.local.push_stop_set(stops);
-    i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+    i.local
+        .push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
     let opening = consume_trivia(i).expect("trivia scanning is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        incoming_base,
+        &opening,
+        i.local.line().line_indent,
+    );
     push_layout_delimited_baseline(layout, i);
     let mut arguments = Vec::new();
     let close = if let Some(close) = i.run(recognize_parenthesized_close) {
@@ -981,7 +1245,9 @@ where
             } else {
                 if let Some(range) = call_argument_error_retry_ast(table, i) {
                     arguments.push(OperatorChain::new(
-                        vec![OperatorChainItem::Error { range: range.clone() }],
+                        vec![OperatorChainItem::Error {
+                            range: range.clone(),
+                        }],
                         range,
                     ));
                     if any_ambient_owner_claims(i) {
@@ -996,7 +1262,9 @@ where
                         at..at,
                     ));
                     consume_trivia(i).expect("trivia scanning is total");
-                    if let Some(close) = i.run(recognize_parenthesized_close) { break Recovered::Complete(close); }
+                    if let Some(close) = i.run(recognize_parenthesized_close) {
+                        break Recovered::Complete(close);
+                    }
                     continue;
                 }
                 break Recovered::Incomplete;
@@ -1007,11 +1275,17 @@ where
             let trivia = consume_trivia(i).expect("trivia scanning is total");
             if let Some(_) = i.run(recognize_call_separator) {
                 consume_trivia(i).expect("trivia scanning is total");
-                if let Some(close) = i.run(recognize_parenthesized_close) { break Recovered::Complete(close); }
+                if let Some(close) = i.run(recognize_parenthesized_close) {
+                    break Recovered::Complete(close);
+                }
                 continue;
             }
-            if let Some(close) = i.run(recognize_parenthesized_close) { break Recovered::Complete(close); }
-            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline {
+            if let Some(close) = i.run(recognize_parenthesized_close) {
+                break Recovered::Complete(close);
+            }
+            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+                == LayoutDelimitedBoundary::ImplicitNewline
+            {
                 continue;
             }
             break Recovered::Incomplete;
@@ -1024,7 +1298,12 @@ where
     );
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
-    CallTail { open: open.clone(), arguments, close, range: open.start..i.pos() }
+    CallTail {
+        open: open.clone(),
+        arguments,
+        close,
+        range: open.start..i.pos(),
+    }
 }
 
 fn parse_index_tail<'source, E>(
@@ -1037,13 +1316,24 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let incoming_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     i.local.push_delimiter(Delimiter::Bracket);
-    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBracket);
+    let stops = active_stop_set(i)
+        .with(StopKind::Comma)
+        .with(StopKind::Semicolon)
+        .with(StopKind::RightBracket);
     i.local.push_stop_set(stops);
-    i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::Index);
+    i.local
+        .push_expression_delimited_owner(ExpressionDelimitedOwner::Index);
     let opening = consume_trivia(i).expect("trivia scanning is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        incoming_base,
+        &opening,
+        i.local.line().line_indent,
+    );
     push_layout_delimited_baseline(layout, i);
     let mut items = Vec::new();
     let close = if let Some(close) = i.run(recognize_index_close) {
@@ -1055,7 +1345,9 @@ where
             } else {
                 if let Some(range) = call_argument_error_retry_ast(table, i) {
                     items.push(OperatorChain::new(
-                        vec![OperatorChainItem::Error { range: range.clone() }],
+                        vec![OperatorChainItem::Error {
+                            range: range.clone(),
+                        }],
                         range,
                     ));
                     if any_ambient_owner_claims(i) {
@@ -1070,7 +1362,9 @@ where
                         at..at,
                     ));
                     consume_trivia(i).expect("trivia scanning is total");
-                    if let Some(close) = i.run(recognize_index_close) { break Recovered::Complete(close); }
+                    if let Some(close) = i.run(recognize_index_close) {
+                        break Recovered::Complete(close);
+                    }
                     continue;
                 }
                 break Recovered::Incomplete;
@@ -1081,11 +1375,17 @@ where
             let trivia = consume_trivia(i).expect("trivia scanning is total");
             if i.run(recognize_call_separator).is_some() {
                 consume_trivia(i).expect("trivia scanning is total");
-                if let Some(close) = i.run(recognize_index_close) { break Recovered::Complete(close); }
+                if let Some(close) = i.run(recognize_index_close) {
+                    break Recovered::Complete(close);
+                }
                 continue;
             }
-            if let Some(close) = i.run(recognize_index_close) { break Recovered::Complete(close); }
-            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline {
+            if let Some(close) = i.run(recognize_index_close) {
+                break Recovered::Complete(close);
+            }
+            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+                == LayoutDelimitedBoundary::ImplicitNewline
+            {
                 continue;
             }
             break Recovered::Incomplete;
@@ -1098,39 +1398,97 @@ where
     );
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Bracket));
-    IndexTail { open: open.clone(), items, close, range: open.start..i.pos() }
+    IndexTail {
+        open: open.clone(),
+        items,
+        close,
+        range: open.start..i.pos(),
+    }
 }
 
-fn parse_projection_tuple_tail<'source, E>(table: &OperatorTable, dot: Range<usize>, open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ProjectionTupleTail<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_projection_tuple_tail<'source, E>(
+    table: &OperatorTable,
+    dot: Range<usize>,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ProjectionTupleTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let incoming_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     i.local.push_delimiter(Delimiter::Parenthesis);
-    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis);
-    i.local.push_stop_set(stops); i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionTuple);
+    let stops = active_stop_set(i)
+        .with(StopKind::Comma)
+        .with(StopKind::Semicolon)
+        .with(StopKind::RightParenthesis);
+    i.local.push_stop_set(stops);
+    i.local
+        .push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionTuple);
     let opening = consume_trivia(i).expect("trivia scanning is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        incoming_base,
+        &opening,
+        i.local.line().line_indent,
+    );
     push_layout_delimited_baseline(layout, i);
     let mut items = Vec::new();
-    let close = match parse_projection_items_ast(table, i, layout, &mut items, recognize_parenthesized_close) {
+    let close = match parse_projection_items_ast(
+        table,
+        i,
+        layout,
+        &mut items,
+        recognize_parenthesized_close,
+    ) {
         Recovered::Complete(close) => Recovered::Complete(close),
         Recovered::Incomplete => parse_projection_close_ast(i, Delimiter::Parenthesis),
     };
     pop_layout_delimited_baseline(layout, i);
-    assert_eq!(i.local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionTuple));
-    assert_eq!(i.local.pop_stop_set(), Some(stops)); assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
-    ProjectionTupleTail { dot: dot.clone(), open, items, close, range: dot.start..i.pos() }
+    assert_eq!(
+        i.local.pop_expression_delimited_owner(),
+        Some(ExpressionDelimitedOwner::ProjectionTuple)
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
+    ProjectionTupleTail {
+        dot: dot.clone(),
+        open,
+        items,
+        close,
+        range: dot.start..i.pos(),
+    }
 }
 
-fn parse_projection_items_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>, layout: LayoutDelimitedFrame, items: &mut Vec<OperatorChain<'source>>, close: fn(SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>) -> Recovered<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_projection_items_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+    layout: LayoutDelimitedFrame,
+    items: &mut Vec<OperatorChain<'source>>,
+    close: fn(SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    if let Some(close) = i.run(close) { return Recovered::Complete(close); }
+    if let Some(close) = i.run(close) {
+        return Recovered::Complete(close);
+    }
     loop {
-        if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) { items.push(item); }
-        else {
+        if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+            items.push(item);
+        } else {
             if let Some(range) = call_argument_error_retry_ast(table, i) {
-                items.push(OperatorChain::new(vec![OperatorChainItem::Error { range: range.clone() }], range));
+                items.push(OperatorChain::new(
+                    vec![OperatorChainItem::Error {
+                        range: range.clone(),
+                    }],
+                    range,
+                ));
                 if any_ambient_owner_claims(i) {
                     return Recovered::Incomplete;
                 }
@@ -1138,9 +1496,14 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
             }
             let at = i.pos();
             if i.run(recognize_call_separator).is_some() {
-                items.push(OperatorChain::new(vec![OperatorChainItem::MissingOperand { range: at..at }], at..at));
+                items.push(OperatorChain::new(
+                    vec![OperatorChainItem::MissingOperand { range: at..at }],
+                    at..at,
+                ));
                 consume_trivia(i).expect("trivia scanning is total");
-                if let Some(close) = i.run(close) { return Recovered::Complete(close); }
+                if let Some(close) = i.run(close) {
+                    return Recovered::Complete(close);
+                }
                 continue;
             }
             return Recovered::Incomplete;
@@ -1151,78 +1514,162 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         let trivia = consume_trivia(i).expect("trivia scanning is total");
         if i.run(recognize_call_separator).is_some() {
             consume_trivia(i).expect("trivia scanning is total");
-            if let Some(close) = i.run(close) { return Recovered::Complete(close); }
+            if let Some(close) = i.run(close) {
+                return Recovered::Complete(close);
+            }
             continue;
         }
-        if let Some(close) = i.run(close) { return Recovered::Complete(close); }
-        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+        if let Some(close) = i.run(close) {
+            return Recovered::Complete(close);
+        }
+        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+            == LayoutDelimitedBoundary::ImplicitNewline
+        {
+            continue;
+        }
         if expression_nud_candidate_input(table, i) {
             let at = i.pos();
-            items.push(OperatorChain::new(vec![OperatorChainItem::MissingOperand { range: at..at }], at..at));
+            items.push(OperatorChain::new(
+                vec![OperatorChainItem::MissingOperand { range: at..at }],
+                at..at,
+            ));
             continue;
         }
         return Recovered::Incomplete;
     }
 }
 
-fn parse_projection_record_tail<'source, E>(table: &OperatorTable, dot: Range<usize>, open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ProjectionRecordTail<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_projection_record_tail<'source, E>(
+    table: &OperatorTable,
+    dot: Range<usize>,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ProjectionRecordTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let incoming_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     i.local.push_delimiter(Delimiter::Brace);
-    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBrace);
-    i.local.push_stop_set(stops); i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionRecord);
+    let stops = active_stop_set(i)
+        .with(StopKind::Comma)
+        .with(StopKind::Semicolon)
+        .with(StopKind::RightBrace);
+    i.local.push_stop_set(stops);
+    i.local
+        .push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionRecord);
     let opening = consume_trivia(i).expect("trivia scanning is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        incoming_base,
+        &opening,
+        i.local.line().line_indent,
+    );
     push_layout_delimited_baseline(layout, i);
     let mut items = Vec::new();
-    let close = if let Some(close) = i.run(recognize_record_projection_close) { Recovered::Complete(close) } else { loop {
-        if let Some(marker) = i.run(scan_exact_dot_dot) {
-            let rhs_start = i.pos(); consume_trivia(i).expect("trivia scanning is total");
-            let rhs = if let Some(rhs) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
-                Recovered::Complete(Box::new(rhs))
+    let close = if let Some(close) = i.run(recognize_record_projection_close) {
+        Recovered::Complete(close)
+    } else {
+        loop {
+            if let Some(marker) = i.run(scan_exact_dot_dot) {
+                let rhs_start = i.pos();
+                consume_trivia(i).expect("trivia scanning is total");
+                let rhs = if let Some(rhs) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+                    Recovered::Complete(Box::new(rhs))
+                } else if let Some(range) = call_argument_error_retry_ast(table, i) {
+                    Recovered::Complete(Box::new(OperatorChain::new(
+                        vec![OperatorChainItem::Error {
+                            range: range.clone(),
+                        }],
+                        range,
+                    )))
+                } else {
+                    Recovered::Incomplete
+                };
+                items.push(ProjectionRecordItem::Spread(ProjectionRecordSpreadItem {
+                    marker: marker.clone(),
+                    rhs,
+                    range: marker.start..i.pos().max(rhs_start),
+                }));
+            } else if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+                items.push(ProjectionRecordItem::Expression(item));
             } else if let Some(range) = call_argument_error_retry_ast(table, i) {
-                Recovered::Complete(Box::new(OperatorChain::new(vec![OperatorChainItem::Error { range: range.clone() }], range)))
-            } else { Recovered::Incomplete };
-            items.push(ProjectionRecordItem::Spread(ProjectionRecordSpreadItem { marker: marker.clone(), rhs, range: marker.start..i.pos().max(rhs_start) }));
-        } else if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) { items.push(ProjectionRecordItem::Expression(item)); }
-        else if let Some(range) = call_argument_error_retry_ast(table, i) {
-            items.push(ProjectionRecordItem::Expression(OperatorChain::new(
-                vec![OperatorChainItem::Error { range: range.clone() }],
-                range,
-            )));
+                items.push(ProjectionRecordItem::Expression(OperatorChain::new(
+                    vec![OperatorChainItem::Error {
+                        range: range.clone(),
+                    }],
+                    range,
+                )));
+                if any_ambient_owner_claims(i) {
+                    break Recovered::Incomplete;
+                }
+                continue;
+            } else {
+                break Recovered::Incomplete;
+            }
             if any_ambient_owner_claims(i) {
                 break Recovered::Incomplete;
             }
-            continue;
-        }
-        else { break Recovered::Incomplete; }
-        if any_ambient_owner_claims(i) {
+            let trivia = consume_trivia(i).expect("trivia scanning is total");
+            if i.run(recognize_call_separator).is_some() {
+                consume_trivia(i).expect("trivia scanning is total");
+                if let Some(close) = i.run(recognize_record_projection_close) {
+                    break Recovered::Complete(close);
+                }
+                continue;
+            }
+            if let Some(close) = i.run(recognize_record_projection_close) {
+                break Recovered::Complete(close);
+            }
+            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+                == LayoutDelimitedBoundary::ImplicitNewline
+            {
+                continue;
+            }
+            if expression_nud_candidate_input(table, i) || exact_dot_dot_pending(i) {
+                let at = i.pos();
+                items.push(ProjectionRecordItem::Expression(OperatorChain::new(
+                    vec![OperatorChainItem::MissingOperand { range: at..at }],
+                    at..at,
+                )));
+                continue;
+            }
             break Recovered::Incomplete;
         }
-        let trivia = consume_trivia(i).expect("trivia scanning is total");
-        if i.run(recognize_call_separator).is_some() { consume_trivia(i).expect("trivia scanning is total"); if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); } continue; }
-        if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); }
-        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
-        if expression_nud_candidate_input(table, i) || exact_dot_dot_pending(i) {
-            let at = i.pos(); items.push(ProjectionRecordItem::Expression(OperatorChain::new(vec![OperatorChainItem::MissingOperand { range: at..at }], at..at))); continue;
-        }
-        break Recovered::Incomplete;
-    }};
+    };
     let close = match close {
         Recovered::Complete(close) => Recovered::Complete(close),
         Recovered::Incomplete => parse_projection_close_ast(i, Delimiter::Brace),
     };
     pop_layout_delimited_baseline(layout, i);
-    assert_eq!(i.local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionRecord));
-    assert_eq!(i.local.pop_stop_set(), Some(stops)); assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
-    ProjectionRecordTail { dot: dot.clone(), open, items, close, range: dot.start..i.pos() }
+    assert_eq!(
+        i.local.pop_expression_delimited_owner(),
+        Some(ExpressionDelimitedOwner::ProjectionRecord)
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
+    ProjectionRecordTail {
+        dot: dot.clone(),
+        open,
+        items,
+        close,
+        range: dot.start..i.pos(),
+    }
 }
 
 fn exact_dot_dot_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let checkpoint = i.checkpoint(); let pending = i.run(scan_exact_dot_dot).is_some(); i.rollback(checkpoint); pending
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_exact_dot_dot).is_some();
+    i.rollback(checkpoint);
+    pending
 }
 
 /// AST-side counterpart to the direct-CST projection closing-slot recovery.
@@ -1238,8 +1685,7 @@ where
         if any_ambient_owner_claims(i) {
             return Recovered::Incomplete;
         }
-        if i.input.remainder().is_empty()
-            || matches!(i.input.remainder().chars().next(), Some(';'))
+        if i.input.remainder().is_empty() || matches!(i.input.remainder().chars().next(), Some(';'))
         {
             return Recovered::Incomplete;
         }
@@ -1255,7 +1701,9 @@ where
             if matches!(character, ')' | ']' | '}' | ';') {
                 break;
             }
-            i.input.next().expect("the scanned projection-close byte exists");
+            i.input
+                .next()
+                .expect("the scanned projection-close byte exists");
             let mut line = i.local.line();
             line.at_line_start = false;
             i.local.set_line(line);
@@ -1301,13 +1749,22 @@ where
 }
 
 fn recognize_call_separator<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
     let punctuation = i.run(scan_punctuation)?;
-    matches!(punctuation.kind(), PunctuationKind::Comma | PunctuationKind::Semicolon)
-        .then(|| punctuation.range())
-        .or_else(|| { i.rollback(checkpoint); None })
+    matches!(
+        punctuation.kind(),
+        PunctuationKind::Comma | PunctuationKind::Semicolon
+    )
+    .then(|| punctuation.range())
+    .or_else(|| {
+        i.rollback(checkpoint);
+        None
+    })
 }
 
 fn path_segment(word: WordSpan<'_>) -> PathSegment<'_> {
@@ -1341,11 +1798,7 @@ where
     (start < i.pos()).then(|| start..i.pos())
 }
 
-fn fixed_tail_recovery_boundary<E>(
-    table: &OperatorTable,
-    i: &mut SynIn<E>,
-    character: char,
-) -> bool
+fn fixed_tail_recovery_boundary<E>(table: &OperatorTable, i: &mut SynIn<E>, character: char) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1402,7 +1855,10 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    let base_indent = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let base_indent = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     let introducer_trivia = consume_trivia(&mut i)?;
     let colon_checkpoint = i.checkpoint();
     let colon = i.run(scan_punctuation).and_then(|punctuation| {
@@ -1411,8 +1867,17 @@ where
     if colon.is_none() {
         i.rollback(colon_checkpoint);
     }
-    let layout = colon.as_ref().map(|_| recognize_introduced_body_layout(base_indent, &mut i));
-    Some(WithBodyRecognition { leading, keyword, introducer_trivia, colon, layout, base_indent })
+    let layout = colon
+        .as_ref()
+        .map(|_| recognize_introduced_body_layout(base_indent, &mut i));
+    Some(WithBodyRecognition {
+        leading,
+        keyword,
+        introducer_trivia,
+        colon,
+        layout,
+        base_indent,
+    })
 }
 
 fn parse_with_body_tail<'source, E>(
@@ -1426,21 +1891,37 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = with.keyword.range().start;
-    let colon = with.colon.clone().map_or(Recovered::Incomplete, Recovered::Complete);
+    let colon = with
+        .colon
+        .clone()
+        .map_or(Recovered::Incomplete, Recovered::Complete);
     let inline_layout = matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }));
-    let inline_scope = matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }) | None).then(|| {
-        i.local.push_inline_canonical_statement_ambient_scope(
-            InlineStatementOwnerKind::WithBodyTail,
-        )
-    });
+    let inline_scope =
+        matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }) | None).then(|| {
+            i.local.push_inline_canonical_statement_ambient_scope(
+                InlineStatementOwnerKind::WithBodyTail,
+            )
+        });
     let body = match with.layout {
-        Some(ArmBodyLayout::Indented { opening_trivia, block_indent }) => Recovered::Complete(WithBody::Indented {
+        Some(ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        }) => Recovered::Complete(WithBody::Indented {
             block: parse_indented_statement_block_with_options(
-                table, opening_trivia, with.base_indent, block_indent, IndentedStatementBlockOptions::with_body(), i,
+                table,
+                opening_trivia,
+                with.base_indent,
+                block_indent,
+                IndentedStatementBlockOptions::with_body(),
+                i,
             ),
         }),
         Some(ArmBodyLayout::Inline { .. }) | None => parse_with_inline_statement(table, i)
-            .map(|statement| Recovered::Complete(WithBody::Inline { statement: Box::new(statement) }))
+            .map(|statement| {
+                Recovered::Complete(WithBody::Inline {
+                    statement: Box::new(statement),
+                })
+            })
             .unwrap_or(Recovered::Incomplete),
         Some(ArmBodyLayout::WrongIndent) => Recovered::Incomplete,
     };
@@ -1449,7 +1930,9 @@ where
         let checkpoint = i.checkpoint();
         if i.run(recognize_semicolon).is_some() {
             terminal_semicolon_end = Some(i.pos());
-        } else { i.rollback(checkpoint); }
+        } else {
+            i.rollback(checkpoint);
+        }
     }
     if let Some(scope) = inline_scope {
         assert_eq!(i.local.pop_ambient_owner_scope(), Some(scope));
@@ -1459,7 +1942,12 @@ where
         Recovered::Complete(WithBody::Indented { block }) => block.range.end,
         Recovered::Incomplete => with.colon.unwrap_or_else(|| with.keyword.range()).end,
     });
-    WithBodyTail { keyword: with.keyword, colon, body, range: start..end }
+    WithBodyTail {
+        keyword: with.keyword,
+        colon,
+        body,
+        range: start..end,
+    }
 }
 
 fn parse_with_inline_statement<'source, E>(
@@ -1477,9 +1965,14 @@ where
     let range = call_argument_error_retry_ast(table, i)?;
     let expression = i.run(from_fn(|i| parse_operator_chain(table, i)))?;
     let end = expression.range.end;
-    let mut items = vec![OperatorChainItem::Error { range: range.clone() }];
+    let mut items = vec![OperatorChainItem::Error {
+        range: range.clone(),
+    }];
     items.extend(expression.items);
-    Some(Statement::Expression(OperatorChain::new(items, range.start..end)))
+    Some(Statement::Expression(OperatorChain::new(
+        items,
+        range.start..end,
+    )))
 }
 
 /// The shared AST statement entry used by every statement-sequence owner.
@@ -1499,7 +1992,9 @@ where
     i.rollback(checkpoint);
     match intro {
         Some(StatementIntro::Binding(_)) => i
-            .run(from_fn(|i| parse_binding_declaration_with_operators(table, i)))
+            .run(from_fn(|i| {
+                parse_binding_declaration_with_operators(table, i)
+            }))
             .map(Statement::Binding),
         Some(StatementIntro::Use(_)) => i.run(parse_use_declaration).map(Statement::Use),
         Some(StatementIntro::Mod(_)) => i
@@ -1517,25 +2012,28 @@ where
             .run(from_fn(|i| parse_impl_declaration_isolated(table, i)))
             .map(Statement::Impl),
         Some(StatementIntro::Cast(_)) => i
-            .run(from_fn(|i| parse_cast_declaration_form_aware_isolated(table, i)))
+            .run(from_fn(|i| {
+                parse_cast_declaration_form_aware_isolated(table, i)
+            }))
             .map(Statement::Cast),
         Some(StatementIntro::Act(_)) => i
             .run(from_fn(|i| parse_act_declaration_isolated(table, i)))
             .map(Statement::Act),
-        _ => i.run(from_fn(|i| parse_operator_chain(table, i))).map(Statement::Expression),
+        _ => i
+            .run(from_fn(|i| parse_operator_chain(table, i)))
+            .map(Statement::Expression),
     }
 }
 
-fn recognize_semicolon<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<Range<usize>>
+fn recognize_semicolon<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let semicolon = i.run(scan_punctuation)
+    let semicolon = i
+        .run(scan_punctuation)
         .filter(|punctuation| punctuation.kind() == PunctuationKind::Semicolon)
         .map(|punctuation| punctuation.range());
     if semicolon.is_none() {
@@ -1546,7 +2044,9 @@ where
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum ColonApplicationRhsRecognition {
-    Inline { trivia: TriviaRun },
+    Inline {
+        trivia: TriviaRun,
+    },
     Indented {
         opening_trivia: TriviaRun,
         base_indent: usize,
@@ -1556,7 +2056,11 @@ enum ColonApplicationRhsRecognition {
 }
 
 enum InlineColonSeparator {
-    Comma { leading: TriviaRun, comma: Range<usize>, trailing: TriviaRun },
+    Comma {
+        leading: TriviaRun,
+        comma: Range<usize>,
+        trailing: TriviaRun,
+    },
     Newline(TriviaRun),
 }
 
@@ -1570,15 +2074,21 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let layout = LayoutDelimitedFrame::inline(
-        i.local.indentation_baseline().map_or(0, |baseline| baseline.column),
+        i.local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column),
     );
-    let mut arguments = vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)];
+    let mut arguments = vec![Recovered::Complete(
+        i.run(from_fn(|i| parse_operator_chain(table, i)))?,
+    )];
     loop {
         let checkpoint = i.checkpoint();
         let _trivia = consume_trivia(i)?;
         if i.run(recognize_parenthesized_comma).is_some() {
             consume_trivia(i)?;
-            arguments.push(Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?));
+            arguments.push(Recovered::Complete(
+                i.run(from_fn(|i| parse_operator_chain(table, i)))?,
+            ));
             continue;
         }
         i.rollback(checkpoint.clone());
@@ -1589,7 +2099,9 @@ where
         if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
             == LayoutDelimitedBoundary::ImplicitNewline
         {
-            arguments.push(Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?));
+            arguments.push(Recovered::Complete(
+                i.run(from_fn(|i| parse_operator_chain(table, i)))?,
+            ));
             continue;
         }
         i.rollback(checkpoint);
@@ -1642,9 +2154,14 @@ where
     );
     let rhs = match recognize_introduced_body_layout(base_indent, &mut i) {
         ArmBodyLayout::Inline { trivia } => ColonApplicationRhsRecognition::Inline { trivia },
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => {
-            ColonApplicationRhsRecognition::Indented { opening_trivia, base_indent, block_indent }
-        }
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => ColonApplicationRhsRecognition::Indented {
+            opening_trivia,
+            base_indent,
+            block_indent,
+        },
         ArmBodyLayout::WrongIndent => ColonApplicationRhsRecognition::WrongIndent,
     };
     Some(ColonApplicationRecognition {
@@ -1677,7 +2194,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let candidate = i.run(from_fn(|i| recognize_nud(table, LeadingTrivia::None, i))).is_some();
+    let candidate = i
+        .run(from_fn(|i| recognize_nud(table, LeadingTrivia::None, i)))
+        .is_some();
     i.rollback(checkpoint);
     candidate
 }
@@ -1712,7 +2231,8 @@ where
 {
     i.choice((
         recognize_parenthesized_open.map(|open| NudRecognition::Parenthesized { open }),
-        recognize_braced_statement_block_open.map(|open| NudRecognition::BracedStatementBlock { open }),
+        recognize_braced_statement_block_open
+            .map(|open| NudRecognition::BracedStatementBlock { open }),
         from_fn(recognize_if_nud),
         from_fn(recognize_case_like_nud),
         from_fn(|i| {
@@ -1728,14 +2248,28 @@ where
     ))
 }
 
-fn recognize_case_like_nud<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<NudRecognition<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn recognize_case_like_nud<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<NudRecognition<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let word = i.run(scan_word)?;
-    let base_indent = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let base_indent = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     match word.text() {
-        "case" => Some(NudRecognition::Case { keyword: word, base_indent }),
-        "catch" => Some(NudRecognition::Catch { keyword: word, base_indent }),
+        "case" => Some(NudRecognition::Case {
+            keyword: word,
+            base_indent,
+        }),
+        "catch" => Some(NudRecognition::Catch {
+            keyword: word,
+            base_indent,
+        }),
         _ => None,
     }
 }
@@ -1750,7 +2284,10 @@ where
     let word = i.run(scan_word)?;
     (word.text() == "if").then(|| NudRecognition::If {
         keyword: word,
-        base_indent: i.local.indentation_baseline().map_or(0, |baseline| baseline.column),
+        base_indent: i
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column),
     })
 }
 
@@ -1767,7 +2304,12 @@ where
 {
     let start = keyword.range().start;
     let mut companion_scope = Some(push_if_expression_companion_scope(base_indent, i));
-    let mut arms = vec![parse_if_arm(table, IfArmKeyword::If(keyword), base_indent, i)];
+    let mut arms = vec![parse_if_arm(
+        table,
+        IfArmKeyword::If(keyword),
+        base_indent,
+        i,
+    )];
     let mut else_arm = None;
     while let Some(keyword) = recognize_if_arm_continuation(
         base_indent,
@@ -1778,7 +2320,12 @@ where
     ) {
         match keyword {
             IfContinuationKeyword::Elsif { keyword, .. } => {
-                arms.push(parse_if_arm(table, IfArmKeyword::Elsif(keyword), base_indent, i));
+                arms.push(parse_if_arm(
+                    table,
+                    IfArmKeyword::Elsif(keyword),
+                    base_indent,
+                    i,
+                ));
             }
             IfContinuationKeyword::Else { keyword, .. } => {
                 pop_if_expression_companion_scope(
@@ -1799,7 +2346,12 @@ where
         || arms.last().expect("if has an initial arm").range.end,
         |arm| arm.range.end,
     );
-    IfExpression { arms, else_arm, base_indent, range: start..end }
+    IfExpression {
+        arms,
+        else_arm,
+        base_indent,
+        range: start..end,
+    }
 }
 
 const IF_EXPRESSION_COMPANION_WORDS: &[&str] = &["elsif", "else"];
@@ -1829,16 +2381,21 @@ where
         .local
         .push_if_expression_companion(if_base_indent, IF_EXPRESSION_COMPANION_WORDS);
     assert_eq!(i.local.if_expression_companion_depth(), entry_depth + 1);
-    IfExpressionCompanionScope { id, entry_depth, if_base_indent }
+    IfExpressionCompanionScope {
+        id,
+        entry_depth,
+        if_base_indent,
+    }
 }
 
-fn pop_if_expression_companion_scope<E>(
-    scope: IfExpressionCompanionScope,
-    i: &mut SynIn<E>,
-) where
+fn pop_if_expression_companion_scope<E>(scope: IfExpressionCompanionScope, i: &mut SynIn<E>)
+where
     E: ErrorSink<usize>,
 {
-    assert_eq!(i.local.if_expression_companion_depth(), scope.entry_depth + 1);
+    assert_eq!(
+        i.local.if_expression_companion_depth(),
+        scope.entry_depth + 1
+    );
     let frame = i
         .local
         .pop_if_expression_companion()
@@ -1849,8 +2406,16 @@ fn pop_if_expression_companion_scope<E>(
     assert_eq!(i.local.if_expression_companion_depth(), scope.entry_depth);
 }
 
-fn parse_case_expression<'source, E>(table: &OperatorTable, keyword: WordSpan<'source>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CaseExpression<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_case_expression<'source, E>(
+    table: &OperatorTable,
+    keyword: WordSpan<'source>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CaseExpression<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = keyword.range().start;
     consume_trivia(i).expect("trivia scanning is total");
@@ -1858,88 +2423,254 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     consume_trivia(i).expect("trivia scanning is total");
     let stops = active_stop_set(i).with(StopKind::Colon);
     i.local.push_stop_set(stops);
-    let scrutinee = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
+    let scrutinee = i
+        .run(from_fn(|i| parse_operator_chain(table, i)))
+        .map(|value| Recovered::Complete(Box::new(value)))
+        .unwrap_or(Recovered::Incomplete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     consume_trivia(i).expect("trivia scanning is total");
-    let block = recognize_arm_colon(i).map(|colon| Recovered::Complete(parse_case_block_ast(table, colon, base_indent, i))).unwrap_or(Recovered::Incomplete);
-    let end = match &block { Recovered::Complete(block) => block.range.end, Recovered::Incomplete => match &scrutinee { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => keyword.range().end } };
-    CaseExpression { keyword, label, scrutinee, block, base_indent, range: start..end }
+    let block = recognize_arm_colon(i)
+        .map(|colon| Recovered::Complete(parse_case_block_ast(table, colon, base_indent, i)))
+        .unwrap_or(Recovered::Incomplete);
+    let end = match &block {
+        Recovered::Complete(block) => block.range.end,
+        Recovered::Incomplete => match &scrutinee {
+            Recovered::Complete(value) => value.range.end,
+            Recovered::Incomplete => keyword.range().end,
+        },
+    };
+    CaseExpression {
+        keyword,
+        label,
+        scrutinee,
+        block,
+        base_indent,
+        range: start..end,
+    }
 }
 
-fn parse_catch_expression<'source, E>(table: &OperatorTable, keyword: WordSpan<'source>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CatchExpression<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_catch_expression<'source, E>(
+    table: &OperatorTable,
+    keyword: WordSpan<'source>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CatchExpression<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = keyword.range().start;
     consume_trivia(i).expect("trivia scanning is total");
     let label = parse_case_like_label(i);
     consume_trivia(i).expect("trivia scanning is total");
-    let stops = active_stop_set(i).with(StopKind::Colon).with(StopKind::LeftBrace);
+    let stops = active_stop_set(i)
+        .with(StopKind::Colon)
+        .with(StopKind::LeftBrace);
     i.local.push_stop_set(stops);
-    let scrutinee = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
+    let scrutinee = i
+        .run(from_fn(|i| parse_operator_chain(table, i)))
+        .map(|value| Recovered::Complete(Box::new(value)))
+        .unwrap_or(Recovered::Incomplete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     consume_trivia(i).expect("trivia scanning is total");
     let block = if let Some(colon) = recognize_arm_colon(i) {
         Recovered::Complete(parse_catch_colon_block_ast(table, colon, base_indent, i))
     } else if let Some(open) = i.run(recognize_braced_statement_block_open) {
         Recovered::Complete(parse_catch_braced_block_ast(table, open, i))
-    } else { Recovered::Incomplete };
-    let end = match &block { Recovered::Complete(CatchBlock::Colon { range, .. } | CatchBlock::Braced { range, .. }) => range.end, Recovered::Incomplete => match &scrutinee { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => keyword.range().end } };
-    CatchExpression { keyword, label, scrutinee, block, base_indent, range: start..end }
+    } else {
+        Recovered::Incomplete
+    };
+    let end = match &block {
+        Recovered::Complete(CatchBlock::Colon { range, .. } | CatchBlock::Braced { range, .. }) => {
+            range.end
+        }
+        Recovered::Incomplete => match &scrutinee {
+            Recovered::Complete(value) => value.range.end,
+            Recovered::Incomplete => keyword.range().end,
+        },
+    };
+    CatchExpression {
+        keyword,
+        label,
+        scrutinee,
+        block,
+        base_indent,
+        range: start..end,
+    }
 }
 
-fn parse_case_like_label<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<CaseLikeLabel<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_case_like_label<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<CaseLikeLabel<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let Some(punctuation) = i.run(scan_punctuation) else { return None; };
-    if punctuation.kind() != PunctuationKind::Apostrophe { i.rollback(checkpoint); return None; }
-    let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; };
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        return None;
+    };
+    if punctuation.kind() != PunctuationKind::Apostrophe {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(word) = i.run(scan_word) else {
+        i.rollback(checkpoint);
+        return None;
+    };
     let range = punctuation.range().start..word.range().end;
-    Some(CaseLikeLabel { text: &i.input.source()[range.clone()], range })
+    Some(CaseLikeLabel {
+        text: &i.input.source()[range.clone()],
+        range,
+    })
 }
 
-fn parse_case_block_ast<'source, E>(table: &OperatorTable, colon: Range<usize>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CaseBlock<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_case_block_ast<'source, E>(
+    table: &OperatorTable,
+    colon: Range<usize>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CaseBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let layout = recognize_introduced_body_layout(base_indent, i);
     let (layout_kind, policy) = match layout {
         ArmBodyLayout::Inline { .. } => (ColonArmLayout::Inline, ArmSequencePolicy::CaseInline),
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => { let _ = opening_trivia; (ColonArmLayout::Indented { base_indent, arm_indent: block_indent }, ArmSequencePolicy::Indented { family: CaseLikeFamily::Case, base_indent, arm_indent: block_indent }) }
-        ArmBodyLayout::WrongIndent => return CaseBlock { colon: Recovered::Complete(colon.clone()), arms: Recovered::Incomplete, layout: ColonArmLayout::Inline, range: colon.clone() },
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => {
+            let _ = opening_trivia;
+            (
+                ColonArmLayout::Indented {
+                    base_indent,
+                    arm_indent: block_indent,
+                },
+                ArmSequencePolicy::Indented {
+                    family: CaseLikeFamily::Case,
+                    base_indent,
+                    arm_indent: block_indent,
+                },
+            )
+        }
+        ArmBodyLayout::WrongIndent => {
+            return CaseBlock {
+                colon: Recovered::Complete(colon.clone()),
+                arms: Recovered::Incomplete,
+                layout: ColonArmLayout::Inline,
+                range: colon.clone(),
+            };
+        }
     };
     let arms = Recovered::Complete(parse_case_arm_sequence_ast(table, policy, i));
     let end = i.pos();
-    CaseBlock { colon: Recovered::Complete(colon.clone()), arms, layout: layout_kind, range: colon.start..end }
+    CaseBlock {
+        colon: Recovered::Complete(colon.clone()),
+        arms,
+        layout: layout_kind,
+        range: colon.start..end,
+    }
 }
 
-fn parse_catch_colon_block_ast<'source, E>(table: &OperatorTable, colon: Range<usize>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CatchBlock<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_catch_colon_block_ast<'source, E>(
+    table: &OperatorTable,
+    colon: Range<usize>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CatchBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let layout = recognize_introduced_body_layout(base_indent, i);
     let (layout_kind, policy) = match layout {
-        ArmBodyLayout::Inline { .. } => (ColonArmLayout::Inline, ArmSequencePolicy::CatchInlineSingle),
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => { let _ = opening_trivia; (ColonArmLayout::Indented { base_indent, arm_indent: block_indent }, ArmSequencePolicy::Indented { family: CaseLikeFamily::Catch, base_indent, arm_indent: block_indent }) }
-        ArmBodyLayout::WrongIndent => return CatchBlock::Colon { colon: Recovered::Complete(colon.clone()), arms: Recovered::Incomplete, layout: ColonArmLayout::Inline, range: colon.clone() },
+        ArmBodyLayout::Inline { .. } => {
+            (ColonArmLayout::Inline, ArmSequencePolicy::CatchInlineSingle)
+        }
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => {
+            let _ = opening_trivia;
+            (
+                ColonArmLayout::Indented {
+                    base_indent,
+                    arm_indent: block_indent,
+                },
+                ArmSequencePolicy::Indented {
+                    family: CaseLikeFamily::Catch,
+                    base_indent,
+                    arm_indent: block_indent,
+                },
+            )
+        }
+        ArmBodyLayout::WrongIndent => {
+            return CatchBlock::Colon {
+                colon: Recovered::Complete(colon.clone()),
+                arms: Recovered::Incomplete,
+                layout: ColonArmLayout::Inline,
+                range: colon.clone(),
+            };
+        }
     };
     let arms = Recovered::Complete(parse_catch_arm_sequence_ast(table, policy, i));
-    CatchBlock::Colon { colon: Recovered::Complete(colon.clone()), arms, layout: layout_kind, range: colon.start..i.pos() }
+    CatchBlock::Colon {
+        colon: Recovered::Complete(colon.clone()),
+        arms,
+        layout: layout_kind,
+        range: colon.start..i.pos(),
+    }
 }
 
-fn parse_catch_braced_block_ast<'source, E>(table: &OperatorTable, open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> CatchBlock<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_catch_braced_block_ast<'source, E>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CatchBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let scope = push_braced_statement_block_scope(i, BracedBarrierOrigin::CatchBracedArmSequence);
     consume_trivia(i).expect("trivia scanning is total");
-    let arms = Recovered::Complete(parse_catch_arm_sequence_ast(table, ArmSequencePolicy::CatchBraced, i));
+    let arms = Recovered::Complete(parse_catch_arm_sequence_ast(
+        table,
+        ArmSequencePolicy::CatchBraced,
+        i,
+    ));
     consume_trivia(i).expect("trivia scanning is total");
-    let close = i.run(recognize_braced_statement_block_close).map_or(Recovered::Incomplete, Recovered::Complete);
-    let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
+    let close = i
+        .run(recognize_braced_statement_block_close)
+        .map_or(Recovered::Incomplete, Recovered::Complete);
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
     pop_braced_statement_block_scope(i, scope);
-    CatchBlock::Braced { open: open.clone(), arms, close, range: open.start..end }
+    CatchBlock::Braced {
+        open: open.clone(),
+        arms,
+        close,
+        range: open.start..end,
+    }
 }
 
-fn parse_case_arm_sequence_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> ArmSequence<CaseArm<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_case_arm_sequence_ast<'source, E>(
+    table: &OperatorTable,
+    policy: ArmSequencePolicy,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ArmSequence<CaseArm<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut arms = vec![Recovered::Complete(parse_case_arm_ast(table, policy, i))];
     let mut trailing_comma = None;
@@ -1948,19 +2679,35 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         let trivia = consume_trivia(i).expect("trivia scanning is total");
         if let Some(comma) = i.run(recognize_parenthesized_comma) {
             consume_trivia(i).expect("trivia scanning is total");
-            if arm_sequence_boundary(policy, i) { trailing_comma = Some(comma); break; }
+            if arm_sequence_boundary(policy, i) {
+                trailing_comma = Some(comma);
+                break;
+            }
             arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
         } else if policy_newline_separator(policy, &trivia, i) {
             arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
         } else if pattern_nud_candidate_input(i) {
             arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
-        } else { i.rollback(checkpoint); break; }
+        } else {
+            i.rollback(checkpoint);
+            break;
+        }
     }
-    ArmSequence { arms, trailing_comma }
+    ArmSequence {
+        arms,
+        trailing_comma,
+    }
 }
 
-fn parse_catch_arm_sequence_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> ArmSequence<CatchArm<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_catch_arm_sequence_ast<'source, E>(
+    table: &OperatorTable,
+    policy: ArmSequencePolicy,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ArmSequence<CatchArm<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut arms = vec![Recovered::Complete(parse_catch_arm_ast(table, policy, i))];
     let mut trailing_comma = None;
@@ -1969,95 +2716,278 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         let trivia = consume_trivia(i).expect("trivia scanning is total");
         if let Some(comma) = i.run(recognize_parenthesized_comma) {
             consume_trivia(i).expect("trivia scanning is total");
-            if arm_sequence_boundary(policy, i) { trailing_comma = Some(comma); break; }
+            if arm_sequence_boundary(policy, i) {
+                trailing_comma = Some(comma);
+                break;
+            }
             arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
         } else if policy_newline_separator(policy, &trivia, i) {
             arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
         } else if pattern_nud_candidate_input(i) {
             arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
-        } else { i.rollback(checkpoint); break; }
+        } else {
+            i.rollback(checkpoint);
+            break;
+        }
     }
-    ArmSequence { arms, trailing_comma }
+    ArmSequence {
+        arms,
+        trailing_comma,
+    }
 }
 
-fn policy_allows_multiple(policy: ArmSequencePolicy) -> bool { !matches!(policy, ArmSequencePolicy::CatchInlineSingle) }
-fn arm_sequence_boundary<E>(policy: ArmSequencePolicy, i: &mut SynIn<E>) -> bool where E: ErrorSink<usize> {
-    if i.input.remainder().is_empty() || (matches!(policy, ArmSequencePolicy::CatchBraced) && i.input.remainder().starts_with('}')) { return true; }
-    match policy { ArmSequencePolicy::Indented { arm_indent, .. } => i.local.line().line_indent < arm_indent, _ => false }
+fn policy_allows_multiple(policy: ArmSequencePolicy) -> bool {
+    !matches!(policy, ArmSequencePolicy::CatchInlineSingle)
 }
-fn policy_newline_separator<E>(policy: ArmSequencePolicy, trivia: &TriviaRun, i: &SynIn<E>) -> bool where E: ErrorSink<usize> {
-    if !trivia_has_physical_newline(trivia) { return false; }
-    match policy { ArmSequencePolicy::Indented { arm_indent, .. } => i.local.line().line_indent == arm_indent, ArmSequencePolicy::CatchBraced => true, _ => false }
+fn arm_sequence_boundary<E>(policy: ArmSequencePolicy, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    if i.input.remainder().is_empty()
+        || (matches!(policy, ArmSequencePolicy::CatchBraced)
+            && i.input.remainder().starts_with('}'))
+    {
+        return true;
+    }
+    match policy {
+        ArmSequencePolicy::Indented { arm_indent, .. } => i.local.line().line_indent < arm_indent,
+        _ => false,
+    }
+}
+fn policy_newline_separator<E>(policy: ArmSequencePolicy, trivia: &TriviaRun, i: &SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    if !trivia_has_physical_newline(trivia) {
+        return false;
+    }
+    match policy {
+        ArmSequencePolicy::Indented { arm_indent, .. } => i.local.line().line_indent == arm_indent,
+        ArmSequencePolicy::CatchBraced => true,
+        _ => false,
+    }
 }
 
-fn parse_case_arm_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> CaseArm<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_case_arm_ast<'source, E>(
+    table: &OperatorTable,
+    policy: ArmSequencePolicy,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CaseArm<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere);
+    let stops = active_stop_set(i)
+        .with(StopKind::Arrow)
+        .with(StopKind::ArmGuardIf)
+        .with(StopKind::ArmGuardWhere);
     i.local.push_stop_set(stops);
-    let pattern = i.run(from_fn(|i| parse_pattern(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
+    let pattern = i
+        .run(from_fn(|i| parse_pattern(table, i)))
+        .map_or(Recovered::Incomplete, Recovered::Complete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let guard = parse_case_guard_ast(table, i);
     let arrow = parse_arm_arrow(i).map_or(Recovered::Incomplete, Recovered::Complete);
     let body = parse_arm_body_ast(table, policy, i);
     let terminator = parse_optional_semicolon(i);
     let end = i.pos();
-    CaseArm { pattern, guard, arrow, body, terminator, range: start..end }
+    CaseArm {
+        pattern,
+        guard,
+        arrow,
+        body,
+        terminator,
+        range: start..end,
+    }
 }
 
-fn parse_catch_arm_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> CatchArm<'source>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_catch_arm_ast<'source, E>(
+    table: &OperatorTable,
+    policy: ArmSequencePolicy,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CatchArm<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere).with(StopKind::Comma);
+    let stops = active_stop_set(i)
+        .with(StopKind::Arrow)
+        .with(StopKind::ArmGuardIf)
+        .with(StopKind::ArmGuardWhere)
+        .with(StopKind::Comma);
     i.local.push_stop_set(stops);
-    let pattern = i.run(from_fn(|i| parse_pattern(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
+    let pattern = i
+        .run(from_fn(|i| parse_pattern(table, i)))
+        .map_or(Recovered::Incomplete, Recovered::Complete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let handler = if let Some(_) = i.run(recognize_parenthesized_comma) {
         consume_trivia(i).expect("trivia scanning is total");
-        let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere);
+        let stops = active_stop_set(i)
+            .with(StopKind::Arrow)
+            .with(StopKind::ArmGuardIf)
+            .with(StopKind::ArmGuardWhere);
         i.local.push_stop_set(stops);
-        let handler = i.run(from_fn(|i| parse_pattern(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
+        let handler = i
+            .run(from_fn(|i| parse_pattern(table, i)))
+            .map_or(Recovered::Incomplete, Recovered::Complete);
         assert_eq!(i.local.pop_stop_set(), Some(stops));
         Some(handler)
-    } else { None };
+    } else {
+        None
+    };
     let guard = parse_catch_guard_ast(table, i);
     let arrow = parse_arm_arrow(i).map_or(Recovered::Incomplete, Recovered::Complete);
     let body = parse_arm_body_ast(table, policy, i);
     let terminator = parse_optional_semicolon(i);
     let end = i.pos();
-    CatchArm { pattern, handler, guard, arrow, body, terminator, range: start..end }
+    CatchArm {
+        pattern,
+        handler,
+        guard,
+        arrow,
+        body,
+        terminator,
+        range: start..end,
+    }
 }
 
-fn parse_case_guard_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Recovered<CaseGuard<'source>>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>, { parse_arm_guard_ast(table, i).map(|(keyword, condition, range)| Recovered::Complete(CaseGuard { keyword, condition, range })) }
-fn parse_catch_guard_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Recovered<CatchGuard<'source>>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>, { parse_arm_guard_ast(table, i).map(|(keyword, condition, range)| Recovered::Complete(CatchGuard { keyword, condition, range })) }
-fn parse_arm_guard_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<(ArmGuardKeyword<'source>, Recovered<Box<OperatorChain<'source>>>, Range<usize>)>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_case_guard_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Recovered<CaseGuard<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let checkpoint = i.checkpoint(); let Some(trivia) = consume_trivia(i) else { return None; }; let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; };
-    let keyword = match word.text() { "if" => ArmGuardKeyword::If(word), "where" => ArmGuardKeyword::Where(word), _ => { i.rollback(checkpoint); return None; } };
-    let _ = trivia; consume_trivia(i).expect("trivia scanning is total");
-    let stops = active_stop_set(i).with(StopKind::Arrow); i.local.push_stop_set(stops);
-    let condition = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
-    assert_eq!(i.local.pop_stop_set(), Some(stops)); let end = match &condition { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => word.range().end };
+    parse_arm_guard_ast(table, i).map(|(keyword, condition, range)| {
+        Recovered::Complete(CaseGuard {
+            keyword,
+            condition,
+            range,
+        })
+    })
+}
+fn parse_catch_guard_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Recovered<CatchGuard<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_arm_guard_ast(table, i).map(|(keyword, condition, range)| {
+        Recovered::Complete(CatchGuard {
+            keyword,
+            condition,
+            range,
+        })
+    })
+}
+fn parse_arm_guard_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<(
+    ArmGuardKeyword<'source>,
+    Recovered<Box<OperatorChain<'source>>>,
+    Range<usize>,
+)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let Some(trivia) = consume_trivia(i) else {
+        return None;
+    };
+    let Some(word) = i.run(scan_word) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    let keyword = match word.text() {
+        "if" => ArmGuardKeyword::If(word),
+        "where" => ArmGuardKeyword::Where(word),
+        _ => {
+            i.rollback(checkpoint);
+            return None;
+        }
+    };
+    let _ = trivia;
+    consume_trivia(i).expect("trivia scanning is total");
+    let stops = active_stop_set(i).with(StopKind::Arrow);
+    i.local.push_stop_set(stops);
+    let condition = i
+        .run(from_fn(|i| parse_operator_chain(table, i)))
+        .map(|value| Recovered::Complete(Box::new(value)))
+        .unwrap_or(Recovered::Incomplete);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let end = match &condition {
+        Recovered::Complete(value) => value.range.end,
+        Recovered::Incomplete => word.range().end,
+    };
     Some((keyword, condition, word.range().start..end))
 }
 
-fn parse_arm_arrow<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { consume_trivia(i)?; i.run(scan_exact_arrow) }
-fn parse_optional_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let checkpoint = i.checkpoint(); consume_trivia(i)?; let semicolon = i.run(scan_punctuation).and_then(|punctuation| (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range())); if semicolon.is_none() { i.rollback(checkpoint); } semicolon }
-fn parse_arm_body_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<ArmBody<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn parse_arm_arrow<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    consume_trivia(i)?;
+    i.run(scan_exact_arrow)
+}
+fn parse_optional_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    consume_trivia(i)?;
+    let semicolon = i.run(scan_punctuation).and_then(|punctuation| {
+        (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range())
+    });
+    if semicolon.is_none() {
+        i.rollback(checkpoint);
+    }
+    semicolon
+}
+fn parse_arm_body_ast<'source, E>(
+    table: &OperatorTable,
+    policy: ArmSequencePolicy,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<ArmBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let baseline = push_arm_body_baseline(policy, i);
     let stops = arm_body_stop(policy, active_stop_set(i));
     i.local.push_stop_set(stops);
     let base_indent = i.local.line().line_indent;
     let body = match recognize_introduced_body_layout(base_indent, i) {
-        ArmBodyLayout::Inline { .. } => i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(ArmBody::Inline(Box::new(value)))).unwrap_or(Recovered::Incomplete),
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => Recovered::Complete(ArmBody::Indented(parse_indented_statement_block(table, opening_trivia, base_indent, block_indent, i))),
+        ArmBodyLayout::Inline { .. } => i
+            .run(from_fn(|i| parse_operator_chain(table, i)))
+            .map(|value| Recovered::Complete(ArmBody::Inline(Box::new(value))))
+            .unwrap_or(Recovered::Incomplete),
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => Recovered::Complete(ArmBody::Indented(parse_indented_statement_block(
+            table,
+            opening_trivia,
+            base_indent,
+            block_indent,
+            i,
+        ))),
         ArmBodyLayout::WrongIndent => Recovered::Incomplete,
     };
     assert_eq!(i.local.pop_stop_set(), Some(stops));
@@ -2065,7 +2995,24 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     body
 }
 
-fn scan_exact_arrow<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let start = i.pos(); if !i.input.remainder().starts_with("->") || i.input.remainder().starts_with("->>") { return None; } i.input.next()?; i.input.next()?; let end = i.pos(); let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line); Some(start..end) }
+fn scan_exact_arrow<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    if !i.input.remainder().starts_with("->") || i.input.remainder().starts_with("->>") {
+        return None;
+    }
+    i.input.next()?;
+    i.input.next()?;
+    let end = i.pos();
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some(start..end)
+}
 
 fn parse_if_arm<'source, E>(
     table: &OperatorTable,
@@ -2078,7 +3025,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = match keyword { IfArmKeyword::If(word) | IfArmKeyword::Elsif(word) => word.range().start };
+    let start = match keyword {
+        IfArmKeyword::If(word) | IfArmKeyword::Elsif(word) => word.range().start,
+    };
     consume_trivia(i).expect("trivia scanning is total");
     let condition_stop = active_stop_set(i)
         .with(StopKind::Colon)
@@ -2086,17 +3035,29 @@ where
         .with(StopKind::Elsif)
         .with(StopKind::Else);
     i.local.push_stop_set(condition_stop);
-    let condition = i.run(from_fn(|i| parse_operator_chain(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
+    let condition = i
+        .run(from_fn(|i| parse_operator_chain(table, i)))
+        .map_or(Recovered::Incomplete, Recovered::Complete);
     assert_eq!(i.local.pop_stop_set(), Some(condition_stop));
     let colon = recognize_arm_colon(i);
     let body = colon.map_or(Recovered::Incomplete, |colon| {
-        Recovered::Complete(parse_colon_introduced_arm_body(table, colon, base_indent, i))
+        Recovered::Complete(parse_colon_introduced_arm_body(
+            table,
+            colon,
+            base_indent,
+            i,
+        ))
     });
     let end = match &body {
         Recovered::Complete(body) => body.range.end,
         Recovered::Incomplete => condition_end(&condition).unwrap_or_else(|| keyword_end(keyword)),
     };
-    IfArm { keyword, condition, body, range: start..end }
+    IfArm {
+        keyword,
+        condition,
+        body,
+        range: start..end,
+    }
 }
 
 fn parse_else_arm<'source, E>(
@@ -2112,11 +3073,20 @@ where
 {
     consume_trivia(i).expect("trivia scanning is total");
     let body = if let Some(colon) = recognize_arm_colon(i) {
-        Recovered::Complete(ElseArmBody::Colon(parse_colon_introduced_arm_body(table, colon, base_indent, i)))
+        Recovered::Complete(ElseArmBody::Colon(parse_colon_introduced_arm_body(
+            table,
+            colon,
+            base_indent,
+            i,
+        )))
     } else {
-        let stop_set = active_stop_set(i).with(StopKind::Elsif).with(StopKind::Else);
+        let stop_set = active_stop_set(i)
+            .with(StopKind::Elsif)
+            .with(StopKind::Else);
         i.local.push_stop_set(stop_set);
-        let body = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|chain| ElseArmBody::Bare(Box::new(chain)));
+        let body = i
+            .run(from_fn(|i| parse_operator_chain(table, i)))
+            .map(|chain| ElseArmBody::Bare(Box::new(chain)));
         assert_eq!(i.local.pop_stop_set(), Some(stop_set));
         body.map_or(Recovered::Incomplete, Recovered::Complete)
     };
@@ -2125,15 +3095,24 @@ where
         Recovered::Complete(ElseArmBody::Bare(chain)) => chain.range.end,
         Recovered::Incomplete => keyword.range().end,
     };
-    ElseArm { keyword, body, range: keyword.range().start..end }
+    ElseArm {
+        keyword,
+        body,
+        range: keyword.range().start..end,
+    }
 }
 
 fn condition_end(condition: &Recovered<OperatorChain<'_>>) -> Option<usize> {
-    match condition { Recovered::Complete(chain) => Some(chain.range.end), Recovered::Incomplete => None }
+    match condition {
+        Recovered::Complete(chain) => Some(chain.range.end),
+        Recovered::Incomplete => None,
+    }
 }
 
 fn keyword_end(keyword: IfArmKeyword<'_>) -> usize {
-    match keyword { IfArmKeyword::If(word) | IfArmKeyword::Elsif(word) => word.range().end }
+    match keyword {
+        IfArmKeyword::If(word) | IfArmKeyword::Elsif(word) => word.range().end,
+    }
 }
 
 fn recognize_arm_colon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
@@ -2145,7 +3124,9 @@ where
     let checkpoint = i.checkpoint();
     let punctuation = i.run(scan_punctuation)?;
     let colon = (punctuation.kind() == PunctuationKind::Colon).then(|| punctuation.range());
-    if colon.is_none() { i.rollback(checkpoint); }
+    if colon.is_none() {
+        i.rollback(checkpoint);
+    }
     colon
 }
 
@@ -2169,9 +3150,14 @@ where
             i.local.push_stop_set(stop_set);
             let chain = i.run(from_fn(|i| parse_operator_chain(table, i)));
             assert_eq!(i.local.pop_stop_set(), Some(stop_set));
-            chain.map(|chain| ArmBodyRhs::Inline(Box::new(chain))).map_or(Recovered::Incomplete, Recovered::Complete)
+            chain
+                .map(|chain| ArmBodyRhs::Inline(Box::new(chain)))
+                .map_or(Recovered::Incomplete, Recovered::Complete)
         }
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => Recovered::Complete(ArmBodyRhs::Indented(
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => Recovered::Complete(ArmBodyRhs::Indented(
             parse_indented_statement_block_with_options(
                 table,
                 opening_trivia,
@@ -2188,18 +3174,30 @@ where
         Recovered::Complete(ArmBodyRhs::Indented(block)) => block.range.end,
         Recovered::Incomplete => colon.end,
     };
-    ColonIntroducedArmBody { colon: Recovered::Complete(colon.clone()), rhs, range: colon.start..end }
+    ColonIntroducedArmBody {
+        colon: Recovered::Complete(colon.clone()),
+        rhs,
+        range: colon.start..end,
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum ArmBodyLayout {
-    Inline { trivia: TriviaRun },
-    Indented { opening_trivia: TriviaRun, block_indent: usize },
+    Inline {
+        trivia: TriviaRun,
+    },
+    Indented {
+        opening_trivia: TriviaRun,
+        block_indent: usize,
+    },
     WrongIndent,
 }
 
 /// Classifies a body after its owner has already consumed an introducer.
-fn recognize_introduced_body_layout<'source, E>(base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> ArmBodyLayout
+fn recognize_introduced_body_layout<'source, E>(
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ArmBodyLayout
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -2212,7 +3210,10 @@ where
     }
     let block_indent = i.local.line().line_indent;
     if block_indent > base_indent {
-        ArmBodyLayout::Indented { opening_trivia: trivia, block_indent }
+        ArmBodyLayout::Indented {
+            opening_trivia: trivia,
+            block_indent,
+        }
     } else {
         i.rollback(checkpoint);
         ArmBodyLayout::WrongIndent
@@ -2221,8 +3222,14 @@ where
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum IfContinuationKeyword<'source> {
-    Elsif { keyword: WordSpan<'source>, trivia: TriviaRun },
-    Else { keyword: WordSpan<'source>, trivia: TriviaRun },
+    Elsif {
+        keyword: WordSpan<'source>,
+        trivia: TriviaRun,
+    },
+    Else {
+        keyword: WordSpan<'source>,
+        trivia: TriviaRun,
+    },
 }
 
 fn recognize_if_arm_continuation<'source, E>(
@@ -2244,11 +3251,23 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; };
+    let Some(word) = i.run(scan_word) else {
+        i.rollback(checkpoint);
+        return None;
+    };
     let keyword = match word.text() {
-        "elsif" => IfContinuationKeyword::Elsif { keyword: word, trivia },
-        "else" => IfContinuationKeyword::Else { keyword: word, trivia },
-        _ => { i.rollback(checkpoint); return None; }
+        "elsif" => IfContinuationKeyword::Elsif {
+            keyword: word,
+            trivia,
+        },
+        "else" => IfContinuationKeyword::Else {
+            keyword: word,
+            trivia,
+        },
+        _ => {
+            i.rollback(checkpoint);
+            return None;
+        }
     };
     Some(keyword)
 }
@@ -2288,7 +3307,25 @@ where
     close
 }
 
-fn recognize_index_close<'source, E>(
+fn recognize_index_close<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    let close = matches!(
+        punctuation.kind(),
+        PunctuationKind::Close(Delimiter::Bracket)
+    )
+    .then(|| punctuation.range());
+    if close.is_none() {
+        i.rollback(checkpoint);
+    }
+    close
+}
+
+fn recognize_record_projection_close<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Range<usize>>
 where
@@ -2297,7 +3334,7 @@ where
 {
     let checkpoint = i.checkpoint();
     let punctuation = i.run(scan_punctuation)?;
-    let close = matches!(punctuation.kind(), PunctuationKind::Close(Delimiter::Bracket))
+    let close = (punctuation.kind() == PunctuationKind::Close(Delimiter::Brace))
         .then(|| punctuation.range());
     if close.is_none() {
         i.rollback(checkpoint);
@@ -2305,23 +3342,32 @@ where
     close
 }
 
-fn recognize_record_projection_close<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>,
-{
-    let checkpoint = i.checkpoint(); let punctuation = i.run(scan_punctuation)?;
-    let close = (punctuation.kind() == PunctuationKind::Close(Delimiter::Brace)).then(|| punctuation.range());
-    if close.is_none() { i.rollback(checkpoint); }
-    close
-}
-
 fn scan_exact_dot_dot<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let checkpoint = i.checkpoint(); let start = i.pos();
-    while i.input.remainder().chars().next().is_some_and(is_operator_shaped_character) { i.input.next()?; }
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    while i
+        .input
+        .remainder()
+        .chars()
+        .next()
+        .is_some_and(is_operator_shaped_character)
+    {
+        i.input.next()?;
+    }
     let end = i.pos();
-    if &i.input.source()[start..end] != ".." { i.rollback(checkpoint); return None; }
-    let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line); Some(start..end)
+    if &i.input.source()[start..end] != ".." {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some(start..end)
 }
 
 fn is_operator_shaped_character(character: char) -> bool {
@@ -2329,7 +3375,10 @@ fn is_operator_shaped_character(character: char) -> bool {
         && !character.is_ascii_digit()
         && character != '_'
         && !unicode_ident::is_xid_continue(character)
-        && !matches!(character, '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@')
+        && !matches!(
+            character,
+            '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@'
+        )
 }
 
 fn recognize_braced_statement_block_open<'source, E>(
@@ -2341,7 +3390,8 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let punctuation = i.run(scan_punctuation)?;
-    matches!(punctuation.kind(), PunctuationKind::Open(Delimiter::Brace)).then(|| punctuation.range())
+    matches!(punctuation.kind(), PunctuationKind::Open(Delimiter::Brace))
+        .then(|| punctuation.range())
 }
 
 fn recognize_braced_statement_block_close<'source, E>(
@@ -2408,8 +3458,14 @@ where
     let scanned = scan_operator(OperatorSite::Led, leading_presence, table, i)?;
 
     match scanned.fixity() {
-        ScannedFixity::Infix { .. } => Some(LedRecognition::Infix { leading, operator: scanned }),
-        ScannedFixity::Suffix { .. } => Some(LedRecognition::Suffix { leading, operator: scanned }),
+        ScannedFixity::Infix { .. } => Some(LedRecognition::Infix {
+            leading,
+            operator: scanned,
+        }),
+        ScannedFixity::Suffix { .. } => Some(LedRecognition::Suffix {
+            leading,
+            operator: scanned,
+        }),
         ScannedFixity::Prefix { .. } | ScannedFixity::Nullfix => None,
     }
 }
@@ -2448,15 +3504,21 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
     match tail {
         FixedPostfixRecognition::Call { open } => commit_call_tail(table, open, committed),
         FixedPostfixRecognition::Index { open } => commit_index_tail(table, open, committed),
-        FixedPostfixRecognition::ProjectionTuple { leading, dot, open } => commit_projection_tuple_tail(table, leading, dot, open, committed),
-        FixedPostfixRecognition::ProjectionRecord { leading, dot, open } => commit_projection_record_tail(table, leading, dot, open, committed),
+        FixedPostfixRecognition::ProjectionTuple { leading, dot, open } => {
+            commit_projection_tuple_tail(table, leading, dot, open, committed)
+        }
+        FixedPostfixRecognition::ProjectionRecord { leading, dot, open } => {
+            commit_projection_record_tail(table, leading, dot, open, committed)
+        }
         FixedPostfixRecognition::Field { leading, dot } => {
             committed.emit_trivia(&leading);
             committed.start_node(SyntaxKind::FieldTail);
             committed.token(SyntaxKind::Dot, dot);
             if let Some(name) = committed.probe(|probe| probe.input().run(scan_word)) {
                 committed.token(SyntaxKind::Identifier, name.range());
-            } else if let Some(range) = committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input())) {
+            } else if let Some(range) =
+                committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input()))
+            {
                 emit_fixed_tail_error(committed, ExpressionRole::FieldName, range);
             } else {
                 emit_fixed_tail_missing(committed, ExpressionRole::FieldName);
@@ -2471,7 +3533,9 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
             committed.emit_trivia(&trivia);
             if let Some(segment) = committed.probe(|probe| probe.input().run(scan_path_segment)) {
                 committed.token(path_segment_kind(segment), segment.range());
-            } else if let Some(range) = committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input())) {
+            } else if let Some(range) =
+                committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input()))
+            {
                 emit_fixed_tail_error(committed, ExpressionRole::PathSegment, range);
             } else {
                 emit_fixed_tail_missing(committed, ExpressionRole::PathSegment);
@@ -2486,15 +3550,43 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::CallTail);
     committed.token(SyntaxKind::LParen, open);
-    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis));
-    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Parenthesis); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call); });
-    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent));
+    let incoming_base = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
+    });
+    let stops = committed.probe(|probe| {
+        active_stop_set(probe.input())
+            .with(StopKind::Comma)
+            .with(StopKind::Semicolon)
+            .with(StopKind::RightParenthesis)
+    });
+    committed.probe(|probe| {
+        probe.input().local.push_delimiter(Delimiter::Parenthesis);
+        probe.input().local.push_stop_set(stops);
+        probe
+            .input()
+            .local
+            .push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+    });
+    let opening = consume_direct_trivia(committed);
+    committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| {
+        LayoutDelimitedFrame::after_opening_trivia(
+            incoming_base,
+            &opening,
+            probe.input().local.line().line_indent,
+        )
+    });
     committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
 
     if !parenthesized_close_pending(committed) {
@@ -2507,24 +3599,51 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
                     parse_direct_operator_chain(table, LeadingTrivia::None, committed)
                         .expect("a retried call argument must commit its shared NUD candidate");
                 } else {
-                    emit_call_missing(committed, ExpressionRole::CallArgument, ExpectedSyntax::Expression);
+                    emit_call_missing(
+                        committed,
+                        ExpressionRole::CallArgument,
+                        ExpectedSyntax::Expression,
+                    );
                 }
             }
             if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
                 break;
             }
-            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
             if let Some(separator) = commit_call_separator(committed) {
-                committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1);
-                let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing);
-                if parenthesized_close_pending(committed) { break; }
+                committed.token(
+                    if separator.0 {
+                        SyntaxKind::Semicolon
+                    } else {
+                        SyntaxKind::Comma
+                    },
+                    separator.1,
+                );
+                let trailing = consume_direct_trivia(committed);
+                committed.emit_trivia(&trailing);
+                if parenthesized_close_pending(committed) {
+                    break;
+                }
                 continue;
             }
-            if parenthesized_close_pending(committed) { break; }
-            let boundary = committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent));
-            if boundary == LayoutDelimitedBoundary::ImplicitNewline { continue; }
-            if boundary == LayoutDelimitedBoundary::None && parenthesized_element_pending(table, committed) {
-                emit_call_missing(committed, ExpressionRole::CallArgumentSeparator, ExpectedSyntax::DelimitedSequenceSeparator);
+            if parenthesized_close_pending(committed) {
+                break;
+            }
+            let boundary = committed.probe(|probe| {
+                layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+            });
+            if boundary == LayoutDelimitedBoundary::ImplicitNewline {
+                continue;
+            }
+            if boundary == LayoutDelimitedBoundary::None
+                && parenthesized_element_pending(table, committed)
+            {
+                emit_call_missing(
+                    committed,
+                    ExpressionRole::CallArgumentSeparator,
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                );
                 continue;
             }
             break;
@@ -2534,125 +3653,384 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
         ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
         ParenthesizedClose::Missing { .. } => emit_call_close_missing(committed),
     }
-    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); });
+    committed.probe(|probe| {
+        pop_layout_delimited_baseline(layout, probe.input());
+        assert_eq!(
+            probe.input().local.pop_expression_delimited_owner(),
+            Some(ExpressionDelimitedOwner::Call)
+        );
+        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
+        assert_eq!(
+            probe.input().local.pop_delimiter(),
+            Some(Delimiter::Parenthesis)
+        );
+    });
     committed.finish_node();
 }
 
-fn commit_projection_tuple_tail<'parse, 'source, 'local, E, O>(table: &OperatorTable, leading: TriviaRun, dot: Range<usize>, open: Range<usize>, committed: &mut Committed<'parse, 'source, 'local, E, O>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_projection_tuple_tail<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    leading: TriviaRun,
+    dot: Range<usize>,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.emit_trivia(&leading); committed.start_node(SyntaxKind::ProjectionTupleTail); committed.token(SyntaxKind::Dot, dot); committed.token(SyntaxKind::LParen, open);
-    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis));
-    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Parenthesis); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionTuple); });
-    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent)); committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
+    committed.emit_trivia(&leading);
+    committed.start_node(SyntaxKind::ProjectionTupleTail);
+    committed.token(SyntaxKind::Dot, dot);
+    committed.token(SyntaxKind::LParen, open);
+    let incoming_base = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
+    });
+    let stops = committed.probe(|probe| {
+        active_stop_set(probe.input())
+            .with(StopKind::Comma)
+            .with(StopKind::Semicolon)
+            .with(StopKind::RightParenthesis)
+    });
+    committed.probe(|probe| {
+        probe.input().local.push_delimiter(Delimiter::Parenthesis);
+        probe.input().local.push_stop_set(stops);
+        probe
+            .input()
+            .local
+            .push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionTuple);
+    });
+    let opening = consume_direct_trivia(committed);
+    committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| {
+        LayoutDelimitedFrame::after_opening_trivia(
+            incoming_base,
+            &opening,
+            probe.input().local.line().line_indent,
+        )
+    });
+    committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     commit_projection_items(table, committed, layout, ProjectionKind::Tuple);
-    match commit_parenthesized_close_for_owner(committed, GrammarRole::ClosingDelimiter { owner: ConstructRole::ProjectionTupleTail, delimiter: Delimiter::Parenthesis }) {
+    match commit_parenthesized_close_for_owner(
+        committed,
+        GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::ProjectionTupleTail,
+            delimiter: Delimiter::Parenthesis,
+        },
+    ) {
         ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
-        ParenthesizedClose::Missing { .. } => emit_projection_close_missing(committed, ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis),
+        ParenthesizedClose::Missing { .. } => emit_projection_close_missing(
+            committed,
+            ConstructRole::ProjectionTupleTail,
+            Delimiter::Parenthesis,
+        ),
     }
-    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionTuple)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); }); committed.finish_node();
+    committed.probe(|probe| {
+        pop_layout_delimited_baseline(layout, probe.input());
+        assert_eq!(
+            probe.input().local.pop_expression_delimited_owner(),
+            Some(ExpressionDelimitedOwner::ProjectionTuple)
+        );
+        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
+        assert_eq!(
+            probe.input().local.pop_delimiter(),
+            Some(Delimiter::Parenthesis)
+        );
+    });
+    committed.finish_node();
 }
 
-fn commit_projection_record_tail<'parse, 'source, 'local, E, O>(table: &OperatorTable, leading: TriviaRun, dot: Range<usize>, open: Range<usize>, committed: &mut Committed<'parse, 'source, 'local, E, O>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_projection_record_tail<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    leading: TriviaRun,
+    dot: Range<usize>,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.emit_trivia(&leading); committed.start_node(SyntaxKind::ProjectionRecordTail); committed.token(SyntaxKind::Dot, dot); committed.token(SyntaxKind::LBrace, open);
-    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBrace));
-    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Brace); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionRecord); });
-    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent)); committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
+    committed.emit_trivia(&leading);
+    committed.start_node(SyntaxKind::ProjectionRecordTail);
+    committed.token(SyntaxKind::Dot, dot);
+    committed.token(SyntaxKind::LBrace, open);
+    let incoming_base = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
+    });
+    let stops = committed.probe(|probe| {
+        active_stop_set(probe.input())
+            .with(StopKind::Comma)
+            .with(StopKind::Semicolon)
+            .with(StopKind::RightBrace)
+    });
+    committed.probe(|probe| {
+        probe.input().local.push_delimiter(Delimiter::Brace);
+        probe.input().local.push_stop_set(stops);
+        probe
+            .input()
+            .local
+            .push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionRecord);
+    });
+    let opening = consume_direct_trivia(committed);
+    committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| {
+        LayoutDelimitedFrame::after_opening_trivia(
+            incoming_base,
+            &opening,
+            probe.input().local.line().line_indent,
+        )
+    });
+    committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     commit_projection_items(table, committed, layout, ProjectionKind::Record);
     match commit_record_projection_close(committed) {
         IndexClose::Matched(close) => committed.token(SyntaxKind::RBrace, close),
-        IndexClose::Missing => emit_projection_close_missing(committed, ConstructRole::ProjectionRecordTail, Delimiter::Brace),
+        IndexClose::Missing => emit_projection_close_missing(
+            committed,
+            ConstructRole::ProjectionRecordTail,
+            Delimiter::Brace,
+        ),
     }
-    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionRecord)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Brace)); }); committed.finish_node();
+    committed.probe(|probe| {
+        pop_layout_delimited_baseline(layout, probe.input());
+        assert_eq!(
+            probe.input().local.pop_expression_delimited_owner(),
+            Some(ExpressionDelimitedOwner::ProjectionRecord)
+        );
+        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
+        assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Brace));
+    });
+    committed.finish_node();
 }
 
 #[derive(Clone, Copy)]
-enum ProjectionKind { Tuple, Record }
+enum ProjectionKind {
+    Tuple,
+    Record,
+}
 
-fn commit_projection_items<'parse, 'source, 'local, E, O>(table: &OperatorTable, committed: &mut Committed<'parse, 'source, 'local, E, O>, layout: LayoutDelimitedFrame, kind: ProjectionKind)
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_projection_items<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    layout: LayoutDelimitedFrame,
+    kind: ProjectionKind,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let close_pending = |committed: &mut Committed<'parse, 'source, 'local, E, O>| match kind { ProjectionKind::Tuple => parenthesized_close_pending(committed), ProjectionKind::Record => record_projection_close_pending(committed) };
-    if close_pending(committed) { return; }
+    let close_pending = |committed: &mut Committed<'parse, 'source, 'local, E, O>| match kind {
+        ProjectionKind::Tuple => parenthesized_close_pending(committed),
+        ProjectionKind::Record => record_projection_close_pending(committed),
+    };
+    if close_pending(committed) {
+        return;
+    }
     loop {
-        let marker = matches!(kind, ProjectionKind::Record).then(|| committed.probe(|probe| probe.input().run(scan_exact_dot_dot))).flatten();
+        let marker = matches!(kind, ProjectionKind::Record)
+            .then(|| committed.probe(|probe| probe.input().run(scan_exact_dot_dot)))
+            .flatten();
         if let Some(marker) = marker {
             committed.start_node(SyntaxKind::ProjectionRecordSpreadItem);
             committed.token(SyntaxKind::DotDot, marker);
-            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
             if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
-                if projection_item_error_retry(table, committed, ExpressionRole::ProjectionRecordSpreadRhs) {
+                if projection_item_error_retry(
+                    table,
+                    committed,
+                    ExpressionRole::ProjectionRecordSpreadRhs,
+                ) {
                     if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
                         committed.finish_node();
                         break;
                     }
-                    parse_direct_operator_chain(table, LeadingTrivia::None, committed).expect("a retried spread rhs must commit");
-                } else { emit_projection_missing(committed, ExpressionRole::ProjectionRecordSpreadRhs, ExpectedSyntax::Expression); }
+                    parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                        .expect("a retried spread rhs must commit");
+                } else {
+                    emit_projection_missing(
+                        committed,
+                        ExpressionRole::ProjectionRecordSpreadRhs,
+                        ExpectedSyntax::Expression,
+                    );
+                }
             }
             committed.finish_node();
         } else if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
-            let role = match kind { ProjectionKind::Tuple => ExpressionRole::ProjectionTupleItem, ProjectionKind::Record => ExpressionRole::ProjectionRecordItem };
+            let role = match kind {
+                ProjectionKind::Tuple => ExpressionRole::ProjectionTupleItem,
+                ProjectionKind::Record => ExpressionRole::ProjectionRecordItem,
+            };
             if projection_item_error_retry(table, committed, role) {
                 if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
                     break;
                 }
-                parse_direct_operator_chain(table, LeadingTrivia::None, committed).expect("a retried projection item must commit");
-            } else { emit_projection_missing(committed, role, ExpectedSyntax::Expression); }
+                parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                    .expect("a retried projection item must commit");
+            } else {
+                emit_projection_missing(committed, role, ExpectedSyntax::Expression);
+            }
         }
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
             break;
         }
-        let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
-        if let Some(separator) = commit_call_separator(committed) { committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1); let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing); if close_pending(committed) { break; } continue; }
-        if close_pending(committed) { break; }
-        if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
-        let separator_role = match kind { ProjectionKind::Tuple => ExpressionRole::ProjectionTupleSeparator, ProjectionKind::Record => ExpressionRole::ProjectionRecordSeparator };
-        if parenthesized_element_pending(table, committed) { emit_projection_missing(committed, separator_role, ExpectedSyntax::DelimitedSequenceSeparator); continue; }
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        if let Some(separator) = commit_call_separator(committed) {
+            committed.token(
+                if separator.0 {
+                    SyntaxKind::Semicolon
+                } else {
+                    SyntaxKind::Comma
+                },
+                separator.1,
+            );
+            let trailing = consume_direct_trivia(committed);
+            committed.emit_trivia(&trailing);
+            if close_pending(committed) {
+                break;
+            }
+            continue;
+        }
+        if close_pending(committed) {
+            break;
+        }
+        if committed.probe(|probe| {
+            layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+        }) == LayoutDelimitedBoundary::ImplicitNewline
+        {
+            continue;
+        }
+        let separator_role = match kind {
+            ProjectionKind::Tuple => ExpressionRole::ProjectionTupleSeparator,
+            ProjectionKind::Record => ExpressionRole::ProjectionRecordSeparator,
+        };
+        if parenthesized_element_pending(table, committed) {
+            emit_projection_missing(
+                committed,
+                separator_role,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
+            continue;
+        }
         break;
     }
 }
 
-fn projection_item_error_retry<'parse, 'source, 'local, E, O>(table: &OperatorTable, committed: &mut Committed<'parse, 'source, 'local, E, O>, role: ExpressionRole) -> bool
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn projection_item_error_retry<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: ExpressionRole,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let recovered = committed.probe(|probe| {
-        let start = probe.input().pos(); let mut end = start;
+        let start = probe.input().pos();
+        let mut end = start;
         loop {
             if any_ambient_owner_claims(probe.input()) {
                 return (start < probe.input().pos()).then_some(start..probe.input().pos());
             }
-            let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return None; };
-            if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
-            i.input.next()?; end = i.pos(); let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
-            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return None;
+            };
+            if matches!(character, ')' | ']' | '}' | ',' | ';') {
+                return None;
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+                return Some(start..end);
+            }
         }
     });
-    let Some(range) = recovered else { return false; }; emit_projection_error(committed, role, range); true
+    let Some(range) = recovered else {
+        return false;
+    };
+    emit_projection_error(committed, role, range);
+    true
 }
 
-fn record_projection_close_pending<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
-{ committed.probe(|probe| { let i = probe.input(); let checkpoint = i.checkpoint(); let pending = i.run(recognize_record_projection_close).is_some(); i.rollback(checkpoint); pending }) }
+fn record_projection_close_pending<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let pending = i.run(recognize_record_projection_close).is_some();
+        i.rollback(checkpoint);
+        pending
+    })
+}
 
-fn commit_record_projection_close<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> IndexClose
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_record_projection_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> IndexClose
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
             return IndexClose::Missing;
         }
-        if committed.probe(|probe| probe.input().input.remainder().is_empty() || matches!(probe.input().input.remainder().chars().next(), Some(';'))) { return IndexClose::Missing; }
-        if let Some(punctuation) = committed.probe(|probe| probe.input().run(scan_punctuation)) {
-            if punctuation.kind() == PunctuationKind::Close(Delimiter::Brace) { return IndexClose::Matched(punctuation.range()); }
-            emit_projection_close_error(committed, punctuation.range(), punctuation.kind()); continue;
+        if committed.probe(|probe| {
+            probe.input().input.remainder().is_empty()
+                || matches!(probe.input().input.remainder().chars().next(), Some(';'))
+        }) {
+            return IndexClose::Missing;
         }
-        let range = committed.probe(|probe| { let start = probe.input().pos(); let mut end = start; loop { let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); }; if matches!(character, ')' | ']' | '}' | ';') { return (start < end).then_some(start..end); } i.input.next()?; end = i.pos(); } }).expect("record close recovery consumes invalid source");
+        if let Some(punctuation) = committed.probe(|probe| probe.input().run(scan_punctuation)) {
+            if punctuation.kind() == PunctuationKind::Close(Delimiter::Brace) {
+                return IndexClose::Matched(punctuation.range());
+            }
+            emit_projection_close_error(committed, punctuation.range(), punctuation.kind());
+            continue;
+        }
+        let range = committed
+            .probe(|probe| {
+                let start = probe.input().pos();
+                let mut end = start;
+                loop {
+                    let i = probe.input();
+                    let Some(character) = i.input.remainder().chars().next() else {
+                        return (start < end).then_some(start..end);
+                    };
+                    if matches!(character, ')' | ']' | '}' | ';') {
+                        return (start < end).then_some(start..end);
+                    }
+                    i.input.next()?;
+                    end = i.pos();
+                }
+            })
+            .expect("record close recovery consumes invalid source");
         emit_projection_close_error(committed, range, PunctuationKind::Close(Delimiter::Brace));
     }
 }
@@ -2662,15 +4040,43 @@ fn commit_index_tail<'parse, 'source, 'local, E, O>(
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::IndexTail);
     committed.token(SyntaxKind::LBracket, open);
-    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBracket));
-    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Bracket); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::Index); });
-    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent));
+    let incoming_base = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
+    });
+    let stops = committed.probe(|probe| {
+        active_stop_set(probe.input())
+            .with(StopKind::Comma)
+            .with(StopKind::Semicolon)
+            .with(StopKind::RightBracket)
+    });
+    committed.probe(|probe| {
+        probe.input().local.push_delimiter(Delimiter::Bracket);
+        probe.input().local.push_stop_set(stops);
+        probe
+            .input()
+            .local
+            .push_expression_delimited_owner(ExpressionDelimitedOwner::Index);
+    });
+    let opening = consume_direct_trivia(committed);
+    committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| {
+        LayoutDelimitedFrame::after_opening_trivia(
+            incoming_base,
+            &opening,
+            probe.input().local.line().line_indent,
+        )
+    });
     committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     if !index_close_pending(committed) {
         loop {
@@ -2682,24 +4088,51 @@ fn commit_index_tail<'parse, 'source, 'local, E, O>(
                     parse_direct_operator_chain(table, LeadingTrivia::None, committed)
                         .expect("a retried index item must commit its shared NUD candidate");
                 } else {
-                    emit_index_missing(committed, ExpressionRole::IndexItem, ExpectedSyntax::Expression);
+                    emit_index_missing(
+                        committed,
+                        ExpressionRole::IndexItem,
+                        ExpectedSyntax::Expression,
+                    );
                 }
             }
             if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
                 break;
             }
-            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
             if let Some(separator) = commit_call_separator(committed) {
-                committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1);
-                let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing);
-                if index_close_pending(committed) { break; }
+                committed.token(
+                    if separator.0 {
+                        SyntaxKind::Semicolon
+                    } else {
+                        SyntaxKind::Comma
+                    },
+                    separator.1,
+                );
+                let trailing = consume_direct_trivia(committed);
+                committed.emit_trivia(&trailing);
+                if index_close_pending(committed) {
+                    break;
+                }
                 continue;
             }
-            if index_close_pending(committed) { break; }
-            let boundary = committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent));
-            if boundary == LayoutDelimitedBoundary::ImplicitNewline { continue; }
-            if boundary == LayoutDelimitedBoundary::None && parenthesized_element_pending(table, committed) {
-                emit_index_missing(committed, ExpressionRole::IndexSeparator, ExpectedSyntax::DelimitedSequenceSeparator);
+            if index_close_pending(committed) {
+                break;
+            }
+            let boundary = committed.probe(|probe| {
+                layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+            });
+            if boundary == LayoutDelimitedBoundary::ImplicitNewline {
+                continue;
+            }
+            if boundary == LayoutDelimitedBoundary::None
+                && parenthesized_element_pending(table, committed)
+            {
+                emit_index_missing(
+                    committed,
+                    ExpressionRole::IndexSeparator,
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                );
                 continue;
             }
             break;
@@ -2709,27 +4142,58 @@ fn commit_index_tail<'parse, 'source, 'local, E, O>(
         IndexClose::Matched(close) => committed.token(SyntaxKind::RBracket, close),
         IndexClose::Missing => emit_index_close_missing(committed),
     }
-    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Index)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Bracket)); });
+    committed.probe(|probe| {
+        pop_layout_delimited_baseline(layout, probe.input());
+        assert_eq!(
+            probe.input().local.pop_expression_delimited_owner(),
+            Some(ExpressionDelimitedOwner::Index)
+        );
+        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
+        assert_eq!(
+            probe.input().local.pop_delimiter(),
+            Some(Delimiter::Bracket)
+        );
+    });
     committed.finish_node();
 }
 
-fn index_item_error_retry<'parse, 'source, 'local, E, O>(table: &OperatorTable, committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn index_item_error_retry<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let recovered = committed.probe(|probe| {
-        let start = probe.input().pos(); let mut end = start;
+        let start = probe.input().pos();
+        let mut end = start;
         loop {
             if any_ambient_owner_claims(probe.input()) {
                 return (start < probe.input().pos()).then_some(start..probe.input().pos());
             }
-            let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return None; };
-            if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
-            i.input.next()?; end = i.pos();
-            let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
-            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return None;
+            };
+            if matches!(character, ')' | ']' | '}' | ',' | ';') {
+                return None;
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+                return Some(start..end);
+            }
         }
     });
-    let Some(range) = recovered else { return false; };
+    let Some(range) = recovered else {
+        return false;
+    };
     emit_index_error(committed, ExpressionRole::IndexItem, range);
     true
 }
@@ -2738,34 +4202,65 @@ fn call_argument_error_retry<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let recovered = committed.probe(|probe| {
-        let start = probe.input().pos(); let mut end = start;
+        let start = probe.input().pos();
+        let mut end = start;
         loop {
             if any_ambient_owner_claims(probe.input()) {
                 return (start < probe.input().pos()).then_some(start..probe.input().pos());
             }
             let i = probe.input();
-            let Some(character) = i.input.remainder().chars().next() else { return None; };
-            if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
-            i.input.next()?; end = i.pos();
-            let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
-            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+            let Some(character) = i.input.remainder().chars().next() else {
+                return None;
+            };
+            if matches!(character, ')' | ']' | '}' | ',' | ';') {
+                return None;
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+                return Some(start..end);
+            }
         }
     });
-    let Some(range) = recovered else { return false; };
+    let Some(range) = recovered else {
+        return false;
+    };
     emit_call_error(committed, ExpressionRole::CallArgument, range);
     true
 }
 
-fn commit_call_separator<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> Option<(bool, Range<usize>)>
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_call_separator<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<(bool, Range<usize>)>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.probe(|probe| {
-        let i = probe.input(); let checkpoint = i.checkpoint();
-        let separator = i.run(scan_punctuation).and_then(|punctuation| match punctuation.kind() { PunctuationKind::Comma => Some((false, punctuation.range())), PunctuationKind::Semicolon => Some((true, punctuation.range())), _ => None });
-        if separator.is_none() { i.rollback(checkpoint); }
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let separator = i
+            .run(scan_punctuation)
+            .and_then(|punctuation| match punctuation.kind() {
+                PunctuationKind::Comma => Some((false, punctuation.range())),
+                PunctuationKind::Semicolon => Some((true, punctuation.range())),
+                _ => None,
+            });
+        if separator.is_none() {
+            i.rollback(checkpoint);
+        }
         separator
     })
 }
@@ -2857,22 +4352,34 @@ where
             continue;
         }
 
-        if let Some(separator) = committed.probe(|probe| probe.input().run(from_fn(|i| recognize_ml_argument(table, i)))) {
+        if let Some(separator) = committed.probe(|probe| {
+            probe
+                .input()
+                .run(from_fn(|i| recognize_ml_argument(table, i)))
+        }) {
             cut_after_acceptance(committed);
             committed.emit_trivia(&separator);
             committed.start_node(SyntaxKind::MlArgument);
-            let previous = committed.probe(|probe| { let previous = probe.input().local.ml_arg(); probe.input().local.set_ml_arg(true); previous });
+            let previous = committed.probe(|probe| {
+                let previous = probe.input().local.ml_arg();
+                probe.input().local.set_ml_arg(true);
+                previous
+            });
             if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
-                emit_call_missing(committed, ExpressionRole::MlArgument, ExpectedSyntax::Expression);
+                emit_call_missing(
+                    committed,
+                    ExpressionRole::MlArgument,
+                    ExpectedSyntax::Expression,
+                );
             }
             committed.probe(|probe| probe.input().local.set_ml_arg(previous));
             committed.finish_node();
             continue;
         }
 
-        if let Some(colon) = committed.probe(|probe| {
-            probe.input().run(recognize_colon_application_tail)
-        }) {
+        if let Some(colon) =
+            committed.probe(|probe| probe.input().run(recognize_colon_application_tail))
+        {
             cut_after_acceptance(committed);
             commit_colon_application_tail(table, colon, committed);
             break;
@@ -2915,7 +4422,11 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
     committed.token(SyntaxKind::WithKw, with.keyword.range());
     committed.emit_trivia(&with.introducer_trivia);
     let Some(colon) = with.colon else {
-        emit_with_missing(committed, WithBodyRole::Introducer, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon));
+        emit_with_missing(
+            committed,
+            WithBodyRole::Introducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        );
         if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
             if with_body_error_retry(table, committed) {
                 parse_direct_operator_chain(table, LeadingTrivia::None, committed)
@@ -2929,8 +4440,16 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
     };
     committed.token(SyntaxKind::Colon, colon);
     match with.layout.expect("a consumed colon has body layout") {
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => commit_indented_statement_block_with_options(
-            table, opening_trivia, with.base_indent, block_indent, IndentedStatementBlockOptions::with_body(), committed,
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => commit_indented_statement_block_with_options(
+            table,
+            opening_trivia,
+            with.base_indent,
+            block_indent,
+            IndentedStatementBlockOptions::with_body(),
+            committed,
         ),
         ArmBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
@@ -2953,7 +4472,8 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
                 }
             }
             committed.finish_node();
-            if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon)) {
+            if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon))
+            {
                 committed.token(SyntaxKind::Semicolon, semicolon);
             }
             committed.probe(|probe| {
@@ -2963,7 +4483,9 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
                 );
             });
         }
-        ArmBodyLayout::WrongIndent => emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement),
+        ArmBodyLayout::WrongIndent => {
+            emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement)
+        }
     }
     committed.finish_node();
 }
@@ -2977,7 +4499,10 @@ where
 {
     committed.probe(|probe| {
         probe.input().input.remainder().is_empty()
-            || matches!(probe.input().input.remainder().chars().next(), Some(')' | ']' | '}' | ',' | ';'))
+            || matches!(
+                probe.input().input.remainder().chars().next(),
+                Some(')' | ']' | '}' | ',' | ';')
+            )
     })
 }
 
@@ -2996,17 +4521,25 @@ where
         let mut end = start;
         loop {
             let i = probe.input();
-            let Some(character) = i.input.remainder().chars().next() else { return None; };
-            if matches!(character, '\r' | '\n' | ')' | ']' | '}' | ';' | ',') { return None; }
+            let Some(character) = i.input.remainder().chars().next() else {
+                return None;
+            };
+            if matches!(character, '\r' | '\n' | ')' | ']' | '}' | ';' | ',') {
+                return None;
+            }
             i.input.next()?;
             end = i.pos();
             let mut line = i.local.line();
             line.at_line_start = false;
             i.local.set_line(line);
-            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+                return Some(start..end);
+            }
         }
     });
-    let Some(range) = recovered else { return false; };
+    let Some(range) = recovered else {
+        return false;
+    };
     emit_with_error(committed, range);
     true
 }
@@ -3043,9 +4576,8 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
         ),
         ColonApplicationRhsRecognition::Inline { trivia } => {
             committed.emit_trivia(&trivia);
-            let outer_owns_sequence = committed.probe(|probe| {
-                outer_owns_inline_argument_sequence(probe.input())
-            });
+            let outer_owns_sequence =
+                committed.probe(|probe| outer_owns_inline_argument_sequence(probe.input()));
             if outer_owns_sequence {
                 commit_colon_inline_argument(
                     table,
@@ -3054,10 +4586,17 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
                     committed,
                 );
             } else {
-                let layout = committed.probe(|probe| LayoutDelimitedFrame::inline(
-                    probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column),
-                ));
-                let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma));
+                let layout = committed.probe(|probe| {
+                    LayoutDelimitedFrame::inline(
+                        probe
+                            .input()
+                            .local
+                            .indentation_baseline()
+                            .map_or(0, |baseline| baseline.column),
+                    )
+                });
+                let stop_set =
+                    committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma));
                 committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
                 commit_colon_inline_argument(
                     table,
@@ -3091,7 +4630,11 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
                     None
                 }) {
                     match separator {
-                        InlineColonSeparator::Comma { leading, comma, trailing } => {
+                        InlineColonSeparator::Comma {
+                            leading,
+                            comma,
+                            trailing,
+                        } => {
                             committed.emit_trivia(&leading);
                             committed.token(SyntaxKind::Comma, comma);
                             committed.emit_trivia(&trailing);
@@ -3113,7 +4656,8 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
                         }
                     }
                 }
-                committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
+                committed
+                    .probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
             }
         }
     }
@@ -3165,7 +4709,9 @@ where
         block_indent,
         IndentedStatementBlockOptions {
             stops_for_if_companion: false,
-            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement))),
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(
+                BindingRole::IndentedStatement,
+            ))),
         },
         i,
     )
@@ -3219,7 +4765,9 @@ where
         block_indent,
         IndentedStatementBlockOptions {
             stops_for_if_companion: false,
-            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(crate::session::ModRole::IndentedStatement))),
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(
+                crate::session::ModRole::IndentedStatement,
+            ))),
         },
         i,
     )
@@ -3377,7 +4925,11 @@ where
     if matches!(policy, StatementSequencePolicy::BracedPrimary) {
         return parse_braced_statement_sequence(table, i);
     }
-    let StatementSequencePolicy::Indented { block_indent, options } = policy else {
+    let StatementSequencePolicy::Indented {
+        block_indent,
+        options,
+    } = policy
+    else {
         unreachable!("braced policy returns above");
     };
     let mut parsed = ParsedStatementSequence {
@@ -3387,7 +4939,9 @@ where
     if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
         parsed.statements.push(Recovered::Complete(statement));
         while !options.companion_stop(i) {
-            let Some(separator) = recognize_statement_sequence_separator(i, policy) else { break; };
+            let Some(separator) = recognize_statement_sequence_separator(i, policy) else {
+                break;
+            };
             if separator.is_semicolon() && indented_block_terminal_boundary(i, block_indent) {
                 break;
             }
@@ -3414,7 +4968,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let scope = push_braced_statement_block_scope(i, BracedBarrierOrigin::BracedStatementBlockExpression);
+    let scope =
+        push_braced_statement_block_scope(i, BracedBarrierOrigin::BracedStatementBlockExpression);
     consume_trivia(i).expect("trivia scanning is total");
     let statements = parse_statement_sequence(table, StatementSequencePolicy::BracedPrimary, i);
     consume_trivia(i).expect("trivia scanning is total");
@@ -3455,7 +5010,9 @@ where
         if braced_statement_block_close_pending(i) {
             break;
         }
-        let Some(_) = recognize_statement_sequence_separator(i, StatementSequencePolicy::BracedPrimary) else {
+        let Some(_) =
+            recognize_statement_sequence_separator(i, StatementSequencePolicy::BracedPrimary)
+        else {
             break;
         };
         if braced_statement_block_close_pending(i) {
@@ -3523,7 +5080,9 @@ where
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum StatementSequenceSeparator {
-    Newline { trivia: TriviaRun },
+    Newline {
+        trivia: TriviaRun,
+    },
     Semicolon {
         leading_trivia: TriviaRun,
         range: Range<usize>,
@@ -3544,9 +5103,12 @@ impl StatementSequenceSeparator {
     fn following_leading_trivia(&self) -> LeadingTrivia {
         match self {
             Self::Newline { trivia } => leading_trivia(trivia),
-            Self::Semicolon { trailing_trivia, .. } | Self::Comma { trailing_trivia, .. } => {
-                leading_trivia(trailing_trivia)
+            Self::Semicolon {
+                trailing_trivia, ..
             }
+            | Self::Comma {
+                trailing_trivia, ..
+            } => leading_trivia(trailing_trivia),
         }
     }
 }
@@ -3588,9 +5150,7 @@ where
     }
     let trailing_checkpoint = i.checkpoint();
     let trailing_trivia = consume_trivia(i)?;
-    if trivia_has_physical_newline(&trailing_trivia)
-        && i.local.line().line_indent < block_indent
-    {
+    if trivia_has_physical_newline(&trailing_trivia) && i.local.line().line_indent < block_indent {
         i.rollback(trailing_checkpoint);
         return Some(StatementSequenceSeparator::Semicolon {
             leading_trivia: trivia,
@@ -3619,8 +5179,8 @@ where
     }
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i).expect("trivia scanning is total");
-    let terminal = trivia_has_physical_newline(&trivia)
-        && i.local.line().line_indent < block_indent;
+    let terminal =
+        trivia_has_physical_newline(&trivia) && i.local.line().line_indent < block_indent;
     i.rollback(checkpoint);
     terminal
 }
@@ -3686,7 +5246,10 @@ where
         i.local.pop_ambient_owner_scope(),
         Some(scope.ambient_owner_scope),
     );
-    assert_eq!(i.local.pop_stop_set(), Some(braced_statement_block_stop_set()));
+    assert_eq!(
+        i.local.pop_stop_set(),
+        Some(braced_statement_block_stop_set())
+    );
     i.local.set_inline(scope.inline);
     i.local.set_ml_arg(scope.ml_arg);
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
@@ -3699,9 +5262,7 @@ fn push_indented_statement_block_scope<E>(
 where
     E: ErrorSink<usize>,
 {
-    let ambient_owner_scope = i
-        .local
-        .push_indented_statement_ambient_scope(block_indent);
+    let ambient_owner_scope = i.local.push_indented_statement_ambient_scope(block_indent);
     let scope = IndentedStatementBlockScope {
         inline: i.local.inline(),
         ml_arg: i.local.ml_arg(),
@@ -3782,7 +5343,9 @@ pub(crate) fn commit_indented_binding_body<'parse, 'source, 'local, E, O>(
         block_indent,
         IndentedStatementBlockOptions {
             stops_for_if_companion: false,
-            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement))),
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(
+                BindingRole::IndentedStatement,
+            ))),
         },
         committed,
     );
@@ -3836,7 +5399,9 @@ pub(crate) fn commit_indented_mod_body<'parse, 'source, 'local, E, O>(
         block_indent,
         IndentedStatementBlockOptions {
             stops_for_if_companion: false,
-            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(crate::session::ModRole::IndentedStatement))),
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(
+                crate::session::ModRole::IndentedStatement,
+            ))),
         },
         committed,
     );
@@ -3944,9 +5509,8 @@ fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(
 {
     committed.start_node(SyntaxKind::IndentedStatementBlock);
     committed.emit_trivia(&opening_trivia);
-    let scope = committed.probe(|probe| {
-        push_indented_statement_block_scope(probe.input(), block_indent)
-    });
+    let scope =
+        committed.probe(|probe| push_indented_statement_block_scope(probe.input(), block_indent));
 
     let policy = StatementSequencePolicy::Indented {
         block_indent,
@@ -3954,9 +5518,7 @@ fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(
     };
     commit_statement_sequence(table, policy, committed);
 
-    committed.probe(|probe| {
-        pop_indented_statement_block_scope(probe.input(), scope, block_indent)
-    });
+    committed.probe(|probe| pop_indented_statement_block_scope(probe.input(), scope, block_indent));
     committed.finish_node();
 }
 
@@ -3968,7 +5530,10 @@ struct IndentedStatementBlockOptions {
 
 impl IndentedStatementBlockOptions {
     fn if_arm() -> Self {
-        Self { stops_for_if_companion: true, statement_role: None }
+        Self {
+            stops_for_if_companion: true,
+            statement_role: None,
+        }
     }
 
     fn with_body() -> Self {
@@ -3994,9 +5559,7 @@ impl IndentedStatementBlockOptions {
 /// An indented statement block only treats a physical-line boundary as an
 /// arm boundary; the companion's word and indentation authority come from the
 /// active IfExpression frame rather than a private spelling probe.
-fn indented_if_companion_stop_pending<'source, E>(
-    i: &mut SynIn<'_, 'source, '_, E>,
-) -> bool
+fn indented_if_companion_stop_pending<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4026,14 +5589,18 @@ fn commit_statement_sequence<'parse, 'source, 'local, E, O>(
     let StatementSequencePolicy::Indented {
         block_indent,
         options,
-    } = policy else {
+    } = policy
+    else {
         unreachable!("braced policy returns above");
     };
     commit_statement_sequence_statement(table, policy, LeadingTrivia::None, committed);
     while !committed.probe(|probe| options.companion_stop(probe.input())) {
-        let Some(separator) = commit_statement_sequence_separator(policy, committed) else { break; };
+        let Some(separator) = commit_statement_sequence_separator(policy, committed) else {
+            break;
+        };
         if separator.is_semicolon()
-            && committed.probe(|probe| indented_block_terminal_boundary(probe.input(), block_indent))
+            && committed
+                .probe(|probe| indented_block_terminal_boundary(probe.input(), block_indent))
         {
             break;
         }
@@ -4422,7 +5989,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let separator = committed.probe(|probe| recognize_statement_sequence_separator(probe.input(), policy))?;
+    let separator =
+        committed.probe(|probe| recognize_statement_sequence_separator(probe.input(), policy))?;
     committed.start_node(SyntaxKind::BlockStatementSeparator);
     match &separator {
         StatementSequenceSeparator::Newline { trivia } => committed.emit_trivia(trivia),
@@ -4561,9 +6129,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    probe
-        .input()
-        .run(from_fn(|i| recognize_led(table, i)))?
+    probe.input().run(from_fn(|i| recognize_led(table, i)))?
 }
 
 fn cut_after_acceptance<'parse, 'source, 'local, E, O>(
@@ -4581,83 +6147,238 @@ fn commit_case_like_expression<'parse, 'source, 'local, E, O>(
     keyword: WordSpan<'source>,
     base_indent: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(family.expression_kind());
     committed.token(family.keyword_kind(), keyword.range());
-    let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+    let trivia = consume_direct_trivia(committed);
+    committed.emit_trivia(&trivia);
     if let Some(label) = committed.probe(|probe| probe_case_like_label(probe.input())) {
-        committed.start_node(family.label_kind()); committed.token(SyntaxKind::SigilIdentifier, label); committed.finish_node();
-        let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+        committed.start_node(family.label_kind());
+        committed.token(SyntaxKind::SigilIdentifier, label);
+        committed.finish_node();
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
     }
     let stops = committed.probe(|probe| family.scrutinee_stop(active_stop_set(probe.input())));
     committed.probe(|probe| probe.input().local.push_stop_set(stops));
     committed.start_node(family.scrutinee_kind());
-    if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Scrutinee, ExpectedSyntax::Expression); }
+    if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+        emit_case_like_missing(
+            committed,
+            CaseLikeRole::Scrutinee,
+            ExpectedSyntax::Expression,
+        );
+    }
     committed.finish_node();
     committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
-    let block_trivia = consume_direct_trivia(committed); committed.emit_trivia(&block_trivia);
+    let block_trivia = consume_direct_trivia(committed);
+    committed.emit_trivia(&block_trivia);
     if let Some(colon) = committed.probe(|probe| recognize_arm_colon(probe.input())) {
-        committed.start_node(family.block_kind()); committed.token(SyntaxKind::Colon, colon);
-        let layout = committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
+        committed.start_node(family.block_kind());
+        committed.token(SyntaxKind::Colon, colon);
+        let layout =
+            committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
         let policy = match layout {
-            ArmBodyLayout::Inline { trivia } => { committed.emit_trivia(&trivia); family.inline_policy() }
-            ArmBodyLayout::Indented { opening_trivia, block_indent } => { committed.emit_trivia(&opening_trivia); ArmSequencePolicy::Indented { family, base_indent, arm_indent: block_indent } }
-            ArmBodyLayout::WrongIndent => { emit_case_like_missing(committed, CaseLikeRole::Arm, ExpectedSyntax::Pattern); committed.finish_node(); committed.finish_node(); return; }
+            ArmBodyLayout::Inline { trivia } => {
+                committed.emit_trivia(&trivia);
+                family.inline_policy()
+            }
+            ArmBodyLayout::Indented {
+                opening_trivia,
+                block_indent,
+            } => {
+                committed.emit_trivia(&opening_trivia);
+                ArmSequencePolicy::Indented {
+                    family,
+                    base_indent,
+                    arm_indent: block_indent,
+                }
+            }
+            ArmBodyLayout::WrongIndent => {
+                emit_case_like_missing(committed, CaseLikeRole::Arm, ExpectedSyntax::Pattern);
+                committed.finish_node();
+                committed.finish_node();
+                return;
+            }
         };
         commit_arm_sequence(table, family, policy, committed);
         committed.finish_node();
     } else if family == CaseLikeFamily::Catch {
-        if let Some(open) = committed.probe(|probe| probe.input().run(recognize_braced_statement_block_open)) {
-            committed.start_node(SyntaxKind::CatchBlock); committed.token(SyntaxKind::LBrace, open);
+        if let Some(open) =
+            committed.probe(|probe| probe.input().run(recognize_braced_statement_block_open))
+        {
+            committed.start_node(SyntaxKind::CatchBlock);
+            committed.token(SyntaxKind::LBrace, open);
             let scope = committed.probe(|probe| {
                 push_braced_statement_block_scope(
                     probe.input(),
                     BracedBarrierOrigin::CatchBracedArmSequence,
                 )
             });
-            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
             commit_arm_sequence(table, family, ArmSequencePolicy::CatchBraced, committed);
-            let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing);
-            if let Some(close) = committed.probe(|probe| probe.input().run(recognize_braced_statement_block_close)) { committed.token(SyntaxKind::RBrace, close); } else { emit_case_like_missing(committed, CaseLikeRole::Block, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace))); }
-            committed.probe(|probe| pop_braced_statement_block_scope(probe.input(), scope)); committed.finish_node();
-        } else { emit_case_like_missing(committed, CaseLikeRole::Block, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)); }
-    } else { emit_case_like_missing(committed, CaseLikeRole::Block, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)); }
+            let trailing = consume_direct_trivia(committed);
+            committed.emit_trivia(&trailing);
+            if let Some(close) =
+                committed.probe(|probe| probe.input().run(recognize_braced_statement_block_close))
+            {
+                committed.token(SyntaxKind::RBrace, close);
+            } else {
+                emit_case_like_missing(
+                    committed,
+                    CaseLikeRole::Block,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                        Delimiter::Brace,
+                    )),
+                );
+            }
+            committed.probe(|probe| pop_braced_statement_block_scope(probe.input(), scope));
+            committed.finish_node();
+        } else {
+            emit_case_like_missing(
+                committed,
+                CaseLikeRole::Block,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+            );
+        }
+    } else {
+        emit_case_like_missing(
+            committed,
+            CaseLikeRole::Block,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        );
+    }
     committed.finish_node();
 }
 
 impl CaseLikeFamily {
-    fn expression_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseExpression, Self::Catch => SyntaxKind::CatchExpression } }
-    fn keyword_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseKw, Self::Catch => SyntaxKind::CatchKw } }
-    fn label_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseLabel, Self::Catch => SyntaxKind::CatchLabel } }
-    fn scrutinee_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseScrutinee, Self::Catch => SyntaxKind::CatchScrutinee } }
-    fn block_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseBlock, Self::Catch => SyntaxKind::CatchBlock } }
-    fn arm_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseArm, Self::Catch => SyntaxKind::CatchArm } }
-    fn guard_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseGuard, Self::Catch => SyntaxKind::CatchGuard } }
-    fn separator_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseArmSeparator, Self::Catch => SyntaxKind::CatchArmSeparator } }
-    fn inline_policy(self) -> ArmSequencePolicy { match self { Self::Case => ArmSequencePolicy::CaseInline, Self::Catch => ArmSequencePolicy::CatchInlineSingle } }
-    fn scrutinee_stop(self, outer: StopSet) -> StopSet { let stops = outer.with(StopKind::Colon); match self { Self::Case => stops, Self::Catch => stops.with(StopKind::LeftBrace) } }
+    fn expression_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseExpression,
+            Self::Catch => SyntaxKind::CatchExpression,
+        }
+    }
+    fn keyword_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseKw,
+            Self::Catch => SyntaxKind::CatchKw,
+        }
+    }
+    fn label_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseLabel,
+            Self::Catch => SyntaxKind::CatchLabel,
+        }
+    }
+    fn scrutinee_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseScrutinee,
+            Self::Catch => SyntaxKind::CatchScrutinee,
+        }
+    }
+    fn block_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseBlock,
+            Self::Catch => SyntaxKind::CatchBlock,
+        }
+    }
+    fn arm_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseArm,
+            Self::Catch => SyntaxKind::CatchArm,
+        }
+    }
+    fn guard_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseGuard,
+            Self::Catch => SyntaxKind::CatchGuard,
+        }
+    }
+    fn separator_kind(self) -> SyntaxKind {
+        match self {
+            Self::Case => SyntaxKind::CaseArmSeparator,
+            Self::Catch => SyntaxKind::CatchArmSeparator,
+        }
+    }
+    fn inline_policy(self) -> ArmSequencePolicy {
+        match self {
+            Self::Case => ArmSequencePolicy::CaseInline,
+            Self::Catch => ArmSequencePolicy::CatchInlineSingle,
+        }
+    }
+    fn scrutinee_stop(self, outer: StopSet) -> StopSet {
+        let stops = outer.with(StopKind::Colon);
+        match self {
+            Self::Case => stops,
+            Self::Catch => stops.with(StopKind::LeftBrace),
+        }
+    }
 }
 
 fn probe_case_like_label<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
-{ let checkpoint = i.checkpoint(); let Some(apostrophe) = i.run(scan_punctuation) else { return None; }; if apostrophe.kind() != PunctuationKind::Apostrophe { i.rollback(checkpoint); return None; } let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; }; Some(apostrophe.range().start..word.range().end) }
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let Some(apostrophe) = i.run(scan_punctuation) else {
+        return None;
+    };
+    if apostrophe.kind() != PunctuationKind::Apostrophe {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(word) = i.run(scan_word) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    Some(apostrophe.range().start..word.range().end)
+}
 
-fn commit_arm_sequence<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, policy: ArmSequencePolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_arm_sequence<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    family: CaseLikeFamily,
+    policy: ArmSequencePolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     commit_one_arm(table, family, policy, committed);
     while policy_allows_multiple(policy) {
         let checkpoint = committed.probe(|probe| probe.input().checkpoint());
         let trivia = consume_direct_trivia(committed);
-        if let Some(comma) = committed.probe(|probe| probe.input().run(recognize_parenthesized_comma)) {
-            committed.start_node(family.separator_kind()); committed.emit_trivia(&trivia); committed.token(SyntaxKind::Comma, comma); committed.finish_node();
-            let next = consume_direct_trivia(committed); committed.emit_trivia(&next);
-            if committed.probe(|probe| arm_sequence_boundary(policy, probe.input())) { return; }
-            commit_one_arm(table, family, policy, committed); continue;
+        if let Some(comma) =
+            committed.probe(|probe| probe.input().run(recognize_parenthesized_comma))
+        {
+            committed.start_node(family.separator_kind());
+            committed.emit_trivia(&trivia);
+            committed.token(SyntaxKind::Comma, comma);
+            committed.finish_node();
+            let next = consume_direct_trivia(committed);
+            committed.emit_trivia(&next);
+            if committed.probe(|probe| arm_sequence_boundary(policy, probe.input())) {
+                return;
+            }
+            commit_one_arm(table, family, policy, committed);
+            continue;
         }
-        let newline = committed.probe(|probe| policy_newline_separator(policy, &trivia, probe.input()));
-        if newline { committed.emit_trivia(&trivia); commit_one_arm(table, family, policy, committed); continue; }
+        let newline =
+            committed.probe(|probe| policy_newline_separator(policy, &trivia, probe.input()));
+        if newline {
+            committed.emit_trivia(&trivia);
+            commit_one_arm(table, family, policy, committed);
+            continue;
+        }
         if committed.probe(|probe| pattern_nud_candidate_input(probe.input())) {
             committed.emit_trivia(&trivia);
             emit_case_like_missing(
@@ -4668,33 +6389,68 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
             commit_one_arm(table, family, policy, committed);
             continue;
         }
-        committed.probe(|probe| probe.input().rollback(checkpoint)); return;
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+        return;
     }
 }
 
-fn commit_one_arm<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, policy: ArmSequencePolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_one_arm<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    family: CaseLikeFamily,
+    policy: ArmSequencePolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(family.arm_kind());
-    let stops = committed.probe(|probe| { let mut stops = active_stop_set(probe.input()).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere); if family == CaseLikeFamily::Catch { stops = stops.with(StopKind::Comma); } stops });
+    let stops = committed.probe(|probe| {
+        let mut stops = active_stop_set(probe.input())
+            .with(StopKind::Arrow)
+            .with(StopKind::ArmGuardIf)
+            .with(StopKind::ArmGuardWhere);
+        if family == CaseLikeFamily::Catch {
+            stops = stops.with(StopKind::Comma);
+        }
+        stops
+    });
     committed.probe(|probe| probe.input().local.push_stop_set(stops));
-    if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Pattern, ExpectedSyntax::Pattern); }
+    if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() {
+        emit_case_like_missing(committed, CaseLikeRole::Pattern, ExpectedSyntax::Pattern);
+    }
     committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
-    if family == CaseLikeFamily::Catch && let Some(comma) = committed.probe(|probe| probe.input().run(recognize_parenthesized_comma)) {
+    if family == CaseLikeFamily::Catch
+        && let Some(comma) =
+            committed.probe(|probe| probe.input().run(recognize_parenthesized_comma))
+    {
         committed.token(SyntaxKind::Comma, comma);
-        let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
-        let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere)); committed.probe(|probe| probe.input().local.push_stop_set(stops));
-        if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Handler, ExpectedSyntax::Pattern); }
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        let stops = committed.probe(|probe| {
+            active_stop_set(probe.input())
+                .with(StopKind::Arrow)
+                .with(StopKind::ArmGuardIf)
+                .with(StopKind::ArmGuardWhere)
+        });
+        committed.probe(|probe| probe.input().local.push_stop_set(stops));
+        if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() {
+            emit_case_like_missing(committed, CaseLikeRole::Handler, ExpectedSyntax::Pattern);
+        }
         committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
     }
     commit_arm_guard(table, family, committed);
-    let arrow_trivia = consume_direct_trivia(committed); committed.emit_trivia(&arrow_trivia);
+    let arrow_trivia = consume_direct_trivia(committed);
+    committed.emit_trivia(&arrow_trivia);
     if let Some(arrow) = committed.probe(|probe| probe.input().run(scan_exact_arrow)) {
         committed.token(SyntaxKind::Arrow, arrow);
         commit_arm_body(table, family, policy, committed);
     } else {
         emit_case_like_missing(committed, CaseLikeRole::Arrow, ExpectedSyntax::Expression);
-        if committed.probe(|probe| direct_expression_nud_candidate(table, LeadingTrivia::None, probe)) {
+        if committed
+            .probe(|probe| direct_expression_nud_candidate(table, LeadingTrivia::None, probe))
+        {
             commit_arm_body(table, family, policy, committed);
         } else {
             commit_case_like_invalid_arrow(committed);
@@ -4702,62 +6458,164 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
     }
     let checkpoint = committed.probe(|probe| probe.input().checkpoint());
     let terminal_trivia = consume_direct_trivia(committed);
-    if let Some(semicolon) = committed.probe(|probe| direct_semicolon(probe.input())) { committed.emit_trivia(&terminal_trivia); committed.token(SyntaxKind::Semicolon, semicolon); } else { committed.probe(|probe| probe.input().rollback(checkpoint)); }
+    if let Some(semicolon) = committed.probe(|probe| direct_semicolon(probe.input())) {
+        committed.emit_trivia(&terminal_trivia);
+        committed.token(SyntaxKind::Semicolon, semicolon);
+    } else {
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+    }
     committed.finish_node();
 }
 
-fn commit_arm_guard<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, committed: &mut Committed<'parse, 'source, 'local, E, O>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_arm_guard<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    family: CaseLikeFamily,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let Some((trivia, keyword)) = committed.probe(|probe| probe_arm_guard(probe.input())) else { return; };
-    committed.emit_trivia(&trivia); committed.start_node(family.guard_kind());
-    committed.token(if keyword.text() == "if" { SyntaxKind::IfKw } else { SyntaxKind::WhereKw }, keyword.range());
-    let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Arrow)); committed.probe(|probe| probe.input().local.push_stop_set(stops));
-    if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Guard, ExpectedSyntax::Expression); }
-    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops))); committed.finish_node();
+    let Some((trivia, keyword)) = committed.probe(|probe| probe_arm_guard(probe.input())) else {
+        return;
+    };
+    committed.emit_trivia(&trivia);
+    committed.start_node(family.guard_kind());
+    committed.token(
+        if keyword.text() == "if" {
+            SyntaxKind::IfKw
+        } else {
+            SyntaxKind::WhereKw
+        },
+        keyword.range(),
+    );
+    let trivia = consume_direct_trivia(committed);
+    committed.emit_trivia(&trivia);
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Arrow));
+    committed.probe(|probe| probe.input().local.push_stop_set(stops));
+    if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+        emit_case_like_missing(committed, CaseLikeRole::Guard, ExpectedSyntax::Expression);
+    }
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+    committed.finish_node();
 }
 
-fn probe_arm_guard<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<(TriviaRun, WordSpan<'source>)>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
-{ let checkpoint = i.checkpoint(); let Some(trivia) = consume_trivia(i) else { return None; }; let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; }; if matches!(word.text(), "if" | "where") { Some((trivia, word)) } else { i.rollback(checkpoint); None } }
+fn probe_arm_guard<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<(TriviaRun, WordSpan<'source>)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let Some(trivia) = consume_trivia(i) else {
+        return None;
+    };
+    let Some(word) = i.run(scan_word) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if matches!(word.text(), "if" | "where") {
+        Some((trivia, word))
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
 
-fn commit_arm_body<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, policy: ArmSequencePolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+fn commit_arm_body<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    family: CaseLikeFamily,
+    policy: ArmSequencePolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let baseline = committed.probe(|probe| push_arm_body_baseline(policy, probe.input()));
     let base_indent = committed.probe(|probe| probe.input().local.line().line_indent);
     match committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input())) {
         ArmBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
-            let stops = committed.probe(|probe| arm_body_stop(policy, active_stop_set(probe.input()))); committed.probe(|probe| probe.input().local.push_stop_set(stops));
-            if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression); }
+            let stops =
+                committed.probe(|probe| arm_body_stop(policy, active_stop_set(probe.input())));
+            committed.probe(|probe| probe.input().local.push_stop_set(stops));
+            if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+                emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression);
+            }
             committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
         }
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => commit_indented_statement_block(table, opening_trivia, base_indent, block_indent, committed),
-        ArmBodyLayout::WrongIndent => emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression),
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => commit_indented_statement_block(
+            table,
+            opening_trivia,
+            base_indent,
+            block_indent,
+            committed,
+        ),
+        ArmBodyLayout::WrongIndent => {
+            emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression)
+        }
     }
     committed.probe(|probe| pop_arm_body_baseline(baseline, probe.input()));
     let _ = family;
 }
 
-fn arm_body_stop(policy: ArmSequencePolicy, outer: StopSet) -> StopSet { match policy { ArmSequencePolicy::CaseInline | ArmSequencePolicy::Indented { .. } | ArmSequencePolicy::CatchBraced => outer.with(StopKind::Comma).with(StopKind::Semicolon), ArmSequencePolicy::CatchInlineSingle => outer.with(StopKind::Semicolon) } }
+fn arm_body_stop(policy: ArmSequencePolicy, outer: StopSet) -> StopSet {
+    match policy {
+        ArmSequencePolicy::CaseInline
+        | ArmSequencePolicy::Indented { .. }
+        | ArmSequencePolicy::CatchBraced => outer.with(StopKind::Comma).with(StopKind::Semicolon),
+        ArmSequencePolicy::CatchInlineSingle => outer.with(StopKind::Semicolon),
+    }
+}
 
-fn push_arm_body_baseline<E>(policy: ArmSequencePolicy, i: &mut SynIn<E>) -> Option<IndentationBaseline>
-where E: ErrorSink<usize>,
+fn push_arm_body_baseline<E>(
+    policy: ArmSequencePolicy,
+    i: &mut SynIn<E>,
+) -> Option<IndentationBaseline>
+where
+    E: ErrorSink<usize>,
 {
-    let ArmSequencePolicy::Indented { arm_indent, .. } = policy else { return None; };
-    let baseline = IndentationBaseline { column: arm_indent, kind: IndentationBaselineKind::Block };
+    let ArmSequencePolicy::Indented { arm_indent, .. } = policy else {
+        return None;
+    };
+    let baseline = IndentationBaseline {
+        column: arm_indent,
+        kind: IndentationBaselineKind::Block,
+    };
     i.local.push_indentation_baseline(baseline);
     Some(baseline)
 }
 
 fn pop_arm_body_baseline<E>(baseline: Option<IndentationBaseline>, i: &mut SynIn<E>)
-where E: ErrorSink<usize>,
+where
+    E: ErrorSink<usize>,
 {
-    if let Some(baseline) = baseline { assert_eq!(i.local.pop_indentation_baseline(), Some(baseline)); }
+    if let Some(baseline) = baseline {
+        assert_eq!(i.local.pop_indentation_baseline(), Some(baseline));
+    }
 }
-fn direct_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let checkpoint = i.checkpoint(); let punctuation = i.run(scan_punctuation)?; let range = (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range()); if range.is_none() { i.rollback(checkpoint); } range }
+fn direct_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    let range = (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range());
+    if range.is_none() {
+        i.rollback(checkpoint);
+    }
+    range
+}
 
 fn commit_direct_operand_slot<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
@@ -4787,56 +6645,77 @@ where
 {
     loop {
         match accepted {
-        NudRecognition::Parenthesized { open } => {
-            cut_after_acceptance(committed);
-            commit_parenthesized_nud(table, open, committed)?;
-            return Some(());
-        }
-        NudRecognition::BracedStatementBlock { open } => {
-            cut_after_acceptance(committed);
-            commit_braced_statement_block_expression(table, open, committed);
-            return Some(());
-        }
-        NudRecognition::If { keyword, base_indent } => {
-            cut_after_acceptance(committed);
-            commit_if_expression(table, keyword, base_indent, committed);
-            return Some(());
-        }
-        NudRecognition::Case { keyword, base_indent } => {
-            cut_after_acceptance(committed);
-            commit_case_like_expression(table, CaseLikeFamily::Case, keyword, base_indent, committed);
-            return Some(());
-        }
-        NudRecognition::Catch { keyword, base_indent } => {
-            cut_after_acceptance(committed);
-            commit_case_like_expression(table, CaseLikeFamily::Catch, keyword, base_indent, committed);
-            return Some(());
-        }
-        NudRecognition::Identifier(identifier) => {
-            let range = identifier.range();
-            committed.start_node(SyntaxKind::IdentifierExpression);
-            committed.token(SyntaxKind::Identifier, range.clone());
-            committed.finish_node();
-            return Some(());
-        }
-        NudRecognition::Integer(integer) => {
-            let range = integer.range();
-            committed.start_node(SyntaxKind::IntegerLiteral);
-            committed.token(SyntaxKind::Integer, range.clone());
-            committed.finish_node();
-            return Some(());
-        }
+            NudRecognition::Parenthesized { open } => {
+                cut_after_acceptance(committed);
+                commit_parenthesized_nud(table, open, committed)?;
+                return Some(());
+            }
+            NudRecognition::BracedStatementBlock { open } => {
+                cut_after_acceptance(committed);
+                commit_braced_statement_block_expression(table, open, committed);
+                return Some(());
+            }
+            NudRecognition::If {
+                keyword,
+                base_indent,
+            } => {
+                cut_after_acceptance(committed);
+                commit_if_expression(table, keyword, base_indent, committed);
+                return Some(());
+            }
+            NudRecognition::Case {
+                keyword,
+                base_indent,
+            } => {
+                cut_after_acceptance(committed);
+                commit_case_like_expression(
+                    table,
+                    CaseLikeFamily::Case,
+                    keyword,
+                    base_indent,
+                    committed,
+                );
+                return Some(());
+            }
+            NudRecognition::Catch {
+                keyword,
+                base_indent,
+            } => {
+                cut_after_acceptance(committed);
+                commit_case_like_expression(
+                    table,
+                    CaseLikeFamily::Catch,
+                    keyword,
+                    base_indent,
+                    committed,
+                );
+                return Some(());
+            }
+            NudRecognition::Identifier(identifier) => {
+                let range = identifier.range();
+                committed.start_node(SyntaxKind::IdentifierExpression);
+                committed.token(SyntaxKind::Identifier, range.clone());
+                committed.finish_node();
+                return Some(());
+            }
+            NudRecognition::Integer(integer) => {
+                let range = integer.range();
+                committed.start_node(SyntaxKind::IntegerLiteral);
+                committed.token(SyntaxKind::Integer, range.clone());
+                committed.finish_node();
+                return Some(());
+            }
             NudRecognition::Prefix(operator) => {
-            cut_after_acceptance(committed);
-            emit_operator_use(committed, SyntaxKind::PrefixOperatorUse, &operator);
-            committed.emit_trivia(operator.trailing_trivia());
-            accepted = committed.probe(|probe| probe_nud(table, LeadingTrivia::None, probe))?;
-        }
-        NudRecognition::Nullfix(operator) => {
-            emit_operator_use(committed, SyntaxKind::NullfixOperatorUse, &operator);
-            committed.emit_trivia(operator.trailing_trivia());
-            return Some(());
-        }
+                cut_after_acceptance(committed);
+                emit_operator_use(committed, SyntaxKind::PrefixOperatorUse, &operator);
+                committed.emit_trivia(operator.trailing_trivia());
+                accepted = committed.probe(|probe| probe_nud(table, LeadingTrivia::None, probe))?;
+            }
+            NudRecognition::Nullfix(operator) => {
+                emit_operator_use(committed, SyntaxKind::NullfixOperatorUse, &operator);
+                committed.emit_trivia(operator.trailing_trivia());
+                return Some(());
+            }
         }
     }
 }
@@ -4853,9 +6732,9 @@ fn commit_if_expression<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::IfExpression);
-    let mut companion_scope = Some(committed.probe(|probe| {
-        push_if_expression_companion_scope(base_indent, probe.input())
-    }));
+    let mut companion_scope = Some(
+        committed.probe(|probe| push_if_expression_companion_scope(base_indent, probe.input())),
+    );
     commit_if_arm(table, IfArmKeyword::If(keyword), base_indent, committed);
     loop {
         let Some(continuation) = committed.probe(|probe| {
@@ -4866,7 +6745,9 @@ fn commit_if_expression<'parse, 'source, 'local, E, O>(
                     .id,
                 probe.input(),
             )
-        }) else { break; };
+        }) else {
+            break;
+        };
         match continuation {
             IfContinuationKeyword::Elsif { keyword, trivia } => {
                 cut_after_acceptance(committed);
@@ -4923,9 +6804,14 @@ fn commit_if_arm<'parse, 'source, 'local, E, O>(
     });
     committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
     committed.start_node(SyntaxKind::Condition);
-    let has_condition = parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_some();
+    let has_condition =
+        parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_some();
     if !has_condition {
-        emit_if_missing(committed, IfExpressionRole::Condition, ExpectedSyntax::Expression);
+        emit_if_missing(
+            committed,
+            IfExpressionRole::Condition,
+            ExpectedSyntax::Expression,
+        );
     }
     committed.finish_node();
     committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
@@ -4934,7 +6820,11 @@ fn commit_if_arm<'parse, 'source, 'local, E, O>(
     let Some(colon) = colon else {
         if has_condition {
             // At EOF the introducer and its body share one absence cause.
-            emit_if_missing(committed, IfExpressionRole::Body, ExpectedSyntax::Expression);
+            emit_if_missing(
+                committed,
+                IfExpressionRole::Body,
+                ExpectedSyntax::Expression,
+            );
         }
         committed.finish_node();
         return;
@@ -4958,19 +6848,25 @@ fn commit_else_arm<'parse, 'source, 'local, E, O>(
 {
     committed.start_node(SyntaxKind::ElseArm);
     committed.token(SyntaxKind::ElseKw, keyword.range());
-    committed.probe(|probe| {
-        pop_if_expression_companion_scope(companion_scope, probe.input())
-    });
+    committed.probe(|probe| pop_if_expression_companion_scope(companion_scope, probe.input()));
     let trivia = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
     committed.emit_trivia(&trivia);
     if let Some(colon) = committed.probe(|probe| recognize_arm_colon(probe.input())) {
         committed.token(SyntaxKind::Colon, colon);
         commit_colon_introduced_if_body(table, base_indent, IfExpressionRole::ElseBody, committed);
     } else {
-        let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Elsif).with(StopKind::Else));
+        let stop_set = committed.probe(|probe| {
+            active_stop_set(probe.input())
+                .with(StopKind::Elsif)
+                .with(StopKind::Else)
+        });
         committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
         if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
-            emit_if_missing(committed, IfExpressionRole::ElseBody, ExpectedSyntax::Expression);
+            emit_if_missing(
+                committed,
+                IfExpressionRole::ElseBody,
+                ExpectedSyntax::Expression,
+            );
         }
         committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
     }
@@ -4988,11 +6884,16 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let layout = committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
+    let layout =
+        committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
     match layout {
         ArmBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
-            let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Elsif).with(StopKind::Else));
+            let stop_set = committed.probe(|probe| {
+                active_stop_set(probe.input())
+                    .with(StopKind::Elsif)
+                    .with(StopKind::Else)
+            });
             committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
             if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
                 if if_body_error_retry(table, role, committed) {
@@ -5004,7 +6905,10 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
             }
             committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
         }
-        ArmBodyLayout::Indented { opening_trivia, block_indent } => {
+        ArmBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => {
             commit_indented_statement_block_with_options(
                 table,
                 opening_trivia,
@@ -5119,7 +7023,11 @@ where
     committed.start_node(SyntaxKind::ParenthesizedExpression);
     committed.token(SyntaxKind::LParen, open.clone());
     let incoming_base = committed.probe(|probe| {
-        probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column)
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
     });
     push_direct_parenthesized_expression_scope(committed);
 
@@ -5137,8 +7045,7 @@ where
 
     if !parenthesized_close_pending(committed) && !parenthesized_close_absent_boundary(committed) {
         let element_start = committed_position(committed);
-        let element =
-            commit_parenthesized_element(table, leading_trivia(&leading), committed);
+        let element = commit_parenthesized_element(table, leading_trivia(&leading), committed);
         if element.is_none() {
             let at = committed_position(committed);
             if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
@@ -5159,12 +7066,15 @@ where
             committed.emit_trivia(&trivia);
             if let Some(comma) = commit_parenthesized_comma(committed) {
                 committed.token(SyntaxKind::Comma, comma);
-                let leading = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+                let leading =
+                    commit_parenthesized_trivia(committed).expect("trivia scanning is total");
                 committed.emit_trivia(&leading);
                 if parenthesized_close_pending(committed) {
                     break;
                 }
-                if commit_parenthesized_element(table, leading_trivia(&leading), committed).is_none() {
+                if commit_parenthesized_element(table, leading_trivia(&leading), committed)
+                    .is_none()
+                {
                     emit_expression_missing(committed);
                 }
                 continue;
@@ -5181,7 +7091,9 @@ where
                 }
                 continue;
             }
-            if boundary == LayoutDelimitedBoundary::None && parenthesized_element_pending(table, committed) {
+            if boundary == LayoutDelimitedBoundary::None
+                && parenthesized_element_pending(table, committed)
+            {
                 emit_parenthesized_separator_missing(committed);
                 if commit_parenthesized_element(table, LeadingTrivia::None, committed).is_none() {
                     emit_expression_missing(committed);
@@ -5227,16 +7139,18 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     parse_direct_operator_chain(table, leading, committed).or_else(|| {
-        parenthesized_element_error_retry(table, committed).then(|| {
-            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                return None;
-            }
-            Some(
-                parse_direct_operator_chain(table, LeadingTrivia::None, committed)
-                    .expect("a retried parenthesized element must commit its shared NUD candidate"),
-            )
-        })
-        .flatten()
+        parenthesized_element_error_retry(table, committed)
+            .then(|| {
+                if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                    return None;
+                }
+                Some(
+                    parse_direct_operator_chain(table, LeadingTrivia::None, committed).expect(
+                        "a retried parenthesized element must commit its shared NUD candidate",
+                    ),
+                )
+            })
+            .flatten()
     })
 }
 
@@ -5271,8 +7185,7 @@ where
         let mut end = start;
         loop {
             if any_ambient_owner_claims(probe.input()) {
-                return (start < probe.input().pos())
-                    .then_some((start..probe.input().pos(), true));
+                return (start < probe.input().pos()).then_some((start..probe.input().pos(), true));
             }
             let boundary = {
                 let i = probe.input();
@@ -5371,11 +7284,7 @@ where
                 PunctuationKind::Close(actual @ (Delimiter::Bracket | Delimiter::Brace)) => {
                     emit_parenthesized_close_error(committed, role, punctuation.range(), actual);
                 }
-                _ => emit_parenthesized_error(
-                    committed,
-                    role,
-                    punctuation.range(),
-                ),
+                _ => emit_parenthesized_error(committed, role, punctuation.range()),
             }
             continue;
         }
@@ -5440,10 +7349,14 @@ fn index_close_pending<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.probe(|probe| {
-        let i = probe.input(); let checkpoint = i.checkpoint();
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
         let pending = i.run(recognize_index_close).is_some();
         i.rollback(checkpoint);
         pending
@@ -5459,19 +7372,27 @@ fn commit_index_close<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> IndexClose
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
             return IndexClose::Missing;
         }
-        if committed.probe(|probe| probe.input().input.remainder().is_empty() || matches!(probe.input().input.remainder().chars().next(), Some(';'))) {
+        if committed.probe(|probe| {
+            probe.input().input.remainder().is_empty()
+                || matches!(probe.input().input.remainder().chars().next(), Some(';'))
+        }) {
             return IndexClose::Missing;
         }
         let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation));
         if let Some(punctuation) = punctuation {
             match punctuation.kind() {
-                PunctuationKind::Close(Delimiter::Bracket) => return IndexClose::Matched(punctuation.range()),
+                PunctuationKind::Close(Delimiter::Bracket) => {
+                    return IndexClose::Matched(punctuation.range());
+                }
                 PunctuationKind::Close(actual @ (Delimiter::Parenthesis | Delimiter::Brace)) => {
                     emit_index_close_error(committed, punctuation.range(), actual);
                 }
@@ -5479,15 +7400,26 @@ where
             }
             continue;
         }
-        let range = committed.probe(|probe| {
-            let start = probe.input().pos(); let mut end = start;
-            loop {
-                let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); };
-                if matches!(character, ')' | ']' | '}' | ';') { return (start < end).then_some(start..end); }
-                i.input.next()?; end = i.pos();
-                let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
-            }
-        }).expect("an index close recovery consumes invalid source");
+        let range = committed
+            .probe(|probe| {
+                let start = probe.input().pos();
+                let mut end = start;
+                loop {
+                    let i = probe.input();
+                    let Some(character) = i.input.remainder().chars().next() else {
+                        return (start < end).then_some(start..end);
+                    };
+                    if matches!(character, ')' | ']' | '}' | ';') {
+                        return (start < end).then_some(start..end);
+                    }
+                    i.input.next()?;
+                    end = i.pos();
+                    let mut line = i.local.line();
+                    line.at_line_start = false;
+                    i.local.set_line(line);
+                }
+            })
+            .expect("an index close recovery consumes invalid source");
         emit_index_close_error(committed, range, Delimiter::Bracket);
     }
 }
@@ -5574,7 +7506,10 @@ fn emit_fixed_tail_missing<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Expression(expression_role);
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -5602,7 +7537,10 @@ fn emit_fixed_tail_error<'parse, 'source, 'local, E, O>(
         let i = probe.input();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -5624,23 +7562,62 @@ fn emit_call_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     expression_role: ExpressionRole,
     expected: ExpectedSyntax,
-) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let record = committed.probe(|probe| {
-        let i = probe.input(); let at = i.pos(); let role = GrammarRole::Expression(expression_role);
-        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Expression(expression_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
     });
     committed.emit_missing(record);
 }
 
 fn emit_call_close_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let record = committed.probe(|probe| {
-        let i = probe.input(); let at = i.pos();
+        let i = probe.input();
+        let at = i.pos();
         let role = call_close_role();
-        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                )),
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
     });
     committed.emit_missing(record);
 }
@@ -5649,102 +7626,309 @@ fn emit_call_error<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     expression_role: ExpressionRole,
     range: Range<usize>,
-) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let role = GrammarRole::Expression(expression_role);
-    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
-        probe.input().local,
-        RecoverySiteKey { role, range: range.clone() },
-        RecoveryKind::Error,
-        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
-        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]),
-        0,
-    ));
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
     committed.emit_error(record);
 }
 
 fn emit_index_missing<'parse, 'source, 'local, E, O>(
-    committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, expected: ExpectedSyntax,
-) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let record = committed.probe(|probe| {
-        let i = probe.input(); let at = i.pos(); let role = GrammarRole::Expression(expression_role);
-        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Expression(expression_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
     });
     committed.emit_missing(record);
 }
 
-fn emit_projection_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, expected: ExpectedSyntax)
-where E: ErrorSink<usize>, O: CommitOutput<'source>,
+fn emit_projection_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let record = committed.probe(|probe| {
-        let i = probe.input(); let at = i.pos(); let role = GrammarRole::Expression(expression_role);
-        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
-    }); committed.emit_missing(record);
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Expression(expression_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
 }
 
-fn emit_projection_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, range: Range<usize>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>,
+fn emit_projection_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let role = GrammarRole::Expression(expression_role);
-    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
-        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
-        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
-        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
-    )); committed.emit_error(record);
-}
-
-fn emit_projection_close_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, owner: ConstructRole, delimiter: Delimiter)
-where E: ErrorSink<usize>, O: CommitOutput<'source>,
-{
     let record = committed.probe(|probe| {
-        let i = probe.input(); let at = i.pos(); let role = GrammarRole::ClosingDelimiter { owner, delimiter };
-        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(delimiter)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
-    }); committed.emit_missing(record);
-}
-
-fn emit_projection_close_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, range: Range<usize>, _: PunctuationKind)
-where E: ErrorSink<usize>, O: CommitOutput<'source>,
-{
-    let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::ProjectionRecordTail, delimiter: Delimiter::Brace };
-    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
-        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
-        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
-        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)), range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
-    )); committed.emit_error(record);
-}
-
-fn emit_index_close_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>,
-{
-    let record = committed.probe(|probe| {
-        let i = probe.input(); let at = i.pos(); let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::IndexTail, delimiter: Delimiter::Bracket };
-        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Bracket)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
     });
-    committed.emit_missing(record);
-}
-
-fn emit_index_close_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, range: Range<usize>, actual: Delimiter)
-where E: ErrorSink<usize>, O: CommitOutput<'source>,
-{
-    let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::IndexTail, delimiter: Delimiter::Bracket };
-    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
-        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
-        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::Punctuation(crate::session::PunctuationEvidence::Close(actual)) }]),
-        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Bracket)), range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
-    ));
     committed.emit_error(record);
 }
 
-fn emit_index_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, range: Range<usize>)
-where E: ErrorSink<usize>, O: CommitOutput<'source>,
+fn emit_projection_close_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    owner: ConstructRole,
+    delimiter: Delimiter,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ClosingDelimiter { owner, delimiter };
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    delimiter,
+                )),
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_projection_close_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+    _: PunctuationKind,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::ProjectionRecordTail,
+        delimiter: Delimiter::Brace,
+    };
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Brace,
+                )),
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn emit_index_close_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::IndexTail,
+            delimiter: Delimiter::Bracket,
+        };
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Bracket,
+                )),
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_index_close_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+    actual: Delimiter,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::IndexTail,
+        delimiter: Delimiter::Bracket,
+    };
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::Punctuation(
+                    crate::session::PunctuationEvidence::Close(actual),
+                ),
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Bracket,
+                )),
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn emit_index_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let role = GrammarRole::Expression(expression_role);
-    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
-        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
-        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
-        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
-    ));
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
     committed.emit_error(record);
 }
 
@@ -5782,31 +7966,83 @@ fn emit_case_like_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     case_role: CaseLikeRole,
     expected: ExpectedSyntax,
-) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let record = committed.probe(|probe| {
-        let i = probe.input(); let at = i.pos(); let role = GrammarRole::CaseLike(case_role);
-        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::CaseLike(case_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
     });
     committed.emit_missing(record);
 }
 
 fn commit_case_like_invalid_arrow<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
 {
     let range = committed.probe(|probe| {
-        let i = probe.input(); let start = i.pos(); let mut end = start;
+        let i = probe.input();
+        let start = i.pos();
+        let mut end = start;
         while let Some(character) = i.input.remainder().chars().next() {
-            if matches!(character, ',' | '}' | '\n' | '\r') { break; }
-            i.input.next().expect("the inspected source character exists"); end = i.pos();
-            let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
+            if matches!(character, ',' | '}' | '\n' | '\r') {
+                break;
+            }
+            i.input
+                .next()
+                .expect("the inspected source character exists");
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
         }
         (start < end).then_some(start..end)
     });
-    let Some(range) = range else { return; };
+    let Some(range) = range else {
+        return;
+    };
     let role = GrammarRole::CaseLike(CaseLikeRole::Arrow);
-    let record = committed.probe(|probe| CommittedRecoveryRecord::new(probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error, Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OperatorLike }]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0));
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OperatorLike,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
     committed.emit_error(record);
 }
 
@@ -5824,7 +8060,10 @@ fn emit_if_missing<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::IfExpression(if_role);
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -5871,7 +8110,9 @@ where
             }
         }
     });
-    let Some((range, retry)) = recovered else { return false; };
+    let Some((range, retry)) = recovered else {
+        return false;
+    };
     emit_if_error(committed, role, range);
     retry
 }
@@ -5889,7 +8130,10 @@ fn emit_if_error<'parse, 'source, 'local, E, O>(
         let i = probe.input();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -5952,7 +8196,10 @@ fn emit_with_missing<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::WithBody(with_role);
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -5975,22 +8222,27 @@ fn emit_with_error<'parse, 'source, 'local, E, O>(
     O: CommitOutput<'source>,
 {
     let role = GrammarRole::WithBody(WithBodyRole::Body);
-    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
-        probe.input().local,
-        RecoverySiteKey { role, range: range.clone() },
-        RecoveryKind::Error,
-        Arc::from([UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        }]),
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Statement,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    ));
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Statement,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
     committed.emit_error(record);
 }
 
@@ -6095,9 +8347,13 @@ fn emit_statement_sequence_error<'parse, 'source, 'local, E, O>(
 
 fn statement_sequence_statement_role(policy: StatementSequencePolicy) -> GrammarRole {
     match policy {
-        StatementSequencePolicy::Indented { options, .. } => options.statement_role.unwrap_or(
-            GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement)
-        ),
+        StatementSequencePolicy::Indented { options, .. } => {
+            options
+                .statement_role
+                .unwrap_or(GrammarRole::ColonApplication(
+                    ColonApplicationRole::IndentedStatement,
+                ))
+        }
         StatementSequencePolicy::BracedPrimary => {
             GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement)
         }
@@ -6150,7 +8406,10 @@ fn emit_braced_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -6212,7 +8471,10 @@ fn emit_braced_error<'parse, 'source, 'local, E, O>(
         let i = probe.input();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -6535,11 +8797,13 @@ mod tests {
 
         for (source, expected_element_count, expected_trailing_comma, expected_range) in cases {
             let chain = parse(source, &canonical_operator_table());
-            let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
-                elements,
-                trailing_comma,
-                range,
-            })] = chain.items()
+            let [
+                OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
+                    elements,
+                    trailing_comma,
+                    range,
+                }),
+            ] = chain.items()
             else {
                 panic!("expected parenthesized expression for {source:?}");
             };
@@ -6559,11 +8823,13 @@ mod tests {
             ("(a,\nb)", 2, None, 1),
         ] {
             let chain = parse(source, &canonical_operator_table());
-            let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
-                elements,
-                trailing_comma: actual_trailing_comma,
-                ..
-            })] = chain.items()
+            let [
+                OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
+                    elements,
+                    trailing_comma: actual_trailing_comma,
+                    ..
+                }),
+            ] = chain.items()
             else {
                 panic!("expected a parenthesized expression for {source:?}");
             };
@@ -6575,23 +8841,36 @@ mod tests {
             let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
             assert_eq!(group.to_string(), source, "{source:?}");
             assert_eq!(
-                group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(),
+                group
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                    .count(),
                 element_count,
                 "{source:?}"
             );
             assert_eq!(
-                group.children_with_tokens().filter(|child| child.kind() == SyntaxKind::Comma).count(),
+                group
+                    .children_with_tokens()
+                    .filter(|child| child.kind() == SyntaxKind::Comma)
+                    .count(),
                 literal_commas,
                 "{source:?}"
             );
-            assert!(!group.descendants().any(|node| node.kind() == SyntaxKind::Missing));
+            assert!(
+                !group
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::Missing)
+            );
         }
 
         let source = "(a\nb)";
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse(source, &low), parse(source, &high));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
 
         let range_table = range_operator_table();
         for (source, operator_kind) in [
@@ -6601,21 +8880,39 @@ mod tests {
             let chain = parse(source, &range_table);
             let [
                 OperatorChainItem::Primary(_),
-                OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(IndexTail { items, .. })),
-            ] = chain.items() else {
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(IndexTail {
+                    items, ..
+                })),
+            ] = chain.items()
+            else {
                 panic!("expected an index tail for {source:?}");
             };
-            assert!(matches!(items.as_slice(), [OperatorChain { items, .. }] if matches!(
-                items.as_slice(),
-                [OperatorChainItem::Primary(_), OperatorChainItem::SuffixUse(_)]
-                    | [OperatorChainItem::PrefixUse(_), OperatorChainItem::Primary(_)]
-            )));
+            assert!(
+                matches!(items.as_slice(), [OperatorChain { items, .. }] if matches!(
+                    items.as_slice(),
+                    [OperatorChainItem::Primary(_), OperatorChainItem::SuffixUse(_)]
+                        | [OperatorChainItem::PrefixUse(_), OperatorChainItem::Primary(_)]
+                ))
+            );
 
             let root = parse_direct(source, &range_table);
             assert_eq!(root.to_string(), source);
-            let index = root.descendants().find(|node| node.kind() == SyntaxKind::IndexTail).unwrap();
-            assert_eq!(index.descendants().filter(|node| node.kind() == operator_kind).count(), 1);
-            assert!(!index.descendants().any(|node| node.kind() == SyntaxKind::Missing));
+            let index = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::IndexTail)
+                .unwrap();
+            assert_eq!(
+                index
+                    .descendants()
+                    .filter(|node| node.kind() == operator_kind)
+                    .count(),
+                1
+            );
+            assert!(
+                !index
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::Missing)
+            );
         }
     }
 
@@ -6624,14 +8921,26 @@ mod tests {
         let (root, recoveries) = parse_direct_recovered("(a\n  b)", &canonical_operator_table());
         let outer = only_child(&root, SyntaxKind::OperatorChain);
         let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
-        assert_eq!(group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 1);
+        assert_eq!(
+            group
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            1
+        );
         assert!(!recoveries.is_empty());
 
         let (root, recoveries) = parse_direct_recovered("(a b)", &canonical_operator_table());
         assert_eq!(root.to_string(), "(a b)");
         let outer = only_child(&root, SyntaxKind::OperatorChain);
         let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
-        assert_eq!(group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 2);
+        assert_eq!(
+            group
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            2
+        );
         assert!(matches!(
             recoveries.as_slice(),
             [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
@@ -6640,7 +8949,9 @@ mod tests {
         ));
 
         let chain = parse("(a b)", &canonical_operator_table());
-        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. })] = chain.items() else {
+        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. })] =
+            chain.items()
+        else {
             panic!("expected parenthesized expression");
         };
         assert_eq!(elements.len(), 2);
@@ -6649,28 +8960,35 @@ mod tests {
     #[test]
     fn operator_chain_ast_builds_nested_parenthesized_expressions() {
         let chain = parse("((a))", &canonical_operator_table());
-        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
-            elements,
-            trailing_comma,
-            range,
-        })] = chain.items()
+        let [
+            OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
+                elements,
+                trailing_comma,
+                range,
+            }),
+        ] = chain.items()
         else {
             panic!("expected outer parenthesized expression");
         };
         assert_eq!(*range, 0..5);
         assert_eq!(*trailing_comma, None);
-        let [OperatorChain {
-            items,
-            range: inner_chain_range,
-        }] = elements.as_slice() else {
+        let [
+            OperatorChain {
+                items,
+                range: inner_chain_range,
+            },
+        ] = elements.as_slice()
+        else {
             panic!("expected one nested chain");
         };
         assert_eq!(*inner_chain_range, 1..4);
-        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
+        let [
+            OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
                 elements,
                 trailing_comma,
                 range,
-            })] = items.as_slice()
+            }),
+        ] = items.as_slice()
         else {
             panic!("expected one nested parenthesized element");
         };
@@ -6720,10 +9038,32 @@ mod tests {
         let chain = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
             chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
-            vec![SyntaxKind::PrefixOperatorUse, SyntaxKind::PrefixOperatorUse, SyntaxKind::IdentifierExpression]
+            vec![
+                SyntaxKind::PrefixOperatorUse,
+                SyntaxKind::PrefixOperatorUse,
+                SyntaxKind::IdentifierExpression
+            ]
         );
-        assert_eq!(chain.children().nth(0).unwrap().first_token().unwrap().text(), "+");
-        assert_eq!(chain.children().nth(1).unwrap().first_token().unwrap().text(), "!");
+        assert_eq!(
+            chain
+                .children()
+                .nth(0)
+                .unwrap()
+                .first_token()
+                .unwrap()
+                .text(),
+            "+"
+        );
+        assert_eq!(
+            chain
+                .children()
+                .nth(1)
+                .unwrap()
+                .first_token()
+                .unwrap()
+                .text(),
+            "!"
+        );
         assert_eq!(root.to_string(), "+!a");
     }
 
@@ -6733,7 +9073,11 @@ mod tests {
         let chain = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
             chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
-            vec![SyntaxKind::IdentifierExpression, SyntaxKind::InfixOperatorUse, SyntaxKind::IdentifierExpression]
+            vec![
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::InfixOperatorUse,
+                SyntaxKind::IdentifierExpression
+            ]
         );
         let infix = chain.children().nth(1).unwrap();
         assert_eq!(direct_token_kinds(&infix), vec![SyntaxKind::Operator]);
@@ -6757,7 +9101,10 @@ mod tests {
         let root = parse_direct(source, &canonical_operator_table());
         let direct = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
-            direct.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            direct
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
             vec![
                 SyntaxKind::IdentifierExpression,
                 SyntaxKind::FieldTail,
@@ -6770,7 +9117,10 @@ mod tests {
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse(source, &low), parse(source, &high));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
     }
 
     #[test]
@@ -6783,25 +9133,46 @@ mod tests {
             ("a[i\nj]", 2),
         ] {
             let chain = parse(source, &canonical_operator_table());
-            let [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(IndexTail { items, .. }))] = chain.items() else {
+            let [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(IndexTail {
+                    items, ..
+                })),
+            ] = chain.items()
+            else {
                 panic!("expected index tail for {source:?}");
             };
             assert_eq!(items.len(), item_count, "{source:?}");
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IndexTail).count(), 1, "{source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::IndexTail)
+                    .count(),
+                1,
+                "{source:?}"
+            );
         }
         let source = "a[i].field(x)::name";
         let root = parse_direct(source, &canonical_operator_table());
         let chain = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
             chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
-            vec![SyntaxKind::IdentifierExpression, SyntaxKind::IndexTail, SyntaxKind::FieldTail, SyntaxKind::CallTail, SyntaxKind::PathTail],
+            vec![
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::IndexTail,
+                SyntaxKind::FieldTail,
+                SyntaxKind::CallTail,
+                SyntaxKind::PathTail
+            ],
         );
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse(source, &low), parse(source, &high));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
     }
 
     #[test]
@@ -6819,15 +9190,22 @@ mod tests {
         for source in ["a[i", "a[i)"] {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(recoveries.iter().any(|record| {
-                record.site.role == GrammarRole::ClosingDelimiter {
-                    owner: ConstructRole::IndexTail,
-                    delimiter: Delimiter::Bracket,
-                }
-            }), "{source:?}");
+            assert!(
+                recoveries.iter().any(|record| {
+                    record.site.role
+                        == GrammarRole::ClosingDelimiter {
+                            owner: ConstructRole::IndexTail,
+                            delimiter: Delimiter::Bracket,
+                        }
+                }),
+                "{source:?}"
+            );
         }
         let (_, recoveries) = parse_direct_recovered("a[i j]", &canonical_operator_table());
-        assert!(recoveries.is_empty(), "a spaced shared NUD remains one ML item");
+        assert!(
+            recoveries.is_empty(),
+            "a spaced shared NUD remains one ML item"
+        );
     }
 
     #[test]
@@ -6836,13 +9214,24 @@ mod tests {
             let _ = parse(source, &canonical_operator_table());
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(root.descendants().any(|node| node.kind() == SyntaxKind::IndexTail));
-            assert!(!root.descendants().any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)));
+            assert!(
+                root.descendants()
+                    .any(|node| node.kind() == SyntaxKind::IndexTail)
+            );
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            );
         }
         let chain = parse("a[i]: rhs", &canonical_operator_table());
         assert!(matches!(
             chain.items(),
-            [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(_)), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))]
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(_)),
+                OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))
+            ]
         ));
     }
 
@@ -6865,83 +9254,200 @@ mod tests {
         let chain = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
             chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
-            vec![SyntaxKind::IdentifierExpression, SyntaxKind::IndexTail, SyntaxKind::ProjectionTupleTail, SyntaxKind::ProjectionRecordTail],
+            vec![
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::IndexTail,
+                SyntaxKind::ProjectionTupleTail,
+                SyntaxKind::ProjectionRecordTail
+            ],
         );
-        let record = chain.children().find(|node| node.kind() == SyntaxKind::ProjectionRecordTail).unwrap();
-        assert_eq!(record.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 1);
-        assert_eq!(record.children().filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem).count(), 1);
+        let record = chain
+            .children()
+            .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+            .unwrap();
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+                .count(),
+            1
+        );
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+                .count(),
+            1
+        );
 
-        for source in ["a.()", "a.(x, y(f))", "a.{}", "a.{..left, middle, ..right}", "a .{x}", "a/*c*/.(x)"] {
+        for source in [
+            "a.()",
+            "a.(x, y(f))",
+            "a.{}",
+            "a.{..left, middle, ..right}",
+            "a .{x}",
+            "a/*c*/.(x)",
+        ] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(root.descendants().any(|node| matches!(node.kind(), SyntaxKind::ProjectionTupleTail | SyntaxKind::ProjectionRecordTail)), "{source:?}");
+            assert!(
+                root.descendants().any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::ProjectionTupleTail | SyntaxKind::ProjectionRecordTail
+                )),
+                "{source:?}"
+            );
         }
         for source in ["a. (x)", "a. {x}"] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(!root.descendants().any(|node| matches!(node.kind(), SyntaxKind::ProjectionTupleTail | SyntaxKind::ProjectionRecordTail)), "{source:?}");
+            assert!(
+                !root.descendants().any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::ProjectionTupleTail | SyntaxKind::ProjectionRecordTail
+                )),
+                "{source:?}"
+            );
         }
     }
 
     #[test]
     fn projection_tail_recovery_keeps_typed_slots_local() {
         let cases = [
-            ("a.(,x)", ExpressionRole::ProjectionTupleItem, RecoveryKind::Missing, 3..3),
-            ("a.(x,,y)", ExpressionRole::ProjectionTupleItem, RecoveryKind::Missing, 5..5),
-            ("a.(@x)", ExpressionRole::ProjectionTupleItem, RecoveryKind::Error, 3..4),
-            ("a.{,x}", ExpressionRole::ProjectionRecordItem, RecoveryKind::Missing, 3..3),
-            ("a.{..}", ExpressionRole::ProjectionRecordSpreadRhs, RecoveryKind::Missing, 5..5),
-            ("a.{..@rest}", ExpressionRole::ProjectionRecordSpreadRhs, RecoveryKind::Error, 5..6),
+            (
+                "a.(,x)",
+                ExpressionRole::ProjectionTupleItem,
+                RecoveryKind::Missing,
+                3..3,
+            ),
+            (
+                "a.(x,,y)",
+                ExpressionRole::ProjectionTupleItem,
+                RecoveryKind::Missing,
+                5..5,
+            ),
+            (
+                "a.(@x)",
+                ExpressionRole::ProjectionTupleItem,
+                RecoveryKind::Error,
+                3..4,
+            ),
+            (
+                "a.{,x}",
+                ExpressionRole::ProjectionRecordItem,
+                RecoveryKind::Missing,
+                3..3,
+            ),
+            (
+                "a.{..}",
+                ExpressionRole::ProjectionRecordSpreadRhs,
+                RecoveryKind::Missing,
+                5..5,
+            ),
+            (
+                "a.{..@rest}",
+                ExpressionRole::ProjectionRecordSpreadRhs,
+                RecoveryKind::Error,
+                5..6,
+            ),
         ];
         for (source, role, kind, range) in cases {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(recoveries.iter().any(|record| record.kind == kind && record.site.role == GrammarRole::Expression(role) && record.site.range == range), "{source:?}: {recoveries:?}");
+            assert!(
+                recoveries.iter().any(|record| record.kind == kind
+                    && record.site.role == GrammarRole::Expression(role)
+                    && record.site.range == range),
+                "{source:?}: {recoveries:?}"
+            );
         }
-        for source in ["a.()", "a.(x,)", "a.(x;)", "a.(x\n)", "a.{}", "a.{..rest}", "a.{..left, middle, ..right}"] {
+        for source in [
+            "a.()",
+            "a.(x,)",
+            "a.(x;)",
+            "a.(x\n)",
+            "a.{}",
+            "a.{..rest}",
+            "a.{..left, middle, ..right}",
+        ] {
             let (_, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert!(recoveries.is_empty(), "{source:?}: {recoveries:?}");
         }
         let (_, recoveries) = parse_direct_recovered("a.(x y)", &canonical_operator_table());
-        assert!(recoveries.is_empty(), "valid ML continuation stays one tuple item");
+        assert!(
+            recoveries.is_empty(),
+            "valid ML continuation stays one tuple item"
+        );
     }
 
     #[test]
     fn projection_tail_close_recovery_is_owner_safe_on_both_paths() {
         let eof_cases = [
-            ("a.(x", ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis, 4..4),
-            ("a.{x", ConstructRole::ProjectionRecordTail, Delimiter::Brace, 4..4),
+            (
+                "a.(x",
+                ConstructRole::ProjectionTupleTail,
+                Delimiter::Parenthesis,
+                4..4,
+            ),
+            (
+                "a.{x",
+                ConstructRole::ProjectionRecordTail,
+                Delimiter::Brace,
+                4..4,
+            ),
         ];
         for (source, owner, delimiter, range) in eof_cases {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(matches!(
-                recoveries.as_slice(),
-                [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
-                    if site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
-                        && site.range == range
-            ), "{source:?}: {recoveries:?}");
+            assert!(
+                matches!(
+                    recoveries.as_slice(),
+                    [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                        if site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
+                            && site.range == range
+                ),
+                "{source:?}: {recoveries:?}"
+            );
         }
 
         for (source, owner, delimiter, error_range, missing_range) in [
-            ("a.(x]", ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis, 4..5, 5..5),
-            ("a.{x)", ConstructRole::ProjectionRecordTail, Delimiter::Brace, 4..5, 5..5),
+            (
+                "a.(x]",
+                ConstructRole::ProjectionTupleTail,
+                Delimiter::Parenthesis,
+                4..5,
+                5..5,
+            ),
+            (
+                "a.{x)",
+                ConstructRole::ProjectionRecordTail,
+                Delimiter::Brace,
+                4..5,
+                5..5,
+            ),
         ] {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(matches!(
-                recoveries.as_slice(),
-                [
-                    CommittedRecoveryRecord { kind: RecoveryKind::Error, site: error_site, .. },
-                    CommittedRecoveryRecord { kind: RecoveryKind::Missing, site: missing_site, .. },
-                ] if error_site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
-                    && error_site.range == error_range
-                    && missing_site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
-                    && missing_site.range == missing_range
-            ), "{source:?}: {recoveries:?}");
+            assert!(
+                matches!(
+                    recoveries.as_slice(),
+                    [
+                        CommittedRecoveryRecord { kind: RecoveryKind::Error, site: error_site, .. },
+                        CommittedRecoveryRecord { kind: RecoveryKind::Missing, site: missing_site, .. },
+                    ] if error_site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
+                        && error_site.range == error_range
+                        && missing_site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
+                        && missing_site.range == missing_range
+                ),
+                "{source:?}: {recoveries:?}"
+            );
 
             let chain = parse(source, &canonical_operator_table());
-            assert_eq!(chain.range().end, source.len(), "AST recovery must consume {source:?}");
+            assert_eq!(
+                chain.range().end,
+                source.len(),
+                "AST recovery must consume {source:?}"
+            );
         }
     }
 
@@ -6964,11 +9470,20 @@ mod tests {
             );
 
             let chain = parse(source, &canonical_operator_table());
-            let [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Record(record)))] = chain.items() else {
+            let [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(
+                    ProjectionTail::Record(record),
+                )),
+            ] = chain.items()
+            else {
                 panic!("{source:?} must remain a record projection tail: {chain:#?}");
             };
             assert!(
-                !record.items.iter().any(|item| matches!(item, ProjectionRecordItem::Spread(_))),
+                !record
+                    .items
+                    .iter()
+                    .any(|item| matches!(item, ProjectionRecordItem::Spread(_))),
                 "{source:?} must not produce an AST spread item",
             );
         }
@@ -6995,7 +9510,12 @@ mod tests {
                 if site.role == GrammarRole::Expression(ExpressionRole::PathSegment)
                     && site.range == (3..3)
         ));
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::PathTail).count(), 2);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::PathTail)
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -7003,18 +9523,31 @@ mod tests {
         for (source, role, kind, range) in [
             ("x.", ExpressionRole::FieldName, RecoveryKind::Missing, 2..2),
             ("x.@", ExpressionRole::FieldName, RecoveryKind::Error, 2..3),
-            ("x::", ExpressionRole::PathSegment, RecoveryKind::Missing, 3..3),
-            ("x::123", ExpressionRole::PathSegment, RecoveryKind::Error, 3..6),
+            (
+                "x::",
+                ExpressionRole::PathSegment,
+                RecoveryKind::Missing,
+                3..3,
+            ),
+            (
+                "x::123",
+                ExpressionRole::PathSegment,
+                RecoveryKind::Error,
+                3..6,
+            ),
         ] {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert!(matches!(
-                recoveries.as_slice(),
-                [CommittedRecoveryRecord { kind: actual_kind, site, .. }]
-                    if *actual_kind == kind
-                        && site.role == GrammarRole::Expression(role)
-                        && site.range == range
-            ), "{source:?}: {recoveries:?}");
+            assert!(
+                matches!(
+                    recoveries.as_slice(),
+                    [CommittedRecoveryRecord { kind: actual_kind, site, .. }]
+                        if *actual_kind == kind
+                            && site.role == GrammarRole::Expression(role)
+                            && site.range == range
+                ),
+                "{source:?}: {recoveries:?}"
+            );
         }
 
         for source in ["x..", "x..."] {
@@ -7030,7 +9563,12 @@ mod tests {
                 if site.role == GrammarRole::Expression(ExpressionRole::FieldName)
                     && site.range == (2..3)
         ));
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::InfixOperatorUse).count(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -7048,8 +9586,18 @@ mod tests {
         let source = "a.b +! c.d";
         let root = parse_direct(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::FieldTail).count(), 2);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::InfixOperatorUse).count(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::FieldTail)
+                .count(),
+            2
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -7064,16 +9612,37 @@ mod tests {
             ("f(a;)", 1, 1),
         ] {
             let chain = parse(source, &canonical_operator_table());
-            assert!(matches!(
-                chain.items(),
-                [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(CallTail { arguments, .. }))]
-                    if arguments.len() == argument_count
-            ), "{source:?}");
+            assert!(
+                matches!(
+                    chain.items(),
+                    [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(CallTail { arguments, .. }))]
+                        if arguments.len() == argument_count
+                ),
+                "{source:?}"
+            );
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source);
-            let call = root.descendants().find(|node| node.kind() == SyntaxKind::CallTail).unwrap();
-            assert_eq!(call.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), argument_count, "{source:?}");
-            assert_eq!(call.children_with_tokens().filter(|child| matches!(child.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon)).count(), literal_separators, "{source:?}");
+            let call = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::CallTail)
+                .unwrap();
+            assert_eq!(
+                call.children()
+                    .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                    .count(),
+                argument_count,
+                "{source:?}"
+            );
+            assert_eq!(
+                call.children_with_tokens()
+                    .filter(|child| matches!(
+                        child.kind(),
+                        SyntaxKind::Comma | SyntaxKind::Semicolon
+                    ))
+                    .count(),
+                literal_separators,
+                "{source:?}"
+            );
         }
     }
 
@@ -7082,7 +9651,14 @@ mod tests {
         for (source, expected_missing) in [("f(,a)", 1), ("f(a,,b)", 1), ("f(a", 1)] {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert_eq!(recoveries.iter().filter(|record| record.kind == RecoveryKind::Missing).count(), expected_missing, "{source:?}");
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| record.kind == RecoveryKind::Missing)
+                    .count(),
+                expected_missing,
+                "{source:?}"
+            );
         }
         let chain = parse("f(,a)", &canonical_operator_table());
         assert!(matches!(
@@ -7113,25 +9689,43 @@ mod tests {
         assert_eq!(root.to_string(), "f(a]");
         assert!(recoveries.iter().all(|record| matches!(
             record.site.role,
-            GrammarRole::ClosingDelimiter { owner: ConstructRole::ArgumentList, delimiter: Delimiter::Parenthesis }
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::ArgumentList,
+                delimiter: Delimiter::Parenthesis
+            }
         )));
-        assert!(recoveries.iter().any(|record| record.kind == RecoveryKind::Error && record.site.range == (3..4)));
-        assert!(recoveries.iter().any(|record| record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
+        assert!(
+            recoveries
+                .iter()
+                .any(|record| record.kind == RecoveryKind::Error && record.site.range == (3..4))
+        );
+        assert!(
+            recoveries
+                .iter()
+                .any(|record| record.kind == RecoveryKind::Missing && record.site.range == (4..4))
+        );
     }
 
     #[test]
     fn call_and_ml_adjacency_keep_flat_source_order() {
-        let cases = [
-            ("f(x)", 1),
-            ("f (x)", 0),
-            ("f/*c*/(x)", 0),
-            ("f\n  (x)", 0),
-        ];
+        let cases = [("f(x)", 1), ("f (x)", 0), ("f/*c*/(x)", 0), ("f\n  (x)", 0)];
         for (source, call_count) in cases {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source);
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CallTail).count(), call_count, "{source:?}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::MlArgument).count(), 1 - call_count, "{source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::CallTail)
+                    .count(),
+                call_count,
+                "{source:?}"
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::MlArgument)
+                    .count(),
+                1 - call_count,
+                "{source:?}"
+            );
         }
 
         let source = "a.b(c)::d e";
@@ -7140,38 +9734,85 @@ mod tests {
         assert_eq!(root.to_string(), source);
         assert_eq!(
             chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
-            vec![SyntaxKind::IdentifierExpression, SyntaxKind::FieldTail, SyntaxKind::CallTail, SyntaxKind::PathTail, SyntaxKind::MlArgument]
+            vec![
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::FieldTail,
+                SyntaxKind::CallTail,
+                SyntaxKind::PathTail,
+                SyntaxKind::MlArgument
+            ]
         );
 
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse(source, &low), parse(source, &high));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
     }
 
     #[test]
     fn ml_arguments_split_on_trivia_but_keep_adjacent_fixed_tails_and_colon_terminality() {
         let chain = parse("f x y", &canonical_operator_table());
-        assert!(matches!(chain.items(), [OperatorChainItem::Primary(_), OperatorChainItem::MlArgument { .. }, OperatorChainItem::MlArgument { .. }]));
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::MlArgument { .. },
+                OperatorChainItem::MlArgument { .. }
+            ]
+        ));
         let root = parse_direct("f x y", &canonical_operator_table());
         let chain = only_child(&root, SyntaxKind::OperatorChain);
-        let ml_arguments = chain.children().filter(|node| node.kind() == SyntaxKind::MlArgument).collect::<Vec<_>>();
+        let ml_arguments = chain
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::MlArgument)
+            .collect::<Vec<_>>();
         assert_eq!(ml_arguments.len(), 2);
         for argument in ml_arguments {
             let nested = only_child(&argument, SyntaxKind::OperatorChain);
             assert_eq!(nested.children().count(), 1);
-            assert_eq!(nested.first_child().unwrap().kind(), SyntaxKind::IdentifierExpression);
+            assert_eq!(
+                nested.first_child().unwrap().kind(),
+                SyntaxKind::IdentifierExpression
+            );
         }
 
         let root = parse_direct("f x.field(y)::z", &canonical_operator_table());
         assert_eq!(root.to_string(), "f x.field(y)::z");
-        let ml = root.descendants().find(|node| node.kind() == SyntaxKind::MlArgument).unwrap();
-        assert_eq!(ml.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 1);
-        assert_eq!(ml.descendants().filter(|node| node.kind() == SyntaxKind::FieldTail).count(), 1);
-        assert_eq!(ml.descendants().filter(|node| node.kind() == SyntaxKind::CallTail).count(), 1);
+        let ml = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::MlArgument)
+            .unwrap();
+        assert_eq!(
+            ml.children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            1
+        );
+        assert_eq!(
+            ml.descendants()
+                .filter(|node| node.kind() == SyntaxKind::FieldTail)
+                .count(),
+            1
+        );
+        assert_eq!(
+            ml.descendants()
+                .filter(|node| node.kind() == SyntaxKind::CallTail)
+                .count(),
+            1
+        );
 
         let colon = parse("f x: rhs", &canonical_operator_table());
-        assert!(matches!(colon.items(), [OperatorChainItem::Primary(_), OperatorChainItem::MlArgument { .. }, OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))]));
+        assert!(matches!(
+            colon.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::MlArgument { .. },
+                OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))
+            ]
+        ));
     }
 
     #[test]
@@ -7187,8 +9828,17 @@ mod tests {
 
         let (root, recoveries) = parse_direct_recovered("f +", &canonical_operator_table());
         assert_eq!(root.to_string(), "f +");
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::MlArgument).count(), 1);
-        assert!(recoveries.iter().any(|record| record.kind == RecoveryKind::Missing));
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::MlArgument)
+                .count(),
+            1
+        );
+        assert!(
+            recoveries
+                .iter()
+                .any(|record| record.kind == RecoveryKind::Missing)
+        );
 
         for source in ["f ", "f\n(x)"] {
             assert!(ml_after_identifier(source).is_none(), "{source:?}");
@@ -7201,10 +9851,22 @@ mod tests {
         let cases = [
             ("(f(a), b)", 1, Some(SyntaxKind::ParenthesizedExpression)),
             ("f(g(x))", 2, None),
-            ("case value: { field = f(a) } -> body", 1, Some(SyntaxKind::RecordPattern)),
-            ("run:\n  f(a)\n  g(b)", 2, Some(SyntaxKind::IndentedStatementBlock)),
+            (
+                "case value: { field = f(a) } -> body",
+                1,
+                Some(SyntaxKind::RecordPattern),
+            ),
+            (
+                "run:\n  f(a)\n  g(b)",
+                2,
+                Some(SyntaxKind::IndentedStatementBlock),
+            ),
             ("case x: p -> f(a), q -> g(b)", 2, Some(SyntaxKind::CaseArm)),
-            ("catch x { p -> f(a), q -> g(b) }", 2, Some(SyntaxKind::CatchArm)),
+            (
+                "catch x { p -> f(a), q -> g(b) }",
+                2,
+                Some(SyntaxKind::CatchArm),
+            ),
         ];
 
         for (source, expected_calls, enclosing_owner) in cases {
@@ -7212,15 +9874,21 @@ mod tests {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
             assert_eq!(
-                root.descendants().filter(|node| node.kind() == SyntaxKind::CallTail).count(),
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::CallTail)
+                    .count(),
                 expected_calls,
                 "{source:?}",
             );
             if let Some(owner) = enclosing_owner {
-                assert!(root.descendants().any(|node| node.kind() == owner), "{source:?}");
+                assert!(
+                    root.descendants().any(|node| node.kind() == owner),
+                    "{source:?}"
+                );
             }
             assert!(
-                root.descendants().all(|node| !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+                root.descendants()
+                    .all(|node| !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
                 "{source:?}",
             );
         }
@@ -7258,7 +9926,9 @@ mod tests {
         assert_eq!(suffix_chain.to_string(), "a++");
         assert_eq!(
             suffix
-                .children_with_tokens().map(|child| child.kind()).collect::<Vec<_>>(),
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
             vec![SyntaxKind::Operator]
         );
 
@@ -7298,7 +9968,14 @@ mod tests {
             ]
         );
         assert_eq!(
-            parenthesized.children().next().unwrap().children().next().unwrap().kind(),
+            parenthesized
+                .children()
+                .next()
+                .unwrap()
+                .children()
+                .next()
+                .unwrap()
+                .kind(),
             SyntaxKind::ParenthesizedExpression,
         );
     }
@@ -7381,17 +10058,25 @@ mod tests {
             outer.children().next().expect("left operand").kind(),
             SyntaxKind::ParenthesizedExpression
         );
-        assert_eq!(outer.children().nth(1).unwrap().kind(), SyntaxKind::InfixOperatorUse);
+        assert_eq!(
+            outer.children().nth(1).unwrap().kind(),
+            SyntaxKind::InfixOperatorUse
+        );
 
         let suffix = parse_direct("(a)++", &canonical_operator_table());
         let suffix = only_child(&suffix, SyntaxKind::OperatorChain);
         assert_eq!(
-            suffix.children().next()
+            suffix
+                .children()
+                .next()
                 .expect("parenthesized operand")
                 .kind(),
             SyntaxKind::ParenthesizedExpression
         );
-        assert_eq!(suffix.children().nth(1).unwrap().kind(), SyntaxKind::SuffixOperatorUse);
+        assert_eq!(
+            suffix.children().nth(1).unwrap().kind(),
+            SyntaxKind::SuffixOperatorUse
+        );
     }
 
     #[test]
@@ -7417,7 +10102,10 @@ mod tests {
         let chain = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(chain.to_string(), "+!a +! b++");
         assert_eq!(
-            chain.children_with_tokens().map(|child| child.kind()).collect::<Vec<_>>(),
+            chain
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
             vec![
                 SyntaxKind::PrefixOperatorUse,
                 SyntaxKind::PrefixOperatorUse,
@@ -7480,7 +10168,8 @@ mod tests {
     fn colon_inline_returns_a_live_if_companion_gap_after_its_first_argument() {
         let source = "if condition: f: x else: 0";
         let chain = parse(source, &canonical_operator_table());
-        let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+        let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items()
+        else {
             panic!("expected IfExpression");
         };
         assert!(if_expression.else_arm.is_some());
@@ -7522,7 +10211,13 @@ mod tests {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
             .expect("colon tail in the if arm");
-        assert_eq!(colon_tail.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 1);
+        assert_eq!(
+            colon_tail
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            1
+        );
 
         let no_owner = parse("f: x, y", &canonical_operator_table());
         assert!(matches!(no_owner.items(), [
@@ -7559,20 +10254,29 @@ mod tests {
             .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
             .expect("colon tail");
         assert_eq!(tail.to_string(), ": a\nb");
-        assert_eq!(tail.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 2);
+        assert_eq!(
+            tail.children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            2
+        );
         assert_eq!(root.to_string(), source);
 
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse(source, &low), parse(source, &high));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
     }
 
     #[test]
     fn outer_parenthesized_sequence_owns_colon_newline_boundary() {
         let source = "(f: a\nb)";
         let chain = parse(source, &canonical_operator_table());
-        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. })] = chain.items()
+        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. })] =
+            chain.items()
         else {
             panic!("expected parenthesized expression");
         };
@@ -7583,7 +10287,7 @@ mod tests {
                 ColonApplicationTail {
                     rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
                     ..
-                }
+                },
             )),
         ] = elements[0].items()
         else {
@@ -7603,7 +10307,11 @@ mod tests {
             .children()
             .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
             .expect("first outer element owns the colon tail");
-        assert!(!tail.children_with_tokens().any(|child| child.kind() == SyntaxKind::Newline));
+        assert!(
+            !tail
+                .children_with_tokens()
+                .any(|child| child.kind() == SyntaxKind::Newline)
+        );
         assert_eq!(group.to_string(), source);
     }
 
@@ -7617,12 +10325,16 @@ mod tests {
             .filter(|node| node.kind() == SyntaxKind::OperatorChain)
             .collect::<Vec<_>>();
         assert_eq!(elements.len(), 2);
-        assert!(elements[0]
-            .children()
-            .any(|node| node.kind() == SyntaxKind::ColonApplicationTail));
-        assert!(!elements[1]
-            .children()
-            .any(|node| node.kind() == SyntaxKind::ColonApplicationTail));
+        assert!(
+            elements[0]
+                .children()
+                .any(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        );
+        assert!(
+            !elements[1]
+                .children()
+                .any(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        );
     }
 
     #[test]
@@ -7680,12 +10392,15 @@ mod tests {
         assert_eq!(root.to_string(), source);
 
         let chain = parse("f:\n  x\n  y", &canonical_operator_table());
-        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
-            ColonApplicationTail {
-                rhs: Recovered::Complete(ColonApplicationRhs::Indented { block }),
-                ..
-            }
-        ))] = chain.items()
+        let [
+            _,
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                ColonApplicationTail {
+                    rhs: Recovered::Complete(ColonApplicationRhs::Indented { block }),
+                    ..
+                },
+            )),
+        ] = chain.items()
         else {
             panic!("expected an indented colon RHS");
         };
@@ -7715,31 +10430,44 @@ mod tests {
                 .expect("braced statement block");
             assert_eq!(root.to_string(), source, "{source:?}");
             assert_eq!(
-                block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(),
+                block
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::Statement)
+                    .count(),
                 statements,
                 "{source:?}"
             );
             if statements > 1 || separator_token.is_some() && source != "{ }" {
                 assert_eq!(
-                    block.children().filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator).count(),
+                    block
+                        .children()
+                        .filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+                        .count(),
                     if statements > 1 { 1 } else { 1 },
                     "{source:?}"
                 );
             }
             if let Some(token_kind) = separator_token {
-                assert!(block
-                    .descendants_with_tokens()
-                    .filter_map(|element| element.into_token())
-                    .any(|token| token.kind() == token_kind));
+                assert!(
+                    block
+                        .descendants_with_tokens()
+                        .filter_map(|element| element.into_token())
+                        .any(|token| token.kind() == token_kind)
+                );
             }
-            assert!(!block.descendants().any(|node| node.kind() == SyntaxKind::Missing));
+            assert!(
+                !block
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::Missing)
+            );
         }
     }
 
     #[test]
     fn braced_statement_block_ast_keeps_statement_count_close_and_range() {
         let chain = parse("{x,y}", &canonical_operator_table());
-        let [OperatorChainItem::Primary(PrimaryExpression::BracedStatementBlock(block))] = chain.items()
+        let [OperatorChainItem::Primary(PrimaryExpression::BracedStatementBlock(block))] =
+            chain.items()
         else {
             panic!("expected braced statement-block primary");
         };
@@ -7754,7 +10482,10 @@ mod tests {
         let source = "{x +\n  y\nz}";
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
         assert_eq!(parse(source, &low), parse(source, &high));
 
         let root = parse_direct(source, &low);
@@ -7762,8 +10493,20 @@ mod tests {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
             .unwrap();
-        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 2);
-        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator).count(), 1);
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            2
+        );
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -7783,8 +10526,20 @@ mod tests {
             .children()
             .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
             .unwrap();
-        assert_eq!(block.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 2);
-        assert_eq!(block.descendants().filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator).count(), 1);
+        assert_eq!(
+            block
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+                .count(),
+            2
+        );
+        assert_eq!(
+            block
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+                .count(),
+            1
+        );
         assert_eq!(root.to_string(), "+{x: 1, y: 2}*z");
     }
 
@@ -7803,13 +10558,15 @@ mod tests {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
             assert_eq!(
-                recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+                recoveries
+                    .iter()
+                    .map(|record| (record.kind, record.site.range.clone()))
+                    .collect::<Vec<_>>(),
                 expected,
                 "{source:?}"
             );
         }
     }
-
 
     #[test]
     fn indented_block_accepts_a_semicolon_separator() {
@@ -7818,9 +10575,11 @@ mod tests {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
             .expect("indented block");
-        assert!(block
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::BlockStatementSeparator));
+        assert!(
+            block
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+        );
         assert_eq!(root.to_string(), "f:\n  x; y");
     }
 
@@ -7837,10 +10596,15 @@ mod tests {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
             .expect("colon tail");
-        assert!(tail.children().any(|node| node.kind() == SyntaxKind::Missing));
-        assert!(!tail
-            .children_with_tokens()
-            .any(|child| child.kind() == SyntaxKind::Newline));
+        assert!(
+            tail.children()
+                .any(|node| node.kind() == SyntaxKind::Missing)
+        );
+        assert!(
+            !tail
+                .children_with_tokens()
+                .any(|child| child.kind() == SyntaxKind::Newline)
+        );
         assert_eq!(tail.to_string(), ":");
         assert_eq!(root.to_string(), source);
     }
@@ -7923,7 +10687,10 @@ mod tests {
         let source = "f:\n  x\n  y";
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
         assert_eq!(parse(source, &low), parse(source, &high));
     }
 
@@ -7936,7 +10703,10 @@ mod tests {
         let root = parse_direct(source, &low);
         let chain = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
-            chain.children().map(|child| child.kind()).collect::<Vec<_>>(),
+            chain
+                .children()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
             vec![
                 SyntaxKind::IdentifierExpression,
                 SyntaxKind::InfixOperatorUse,
@@ -7944,7 +10714,10 @@ mod tests {
                 SyntaxKind::ColonApplicationTail,
             ]
         );
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
         assert_eq!(parse(source, &low), parse(source, &high));
     }
 
@@ -7953,13 +10726,36 @@ mod tests {
         let source = "+!a+!b*c++";
         let low = canonical_operator_table();
         let high = OperatorTable::from_declarations([
-            OperatorDeclaration::new("+!", OperatorFixities::new().with_infix(BindingPower::scalar(99), BindingPower::scalar(-99))),
-            OperatorDeclaration::new("+", OperatorFixities::new().with_prefix(BindingPower::scalar(-90))),
-            OperatorDeclaration::new("!", OperatorFixities::new().with_prefix(BindingPower::scalar(100)).with_nullfix()),
-            OperatorDeclaration::new("++", OperatorFixities::new().with_suffix(BindingPower::scalar(-80))),
-            OperatorDeclaration::new("*", OperatorFixities::new().with_infix(BindingPower::scalar(-70), BindingPower::scalar(70))),
-        ]).expect("same recognition table");
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+            OperatorDeclaration::new(
+                "+!",
+                OperatorFixities::new()
+                    .with_infix(BindingPower::scalar(99), BindingPower::scalar(-99)),
+            ),
+            OperatorDeclaration::new(
+                "+",
+                OperatorFixities::new().with_prefix(BindingPower::scalar(-90)),
+            ),
+            OperatorDeclaration::new(
+                "!",
+                OperatorFixities::new()
+                    .with_prefix(BindingPower::scalar(100))
+                    .with_nullfix(),
+            ),
+            OperatorDeclaration::new(
+                "++",
+                OperatorFixities::new().with_suffix(BindingPower::scalar(-80)),
+            ),
+            OperatorDeclaration::new(
+                "*",
+                OperatorFixities::new()
+                    .with_infix(BindingPower::scalar(-70), BindingPower::scalar(70)),
+            ),
+        ])
+        .expect("same recognition table");
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
         assert_eq!(parse(source, &low), parse(source, &high));
     }
 
@@ -7973,16 +10769,26 @@ mod tests {
         ] if matches!(elements.as_slice(), [OperatorChain { items, .. }] if matches!(items.as_slice(), [OperatorChainItem::Primary(_), OperatorChainItem::InfixUse(_), OperatorChainItem::Primary(_)]))));
         let root = parse_direct("(a+!b)*c", &canonical_operator_table());
         let chain = only_child(&root, SyntaxKind::OperatorChain);
-        assert_eq!(chain.children().next().expect("primary").kind(), SyntaxKind::ParenthesizedExpression);
+        assert_eq!(
+            chain.children().next().expect("primary").kind(),
+            SyntaxKind::ParenthesizedExpression
+        );
     }
 
     #[test]
     fn dangling_infix_preserves_the_use_and_emits_one_zero_width_missing_operand() {
         let (root, recoveries) = parse_direct_recovered("a+!", &canonical_operator_table());
         let chain = only_child(&root, SyntaxKind::OperatorChain);
-        assert!(chain.children().any(|node| node.kind() == SyntaxKind::InfixOperatorUse));
+        assert!(
+            chain
+                .children()
+                .any(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+        );
         assert_eq!(
-            recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+            recoveries
+                .iter()
+                .map(|record| (record.kind, record.site.range.clone()))
+                .collect::<Vec<_>>(),
             vec![(RecoveryKind::Missing, 3..3)]
         );
     }
@@ -7991,9 +10797,16 @@ mod tests {
     fn dangling_prefix_preserves_the_use_and_emits_one_zero_width_missing_operand() {
         let (root, recoveries) = parse_direct_recovered("+", &canonical_operator_table());
         let chain = only_child(&root, SyntaxKind::OperatorChain);
-        assert!(chain.children().any(|node| node.kind() == SyntaxKind::PrefixOperatorUse));
+        assert!(
+            chain
+                .children()
+                .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
+        );
         assert_eq!(
-            recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+            recoveries
+                .iter()
+                .map(|record| (record.kind, record.site.range.clone()))
+                .collect::<Vec<_>>(),
             vec![(RecoveryKind::Missing, 1..1)]
         );
     }
@@ -8003,7 +10816,10 @@ mod tests {
         let (root, recoveries) = parse_direct_recovered("(a+!)", &canonical_operator_table());
         assert_eq!(root.to_string(), "(a+!)");
         assert_eq!(
-            recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+            recoveries
+                .iter()
+                .map(|record| (record.kind, record.site.range.clone()))
+                .collect::<Vec<_>>(),
             vec![(RecoveryKind::Missing, 4..4)]
         );
     }
@@ -8110,10 +10926,30 @@ mod tests {
     fn if_expression_owns_arm_colons_without_colon_application_tails() {
         let root = parse_direct("if x: 1 else: 0", &canonical_operator_table());
         assert_eq!(root.to_string(), "if x: 1 else: 0");
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfExpression).count(), 1);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfArm).count(), 1);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::IfExpression)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::IfArm)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+                .count(),
+            0
+        );
     }
 
     #[test]
@@ -8127,8 +10963,12 @@ mod tests {
         let companion = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let chain = i
             .run(from_fn(|i| parse_operator_chain(&table, i)))
             .expect("AST operator chain");
@@ -8148,8 +10988,12 @@ mod tests {
         let companion = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new("x"));
         committed.start_node(SyntaxKind::Root);
         parse_direct_operator_chain(&table, LeadingTrivia::None, &mut committed)
@@ -8170,7 +11014,10 @@ mod tests {
             assert!(probe.input().local.pop_ambient_owner_scope().is_some());
         });
         committed.finish_node();
-        assert_eq!(SyntaxNode::new_root(committed.into_output().finish_complete()).to_string(), "x");
+        assert_eq!(
+            SyntaxNode::new_root(committed.into_output().finish_complete()).to_string(),
+            "x"
+        );
     }
 
     #[test]
@@ -8178,7 +11025,8 @@ mod tests {
         let table = canonical_operator_table();
         for source in ["if condition: f(x else: 0", "if f(x else: 0"] {
             let chain = parse(source, &table);
-            let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+            let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items()
+            else {
                 panic!("expected AST IfExpression for {source:?}");
             };
             assert_eq!(if_expression.arms.len(), 1, "{source:?}");
@@ -8219,7 +11067,8 @@ mod tests {
             assert_eq!(
                 recoveries
                     .iter()
-                    .filter(|record| record.site.role == GrammarRole::Expression(ExpressionRole::CallArgument))
+                    .filter(|record| record.site.role
+                        == GrammarRole::Expression(ExpressionRole::CallArgument))
                     .count(),
                 0,
                 "{source:?}",
@@ -8237,7 +11086,8 @@ mod tests {
             "if condition: a.{x else: 0",
         ] {
             let chain = parse(source, &table);
-            let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+            let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items()
+            else {
                 panic!("expected AST IfExpression for {source:?}");
             };
             assert!(if_expression.else_arm.is_some(), "{source:?}");
@@ -8261,7 +11111,8 @@ mod tests {
         let source = "if condition: f(@ else: 0";
         let table = canonical_operator_table();
         let chain = parse(source, &table);
-        let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+        let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items()
+        else {
             panic!("expected AST IfExpression");
         };
         assert!(if_expression.else_arm.is_some());
@@ -8348,13 +11199,23 @@ mod tests {
             "if x: 1 elsif y: 2 elsif z: 3 else: 0",
             &canonical_operator_table(),
         );
-        let if_expression = root.descendants().find(|node| node.kind() == SyntaxKind::IfExpression).unwrap();
+        let if_expression = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IfExpression)
+            .unwrap();
         assert_eq!(
-            if_expression.children().filter(|node| node.kind() == SyntaxKind::IfArm).count(),
+            if_expression
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::IfArm)
+                .count(),
             3,
         );
         assert_eq!(
-            if_expression.descendants_with_tokens().filter_map(|element| element.into_token()).filter(|token| token.kind() == SyntaxKind::ElsifKw).count(),
+            if_expression
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::ElsifKw)
+                .count(),
             2,
         );
     }
@@ -8369,8 +11230,12 @@ mod tests {
         let expected_next = expected_if_companion_id_after_one_allocation(&mut local);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let chain = i
             .run(from_fn(|i| parse_expression_with_operators(&table, i)))
             .expect("if/elsif AST chain");
@@ -8398,16 +11263,17 @@ mod tests {
         let expected_next = expected_if_companion_id_after_one_allocation(&mut local);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
             .expect("if/elsif direct chain");
-        assert_eq!(
-            committed.probe(|probe| probe.input().input.remainder()),
-            "",
-        );
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "",);
         assert_eq!(
             committed.probe(|probe| probe.input().local.if_expression_companion_depth()),
             0,
@@ -8489,8 +11355,12 @@ mod tests {
         let inner = local.push_if_expression_companion(2, IF_EXPRESSION_COMPANION_WORDS);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
 
         assert_eq!(if_continuation_owner(&mut i), Some(outer));
         assert_eq!(recognize_if_arm_continuation(2, inner, &mut i), None);
@@ -8547,8 +11417,7 @@ mod tests {
                 "{source:?}",
             );
             assert_eq!(
-                committed
-                    .probe(|probe| probe.input().local.if_expression_companion_depth()),
+                committed.probe(|probe| probe.input().local.if_expression_companion_depth()),
                 0,
                 "{source:?}",
             );
@@ -8563,25 +11432,68 @@ mod tests {
     #[test]
     fn else_if_is_a_nested_if_primary_not_an_elsif_arm() {
         let root = parse_direct("if x: 1 else if y: 2", &canonical_operator_table());
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfExpression).count(), 2);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElsifKw).count(), 0);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::IfExpression)
+                .count(),
+            2
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElsifKw)
+                .count(),
+            0
+        );
     }
 
     #[test]
     fn indented_if_body_returns_dedent_else_to_its_owner() {
         let root = parse_direct("if x:\n  1\n  2\nelse: 0", &canonical_operator_table());
-        let block = root.descendants().find(|node| node.kind() == SyntaxKind::IndentedStatementBlock).unwrap();
-        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 2);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .unwrap();
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            2
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn indented_block_companion_stop_precedes_a_same_indent_else_statement() {
         let root = parse_direct("if x:\n  1\n  else: 0", &canonical_operator_table());
-        let block = root.descendants().find(|node| node.kind() == SyntaxKind::IndentedStatementBlock).unwrap();
-        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 1);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .unwrap();
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -8589,7 +11501,12 @@ mod tests {
         let source = "if condition:\n  mod inner\nelse: 0";
         let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1
+        );
         assert!(matches!(
             recoveries.as_slice(),
             [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
@@ -8682,8 +11599,18 @@ mod tests {
         let source = "{\n  struct S { x: Int\n  my y = 1\n}";
         let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(), 1);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::BindingStatement).count(), 0);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                .count(),
+            0
+        );
         assert!(recoveries.iter().any(|record| {
             record.kind == RecoveryKind::Missing
                 && record.site.role
@@ -8706,13 +11633,18 @@ mod tests {
         let source = "if c:\n  { x\nelse: 0";
         let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 0);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            0
+        );
         assert!(matches!(recoveries.as_slice(), [record]
-            if record.kind == RecoveryKind::Missing
-                && record.site.role == GrammarRole::ClosingDelimiter {
-                    owner: ConstructRole::BracedStatementBlockExpression,
-                    delimiter: Delimiter::Brace,
-                }));
+        if record.kind == RecoveryKind::Missing
+            && record.site.role == GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::BracedStatementBlockExpression,
+                delimiter: Delimiter::Brace,
+            }));
     }
 
     // ASOB Gate 18: documented known residual, not a regression.  Do not
@@ -8722,19 +11654,31 @@ mod tests {
     fn asob_known_residual_case_and_catch_arm_newlines_can_be_taken_by_call_recovery() {
         for (source, arm_kind) in [
             ("case value:\n  A -> f(x\n  B -> 0", SyntaxKind::CaseArm),
-            ("catch action {\n  A -> f(x\n  B -> 0\n}", SyntaxKind::CatchArm),
+            (
+                "catch action {\n  A -> f(x\n  B -> 0\n}",
+                SyntaxKind::CatchArm,
+            ),
         ] {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == arm_kind).count(), 1, "{source:?}");
-            assert!(recoveries.iter().any(|record| {
-                record.kind == RecoveryKind::Missing
-                    && record.site.role
-                        == GrammarRole::ClosingDelimiter {
-                            owner: ConstructRole::ArgumentList,
-                            delimiter: Delimiter::Parenthesis,
-                        }
-            }), "{source:?}: {recoveries:#?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == arm_kind)
+                    .count(),
+                1,
+                "{source:?}"
+            );
+            assert!(
+                recoveries.iter().any(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::ClosingDelimiter {
+                                owner: ConstructRole::ArgumentList,
+                                delimiter: Delimiter::Parenthesis,
+                            }
+                }),
+                "{source:?}: {recoveries:#?}"
+            );
         }
     }
 
@@ -8746,8 +11690,18 @@ mod tests {
         let source = "case value: [x if guard -> body";
         let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CaseGuard).count(), 0);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ListPattern).count(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseGuard)
+                .count(),
+            0
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ListPattern)
+                .count(),
+            1
+        );
         assert_eq!(
             recoveries
                 .iter()
@@ -8888,24 +11842,53 @@ mod tests {
         let source = "if x + y: a + b else: c + d";
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
         assert_eq!(parse(source, &low), parse(source, &high));
     }
 
     #[test]
     fn if_condition_keeps_nested_parenthesized_colon_application_local() {
         let root = parse_direct("if (f: x): 1", &canonical_operator_table());
-        let condition = root.descendants().find(|node| node.kind() == SyntaxKind::Condition).unwrap();
-        assert_eq!(condition.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 1);
-        let arm = root.descendants().find(|node| node.kind() == SyntaxKind::IfArm).unwrap();
-        assert_eq!(arm.children().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+        let condition = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Condition)
+            .unwrap();
+        assert_eq!(
+            condition
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+                .count(),
+            1
+        );
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IfArm)
+            .unwrap();
+        assert_eq!(
+            arm.children()
+                .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+                .count(),
+            0
+        );
     }
 
     #[test]
     fn if_is_an_ordinary_parenthesized_primary() {
         let root = parse_direct("(if x: 1 else: 0)", &canonical_operator_table());
-        let parenthesized = root.descendants().find(|node| node.kind() == SyntaxKind::ParenthesizedExpression).unwrap();
-        assert_eq!(parenthesized.descendants().filter(|node| node.kind() == SyntaxKind::IfExpression).count(), 1);
+        let parenthesized = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+            .unwrap();
+        assert_eq!(
+            parenthesized
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::IfExpression)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -8923,7 +11906,10 @@ mod tests {
             let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
             assert_eq!(
-                recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+                recoveries
+                    .iter()
+                    .map(|record| (record.kind, record.site.range.clone()))
+                    .collect::<Vec<_>>(),
                 expected,
                 "{source:?}",
             );
@@ -8935,57 +11921,123 @@ mod tests {
         let inline = parse("a with: b", &canonical_operator_table());
         assert!(matches!(
             inline.items(),
-            [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
-                colon: Recovered::Complete(_),
-                body: Recovered::Complete(WithBody::Inline { .. }),
-                ..
-            }))]
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+                    colon: Recovered::Complete(_),
+                    body: Recovered::Complete(WithBody::Inline { .. }),
+                    ..
+                }))
+            ]
         ));
         let root = parse_direct("a with: b", &canonical_operator_table());
         assert_eq!(root.to_string(), "a with: b");
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::WithBodyTail)
+                .count(),
+            1
+        );
 
         let root = parse_direct("a with:\n  b\n  c", &canonical_operator_table());
         assert_eq!(root.to_string(), "a with:\n  b\n  c");
-        let tail = root.descendants().find(|node| node.kind() == SyntaxKind::WithBodyTail).unwrap();
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+            .unwrap();
         let block = only_child(&tail, SyntaxKind::IndentedStatementBlock);
-        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 2);
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            2
+        );
 
         let nested = parse("a with: b: c", &canonical_operator_table());
-        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
-            body: Recovered::Complete(WithBody::Inline { statement }), ..
-        }))] = nested.items() else { panic!("expected terminal with body"); };
-        assert!(matches!(statement.as_ref(), Statement::Expression(expression)
-            if matches!(expression.items(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))])));
+        let [
+            _,
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+                body: Recovered::Complete(WithBody::Inline { statement }),
+                ..
+            })),
+        ] = nested.items()
+        else {
+            panic!("expected terminal with body");
+        };
+        assert!(
+            matches!(statement.as_ref(), Statement::Expression(expression)
+            if matches!(expression.items(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))]))
+        );
 
         let binding_inline = parse("a with: my item = value", &canonical_operator_table());
-        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
-            body: Recovered::Complete(WithBody::Inline { statement }), ..
-        }))] = binding_inline.items() else { panic!("expected inline binding statement"); };
+        let [
+            _,
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+                body: Recovered::Complete(WithBody::Inline { statement }),
+                ..
+            })),
+        ] = binding_inline.items()
+        else {
+            panic!("expected inline binding statement");
+        };
         assert!(matches!(statement.as_ref(), Statement::Binding(_)));
 
         let mod_inline = parse("a with: mod inner;", &canonical_operator_table());
-        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
-            body: Recovered::Complete(WithBody::Inline { statement }), ..
-        }))] = mod_inline.items() else { panic!("expected inline mod statement"); };
+        let [
+            _,
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+                body: Recovered::Complete(WithBody::Inline { statement }),
+                ..
+            })),
+        ] = mod_inline.items()
+        else {
+            panic!("expected inline mod statement");
+        };
         assert!(matches!(statement.as_ref(), Statement::Mod(_)));
 
         let nested = parse("a: b with: c", &canonical_operator_table());
-        let [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
-            ColonApplicationTail { rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }), .. }
-        ))] = nested.items() else { panic!("expected outer colon tail"); };
-        assert!(matches!(arguments.as_slice(), [Recovered::Complete(OperatorChain { items, .. })]
-            if matches!(items.as_slice(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(_))])));
+        let [
+            OperatorChainItem::Primary(_),
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                ColonApplicationTail {
+                    rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                    ..
+                },
+            )),
+        ] = nested.items()
+        else {
+            panic!("expected outer colon tail");
+        };
+        assert!(
+            matches!(arguments.as_slice(), [Recovered::Complete(OperatorChain { items, .. })]
+            if matches!(items.as_slice(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(_))]))
+        );
 
-        for source in ["value/*c*/with : body", "value\n  with:\n    body", "f with: body", "f x with: body"] {
+        for source in [
+            "value/*c*/with : body",
+            "value\n  with:\n    body",
+            "f with: body",
+            "f x with: body",
+        ] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1, "{source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::WithBodyTail)
+                    .count(),
+                1,
+                "{source:?}"
+            );
         }
         for source in ["a withx", "a with?"] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source);
-            assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::WithBodyTail));
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::WithBodyTail)
+            );
         }
 
         for (source, binding, use_declaration, mod_declaration) in [
@@ -8993,30 +12045,43 @@ mod tests {
             ("a with:\n  our item = value\n  use std", true, true, false),
             ("{\n  pub item = value\n  use std\n}", true, true, false),
             ("if condition:\n  my item = value", true, false, false),
-            ("case value:\n  item ->\n    my nested = value", true, false, false),
+            (
+                "case value:\n  item ->\n    my nested = value",
+                true,
+                false,
+                false,
+            ),
             ("catch action:\n  error ->\n    use std", false, true, false),
             ("a with: mod inner;", false, false, true),
             ("a with:\n  mod inner;", false, false, true),
             ("a:\n  mod inner;", false, false, true),
             ("if condition:\n  mod inner;", false, false, true),
             ("case value:\n  item ->\n    mod inner;", false, false, true),
-            ("catch action:\n  error ->\n    mod inner;", false, false, true),
+            (
+                "catch action:\n  error ->\n    mod inner;",
+                false,
+                false,
+                true,
+            ),
             ("{\n  mod inner;\n}", false, false, true),
         ] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
             assert_eq!(
-                root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement),
+                root.descendants()
+                    .any(|node| node.kind() == SyntaxKind::BindingStatement),
                 binding,
                 "{source:?}",
             );
             assert_eq!(
-                root.descendants().any(|node| node.kind() == SyntaxKind::UseDeclaration),
+                root.descendants()
+                    .any(|node| node.kind() == SyntaxKind::UseDeclaration),
                 use_declaration,
                 "{source:?}",
             );
             assert_eq!(
-                root.descendants().any(|node| node.kind() == SyntaxKind::ModDeclaration),
+                root.descendants()
+                    .any(|node| node.kind() == SyntaxKind::ModDeclaration),
                 mod_declaration,
                 "{source:?}",
             );
@@ -9024,28 +12089,49 @@ mod tests {
         for source in ["f(a with:b)", "a[b with:c]", "a.(b with:c)"] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::WithBodyTail)
+                    .count(),
+                1
+            );
         }
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse("a+b with:c", &low), parse("a+b with:c", &high));
-        assert_eq!(parse_direct("a+b with:c", &low).green(), parse_direct("a+b with:c", &high).green());
+        assert_eq!(
+            parse_direct("a+b with:c", &low).green(),
+            parse_direct("a+b with:c", &high).green()
+        );
         let semicolon = parse("a with: b;", &canonical_operator_table());
-        assert_eq!(semicolon.range(), 0..10, "terminal semicolon belongs to the tail range");
+        assert_eq!(
+            semicolon.range(),
+            0..10,
+            "terminal semicolon belongs to the tail range"
+        );
     }
 
     #[test]
     fn with_body_tail_missing_colon_is_single_typed_recovery_and_retries_body() {
         let (root, recoveries) = parse_direct_recovered("a with", &canonical_operator_table());
         assert_eq!(root.to_string(), "a with");
-        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
-            if site.role == GrammarRole::WithBody(WithBodyRole::Introducer) && site.range == (6..6)));
+        assert!(
+            matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Introducer) && site.range == (6..6))
+        );
 
         let (root, recoveries) = parse_direct_recovered("a with b", &canonical_operator_table());
         assert_eq!(root.to_string(), "a with b");
-        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
-            if site.role == GrammarRole::WithBody(WithBodyRole::Introducer) && site.range == (7..7)));
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1);
+        assert!(
+            matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Introducer) && site.range == (7..7))
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::WithBodyTail)
+                .count(),
+            1
+        );
 
         let (_, recoveries) = parse_direct_recovered("a with @ b", &canonical_operator_table());
         assert!(matches!(recoveries.as_slice(), [
@@ -9056,23 +12142,43 @@ mod tests {
 
         let (root, recoveries) = parse_direct_recovered("a with: @ b", &canonical_operator_table());
         assert_eq!(root.to_string(), "a with: @ b");
-        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
-            if site.role == GrammarRole::WithBody(WithBodyRole::Body) && site.range.start < site.range.end));
+        assert!(
+            matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Body) && site.range.start < site.range.end)
+        );
 
         let (root, recoveries) = parse_direct_recovered("a with: ;", &canonical_operator_table());
         assert_eq!(root.to_string(), "a with: ;");
-        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
-            if site.role == GrammarRole::WithBody(WithBodyRole::Body)));
+        assert!(
+            matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Body))
+        );
 
         let (_, recoveries) = parse_direct_recovered("a with:\n  ", &canonical_operator_table());
-        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
-            if site.role == GrammarRole::WithBody(WithBodyRole::IndentedStatement)));
+        assert!(
+            matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::IndentedStatement))
+        );
 
-        let (root, recoveries) = parse_direct_recovered("(a with:\nb)", &canonical_operator_table());
+        let (root, recoveries) =
+            parse_direct_recovered("(a with:\nb)", &canonical_operator_table());
         assert_eq!(root.to_string(), "(a with:\nb)");
-        assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::WithBody(WithBodyRole::Body)));
-        let group = root.descendants().find(|node| node.kind() == SyntaxKind::ParenthesizedExpression).unwrap();
-        assert_eq!(group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 2);
+        assert!(
+            recoveries
+                .iter()
+                .any(|record| record.site.role == GrammarRole::WithBody(WithBodyRole::Body))
+        );
+        let group = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+            .unwrap();
+        assert_eq!(
+            group
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -9083,8 +12189,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let scope = push_indented_statement_block_scope(&mut i, 2);
         assert!(matches!(
             i.local.ambient_owner_scope().map(|frame| frame.kind()),
@@ -9107,8 +12217,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         i.run(from_fn(|i| parse_expression_with_operators(&table, i)))
             .expect("With inline AST body");
         assert_eq!(i.input.remainder(), "");
@@ -9119,8 +12233,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
@@ -9128,7 +12246,10 @@ mod tests {
         assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "");
         committed.finish_node();
         let output = committed.into_output();
-        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+        assert_eq!(
+            SyntaxNode::new_root(output.finish_complete()).to_string(),
+            source
+        );
         assert_eq!(local.ambient_owner_scope_depth(), 0);
 
         for source in ["\n  @", "\n  value"] {
@@ -9136,18 +12257,29 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
             let opening_trivia = committed
                 .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia scanning is total");
             commit_indented_statement_block(&table, opening_trivia, 0, 2, &mut committed);
-            assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "",
+                "{source:?}"
+            );
             committed.finish_node();
             let output = committed.into_output();
-            assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+            assert_eq!(
+                SyntaxNode::new_root(output.finish_complete()).to_string(),
+                source
+            );
             assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
         }
     }
@@ -9163,8 +12295,12 @@ mod tests {
         let outer = local.push_if_expression_companion(0, IF_WORDS);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         assert_eq!(if_continuation_owner(&mut i), Some(outer));
         assert!(any_ambient_owner_claims(&mut i));
 
@@ -9191,7 +12327,9 @@ mod tests {
             assert!(any_ambient_owner_claims(&mut i));
             assert_eq!(i.local.if_expression_companion_depth(), 2);
             assert_eq!(
-                i.local.pop_if_expression_companion().map(|frame| frame.id()),
+                i.local
+                    .pop_if_expression_companion()
+                    .map(|frame| frame.id()),
                 Some(inner),
             );
             pop_braced_statement_block_scope(&mut i, scope);
@@ -9206,8 +12344,12 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             i.run(from_fn(|i| parse_expression_with_operators(&table, i)))
                 .expect("braced statement block AST parse");
             assert_eq!(i.input.remainder(), "", "{source:?}");
@@ -9217,16 +12359,27 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
             parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
                 .expect("braced statement block direct parse");
-            assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "",
+                "{source:?}"
+            );
             committed.finish_node();
             let output = committed.into_output();
-            assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+            assert_eq!(
+                SyntaxNode::new_root(output.finish_complete()).to_string(),
+                source
+            );
             assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
         }
 
@@ -9238,8 +12391,12 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             i.run(from_fn(|i| parse_expression_with_operators(&table, i)))
                 .expect("Catch braced AST parse");
             assert_eq!(i.input.remainder(), "", "{source:?}");
@@ -9249,16 +12406,27 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
             parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
                 .expect("Catch braced direct parse");
-            assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "",
+                "{source:?}"
+            );
             committed.finish_node();
             let output = committed.into_output();
-            assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+            assert_eq!(
+                SyntaxNode::new_root(output.finish_complete()).to_string(),
+                source
+            );
             assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
         }
     }
@@ -9391,9 +12559,16 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut)).set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         i.run(scan_word).expect("leading identifier");
-        i.run(from_fn(|i| recognize_ml_argument(&canonical_operator_table(), i)))
+        i.run(from_fn(|i| {
+            recognize_ml_argument(&canonical_operator_table(), i)
+        }))
     }
 
     fn parse_direct_recovered(
@@ -9515,17 +12690,59 @@ mod tests {
         let case_source = "case x: 1 -> a, 2 -> b";
         let case_root = parse_direct(case_source, &canonical_operator_table());
         assert_eq!(case_root.to_string(), case_source);
-        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::CaseExpression).count(), 1);
-        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::CaseArm).count(), 2);
-        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::CaseArmSeparator).count(), 1);
-        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+        assert_eq!(
+            case_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseExpression)
+                .count(),
+            1
+        );
+        assert_eq!(
+            case_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseArm)
+                .count(),
+            2
+        );
+        assert_eq!(
+            case_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseArmSeparator)
+                .count(),
+            1
+        );
+        assert_eq!(
+            case_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+                .count(),
+            0
+        );
 
         let catch_source = "catch action { err, handler -> recover, _ -> fallback }";
         let catch_root = parse_direct(catch_source, &canonical_operator_table());
         assert_eq!(catch_root.to_string(), catch_source);
-        assert_eq!(catch_root.descendants().filter(|node| node.kind() == SyntaxKind::CatchExpression).count(), 1);
-        assert_eq!(catch_root.descendants().filter(|node| node.kind() == SyntaxKind::CatchBlock).count(), 1);
-        assert_eq!(catch_root.descendants().filter(|node| node.kind() == SyntaxKind::CatchArm).count(), 2);
+        assert_eq!(
+            catch_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::CatchExpression)
+                .count(),
+            1
+        );
+        assert_eq!(
+            catch_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::CatchBlock)
+                .count(),
+            1
+        );
+        assert_eq!(
+            catch_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::CatchArm)
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -9539,7 +12756,12 @@ mod tests {
             assert_eq!(root.to_string(), source, "{source:?}");
         }
         let root = parse_direct("case x: n if cond -> yes", &canonical_operator_table());
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CaseGuard).count(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseGuard)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -9547,7 +12769,13 @@ mod tests {
         let source = "case x: n ->> body";
         let root = parse_direct(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants_with_tokens().filter_map(|element| element.into_token()).filter(|token| token.kind() == SyntaxKind::Arrow).count(), 0);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Arrow)
+                .count(),
+            0
+        );
     }
 
     #[test]
@@ -9556,7 +12784,10 @@ mod tests {
         let low = colon_operator_table(BindingPower::scalar(1));
         let high = colon_operator_table(BindingPower::scalar(99));
 
-        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(
+            parse_direct(source, &low).green(),
+            parse_direct(source, &high).green()
+        );
         assert_eq!(parse(source, &low), parse(source, &high));
     }
 
@@ -9576,7 +12807,8 @@ mod tests {
 
         for (source, expected_arms, expected_layout) in cases {
             let chain = parse(source, &canonical_operator_table());
-            let OperatorChainItem::Primary(PrimaryExpression::Case(case)) = &chain.items()[0] else {
+            let OperatorChainItem::Primary(PrimaryExpression::Case(case)) = &chain.items()[0]
+            else {
                 panic!("case source must produce a case primary");
             };
             let Recovered::Complete(block) = &case.block else {
@@ -9590,8 +12822,17 @@ mod tests {
 
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source);
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CaseArm).count(), expected_arms);
-            assert!(root.descendants().all(|node| node.kind() != SyntaxKind::Missing && node.kind() != SyntaxKind::Error));
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::CaseArm)
+                    .count(),
+                expected_arms
+            );
+            assert!(
+                root.descendants()
+                    .all(|node| node.kind() != SyntaxKind::Missing
+                        && node.kind() != SyntaxKind::Error)
+            );
         }
 
         let source = "catch action { err -> recover, _ -> fallback }";
@@ -9599,14 +12840,26 @@ mod tests {
         let OperatorChainItem::Primary(PrimaryExpression::Catch(catch)) = &chain.items()[0] else {
             panic!("catch source must produce a catch primary");
         };
-        let Recovered::Complete(CatchBlock::Braced { arms: Recovered::Complete(arms), .. }) = &catch.block else {
+        let Recovered::Complete(CatchBlock::Braced {
+            arms: Recovered::Complete(arms),
+            ..
+        }) = &catch.block
+        else {
             panic!("valid catch source must complete a braced block");
         };
         assert_eq!(arms.arms.len(), 2);
         let root = parse_direct(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CatchArm).count(), 2);
-        assert!(root.descendants().all(|node| node.kind() != SyntaxKind::Missing && node.kind() != SyntaxKind::Error));
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::CatchArm)
+                .count(),
+            2
+        );
+        assert!(
+            root.descendants()
+                .all(|node| node.kind() != SyntaxKind::Missing && node.kind() != SyntaxKind::Error)
+        );
     }
 
     #[test]
@@ -9639,8 +12892,17 @@ mod tests {
         ] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ListPattern).count(), 1);
-            assert!(root.descendants().all(|node| node.kind() != SyntaxKind::Missing && node.kind() != SyntaxKind::Error));
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::ListPattern)
+                    .count(),
+                1
+            );
+            assert!(
+                root.descendants()
+                    .all(|node| node.kind() != SyntaxKind::Missing
+                        && node.kind() != SyntaxKind::Error)
+            );
         }
     }
 
@@ -9649,8 +12911,20 @@ mod tests {
         let source = "case xs: [a -> body";
         let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants_with_tokens().filter_map(|element| element.into_token()).filter(|token| token.kind() == SyntaxKind::Arrow).count(), 1);
-        assert!(recoveries.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter { owner: ConstructRole::ListPattern, .. })));
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Arrow)
+                .count(),
+            1
+        );
+        assert!(recoveries.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::ListPattern,
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -9664,13 +12938,18 @@ mod tests {
                 .iter()
                 .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect::<Vec<_>>(),
-            vec![(RecoveryKind::Missing, GrammarRole::CaseLike(CaseLikeRole::Arrow), 10..10)],
+            vec![(
+                RecoveryKind::Missing,
+                GrammarRole::CaseLike(CaseLikeRole::Arrow),
+                10..10
+            )],
         );
-        assert!(root
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::CaseArm)
-            .flat_map(|arm| arm.children())
-            .any(|node| node.kind() == SyntaxKind::OperatorChain && node.to_string() == "yes"));
+        assert!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseArm)
+                .flat_map(|arm| arm.children())
+                .any(|node| node.kind() == SyntaxKind::OperatorChain && node.to_string() == "yes")
+        );
 
         let chain = parse(source, &canonical_operator_table());
         let [OperatorChainItem::Primary(PrimaryExpression::Case(case))] = chain.items() else {
@@ -9698,7 +12977,10 @@ mod tests {
             ("case : 1 -> a", vec![(RecoveryKind::Missing, 5..5)]),
             ("case x", vec![(RecoveryKind::Missing, 6..6)]),
             ("case x: -> a", vec![(RecoveryKind::Missing, 8..8)]),
-            ("catch action: err, -> recover", vec![(RecoveryKind::Missing, 19..19)]),
+            (
+                "catch action: err, -> recover",
+                vec![(RecoveryKind::Missing, 19..19)],
+            ),
             ("case x: n if -> yes", vec![(RecoveryKind::Missing, 13..13)]),
             ("case x: n", vec![(RecoveryKind::Missing, 9..9)]),
             ("case x: n ->", vec![(RecoveryKind::Missing, 12..12)]),
@@ -9733,7 +13015,10 @@ mod tests {
                 .iter()
                 .map(|record| (record.kind, record.site.range.clone()))
                 .collect::<Vec<_>>(),
-            vec![(RecoveryKind::Missing, 10..10), (RecoveryKind::Error, 10..11)],
+            vec![
+                (RecoveryKind::Missing, 10..10),
+                (RecoveryKind::Error, 10..11)
+            ],
         );
         assert_eq!(
             root.descendants()
@@ -9768,7 +13053,11 @@ mod tests {
                         }
                 })
                 .expect("case-like owner");
-            assert!(owner.children().any(|node| node.kind() == SyntaxKind::Missing));
+            assert!(
+                owner
+                    .children()
+                    .any(|node| node.kind() == SyntaxKind::Missing)
+            );
             assert!(
                 !owner
                     .children_with_tokens()
