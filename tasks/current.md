@@ -1,7 +1,8 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
 更新: 2026-08-28（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
-standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）
+standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
+2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -95,6 +96,25 @@ standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendum�
   になったため)ことをClaudeが直接特定・修正。designレビューはoracle
   citation13箇所・worked example3件のbyte range手計算含め誤りゼロ。`error`
   宣言をvariant-sequence/payload core再利用前提でdeferred scopeへ明記済み。
+- standalone `error`宣言addendum(ERROR-G/J/T/R、10 gate計画)は2026-08-28に
+  Authoritative化(ユーザ承認済み、Codex gpt-5.6-sol起草・Claude Sonnet 5査読/finalize、
+  Fable-5-absent substitute procedure)され、Enumのvariant-sequence/payload coreを
+  Gate 5で再利用する計画。Gate 1 vocabulary scaffold(`63edb5ac`)・Gate 2 intro
+  recognizer(`3eb199b4`)・Gate 3 header adapter(`3894ec98`)・Gate 4 derives
+  integration(`b6b8f4d4`)・Gate 5 neutral variant owner core extraction(`0b64aaa7`、
+  `VariantDeclarationOwnerSpec`/`drive_variant_declaration_sequence`をEnum/Error共有へ
+  抽出)を完了。Gate 6はformat-only driftを先行して別commit `1704ba4a`で分離した後、
+  `6402ec00`でisolated AST/direct-CST adapterを実装——`parse_error_declaration_isolated`/
+  `commit_error_declaration_isolated`が新規Error固有body/variant型を作らず既存
+  `EnumBody`/`EnumVariant`/`EnumVariantPayload`および`EnumVariant`/`StructField`/`FromKw`
+  direct-CST node kindを再利用する。`error fs_err:`(positional variants)、`error io_err:`
+  (from variant)、`my error E:`(contextual form)の3 worked exampleをbyte-exact/lossless/
+  zero-recoveryかつAST/direct-CST parityで固定し、`cargo test -p yu-syntax`は546→547
+  passed、0 failed。reviewでunrelated `impl` block内に残っていたdeadなcommented-out
+  duplicate testを除去し、sandbox側rustfmt version driftにより12 unrelated fileへ生じた
+  format変更もdiscardして、Gate 6 commitを必要範囲だけに保った。Gate 6は意図どおり
+  isolated/unwiredで、root loopの`StatementIntro::Error`はGate 5時点どおり`unreachable!`;
+  public dispatchはGate 9の責務。
 
 ## 既知の未修正バグ
 
@@ -115,8 +135,10 @@ standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendum�
 2. **canonical Statement / root Declarationの残りvariant**: `error`/`for`文/
    declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`は実装完了。
    `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。`error`は
-   enum addendum自身がvariant-sequence/payload core再利用前提でdeferred
-   scopeへ明記済み(Task #24が起票済み)——次に着手するならこれが最有力候補。
+   Gate 1〜6を完了し、Enumのvariant-sequence/payload coreを共有するisolated
+   adapterまで実装済み(Task #24)。直近の次stepはError outer roleの`ERROR-R` recovery
+   rows修正とEnumの`ENUM-R` variant/payload recovery rows importから成るGate 7;
+   Gate 9のpublic dispatch promotionまでは未実装。
 3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(残りはError/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
