@@ -26952,3 +26952,609 @@ transition fixtureを置き、両gateでfull-suite greenを要求する。
 
 著者: Claude (Fable 5)（2026-08-29、standalone `act` declarationへのshared `derives` clause attachment拡張
 追補案。ユーザ承認済み）
+
+## 追補案: canonical `TypeDeclaration`のtype-attached `impl` form grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-29）。
+
+Date: 2026-08-29。
+
+### Scope and authority
+
+本追補は、Authoritativeなtype equality / bare nominal declaration追補とstandalone Impl shell追補が
+意図的にfuture salvageへ残した`type Name impl ...`を、既存`TypeDeclaration`のthird formとして設計する。
+対象は次だけである。
+
+- optional visibility、exact `type`、mandatory raw name、same-line declaration type parametersから成る
+  existing shared Type header。
+- existing Type Header derives attachment後、current equality / nominal form judge前のexact maximal word `impl` authority。
+- `impl` keyword後のmandatory full TypeExpression head、optional same-line description、bodyless / braced /
+  colon-inline / colon-indented body。surface grammarはstandalone Implのpost-keyword tailと共有する。
+- Type-owned AST form、flat direct-CST ownership、Type-owned typed recovery、ASOB、state restoration、AST / direct parity。
+- future `with:` companionとType role-like bodyを実装せず、oracle order上の挿入位置だけを予約するpriority contract。
+
+本追補は次を設計しない。
+
+- standalone `ImplDeclaration`のintro / visibility / root or nested Statement dispatchの変更。
+- declaration companion `with:` / `with {}`、Type colon / brace role-like body、`struct self`、companion member ownership。
+- Type-attached Impl-specific `via` token / stop / AST / recovery。standalone Implと同じく`via`はordinary
+  TypeExpression wordであり、derives-only `ViaKw`を得ない。
+- attached form後のType trailing derives attachment。existing Type Header derivesはcompositionするが、DRVが
+  Equalityだけに与えたTrailing pointをAttachedImplへ拡張しない。
+- role conformance、associated-type assignment、method set、receiver、constructor / module registration、overlap /
+  coherence、visibility meaning、HIR / resolver / inference / diagnostics wording / formatter / syntax-reference page。
+- Impl body member subset。body itemはordinary canonical `Statement`であり、parserはmethod / associated typeへ
+  再分類しない。
+
+本追補のBNF-equivalent grammarの唯一の正本は`TAI-G`、post-header / derives / phase authorityは`TAI-J`、
+shared post-keyword machineryとAST / direct-CST ownershipは`TAI-T`、typed recoveryは`TAI-R`である。
+`TAI`はType-Attached Implの略で、current documentの`TD` / `TND` / `DRV` / `IMD` / `ACTDRV`その他の
+prefixと衝突しない。
+
+### Deferred-scope discharge and supersession boundary
+
+type equality追補はscopeを次のように固定した（本document:19185-19187）。
+
+> 本追補はYulang2のbare nominal `type Name`、`impl` / `with` / colon / brace role-like body、
+> pre/post-body `derives`、`struct self`、companion method、associated type assignment、constructor / module registration、
+> alias / nominal semantics、HIR loweringを設計しない。これらをempty AST fieldやreserved CST wrapperとして先取りしない。
+
+同追補のoracle fact 4は、name / type vars後のorderを次のように記録した（本document:19218-19223）。
+
+> name / type vars後はtail先頭を`impl`、`with`、`=`、その他role-like bodyの順でdispatchした
+> （`stmt/type_decl.rs:43-80`）。equality branchは`=`後に`parse_type_rhs`を呼び、With / Derives /
+> Semicolon / Colon / BraceL / Comma / ParenR / BracketR / BraceRをtype parser stopにした
+> （`stmt/type_decl.rs:129-175`）。RHS後は`with`、semicolon、colon declaration body、brace statement block、
+> outer list stopを別分岐とし、その他は`InvalidToken`にした
+> （`stmt/type_decl.rs:177-207`）。type-specific `where` clauseはない。
+
+bare nominal追補も`impl`をterminal continuationへ混ぜず、scope boundaryを維持した
+（本document:19696-19699,19719-19722,20192-20196）。特にcompanion-family exclusionは次である。
+
+> **Companion-family exclusion:** `impl` / `with` / derives / colon / brace role-like body / `struct self`は本追補で
+> nominal continuationにならない。current equality scope-gate behaviorをbare terminal以外で変更しない。
+
+standalone Impl追補は、attached formを自分のownerへ接続しないことを明示した
+（本document:21029-21036）。
+
+> - `type Name impl ...`のType-attached tail。standaloneとpost-`impl` source shapeが似ていても、TypeDeclaration form / CST ownerへ接続しない。
+
+同追補のnamed divergence 10も次を固定した（本document:21554-21555）。
+
+> **No attached or companion forms:** Type-attached `impl`、declaration `with:`、Type role-like bodyは別addendumへ残し、
+> same prefixやAST placeholderを作らない。
+
+これらはstandalone Impl実装時にownerを先取りしないためのtemporary scope boundaryであり、本追補は
+**Type-attached `impl`だけ**を解消する。`with:` / Type role-like body、attached trailing derives、semanticsの
+scope boundaryは維持する。standalone `ImplDeclaration`をTypeのchildへ入れる形ではsupersedeしない。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`はtag object
+`1ec55fdfd33df836ffc216b7075f11ffe260cef4f`、peeled commitは
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`であった。parser implementationとchecked-in surface specを
+same commit treeから再確認し、次をground truthとする。
+
+1. `parse_type_decl`は`TypeDecl` nodeをstartし、optional visibility、`type`、plain name、same-line
+   `TypeVars`を同じownerへemitした（`yulang2-oracle:crates/parser/src/stmt/type_decl.rs:24-44,210-250`）。
+   attached form専用statement introやouter CST wrapperはなかった。
+2. type-variable scannerはsame-line `Ident | SigilIdent`をgreedyに取り、exact `impl` / `with`をparameterへ
+   入れず専用fieldにcaptureした（`type_decl.rs:210-250`）。従って`type Box 't impl ...`の`'t`は
+   Type header parameter、`impl`はpost-header tail evidenceである。
+3. complete header後はshared header derivesを先に試し、そのouter stopsを
+   `Impl | With | Equal | Colon | BraceL | Semicolon`とした。derive parserがstopを返した場合のdispatchは
+   `Impl`、`With`、`Equal`、other role-like bodyの順だった（`type_decl.rs:46-80`）。deriveがない経路も
+   cached / peeked `impl`、cached / peeked `with`、exact `=`、role-like fallbackの順で収束した
+   （同`:82-126`）。従ってeffective orderはHeader derives後の`impl` > `with` > `=` > role-like bodyである。
+4. attached `impl` branchはImpl tokenをopen `TypeDecl`へ直接emitした後、
+   `parse_impl_after_impl_kw`を呼び、return後に初めて`TypeDecl`をfinishした
+   （`type_decl.rs:62-79,92-96`）。`ImplDecl` nodeをstartする`parse_impl_decl`は呼ばなかった。
+5. standalone entry `parse_impl_decl`がvisibility / Impl token / outer `ImplDecl` wrapperを所有したのに対し、
+   shared post-keyword entry `parse_impl_after_impl_kw`はmandatory-like full type head、same-line colon description、
+   role-like bodyだけを処理した
+   （`yulang2-oracle:crates/parser/src/stmt/impl_decl.rs:13-27,29-73`）。従ってsharedなのは
+   **keyword後のtail grammar**であり、declaration owner / intro / visibilityではない。
+6. post-keyword headは`Via | Colon | BraceL | Semicolon` stops付きordinary type、first colon後triviaにphysical
+   newlineがなければ`ImplDescription`、newlineがあればbody colonだった。description後はsemicolon / second colon /
+   brace bodyへ戻った（`impl_decl.rs:29-73`）。bodyless semicolon、brace Statement block、colon inline / indented
+   Statement bodyはrole-like body coreが所有した（`yulang2-oracle:crates/parser/src/stmt/role_decl.rs:44-119`）。
+7. historical `Via` branchは`InvalidToken`を作るexplicitly unimplemented pathであり、valid Impl syntaxではなかった
+   （`impl_decl.rs:49-55,76-95`）。checked-in surface noteの
+   `type Box 't impl Eq int via Ord;`はouter `TypeDecl` ownershipの抜き取り例だが、`via`自体のvalidityを
+   根拠づけない（`yulang2-oracle:spec/2026-06-06-syntax-design.md:380-419`）。
+8. same specは`type_tail = impl | with | = type_rhs | role-like body | nothing`とし、
+   「`type ... impl ...` は `TypeDecl` の中に `Impl` token と impl tailを持つ」と明記した
+   （同`:383-418`）。parser-tree suiteにはtype-attached Impl専用fixtureがなく、byte-exact Y3 CSTは
+   source implementation、approved Y3 flattening、current Impl node shapeから本追補で固定する。
+
+### Current Yulang3 implementation re-verification
+
+current HEAD `aa1c35b6648b63624d73857f6da9296bf15ff0d1`を実sourceから確認した。
+
+1. `TypeDeclaration`はvisibility / name / parameters / derives / recovered form / rangeを持ち、
+   `TypeDeclarationForm`は`Nominal`と`Equality { equals, rhs }`だけである
+   （`crates/yu-syntax/src/grammar/declaration.rs:18562-18587`）。attached placeholderはない。
+2. promoted Type AST pathはshared name / parameter phase、Type Header derives attachment、
+   `classify_type_declaration_form`の順であり、direct pathもsame順をprobe / commitする
+   （`declaration.rs:11259-11346,11348-11474`）。current classifierは
+   `Nominal | Equality | EqualityRecovery | Incomplete`だけを返す（同`:12940-13026`）。
+3. declaration parameter raw-word predicateはexact `impl` / `with` / `derives`をparameterから除外済みである
+   （`declaration.rs:10687-10719`）。new formのためにparameter scannerを変える必要はない。
+4. standalone ASTは`ImplDeclaration { visibility, head, description, body, range }`、
+   `ImplDescription`、`ImplBody`、`ImplColonBody`を持つ（`declaration.rs:18147-18199`）。
+   root `Declaration::Impl`とnested `Statement::Impl`もTypeとはseparate variantである
+   （`declaration.rs:67-83`; `crates/yu-syntax/src/grammar/expression.rs:220-253`）。
+5. standalone AST continuationは`parse_impl_declaration_isolated`がintro / visibilityを処理した後、headと
+   `parse_impl_after_head_ast` / body helpersへ進む（`declaration.rs:5646-5830`）。direct counterpartは
+   `ImplDeclaration` node、visibility、`ImplKw`をemitしてから同じpost-head phasesをcommitする
+   （同`:5831-6107`）。head / description episode specは`Colon | LeftBrace | Semicolon`のdepth-fenced
+   ownershipとslot-specific fresh-primary policyを一箇所に持つ（同`:2265-2395`）。
+6. current Type Header derives RoleRef episodeは`Equal`だけをType owner tail stopにし、
+   TypeHeader classifierもexact `=`だけをtyped tailとして返す
+   （`declaration.rs:12140-12205,12245-12315`）。attached formとHeader derivesを正しく合成するには、
+   exact `impl`のdepth-fenced stop / owner-tail identityをsame shared driverへ追加する必要がある。
+7. standalone Impl final scope test
+   `impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity`は、
+   `type Box 't impl Pick Int:`を含むdeferred-owner群について`ImplDeclaration`を合成しないことを意図的に
+   assertする（`declaration.rs:53362-53371,53595-53610`）。本追補後も「standalone Impl ownerを合成しない」は
+   正しいが、この一sourceはType-owned AttachedImpl positive / recovery fixtureへ移す必要がある。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- existing `StatementIntro::Type`、Type visibility / name / parameter header、Type Header derives、root / nested shared
+  Type dispatch、source-leading Typeがheader discoveryを`FirstNonHeader`で終了するbehavior。
+- `TypeDeclarationForm::Nominal`のterminal boundary family、`Equality`のexact `=` / recovery / mandatory RHS、
+  Type trailing derivesのEquality-only rule。
+- standalone `StatementIntro::Impl`、`Declaration::Impl` / `Statement::Impl`、`SyntaxKind::ImplDeclaration`、
+  visibility、root / nested dispatch、header-stop、all standalone recovery fixture。
+- IMD-G/J/T/Rのpost-keyword surface。full TypeExpression head / description、colon phase split、body forms、
+  punctuation ownership、nested canonical Statement composition、ASOB、typed recovery cardinality。
+- direct-CSTのshared recognition core + commit-aware continuation contract
+  （本document:1250-1285,1827-1833）。accepted Type formをASTへ一度parseしてCSTへreplayせず、
+  speculative direct parserからsinkへ書かない。
+- `SynIn<'_, 'source, '_, E>`、state parameter name `i`、chasa Parserを不要な`from_fn`で包まないidiom。
+- lossless trivia、actual punctuation / closeのone-owner rule、one range = one recovery node = one record。
+
+限定して追加 / supersedeするのは次だけである。
+
+- `TypeDeclarationForm::AttachedImpl(TypeAttachedImpl)`と、そのType-owned recovery mapping。
+- complete Type header + Header derives後のexact `impl`を、current equality / nominal form classifierより先に選ぶ
+  sink-free post-header decision。
+- Type Header derives RoleRef outer episodeだけでactiveなexact-word `StopKind::Impl`と、TypeHeader owner-tail identity。
+- standalone Implのkeyword後grammarをone owner-parameterized tail coreへ抽出し、standalone / Type-attachedのthin
+  adapterから共有する内部責務分離。standalone outputはbyte-identicalに保つ。
+
+### `TAI-G`: Type-owned form and shared post-keyword grammar
+
+```text
+TypeDeclarationWithAttachedImpl :=
+    TypeDeclarationHeader
+    [ HeaderDerivesAttachment(Type) ]
+    TypePostHeaderForm
+    [ TrailingDerivesAttachment(Type) ]  -- selected Equality form only
+
+TypePostHeaderForm :=
+    TypeAttachedImplForm
+  | ExistingTypeDeclarationForm
+
+ExistingTypeDeclarationForm :=
+    NominalTypeDeclarationEnd
+  | EqualityTypeDeclarationDefinition
+
+TypeAttachedImplForm :=
+    Gtype* ImplKw
+    ImplTail(TypeAttached, type_base)
+
+ImplTail(Owner, owner_base) :=
+    Gimpl-head RequiredTypeExpression(Owner::Head)
+    ImplAfterHead(Owner, owner_base)
+
+ImplAfterHead(Owner, owner_base) :=
+    ImplDescription(Owner) ImplBody(Owner, owner_base)
+  | ImplBody(Owner, owner_base)
+
+ImplDescription(Owner) :=
+    DescriptionColon Gimpl-description
+    RequiredTypeExpression(Owner::Description)
+
+ImplBody(Owner, owner_base) :=
+    BodylessSemicolon
+  | BracedStatementBlockExpression
+  | ImplColonBody(Owner, owner_base)
+
+ImplColonBody(Owner, owner_base) :=
+    BodyColon G0* RequiredCanonicalStatement(Owner::Body) [ InlineTerminalSemicolon ]
+  | BodyColon Gimpl-indent IndentedStatementBlock(Owner::IndentedStatement)
+
+ImplKw := exact maximal word "impl"
+Gimpl-head := TypeChainTrivia(owner_base)
+Gimpl-description := G0*
+Gimpl-indent := NonEmptyStrictlyDeeperContinuationTrivia(owner_base)
+G0* := maximal trivia containing no physical newline
+```
+
+`TypeDeclarationHeader`、`Gtype*`、Nominal / Equalityは`TND-G` / `TD-G`、Header / Trailing derivesは
+`DRV-G`をそのまま参照する。`Gtype*`はemptyまたはsame-line / strictly-deeper Type continuationであり、
+equal-or-shallower newline / ambient owner gapをconsumeしない。`impl` authorityはnameがCompleteで、optional
+parameter scanとHeader derives runが終わった後だけ開く。
+
+`ImplTail`はIMD-Gの`ImplKw`**後**を名前づけ直したshared nonterminalである。standaloneは
+`[Visibility G+] ImplKw`を自分のintro / outer wrapperで所有し、Type-attachedはType headerのvisibility / name /
+parameters / Header derivesをouter TypeDeclarationが所有する。attached tailの`owner_base`はnew Impl keywordのcolumnでなく
+existing `type_base`である。declaration全体のcontinuation / body layoutがone baselineを使うためである。
+
+head / descriptionのTypeExpression punctuation policy、first colonのphysical-newline description/body split、
+fresh head bare `{` / `:`、description fresh `{`、adjacent `:{`、bodyless / brace / colon form、terminal semicolon
+ownershipはIMD-G/J/T/Rから変更しない。
+
+AttachedImpl positive evidenceはexact `ImplKw`である。一度acceptした後はhead / description / body failureを理由に
+Equality / Nominalへ戻らない。attached formにvisibility、second `type` header、empty RHS、standalone Statement wrapperを
+追加しない。
+
+### `TAI-J`: post-header priority, derives handoff, and future insertion slots
+
+post-header authorityを次で固定する。
+
+1. **Incomplete shared header:** NameがIncompleteならAttachedImpl authorityを開かない。exact `=` evidenceを含む
+   existing TND / TD recoveryへそのまま渡す。
+2. **Existing Type Header derives:** Name Complete後のshared Header attachment pointを従来どおり先に開く。
+   one-or-more clauseが終わったsame cursorからpost-header judgeを再開する。
+3. **Type-attached Impl（new）:** caller-owned original gapでなく、accepted `Gtype*`直後がexact maximal word
+   `impl`なら`AttachedImpl`へcutする。keyword後のtail成否はdecision条件にしない。
+4. **Declaration `with:`（future slot）:** 本追補ではprobeしない。future addendumはAttachedImpl後、Equality前へ
+   insertし、本追補のrelative orderを動かさない。
+5. **Existing exact equality:** no attached Implならcurrent `classify_type_declaration_form`のexact `=` authorityへ
+   delegateする。
+6. **Type role-like body（future slot）:** 本追補ではcolon / braceをformにしない。future addendumはEquality後、
+   Nominal / EqualityRecovery判定前へinsertする。
+7. **Existing Nominal / EqualityRecovery / Incomplete:** future slotが未実装の間はcurrent classifierのdecisionを
+   byte-for-byte使う。
+
+本追補のtail judgeはexact `impl`だけを追加し、reject時に`with` / colon / braceを推測分類しない。
+suggested typed resultは次である。concrete private nameはmodule conventionに合わせてよい。
+
+```rust
+enum TypeDeclarationPostHeaderDecision<'source> {
+    AttachedImpl(TypeAttachedImplStart<'source>),
+    Existing(TypeDeclarationFormDisposition),
+}
+
+struct TypeAttachedImplStart<'source> {
+    leading: TriviaRun,
+    keyword: WordSpan<'source>,
+    type_base: usize,
+}
+```
+
+decisionはone maximal trivia runとfollowing one maximal wordだけをsink-freeにprobeし、input / line / sink / all
+rollback-owned `ParseLocal` stateをexact restoreする。`implish` / `implement` / `my_impl`をprefix splitしない。
+arbitrary distance search、full Impl tail speculative parse、standalone `recognize_impl_statement_intro`の呼び出しは行わない。
+
+#### Type Header derives composition
+
+current DRV TypeHeader ownerを次だけ拡張する。
+
+- `StopKind::Impl`をnew exact-word stopとして追加し、TypeExpression word-stop mapでexact maximal `impl`だけに対応させる。
+- Type Header Derives RoleRefのouter episodeで`Equal`と`Impl`をactiveにする。`Impl`はsame
+  `TypeExpressionScopedStopFrame`へ入れ、parenthesized / arrow / forall / TypeApply argument / delimited itemその他の
+  nested episodeではsuspendする。global / permanent Type stopにしない。
+- fresh RoleRef primaryのexact `impl`はlocally ownedにしない。従って`type T derives impl Pick;`はone Missing
+  Derives RoleReference後、same `impl`からAttachedImplへ続行できる。RoleRef内でidentifier `impl`を使う意図は
+  nested groupでscopeを明示する。
+- `DerivesOwnerTailClassifier::TypeHeader`はexact `impl`をexact `=`より先に
+  `DerivesOwnerTail::TypeAttachedImpl`として返す。shared clause driverのcomma / `via` / repeated `derives` priorityは
+  維持し、unrecognized word fallback前にtyped owner-tail handoffへ収束させる。driver本体へType文字列special-caseを置かない。
+- `type T derives Eq impl Pick;`はHeader attachment + AttachedImpl、`type T derives Eq = Int`は従来どおり
+  Header attachment + Equalityである。AttachedImpl後にType Trailing attachment pointを開かない。
+
+`StopKind::Impl`はType Header Derives compositionのためだけのscoped vocabularyであり、standalone / attached Impl head、
+ordinary TypeExpression、Pattern annotation、expression positionの`impl`を止めない。
+
+### AST / direct-CST shape
+
+ASTを次へextendする。
+
+```rust
+pub(crate) enum TypeDeclarationForm<'source> {
+    Nominal,
+    Equality {
+        equals: Recovered<Range<usize>>,
+        rhs: Recovered<Box<TypeExpression<'source>>>,
+    },
+    AttachedImpl(TypeAttachedImpl<'source>),
+}
+
+pub(crate) struct TypeAttachedImpl<'source> {
+    impl_keyword: Range<usize>,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    description: Option<ImplDescription<'source>>,
+    body: Recovered<ImplBody<'source>>,
+    range: Range<usize>,
+}
+```
+
+`TypeAttachedImpl`はType form payloadであり、standalone `ImplDeclaration`をcontain / wrapしない。
+`ImplDescription` / `ImplBody` / `ImplColonBody`はkeyword後grammarだけを表し、visibility、statement intro、outer
+declaration ownerを持たないため共有する。recovery identityはvalue typeでなくowner specが決める。
+
+`TypeDeclaration.derives`はexisting outer collectionのままHeader clausesをsource orderで保持する。
+`TypeAttachedImpl`内にsecond derives collectionを作らない。`TypeAttachedImpl.range`はImplKw startから最後にcommitした
+head / description / body endまで、outer `TypeDeclaration.range`はvisibility / TypeKw startからsame endまでである。
+
+new CST kindは**zero**である。existing `TypeDeclaration` nodeをouter ownerに保ち、`ImplKw`、head
+`TypeExpression`、optional `ImplDescription`、body punctuation / blockをsource orderでdirect childとしてemitする。
+`ImplDeclaration` / `Statement` / `TypeAttachedImpl` / `TypeDeclarationForm` CST wrapperを作らない。これはoracleの
+`TypeDecl` direct Impl token ownershipと、Y3 Nominal / Equality form wrapperなし慣行の両方を保つ。
+
+#### Byte-exact bodyless worked example
+
+source bytes:
+
+```text
+type Box 't impl Pick Int;
+```
+
+byte-exact CST:
+
+```text
+TypeDeclaration 0..26
+  TypeKw 0..4 "type"
+  Trivia 4..5 " "
+  Identifier 5..8 "Box"
+  DeclarationTypeParameterList 8..11
+    Trivia 8..9 " "
+    SigilIdentifier 9..11 "'t"
+  Trivia 11..12 " "
+  ImplKw 12..16 "impl"
+  Trivia 16..17 " "
+  TypeExpression 17..25
+    Identifier 17..21 "Pick"
+    TypeApplyArgument 21..25
+      Trivia 21..22 " "
+      TypeExpression 22..25
+        Identifier 22..25 "Int"
+  Semicolon 25..26 ";"
+```
+
+ASTはvisibility Private、name `Box`、one parameter `'t`、derives empty、
+`form = Complete(AttachedImpl(TypeAttachedImpl { impl_keyword: 12..16, head: Complete(17..25),
+description: None, body: Complete(Bodyless { semicolon: 25..26 }), range: 12..26 }))`、outer range `0..26`、
+recovery zeroである。`ImplDeclaration` node / ASTはzero。semicolonはAttachedImpl bodyless formを通じて
+TypeDeclaration-ownedであり、Nominal / Equalityのouter Statement semicolon ruleとはform-specificに異なる。
+
+### `TAI-T`: shared tail core and commit-aware owner adapters
+
+standalone whole declaration parserをTypeからsub-parserとして呼ばない。implementationはexisting standalone codeを
+次のthree layersへ責務分離する。
+
+1. **Owner-specific start:** standaloneは`recognize_impl_statement_intro`とvisibility / outer
+   `ImplDeclaration` wrapper、Typeは`TypeDeclarationPostHeaderDecision::AttachedImpl`とouter Type formを持つ。
+2. **Shared post-keyword tail core:** mandatory head episode、description/body colon classifier、body starter、
+   colon layout、malformed retry / no-cascadeを`ImplTailOwnerSpec`付きone coreでdriveする。
+3. **Owner-specific realization:** AST adapterはshared resultから`ImplDeclaration`または`TypeAttachedImpl`を作り、
+   direct adapterはcallerが既にopenしたouter node内へsame decision streamを一度emitする。
+
+suggested internal owner contractは次である。private type名はimplementation conventionに合わせてよい。
+
+```rust
+enum ImplTailOwner {
+    Standalone,
+    TypeAttached,
+}
+
+struct ImplTailOwnerSpec {
+    owner: ImplTailOwner,
+    owner_base: usize,
+}
+
+impl ImplTailOwnerSpec {
+    fn grammar_role(self, role: ImplRole) -> GrammarRole {
+        match self.owner {
+            ImplTailOwner::Standalone =>
+                GrammarRole::Declaration(DeclarationRole::Impl(role)),
+            ImplTailOwner::TypeAttached =>
+                GrammarRole::Declaration(DeclarationRole::Type(
+                    TypeDeclarationRole::AttachedImpl(role),
+                )),
+        }
+    }
+}
+```
+
+`ImplRole::{Head, Description, BodyIntroducer, Body, IndentedStatement}`はpost-keyword slot vocabularyとして共有し、
+outer pathだけをowner specで変える。brace closeはexisting
+`GrammarRole::ClosingDelimiter { owner: ConstructRole::BracedStatementBlockExpression, delimiter: Brace }`、
+body内nested recoveryはinner Statement ownerのままである。new `ConstructRole` / `TypeDelimitedOwner`を作らない。
+
+shared TypeExpression episode specはcurrent `impl_type_expression_episode_spec`のpunctuation / fresh-primary policyを
+preserveし、outer recovery roleだけをowner specから得る。Type-attached専用TypeExpression parser、stop frame、
+colon classifier、block loopをcopyしない。attached colon-inline bodyはsame
+`InlineStatementOwnerKind::ImplColonBody`を使う。これはouter declaration identityでなくshared `ImplColonBody`
+grammar episodeのambient identityであり、typed recovery ownerはspec側で区別される。
+
+direct-CSTはouter adapterがTypeDeclarationをopenしてheader / Header derives / ImplKwまでcommitした後、shared
+tail continuationを呼ぶ。shared continuationは`ImplDeclaration` nodeをstart / finishせず、head以降だけをsource orderで
+emitする。standalone adapterだけがexisting ImplDeclaration wrapperとvisibility / ImplKwをemitする。
+ASTをtoken bufferにしてdirectへreplayせず、directからCSTを再走査してAST rangeを復元しない。
+
+sink-free start / colon / body-layout / owner-tail decisionはtyped dataを返し、accepted branchだけがcommit-aware
+continuationへ入る。implementation signatureは`SynIn<E>`または必要なsource lifetimeだけを名指す
+`SynIn<'_, 'source, '_, E>`を使い、state bindingは`i`とする。既にParserである関数を
+`from_fn(|i| f(i))`で包み直さず、直接`f.map(...)`または`f(i)`を使う。AST / direct caller別のword probe、
+newline classifier、invalid-run scannerを作らない。
+
+### `TAI-R`: typed recovery and owner convergence
+
+new recovery leaf enumは作らない。`TypeDeclarationRole`だけを次へextendする。
+
+```rust
+enum TypeDeclarationRole {
+    Name,
+    DefinitionIntroducer,
+    Rhs,
+    AttachedImpl(ImplRole),
+}
+```
+
+`GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::AttachedImpl(role)))`がattached tailのouter
+slot identityであり、standalone `DeclarationRole::Impl(role)`へ偽装しない。Missing / Error kind、ExpectedSyntax、
+same-slot retryはIMD-Rと同じtail ruleをowner mappingだけ変えて使う。
+
+| source / state | Type form and recovery | continuation / non-consume |
+| --- | --- | --- |
+| `type Box 't impl Pick Int;` | AttachedImpl、all slots Complete | zero recovery、semicolon TypeDeclaration-owned |
+| complete Type header + exact `impl` + EOF / owner boundary | AttachedImpl、one zero-width Missing AttachedImpl(Head) | body Incomplete、DefinitionIntroducer / BodyIntroducer cascadeなし、boundary non-consume |
+| `type Box impl;` / `type Box impl { ... }` / `type Box impl:\n  statement` | one Missing Head | same `;` / `{` / newline-bearing `:`からbody retry。formはAttachedImplのまま |
+| fresh head adjacent `:{` | ordinary PolymorphicVariantType head candidate | bare colon body ruleへsplitしない |
+| malformed head run + valid TypePrimary | existing nested `TypeRole` Error one | same head slot retry、outer AttachedImpl Head Missingなし |
+| malformed head run reaches body starter / boundary | existing nested `TypeRole` Error one、head Incomplete | starter / boundary non-consume、BodyIntroducer same-cause cascadeなし |
+| complete / recovered head + EOF / owner boundary | one Missing AttachedImpl(BodyIntroducer) | body Incomplete、DefinitionIntroducer recoveryなし |
+| complete head + malformed introducer run + actual `;` / `{` / `:` | one Error AttachedImpl(BodyIntroducer) | actual starterからbody retry、additional Missingなし |
+| first colon + same-line complete TypeExpression | description Some(Complete) | body judgeへsame cursorで進む |
+| `type Box 't impl Pick Int:` + EOF | description Some(Incomplete)、one Missing AttachedImpl(Description) at `26..26` | body Incomplete、same EOFへBodyIntroducer Missingをcascadeしない、ImplDeclaration zero |
+| description malformed run + valid TypePrimary | existing nested `TypeRole` Error one | same description slot retry |
+| literal body colon + inline canonical Statement | AttachedImpl Colon Inline Complete | optional terminal semicolon一個だけTypeDeclaration-owned |
+| literal body colon + deeper non-empty block | AttachedImpl Colon Indented Complete | existing block recovery / separator、dedent outer-owned |
+| literal body colon + EOF / equal-or-shallower newline | one Missing AttachedImpl(Body) | gap / boundary non-consume、inline semicolonをbody absent時にconsumeしない |
+| brace body missing / mismatched `}` | existing brace close Missing / Error one | AttachedImpl close recoveryを重ねない |
+| body内nested malformed Statement | inner owner recovery only | same rangeへAttachedImpl Missing / Errorを重ねない |
+| `type T derives Eq impl Pick;` | Header derives Complete + AttachedImpl Complete | scoped Impl stop、driverがImpl owner tailをnon-consumeで返す |
+| `type T derives impl Pick;` | one Missing Derives RoleReference + AttachedImpl Complete | same `impl`をrole refとしてconsumeせず、distinct owner slotへhandoff |
+| no exact attached `impl` | existing Nominal / Equality / EqualityRecovery / Incomplete | current recovery records / rangesを一切変更しない |
+| attached head中のword `via` | ordinary TypeExpression word | `ViaKw` / Impl-specific recoveryなし |
+
+one exact post-header `impl` = one `TypeDeclarationForm::AttachedImpl`である。positive form evidence後に
+DefinitionIntroducer / Rhs recoveryを作らない。head failureとsame boundaryにBodyIntroducerをcascadeせず、description
+failureとsame boundaryにBodyIntroducerをcascadeしない。distinct actual starterがあればsame positionからbodyを継続する。
+one source range = one recovery node = one recovery record、AST / direct parityを維持する。
+
+#### Boundary, punctuation, and state restoration
+
+- attached start前、head、description、body-introducer、colon bodyの各original gapで、actual local punctuation /
+  matching close、active caller boundary、`any_ambient_owner_claims`のapproved orderを一度だけ使う。
+- Bodyless / colon-inline terminal semicolonはAttachedImplを通じTypeDeclaration-owned。brace / indented body後、
+  missing body / outer boundary後のsemicolonはouter Statement ownerへ残す。
+- equal-or-shallower header newlineはAttachedImpl startを開かずexisting Nominal / outer Statementへ返す。
+  strictly-deeper qualifying continuationだけがexact `impl`へ届く。
+- normal / Missing / Error / same-slot retry / rejection rollback / missing brace closeのevery exitで、input、line、sink、
+  ambient / If companion、delimiter、stop（scoped Implを含む）、indentation baseline、TypeExpression episode depth /
+  scoped frame、type owner、ML application、positional fenceをentry時へexact restoreする。
+- ASOBのcondition-based known residualはhead / description TypeExpression、body内nested Pattern / TypeExpression /
+  StatementへIMDと同じ条件で適用する。AttachedImpl専用にall newline / separator / closeをnested ownerへcarryしない。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- Type shared header、parameter scanner、Header derives attachment、current form disposition、root / nested Type dispatch。
+- standalone Implのpost-keyword head / description / body grammar、TypeExpression episode policy、colon layout、canonical
+  Statement / indented / braced block core、malformed retry classifier。
+- `scan_word` / exact maximal word、`mod_trivia`、checkpoint / rollback、`SynIn`、source range / line state。
+- DRV shared clause driverとTypeHeader owner-specific classifier。
+- `any_ambient_owner_claims`、ASOB、InlineCanonicalStatement / brace barrier、positional fence。
+
+次を共有・追加しない。
+
+- standalone `parse_impl_declaration_isolated` / `commit_impl_declaration_isolated` whole-owner entryをTypeから呼ぶこと。
+- `ImplStatementIntro`、visibility prefix、`Declaration::Impl` / `Statement::Impl`をType form payloadとして再利用すること。
+- `SyntaxKind::TypeAttachedImpl`、nested `ImplDeclaration` / `Statement` wrapper、attached header / body wrapper、synthetic semicolon。
+- Type-attached専用TypeExpression parser、description parser、body loop、separator / close / indentation classifier。
+- attached trailing derives、`StopKind::With` / role-like-body placeholder、Impl-specific ViaKw。
+- parser-time role conformance / member registry / constructor / semantic fact。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Owner relationship preserved:** Y2どおりouter Type declarationがImpl tokenとtailを所有し、standalone Impl wrapperを
+   nestedしない。Y3はこれをexplicit `TypeDeclarationForm::AttachedImpl`としてtypedにする。
+2. **Shared tail, distinct owner:** surface post-keyword grammarはstandaloneと同一だが、intro / visibility / AST outer wrapper /
+   CST outer node / recovery pathはdistinctである。similar source shapeをwhole-parser reuseの根拠にしない。
+3. **Y3 wrapper flattening:** Y2 `TypeDecl` direct childrenを保ち、new AttachedImpl CST wrapperを作らない。
+   AST named payloadだけがform identityを保持する。
+4. **Typed recovery:** Y2のsilent close / InvalidTokenをType-owned ImplRole Missing / Error、same-slot retry、no-cascadeへ
+   置換する。standalone recovery roleへ偽装しない。
+5. **Full TypeExpression:** head / descriptionはapproved Y3 full TypeExpressionとepisode-fenced owner punctuationを使う。
+   historical parser内部stateは移植しない。
+6. **Impl-specific via absent:** Y2のunimplemented rejection branchをvalid surfaceとして復活させない。attached headの
+   `via`はstandalone Y3と同じordinary wordである。
+7. **Header derives composition:** Y2のeffective orderを保つためType Header RoleRefへscoped Impl stopを追加する。
+   current DRV Type Header attachmentは利用するが、AttachedImpl trailing pointは作らない。
+8. **Future insertion discipline:** `with:`はAttachedImpl後 / Equality前、Type role-like bodyはEquality後 /
+   terminal Nominal or recovery前へ将来insertする。本追補はplaceholder / same-prefix branchを作らない。
+9. **Semicolon form distinction:** AttachedImpl bodyless / colon-inline semicolonはType-owned。Nominal / Equalityの
+   semicolon outer ownershipは変更しない。
+10. **Syntax-only:** attached form名はsource shapeであり、role implementation attachment、implicit receiver、member validity、
+    associated type、overlap / coherenceを宣言しない。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationはsix gatesへ分ける。
+Gate 5までcurrent public `type Name impl ...` behaviorを変えず、Gate 6でType AST / direct path、Header derives handoff、
+scope fixtureをsame atomic changeへswitchする。
+
+1. **Gate 1 — vocabulary / AST scaffold（unreachable、byte-identical）:**
+   `TypeAttachedImpl`、`TypeDeclarationForm::AttachedImpl`、
+   `TypeDeclarationRole::AttachedImpl(ImplRole)`、`StopKind::Impl`とTypeExpression exact-word mappingを追加する。
+   new SyntaxKind / ConstructRole / TypeDelimitedOwner / StatementIntroは追加しない。StopKindはまだproduction scopeへpushせず、
+   existing exhaustive matchへunreachable armだけを足す。Nominal / Equality / standalone Impl fixtureとfull suiteを
+   byte-identicalに固定する。
+2. **Gate 2 — shared post-keyword Impl tail extraction（standalone preservation）:** current standalone parserから
+   intro / visibility / outer ImplDeclaration wrapperを残し、head / description / body / recovery / layoutを
+   `ImplTailOwnerSpec`付きshared AST/direct coreへ抽出する。ownerはこのGateではStandaloneだけをproductionから使う。
+   IMD-R全row、three body form、all exotic head / description、AST/direct ranges、losslessness、state restoration、
+   public standalone suiteをunmodifiedで再実行し、`ImplDeclaration` CSTをbyte-for-byte保つ。
+3. **Gate 3 — Type post-header start and derives classifiers（isolated）:** sink-free
+   `TypeDeclarationPostHeaderDecision`、exact Impl start evidence、future insertion positions、TypeHeader
+   `DerivesOwnerTail::TypeAttachedImpl`、scoped Impl episode specをisolated実装する。real Type promotion core / production
+   `DerivesDriverSpec::new(Type, Header)`へはまだ接続しない。same-line / strictly-deeper acceptance、equal-shallower /
+   ambient rejection、`implish` rejection、Header derives後、nested RoleRef suspension、fresh-primary Missing handoff、
+   exact `=` fallback、all-state rollbackをAST/direct-neutral fixtureで固定する。
+4. **Gate 4 — isolated Type-owned AST / direct-CST adapters:** Gate 3 decisionとGate 2 shared tail coreから
+   `TypeAttachedImpl`をbuildし、direct TypeDeclaration-open harnessへflat emitする。本追補のbodyless worked example、
+   description + body、brace、colon inline / indentedをbyte-exact、zero nested ImplDeclaration、all trivia home、
+   lossless、AST/direct parityで固定する。current public Type pathはまだexisting classifierを使う。
+5. **Gate 5 — `TAI-R` recovery / boundary / state matrix（pre-promotion）:** recovery表全row、root / indented /
+   braced / inline canonical Statement、depth-2+ ambient / If companion、EOF / semicolon / comma / each active right delimiter /
+   equal-shallower newline、normal / Missing / Error / retry / rollbackをisolated adapterで閉じる。
+   `type Box 't impl Pick Int:`をhead Complete、Description Missing one、body Incomplete、ImplDeclaration zeroとして固定し、
+   DefinitionIntroducer / BodyIntroducer same-cause cascadeがないことをassertする。input / line / sink / ambient /
+   delimiter / stop / indentation / TypeExpression episode / positional fenceをevery exitでexact restoreする。
+6. **Gate 6 — atomic Type promotion, blocking-test migration, and final scope gate:**
+   `parse_type_declaration_with_derives_isolated` / direct counterpartのHeader derives後、existing form classifier前へ
+   AttachedImpl decisionをinsertし、production TypeHeader RoleRefへscoped Impl stop / owner-tail classifierをsame changeで
+   switchする。Gate 4 / 5 suiteをunmodifiedでpublic `parse_file`とdirect rootから再実行する。
+   `impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity`のdeferred loopから
+   `type Box 't impl Pick Int:`だけをpositive Type-owned recovery testへ分離し、**no `ImplDeclaration` assertionは維持**する。
+   `with:` / `type Point:` / `type Point { ... }`のnegative rowsはdeferredのまま残す。Nominal / Equality /
+   all Type derives / standalone Impl / other declaration priorityをzero-regressionで固定し、new SyntaxKind、attached trailing
+   derives、with / role-like body、Impl-specific via、semantics / HIR / resolver / formatter未実装をworkspace-wide scope auditする。
+
+six gatesとする理由は、ACTDRVのようなexisting driverへのowner field追加だけではなく、new Type form / AST payload、
+post-header priority、shared Impl tail refactor、Type-owned recovery、direct-CST flat emissionを伴う一方、standalone familyの
+intro / root-nested dispatch / new body grammar / new CST vocabularyは作らないためである。ACTDRVのtwo gatesより大きく、
+standalone Implのnine gatesやForのten gatesより小さい。
+
+### Open design questions and Claude review focus
+
+本Proposal初稿は次をdesign decision候補として置く。ユーザ承認時に確定 / 修正対象として扱う。
+
+- post-keyword grammar valueとしてexisting `ImplDescription` / `ImplBody` / `ImplColonBody`を共有しつつ、outer
+  `TypeAttachedImpl`をnew AST payloadにする境界。whole `ImplDeclaration` reuseよりowner identityが明確か。
+- CSTへAttachedImpl wrapperを追加せずTypeDeclaration直下へflat emitする判断。oracle owner shapeとY3 form-wrapperなし
+  慣行の双方に合うか。
+- recovery leaf vocabularyを`ImplRole`で共有し、outer pathだけを
+  `TypeDeclarationRole::AttachedImpl(ImplRole)`へ変えるmappingが、Error / Enum shared payload precedentと整合するか。
+- Type Header derives RoleRefへdepth-fenced `StopKind::Impl`を追加し、fresh primaryではlocally ownしない判断。
+  `type T derives impl Pick;`のMissing role + attached continuation cardinalityを含む。
+- Header derives後のpriorityをAttachedImpl > future With > Equality > future role-like body > terminal Nominal / recoveryと
+  固定し、本addendumではImpl reject後にexisting classifierへ完全fallbackする判断。
+- attached tailのlayout baseをImpl keyword columnでなくouter `type_base`にする判断。
+- Type Header derivesはattached form前にcomposeする一方、Type Trailing derivesをEquality-onlyのまま保つscope boundary。
+- blocking testのno-Impl-owner invariantを削除せず、deferred negativeからType-owned positive / recovery invariantへ
+  意味を精密化するGate 6 migration。
+- six-gate sizingと、Gate 2でstandalone behaviorを先にbyte-identicalなshared tail coreへ収束させてからType adapterを
+  接続するstaging discipline。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-29、canonical TypeDeclarationのtype-attached `impl` form grammar追補案）。
