@@ -25843,3 +25843,732 @@ atomic promotionまでcurrent public parser behaviorを変えない。
 - Error semantic propagation / generated helpersをparser scopeから完全にdeferする境界。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+
+## 追補案: canonical `Statement` / root `Declaration`の`for` loop statement grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-29）。
+
+Date: 2026-08-29。
+
+### Scope and authority
+
+本追補は、Authoritativeなcanonical Statement / root Declaration grammarがnamed-but-unspecified future
+variantとして残した`for` loop statement（本document:11136-11138）を、root / nestedで同じsyntax ownerとして
+設計する。対象は次だけである。
+
+- exact maximal word `for`から成るstatement intro。visibility formはない。
+- optional apostrophe-sigil `ForLabel`と、Y2の「composite直後のsignificant tokenがexact `in`ならlabelでない」lookahead。
+- mandatory one canonical `Pattern` loop target。Pattern grammarを変更せず、exact word `in`をcaller word stopとして渡す。
+- mandatory exact maximal word `in`。
+- mandatory one ordinary `OperatorChain` iterable。current-depth `Colon | LeftBrace` stopでownerへ返す。
+- colon-introduced inline expression body / indented canonical Statement bodyと、braced canonical Statement body。
+- For-specific typed recovery、ASOB、outer Statement boundary、AST / direct-CST parity、root / nested shared dispatch。
+- source-leading Forがheader discoveryを`FirstNonHeader`で終了するno-fact behavior。
+
+本追補は次を設計しない。
+
+- loop semantics。iteration protocol、iterable型要件、label resolution、break / continue相当のlabelled effect、desugaring。
+- `for`のexpression化。Y2 specは「`for` は statement であり、式ではない」と定め
+  （`yulang2-oracle:spec/2026-06-06-syntax-design.md:648`）、本追補もcanonical Statement variantとして保つ。
+  `if` / `case` / `catch`と違いNUD primaryにしない。
+- type-level `for`（ForallType binder、`yulang2-oracle:spec/2026-06-06-syntax-design.md:1333-1344`）の変更。
+  current Y3のForallType ownerとその`ForKw` usage（`crates/yu-syntax/src/grammar/type_expr.rs:1787`）はそのまま残す。
+- Pattern / TypeExpression / expression / statement-sequence grammarの別実装、For-specific member / body subset。
+- HIR lowering、resolver、inference、diagnostics wording、formatter、syntax-reference page。
+
+本追補のBNF-equivalent grammarの唯一の正本は`FOR-G`、intro / phase authorityは`FOR-J`、shared machineryへの
+typed compositionは`FOR-T`、typed recoveryは`FOR-R`である。`FOR`はFor loop statementの略で、current documentの
+`DRV` / `IMD` / `CAST` / `ASOB` / `RLD` / `ACT` / `ENUM` / `ERROR`その他のprefixと衝突しない。
+
+### Problem statement and supersession boundary
+
+current Yulang3の`SyntaxKind`、`Declaration`、`Statement`、`StatementIntro`、`StatementKind`、`GrammarRole`には
+For statement vocabularyがない。`SyntaxKind::ForKw`は存在するがForallType（type-level binder）だけが使い、
+statement positionのexact word `for`はauthorityを得ずordinary OperatorChain fallbackへ落ちる。`in`に至っては
+token vocabulary自体がない。oracle surfaceの`for x in xs:`、`for 'outer x in xs:`、`for x in xs { x }`を
+one statement ownerとして保持できない。
+
+一方、必要なmachineryはすべて実装済みである。canonical Pattern（mandatory slot policy付き）、
+scoped stop frame付きOperatorChain（if condition / catch scrutinee）、apostrophe-sigil label composite
+（case / catch）、`IndentedStatementBlock` / `BracedStatementBlockExpression`のshared statement-sequence core、
+caller word stop（`StopKind::ArmGuardIf` / `ArmGuardWhere`）である。Forのために新しいPattern / expression /
+block parserを作る理由はない。しかしshared mechanicsだけでは次は決まらない。
+
+- label compositeとsigil-identifier patternを分けるY2の`in` lookahead。
+- Pattern slotをexact word `in`で止めるcaller stopの追加とそのepisode scoping。
+- iterable境界とbody introducerのFor-specific ownership。
+- brace bodyへの`BracedStatementBlockExpression`流用の可否（本document:6179-6184の予約）。
+- colon-inline bodyがexpressionかcanonical Statementかという、Y3内で分岐している先例の選択。
+- statement introへの挿入位置とroot / nested / header discoveryのatomic switch。
+
+本追補は次を明示的にsupersedeする。
+
+- canonical `Statement`のclosed sumへ`For`を追加する。root `Declaration`のclosed sumへも`For`を追加する。
+  `HeaderDeclaration`には追加しない。
+- canonical Statement追補のnamed-but-unspecified future variants listから`for`を取り除き
+  （本document:11136-11138）、本追補をtoken ownership / CST / recoveryのauthorityにする。
+- generic colon application追補のfuture-scope listにあった`for`のcolon-owner slot（本document:5435-5439）と、
+  `if`追補のexplicit future scopeにあった`for`（本document:6038）を本追補が具体化する。
+- braced-statement-block追補の「`BracedStatementBlockExpression`はordinary primary expressionだけの名前」
+  「declaration childとして流用しない」という予約（本document:6081-6086,6179-6184,6607-6617）を、
+  `ForStatement`のbrace bodyに限りsupersedeする。これはMod追補が自分のbrace bodyに限って行った
+  bounded supersession（本document:11748-11752）と同じ形式であり、Role / Act承認済み追補も同じnodeを
+  declaration brace bodyとして再利用済みである。他のfuture ownerが自動的に同じnodeを使う一般則にはしない。
+
+本追補は次をsupersedeしない。
+
+- Struct / Enum / Error / Mod / Type / Role / Impl / Cast / Act / Binding / Use / OperatorHeaderの
+  existing relative intro priorityとobservable parse / recovery。
+- `if` / `case` / `catch`のexpression grammar、arm / body / companion authority。
+- canonical Patternのprimary / tail / annotation grammar、mandatory slot policyのcontract。
+- `IndentedStatementBlock`のstrict deeper trigger / non-empty contract / dedent非consume、
+  `BracedStatementBlockExpression`のseparator / close ownership、`StatementSequencePolicy`の責務分担。
+- TypeExpression、TMN、positional fence、ASOB、layout-aware sequence authorityのcanonical rule。
+- `for` / `in`がnon-authority positionでordinary wordであるlexical policy（type positionの`for`は除く。
+  そこはexisting ForallTypeのbinder keywordのままである）。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`のpeeled commitは
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`であった。spec、parser implementation、direct parser-tree fixtureを
+same commit treeから再確認し、次をground truthとする。
+
+1. checked-in surface specificationは`for_stmt = "for" for_label? pattern "in" expr for_body`、
+   `for_label = sigil_ident_starting_with_apostrophe`、`for_body = ":" inline_or_indent_body |
+   brace_statement_block`と定め、「`for` は statement であり、式ではない」と明記した
+   （`yulang2-oracle:spec/2026-06-06-syntax-design.md:646-673`）。labelについては「直後が `in` の場合は
+   label ではなく pattern 側へ残る」と定めた（同`:661-662`）。
+2. implementationは`ForStmt > ForHeader + ForBody`を開始し、keyword、optional label、`In` stop付きpattern、
+   `Colon | BraceL` stop付きiterable expression、colon / brace body branchへ進んだ
+   （`yulang2-oracle:crates/parser/src/stmt/for_stmt.rs:16-76`）。
+3. label parserはSigilIdentかつapostrophe-startのlexをpeekし、その次のlexが存在して`In`でない場合だけ
+   `ForLabel` nodeとしてconsumeした。次のlexが`In`の場合とEOFの場合はlabelにせずpattern側へ残した
+   （`for_stmt.rs:78-99`）。
+4. pattern parserは`SyntaxKind::In`をstop setへ入れてから`scan_pat_nud` / `parse_pattern_from_nud`を呼び、
+   leading `in`は`PatNudTag::Stop`としてpatternなしで返った。stop setはparse後にexact restoreした
+   （`for_stmt.rs:101-126`）。statement-head / pattern / expressionのcontextual word分類は
+   stop set / position-basedで、`for` / `in`はstatement headでkeyword、expression NUDではordinary Identだった
+   （`yulang2-oracle:crates/parser/src/scan/mod.rs:32-42,263-298,300-316,339-370`）。
+5. iterable parserは`Colon`と`BraceL`をstop setへ入れて`parse_expr_bp`を呼び、stop setをrestoreした
+   （`for_stmt.rs:128-147`）。
+6. colon branchはcolon tokenを`ForHeader`内へlexし、body layoutをfor行のindentで分類した。
+   strictly-deeper newlineは`parse_indent_stmt_block`、equal-or-shallower newlineはmissing、
+   newlineなしは**`crate::expr::parse_expr`によるone expression**だった（`for_stmt.rs:149-173`）。
+   これはdeclaration colon bodyのinline branchが`parse_statement`を呼びterminal semicolonをconsumeした
+   （`yulang2-oracle:crates/parser/src/stmt/block.rs:108-130`）のと明確に違う。For inline bodyは
+   expressionだけで、semicolonを所有しなかった。
+7. brace branchはcolonなしで`ForHeader`をfinishし、`ForBody`内で`parse_brace_stmt_block`を呼んだ。
+   brace blockはfull statement familyをitemとして受けた（`for_stmt.rs:60-68`;
+   `yulang2-oracle:crates/parser/src/stmt/block.rs:14-106`）。
+8. old dispatcherはstatement headの`SyntaxKind::For`を`parse_for_stmt`へ直接routeした。dispatch orderは
+   Use / Mod / Type / Struct / Enum / Error / Role / Impl / Cast / Act / Forで、ForはActの直後だった
+   （`yulang2-oracle:crates/parser/src/stmt/mod.rs:64-98`）。visibility dispatcher（`stmt/mod.rs:159-216`）と
+   `visibility_word_kind`（`scan/mod.rs:318-337`）はForを扱わない。従って`my for ...`はFor statementでなく
+   ordinary binding surfaceだった。
+9. CST kindsは`ForStmt = 628` / `ForHeader = 629` / `ForBody = 630` / `ForLabel = 631`である
+   （`yulang2-oracle:crates/parser/src/lex.rs:400-403`）。調査メモの`399-403`は一行ずれで、正しくは
+   `400-403`である。
+10. direct fixtureは四本ある。`for x in xs:\n  x`はcolon-indent body（`ForBody > IndentBlock`）、
+    `for 'outer x in xs:\n  x`は`ForHeader > ForLabel > SigilIdent "'outer"`、`for x in xs { x }`は
+    `ForBody > BraceGroup`、`f:\n  for x in xs: if x: y\n  z`はinline bodyのif expressionがsame-indent
+    sibling `z`をconsumeしないことを固定した
+    （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:303-329,331-379,381-410,412-435`）。
+    iterableはY2 CSTでも`Expr` nodeにwrapされ、patternは`Pattern` nodeにwrapされた。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- `for [label] pattern in expr`のsurface全体。optional apostrophe-sigil label、`in` lookahead、
+  colon-inline / colon-indented / brace bodyのthree body form。
+- labelの「直後がexact `in`ならlabelでない」「後続significant tokenがなければlabelでない」規則。
+  `for 'x in xs:`の`'x`はsigil-identifier Patternである。
+- Pattern slotがexact word `in`で止まり、iterableが`:` / `{`で止まるboundary。
+- colon-inline bodyがexpression（one OperatorChain）であり、canonical Statementでないこと。
+- Forがterminal semicolonを所有しないこと。inline body後の`;`はouter statement sequence ownerに残る。
+- inline bodyが後続のsame-or-shallower-indent siblingをconsumeしないlayout境界。
+- `for`にvisibility formがないこと。`my for = 1`はBindingである。
+- current exact-word statement-intro discipline、sink-free recognition、accepted intro後のcut、
+  root / nested shared continuation。
+- canonical Pattern / OperatorChain / IndentedStatementBlock / BracedStatementBlockExpressionの
+  existing grammar、separator / close / dedent / ambient ownership。
+- lossless trivia、actual punctuation / closeのone-owner rule、one range = one recovery node = one record。
+- header discoveryがfirst full-only statementで停止し、For factを作らないarchitecture。
+
+限定して追加するのは次である。
+
+- `SyntaxKind::ForStatement` / `ForLabel` / `ForIterable` / `InKw`。`ForKw`はexisting tokenをreuseする。
+- `Declaration::For` / `Statement::For` / `StatementIntro::For` / `StatementKind::ForStatement`。
+- `GrammarRole::ForStatement(ForStatementRole)`。DeclarationRoleへは入れない。Forはdeclarationではない。
+- `StopKind::In`と、existing word-stop judgeへのmechanicalな追加。
+- shared label composite / Pattern slot / expression stop frame / statement-sequence coreへの
+  For owner mapping。
+
+### `FOR-G`: standalone For grammar and layout
+
+```text
+ForStatement :=
+    ForKw Gfor
+    [ ForLabel Gfor ]
+    RequiredPattern(ForStatement::Pattern)    // caller word stop: exact "in"
+    Gfor InKw Gfor
+    ForIterable
+    ForBody
+
+ForLabel := Apostrophe!Word
+    accepted only when the following non-trivia token exists
+    and is not the exact maximal word "in"
+
+ForIterable :=
+    OperatorChain
+    under current-depth StopSet { Colon, LeftBrace }
+
+ForBody :=
+    BodyColon G0 InlineBodyExpression
+  | BodyColon Gfor-indent IndentedStatementBlock(ForStatement::IndentedStatement)
+  | BracedStatementBlockExpression
+
+InlineBodyExpression := OperatorChain under incoming outer stops
+
+ForKw := exact maximal word "for"
+InKw  := exact maximal word "in"
+Gfor := statement-continuing trivia(for_base)
+Gfor-indent := NonEmptyStrictlyDeeperContinuationTrivia(for_base)
+G0 := maximal trivia containing no physical newline
+```
+
+`for_base`はstatement positionでexact `for`をacceptした時点のactive `IndentationBaseline.column`で、
+frameがなければ0である。header内の各`Gfor`はempty / same-line / strictly-deeper continuationをacceptし、
+equal-or-shallower newline / ambient owner gapをconsumeしない。`forall` / `fork` / `format`、`int` / `index` /
+`inner`をprefix splitしない。exact maximal word比較だけがkeyword evidenceである。
+
+`ForLabel`の`!`はapostropheとword bodyの間にtriviaもbyte gapもないことを表す。compositeはcase / catch labelと
+同じapostrophe-sigil compositeである（本document:7355-7364）。For固有なのはlookaheadだけで、composite後の
+`Gfor`の先のsignificant tokenがexact `in`である場合と、boundary / EOFで後続tokenがない場合は、compositeを
+consumeせずPattern slotへ残す。従って`for 'x in xs:`の`'x`はPattern、`for 'outer x in xs:`の`'outer`はlabel、
+`for 'outer in xs:`の`'outer`はPatternである。labelはoptional slotであり、Missing / Errorを作らない。
+
+Pattern slotはexisting canonical Patternのmandatory slot entryをそのまま使う。For固有なのは
+`StopKind::In`（exact word `in`）をcaller stopとして渡すことと、fresh-primary recovery stopに
+`Colon | LeftBrace`とexact `in`を渡すことだけである。Pattern自身のtail（alias / alternation /
+`PatternTypeAnnotation`）はそのまま有効で、annotation TypeExpressionはexisting word-stop機構によって
+outer episodeのexact `in`で止まる。従って`for x: t in xs: body`はannotated loop patternである。
+
+iterableはordinary one full `OperatorChain`である。current-depth stop frameへ`Colon | LeftBrace`を積み、
+completed chainがlone `:` / current-depth `{`の直前でownerへ返る。これはif conditionの
+`Colon | LeftBrace | Elsif | Else` frameとcatch scrutineeの`Colon | LeftBrace`と同じ機構であり
+（本document:5639-5664,7388-7389）、nested delimiter / expression ownerは自分のframeをpushするため
+parenthesized内部のcolon application等はordinaryに動く。
+
+bodyはthree formである。actual `:`後のlayoutはif armと同じone layout primitiveで一度だけ分類する
+（本document:5666-5698）。physical newlineなしならexactly one inline `OperatorChain`、newlineありかつ
+following indent `> for_base`ならexisting non-empty `IndentedStatementBlock`、equal-or-shallower newlineなら
+Body Missingとしてwhole gapをouter ownerへ返す。actual current-depth `{`はexisting
+`BracedStatementBlockExpression`をそのままparse / commitする。Forにbodyless form / explicit semicolon formは
+ない。inline body後のterminal semicolonもFor-ownedでなくouter statement sequence ownerの所有である
+（Y2 oracle fact 6）。inline bodyのcommaはbody argument separatorではなくincoming outer ownerへ返る
+（if arm inlineと同じ、本document:5689-5692）。
+
+### `FOR-J`: intro authority and phase judge order
+
+sink-free `recognize_for_statement_intro`はcurrent positionのbare exact maximal word `for`だけをacceptする。
+visibility prefix probeを持たない。label / Pattern / `in` / iterable / bodyのsuccessをintro条件にせず、
+accepted keyword後はFor continuationへcutする。resultは次の情報を保持する。
+
+```rust
+struct ForStatementIntro<'source> {
+    start: usize,
+    for_keyword: WordSpan<'source>,
+    for_base: usize,
+}
+```
+
+current Y3のnon-For relative orderを動かさず、ForだけをAct後 / Binding前へadditiveに挿す。Y2 dispatcherも
+ForをActの直後に置いた（oracle fact 8）。
+
+1. caller-owned boundary check。
+2. Struct。
+3. Enum。
+4. Error。
+5. Mod。
+6. Type。
+7. Role。
+8. Impl。
+9. Cast。
+10. Act。
+11. For（new）。
+12. Binding。
+13. Use / Mod-fallback / OperatorHeader / OperatorChain。
+
+Forは他のkeyword familyとexact wordが交わらないため、この位置はkeyword衝突でなくY2 orderとの整合と
+strict additivityで選ぶ。Binding / OperatorChain fallbackより前であることだけがobservableに必須である。
+`my for = 1`はFor recognizerに触れずBindingへ入り、Pattern target `for`を保持する（oracle fact 8）。
+
+accepted intro後のphase priorityは次である。
+
+1. original label gapでASOBを問い、claimedならzero-width Missing Pattern、gap non-consume、
+   後続slotはIncomplete。claimがなければlabel composite probe + `in` lookaheadを行う。probeはrejectで
+   byteをconsumeしない。
+2. mandatory Pattern slotを`StopKind::In`と`Colon | LeftBrace` fresh-primary stopつきで閉じる。
+   leading exact `in`はpatternなしのstop evidenceで、one zero-width Missing Patternの後same positionの
+   `in`からheaderを続ける。
+3. completed Pattern後のoriginal gapでexact maximal `in`をjudgeする。actualならInKwとしてcommitする。
+   なければone zero-width Missing InKeywordを置き、same positionからiterable slotへ進む（下のFOR-R
+   truncation ruleを参照）。
+4. iterable slotをcurrent-depth `Colon | LeftBrace` frameで閉じる。completely missing outer primaryだけを
+   `ForStatementRole::Iterable`へoverrideし、malformed innardsはexisting expression recoveryを保つ。
+5. original tail gapでactual `:` / current-depth `{`をFor local punctuation authorityとしてjudgeする。
+   `:`ならlayout primitiveでinline / indented / Missing Bodyを一度だけ分類し、`{`ならexisting brace ownerへ
+   delegateする。
+6. starterがなければtyped BodyIntroducer recovery。outer boundary / ambient claimをconsumeしない。
+7. outer Statement ownerへseparator / close / dedent / companionを返す。
+
+AST / direct-CSTはone shared intro result、one label probe、one Pattern slot policy、one iterable frame、
+one body layout decisionを使う。root / nested / direct callerへlookaheadやlayout probeをcopyしない。
+
+### AST / direct-CST shape
+
+```rust
+struct ForStatement<'source> {
+    label: Option<ForLabel<'source>>,
+    pattern: Recovered<Box<Pattern<'source>>>,
+    in_keyword: Recovered<Range<usize>>,
+    iterable: Recovered<OperatorChain<'source>>,
+    body: Recovered<ForBody<'source>>,
+    range: Range<usize>,
+}
+
+struct ForLabel<'source> {
+    text: &'source str,
+    range: Range<usize>,
+}
+
+enum ForBody<'source> {
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<ForColonBody<'source>>,
+    },
+}
+
+enum ForColonBody<'source> {
+    Inline {
+        expression: OperatorChain<'source>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+new CST vocabularyは`ForStatement` / `ForLabel` / `ForIterable` nodeと`InKw` tokenである。`ForKw`は
+existing tokenをForallTypeと共有する。token kindの共有はgrammar authorityの共有ではない。statement introと
+type primaryはgrammar positionが交わらないため、one spelling / one token kind / two disjoint ownersで
+衝突しない。Y2の`ForHeader` / `ForBody` CST wrapperは追加しない。childはForStatement直下へsource orderで
+置き、colon tokenもdirect childである（IfArmのcolon直置きとMod / Role / Actのwrapperなし方針に合わせる。
+ASTの`ForBody` / `ForColonBody`はparser-side discriminantであり、same-name CST wrapperを意味しない）。
+iterableだけはif `Condition` / case `CaseScrutinee`と同じ理由で`ForIterable` nodeにwrapする。これはY2が
+iterableを`Expr` nodeにwrapしていたことのY3相当である。
+
+#### Colon-indented body
+
+oracle fixtureをそのまま使う（`stmt_grammar.rs:303-329`）。
+
+```yu
+for x in xs:
+  x
+```
+
+```text
+ForStatement 0..16
+  ForKw 0..3 "for"
+  Trivia 3..4 " "
+  Pattern 4..5
+    IdentifierPattern 4..5 "x"
+  Trivia 5..6 " "
+  InKw 6..8 "in"
+  Trivia 8..9 " "
+  ForIterable 9..11
+    OperatorChain 9..11
+      IdentifierExpression 9..11 "xs"
+  Colon 11..12 ":"
+  IndentedStatementBlock 12..16
+    Trivia 12..15 "\n  "
+    Statement 15..16
+      OperatorChain 15..16
+        IdentifierExpression 15..16 "x"
+```
+
+#### Labelled colon-indented body
+
+oracle fixtureをそのまま使う（`stmt_grammar.rs:381-410`）。
+
+```yu
+for 'outer x in xs:
+  x
+```
+
+```text
+ForStatement 0..23
+  ForKw 0..3 "for"
+  Trivia 3..4 " "
+  ForLabel 4..10
+    SigilIdentifier 4..10 "'outer"
+  Trivia 10..11 " "
+  Pattern 11..12
+    IdentifierPattern 11..12 "x"
+  Trivia 12..13 " "
+  InKw 13..15 "in"
+  Trivia 15..16 " "
+  ForIterable 16..18
+    OperatorChain 16..18
+      IdentifierExpression 16..18 "xs"
+  Colon 18..19 ":"
+  IndentedStatementBlock 19..23
+    Trivia 19..22 "\n  "
+    Statement 22..23
+      OperatorChain 22..23
+        IdentifierExpression 22..23 "x"
+```
+
+#### Braced body
+
+oracle fixtureをそのまま使う（`stmt_grammar.rs:412-435`）。
+
+```yu
+for x in xs { x }
+```
+
+```text
+ForStatement 0..17
+  ForKw 0..3 "for"
+  Trivia 3..4 " "
+  Pattern 4..5
+    IdentifierPattern 4..5 "x"
+  Trivia 5..6 " "
+  InKw 6..8 "in"
+  Trivia 8..9 " "
+  ForIterable 9..11
+    OperatorChain 9..11
+      IdentifierExpression 9..11 "xs"
+  Trivia 11..12 " "
+  BracedStatementBlockExpression 12..17
+    LBrace 12..13 "{"
+    Trivia 13..14 " "
+    Statement 14..15
+      OperatorChain 14..15
+        IdentifierExpression 14..15 "x"
+    Trivia 15..16 " "
+    RBrace 16..17 "}"
+```
+
+#### Colon-inline body
+
+inline formの直接のoracle byte fixtureはないが、`for x in xs: if x: y`のinline bodyがexpressionであることと
+sibling非consumeは`stmt_grammar.rs:331-379`が固定し、grammarはspec `inline_or_indent_body`（oracle fact 1、6）
+から導出する。
+
+```yu
+for x in xs: x
+```
+
+```text
+ForStatement 0..14
+  ForKw 0..3 "for"
+  Trivia 3..4 " "
+  Pattern 4..5
+    IdentifierPattern 4..5 "x"
+  Trivia 5..6 " "
+  InKw 6..8 "in"
+  Trivia 8..9 " "
+  ForIterable 9..11
+    OperatorChain 9..11
+      IdentifierExpression 9..11 "xs"
+  Colon 11..12 ":"
+  Trivia 12..13 " "
+  OperatorChain 13..14
+    IdentifierExpression 13..14 "x"
+```
+
+`ForStatement.range`は`ForKw` startから、最後にcommitしたbody item（inline chain end、indented block end、
+matching / recovered close）のendまでである。implicit Missing、boundary non-consume recovery、indent dedentでは
+outer trivia / separator / close / semicolonを含めない。
+
+### `FOR-T`: typed reuse of Pattern, expression, and statement-block machinery
+
+#### Label composite
+
+label probeはcase / catchの`probe_case_like_label` / `parse_case_like_label`と同じApostrophe + adjacent word
+compositeを使う（`crates/yu-syntax/src/grammar/expression.rs:2507-2532,6330-6350`）。implementationは
+このcompositeをneutral helperへ抽出してForから呼んでよいが、case / catchのobservable behaviorを変えない。
+For側だけがcomposite後のsink-free second probe（`Gfor`をprobe内でconsumeし、exact maximal `in`または
+token不在ならrollback）を重ねる。CSTは`ForLabel > SigilIdentifier`一tokenで、`CaseLabel` / `CatchLabel`の
+node shapeと平行である。rule literal `~"..."`とquoted Yumark `'[` / `'{`はApostrophe!Wordを満たさないため
+label probeがrejectし、byteをconsumeせずPattern slot以降のexisting ownerへ渡る。
+
+#### Pattern slot composition
+
+Pattern slotはexisting `parse_required_pattern_with_outer_missing_role_and_policy` /
+`commit_direct_pattern_with_outer_missing_role_and_policy`（`crates/yu-syntax/src/grammar/pattern.rs:414-429`）を
+使い、completely missing / terminally malformed outer slotだけを
+`GrammarRole::ForStatement(ForStatementRole::Pattern)`へoverrideする。malformed innardsはexisting
+`PatternRole`を保つ。For専用Pattern subsetを作らない。
+
+`StopKind::In`はnew StopKind variantで、exact word `in`のword stopである。wiringはexisting
+`ArmGuardIf` / `ArmGuardWhere`と同じ機構へのmechanical追加だけである。すなわちPatternのtail boundary judge
+二箇所（`pattern.rs:1283-1284,2925-2926`）とTypeExpression episodeのword-stop map
+（`crates/yu-syntax/src/grammar/type_expr.rs:5584-5585`）へ`in`のexact-word checkを足し、episode scoping /
+suspension規則はArmGuard stopsのexisting behaviorをそのまま継承する。新しいscoping規則を発明しない。
+これによりpattern tailとannotation TypeExpressionがouter episodeのexact `in`で止まり、Y2の`In` stop挿入
+（oracle fact 4）と同じboundaryになる。fresh-primary positionのexact `in`はstop evidenceであり、
+`in`をIdentifierPatternとして読まない（Y2の`PatNudTag::Stop`と同じ）。
+
+#### Iterable composition
+
+iterableはexisting `parse_operator_chain` / direct counterpartを、if conditionと同じ
+`push_stop_set` / `pop_stop_set` frame（`crates/yu-syntax/src/grammar/expression.rs:3036-3045,6804-6823`）で
+包む。frameは`active_stop_set(i).with(StopKind::Colon).with(StopKind::LeftBrace)`で、catch scrutineeの
+stop shapeと一致する（`expression.rs:6320-6327`）。completely missing outer primaryだけを
+`ForStatementRole::Iterable`へmapし、chain内のrecoveryはexisting expression ownerが持つ。iterable内の
+word `in`はordinary wordである。`in`はexpression stop frameへ入れない。
+
+#### Body composition
+
+- inline colon: exactly one `parse_operator_chain` / direct counterpartをincoming outer stopsの下で呼ぶ。
+  if armのinline branchと同じく、inline comma listもcanonical Statement dispatchも呼ばない。
+- indented colon: existing `parse_indented_statement_block_with_options` /
+  `commit_indented_statement_block_with_options`へ
+  `IndentedStatementBlockOptions { stops_for_if_companion: false, statement_role:
+  Some(GrammarRole::ForStatement(ForStatementRole::IndentedStatement)) }`を渡す
+  （`expression.rs:4855-4930,5501-5560`のRole / Act wiringと同型）。
+- brace: existing `parse_braced_statement_block_expression` / `commit_braced_statement_block_expression`
+  （`expression.rs:4965,5620`）、`StatementSequencePolicy::BracedPrimary`、existing brace barrier /
+  close recoveryをそのまま使う。close recoveryはexisting
+  `GrammarRole::ClosingDelimiter { owner: ConstructRole::BracedStatementBlockExpression, delimiter: Brace }`を
+  reuseし、For-specific close roleを作らない。
+
+layout分類はif arm / colon applicationのone layout primitive（`recognize_introduced_body_layout`相当）を
+reuseし、For側でnewline / indent probeを再実装しない。body内statement familyはimplementation時点の
+canonical Statement closed sumをそのまま受け取り、nested Forもpromotion後のshared dispatchから自然に届く。
+
+#### ASOB and state restoration
+
+label / Pattern / `in` / iterable / body-introducer / colon-bodyの各original gapで、actual local punctuation /
+matching close、active caller boundary、`any_ambient_owner_claims`のapproved orderを一度だけ使う。ambient claim
+ならtrivia / compositeをconsumeせずouter ownerへ返す。newlineをlocal continuationとしてcommitした後に
+ambient predicateを再質問しない。
+
+normal / Missing / Error / same-slot retry / rollbackのevery exitで、input position、line、sink、ambient / If
+companion、delimiter、stop（`StopKind::In` / iterable frameを含む）、indentation baseline、Pattern layout、
+expression-type owner、ML application、positional fence、TypeExpression episode depth / scoped frameを
+entry時へexact restoreする。Pattern / expression / block / brace内のinner recoveryをFor layerがduplicateしない。
+
+### `FOR-R`: typed recovery table
+
+```rust
+enum ForStatementRole {
+    Pattern,
+    InKeyword,
+    Iterable,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
+}
+
+GrammarRole::ForStatement(ForStatementRole)
+```
+
+labelはoptional probe-only slotで、recovery roleを持たない。header truncation（completed Pattern後に
+exact `in`がないままbody starter / boundaryへ達するcase）はone zero-width Missing InKeywordだけをcommitし、
+iterable slotへ同じcauseのMissingを重ねない。これを本追補のtruncation ruleと呼ぶ。
+
+| source / state | owner and recovery | continuation / non-consume |
+| --- | --- | --- |
+| `for x in xs:` + valid inline / indented body | For normal | zero recovery |
+| `for 'outer x in xs:` + body | label accepted、For normal | probe rejectはbyte non-consume |
+| `for 'x in xs:` | labelなし、`'x`はPattern | `in` lookahead、Y2 rule 3 preserved |
+| `for 'outer in xs:` | labelなし、`'outer`はPattern | 同上 |
+| label composite + EOF / owner boundary | labelなし、compositeはPattern slotへ | probe rollback、Pattern slotのMissing / Error判定に従う |
+| exact `for` + EOF / owner boundary | one zero-width Missing Pattern | in / iterable / body Incomplete、cascadeなし、boundary non-consume |
+| `for in xs: x` | one zero-width Missing Pattern | `in`をpatternとして読まず、same positionのInKwからheader続行 |
+| `for` + actual `:` / current-depth `{` | one zero-width Missing Pattern | in / iterable Incomplete（recordなし）、same punctuationからbody retry |
+| malformed pattern run + valid Pattern NUD | one maximal Error（Pattern slot） | same-slot retry、Pattern Complete |
+| malformed pattern run reaches boundary | one maximal Error（Pattern slot）、Pattern Incomplete | in / iterable / body cascadeなし |
+| `for x: t in xs: body` | annotated Pattern normal | annotation typeはouter episodeのexact `in`で停止 |
+| complete Pattern + exact `in` | For normal | InKw one-owner |
+| complete Pattern + non-`in` expression NUD | one zero-width Missing InKeyword | iterableをsame positionからparse、one recordのみ |
+| complete Pattern + actual `:`（annotationにならないcase）/ `{` | one zero-width Missing InKeyword | truncation rule、iterable Incomplete（recordなし）、body retry |
+| accepted `in` + actual `:` / `{`直後 | one zero-width Missing Iterable | body retry from same punctuation、cascadeなし |
+| accepted `in` + EOF / owner boundary | one Missing Iterable | body Incomplete、boundary non-consume |
+| iterable内malformed | existing expression recovery only | `ForStatementRole::Iterable`はcompletely missing outer primaryだけ |
+| complete iterable + `:` + inline expression | Colon Inline Complete | terminal semicolon / commaはouter-owned |
+| `:` + strictly-deeper non-empty block | Colon Indented Complete | existing block recovery / separator |
+| `:` + equal-or-shallower newline | one Missing Body | post-colon probe rollback、gap / next statementはouter-owned |
+| `:` + EOF | one Missing Body | boundary non-consume |
+| complete iterable + current-depth `{` | Braced Complete | existing brace owner delegate |
+| brace body missing / mismatched `}` | existing brace close Missing / Error one | For close recoveryを追加せずcaller boundary non-consume |
+| complete iterable + EOF / `;` / outer boundary | one zero-width Missing BodyIntroducer | body Incomplete、`;`をconsumeしない |
+| malformed introducer run + actual `:` / `{` | one maximal Error BodyIntroducer | starter non-consume、same body judge retry |
+| inline body後のsame-or-shallower sibling line | For終了、siblingはouter statement | oracle fixture `stmt_grammar.rs:331-379`のnon-consumption |
+| body内nested malformed Statement | inner owner recovery only | same rangeへFor Missing / Errorを重ねない |
+
+one accepted `for` = one ForStatement node、one committed Missing / Error record = one recovery nodeである。
+Pattern failureへInKeyword / Iterable / BodyIntroducerをcascadeしない。truncation ruleのone Missing InKeywordへ
+Missing Iterableを重ねない。body / block / brace内のfailureへFor recoveryを重ねない。
+
+### Root / nested dispatch and header discovery
+
+| caller | behavior |
+| --- | --- |
+| root `parse_declaration` | `Declaration::For(ForStatement)`を返す |
+| direct root loop | `ForStatement` nodeをcommitする |
+| `parse_canonical_statement` | `Statement::For(ForStatement)`を返す |
+| `commit_canonical_statement` | same For direct adapterを`Statement` wrapper内で呼ぶ |
+| braced / indented / inline statement owner | shared canonical Statement dispatchからForをacceptする |
+| header discovery | source-leading Forを`FirstNonHeader`として終了し、header factを作らない |
+
+Y2はrootとnestedを同じ`parse_statement`で扱い、root-level Forをvalid surfaceとして受けた（oracle fact 8）。
+Y3もroot / nestedで別For parserを作らず、rootではdeclaration childと同shape、nested occurrenceだけが
+`Statement` wrapperを持つexisting原則に従う。root `Declaration` closed sumは実質root-statement sumであり、
+Forはその最初のnon-declaration control statementになる。`HeaderDeclaration::For`、loop / label fact、
+parser-time registryを作らない。sink-free introとisolated AST/direct continuationをpre-promotion gatesまで
+共有し、atomic promotionでroot / direct root / AST canonical / direct canonical / header stopを
+same changeへswitchする。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `scan_word` / exact-word discipline / checkpoint rollback、source range / line state。
+- case / catchのapostrophe-sigil label composite probe。
+- canonical Pattern mandatory slot entry / policyとexisting word-stop judge。
+- `parse_operator_chain` / direct counterpartとif condition式のscoped stop frame。
+- if arm / colon applicationのbody layout primitive。
+- `parse_indented_statement_block_with_options` / `commit_indented_statement_block_with_options`と
+  `IndentedStatementBlockOptions`。
+- `parse_braced_statement_block_expression` / `commit_braced_statement_block_expression`と
+  existing close recovery。
+- `any_ambient_owner_claims`、ASOB original-gap ordering、root / nested canonical dispatch。
+
+次を共有・追加しない。
+
+- `ForHeader` / `ForBody` / inline-body / iterable-list CST wrapper、synthetic colon / semicolon /
+  separator。新wrapperは`ForLabel` / `ForIterable`だけである。
+- For-specific Pattern parser、expression parser、statement loop、separator / close driver、
+  layout probeのcopy。
+- `DeclarationRole::For`。Forのrecovery identityは`GrammarRole::ForStatement`である。
+- iterable frameへの`StopKind::In`挿入、expression grammar内の`in` keyword化。
+- `for`をNUD primary expressionにすること、`ColonApplicationTail` / `WithBodyTail`をFor bodyの代用に
+  すること。
+- ForallType側のgrammar / CST変更。`ForKw` token kindの共有はtokenだけである。
+- parser-time loop semantics、label resolution、`HeaderDeclaration::For`。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Surface preserved:** label lookahead、pattern / `in` / iterable boundary、three body form、
+   inline-body-is-expression、no terminal semicolon、no visibility、sibling non-consumptionを保つ。
+2. **Wrapper flattening:** Y2の`ForHeader` / `ForBody` wrapperを落とし、childをForStatement直下に置く。
+   Mod / Role / ActのHeader / Bodyなし方針とIfArmのcolon直置きに合わせたY3 CST慣行であり、
+   surface acceptanceは変わらない。
+3. **Iterable wrapper renamed:** Y2の`ForHeader > Expr`は`ForIterable > OperatorChain`になる。
+   if `Condition` / case `CaseScrutinee`と同型である。
+4. **Colon ownership relocated:** Y2はcolonを`ForHeader`内にlexした。Y3はForStatement direct childである。
+5. **Inline body family named:** Y3内でRole / Modのcolon-inline bodyはone canonical Statementだが、Forは
+   Y2どおりone expression（OperatorChain）である。Y2自身がdeclaration inline bodyに`parse_statement`、
+   For inline bodyに`parse_expr`を使い分けた（oracle fact 6）ので、この差はY3のfamily間不整合ではなく
+   Y2 surfaceの保存である。
+6. **Typed recovery:** Y2のsilent abort / generic invalid emissionをForStatementRole別Missing / Error、
+   same-slot retry、truncation rule、no-cascadeへ置換する。特にY2が`emit_invalid`でconsumeした非starter
+   stop token（`;`など）を、Y3はboundary non-consumeでouter ownerに残す。
+7. **Brace body node:** Y2 `BraceGroup`はexisting `BracedStatementBlockExpression`のreuseになり、
+   braced-statement-block追補の予約をForStatement brace bodyに限りsupersedeする（Mod precedentと同形式）。
+8. **Statement, not expression:** Y2 spec 648のstatement地位を保ち、if / case / catchのようなNUD primary化を
+   しない。For value / result semanticsのclaimもしない。
+9. **Root acceptance preserved:** Y2のroot-level Forに合わせ`Declaration::For`を追加する。root sumへの
+   最初のnon-declaration追加であることはopen questionとして明記する。
+10. **Header architecture:** Forはfull syntaxだがheader factではなく、source-leading occurrenceは
+    `FirstNonHeader`である。
+
+### Known residuals and deferred scope
+
+ASOB追補のfour-condition known residualは、For pattern（nested delimiter / annotation TypeExpression）、
+iterable内nested owner、body block内nested ownerにもEnum / Error / Roleと同じ条件で適用する。For-specific
+workaroundとしてall newline / separator / closeをnested ownerへcarryしない。
+
+explicit deferred surfaceは次である。
+
+- loop semantics全般。iteration protocol、iterable型要件、loop value / unit result、effect row。
+- label semantics。`'outer`のresolution、labelled break / continue相当のeffect、`sub 'label`との関係。
+- Pattern側のidentifier + `.field` continuation（Role追補が記録したDotField gap）はFor pattern slotにも
+  同じ制約として現れる。Forのscopeではない。
+- For-specific diagnostics wording、formatter、syntax-reference page、HIR / resolver / inference。
+- root-level expression statement一般の設計。本追補はForだけをroot sumへ足し、一般化しない。
+
+future semantic addendumはFor CST bytesをpost-parse rescanしない。loop / label factが必要ならFor ASTから
+lowerし、parser recovery identityをsemantic meaningへ流用しない。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationは次の
+10 gateへ分ける。atomic promotionまでcurrent public parser behaviorを変えない。
+
+1. `ForStatement` / `ForLabel` / `ForIterable` / `InKw` SyntaxKind、For AST（`ForStatement` / `ForLabel` /
+   `ForBody` / `ForColonBody`）、`Declaration::For` / `Statement::For`、`StatementIntro::For` carrier、
+   `StatementKind::ForStatement`、`GrammarRole::ForStatement(ForStatementRole)`、`StopKind::In`を追加する。
+   existing exhaustive matchへunreachableなmechanical armだけを足し、no dispatch / behavior change、
+   full suite byte-identicalを固定する。
+2. sink-free `recognize_for_statement_intro`をisolated実装し、bare exact recognition、`for_base` capture、
+   `forall` / `fork` / `format` rejection、visibility formなし（`my for`非該当）、EOF-independent cut、
+   all-state exact rollbackをfixture化する。real `recognize_statement_intro`へはまだ接続しない。
+3. label composite probeをisolated実装する。neutral composite helperの抽出（case / catch behavior
+   byte-identical）、`in` lookahead reject、EOF / boundary reject、`'x in xs`のPattern残し、
+   `'[` / `'{` / `~"` non-collision、probe reject時のzero consumptionを固定する。
+4. `StopKind::In`をexisting word-stop judge（`pattern.rs`二箇所、`type_expr.rs` word-stop map）へ
+   mechanicalに追加し、mandatory Pattern slotをFor policy（missing role、fresh-primary `Colon | LeftBrace` +
+   exact `in`）でisolated実装する。leading `in`のstop evidence、annotated pattern の`in`停止、
+   malformed run / same-slot retry、ArmGuard stopsのexisting fixture byte-identicalを固定する。
+5. `in` judgeとiterable slotをisolated実装する。exact InKw commit、truncation rule（one Missing
+   InKeyword、iterable non-cascade）、iterableのscoped `Colon | LeftBrace` frame、missing / malformed
+   iterable、frame exact restoreを固定する。
+6. body adapterをisolated実装する。colon layout primitive reuse、inline one OperatorChain（semicolon /
+   comma outer-owned）、indented blockへのFor owner option、brace bodyのexisting owner delegate、
+   equal-or-shallower Missing Bodyを、AST / direct両pathで固定する。
+7. `FOR-R`全rowをfixture化する。one record = one node、truncation rule、no-cascade、starter preservation、
+   boundary non-consumeをAST / directで閉じる。production behaviorはまだ変えない。
+8. isolated For adapterをdirect root / indented / braced / inline ambient frameで包み、depth-2+ ambient /
+   If companion、EOF / semicolon / comma / each active right delimiter / equal-shallower newline、
+   normal / recovery / rollbackのstate matrixを閉じる。input / line / sink / ambient / delimiter / stop /
+   indentation / Pattern layout / TypeExpression episodeをevery exitでexact restoreする。
+9. `recognize_statement_intro`のAct後 / Binding前へFor introを挿し、root `parse_declaration` / direct root
+   loop / `parse_canonical_statement` / `commit_canonical_statement` / header discovery stopを
+   same changeでatomic promotionする。same Gate内でGate 8 suiteをunmodified再実行し、本追補のfour worked
+   exampleをpublic entryからbyte-exact、lossless、AST-direct parity、zero recoveryで固定する。
+   existing non-For order / behavior zero regressionを固定する。
+10. final public matrixでall label collision case、all body form、nested For、sibling non-consumption、
+    root / nested interleaving、all malformed form、AST / direct parity、losslessness、full suiteを閉じる。
+    `for`のtype-position ForallType非干渉と、`for` / `in`のordinary-word position、loop semantics /
+    HIR未実装scopeをworkspace-wideに固定する。
+
+### Open design questions and Claude review focus
+
+本Proposal初稿は次をdesign decision候補として置く。ユーザ承認時に確定 / 修正対象として扱う。
+
+- root `Declaration` closed sumへ`For`を入れる判断。Y2 root parityとroot / nested uniform wiringを優先し、
+  root sumに最初のnon-declaration variantを許容した。root-level statement一般の再設計を待つ代替案もある。
+- colon-inline bodyをRole / Mod式のone canonical StatementでなくY2 / if-arm式のone OperatorChainにする判断
+  （named divergence 5）。
+- labelのEOF / boundary rejectをY2どおり保つ判断。case / catchのunconditional composite acceptとは
+  意図的に非対称である。
+- truncation rule。`in`とiterableが同時に欠けるheader truncationをone Missing InKeywordへ収める判断。
+- `ForIterable` wrapper nodeの追加と、`ForHeader` / `ForBody` wrapperの非追加という非対称。
+- `ForKw` token kindをForallTypeと共有し、new `StatementForKw`を作らない判断。
+- intro priorityをAct後 / Binding前へ置き、current non-For relative orderを動かさない判断。
+- `StopKind::In`のscoping / suspensionをArmGuard stopsのexisting behavior継承だけで定義し、
+  新しいscoping規則を書かない判断。
+- brace bodyの`BracedStatementBlockExpression` bounded supersessionがMod / Role / Act precedentと
+  整合していること。
+
+著者: Claude (Fable 5)（2026-08-29、canonical Statement / root Declarationの`for` loop statement grammar
+追補案。ユーザ承認済み）
