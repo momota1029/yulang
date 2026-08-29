@@ -1271,6 +1271,40 @@ where
     candidate
 }
 
+/// Recognizes the sink-free prefix reserved for a standalone For statement.
+///
+/// For has no visibility form: only a bare exact maximal `for` establishes
+/// its continuation authority. Dispatch remains deferred until Gate 9.
+#[allow(dead_code)]
+fn recognize_for_statement_intro<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<ForStatementIntro<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    let Some(for_keyword) = i.run(scan_word) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if for_keyword.text() != "for" {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let for_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    Some(ForStatementIntro {
+        start,
+        for_keyword,
+        for_base,
+    })
+}
+
 /// Recognizes the sink-free prefix reserved for a standalone Impl declaration.
 ///
 /// This remains deliberately separate from `recognize_statement_intro` until
@@ -37592,6 +37626,244 @@ mod tests {
             ("use std", 2, None),
             ("infix + 1 2", 2, None),
             ("value error", 2, None),
+        ] {
+            run(source, baseline, expected);
+        }
+    }
+
+    #[test]
+    fn for_statement_intro_is_bare_exact_isolated_and_rolls_back_every_probe_state() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct Expected<'source> {
+            keyword: Range<usize>,
+            remainder: &'source str,
+            for_base: usize,
+        }
+
+        fn assert_prepared_local(
+            local: &ParseLocal,
+            baseline: IndentationBaseline,
+            stops: StopSet,
+            scoped_frame: TypeExpressionScopedStopFrame,
+            root: AmbientOwnerScopeFrame,
+            inline: AmbientOwnerScopeFrame,
+            companion: IfExpressionCompanionId,
+            episode_depth: usize,
+            source: &str,
+        ) {
+            assert_eq!(local.line(), LineState::default(), "line: {source:?}");
+            assert_eq!(
+                local.indentation_baseline(),
+                Some(baseline),
+                "baseline: {source:?}"
+            );
+            assert_eq!(local.stop_set(), Some(stops), "stops: {source:?}");
+            assert_eq!(
+                local.delimiter(),
+                Some(Delimiter::Parenthesis),
+                "delimiter: {source:?}"
+            );
+            assert_eq!(
+                local.expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call),
+                "expression owner: {source:?}",
+            );
+            assert_eq!(
+                local.type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call),
+                "type owner: {source:?}",
+            );
+            assert!(local.inline(), "inline: {source:?}");
+            assert!(local.ml_arg(), "ML: {source:?}");
+            assert!(local.type_ml_arg(), "type ML: {source:?}");
+            assert_eq!(
+                local.type_malformed_caller_boundary(),
+                Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+                "positional fence: {source:?}",
+            );
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                episode_depth,
+                "episode: {source:?}",
+            );
+            assert_eq!(
+                local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![scoped_frame],
+                "scoped stops: {source:?}",
+            );
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![inline, root],
+                "ambient stack: {source:?}",
+            );
+            assert_eq!(
+                local.if_expression_companion().map(|frame| frame.id()),
+                Some(companion),
+                "companion: {source:?}",
+            );
+        }
+
+        fn run(source: &str, baseline_column: usize, expected: Option<Expected<'_>>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: baseline_column,
+                kind: IndentationBaselineKind::Block,
+            };
+            let stops = StopSet::default().with(StopKind::RightBracket);
+            let scoped_stops = StopSet::default().with(StopKind::Semicolon);
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(stops);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: 1,
+            }));
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let scoped_frame = TypeExpressionScopedStopFrame {
+                stops: scoped_stops,
+                visible_episode_depth: episode_depth,
+            };
+            local.push_type_expression_scoped_stop_frame(scoped_frame);
+            let root = local.push_root_statement_ambient_scope();
+            let inline = local.push_inline_canonical_statement_ambient_scope(
+                InlineStatementOwnerKind::WithBodyTail,
+            );
+            let companion = local.push_if_expression_companion(baseline_column, IF_WORDS);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+
+            {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let checkpoint = i.checkpoint();
+                let intro = i.run(recognize_for_statement_intro);
+                match (intro, expected) {
+                    (Some(intro), Some(expected)) => {
+                        assert_eq!(intro.start, 0, "start: {source:?}");
+                        assert_eq!(
+                            intro.for_keyword.range(),
+                            expected.keyword,
+                            "keyword: {source:?}"
+                        );
+                        assert_eq!(intro.for_base, expected.for_base, "base: {source:?}");
+                        assert_eq!(
+                            i.input.remainder(),
+                            expected.remainder,
+                            "remainder: {source:?}"
+                        );
+                    }
+                    (None, None) => {
+                        assert_eq!(i.pos(), 0, "failure position: {source:?}");
+                        assert_eq!(i.input.remainder(), source, "failure remainder: {source:?}");
+                        assert_prepared_local(
+                            i.local,
+                            baseline,
+                            stops,
+                            scoped_frame,
+                            root,
+                            inline,
+                            companion,
+                            episode_depth,
+                            source,
+                        );
+                    }
+                    (actual, expected) => panic!(
+                        "For intro mismatch for {source:?}: actual={actual:?}, expected={expected:?}"
+                    ),
+                }
+
+                i.rollback(checkpoint);
+                assert_eq!(i.pos(), 0, "input position: {source:?}");
+                assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
+                assert_prepared_local(
+                    i.local,
+                    baseline,
+                    stops,
+                    scoped_frame,
+                    root,
+                    inline,
+                    companion,
+                    episode_depth,
+                    source,
+                );
+            }
+
+            assert!(expectations.take_merged().is_none(), "sink: {source:?}");
+            assert!(!is_cut, "cut: {source:?}");
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
+            assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+        }
+
+        for (source, baseline, expected) in [
+            (
+                "for",
+                0,
+                Some(Expected {
+                    keyword: 0..3,
+                    remainder: "",
+                    for_base: 0,
+                }),
+            ),
+            (
+                "for x in xs:",
+                2,
+                Some(Expected {
+                    keyword: 0..3,
+                    remainder: " x in xs:",
+                    for_base: 2,
+                }),
+            ),
+            ("forall", 2, None),
+            ("fork", 2, None),
+            ("format", 2, None),
+            ("foreign", 2, None),
+            ("my for = 1", 2, None),
+            ("our for x in xs:", 2, None),
+            ("pub for x in xs:", 2, None),
+            ("for_each", 2, None),
+            ("before", 2, None),
+            ("", 2, None),
         ] {
             run(source, baseline, expected);
         }
