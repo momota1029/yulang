@@ -2301,6 +2301,18 @@ fn standalone_impl_tail_owner_spec(owner_base: usize) -> ImplTailOwnerSpec {
     }
 }
 
+/// The isolated owner adapter reserved for a Type-attached Impl tail.
+///
+/// The baseline remains Type's declaration baseline rather than the column of
+/// the later `impl` keyword. Gate 4 supplies the first parsing caller.
+#[allow(dead_code)]
+fn type_attached_impl_tail_owner_spec(type_base: usize) -> ImplTailOwnerSpec {
+    ImplTailOwnerSpec {
+        owner: ImplTailOwner::TypeAttached,
+        owner_base: type_base,
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ImplTypeExpressionEpisodeSpec {
     stops: StopSet,
@@ -12015,6 +12027,18 @@ where
     pending
 }
 
+fn declaration_exact_impl_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_word).is_some_and(|word| word.text() == "impl");
+    i.rollback(checkpoint);
+    pending
+}
+
 fn type_declaration_rhs_candidate_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
@@ -12080,6 +12104,9 @@ enum DerivesOwnerTailClassifier {
     ActHeader,
     ActTrailing,
     TypeHeader,
+    /// Gate 3's isolated Type-header contract with attached-Impl authority.
+    /// Production remains on `TypeHeader` until the atomic Gate 6 switch.
+    TypeHeaderAttachedImpl,
     TypeTrailing,
 }
 
@@ -12090,6 +12117,7 @@ enum DerivesOwnerTail {
     ErrorBodyStarter,
     ActSourceIntroducer,
     ActBodyStarter,
+    TypeAttachedImpl,
     TypeDefinitionIntroducer,
     CallerBoundary,
 }
@@ -12151,6 +12179,21 @@ impl DerivesDriverSpec {
             )),
         }
     }
+}
+
+/// Opt-in Type Header derives spec for the isolated attached-Impl path.
+///
+/// Keeping this separate from [`DerivesDriverSpec::new`] preserves current
+/// Type production behavior until Gate 6 changes that constructor arm.
+#[allow(dead_code)]
+fn type_attached_impl_header_derives_driver_spec(owner_base: usize) -> DerivesDriverSpec {
+    let mut spec = DerivesDriverSpec::new(
+        DerivesAttachmentOwner::Type,
+        DerivesAttachmentPosition::Header,
+        owner_base,
+    );
+    spec.owner_tail_classifier = DerivesOwnerTailClassifier::TypeHeaderAttachedImpl;
+    spec
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -12238,6 +12281,7 @@ where
             .expect("the derives clause gap trivia scan is total");
         let leading = trivia.range();
         let has_physical_newline = struct_trivia_has_newline(&trivia);
+        let tail_checkpoint = i.checkpoint();
         if derives_gap_is_caller_owned(spec.owner_base, has_physical_newline, i) {
             DerivesDriverDecision::Boundary
         } else if i.input.remainder().is_empty() {
@@ -12259,7 +12303,13 @@ where
                         owner_base: spec.owner_base,
                     },
                 },
-                _ => DerivesDriverDecision::NoContinuation,
+                _ => {
+                    i.rollback(tail_checkpoint);
+                    classify_derives_owner_tail(spec.owner_tail_classifier, i).map_or(
+                        DerivesDriverDecision::NoContinuation,
+                        DerivesDriverDecision::OwnerTail,
+                    )
+                }
             }
         } else if let Some(tail) = classify_derives_owner_tail(spec.owner_tail_classifier, i) {
             DerivesDriverDecision::OwnerTail(tail)
@@ -12321,6 +12371,14 @@ fn derives_role_episode_spec(
             StopKind::Equal,
             StopKind::Semicolon,
         ] {
+            stops = stops.with(stop);
+            scoped_stops = scoped_stops.with(stop);
+        }
+    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::TypeHeaderAttachedImpl {
+        // Equality and attached Impl belong only to the outer Header RoleRef
+        // episode. Nested TypeExpression episodes retain both words as local
+        // syntax, and fresh-primary `impl` hands back a Missing RoleRef.
+        for stop in [StopKind::Equal, StopKind::Impl] {
             stops = stops.with(stop);
             scoped_stops = scoped_stops.with(stop);
         }
@@ -12387,6 +12445,14 @@ where
 {
     let checkpoint = i.checkpoint();
     let owner_tail = match classifier {
+        DerivesOwnerTailClassifier::TypeHeaderAttachedImpl if declaration_exact_impl_pending(i) => {
+            Some(DerivesOwnerTail::TypeAttachedImpl)
+        }
+        DerivesOwnerTailClassifier::TypeHeaderAttachedImpl
+            if declaration_exact_equals_pending(i) =>
+        {
+            Some(DerivesOwnerTail::TypeDefinitionIntroducer)
+        }
         DerivesOwnerTailClassifier::TypeHeader if declaration_exact_equals_pending(i) => {
             Some(DerivesOwnerTail::TypeDefinitionIntroducer)
         }
@@ -13069,6 +13135,80 @@ fn emit_derives_via_recovery<'parse, 'source, 'local, E, O>(
         RecoveryKind::Missing => committed.emit_missing(record),
         RecoveryKind::Error => committed.emit_error(record),
     }
+}
+
+/// The complete post-header priority decision reserved for Type promotion.
+///
+/// The `Existing` arm is the explicit insertion seam: a future `with:` form
+/// goes before delegation, while a future role-like body belongs inside the
+/// existing classifier after Equality and before its terminal dispositions.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum TypeDeclarationPostHeaderDecision<'source> {
+    AttachedImpl(TypeAttachedImplStart<'source>),
+    Existing(TypeDeclarationFormDisposition),
+}
+
+/// Exact attached-Impl evidence captured without consuming the Type gap.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TypeAttachedImplStart<'source> {
+    leading: TriviaRun,
+    keyword: WordSpan<'source>,
+    type_base: usize,
+}
+
+/// Judges Type's post-header form in TAI-J priority order without committing
+/// input, line state, diagnostics, or any rollback-owned local state.
+#[allow(dead_code)]
+fn classify_type_declaration_post_header<'source, E>(
+    name: &Recovered<WordSpan<'source>>,
+    type_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeDeclarationPostHeaderDecision<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let attached_impl = if matches!(name, Recovered::Complete(_)) && !any_ambient_owner_claims(i) {
+        let leading = i
+            .run(scan_trivia)
+            .expect("the maximal Type post-header gap scan is total");
+        let has_physical_newline = struct_trivia_has_newline(&leading);
+        let accepted_continuation = !has_physical_newline
+            || (i.local.line().line_indent > type_base
+                && !type_stop_is_active_in_current_episode(i, StopKind::Newline)
+                && declaration_braced_newline_owner_from_stack(has_physical_newline, i.local)
+                    .is_none());
+        if accepted_continuation {
+            i.run(scan_word)
+                .filter(|word| word.text() == "impl")
+                .map(|keyword| TypeAttachedImplStart {
+                    leading,
+                    keyword,
+                    type_base,
+                })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    i.rollback(checkpoint);
+
+    attached_impl.map_or_else(
+        || {
+            // Future `with:` is inserted immediately before this delegation;
+            // future role-like bodies are inserted inside the delegated judge
+            // after its exact Equality decision.
+            TypeDeclarationPostHeaderDecision::Existing(classify_type_declaration_form(
+                name, type_base, i,
+            ))
+        },
+        TypeDeclarationPostHeaderDecision::AttachedImpl,
+    )
 }
 
 /// The isolated nominal-versus-equality disposition after Type's shared name
@@ -32011,6 +32151,551 @@ mod tests {
                     assert_eq!(token.kind(), SyntaxKind::Identifier, "{source:?}");
                 }
             }
+        }
+    }
+
+    #[test]
+    fn type_attached_impl_header_derives_spec_hands_off_only_at_its_outer_episode() {
+        fn decide(source: &str, spec: DerivesDriverSpec) -> DerivesDriverDecision {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let decision = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let line = i.local.line();
+                let decision = drive_derives_clauses(spec, &mut i);
+                assert_eq!(i.pos(), 0, "driver position: {source:?}");
+                assert_eq!(i.input.remainder(), source, "driver remainder: {source:?}");
+                assert_eq!(i.local.line(), line, "driver line: {source:?}");
+                decision
+            };
+            assert!(
+                expectations.take_merged().is_none(),
+                "driver sink: {source:?}"
+            );
+            assert!(!is_cut, "driver cut: {source:?}");
+            decision
+        }
+
+        fn parse_after_name<'source>(
+            source: &'source str,
+        ) -> (
+            TypeDeclarationPostHeaderDecision<'source>,
+            DerivesAttachment<'source>,
+            TypeDeclarationPostHeaderDecision<'source>,
+            String,
+            bool,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (before, attachment, after) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let name = Recovered::Complete(
+                    i.run(scan_word)
+                        .expect("the hand-positioned fixture starts with a complete Type name"),
+                );
+                let before = classify_type_declaration_post_header(&name, 0, &mut i);
+                let start = recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    0,
+                    &mut i,
+                )
+                .expect("Header derives recognition precedes the post-header judge");
+                let (attachment, repeated) = parse_derives_clause_isolated(
+                    start,
+                    type_attached_impl_header_derives_driver_spec(0),
+                    &mut i,
+                );
+                assert!(repeated.is_none(), "one clause fixture: {source:?}");
+                let after = classify_type_declaration_post_header(&name, 0, &mut i);
+                (before, attachment, after)
+            };
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            assert!(local.type_expression_scoped_stop_frames().next().is_none());
+            assert!(!is_cut, "{source:?}");
+            let had_expectation = expectations.take_merged().is_some();
+            (
+                before,
+                attachment,
+                after,
+                source_input.remainder().to_owned(),
+                had_expectation,
+            )
+        }
+
+        let production = DerivesDriverSpec::new(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+        );
+        assert_eq!(
+            production.owner_tail_classifier,
+            DerivesOwnerTailClassifier::TypeHeader,
+            "Gate 3 must not switch the production Type Header spec",
+        );
+        let isolated = type_attached_impl_header_derives_driver_spec(0);
+        assert_eq!(
+            isolated.owner_tail_classifier,
+            DerivesOwnerTailClassifier::TypeHeaderAttachedImpl,
+        );
+
+        let incoming = StopSet::default().with(StopKind::RightBracket);
+        let episode = derives_role_episode_spec(isolated, incoming, 3, None);
+        for stop in [StopKind::Equal, StopKind::Impl] {
+            assert!(episode.stops.contains(stop), "outer stop: {stop:?}");
+            assert!(
+                episode.scoped_frame.stops.contains(stop),
+                "scoped stop: {stop:?}",
+            );
+        }
+        assert_eq!(episode.scoped_frame.visible_episode_depth, 4);
+        assert!(episode.stops.contains(StopKind::RightBracket));
+        assert!(
+            !episode
+                .policy
+                .fresh_primary_locally_owned_stops
+                .contains(StopKind::Impl),
+            "fresh `impl` must yield a Missing RoleRef to the Type owner",
+        );
+
+        assert_eq!(
+            decide(" impl Pick", isolated),
+            DerivesDriverDecision::OwnerTail(DerivesOwnerTail::TypeAttachedImpl),
+        );
+        assert_eq!(
+            decide(" = Int", isolated),
+            DerivesDriverDecision::OwnerTail(DerivesOwnerTail::TypeDefinitionIntroducer),
+        );
+        assert_eq!(
+            decide(" implement Pick", isolated),
+            DerivesDriverDecision::NoContinuation,
+        );
+        assert!(matches!(
+            decide(" via key", isolated),
+            DerivesDriverDecision::Via { keyword, .. } if keyword == (1..4)
+        ));
+        assert!(matches!(
+            decide(" derives Debug", isolated),
+            DerivesDriverDecision::RepeatedClause { start, .. } if start.keyword == (1..8)
+        ));
+
+        let (before, attachment, after, remainder, had_expectation) =
+            parse_after_name("T derives Eq impl Pick;");
+        assert!(matches!(
+            before,
+            TypeDeclarationPostHeaderDecision::Existing(_)
+        ));
+        assert_eq!(attachment.clause.range, 2..12);
+        assert!(matches!(
+            attachment.clause.roles.as_slice(),
+            [Recovered::Complete(role)] if role.range() == (10..12)
+        ));
+        assert!(matches!(
+            after,
+            TypeDeclarationPostHeaderDecision::AttachedImpl(TypeAttachedImplStart {
+                leading,
+                keyword,
+                type_base: 0,
+            }) if leading.range() == (12..13) && keyword.range() == (13..17)
+        ));
+        assert_eq!(remainder, " impl Pick;");
+        assert!(!had_expectation);
+
+        let (_, attachment, after, remainder, had_expectation) =
+            parse_after_name("T derives (Eq impl Pick) impl Outer;");
+        assert!(matches!(
+            attachment.clause.roles.as_slice(),
+            [Recovered::Complete(role)] if role.range() == (10..24)
+        ));
+        assert!(matches!(
+            after,
+            TypeDeclarationPostHeaderDecision::AttachedImpl(TypeAttachedImplStart {
+                keyword,
+                ..
+            }) if keyword.range() == (25..29)
+        ));
+        assert_eq!(remainder, " impl Outer;");
+        assert!(!had_expectation, "nested `impl` remains RoleRef-owned");
+
+        let (_, attachment, after, remainder, had_expectation) =
+            parse_after_name("T derives impl Pick;");
+        assert!(matches!(
+            attachment.clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
+        assert!(matches!(
+            after,
+            TypeDeclarationPostHeaderDecision::AttachedImpl(TypeAttachedImplStart {
+                leading,
+                keyword,
+                ..
+            }) if leading.range() == (10..10) && keyword.range() == (10..14)
+        ));
+        assert_eq!(remainder, "impl Pick;");
+        assert!(
+            !had_expectation,
+            "the AST probe remains sink-free; direct commit below owns the Missing record",
+        );
+
+        let (_, attachment, after, remainder, had_expectation) =
+            parse_after_name("T derives Eq = Int");
+        assert!(matches!(
+            attachment.clause.roles.as_slice(),
+            [Recovered::Complete(role)] if role.range() == (10..12)
+        ));
+        assert_eq!(
+            after,
+            TypeDeclarationPostHeaderDecision::Existing(TypeDeclarationFormDisposition::Equality,),
+        );
+        assert_eq!(remainder, " = Int");
+        assert!(!had_expectation);
+
+        let source = "T derives impl Pick;";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut probe = Probe::new(i);
+        probe
+            .input()
+            .run(scan_word)
+            .expect("direct fixture consumes only its hand-positioned name");
+        let start = recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+            probe.input(),
+        )
+        .expect("direct fixture recognizes Header derives");
+        let mut committed = probe.commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        let (direct, repeated) = commit_derives_clause_isolated(start, isolated, &mut committed);
+        assert!(repeated.is_none());
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(matches!(
+            direct.clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
+        assert_eq!(source_input.remainder(), "impl Pick;");
+        assert_eq!(output.committed_recoveries().len(), 1);
+        assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            output.committed_recoveries()[0].site,
+            RecoverySiteKey {
+                role: GrammarRole::Declaration(DeclarationRole::Derives(
+                    DerivesRole::RoleReference,
+                )),
+                range: 10..10,
+            },
+        );
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+        assert_eq!(local.type_expression_episode_depth(), 0);
+    }
+
+    #[test]
+    fn type_attached_impl_post_header_judge_is_exact_layout_fenced_and_rollback_total() {
+        const IMPL_WORD: &[&str] = &["impl"];
+
+        #[derive(Clone, Copy)]
+        enum Ambient {
+            None,
+            IfCompanion,
+            BracedStatementSequence,
+        }
+
+        fn run(
+            source: &str,
+            ambient: Ambient,
+            expected_attached: Option<(Range<usize>, Range<usize>)>,
+            expected_existing: Option<TypeDeclarationFormDisposition>,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            };
+            let stops = StopSet::default().with(StopKind::RightBracket);
+            let scoped_frame = TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: 1,
+            };
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(stops);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: 0,
+            }));
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            assert_eq!(episode_depth, 1);
+            local.push_type_expression_scoped_stop_frame(scoped_frame);
+            let root = local.push_root_statement_ambient_scope();
+            let ambient_scope = match ambient {
+                Ambient::BracedStatementSequence => Some(local.push_braced_ambient_owner_barrier(
+                    BracedBarrierOrigin::BracedStatementBlockExpression,
+                )),
+                Ambient::None | Ambient::IfCompanion => None,
+            };
+            let companion = match ambient {
+                Ambient::IfCompanion => Some(local.push_if_expression_companion(0, IMPL_WORD)),
+                Ambient::None | Ambient::BracedStatementSequence => None,
+            };
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+
+            {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let name = Recovered::Complete(
+                    i.run(scan_word)
+                        .expect("the hand-positioned fixture begins with its complete Type name"),
+                );
+                let pos = i.pos();
+                let remainder = i.input.remainder().to_owned();
+                let line = i.local.line();
+                let ambient_stack = i
+                    .local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>();
+                let scoped_stops = i
+                    .local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect::<Vec<_>>();
+                let companion_id = i.local.if_expression_companion().map(|frame| frame.id());
+
+                let decision = classify_type_declaration_post_header(&name, 0, &mut i);
+                match (decision, expected_attached, expected_existing) {
+                    (
+                        TypeDeclarationPostHeaderDecision::AttachedImpl(start),
+                        Some((leading, keyword)),
+                        None,
+                    ) => {
+                        assert_eq!(start.leading.range(), leading, "leading: {source:?}");
+                        assert_eq!(start.keyword.range(), keyword, "keyword: {source:?}");
+                        assert_eq!(start.keyword.text(), "impl", "keyword text: {source:?}");
+                        assert_eq!(start.type_base, 0, "type base: {source:?}");
+                    }
+                    (TypeDeclarationPostHeaderDecision::Existing(actual), None, Some(expected)) => {
+                        assert_eq!(actual, expected, "existing fallback: {source:?}")
+                    }
+                    (TypeDeclarationPostHeaderDecision::Existing(_), None, None) => {}
+                    (actual, attached, existing) => panic!(
+                        "post-header mismatch for {source:?}: actual={actual:?}, attached={attached:?}, existing={existing:?}"
+                    ),
+                }
+
+                assert_eq!(i.pos(), pos, "input position: {source:?}");
+                assert_eq!(
+                    i.input.remainder(),
+                    remainder,
+                    "input remainder: {source:?}"
+                );
+                assert_eq!(i.local.line(), line, "line state: {source:?}");
+                assert_eq!(i.local.indentation_baseline(), Some(baseline));
+                assert_eq!(i.local.stop_set(), Some(stops));
+                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis));
+                assert_eq!(
+                    i.local.expression_delimited_owner(),
+                    Some(ExpressionDelimitedOwner::Call),
+                );
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call)
+                );
+                assert!(i.local.inline());
+                assert!(i.local.ml_arg());
+                assert!(i.local.type_ml_arg());
+                assert_eq!(
+                    i.local.type_malformed_caller_boundary(),
+                    Some(TypeMalformedCallerBoundaryFence { trivia_start: 0 }),
+                );
+                assert_eq!(i.local.type_expression_episode_depth(), episode_depth);
+                assert_eq!(
+                    i.local
+                        .type_expression_scoped_stop_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
+                    scoped_stops,
+                );
+                assert_eq!(
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
+                    ambient_stack,
+                );
+                assert_eq!(
+                    i.local.if_expression_companion().map(|frame| frame.id()),
+                    companion_id,
+                );
+            }
+
+            assert!(expectations.take_merged().is_none(), "sink: {source:?}");
+            assert!(!is_cut, "cut: {source:?}");
+            if let Some(companion) = companion {
+                assert_eq!(
+                    local.pop_if_expression_companion().map(|frame| frame.id()),
+                    Some(companion),
+                );
+            }
+            if let Some(ambient_scope) = ambient_scope {
+                assert_eq!(local.pop_ambient_owner_scope(), Some(ambient_scope));
+            }
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame),
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default()),
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call),
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call),
+            );
+            assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+        }
+
+        run("T impl Pick;", Ambient::None, Some((1..2, 2..6)), None);
+        run("T\n  impl Pick;", Ambient::None, Some((1..4, 4..8)), None);
+        run(
+            "T\nimpl Pick;",
+            Ambient::None,
+            None,
+            Some(TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 1,
+            }),
+        );
+        run(
+            "T impl Pick;",
+            Ambient::IfCompanion,
+            None,
+            Some(TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 1,
+            }),
+        );
+        run(
+            "T\n  impl Pick;",
+            Ambient::BracedStatementSequence,
+            None,
+            Some(TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 1,
+            }),
+        );
+        for source in [
+            "T implement Pick;",
+            "T implish Pick;",
+            "T implementation Pick;",
+            "T my_impl Pick;",
+        ] {
+            run(source, Ambient::None, None, None);
+        }
+        run(
+            "T = Int",
+            Ambient::None,
+            None,
+            Some(TypeDeclarationFormDisposition::Equality),
+        );
+
+        for (source, expected) in [
+            (" impl Pick;", TypeDeclarationFormDisposition::Incomplete),
+            (" = Int", TypeDeclarationFormDisposition::EqualityRecovery),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let line = i.local.line();
+                assert_eq!(
+                    classify_type_declaration_post_header(&Recovered::Incomplete, 0, &mut i),
+                    TypeDeclarationPostHeaderDecision::Existing(expected),
+                    "{source:?}",
+                );
+                assert_eq!(i.pos(), 0, "{source:?}");
+                assert_eq!(i.input.remainder(), source, "{source:?}");
+                assert_eq!(i.local.line(), line, "{source:?}");
+            }
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn type_attached_impl_tail_owner_selects_type_recovery_without_forking_episode_rules() {
+        let standalone = standalone_impl_tail_owner_spec(3);
+        let attached = type_attached_impl_tail_owner_spec(3);
+        assert_eq!(standalone.owner, ImplTailOwner::Standalone);
+        assert_eq!(attached.owner, ImplTailOwner::TypeAttached);
+        assert_eq!(attached.owner_base, 3);
+
+        for (slot, role) in [
+            (ImplTypeExpressionSlot::Head, ImplRole::Head),
+            (ImplTypeExpressionSlot::Description, ImplRole::Description),
+        ] {
+            let incoming = StopSet::default().with(StopKind::RightBracket);
+            let standalone_episode =
+                impl_type_expression_episode_spec(standalone, slot, incoming, 4);
+            let attached_episode = impl_type_expression_episode_spec(attached, slot, incoming, 4);
+            assert_eq!(attached_episode.stops, standalone_episode.stops);
+            assert_eq!(
+                attached_episode.scoped_frame,
+                standalone_episode.scoped_frame
+            );
+            assert_eq!(attached_episode.policy, standalone_episode.policy);
+            assert_eq!(
+                attached_episode.outer_role,
+                GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::AttachedImpl(
+                    role
+                ),)),
+            );
         }
     }
 
