@@ -14,15 +14,16 @@ use crate::{
     BindingPower as HeaderBindingPower, BindingPowers, HeaderImport, HeaderImportForm,
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
     grammar::expression::{
-        BracedStatementBlockExpression, IndentedStatementBlock, OperatorChain, ParsedExpression,
-        Statement, commit_braced_statement_block_expression, commit_canonical_statement,
-        commit_indented_act_body, commit_indented_binding_body, commit_indented_cast_body,
-        commit_indented_impl_body, commit_indented_mod_body, commit_indented_role_body,
+        BracedStatementBlockExpression, IndentedStatementBlock, IntroducedBodyLayout,
+        OperatorChain, ParsedExpression, Statement, commit_braced_statement_block_expression,
+        commit_canonical_statement, commit_indented_act_body, commit_indented_binding_body,
+        commit_indented_cast_body, commit_indented_for_body, commit_indented_impl_body,
+        commit_indented_mod_body, commit_indented_role_body,
         parse_braced_statement_block_expression, parse_canonical_statement,
         parse_direct_expression_with_operators, parse_expression_with_operators,
         parse_indented_act_body, parse_indented_binding_body, parse_indented_cast_body,
-        parse_indented_impl_body, parse_indented_mod_body, parse_indented_role_body,
-        probe_apostrophe_sigil_word,
+        parse_indented_for_body, parse_indented_impl_body, parse_indented_mod_body,
+        parse_indented_role_body, probe_apostrophe_sigil_word, recognize_introduced_body_layout,
     },
     grammar::{
         pattern::{
@@ -1669,6 +1670,271 @@ fn emit_for_missing<'parse, 'source, 'local, E, O>(
         )
     });
     committed.emit_missing(record);
+}
+
+/// Parses one accepted For continuation without making For reachable from the
+/// public statement dispatcher.  The body adapter owns only For's local
+/// punctuation and returns every outer separator and boundary untouched.
+#[allow(dead_code)]
+pub(crate) fn parse_for_statement_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<ForStatement<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    let statement = (|| {
+        let intro = i.run(recognize_for_statement_intro)?;
+        let Some(_) = for_continuation_trivia(intro.for_base, &mut i) else {
+            return Some(ForStatement {
+                label: None,
+                pattern: Recovered::Incomplete,
+                in_keyword: Recovered::Incomplete,
+                iterable: Recovered::Incomplete,
+                body: Recovered::Incomplete,
+                range: intro.start..i.pos(),
+            });
+        };
+        let label = probe_for_label(intro.for_base, &mut i);
+        if label.is_some() {
+            let _ = for_continuation_trivia(intro.for_base, &mut i)
+                .expect("an accepted For label has a following continuation gap");
+        }
+        let pattern = parse_required_for_pattern_isolated(table, &mut i);
+        let header_truncated =
+            matches!(pattern, Recovered::Incomplete) && for_header_truncation_pending(&mut i);
+        let (in_keyword, iterable) = if header_truncated {
+            (Recovered::Incomplete, Recovered::Incomplete)
+        } else {
+            parse_for_in_and_iterable_isolated(table, &mut i)
+        };
+        let body = parse_for_body_isolated(table, intro.for_base, &mut i);
+        let end = i.pos();
+        Some(ForStatement {
+            label,
+            pattern,
+            in_keyword,
+            iterable,
+            body,
+            range: intro.start..end,
+        })
+    })();
+    i.errors_rollback(errors_checkpoint);
+    statement
+}
+
+fn parse_for_body_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    for_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<ForBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return Recovered::Incomplete;
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = for_continuation_trivia(for_base, i) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    };
+    match punctuation.kind() {
+        PunctuationKind::Open(Delimiter::Brace) => Recovered::Complete(ForBody::Braced {
+            block: parse_braced_statement_block_expression(table, punctuation.range(), i),
+        }),
+        PunctuationKind::Colon => {
+            let colon = punctuation.range();
+            let body = match recognize_introduced_body_layout(for_base, i) {
+                IntroducedBodyLayout::Inline { .. } => i
+                    .run(from_fn(|i| parse_expression_with_operators(table, i)))
+                    .map(|expression| ForColonBody::Inline { expression })
+                    .map_or(Recovered::Incomplete, Recovered::Complete),
+                IntroducedBodyLayout::Indented {
+                    opening_trivia,
+                    block_indent,
+                } => Recovered::Complete(ForColonBody::Indented {
+                    block: parse_indented_for_body(
+                        table,
+                        opening_trivia,
+                        for_base,
+                        block_indent,
+                        i,
+                    ),
+                }),
+                IntroducedBodyLayout::WrongIndent => Recovered::Incomplete,
+            };
+            Recovered::Complete(ForBody::Colon { colon, body })
+        }
+        _ => {
+            i.rollback(checkpoint);
+            Recovered::Incomplete
+        }
+    }
+}
+
+/// Direct-CST counterpart of [`parse_for_statement_isolated`].  Gate 9 will
+/// promote this exact adapter; until then no public dispatch reaches it.
+#[allow(dead_code)]
+pub(crate) fn commit_for_statement_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: ForStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
+    committed.start_node(SyntaxKind::ForStatement);
+    committed.token(SyntaxKind::ForKw, intro.for_keyword.range());
+    let header_gap =
+        committed.probe(|probe| for_continuation_trivia(intro.for_base, probe.input()));
+    let Some(header_gap) = header_gap else {
+        emit_for_missing(
+            committed,
+            ForStatementRole::Pattern,
+            ExpectedSyntax::Expression,
+        );
+        let end = committed_position(committed);
+        committed.finish_node();
+        committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+        return Recovered::Complete(intro.start..end);
+    };
+    committed.emit_trivia(&header_gap);
+    let label = committed.probe(|probe| probe_for_label(intro.for_base, probe.input()));
+    if let Some(label) = label {
+        committed.start_node(SyntaxKind::ForLabel);
+        committed.token(SyntaxKind::SigilIdentifier, label.range.clone());
+        committed.finish_node();
+        let gap = committed
+            .probe(|probe| for_continuation_trivia(intro.for_base, probe.input()))
+            .expect("an accepted For label has a following continuation gap");
+        committed.emit_trivia(&gap);
+    }
+    let pattern = commit_required_for_pattern_isolated(table, committed);
+    let header_truncated = !pattern.is_complete()
+        && committed.probe(|probe| for_header_truncation_pending(probe.input()));
+    if !header_truncated {
+        let _ = commit_for_in_and_iterable_isolated(table, committed);
+    }
+    commit_for_body_isolated(table, intro.for_base, committed);
+    let end = committed_position(committed);
+    committed.finish_node();
+    committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+    Recovered::Complete(intro.start..end)
+}
+
+fn commit_for_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    for_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let starter = committed.probe(|probe| {
+        let i = probe.input();
+        if any_ambient_owner_claims(i) {
+            return None;
+        }
+        let checkpoint = i.checkpoint();
+        let starter = for_continuation_trivia(for_base, i).and_then(|trivia| {
+            let punctuation = i.run(scan_punctuation)?;
+            matches!(
+                punctuation.kind(),
+                PunctuationKind::Colon | PunctuationKind::Open(Delimiter::Brace)
+            )
+            .then_some((trivia, punctuation))
+        });
+        i.rollback(checkpoint);
+        starter
+    });
+    let Some((trivia, starter)) = starter else {
+        if !committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            emit_for_missing(
+                committed,
+                ForStatementRole::BodyIntroducer,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+            );
+        }
+        return;
+    };
+    let gap = committed
+        .probe(|probe| for_continuation_trivia(for_base, probe.input()))
+        .expect("the accepted For body starter leaves its leading gap at the cursor");
+    assert_eq!(gap.range(), trivia.range());
+    committed.emit_trivia(&gap);
+    let punctuation = committed
+        .probe(|probe| probe.input().run(scan_punctuation))
+        .expect("the accepted For body starter remains at the cursor");
+    assert_eq!(punctuation.range(), starter.range());
+    match punctuation.kind() {
+        PunctuationKind::Open(Delimiter::Brace) => {
+            commit_braced_statement_block_expression(table, punctuation.range(), committed);
+        }
+        PunctuationKind::Colon => {
+            committed.token(SyntaxKind::Colon, punctuation.range());
+            commit_for_colon_body_isolated(table, for_base, committed);
+        }
+        _ => unreachable!("For body starter was classified from colon or brace only"),
+    }
+}
+
+fn commit_for_colon_body_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    for_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    match committed.probe(|probe| recognize_introduced_body_layout(for_base, probe.input())) {
+        IntroducedBodyLayout::Inline { trivia } => {
+            committed.emit_trivia(&trivia);
+            let leading = (!trivia.is_empty())
+                .then_some(LeadingTrivia::Present)
+                .unwrap_or(LeadingTrivia::None);
+            if parse_direct_expression_with_operators(table, leading, committed).is_none() {
+                emit_for_missing(
+                    committed,
+                    ForStatementRole::Body,
+                    ExpectedSyntax::Expression,
+                );
+            }
+        }
+        IntroducedBodyLayout::Indented {
+            opening_trivia,
+            block_indent,
+        } => commit_indented_for_body(table, opening_trivia, for_base, block_indent, committed),
+        IntroducedBodyLayout::WrongIndent => {
+            emit_for_missing(committed, ForStatementRole::Body, ExpectedSyntax::Statement);
+        }
+    }
+}
+
+fn for_continuation_trivia<E>(for_base: usize, i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    mod_trivia(for_base, i)
 }
 
 /// Recognizes the sink-free prefix reserved for a standalone Impl declaration.
@@ -38609,6 +38875,209 @@ mod tests {
         assert!(!recoveries.iter().any(|(_, role, _)| {
             *role == GrammarRole::ForStatement(ForStatementRole::Iterable)
         }));
+    }
+
+    #[test]
+    fn isolated_for_body_adapter_selects_all_forms_and_restores_state() {
+        fn parse_ast<'source>(source: &'source str) -> (ForStatement<'source>, String) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            };
+            let stops = StopSet::default().with(StopKind::RightParenthesis);
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(stops);
+            let root = local.push_root_statement_ambient_scope();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let statement = parse_for_statement_isolated(
+                &crate::operator::OperatorTable::empty(),
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("the isolated For intro establishes authority");
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![root]
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+            assert_eq!(local.delimiter(), None);
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!cut, "AST cut: {source:?}");
+            (statement, input.remainder().to_owned())
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (
+            Range<usize>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            };
+            let stops = StopSet::default().with(StopKind::RightParenthesis);
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(stops);
+            let root = local.push_root_statement_ambient_scope();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_for_statement_intro)
+                .expect("the isolated For intro establishes authority");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = match commit_for_statement_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            ) {
+                Recovered::Complete(range) => range,
+                Recovered::Incomplete => panic!("accepted For continuation stays complete"),
+            };
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            if !remainder.is_empty() {
+                let start = committed.probe(|probe| probe.input().pos());
+                committed.token(SyntaxKind::Unknown, start..source.len());
+            }
+            committed.finish_node();
+            let output = committed.into_output();
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![root]
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+            assert_eq!(local.delimiter(), None);
+            assert!(sink.take_merged().is_none(), "direct sink: {source:?}");
+            let recoveries = output.committed_recoveries().to_vec();
+            let green = output.finish_complete();
+            assert_eq!(green.to_string(), source, "lossless: {source:?}");
+            (range, remainder, SyntaxNode::new_root(green), recoveries)
+        }
+
+        for (source, body, range) in [
+            ("for x in xs: x", "inline", 0..14),
+            ("for x in xs:\n  x", "indented", 0..16),
+            ("for x in xs { x }", "braced", 0..17),
+            ("for 'outer x in xs:\n  x", "labelled", 0..23),
+        ] {
+            let (statement, ast_remainder) = parse_ast(source);
+            assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
+            assert_eq!(statement.range(), range, "AST range: {source:?}");
+            match (body, statement.body) {
+                (
+                    "inline",
+                    Recovered::Complete(ForBody::Colon {
+                        body: Recovered::Complete(ForColonBody::Inline { expression }),
+                        ..
+                    }),
+                ) => {
+                    assert_eq!(expression.range(), 13..14);
+                }
+                (
+                    "indented" | "labelled",
+                    Recovered::Complete(ForBody::Colon {
+                        body: Recovered::Complete(ForColonBody::Indented { block }),
+                        ..
+                    }),
+                ) => {
+                    assert_eq!(block.range(), source.len() - 4..source.len());
+                }
+                ("braced", Recovered::Complete(ForBody::Braced { block })) => {
+                    assert_eq!(block.range(), 12..17);
+                }
+                (_, actual) => panic!("For body form mismatch for {source:?}: {actual:?}"),
+            }
+
+            let (direct_range, direct_remainder, root, recoveries) = commit_direct(source);
+            assert_eq!(direct_range, range, "direct range: {source:?}");
+            assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
+            assert!(recoveries.is_empty(), "valid direct recoveries: {source:?}");
+            let for_node = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::ForStatement)
+                .expect("one ForStatement node");
+            assert!(
+                for_node
+                    .children()
+                    .any(|node| node.kind() == SyntaxKind::ForIterable)
+            );
+            match body {
+                "inline" => assert!(
+                    for_node
+                        .children()
+                        .any(|node| node.kind() == SyntaxKind::OperatorChain)
+                ),
+                "indented" | "labelled" => assert!(
+                    for_node
+                        .children()
+                        .any(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+                ),
+                "braced" => assert!(
+                    for_node
+                        .children()
+                        .any(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+                ),
+                _ => unreachable!(),
+            }
+            if body == "labelled" {
+                assert!(
+                    for_node
+                        .children()
+                        .any(|node| node.kind() == SyntaxKind::ForLabel)
+                );
+            }
+        }
+
+        let source = "for x in xs:\ny";
+        let (statement, remainder) = parse_ast(source);
+        assert_eq!(remainder, "\ny", "shallow body gap is outer-owned");
+        assert_eq!(statement.range(), 0..12);
+        assert!(matches!(
+            statement.body,
+            Recovered::Complete(ForBody::Colon {
+                body: Recovered::Incomplete,
+                ..
+            })
+        ));
+        let (range, remainder, _, recoveries) = commit_direct(source);
+        assert_eq!(range, 0..12);
+        assert_eq!(remainder, "\ny", "direct shallow body gap is outer-owned");
+        assert_eq!(
+            recoveries
+                .iter()
+                .filter(|record| record.kind == RecoveryKind::Missing)
+                .map(|record| (record.site.role, record.site.range.clone()))
+                .collect::<Vec<_>>(),
+            vec![(GrammarRole::ForStatement(ForStatementRole::Body), 12..12)],
+        );
+
+        let (statement, remainder) = parse_ast("for x in xs: x;");
+        assert_eq!(remainder, ";", "inline semicolon is outer-owned");
+        assert_eq!(statement.range(), 0..14);
+        let (range, remainder, _, recoveries) = commit_direct("for x in xs: x;");
+        assert_eq!(range, 0..14);
+        assert_eq!(remainder, ";", "direct inline semicolon is outer-owned");
+        assert!(recoveries.is_empty());
     }
 
     #[test]

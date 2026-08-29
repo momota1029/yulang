@@ -37,12 +37,12 @@ use crate::{
         ActDeclarationRole, AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin,
         BracedStatementBlockRole, CaseLikeRole, CastRole, ColonApplicationRole, CommitOutput,
         Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
-        ExpectationSources, ExpectedSyntax, ExpressionDelimitedOwner, ExpressionRole, GrammarRole,
-        IfExpressionCompanionId, IfExpressionRole, IndentationBaseline, IndentationBaselineKind,
-        InlineStatementOwnerKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, Probe,
-        RecoveryKind, RecoverySiteKey, RoleDeclarationRole, StopKind, StopSet, SynIn,
-        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax, WithBodyRole,
-        any_ambient_owner_claims, if_continuation_owner,
+        ExpectationSources, ExpectedSyntax, ExpressionDelimitedOwner, ExpressionRole,
+        ForStatementRole, GrammarRole, IfExpressionCompanionId, IfExpressionRole,
+        IndentationBaseline, IndentationBaselineKind, InlineStatementOwnerKind,
+        LayoutDelimitedBoundary, LayoutDelimitedFrame, Probe, RecoveryKind, RecoverySiteKey,
+        RoleDeclarationRole, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax, WithBodyRole, any_ambient_owner_claims, if_continuation_owner,
     },
     syntax_kind::SyntaxKind,
 };
@@ -1829,7 +1829,7 @@ struct WithBodyRecognition<'source> {
     keyword: WordSpan<'source>,
     introducer_trivia: TriviaRun,
     colon: Option<Range<usize>>,
-    layout: Option<ArmBodyLayout>,
+    layout: Option<IntroducedBodyLayout>,
     base_indent: usize,
 }
 
@@ -1898,15 +1898,17 @@ where
         .colon
         .clone()
         .map_or(Recovered::Incomplete, Recovered::Complete);
-    let inline_layout = matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }));
-    let inline_scope =
-        matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }) | None).then(|| {
-            i.local.push_inline_canonical_statement_ambient_scope(
-                InlineStatementOwnerKind::WithBodyTail,
-            )
-        });
+    let inline_layout = matches!(&with.layout, Some(IntroducedBodyLayout::Inline { .. }));
+    let inline_scope = matches!(
+        &with.layout,
+        Some(IntroducedBodyLayout::Inline { .. }) | None
+    )
+    .then(|| {
+        i.local
+            .push_inline_canonical_statement_ambient_scope(InlineStatementOwnerKind::WithBodyTail)
+    });
     let body = match with.layout {
-        Some(ArmBodyLayout::Indented {
+        Some(IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         }) => Recovered::Complete(WithBody::Indented {
@@ -1919,14 +1921,14 @@ where
                 i,
             ),
         }),
-        Some(ArmBodyLayout::Inline { .. }) | None => parse_with_inline_statement(table, i)
+        Some(IntroducedBodyLayout::Inline { .. }) | None => parse_with_inline_statement(table, i)
             .map(|statement| {
                 Recovered::Complete(WithBody::Inline {
                     statement: Box::new(statement),
                 })
             })
             .unwrap_or(Recovered::Incomplete),
-        Some(ArmBodyLayout::WrongIndent) => Recovered::Incomplete,
+        Some(IntroducedBodyLayout::WrongIndent) => Recovered::Incomplete,
     };
     let mut terminal_semicolon_end = None;
     if matches!(body, Recovered::Complete(_)) || (with.colon.is_some() && inline_layout) {
@@ -2159,8 +2161,10 @@ where
         })
     );
     let rhs = match recognize_introduced_body_layout(base_indent, &mut i) {
-        ArmBodyLayout::Inline { trivia } => ColonApplicationRhsRecognition::Inline { trivia },
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Inline { trivia } => {
+            ColonApplicationRhsRecognition::Inline { trivia }
+        }
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => ColonApplicationRhsRecognition::Indented {
@@ -2168,7 +2172,7 @@ where
             base_indent,
             block_indent,
         },
-        ArmBodyLayout::WrongIndent => ColonApplicationRhsRecognition::WrongIndent,
+        IntroducedBodyLayout::WrongIndent => ColonApplicationRhsRecognition::WrongIndent,
     };
     Some(ColonApplicationRecognition {
         leading,
@@ -2534,8 +2538,10 @@ where
 {
     let layout = recognize_introduced_body_layout(base_indent, i);
     let (layout_kind, policy) = match layout {
-        ArmBodyLayout::Inline { .. } => (ColonArmLayout::Inline, ArmSequencePolicy::CaseInline),
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Inline { .. } => {
+            (ColonArmLayout::Inline, ArmSequencePolicy::CaseInline)
+        }
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => {
@@ -2552,7 +2558,7 @@ where
                 },
             )
         }
-        ArmBodyLayout::WrongIndent => {
+        IntroducedBodyLayout::WrongIndent => {
             return CaseBlock {
                 colon: Recovered::Complete(colon.clone()),
                 arms: Recovered::Incomplete,
@@ -2584,10 +2590,10 @@ where
 {
     let layout = recognize_introduced_body_layout(base_indent, i);
     let (layout_kind, policy) = match layout {
-        ArmBodyLayout::Inline { .. } => {
+        IntroducedBodyLayout::Inline { .. } => {
             (ColonArmLayout::Inline, ArmSequencePolicy::CatchInlineSingle)
         }
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => {
@@ -2604,7 +2610,7 @@ where
                 },
             )
         }
-        ArmBodyLayout::WrongIndent => {
+        IntroducedBodyLayout::WrongIndent => {
             return CatchBlock::Colon {
                 colon: Recovered::Complete(colon.clone()),
                 arms: Recovered::Incomplete,
@@ -2968,11 +2974,11 @@ where
     i.local.push_stop_set(stops);
     let base_indent = i.local.line().line_indent;
     let body = match recognize_introduced_body_layout(base_indent, i) {
-        ArmBodyLayout::Inline { .. } => i
+        IntroducedBodyLayout::Inline { .. } => i
             .run(from_fn(|i| parse_operator_chain(table, i)))
             .map(|value| Recovered::Complete(ArmBody::Inline(Box::new(value))))
             .unwrap_or(Recovered::Incomplete),
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => Recovered::Complete(ArmBody::Indented(parse_indented_statement_block(
@@ -2982,7 +2988,7 @@ where
             block_indent,
             i,
         ))),
-        ArmBodyLayout::WrongIndent => Recovered::Incomplete,
+        IntroducedBodyLayout::WrongIndent => Recovered::Incomplete,
     };
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     pop_arm_body_baseline(baseline, i);
@@ -3137,7 +3143,7 @@ where
 {
     let layout = recognize_introduced_body_layout(base_indent, i);
     let rhs = match layout {
-        ArmBodyLayout::Inline { trivia: _ } => {
+        IntroducedBodyLayout::Inline { trivia: _ } => {
             let stop_set = active_stop_set(i)
                 .with(StopKind::Elsif)
                 .with(StopKind::Else);
@@ -3148,7 +3154,7 @@ where
                 .map(|chain| ArmBodyRhs::Inline(Box::new(chain)))
                 .map_or(Recovered::Incomplete, Recovered::Complete)
         }
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => Recovered::Complete(ArmBodyRhs::Indented(
@@ -3161,7 +3167,7 @@ where
                 i,
             ),
         )),
-        ArmBodyLayout::WrongIndent => Recovered::Incomplete,
+        IntroducedBodyLayout::WrongIndent => Recovered::Incomplete,
     };
     let end = match &rhs {
         Recovered::Complete(ArmBodyRhs::Inline(chain)) => chain.range.end,
@@ -3176,7 +3182,7 @@ where
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum ArmBodyLayout {
+pub(crate) enum IntroducedBodyLayout {
     Inline {
         trivia: TriviaRun,
     },
@@ -3188,10 +3194,10 @@ enum ArmBodyLayout {
 }
 
 /// Classifies a body after its owner has already consumed an introducer.
-fn recognize_introduced_body_layout<'source, E>(
+pub(crate) fn recognize_introduced_body_layout<'source, E>(
     base_indent: usize,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> ArmBodyLayout
+) -> IntroducedBodyLayout
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3200,17 +3206,17 @@ where
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i).expect("trivia scanning is total");
     if !trivia_has_physical_newline(&trivia) {
-        return ArmBodyLayout::Inline { trivia };
+        return IntroducedBodyLayout::Inline { trivia };
     }
     let block_indent = i.local.line().line_indent;
     if block_indent > base_indent {
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Indented {
             opening_trivia: trivia,
             block_indent,
         }
     } else {
         i.rollback(checkpoint);
-        ArmBodyLayout::WrongIndent
+        IntroducedBodyLayout::WrongIndent
     }
 }
 
@@ -4434,7 +4440,7 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
     };
     committed.token(SyntaxKind::Colon, colon);
     match with.layout.expect("a consumed colon has body layout") {
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => commit_indented_statement_block_with_options(
@@ -4445,7 +4451,7 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
             IndentedStatementBlockOptions::with_body(),
             committed,
         ),
-        ArmBodyLayout::Inline { trivia } => {
+        IntroducedBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
             let ambient_scope = committed.probe(|probe| {
                 probe
@@ -4477,7 +4483,7 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
                 );
             });
         }
-        ArmBodyLayout::WrongIndent => {
+        IntroducedBodyLayout::WrongIndent => {
             emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement)
         }
     }
@@ -4849,6 +4855,35 @@ where
             statement_role: Some(GrammarRole::Declaration(DeclarationRole::Act(
                 ActDeclarationRole::IndentedStatement,
             ))),
+        },
+        i,
+    )
+}
+
+/// Reuses the canonical indented statement sequence while preserving For's
+/// statement-item recovery identity.
+pub(crate) fn parse_indented_for_body<'source, E>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndentedStatementBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            stops_for_if_companion: false,
+            statement_role: Some(GrammarRole::ForStatement(
+                ForStatementRole::IndentedStatement,
+            )),
         },
         i,
     )
@@ -5481,6 +5516,34 @@ pub(crate) fn commit_indented_act_body<'parse, 'source, 'local, E, O>(
             statement_role: Some(GrammarRole::Declaration(DeclarationRole::Act(
                 ActDeclarationRole::IndentedStatement,
             ))),
+        },
+        committed,
+    );
+}
+
+/// Direct-CST counterpart of [`parse_indented_for_body`].
+pub(crate) fn commit_indented_for_body<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            stops_for_if_companion: false,
+            statement_role: Some(GrammarRole::ForStatement(
+                ForStatementRole::IndentedStatement,
+            )),
         },
         committed,
     );
@@ -6183,11 +6246,11 @@ fn commit_case_like_expression<'parse, 'source, 'local, E, O>(
         let layout =
             committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
         let policy = match layout {
-            ArmBodyLayout::Inline { trivia } => {
+            IntroducedBodyLayout::Inline { trivia } => {
                 committed.emit_trivia(&trivia);
                 family.inline_policy()
             }
-            ArmBodyLayout::Indented {
+            IntroducedBodyLayout::Indented {
                 opening_trivia,
                 block_indent,
             } => {
@@ -6198,7 +6261,7 @@ fn commit_case_like_expression<'parse, 'source, 'local, E, O>(
                     arm_indent: block_indent,
                 }
             }
-            ArmBodyLayout::WrongIndent => {
+            IntroducedBodyLayout::WrongIndent => {
                 emit_case_like_missing(committed, CaseLikeRole::Arm, ExpectedSyntax::Pattern);
                 committed.finish_node();
                 committed.finish_node();
@@ -6544,7 +6607,7 @@ fn commit_arm_body<'parse, 'source, 'local, E, O>(
     let baseline = committed.probe(|probe| push_arm_body_baseline(policy, probe.input()));
     let base_indent = committed.probe(|probe| probe.input().local.line().line_indent);
     match committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input())) {
-        ArmBodyLayout::Inline { trivia } => {
+        IntroducedBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
             let stops =
                 committed.probe(|probe| arm_body_stop(policy, active_stop_set(probe.input())));
@@ -6554,7 +6617,7 @@ fn commit_arm_body<'parse, 'source, 'local, E, O>(
             }
             committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
         }
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => commit_indented_statement_block(
@@ -6564,7 +6627,7 @@ fn commit_arm_body<'parse, 'source, 'local, E, O>(
             block_indent,
             committed,
         ),
-        ArmBodyLayout::WrongIndent => {
+        IntroducedBodyLayout::WrongIndent => {
             emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression)
         }
     }
@@ -6892,7 +6955,7 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
     let layout =
         committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
     match layout {
-        ArmBodyLayout::Inline { trivia } => {
+        IntroducedBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
             let stop_set = committed.probe(|probe| {
                 active_stop_set(probe.input())
@@ -6910,7 +6973,7 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
             }
             committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
         }
-        ArmBodyLayout::Indented {
+        IntroducedBodyLayout::Indented {
             opening_trivia,
             block_indent,
         } => {
@@ -6923,7 +6986,9 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
                 committed,
             );
         }
-        ArmBodyLayout::WrongIndent => emit_if_missing(committed, role, ExpectedSyntax::Expression),
+        IntroducedBodyLayout::WrongIndent => {
+            emit_if_missing(committed, role, ExpectedSyntax::Expression)
+        }
     }
 }
 
