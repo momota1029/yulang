@@ -2,7 +2,8 @@
 
 更新: 2026-08-28（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
-2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走）
+2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走→
+standalone `for`文も全10 gate完走）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -133,6 +134,43 @@ standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendum�
   同じくsyntax-only scope外。Enumのvariant-sequence/payload coreを共有するstandalone `error`宣言は
   全10 gate完走、551 tests green——role(10)・act(11)・enum(12)に続く5番目の完了family
   (cast(13)は先行完了)。
+- standalone `for`文addendum(FOR-G/J/T/R、10 gate計画)はClaude (Fable 5)起草、
+  2026-08-29にユーザ承認済みAuthoritative化(`1df4abbc`)。既存Pattern/OperatorChain/
+  statement-block machineryを再利用し、新規sub-parserなしで`for [label] pattern in iterable:
+  body`/`for [label] pattern in iterable { body }`を扱う。Gate 1 vocabulary scaffold
+  (`3bbcddcc`)で`ForStatement`/`ForLabel`/`ForIterable`/`InKw`、AST・Statement/Declaration
+  variant・recovery role・`StopKind::In`を追加(551 tests、Gate 0とbyte-identical)。Gate 2
+  (`a868ce3b`)はisolated intro recognizer——exact `for`のみを受理し`forall`/`fork`/`format`
+  を拒否、visibility formなし、`for_base`をcapture(552 tests)。Gate 3(`8fb8373c`)はcase/catch
+  と共通の`probe_apostrophe_sigil_word`を抽出してoptional apostrophe-sigil labelを扱い、
+  For固有の`in` lookahead rejectionにより`'x in xs`の`x`を通常Patternへ残し、`'[`/`'{`/
+  `~"`との非衝突も固定(553 tests)。Gate 4(`a5516fc8`)は既存word-stop 3箇所へ
+  `StopKind::In`をpure additionで配線し、fresh-primaryがColon/LeftBrace/Inで止まるmandatory
+  Pattern slotを実装(554 tests)。Gate 5(`00787903`)はisolated `in` keyword judgeと
+  OperatorChain再利用のiterable slotを実装、catch scrutinee precedentと同じ
+  Colon/LeftBrace scoped stop frameを用い、missing-in+missing-iterableはちょうど1件の
+  Missing InKeywordへcollapse(555 tests)。Gate 6(`75f15734`)は4 body form(inline
+  OperatorChain/indented/braced delegated-to-Mod pattern/labelled-indented)のadapterを実装、
+  shared colon-layout primitiveを`ArmBodyLayout`から`IntroducedBodyLayout`へpure renameし、
+  if/case/catch/withでzero behavior changeを確認(556 tests)。Gate 7(`31aa766c`)は既存
+  `parse_for_statement_isolated`/`commit_for_statement_isolated` composerでFOR-R recovery
+  matrixを閉じ、missing iterable後のBodyIntroducer cascade抑止とmalformed iterable retryの
+  AST/direct-CST一致という実gap 2件を修正(557 tests)。Gate 8(`19f785af`)はroot/indented/
+  braced/inline/depth-2-If companion ambient contextの全boundary、normal/recovery/rollback
+  pathを検証し、実gapなし(558 tests)。Gate 9(`bd59d870`)はAct後/Binding前の優先順位で
+  shared statement-intro dispatch・direct root loop・AST canonical Statement/root
+  Declaration・direct-CST canonical Statementへreal public dispatchとしてatomic promotion、
+  他familyの相対順序不変・workspace build greenを確認し、inline/labelled-indented/braced/
+  colon-inlineの4 worked exampleを追加(559 tests)。Gate 10(`81003c7a`)はreal public
+  dispatch経由でlabel collision・全body form・if/role/act body内を含むnested For・root sibling
+  non-consumption・全FOR-R malformed form・public/direct-CST parity・ForKwとForallTypeの共有に
+  よる非汚染・grammar position外での`for`/`in`のordinary wordを確認、実gapなしで560 tests
+  green。Gate 1/4/6〜10を通じ、Codex sandboxとreview hostのrustfmt version/toolchain差による
+  pre-existing format driftはbehavioral changeと混ぜず`8d3026f5`/`3193cf94`へ分離した。
+  workspace-wide grepでyu-syntax外にFor-statement internalsの参照がないことも確認済みで、
+  loop execution semantics/HIR/resolver/inferenceはsyntax-only scope外。standalone `for`文は
+  全10 gate完走、560 tests green——role(10)・act(11)・enum(12)・cast(13)・error(10)に続く
+  6番目の完了declaration/statement family。
 
 ## 既知の未修正バグ
 
@@ -150,8 +188,8 @@ standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendum�
    (2026-08-27調査)——着手にはまず宣言family自体の設計が要るうえ、正本が
    「type-specific where clauseをYulang3に発明しない」と明記していて位置付けが
    不明確。
-2. **canonical Statement / root Declarationの残りvariant**: `for`文/
-   declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`/`error`は実装完了。
+2. **canonical Statement / root Declarationの残りvariant**:
+   declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`/`error`/`for`文は実装完了。
    `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。
 3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(残りはError/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
