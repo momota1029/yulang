@@ -7,7 +7,11 @@ mod polymorphic_variant;
 
 use std::{marker::PhantomData, ops::Range, sync::Arc};
 
-use chasa::{Back as _, ErrorSink, Input as _, error::std::{Unexpected, UnexpectedEndOfInput}, prelude::{from_fn, item}};
+use chasa::{
+    Back as _, ErrorSink, Input as _,
+    error::std::{Unexpected, UnexpectedEndOfInput},
+    prelude::{from_fn, item},
+};
 
 use crate::{
     grammar::{
@@ -41,15 +45,23 @@ pub(crate) struct TypeExpression<'source> {
 }
 
 impl TypeExpression<'_> {
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
-    pub(crate) fn postfix(&self) -> &[TypePostfixTail<'_>] { &self.postfix }
-    pub(crate) fn arrow(&self) -> Option<&TypeArrowTail<'_>> { self.arrow.as_ref() }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+    pub(crate) fn postfix(&self) -> &[TypePostfixTail<'_>] {
+        &self.postfix
+    }
+    pub(crate) fn arrow(&self) -> Option<&TypeArrowTail<'_>> {
+        self.arrow.as_ref()
+    }
 
     #[cfg(test)]
     fn complete_primary(&self) -> TypePrimary<'_> {
         match &self.primary {
             Recovered::Complete(primary) => primary.clone(),
-            Recovered::Incomplete => panic!("existing TypeExpression parser produced an incomplete primary"),
+            Recovered::Incomplete => {
+                panic!("existing TypeExpression parser produced an incomplete primary")
+            }
         }
     }
 }
@@ -301,10 +313,7 @@ where
 {
     let episode_depth = i.local.push_type_expression_episode(policy);
     let parsed = parse_type_expression_in_current_episode(allow_forall, &mut i);
-    assert_eq!(
-        i.local.pop_type_expression_episode(),
-        Some(policy),
-    );
+    assert_eq!(i.local.pop_type_expression_episode(), Some(policy),);
     debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
     parsed
 }
@@ -333,10 +342,13 @@ where
         });
     };
     if matches!(primary, TypePrimary::Forall(_))
-        || matches!(primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
-            close: Recovered::Incomplete,
-            ..
-        }))
+        || matches!(
+            primary,
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete,
+                ..
+            })
+        )
     {
         let end = primary_range(primary).end;
         return Some(TypeExpression {
@@ -379,12 +391,14 @@ where
                 continue;
             }
             if let Some(separator) = scan_exact_colon_colon(&mut i) {
-                postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
+                postfix.push(TypePostfixTail::Path(parse_type_path_tail(
+                    separator, &mut i,
+                )));
                 continue;
             }
             if bracket_arrow_pending(&mut i) {
-                let open = scan_open_bracket(&mut i)
-                    .expect("the bracket-arrow probe accepted its opener");
+                let open =
+                    scan_open_bracket(&mut i).expect("the bracket-arrow probe accepted its opener");
                 let argument_effect = parse_bracket_row(open, &mut i);
                 arrow = Some(parse_bracket_arrow_tail(argument_effect, &mut i));
                 break;
@@ -404,12 +418,14 @@ where
             break;
         }
         if let Some(separator) = scan_exact_colon_colon(&mut i) {
-            postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
+            postfix.push(TypePostfixTail::Path(parse_type_path_tail(
+                separator, &mut i,
+            )));
             continue;
         }
         if bracket_arrow_pending(&mut i) {
-            let open = scan_open_bracket(&mut i)
-                .expect("the bracket-arrow probe accepted its opener");
+            let open =
+                scan_open_bracket(&mut i).expect("the bracket-arrow probe accepted its opener");
             let argument_effect = parse_bracket_row(open, &mut i);
             arrow = Some(parse_bracket_arrow_tail(argument_effect, &mut i));
             break;
@@ -458,7 +474,11 @@ where
         break;
     }
     let end = arrow.as_ref().map_or_else(
-        || postfix.last().map_or_else(|| primary_range(primary).end, postfix_range_end),
+        || {
+            postfix
+                .last()
+                .map_or_else(|| primary_range(primary).end, postfix_range_end)
+        },
         |tail| tail.range.end,
     );
     Some(TypeExpression {
@@ -539,10 +559,7 @@ where
 {
     let episode_depth = i.local.push_type_expression_episode(policy);
     let parsed = parse_required_type_expression_in_current_episode(recovery_context, &mut i);
-    assert_eq!(
-        i.local.pop_type_expression_episode(),
-        Some(policy),
-    );
+    assert_eq!(i.local.pop_type_expression_episode(), Some(policy),);
     debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
     parsed
 }
@@ -560,10 +577,9 @@ where
     if let Some(type_expr) = parse_type_expression_in_current_episode(true, i) {
         return Recovered::Complete(type_expr);
     }
-    let Some(recovery) = recover_required_type_item_for_ast(
-        &mut i,
-        Some(malformed_continuation_base),
-    ) else {
+    let Some(recovery) =
+        recover_required_type_item_for_ast(&mut i, Some(malformed_continuation_base))
+    else {
         return Recovered::Incomplete;
     };
     match recovery.disposition {
@@ -627,12 +643,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let episode_depth = committed.probe(|probe| {
-        probe
-            .input()
-            .local
-            .push_type_expression_episode(policy)
-    });
+    let episode_depth =
+        committed.probe(|probe| probe.input().local.push_type_expression_episode(policy));
     let parsed = commit_direct_type_expression_in_current_episode(allow_forall, committed);
     let popped = committed.probe(|probe| probe.input().local.pop_type_expression_episode());
     assert_eq!(popped, Some(policy));
@@ -656,7 +668,8 @@ where
     let start = committed.probe(|probe| probe.input().pos());
     committed.start_node(SyntaxKind::TypeExpression);
     let context = TypePrimaryContext::from_allow_forall(allow_forall);
-    let head = match committed.probe(|probe| recognize_type_expression_head(context, probe.input())) {
+    let head = match committed.probe(|probe| recognize_type_expression_head(context, probe.input()))
+    {
         Some(head) => head,
         None => {
             committed.finish_node();
@@ -674,24 +687,29 @@ where
                 open,
                 committed,
             );
-            commit_direct_leading_effect_type_head(
-                context.after_leading_bracket_row(),
-                committed,
-            )
+            commit_direct_leading_effect_type_head(context.after_leading_bracket_row(), committed)
         }
     };
     let Some(primary) = primary else {
         committed.finish_node();
         let end = committed.probe(|probe| probe.input().pos());
-        return Some(ParsedTypeExpression { range: start..end, marker: PhantomData });
+        return Some(ParsedTypeExpression {
+            range: start..end,
+            marker: PhantomData,
+        });
     };
     if primary != DirectTypePrimary::Ordinary {
         committed.finish_node();
         let end = committed.probe(|probe| probe.input().pos());
-        return Some(ParsedTypeExpression { range: start..end, marker: PhantomData });
+        return Some(ParsedTypeExpression {
+            range: start..end,
+            marker: PhantomData,
+        });
     }
     loop {
-        let Some(tail) = committed.probe(|probe| recognize_direct_type_tail(probe.input())) else { break; };
+        let Some(tail) = committed.probe(|probe| recognize_direct_type_tail(probe.input())) else {
+            break;
+        };
         match tail {
             DirectTypeTail::Path { leading, separator } => {
                 committed.emit_trivia(&leading);
@@ -702,13 +720,19 @@ where
                     committed.emit_trivia(rhs_trivia);
                 }
                 if rhs_trivia.is_none() {
-                    emit_type_missing(committed, GrammarRole::Type(TypeRole::PathSegment), ExpectedSyntax::TypePathSegment);
+                    emit_type_missing(
+                        committed,
+                        GrammarRole::Type(TypeRole::PathSegment),
+                        ExpectedSyntax::TypePathSegment,
+                    );
                     committed.finish_node();
                     continue;
                 }
                 if let Some(name) = committed.probe(|probe| scan_type_name(probe.input())) {
                     committed.token(type_name_kind(name), type_name_range(name));
-                } else if let Some(recovery) = committed.probe(|probe| scan_type_path_invalid_run(probe.input())) {
+                } else if let Some(recovery) =
+                    committed.probe(|probe| scan_type_path_invalid_run(probe.input()))
+                {
                     emit_type_error(
                         committed,
                         TypeRole::PathSegment,
@@ -733,13 +757,24 @@ where
                         }
                     }
                 } else {
-                    emit_type_missing(committed, GrammarRole::Type(TypeRole::PathSegment), ExpectedSyntax::TypePathSegment);
+                    emit_type_missing(
+                        committed,
+                        GrammarRole::Type(TypeRole::PathSegment),
+                        ExpectedSyntax::TypePathSegment,
+                    );
                 }
                 committed.finish_node();
             }
             DirectTypeTail::Call { leading, open } => {
                 committed.emit_trivia(&leading);
-                commit_direct_type_delimited(TypeDelimitedOwner::Call, TypeDelimitedShape::Parenthesis, SyntaxKind::TypeCallTail, None, open, committed);
+                commit_direct_type_delimited(
+                    TypeDelimitedOwner::Call,
+                    TypeDelimitedShape::Parenthesis,
+                    SyntaxKind::TypeCallTail,
+                    None,
+                    open,
+                    committed,
+                );
             }
             DirectTypeTail::Apply {
                 boundary,
@@ -790,7 +825,10 @@ where
     }
     let end = committed.probe(|probe| probe.input().pos());
     committed.finish_node();
-    Some(ParsedTypeExpression { range: start..end, marker: PhantomData })
+    Some(ParsedTypeExpression {
+        range: start..end,
+        marker: PhantomData,
+    })
 }
 
 fn commit_direct_leading_effect_type_head<'parse, 'source, 'local, E, O>(
@@ -833,13 +871,13 @@ where
             }
             return None;
         }
-        if let Some(TypeExpressionHead::Primary(head)) = committed
-            .probe(|probe| recognize_type_expression_head(context, probe.input()))
+        if let Some(TypeExpressionHead::Primary(head)) =
+            committed.probe(|probe| recognize_type_expression_head(context, probe.input()))
         {
             return Some(commit_direct_type_primary_head(head, committed));
         }
-        let Some(recovery) = committed
-            .probe(|probe| scan_leading_effect_type_head_invalid_run(probe.input()))
+        let Some(recovery) =
+            committed.probe(|probe| scan_leading_effect_type_head_invalid_run(probe.input()))
         else {
             emit_type_missing(
                 committed,
@@ -928,8 +966,7 @@ fn commit_direct_bracket_arrow_tail<'parse, 'source, 'local, E, O>(
             Some(BracketArrowRecoveryTarget::Boundary) | None => {}
         }
 
-        let Some(recovery) = committed
-            .probe(|probe| scan_bracket_arrow_invalid_run(probe.input()))
+        let Some(recovery) = committed.probe(|probe| scan_bracket_arrow_invalid_run(probe.input()))
         else {
             if !arrow_recovered_by_error {
                 emit_type_missing(
@@ -1055,7 +1092,13 @@ where
 
 /// Direct counterpart of
 /// [`parse_required_type_expression_with_outer_missing_role_and_policy`].
-pub(crate) fn commit_direct_type_expression_with_outer_missing_role_and_policy<'parse, 'source, 'local, E, O>(
+pub(crate) fn commit_direct_type_expression_with_outer_missing_role_and_policy<
+    'parse,
+    'source,
+    'local,
+    E,
+    O,
+>(
     outer_missing_role: Option<GrammarRole>,
     policy: TypeExpressionEpisodePolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -1091,7 +1134,13 @@ where
     )
 }
 
-pub(crate) fn commit_direct_type_expression_with_recovery_context_and_policy<'parse, 'source, 'local, E, O>(
+pub(crate) fn commit_direct_type_expression_with_recovery_context_and_policy<
+    'parse,
+    'source,
+    'local,
+    E,
+    O,
+>(
     recovery_context: RequiredTypeRecoveryContext,
     policy: TypeExpressionEpisodePolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -1102,12 +1151,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let episode_depth = committed.probe(|probe| {
-        probe
-            .input()
-            .local
-            .push_type_expression_episode(policy)
-    });
+    let episode_depth =
+        committed.probe(|probe| probe.input().local.push_type_expression_episode(policy));
     let parsed =
         commit_direct_required_type_expression_in_current_episode(recovery_context, committed);
     let popped = committed.probe(|probe| probe.input().local.pop_type_expression_episode());
@@ -1133,8 +1178,8 @@ where
         return commit_direct_type_expression_in_current_episode(true, committed)
             .expect("the sink-free type primary probe accepted a primary");
     }
-    let malformed_continuation_base = committed
-        .probe(|probe| recovery_context.malformed_continuation_base(probe.input()));
+    let malformed_continuation_base =
+        committed.probe(|probe| recovery_context.malformed_continuation_base(probe.input()));
     let emit_missing = match direct_required_type_item_error_retry(
         committed,
         TypeRole::Primary,
@@ -1161,12 +1206,17 @@ where
     if emit_missing {
         emit_type_missing(
             committed,
-            recovery_context.outer_missing_role.unwrap_or(GrammarRole::Type(TypeRole::Primary)),
+            recovery_context
+                .outer_missing_role
+                .unwrap_or(GrammarRole::Type(TypeRole::Primary)),
             ExpectedSyntax::TypeExpression,
         );
     }
     committed.finish_node();
-    ParsedTypeExpression { range: at..at, marker: PhantomData }
+    ParsedTypeExpression {
+        range: at..at,
+        marker: PhantomData,
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1176,7 +1226,9 @@ pub(crate) struct ParsedTypeExpression<C> {
 }
 
 impl<C> ParsedTypeExpression<C> {
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -1203,7 +1255,9 @@ enum DirectTypeTail {
     },
 }
 
-fn recognize_direct_type_tail<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<DirectTypeTail>
+fn recognize_direct_type_tail<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<DirectTypeTail>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1226,12 +1280,17 @@ where
         return None;
     }
     if leading.is_empty() {
-        if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
-        if let Some(open) = scan_open_parenthesis(i) { return Some(DirectTypeTail::Call { leading, open }); }
-        if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
+        if let Some(arrow) = scan_exact_arrow(i) {
+            return Some(DirectTypeTail::Arrow { leading, arrow });
+        }
+        if let Some(open) = scan_open_parenthesis(i) {
+            return Some(DirectTypeTail::Call { leading, open });
+        }
+        if let Some(separator) = scan_exact_colon_colon(i) {
+            return Some(DirectTypeTail::Path { leading, separator });
+        }
         if bracket_arrow_pending(i) {
-            let open = scan_open_bracket(i)
-                .expect("the bracket-arrow probe accepted its opener");
+            let open = scan_open_bracket(i).expect("the bracket-arrow probe accepted its opener");
             return Some(DirectTypeTail::BracketArrow { leading, open });
         }
     }
@@ -1243,11 +1302,14 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
-    if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
+    if let Some(arrow) = scan_exact_arrow(i) {
+        return Some(DirectTypeTail::Arrow { leading, arrow });
+    }
+    if let Some(separator) = scan_exact_colon_colon(i) {
+        return Some(DirectTypeTail::Path { leading, separator });
+    }
     if bracket_arrow_pending(i) {
-        let open = scan_open_bracket(i)
-            .expect("the bracket-arrow probe accepted its opener");
+        let open = scan_open_bracket(i).expect("the bracket-arrow probe accepted its opener");
         return Some(DirectTypeTail::BracketArrow { leading, open });
     }
     if named_record_next_field_candidate(i, &leading)
@@ -1293,7 +1355,11 @@ enum TypePrimaryContext {
 
 impl TypePrimaryContext {
     fn from_allow_forall(allow_forall: bool) -> Self {
-        if allow_forall { Self::Leading } else { Self::Applied }
+        if allow_forall {
+            Self::Leading
+        } else {
+            Self::Applied
+        }
     }
 
     fn allows_forall(self) -> bool {
@@ -1316,8 +1382,14 @@ enum TypeExpressionHead<'source> {
 
 enum TypePrimaryHead<'source> {
     Forall(Range<usize>),
-    EffectRow { apostrophe: Range<usize>, open: Range<usize> },
-    PolymorphicVariant { colon: Range<usize>, open: Range<usize> },
+    EffectRow {
+        apostrophe: Range<usize>,
+        open: Range<usize>,
+    },
+    PolymorphicVariant {
+        colon: Range<usize>,
+        open: Range<usize>,
+    },
     Name(TypeName<'source>),
     Number(TypeNumberAtom<'source>),
     Parenthesized(Range<usize>),
@@ -1400,13 +1472,16 @@ enum MissingAfterMismatch {
 trait TypeCloseSlotContext<'source> {
     type Error: ErrorSink<usize>;
 
-    fn with_input<R>(
-        &mut self,
-        f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
-    ) -> R;
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R)
+    -> R;
     fn emit_close_trivia(&mut self, trivia: &TriviaRun);
     fn emit_matching_close(&mut self, kind: SyntaxKind, range: Range<usize>);
-    fn emit_mismatched_close(&mut self, role: GrammarRole, range: Range<usize>, expected: ExpectedSyntax);
+    fn emit_mismatched_close(
+        &mut self,
+        role: GrammarRole,
+        range: Range<usize>,
+        expected: ExpectedSyntax,
+    );
     fn emit_missing_close(&mut self, role: GrammarRole, expected: ExpectedSyntax);
 }
 
@@ -1433,7 +1508,9 @@ where
     }
     let mut saw_mismatch = false;
     loop {
-        if let Some(trivia) = context.with_input(|i| consume_trivia_before_local_close(spec.delimiter, i)) {
+        if let Some(trivia) =
+            context.with_input(|i| consume_trivia_before_local_close(spec.delimiter, i))
+        {
             context.with_input(|i| {
                 debug_assert_type_malformed_caller_boundary_not_skipped(&trivia, i)
             });
@@ -1443,7 +1520,9 @@ where
             context.emit_matching_close(spec.matching_kind, close.clone());
             return Recovered::Complete(close);
         }
-        if let Some(mismatched) = context.with_input(|i| scan_mismatched_close_for(spec.delimiter, i)) {
+        if let Some(mismatched) =
+            context.with_input(|i| scan_mismatched_close_for(spec.delimiter, i))
+        {
             context.emit_mismatched_close(role, mismatched, expected);
             saw_mismatch = true;
             continue;
@@ -1457,10 +1536,7 @@ where
 
 /// Commit a gap only when it belongs to the local close slot.  In particular,
 /// trailing trivia before an outer stop remains available to that outer owner.
-fn consume_trivia_before_local_close<E>(
-    delimiter: Delimiter,
-    i: &mut SynIn<E>,
-) -> Option<TriviaRun>
+fn consume_trivia_before_local_close<E>(delimiter: Delimiter, i: &mut SynIn<E>) -> Option<TriviaRun>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1486,8 +1562,7 @@ where
     }
 }
 
-impl<'parse, 'source, 'local, E> TypeCloseSlotContext<'source>
-    for SynIn<'parse, 'source, 'local, E>
+impl<'parse, 'source, 'local, E> TypeCloseSlotContext<'source> for SynIn<'parse, 'source, 'local, E>
 where
     E: ErrorSink<usize>,
 {
@@ -1502,11 +1577,24 @@ where
 
     fn emit_close_trivia(&mut self, _trivia: &TriviaRun) {}
     fn emit_matching_close(&mut self, _kind: SyntaxKind, _range: Range<usize>) {}
-    fn emit_mismatched_close(&mut self, _role: GrammarRole, _range: Range<usize>, _expected: ExpectedSyntax) {}
+    fn emit_mismatched_close(
+        &mut self,
+        _role: GrammarRole,
+        _range: Range<usize>,
+        _expected: ExpectedSyntax,
+    ) {
+    }
     fn emit_missing_close(&mut self, _role: GrammarRole, _expected: ExpectedSyntax) {}
 }
 
-struct DirectTypeCloseContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>> {
+struct DirectTypeCloseContext<
+    'context,
+    'parse,
+    'source,
+    'local,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+> {
     committed: &'context mut Committed<'parse, 'source, 'local, E, O>,
 }
 
@@ -1533,7 +1621,12 @@ where
         self.committed.token(kind, range);
     }
 
-    fn emit_mismatched_close(&mut self, role: GrammarRole, range: Range<usize>, expected: ExpectedSyntax) {
+    fn emit_mismatched_close(
+        &mut self,
+        role: GrammarRole,
+        range: Range<usize>,
+        expected: ExpectedSyntax,
+    ) {
         emit_error_with_role(self.committed, role, range, expected);
     }
 
@@ -1823,31 +1916,60 @@ fn commit_direct_forall_type<'parse, 'source, 'local, E, O>(
                 committed.emit_trivia(trivia);
                 match direct_forall_invalid_run(ForallRecoveryPhase::FirstBinder, committed) {
                     Some(found_recovery) => {
-                        emit_type_error(committed, TypeRole::ForallBinder, found_recovery.error_range.clone(), ExpectedSyntax::ForallTypeBinder);
+                        emit_type_error(
+                            committed,
+                            TypeRole::ForallBinder,
+                            found_recovery.error_range.clone(),
+                            ExpectedSyntax::ForallTypeBinder,
+                        );
                         recovery = Some(found_recovery);
                     }
                     None => {
-                        emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                        emit_type_missing(
+                            committed,
+                            GrammarRole::Type(TypeRole::ForallBinder),
+                            ExpectedSyntax::ForallTypeBinder,
+                        );
                     }
                 }
                 committed.finish_node();
             } else if direct_forall_colon_pending(committed) {
                 committed.start_node(SyntaxKind::ForallTypeBinder);
-                emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::ForallBinder),
+                    ExpectedSyntax::ForallTypeBinder,
+                );
                 committed.finish_node();
-            } else if let Some(found_recovery) = direct_forall_invalid_run(ForallRecoveryPhase::FirstBinder, committed) {
+            } else if let Some(found_recovery) =
+                direct_forall_invalid_run(ForallRecoveryPhase::FirstBinder, committed)
+            {
                 committed.start_node(SyntaxKind::ForallTypeBinder);
-                emit_type_error(committed, TypeRole::ForallBinder, found_recovery.error_range.clone(), ExpectedSyntax::ForallTypeBinder);
+                emit_type_error(
+                    committed,
+                    TypeRole::ForallBinder,
+                    found_recovery.error_range.clone(),
+                    ExpectedSyntax::ForallTypeBinder,
+                );
                 committed.finish_node();
                 recovery = Some(found_recovery);
             } else {
                 committed.start_node(SyntaxKind::ForallTypeBinder);
-                emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::ForallBinder),
+                    ExpectedSyntax::ForallTypeBinder,
+                );
                 committed.finish_node();
                 break;
             }
 
-            if let Some(ForallInvalidRunRecovery { target, disposition, .. }) = recovery {
+            if let Some(ForallInvalidRunRecovery {
+                target,
+                disposition,
+                ..
+            }) = recovery
+            {
                 match target {
                     ForallInvalidRecovery::Colon => {
                         consume_direct_forall_recovery_trivia(committed, &disposition);
@@ -1875,7 +1997,11 @@ fn commit_direct_forall_type<'parse, 'source, 'local, E, O>(
             break;
         }
         if committed.probe(|probe| type_primary_candidate(probe.input())) {
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::ForallColon),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            );
             commit_direct_forall_body(committed);
             break;
         }
@@ -1888,9 +2014,23 @@ fn commit_direct_forall_type<'parse, 'source, 'local, E, O>(
             );
             continue;
         }
-        if let Some(ForallInvalidRunRecovery { error_range, target, disposition }) = direct_forall_invalid_run(ForallRecoveryPhase::AfterBinder, committed) {
-            let role = if target == ForallInvalidRecovery::Binder { TypeRole::ForallBinder } else { TypeRole::ForallColon };
-            emit_type_error(committed, role, error_range, ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+        if let Some(ForallInvalidRunRecovery {
+            error_range,
+            target,
+            disposition,
+        }) = direct_forall_invalid_run(ForallRecoveryPhase::AfterBinder, committed)
+        {
+            let role = if target == ForallInvalidRecovery::Binder {
+                TypeRole::ForallBinder
+            } else {
+                TypeRole::ForallColon
+            };
+            emit_type_error(
+                committed,
+                role,
+                error_range,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            );
             match target {
                 ForallInvalidRecovery::Binder => {
                     if let TypeInvalidRunDisposition::RetryAfterTrivia(trivia) = disposition {
@@ -1911,7 +2051,11 @@ fn commit_direct_forall_type<'parse, 'source, 'local, E, O>(
                 ForallInvalidRecovery::Boundary => break,
             }
         }
-        emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::ForallColon),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        );
         break;
     }
     committed.finish_node();
@@ -1921,7 +2065,10 @@ fn direct_forall_unowned_separator<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<Range<usize>>
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.probe(|probe| {
         let i = probe.input();
@@ -1953,7 +2100,8 @@ fn commit_direct_forall_colon_and_body<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let colon = committed.probe(|probe| scan_exact_colon(probe.input()))
+    let colon = committed
+        .probe(|probe| scan_exact_colon(probe.input()))
         .expect("forall colon probe accepted a literal colon");
     committed.token(SyntaxKind::Colon, colon);
     commit_direct_forall_body(committed);
@@ -2010,13 +2158,26 @@ fn commit_direct_forall_body_in_current_episode<'parse, 'source, 'local, E, O>(
     if let Some(trivia) = trivia.as_ref() {
         committed.emit_trivia(trivia);
     } else {
-        emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::ForallBody),
+            ExpectedSyntax::TypeExpression,
+        );
         return;
     }
     if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
         match direct_forall_invalid_run(ForallRecoveryPhase::Body, committed) {
-            Some(ForallInvalidRunRecovery { error_range, target: ForallInvalidRecovery::Body, disposition }) => {
-                emit_type_error(committed, TypeRole::ForallBody, error_range, ExpectedSyntax::TypeExpression);
+            Some(ForallInvalidRunRecovery {
+                error_range,
+                target: ForallInvalidRecovery::Body,
+                disposition,
+            }) => {
+                emit_type_error(
+                    committed,
+                    TypeRole::ForallBody,
+                    error_range,
+                    ExpectedSyntax::TypeExpression,
+                );
                 consume_direct_forall_recovery_trivia(committed, &disposition);
                 if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
                     emit_type_missing(
@@ -2026,14 +2187,36 @@ fn commit_direct_forall_body_in_current_episode<'parse, 'source, 'local, E, O>(
                     );
                 }
             }
-            Some(ForallInvalidRunRecovery { error_range, target: ForallInvalidRecovery::Boundary, .. }) => {
-                emit_type_error(committed, TypeRole::ForallBody, error_range, ExpectedSyntax::TypeExpression);
+            Some(ForallInvalidRunRecovery {
+                error_range,
+                target: ForallInvalidRecovery::Boundary,
+                ..
+            }) => {
+                emit_type_error(
+                    committed,
+                    TypeRole::ForallBody,
+                    error_range,
+                    ExpectedSyntax::TypeExpression,
+                );
             }
-            Some(ForallInvalidRunRecovery { error_range, target: ForallInvalidRecovery::Binder | ForallInvalidRecovery::Colon, .. }) => {
-                emit_type_error(committed, TypeRole::ForallBody, error_range, ExpectedSyntax::TypeExpression);
+            Some(ForallInvalidRunRecovery {
+                error_range,
+                target: ForallInvalidRecovery::Binder | ForallInvalidRecovery::Colon,
+                ..
+            }) => {
+                emit_type_error(
+                    committed,
+                    TypeRole::ForallBody,
+                    error_range,
+                    ExpectedSyntax::TypeExpression,
+                );
             }
             None => {
-                emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::ForallBody),
+                    ExpectedSyntax::TypeExpression,
+                );
             }
         }
     }
@@ -2086,7 +2269,10 @@ fn direct_forall_colon_pending<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.probe(|probe| {
         let i = probe.input();
@@ -2102,7 +2288,10 @@ fn direct_forall_invalid_run<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<ForallInvalidRunRecovery>
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.probe(|probe| scan_forall_invalid_run(phase, probe.input()))
 }
@@ -2163,9 +2352,8 @@ where
             i.rollback(checkpoint);
             target
         }
-        TypeInvalidRunDisposition::BoundaryCurrent | TypeInvalidRunDisposition::BoundaryAfterTrivia(_) => {
-            ForallInvalidRecovery::Boundary
-        }
+        TypeInvalidRunDisposition::BoundaryCurrent
+        | TypeInvalidRunDisposition::BoundaryAfterTrivia(_) => ForallInvalidRecovery::Boundary,
     };
     Some(ForallInvalidRunRecovery {
         error_range: recovery.error_range,
@@ -2177,7 +2365,10 @@ where
 /// Probe only the token which may legally resume this particular forall
 /// phase.  Trivia is scanned as part of the malformed run, so reaching a
 /// space alone is never mistaken for a retry.
-fn forall_recovery_candidate<E>(phase: ForallRecoveryPhase, i: &mut SynIn<E>) -> Option<ForallInvalidRecovery>
+fn forall_recovery_candidate<E>(
+    phase: ForallRecoveryPhase,
+    i: &mut SynIn<E>,
+) -> Option<ForallInvalidRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -2189,17 +2380,28 @@ where
     let checkpoint = i.checkpoint();
     let recovery = match phase {
         ForallRecoveryPhase::FirstBinder => {
-            if scan_forall_binder(i).is_some() { Some(ForallInvalidRecovery::Binder) }
-            else if scan_exact_colon(i).is_some() { Some(ForallInvalidRecovery::Colon) }
-            else { None }
+            if scan_forall_binder(i).is_some() {
+                Some(ForallInvalidRecovery::Binder)
+            } else if scan_exact_colon(i).is_some() {
+                Some(ForallInvalidRecovery::Colon)
+            } else {
+                None
+            }
         }
         ForallRecoveryPhase::AfterBinder => {
-            if scan_forall_binder(i).is_some() { Some(ForallInvalidRecovery::Binder) }
-            else if scan_exact_colon(i).is_some() { Some(ForallInvalidRecovery::Colon) }
-            else if type_primary_candidate(i) { Some(ForallInvalidRecovery::Body) }
-            else { None }
+            if scan_forall_binder(i).is_some() {
+                Some(ForallInvalidRecovery::Binder)
+            } else if scan_exact_colon(i).is_some() {
+                Some(ForallInvalidRecovery::Colon)
+            } else if type_primary_candidate(i) {
+                Some(ForallInvalidRecovery::Body)
+            } else {
+                None
+            }
         }
-        ForallRecoveryPhase::Body => type_primary_candidate(i).then_some(ForallInvalidRecovery::Body),
+        ForallRecoveryPhase::Body => {
+            type_primary_candidate(i).then_some(ForallInvalidRecovery::Body)
+        }
     };
     i.rollback(checkpoint);
     recovery
@@ -2217,7 +2419,9 @@ where
         return true;
     }
     let checkpoint = i.checkpoint();
-    let punctuation = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
+    let punctuation = i
+        .run(scan_punctuation)
+        .map(|punctuation| punctuation.kind());
     i.rollback(checkpoint);
     match punctuation {
         Some(PunctuationKind::Comma) if matches!(phase, ForallRecoveryPhase::FirstBinder) => {
@@ -2264,10 +2468,14 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::BracketRow => TypeRole::BracketRowItem,
             TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
             TypeDelimitedOwner::StructNamedFields => {
-                unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+                unreachable!(
+                    "Struct named fields are a TypeExpression tail marker, not a type-delimited owner"
+                )
             }
             TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
-                unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
+                unreachable!(
+                    "Enum variant payload fields are introduced in the Enum field-driver gate"
+                )
             }
         }
     }
@@ -2281,10 +2489,14 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::BracketRow => TypeRole::BracketRowSeparator,
             TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantTagSeparator,
             TypeDelimitedOwner::StructNamedFields => {
-                unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+                unreachable!(
+                    "Struct named fields are a TypeExpression tail marker, not a type-delimited owner"
+                )
             }
             TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
-                unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
+                unreachable!(
+                    "Enum variant payload fields are introduced in the Enum field-driver gate"
+                )
             }
         }
     }
@@ -2300,20 +2512,30 @@ impl TypeDelimitedSpec {
                 TypeDelimitedOwner::BracketRow => ConstructRole::BracketRow,
                 TypeDelimitedOwner::PolymorphicVariant => ConstructRole::PolymorphicVariantType,
                 TypeDelimitedOwner::StructNamedFields => {
-                    unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+                    unreachable!(
+                        "Struct named fields are a TypeExpression tail marker, not a type-delimited owner"
+                    )
                 }
-                TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
-                    unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
+                TypeDelimitedOwner::VariantNamedPayload
+                | TypeDelimitedOwner::VariantTuplePayload => {
+                    unreachable!(
+                        "Enum variant payload fields are introduced in the Enum field-driver gate"
+                    )
                 }
             },
             matching_kind: self.shape.close_kind(),
             missing_after_mismatch: match self.owner {
                 TypeDelimitedOwner::EffectRow => MissingAfterMismatch::Suppress,
                 TypeDelimitedOwner::StructNamedFields => {
-                    unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+                    unreachable!(
+                        "Struct named fields are a TypeExpression tail marker, not a type-delimited owner"
+                    )
                 }
-                TypeDelimitedOwner::VariantNamedPayload | TypeDelimitedOwner::VariantTuplePayload => {
-                    unreachable!("Enum variant payload fields are introduced in the Enum field-driver gate")
+                TypeDelimitedOwner::VariantNamedPayload
+                | TypeDelimitedOwner::VariantTuplePayload => {
+                    unreachable!(
+                        "Enum variant payload fields are introduced in the Enum field-driver gate"
+                    )
                 }
                 _ => MissingAfterMismatch::Emit,
             },
@@ -2347,7 +2569,9 @@ where
     UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
 {
     let incoming = context.with_input(|i| {
-        i.local.indentation_baseline().map_or(0, |baseline| baseline.column)
+        i.local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
     });
     let stops = context.with_input(|i| {
         active_stop_set(i)
@@ -2389,7 +2613,8 @@ where
                 context.end_item_episode(depth);
             }
             context.emit_incomplete_item(spec.item_role());
-            let separator = context.with_input(scan_separator)
+            let separator = context
+                .with_input(scan_separator)
                 .expect("the separator pending probe accepted a literal separator");
             context.emit_separator(separator);
             let trailing = context.with_input(consume_trivia);
@@ -2403,8 +2628,8 @@ where
             item_episode_depth.expect("the item slot owns one TypeExpression episode");
         if !context.parse_item() {
             if spec.uses_bracket_row_alignment() {
-                let Some(recovery) = context
-                    .with_input(|i| scan_bracket_row_item_invalid_run(layout, i))
+                let Some(recovery) =
+                    context.with_input(|i| scan_bracket_row_item_invalid_run(layout, i))
                 else {
                     context.end_item_episode(episode_depth);
                     item_episode_depth = None;
@@ -2418,7 +2643,8 @@ where
                         context.end_item_episode(episode_depth);
                         item_episode_depth = None;
                         context.emit_malformed_item();
-                        let separator = context.with_input(scan_separator)
+                        let separator = context
+                            .with_input(scan_separator)
                             .expect("BR-RP1 accepted an explicit separator");
                         context.emit_separator(separator);
                         let trailing = context.with_input(consume_trivia);
@@ -2431,10 +2657,8 @@ where
                         context.emit_malformed_item();
                         let trivia = context.with_input(consume_trivia);
                         debug_assert_eq!(
-                            context.with_input(|i| layout.boundary_after_trivia(
-                                &trivia,
-                                i.local.line().line_indent,
-                            )),
+                            context.with_input(|i| layout
+                                .boundary_after_trivia(&trivia, i.local.line().line_indent,)),
                             LayoutDelimitedBoundary::ImplicitNewline,
                         );
                         context.emit_trivia(&trivia);
@@ -2479,7 +2703,9 @@ where
                         DelimitedRecoveryTarget::CallerOwnedMalformedBoundary
                     } else {
                         classify_type_delimited_recovery(
-                            DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
+                            DelimitedRecoverySpec {
+                                delimiter: spec.shape.delimiter(),
+                            },
                             layout,
                             direct_type_primary_candidate,
                             i,
@@ -2498,7 +2724,9 @@ where
                             DelimitedRecoveryTarget::CallerOwnedMalformedBoundary
                         } else {
                             classify_type_delimited_recovery(
-                                DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
+                                DelimitedRecoverySpec {
+                                    delimiter: spec.shape.delimiter(),
+                                },
                                 layout,
                                 direct_type_primary_candidate,
                                 i,
@@ -2525,7 +2753,8 @@ where
                     context.emit_malformed_item();
                     let trivia = context.with_input(consume_trivia);
                     context.emit_trivia(&trivia);
-                    let consumed = context.with_input(scan_separator)
+                    let consumed = context
+                        .with_input(scan_separator)
                         .expect("the recovery classifier accepted a separator");
                     debug_assert_eq!(separator_range(&consumed), separator_range(&separator));
                     context.emit_separator(consumed);
@@ -2592,7 +2821,9 @@ where
         if context.with_input(|i| type_delimited_close_or_mismatch_pending(spec.shape, i)) {
             break;
         }
-        match context.with_input(|i| layout.boundary_after_trivia(&trivia, i.local.line().line_indent)) {
+        match context
+            .with_input(|i| layout.boundary_after_trivia(&trivia, i.local.line().line_indent))
+        {
             LayoutDelimitedBoundary::ImplicitNewline => continue,
             LayoutDelimitedBoundary::DeeperNewline => {
                 if context.with_input(direct_type_primary_candidate) {
@@ -2690,7 +2921,14 @@ where
     pending
 }
 
-struct DirectTypeDelimitedContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>> {
+struct DirectTypeDelimitedContext<
+    'context,
+    'parse,
+    'source,
+    'local,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+> {
     committed: &'context mut Committed<'parse, 'source, 'local, E, O>,
 }
 
@@ -2717,7 +2955,12 @@ where
         self.committed.token(kind, range);
     }
 
-    fn emit_mismatched_close(&mut self, role: GrammarRole, range: Range<usize>, expected: ExpectedSyntax) {
+    fn emit_mismatched_close(
+        &mut self,
+        role: GrammarRole,
+        range: Range<usize>,
+        expected: ExpectedSyntax,
+    ) {
         emit_error_with_role(self.committed, role, range, expected);
     }
 
@@ -2762,7 +3005,11 @@ where
     }
 
     fn emit_incomplete_item(&mut self, role: TypeRole) {
-        emit_type_missing(self.committed, GrammarRole::Type(role), ExpectedSyntax::TypeExpression);
+        emit_type_missing(
+            self.committed,
+            GrammarRole::Type(role),
+            ExpectedSyntax::TypeExpression,
+        );
     }
 
     fn emit_malformed_item(&mut self) {}
@@ -2772,7 +3019,8 @@ where
     }
 
     fn emit_separator(&mut self, separator: TypeExplicitSeparator) {
-        self.committed.token(separator_kind(&separator), separator_range(&separator));
+        self.committed
+            .token(separator_kind(&separator), separator_range(&separator));
     }
 
     fn emit_missing_separator(&mut self, role: TypeRole) {
@@ -2815,7 +3063,6 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
     committed.finish_node();
 }
 
-
 fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -2827,30 +3074,51 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
 {
     committed.start_node(SyntaxKind::NamedRecordType);
     committed.token(SyntaxKind::LBrace, open);
-    let incoming = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::RightBrace));
+    let incoming = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
+    });
+    let stops = committed.probe(|probe| {
+        active_stop_set(probe.input())
+            .with(StopKind::Comma)
+            .with(StopKind::RightBrace)
+    });
     committed.probe(|probe| {
         probe.input().local.push_delimiter(Delimiter::Brace);
         probe.input().local.push_stop_set(stops);
-        probe.input().local.push_type_delimited_owner(TypeDelimitedOwner::NamedRecord);
+        probe
+            .input()
+            .local
+            .push_type_delimited_owner(TypeDelimitedOwner::NamedRecord);
     });
     let opening = consume_direct_trivia(committed);
     committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, probe.input().local.line().line_indent));
+    let layout = committed.probe(|probe| {
+        LayoutDelimitedFrame::after_opening_trivia(
+            incoming,
+            &opening,
+            probe.input().local.line().line_indent,
+        )
+    });
     committed.probe(|probe| push_layout(layout, probe.input()));
     let mut after_semicolon = false;
     loop {
         if after_semicolon {
             match committed.probe(|probe| classify_named_record_recovery(layout, probe.input())) {
                 DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
-                DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline
+                DelimitedRecoveryTarget::RetryPrimary
+                | DelimitedRecoveryTarget::ImplicitNewline
                 | DelimitedRecoveryTarget::ExplicitSeparator(_) => {
                     let trivia = consume_direct_trivia(committed);
                     committed.emit_trivia(&trivia);
                     after_semicolon = false;
                     continue;
                 }
-                DelimitedRecoveryTarget::MatchingClose(_) | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
+                DelimitedRecoveryTarget::MatchingClose(_)
+                | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
                     let trivia = consume_direct_trivia(committed);
                     committed.emit_trivia(&trivia);
                     break;
@@ -2863,9 +3131,18 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
                 }
             }
         }
-        if committed.probe(|probe| close_brace_pending(probe.input()) || record_local_mismatched_close_pending(probe.input())) { break; }
+        if committed.probe(|probe| {
+            close_brace_pending(probe.input())
+                || record_local_mismatched_close_pending(probe.input())
+        }) {
+            break;
+        }
         if let Some(comma) = committed.probe(|probe| scan_record_comma(probe.input())) {
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordField), ExpectedSyntax::Identifier);
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::RecordField),
+                ExpectedSyntax::Identifier,
+            );
             committed.token(SyntaxKind::Comma, comma);
             let trivia = consume_direct_trivia(committed);
             committed.emit_trivia(&trivia);
@@ -2885,8 +3162,14 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
             if let Some(TypeInvalidRunRecovery {
                 error_range,
                 disposition,
-            }) = committed.probe(|probe| scan_record_invalid_run(probe.input())) {
-                emit_type_error(committed, TypeRole::RecordField, error_range, ExpectedSyntax::Identifier);
+            }) = committed.probe(|probe| scan_record_invalid_run(probe.input()))
+            {
+                emit_type_error(
+                    committed,
+                    TypeRole::RecordField,
+                    error_range,
+                    ExpectedSyntax::Identifier,
+                );
                 let target = match disposition {
                     TypeInvalidRunDisposition::RetryCurrent => continue,
                     TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -2903,12 +3186,14 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
                             debug_assert_eq!(probed.range(), trivia.range());
                             i.rollback(checkpoint);
                         });
-                        committed.probe(|probe| classify_named_record_recovery(layout, probe.input()))
+                        committed
+                            .probe(|probe| classify_named_record_recovery(layout, probe.input()))
                     }
                 };
                 match target {
                     DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
-                    DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline => {
+                    DelimitedRecoveryTarget::RetryPrimary
+                    | DelimitedRecoveryTarget::ImplicitNewline => {
                         let trivia = consume_direct_trivia(committed);
                         committed.emit_trivia(&trivia);
                         continue;
@@ -2937,7 +3222,8 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
                         committed.emit_trivia(&post);
                         continue;
                     }
-                    DelimitedRecoveryTarget::MatchingClose(_) | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
+                    DelimitedRecoveryTarget::MatchingClose(_)
+                    | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
                         let trivia = consume_direct_trivia(committed);
                         committed.emit_trivia(&trivia);
                         break;
@@ -2950,7 +3236,11 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
                     }
                 }
             }
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordField), ExpectedSyntax::Identifier);
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::RecordField),
+                ExpectedSyntax::Identifier,
+            );
             break;
         }
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
@@ -2980,12 +3270,24 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
             after_semicolon = true;
             continue;
         }
-        if committed.probe(|probe| close_brace_pending(probe.input()) || record_local_mismatched_close_pending(probe.input())) { break; }
-        if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline {
+        if committed.probe(|probe| {
+            close_brace_pending(probe.input())
+                || record_local_mismatched_close_pending(probe.input())
+        }) {
+            break;
+        }
+        if committed.probe(|probe| {
+            layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+        }) == LayoutDelimitedBoundary::ImplicitNewline
+        {
             continue;
         }
         if committed.probe(|probe| named_record_next_field_candidate(probe.input(), &trivia)) {
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldSeparator), ExpectedSyntax::DelimitedSequenceSeparator);
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::RecordFieldSeparator),
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
             continue;
         }
         break;
@@ -3001,7 +3303,10 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     );
     committed.probe(|probe| {
         pop_layout(layout, probe.input());
-        assert_eq!(probe.input().local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
+        assert_eq!(
+            probe.input().local.pop_type_delimited_owner(),
+            Some(TypeDelimitedOwner::NamedRecord)
+        );
         assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
         assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Brace));
     });
@@ -3055,12 +3360,17 @@ where
         } else if !committed.probe(|probe| any_ambient_owner_claims(probe.input()))
             && committed.probe(|probe| type_primary_candidate(probe.input()))
         {
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::RecordFieldColon),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            );
             type_expected = true;
         } else if let Some(TypeInvalidRunRecovery {
             error_range,
             disposition,
-        }) = committed.probe(|probe| consume_record_colon_invalid_run(probe.input())) {
+        }) = committed.probe(|probe| consume_record_colon_invalid_run(probe.input()))
+        {
             emit_type_error(
                 committed,
                 TypeRole::RecordFieldColon,
@@ -3079,16 +3389,29 @@ where
                 || (!committed.probe(|probe| any_ambient_owner_claims(probe.input()))
                     && committed.probe(|probe| type_primary_candidate(probe.input())));
         } else {
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::RecordFieldColon),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            );
             type_expected = !committed.probe(|probe| any_ambient_owner_claims(probe.input()))
                 && committed.probe(|probe| type_primary_candidate(probe.input()));
         }
     } else {
         if let Some((range, colon)) = malformed_name {
-            emit_type_error(committed, TypeRole::RecordFieldName, range, ExpectedSyntax::Identifier);
+            emit_type_error(
+                committed,
+                TypeRole::RecordFieldName,
+                range,
+                ExpectedSyntax::Identifier,
+            );
             committed.token(SyntaxKind::Colon, colon);
         } else {
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldName), ExpectedSyntax::Identifier);
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::RecordFieldName),
+                ExpectedSyntax::Identifier,
+            );
             let colon = missing_name_colon.expect("missing-name field accepted a colon");
             committed.token(SyntaxKind::Colon, colon);
         }
@@ -3102,22 +3425,22 @@ where
                 .push_type_expression_episode(TypeExpressionEpisodePolicy::default())
         });
         if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-        emit_type_missing(
-            committed,
-            GrammarRole::Type(TypeRole::RecordFieldType),
-            ExpectedSyntax::TypeExpression,
-        );
-        } else {
-        if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
-            committed.emit_trivia(&trivia);
-        }
-            if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
-            match direct_required_type_item_error_retry(
+            emit_type_missing(
                 committed,
-                TypeRole::RecordFieldType,
-                None,
-            ) {
-                Some(TypeInvalidRunDisposition::RetryCurrent) => {
+                GrammarRole::Type(TypeRole::RecordFieldType),
+                ExpectedSyntax::TypeExpression,
+            );
+        } else {
+            if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
+                committed.emit_trivia(&trivia);
+            }
+            if commit_direct_type_expression_in_current_episode(true, committed).is_none() {
+                match direct_required_type_item_error_retry(
+                    committed,
+                    TypeRole::RecordFieldType,
+                    None,
+                ) {
+                    Some(TypeInvalidRunDisposition::RetryCurrent) => {
                         if commit_direct_type_expression_in_current_episode(true, committed)
                             .is_none()
                         {
@@ -3126,10 +3449,10 @@ where
                                 GrammarRole::Type(TypeRole::RecordFieldType),
                                 ExpectedSyntax::TypeExpression,
                             );
+                        }
                     }
-                }
-                Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
-                    consume_direct_recovery_trivia(committed, &trivia);
+                    Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
+                        consume_direct_recovery_trivia(committed, &trivia);
                         if commit_direct_type_expression_in_current_episode(true, committed)
                             .is_none()
                         {
@@ -3138,20 +3461,20 @@ where
                                 GrammarRole::Type(TypeRole::RecordFieldType),
                                 ExpectedSyntax::TypeExpression,
                             );
+                        }
                     }
-                }
-                Some(TypeInvalidRunDisposition::BoundaryCurrent)
-                | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
-                None => {
+                    Some(TypeInvalidRunDisposition::BoundaryCurrent)
+                    | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
+                    None => {
                         emit_type_missing(
                             committed,
                             GrammarRole::Type(TypeRole::RecordFieldType),
                             ExpectedSyntax::TypeExpression,
                         );
+                    }
                 }
             }
         }
-    }
         assert_eq!(
             committed.probe(|probe| probe.input().local.pop_type_expression_episode()),
             Some(TypeExpressionEpisodePolicy::default()),
@@ -3164,8 +3487,6 @@ where
     committed.finish_node();
     true
 }
-
-
 
 fn parse_type_expression_start_in_context<'source, E>(
     context: TypePrimaryContext,
@@ -3188,10 +3509,8 @@ where
             if consume_type_chain_trivia(i).is_none() {
                 return Some((Some(row), Recovered::Incomplete));
             }
-            let primary = parse_leading_effect_type_head_for_ast(
-                context.after_leading_bracket_row(),
-                i,
-            );
+            let primary =
+                parse_leading_effect_type_head_for_ast(context.after_leading_bracket_row(), i);
             Some((Some(row), primary))
         }
     }
@@ -3207,7 +3526,8 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
-        if let Some(TypeExpressionHead::Primary(head)) = recognize_type_expression_head(context, i) {
+        if let Some(TypeExpressionHead::Primary(head)) = recognize_type_expression_head(context, i)
+        {
             return Recovered::Complete(parse_type_primary_head(head, i));
         }
         let Some(recovery) = scan_leading_effect_type_head_invalid_run(i) else {
@@ -3226,9 +3546,7 @@ where
     }
 }
 
-fn scan_leading_effect_type_head_invalid_run<E>(
-    i: &mut SynIn<E>,
-) -> Option<TypeInvalidRunRecovery>
+fn scan_leading_effect_type_head_invalid_run<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3253,9 +3571,7 @@ where
 /// BR-H disables another leading row as a recursive head.  A balanced row is
 /// one malformed unit; an unclosed row remains one unit through the boundary
 /// found by the ordinary bracket-row owner.
-fn scan_disabled_leading_bracket_row<E>(
-    i: &mut SynIn<E>,
-) -> Option<TypeInvalidRunRecovery>
+fn scan_disabled_leading_bracket_row<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3395,10 +3711,9 @@ where
 {
     if current_fresh_primary_owns_adjacent_polymorphic_variant_starter(i) {
         if let Some((colon, open)) = scan_polymorphic_variant_open(i) {
-            return Some(TypeExpressionHead::Primary(TypePrimaryHead::PolymorphicVariant {
-                colon,
-                open,
-            }));
+            return Some(TypeExpressionHead::Primary(
+                TypePrimaryHead::PolymorphicVariant { colon, open },
+            ));
         }
     }
     if classify_type_boundary(
@@ -3415,14 +3730,21 @@ where
     }
     if context.allows_forall() {
         if let Some(keyword) = scan_forall_keyword(i) {
-            return Some(TypeExpressionHead::Primary(TypePrimaryHead::Forall(keyword)));
+            return Some(TypeExpressionHead::Primary(TypePrimaryHead::Forall(
+                keyword,
+            )));
         }
     }
     if let Some((apostrophe, open)) = scan_effect_row_open(i) {
-        return Some(TypeExpressionHead::Primary(TypePrimaryHead::EffectRow { apostrophe, open }));
+        return Some(TypeExpressionHead::Primary(TypePrimaryHead::EffectRow {
+            apostrophe,
+            open,
+        }));
     }
     if let Some((colon, open)) = scan_polymorphic_variant_open(i) {
-        return Some(TypeExpressionHead::Primary(TypePrimaryHead::PolymorphicVariant { colon, open }));
+        return Some(TypeExpressionHead::Primary(
+            TypePrimaryHead::PolymorphicVariant { colon, open },
+        ));
     }
     if context.allows_leading_bracket_row() {
         if let Some(open) = scan_open_bracket(i) {
@@ -3432,21 +3754,33 @@ where
     if let Some(name) = scan_type_name(i) {
         return Some(TypeExpressionHead::Primary(TypePrimaryHead::Name(name)));
     }
-    if i.input.remainder().chars().next().is_some_and(|character| character.is_ascii_digit()) {
+    if i.input
+        .remainder()
+        .chars()
+        .next()
+        .is_some_and(|character| character.is_ascii_digit())
+    {
         if let Some(integer) = i.run(parse_integer_literal) {
-            return Some(TypeExpressionHead::Primary(TypePrimaryHead::Number(TypeNumberAtom {
-                text: integer.text(),
-                range: integer.range(),
-            })));
+            return Some(TypeExpressionHead::Primary(TypePrimaryHead::Number(
+                TypeNumberAtom {
+                    text: integer.text(),
+                    range: integer.range(),
+                },
+            )));
         }
     }
     if let Some(open) = scan_open_parenthesis(i) {
-        return Some(TypeExpressionHead::Primary(TypePrimaryHead::Parenthesized(open)));
+        return Some(TypeExpressionHead::Primary(TypePrimaryHead::Parenthesized(
+            open,
+        )));
     }
     scan_open_brace(i).map(|open| TypeExpressionHead::Primary(TypePrimaryHead::Record(open)))
 }
 
-fn parse_forall_type<'source, E>(keyword: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ForallType<'source>
+fn parse_forall_type<'source, E>(
+    keyword: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ForallType<'source>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3459,16 +3793,31 @@ where
 
     let first_boundary = consume_forall_trivia(i, true);
     if let Some(name) = scan_forall_binder(i) {
-        let boundary = first_boundary.map_or(Recovered::Incomplete, |trivia| Recovered::Complete(trivia.range()));
+        let boundary = first_boundary.map_or(Recovered::Incomplete, |trivia| {
+            Recovered::Complete(trivia.range())
+        });
         let end = name.range().end;
-        let binder_start = match &boundary { Recovered::Complete(range) => range.start, Recovered::Incomplete => name.range().start };
-        binders.push(Recovered::Complete(ForallTypeBinder { boundary, name, range: binder_start..end }));
+        let binder_start = match &boundary {
+            Recovered::Complete(range) => range.start,
+            Recovered::Incomplete => name.range().start,
+        };
+        binders.push(Recovered::Complete(ForallTypeBinder {
+            boundary,
+            name,
+            range: binder_start..end,
+        }));
     } else if let Some(found_colon) = scan_exact_colon(i) {
         binders.push(Recovered::Incomplete);
         colon = Recovered::Complete(found_colon);
         body = parse_forall_body_for_ast(i);
         let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
-        return ForallType { keyword, binders, colon, body, range: start..end };
+        return ForallType {
+            keyword,
+            binders,
+            colon,
+            body,
+            range: start..end,
+        };
     } else if let Some(recovery) = recover_forall_for_ast(ForallRecoveryPhase::FirstBinder, i) {
         binders.push(Recovered::Incomplete);
         match recovery.target {
@@ -3476,29 +3825,55 @@ where
                 let gap = consume_forall_recovery_trivia(i, &recovery.disposition)
                     .or_else(|| consume_forall_trivia(i, true));
                 let name = scan_forall_binder(i).expect("forall recovery stopped at a binder");
-                let boundary = gap.map_or(Recovered::Incomplete, |trivia| Recovered::Complete(trivia.range()));
+                let boundary = gap.map_or(Recovered::Incomplete, |trivia| {
+                    Recovered::Complete(trivia.range())
+                });
                 let end = name.range().end;
-                let binder_start = match &boundary { Recovered::Complete(range) => range.start, Recovered::Incomplete => name.range().start };
-                binders.push(Recovered::Complete(ForallTypeBinder { boundary, name, range: binder_start..end }));
+                let binder_start = match &boundary {
+                    Recovered::Complete(range) => range.start,
+                    Recovered::Incomplete => name.range().start,
+                };
+                binders.push(Recovered::Complete(ForallTypeBinder {
+                    boundary,
+                    name,
+                    range: binder_start..end,
+                }));
             }
             ForallInvalidRecovery::Colon => {
                 let _ = consume_forall_recovery_trivia(i, &recovery.disposition);
-                let found_colon = scan_exact_colon(i)
-                    .expect("forall recovery stopped at a colon");
+                let found_colon = scan_exact_colon(i).expect("forall recovery stopped at a colon");
                 colon = Recovered::Complete(found_colon);
                 body = parse_forall_body_for_ast(i);
                 let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
-                return ForallType { keyword, binders, colon, body, range: start..end };
+                return ForallType {
+                    keyword,
+                    binders,
+                    colon,
+                    body,
+                    range: start..end,
+                };
             }
             ForallInvalidRecovery::Body | ForallInvalidRecovery::Boundary => {
                 let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
-                return ForallType { keyword, binders, colon, body, range: start..end };
+                return ForallType {
+                    keyword,
+                    binders,
+                    colon,
+                    body,
+                    range: start..end,
+                };
             }
         }
     } else {
         binders.push(Recovered::Incomplete);
         let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
-        return ForallType { keyword, binders, colon, body, range: start..end };
+        return ForallType {
+            keyword,
+            binders,
+            colon,
+            body,
+            range: start..end,
+        };
     }
 
     loop {
@@ -3514,12 +3889,21 @@ where
             break;
         }
         if let Some(name) = scan_forall_binder(i) {
-            let binder_start = gap.as_ref().filter(|trivia| !trivia.is_empty())
+            let binder_start = gap
+                .as_ref()
+                .filter(|trivia| !trivia.is_empty())
                 .map_or_else(|| name.range().start, |trivia| trivia.range().start);
-            let boundary = gap.filter(|trivia| !trivia.is_empty())
-                .map_or(Recovered::Incomplete, |trivia| Recovered::Complete(trivia.range()));
+            let boundary = gap
+                .filter(|trivia| !trivia.is_empty())
+                .map_or(Recovered::Incomplete, |trivia| {
+                    Recovered::Complete(trivia.range())
+                });
             let end = name.range().end;
-            binders.push(Recovered::Complete(ForallTypeBinder { boundary, name, range: binder_start..end }));
+            binders.push(Recovered::Complete(ForallTypeBinder {
+                boundary,
+                name,
+                range: binder_start..end,
+            }));
             continue;
         }
         if type_primary_candidate(i) {
@@ -3531,26 +3915,46 @@ where
             continue;
         }
         match recover_forall_for_ast(ForallRecoveryPhase::AfterBinder, i) {
-            Some(ForallInvalidRunRecovery { target: ForallInvalidRecovery::Binder, .. }) => continue,
-            Some(ForallInvalidRunRecovery { target: ForallInvalidRecovery::Colon, disposition, .. }) => {
+            Some(ForallInvalidRunRecovery {
+                target: ForallInvalidRecovery::Binder,
+                ..
+            }) => continue,
+            Some(ForallInvalidRunRecovery {
+                target: ForallInvalidRecovery::Colon,
+                disposition,
+                ..
+            }) => {
                 let _ = consume_forall_recovery_trivia(i, &disposition);
-                let found_colon = scan_exact_colon(i)
-                    .expect("forall recovery stopped at a colon");
+                let found_colon = scan_exact_colon(i).expect("forall recovery stopped at a colon");
                 colon = Recovered::Complete(found_colon);
                 body = parse_forall_body_for_ast(i);
                 break;
             }
-            Some(ForallInvalidRunRecovery { target: ForallInvalidRecovery::Body, disposition, .. }) => {
+            Some(ForallInvalidRunRecovery {
+                target: ForallInvalidRecovery::Body,
+                disposition,
+                ..
+            }) => {
                 let _ = consume_forall_recovery_trivia(i, &disposition);
                 colon = Recovered::Incomplete;
                 body = parse_forall_body_for_ast(i);
                 break;
             }
-            Some(ForallInvalidRunRecovery { target: ForallInvalidRecovery::Boundary, .. }) | None => break,
+            Some(ForallInvalidRunRecovery {
+                target: ForallInvalidRecovery::Boundary,
+                ..
+            })
+            | None => break,
         }
     }
     let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
-    ForallType { keyword, binders, colon, body, range: start..end }
+    ForallType {
+        keyword,
+        binders,
+        colon,
+        body,
+        range: start..end,
+    }
 }
 
 fn consume_forall_unowned_separator_ast<E>(i: &mut SynIn<E>) -> bool
@@ -3578,7 +3982,9 @@ where
     }
 }
 
-fn parse_forall_body_for_ast<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<Box<TypeExpression<'source>>>
+fn parse_forall_body_for_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3591,15 +3997,15 @@ where
     let parsed = parse_type_expression_in_current_episode(true, i)
         .or_else(
             || match recover_forall_for_ast(ForallRecoveryPhase::Body, i) {
-            Some(ForallInvalidRunRecovery {
-                target: ForallInvalidRecovery::Body,
-                disposition,
-                ..
-            }) => {
-                let _ = consume_forall_recovery_trivia(i, &disposition);
+                Some(ForallInvalidRunRecovery {
+                    target: ForallInvalidRecovery::Body,
+                    disposition,
+                    ..
+                }) => {
+                    let _ = consume_forall_recovery_trivia(i, &disposition);
                     parse_type_expression_in_current_episode(true, i)
-            }
-            _ => None,
+                }
+                _ => None,
             },
         )
         .map(|value| Recovered::Complete(Box::new(value)))
@@ -3623,10 +4029,14 @@ fn forall_end(
         Recovered::Complete(value) => value.range.end,
         Recovered::Incomplete => match colon {
             Recovered::Complete(range) => range.end,
-            Recovered::Incomplete => binders.last().and_then(|binder| match binder {
-                Recovered::Complete(binder) => Some(binder.range.end),
-                Recovered::Incomplete => None,
-            }).unwrap_or(keyword.end).max(fallback),
+            Recovered::Incomplete => binders
+                .last()
+                .and_then(|binder| match binder {
+                    Recovered::Complete(binder) => Some(binder.range.end),
+                    Recovered::Incomplete => None,
+                })
+                .unwrap_or(keyword.end)
+                .max(fallback),
         },
     }
 }
@@ -3681,8 +4091,15 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let Some(word) = i.run(scan_word) else { return None; };
-    if word.text() == "for" { Some(word.range()) } else { i.rollback(checkpoint); None }
+    let Some(word) = i.run(scan_word) else {
+        return None;
+    };
+    if word.text() == "for" {
+        Some(word.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_forall_binder<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
@@ -3701,7 +4118,10 @@ where
     }
 }
 
-fn recover_forall_for_ast<E>(phase: ForallRecoveryPhase, i: &mut SynIn<E>) -> Option<ForallInvalidRunRecovery>
+fn recover_forall_for_ast<E>(
+    phase: ForallRecoveryPhase,
+    i: &mut SynIn<E>,
+) -> Option<ForallInvalidRunRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3710,7 +4130,10 @@ where
     scan_forall_invalid_run(phase, i)
 }
 
-fn parse_type_path_tail<'source, E>(separator: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> TypePathTail<'source>
+fn parse_type_path_tail<'source, E>(
+    separator: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypePathTail<'source>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3718,24 +4141,37 @@ where
 {
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
-    if !type_chain_trivia(i, &trivia) { i.rollback(checkpoint); }
+    if !type_chain_trivia(i, &trivia) {
+        i.rollback(checkpoint);
+    }
     let segment = scan_type_name(i)
         .or_else(|| recover_type_path_for_ast(i))
-        .map(|name| Recovered::Complete(match name {
-            TypeName::Identifier(word) => TypePathSegment::Identifier(word),
-            TypeName::SigilIdentifier(word) => TypePathSegment::SigilIdentifier(word),
-        }))
+        .map(|name| {
+            Recovered::Complete(match name {
+                TypeName::Identifier(word) => TypePathSegment::Identifier(word),
+                TypeName::SigilIdentifier(word) => TypePathSegment::SigilIdentifier(word),
+            })
+        })
         .unwrap_or(Recovered::Incomplete);
     let end = match &segment {
         Recovered::Complete(segment) => match segment {
-            TypePathSegment::Identifier(word) | TypePathSegment::SigilIdentifier(word) => word.range().end,
+            TypePathSegment::Identifier(word) | TypePathSegment::SigilIdentifier(word) => {
+                word.range().end
+            }
         },
         Recovered::Incomplete => separator.end,
     };
-    TypePathTail { separator: separator.clone(), segment, range: separator.start..end }
+    TypePathTail {
+        separator: separator.clone(),
+        segment,
+        range: separator.start..end,
+    }
 }
 
-fn parse_type_arrow_tail<'source, E>(arrow: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> TypeArrowTail<'source>
+fn parse_type_arrow_tail<'source, E>(
+    arrow: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeArrowTail<'source>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3768,7 +4204,7 @@ where
         match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
             Some(TypeInvalidRunDisposition::RetryCurrent) => {
                 parse_type_expression_in_current_episode(true, i)
-                .map(|value| Recovered::Complete(Box::new(value)))
+                    .map(|value| Recovered::Complete(Box::new(value)))
                     .unwrap_or(Recovered::Incomplete)
             }
             Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
@@ -3841,17 +4277,15 @@ where
         }
         match bracket_arrow_recovery_candidate(i) {
             Some(BracketArrowRecoveryTarget::Arrow) => {
-                let arrow = scan_exact_arrow(i)
-                    .expect("the BR-A candidate accepted an exact arrow");
-                return parse_type_arrow_tail_with_argument_effect(
-                    Some(argument_effect),
-                    arrow,
-                    i,
-                );
+                let arrow =
+                    scan_exact_arrow(i).expect("the BR-A candidate accepted an exact arrow");
+                return parse_type_arrow_tail_with_argument_effect(Some(argument_effect), arrow, i);
             }
             Some(BracketArrowRecoveryTarget::Rhs) => {
                 let rhs = i
-                    .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                    .run(from_fn(|i| {
+                        parse_type_expression_with_outer_missing_role(None, i)
+                    }))
                     .map(|rhs| Recovered::Complete(Box::new(rhs)))
                     .expect("the BR-A candidate accepted a TypeExpression RHS");
                 let end = match &rhs {
@@ -3895,26 +4329,54 @@ where
     }
 }
 
-fn parse_type_call_tail<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> TypeCallTail<'source>
+fn parse_type_call_tail<'source, E>(
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeCallTail<'source>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (arguments, _, close) = parse_type_delimited_items(TypeDelimitedOwner::Call, TypeDelimitedShape::Parenthesis, i);
-    let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
-    TypeCallTail { open: open.clone(), arguments, close, range: open.start..end }
+    let (arguments, _, close) =
+        parse_type_delimited_items(TypeDelimitedOwner::Call, TypeDelimitedShape::Parenthesis, i);
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    TypeCallTail {
+        open: open.clone(),
+        arguments,
+        close,
+        range: open.start..end,
+    }
 }
 
-fn parse_parenthesized_type_group<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ParenthesizedTypeGroup<'source>
+fn parse_parenthesized_type_group<'source, E>(
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParenthesizedTypeGroup<'source>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (elements, trailing_explicit_separator, close) = parse_type_delimited_items(TypeDelimitedOwner::ParenthesizedGroup, TypeDelimitedShape::Parenthesis, i);
-    let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
-    ParenthesizedTypeGroup { open: open.clone(), elements, trailing_explicit_separator, close, range: open.start..end }
+    let (elements, trailing_explicit_separator, close) = parse_type_delimited_items(
+        TypeDelimitedOwner::ParenthesizedGroup,
+        TypeDelimitedShape::Parenthesis,
+        i,
+    );
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    ParenthesizedTypeGroup {
+        open: open.clone(),
+        elements,
+        trailing_explicit_separator,
+        close,
+        range: open.start..end,
+    }
 }
 
 fn parse_effect_row_type<'source, E>(
@@ -3927,9 +4389,22 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (items, _, close) = parse_type_delimited_items(TypeDelimitedOwner::EffectRow, TypeDelimitedShape::Bracket, i);
-    let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
-    EffectRowType { apostrophe: apostrophe.clone(), open, items, close, range: apostrophe.start..end }
+    let (items, _, close) = parse_type_delimited_items(
+        TypeDelimitedOwner::EffectRow,
+        TypeDelimitedShape::Bracket,
+        i,
+    );
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    EffectRowType {
+        apostrophe: apostrophe.clone(),
+        open,
+        items,
+        close,
+        range: apostrophe.start..end,
+    }
 }
 
 fn parse_bracket_row<'source, E>(
@@ -3941,8 +4416,11 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (items, _, close) =
-        parse_type_delimited_items(TypeDelimitedOwner::BracketRow, TypeDelimitedShape::Bracket, i);
+    let (items, _, close) = parse_type_delimited_items(
+        TypeDelimitedOwner::BracketRow,
+        TypeDelimitedShape::Bracket,
+        i,
+    );
     let end = match &close {
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
@@ -3979,9 +4457,7 @@ struct BracketArrowInvalidRunRecovery {
     disposition: TypeInvalidRunDisposition,
 }
 
-fn bracket_arrow_recovery_candidate<E>(
-    i: &mut SynIn<E>,
-) -> Option<BracketArrowRecoveryTarget>
+fn bracket_arrow_recovery_candidate<E>(i: &mut SynIn<E>) -> Option<BracketArrowRecoveryTarget>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4001,9 +4477,7 @@ where
     target
 }
 
-fn scan_bracket_arrow_invalid_run<E>(
-    i: &mut SynIn<E>,
-) -> Option<BracketArrowInvalidRunRecovery>
+fn scan_bracket_arrow_invalid_run<E>(i: &mut SynIn<E>) -> Option<BracketArrowInvalidRunRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4017,10 +4491,12 @@ where
         newline_policy,
         false,
         true,
-        |i| matches!(
-            bracket_arrow_recovery_candidate(i),
-            Some(BracketArrowRecoveryTarget::Arrow | BracketArrowRecoveryTarget::Rhs)
-        ),
+        |i| {
+            matches!(
+                bracket_arrow_recovery_candidate(i),
+                Some(BracketArrowRecoveryTarget::Arrow | BracketArrowRecoveryTarget::Rhs)
+            )
+        },
         type_recovery_boundary_pending,
     )?;
     Some(BracketArrowInvalidRunRecovery {
@@ -4029,19 +4505,29 @@ where
     })
 }
 
-fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
+fn parse_named_record_type<'source, E>(
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> NamedRecordType<'source>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
-    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::RightBrace);
+    let incoming = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    let stops = active_stop_set(i)
+        .with(StopKind::Comma)
+        .with(StopKind::RightBrace);
     i.local.push_delimiter(Delimiter::Brace);
     i.local.push_stop_set(stops);
-    i.local.push_type_delimited_owner(TypeDelimitedOwner::NamedRecord);
+    i.local
+        .push_type_delimited_owner(TypeDelimitedOwner::NamedRecord);
     let opening = consume_trivia(i);
-    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent);
+    let layout =
+        LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent);
     push_layout(layout, i);
     let mut fields = Vec::new();
     let mut trailing_comma = None;
@@ -4050,7 +4536,8 @@ where
         if after_semicolon {
             match classify_named_record_recovery(layout, i) {
                 DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
-                DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline => {
+                DelimitedRecoveryTarget::RetryPrimary
+                | DelimitedRecoveryTarget::ImplicitNewline => {
                     let _ = consume_trivia(i);
                     after_semicolon = false;
                     continue;
@@ -4060,7 +4547,8 @@ where
                     after_semicolon = false;
                     continue;
                 }
-                DelimitedRecoveryTarget::MatchingClose(_) | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
+                DelimitedRecoveryTarget::MatchingClose(_)
+                | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
                     let _ = consume_trivia(i);
                     break;
                 }
@@ -4070,7 +4558,9 @@ where
                 }
             }
         }
-        if close_brace_pending(i) || record_local_mismatched_close_pending(i) { break; }
+        if close_brace_pending(i) || record_local_mismatched_close_pending(i) {
+            break;
+        }
         if scan_record_comma(i).is_some() {
             fields.push(Recovered::Incomplete);
             let _ = consume_trivia(i);
@@ -4088,10 +4578,9 @@ where
             if type_malformed_caller_boundary_pending(i) {
                 break;
             }
-        } else if let Some(TypeInvalidRunRecovery {
-            disposition,
-            ..
-        }) = recover_record_item_for_ast(i) {
+        } else if let Some(TypeInvalidRunRecovery { disposition, .. }) =
+            recover_record_item_for_ast(i)
+        {
             fields.push(Recovered::Incomplete);
             let target = match disposition {
                 TypeInvalidRunDisposition::RetryCurrent => continue,
@@ -4099,7 +4588,9 @@ where
                     consume_recovery_trivia(i, &trivia);
                     continue;
                 }
-                TypeInvalidRunDisposition::BoundaryCurrent => classify_named_record_recovery(layout, i),
+                TypeInvalidRunDisposition::BoundaryCurrent => {
+                    classify_named_record_recovery(layout, i)
+                }
                 TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia) => {
                     let checkpoint = i.checkpoint();
                     let probed = consume_trivia(i);
@@ -4110,7 +4601,8 @@ where
             };
             match target {
                 DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
-                DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline => {
+                DelimitedRecoveryTarget::RetryPrimary
+                | DelimitedRecoveryTarget::ImplicitNewline => {
                     let _ = consume_trivia(i);
                     continue;
                 }
@@ -4120,7 +4612,8 @@ where
                     let _ = consume_trivia(i);
                     continue;
                 }
-                DelimitedRecoveryTarget::MatchingClose(_) | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
+                DelimitedRecoveryTarget::MatchingClose(_)
+                | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
                     let _ = consume_trivia(i);
                     break;
                 }
@@ -4151,10 +4644,14 @@ where
             after_semicolon = true;
             continue;
         }
-        if close_brace_pending(i) || record_local_mismatched_close_pending(i) { break; }
+        if close_brace_pending(i) || record_local_mismatched_close_pending(i) {
+            break;
+        }
         match layout.boundary_after_trivia(&trivia, i.local.line().line_indent) {
             LayoutDelimitedBoundary::ImplicitNewline => continue,
-            LayoutDelimitedBoundary::None if named_record_next_field_candidate(i, &trivia) => continue,
+            LayoutDelimitedBoundary::None if named_record_next_field_candidate(i, &trivia) => {
+                continue;
+            }
             _ => break,
         }
     }
@@ -4168,14 +4665,28 @@ where
         },
     );
     pop_layout(layout, i);
-    assert_eq!(i.local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
+    assert_eq!(
+        i.local.pop_type_delimited_owner(),
+        Some(TypeDelimitedOwner::NamedRecord)
+    );
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
-    let end = match &close { Recovered::Complete(range) => range.end, Recovered::Incomplete => i.pos() };
-    NamedRecordType { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
+    let end = match &close {
+        Recovered::Complete(range) => range.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    NamedRecordType {
+        open: open.clone(),
+        fields,
+        trailing_comma,
+        close,
+        range: open.start..end,
+    }
 }
 
-fn parse_type_record_field<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeRecordField<'source>>
+fn parse_type_record_field<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<TypeRecordField<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4191,10 +4702,9 @@ where
         } else if !any_ambient_owner_claims(i) && type_primary_candidate(i) {
             (Recovered::Complete(name), Recovered::Incomplete, true)
         } else {
-            if let Some(TypeInvalidRunRecovery {
-                disposition,
-                ..
-            }) = consume_record_colon_invalid_run(i) {
+            if let Some(TypeInvalidRunRecovery { disposition, .. }) =
+                consume_record_colon_invalid_run(i)
+            {
                 if let TypeInvalidRunDisposition::RetryAfterTrivia(trivia) = disposition {
                     consume_recovery_trivia(i, &trivia);
                 }
@@ -4208,7 +4718,11 @@ where
                 )
             } else {
                 let type_expected = !any_ambient_owner_claims(i) && type_primary_candidate(i);
-                (Recovered::Complete(name), Recovered::Incomplete, type_expected)
+                (
+                    Recovered::Complete(name),
+                    Recovered::Incomplete,
+                    type_expected,
+                )
             }
         }
     } else if let Some(colon) = scan_exact_colon(i) {
@@ -4231,7 +4745,7 @@ where
             match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
                 Some(TypeInvalidRunDisposition::RetryCurrent) => {
                     parse_type_expression_in_current_episode(true, i)
-                    .map(|value| Recovered::Complete(Box::new(value)))
+                        .map(|value| Recovered::Complete(Box::new(value)))
                         .unwrap_or(Recovered::Incomplete)
                 }
                 Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
@@ -4252,8 +4766,22 @@ where
         debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
         parsed
     };
-    let end = match &type_expr { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => match &colon { Recovered::Complete(colon) => colon.end, Recovered::Incomplete => match &name { Recovered::Complete(name) => name.range().end, Recovered::Incomplete => start } } };
-    Some(TypeRecordField { name, colon, type_expr, range: start..end })
+    let end = match &type_expr {
+        Recovered::Complete(value) => value.range.end,
+        Recovered::Incomplete => match &colon {
+            Recovered::Complete(colon) => colon.end,
+            Recovered::Incomplete => match &name {
+                Recovered::Complete(name) => name.range().end,
+                Recovered::Incomplete => start,
+            },
+        },
+    };
+    Some(TypeRecordField {
+        name,
+        colon,
+        type_expr,
+        range: start..end,
+    })
 }
 
 struct AstTypeDelimitedContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
@@ -4262,8 +4790,7 @@ struct AstTypeDelimitedContext<'context, 'parse, 'source, 'local, E: ErrorSink<u
     trailing: Option<TypeExplicitSeparator>,
 }
 
-impl<'source, E> TypeCloseSlotContext<'source>
-    for AstTypeDelimitedContext<'_, '_, 'source, '_, E>
+impl<'source, E> TypeCloseSlotContext<'source> for AstTypeDelimitedContext<'_, '_, 'source, '_, E>
 where
     E: ErrorSink<usize>,
 {
@@ -4278,12 +4805,17 @@ where
 
     fn emit_close_trivia(&mut self, _trivia: &TriviaRun) {}
     fn emit_matching_close(&mut self, _kind: SyntaxKind, _range: Range<usize>) {}
-    fn emit_mismatched_close(&mut self, _role: GrammarRole, _range: Range<usize>, _expected: ExpectedSyntax) {}
+    fn emit_mismatched_close(
+        &mut self,
+        _role: GrammarRole,
+        _range: Range<usize>,
+        _expected: ExpectedSyntax,
+    ) {
+    }
     fn emit_missing_close(&mut self, _role: GrammarRole, _expected: ExpectedSyntax) {}
 }
 
-impl<'source, E> TypeDelimitedContext<'source>
-    for AstTypeDelimitedContext<'_, '_, 'source, '_, E>
+impl<'source, E> TypeDelimitedContext<'source> for AstTypeDelimitedContext<'_, '_, 'source, '_, E>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4339,7 +4871,11 @@ fn parse_type_delimited_items<'source, E>(
     owner: TypeDelimitedOwner,
     shape: TypeDelimitedShape,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> (Vec<Recovered<TypeExpression<'source>>>, Option<TypeExplicitSeparator>, Recovered<Range<usize>>)
+) -> (
+    Vec<Recovered<TypeExpression<'source>>>,
+    Option<TypeExplicitSeparator>,
+    Recovered<Range<usize>>,
+)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4353,7 +4889,6 @@ where
     let close = drive_type_delimited(&mut context, TypeDelimitedSpec { owner, shape });
     (context.items, context.trailing, close)
 }
-
 
 /// The AST is intentionally source-free: direct CST owns the Error node and
 /// typed recovery record.  This counterpart only advances across the same
@@ -4383,7 +4918,9 @@ where
     scan_record_invalid_run(i)
 }
 
-fn recover_type_path_for_ast<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeName<'source>>
+fn recover_type_path_for_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<TypeName<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4405,10 +4942,17 @@ where
 }
 
 #[derive(Clone, Copy)]
-enum TypeName<'source> { Identifier(WordSpan<'source>), SigilIdentifier(WordSpan<'source>) }
+enum TypeName<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
+}
 
 fn scan_type_name<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeName<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(word) = i.run(scan_path_segment) else {
         i.rollback(checkpoint);
@@ -4416,7 +4960,10 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     };
     match word.text().chars().next() {
         Some('\'') => Some(TypeName::SigilIdentifier(word)),
-        Some('$' | '&') => { i.rollback(checkpoint); None }
+        Some('$' | '&') => {
+            i.rollback(checkpoint);
+            None
+        }
         _ => Some(TypeName::Identifier(word)),
     }
 }
@@ -4443,17 +4990,27 @@ fn separator_kind(separator: &TypeExplicitSeparator) -> SyntaxKind {
 
 fn separator_range(separator: &TypeExplicitSeparator) -> Range<usize> {
     match separator {
-        TypeExplicitSeparator::Comma(range) | TypeExplicitSeparator::Semicolon(range) => range.clone(),
+        TypeExplicitSeparator::Comma(range) | TypeExplicitSeparator::Semicolon(range) => {
+            range.clone()
+        }
     }
 }
 
 fn type_primary_candidate<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     type_primary_candidate_in_context(true, i)
 }
 
 fn type_primary_candidate_in_context<E>(allow_forall: bool, i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let context = TypePrimaryContext::from_allow_forall(allow_forall);
     let head = recognize_type_expression_head(context, i);
@@ -4475,37 +5032,68 @@ where
 }
 
 fn scan_open_parenthesis<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Open(Delimiter::Parenthesis) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Open(Delimiter::Parenthesis) {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_open_bracket<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Open(Delimiter::Bracket) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Open(Delimiter::Bracket) {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_open_brace<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Open(Delimiter::Brace) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Open(Delimiter::Brace) {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_effect_row_open<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Range<usize>)>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let start = i.pos();
     if !i.input.remainder().starts_with("'[") {
@@ -4528,38 +5116,73 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 /// The compound introducer is deliberately probed as one atomic spelling.
 /// A bare colon remains available to the caller's structural grammar.
 fn scan_polymorphic_variant_open<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Range<usize>)>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let start = i.pos();
-    if !i.input.remainder().starts_with(":{") { return None; }
+    if !i.input.remainder().starts_with(":{") {
+        return None;
+    }
     i.input.next()?;
     let middle = i.pos();
     i.input.next()?;
     let end = i.pos();
-    if middle == start || end == middle { i.rollback(checkpoint); return None; }
+    if middle == start || end == middle {
+        i.rollback(checkpoint);
+        return None;
+    }
     let mut line = i.local.line();
     line.at_line_start = false;
     i.local.set_line(line);
     Some((start..middle, middle..end))
 }
 
-fn scan_close_delimiter<'source, E>(shape: TypeDelimitedShape, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+fn scan_close_delimiter<'source, E>(
+    shape: TypeDelimitedShape,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     scan_close_for_delimiter(shape.delimiter(), i)
 }
 
-fn scan_close_for_delimiter<'source, E>(delimiter: Delimiter, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+fn scan_close_for_delimiter<'source, E>(
+    delimiter: Delimiter,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Close(delimiter) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Close(delimiter) {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
-fn scan_mismatched_close_for<'source, E>(delimiter: Delimiter, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+fn scan_mismatched_close_for<'source, E>(
+    delimiter: Delimiter,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
@@ -4577,7 +5200,9 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         }
         _ => false,
     };
-    if matches!(punctuation.kind(), PunctuationKind::Close(found) if found != delimiter) && !owned_by_outer {
+    if matches!(punctuation.kind(), PunctuationKind::Close(found) if found != delimiter)
+        && !owned_by_outer
+    {
         Some(punctuation.range())
     } else {
         i.rollback(checkpoint);
@@ -4586,59 +5211,109 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn scan_close_brace<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Close(Delimiter::Brace) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Close(Delimiter::Brace) {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_record_comma<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Comma { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Comma {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_record_semicolon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Semicolon { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Semicolon {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_exact_pipe<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let start = i.pos();
     i.skip(item('|'))?;
     Some(start..i.pos())
 }
 
 fn scan_exact_colon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Colon { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Colon {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_exact_equals<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     scan_exact_operator_spelling("=", i)
 }
 
-fn scan_plain_type_identifier<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+fn scan_plain_type_identifier<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<WordSpan<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let TypeName::Identifier(word) = scan_type_name(i)? else {
         i.rollback(checkpoint);
@@ -4648,7 +5323,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn scan_malformed_record_name_colon<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Range<usize>)>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let newline_policy = TypeMalformedNewlinePolicy::AnyPhysicalHandoff;
     let recovered = scan_type_item_invalid_run_with(
@@ -4656,11 +5335,13 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         exact_colon_pending,
         |_| false,
         malformed_record_name_boundary_pending,
-        |i| type_item_boundary_after_trivia_with_policy(
-            i,
-            newline_policy,
-            malformed_record_name_boundary_pending,
-        ),
+        |i| {
+            type_item_boundary_after_trivia_with_policy(
+                i,
+                newline_policy,
+                malformed_record_name_boundary_pending,
+            )
+        },
     );
     let Some((range, TypeItemRecovery::Retry)) = recovered else {
         i.rollback(checkpoint);
@@ -4675,7 +5356,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 /// not consume `foo` in `@foo!: A` before the outer scanner can commit the
 /// field-level Error run.
 fn malformed_record_name_boundary_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let plain_identifier = scan_plain_type_identifier(i).is_some();
     i.rollback(checkpoint);
@@ -4683,8 +5368,15 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn named_record_next_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    if leading.is_empty() || trivia_has_newline(leading) || i.local.type_delimited_owner() != Some(TypeDelimitedOwner::NamedRecord) {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if leading.is_empty()
+        || trivia_has_newline(leading)
+        || i.local.type_delimited_owner() != Some(TypeDelimitedOwner::NamedRecord)
+    {
         return false;
     }
     let checkpoint = i.checkpoint();
@@ -4702,7 +5394,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 /// have different recovery roles even though this sink-free lookahead shape is
 /// similar.
 fn struct_named_fields_next_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     if leading.is_empty()
         || trivia_has_newline(leading)
         || i.local.type_delimited_owner() != Some(TypeDelimitedOwner::StructNamedFields)
@@ -4721,10 +5417,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 /// Enum named payload fields use the same sink-free next-`name:` lookahead as
 /// Struct fields, but carry a distinct owner so the enclosing Enum field
 /// driver retains its Variant recovery identity.
-fn enum_variant_named_fields_next_field_candidate<E>(
-    i: &mut SynIn<E>,
-    leading: &TriviaRun,
-) -> bool
+fn enum_variant_named_fields_next_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4746,7 +5439,11 @@ where
 }
 
 fn scan_separator<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeExplicitSeparator>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
@@ -4755,22 +5452,38 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     match punctuation.kind() {
         PunctuationKind::Comma => Some(TypeExplicitSeparator::Comma(punctuation.range())),
         PunctuationKind::Semicolon => Some(TypeExplicitSeparator::Semicolon(punctuation.range())),
-        _ => { i.rollback(checkpoint); None }
+        _ => {
+            i.rollback(checkpoint);
+            None
+        }
     }
 }
 
 fn scan_exact_colon_colon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::ColonColon { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::ColonColon {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn scan_exact_arrow<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     scan_exact_operator_spelling("->", i)
 }
 
@@ -4778,10 +5491,20 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 /// equals `expected`.  This is the same lexical rule used by pattern `=` and
 /// `..`: an exact grammar token must not split a longer dynamic operator run.
 fn scan_exact_operator_spelling<E>(expected: &str, i: &mut SynIn<E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let start = i.pos();
-    while i.input.remainder().chars().next().is_some_and(is_operator_shaped_character) {
+    while i
+        .input
+        .remainder()
+        .chars()
+        .next()
+        .is_some_and(is_operator_shaped_character)
+    {
         i.input.next()?;
     }
     let end = i.pos();
@@ -4807,17 +5530,22 @@ fn is_operator_shaped_character(character: char) -> bool {
 }
 
 fn consume_trivia<E>(i: &mut SynIn<E>) -> TriviaRun
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { i.run(scan_trivia).expect("trivia scanning is total") }
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    i.run(scan_trivia).expect("trivia scanning is total")
+}
 
 fn mark_type_malformed_caller_boundary<E>(i: &mut SynIn<E>)
 where
     E: ErrorSink<usize>,
 {
-    i.local.set_type_malformed_caller_boundary(Some(
-        TypeMalformedCallerBoundaryFence {
+    i.local
+        .set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
             trivia_start: i.pos(),
-        },
-    ));
+        }));
 }
 
 fn type_malformed_caller_boundary_pending<E>(i: &mut SynIn<E>) -> bool
@@ -4848,10 +5576,10 @@ where
 /// A trivia consumer must never step over the exact cursor position recorded
 /// by a caller-boundary fence.  Unlike the entry guards, this runs after the
 /// cursor has advanced and catches a future consumer that omits its guard.
-fn debug_assert_type_malformed_caller_boundary_not_skipped<E>(
-    consumed: &TriviaRun,
-    i: &SynIn<E>,
-) where E: ErrorSink<usize> {
+fn debug_assert_type_malformed_caller_boundary_not_skipped<E>(consumed: &TriviaRun, i: &SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
     debug_assert_ne!(
         i.local.type_malformed_caller_boundary(),
         Some(TypeMalformedCallerBoundaryFence {
@@ -5037,7 +5765,10 @@ fn emit_type_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -5077,7 +5808,10 @@ fn emit_error_with_role<'parse, 'source, 'local, E, O>(
         let i = probe.input();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -5141,9 +5875,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
-        continuation_base,
-    };
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified { continuation_base };
     scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
@@ -5334,7 +6066,13 @@ where
 /// Callers supply only their legal retry candidate and any narrower boundary
 /// policy; physical line boundaries and active caller ownership remain one
 /// implementation for every user.
-pub(super) fn scan_type_item_invalid_run_with<E, Candidate, TriviaCandidate, Boundary, TriviaBoundary>(
+pub(super) fn scan_type_item_invalid_run_with<
+    E,
+    Candidate,
+    TriviaCandidate,
+    Boundary,
+    TriviaBoundary,
+>(
     i: &mut SynIn<E>,
     mut candidate: Candidate,
     mut candidate_after_trivia: TriviaCandidate,
@@ -5422,9 +6160,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let malformed_continuation_base = malformed_continuation_base.unwrap_or_else(|| {
-        committed.probe(|probe| active_type_continuation_base(probe.input()))
-    });
+    let malformed_continuation_base = malformed_continuation_base
+        .unwrap_or_else(|| committed.probe(|probe| active_type_continuation_base(probe.input())));
     let recovered = committed.probe(|probe| {
         scan_required_type_item_invalid_run(probe.input(), malformed_continuation_base)
     });
@@ -5452,15 +6189,13 @@ where
         return false;
     }
     let checkpoint = i.checkpoint();
-    let fixed = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
+    let fixed = i
+        .run(scan_punctuation)
+        .map(|punctuation| punctuation.kind());
     i.rollback(checkpoint);
     if matches!(
         fixed,
-        Some(
-            PunctuationKind::Close(_)
-                | PunctuationKind::Comma
-                | PunctuationKind::Semicolon
-        )
+        Some(PunctuationKind::Close(_) | PunctuationKind::Comma | PunctuationKind::Semicolon)
     ) {
         return true;
     }
@@ -5516,7 +6251,9 @@ where
     }
 
     let checkpoint = i.checkpoint();
-    let punctuation = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
+    let punctuation = i
+        .run(scan_punctuation)
+        .map(|punctuation| punctuation.kind());
     i.rollback(checkpoint);
     match punctuation {
         Some(PunctuationKind::Close(delimiter)) if policy.matching_close == Some(delimiter) => {
@@ -5533,7 +6270,9 @@ where
         Some(PunctuationKind::Comma) if policy.local_separators.contains(StopKind::Comma) => {
             return Some(TypeBoundary::LocalSeparator);
         }
-        Some(PunctuationKind::Semicolon) if policy.local_separators.contains(StopKind::Semicolon) => {
+        Some(PunctuationKind::Semicolon)
+            if policy.local_separators.contains(StopKind::Semicolon) =>
+        {
             return Some(TypeBoundary::LocalSeparator);
         }
         _ => {}
@@ -5576,7 +6315,9 @@ where
         StopKind::Elsif | StopKind::Else => i
             .run(scan_word)
             .is_some_and(|word| is_if_expression_companion_word(word.text())),
-        StopKind::RightParenthesis => scan_close_delimiter(TypeDelimitedShape::Parenthesis, i).is_some(),
+        StopKind::RightParenthesis => {
+            scan_close_delimiter(TypeDelimitedShape::Parenthesis, i).is_some()
+        }
         StopKind::RightBracket => scan_close_delimiter(TypeDelimitedShape::Bracket, i).is_some(),
         StopKind::RightBrace => scan_close_brace(i).is_some(),
         StopKind::Equal => scan_exact_equals(i).is_some(),
@@ -5584,7 +6325,9 @@ where
         StopKind::ArmGuardIf => i.run(scan_word).is_some_and(|word| word.text() == "if"),
         StopKind::ArmGuardWhere => i.run(scan_word).is_some_and(|word| word.text() == "where"),
         StopKind::With => i.run(scan_word).is_some_and(|word| word.text() == "with"),
-        StopKind::Derives => i.run(scan_word).is_some_and(|word| word.text() == "derives"),
+        StopKind::Derives => i
+            .run(scan_word)
+            .is_some_and(|word| word.text() == "derives"),
         StopKind::Via => i.run(scan_word).is_some_and(|word| word.text() == "via"),
         StopKind::LeftParenthesis => scan_open_parenthesis(i).is_some(),
         StopKind::Pipe => scan_exact_pipe(i).is_some(),
@@ -5656,7 +6399,11 @@ where
 }
 
 fn consume_record_colon_invalid_run<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
         continuation_base: active_type_continuation_base(i),
     };
@@ -5672,7 +6419,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn type_name_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let pending = scan_type_name(i).is_some();
     i.rollback(checkpoint);
@@ -5680,7 +6431,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn exact_colon_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let pending = scan_exact_colon(i).is_some();
     i.rollback(checkpoint);
@@ -5688,7 +6443,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn type_path_invalid_boundary_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     matches!(i.input.remainder().chars().next(), Some(character) if (
         character.is_whitespace() && !matches!(character, '\n' | '\r')
     ) || character == ':')
@@ -5696,7 +6455,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn record_comma_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let pending = scan_record_comma(i).is_some();
     i.rollback(checkpoint);
@@ -5752,7 +6515,11 @@ where
 }
 
 fn record_invalid_boundary_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     record_comma_pending(i)
         || record_local_mismatched_close_pending(i)
         || record_owner_boundary_pending(i)
@@ -5771,36 +6538,48 @@ where
 }
 
 fn record_colon_invalid_boundary_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     matches!(i.input.remainder().chars().next(), Some(character) if (
         character.is_whitespace() && !matches!(character, '\n' | '\r')
-    ))
-        || record_comma_pending(i)
+    )) || record_comma_pending(i)
         || record_owner_boundary_pending(i)
 }
 
 /// Named records own only their brace close.  A mismatched close remains
 /// malformed record content unless an enclosing caller explicitly owns it.
 fn record_owner_boundary_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let own_close = scan_close_brace(i).is_some();
     i.rollback(checkpoint);
-    own_close || matches!(
-        classify_type_boundary(
-            TypeBoundaryPolicy {
-                matching_close: None,
-                local_separators: StopSet::default(),
-                locally_owned_stops: StopSet::default(),
-            },
-            i,
-        ),
-        Some(TypeBoundary::Eof | TypeBoundary::ActiveStop(_) | TypeBoundary::OuterOwnedClose)
-    )
+    own_close
+        || matches!(
+            classify_type_boundary(
+                TypeBoundaryPolicy {
+                    matching_close: None,
+                    local_separators: StopSet::default(),
+                    locally_owned_stops: StopSet::default(),
+                },
+                i,
+            ),
+            Some(TypeBoundary::Eof | TypeBoundary::ActiveStop(_) | TypeBoundary::OuterOwnedClose)
+        )
 }
 
 fn record_field_head_candidate<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let candidate = scan_plain_type_identifier(i).is_some_and(|name| {
         if name.text().ends_with('!') {
@@ -5814,13 +6593,21 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn active_type_continuation_base<E>(i: &SynIn<E>) -> usize
-where E: ErrorSink<usize> { i.local.indentation_baseline().map_or(0, |baseline| baseline.column) }
+where
+    E: ErrorSink<usize>,
+{
+    i.local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column)
+}
 
 /// The one type-side continuation comparison.  `continuation_base` is
 /// captured when the owning recovery phase starts; callers must not derive it
 /// from a following token or a later recovery position.
 fn continues_after_newline<E>(i: &SynIn<E>, trivia: &TriviaRun, continuation_base: usize) -> bool
-where E: ErrorSink<usize> {
+where
+    E: ErrorSink<usize>,
+{
     trivia_has_newline(trivia) && i.local.line().line_indent > continuation_base
 }
 
@@ -5856,16 +6643,18 @@ where
 {
     i.local
         .type_expression_episode_policy()
-        .map_or_else(StopSet::default, |policy| policy.fresh_primary_locally_owned_stops)
+        .map_or_else(StopSet::default, |policy| {
+            policy.fresh_primary_locally_owned_stops
+        })
 }
 
 fn current_fresh_primary_owns_adjacent_polymorphic_variant_starter<E>(i: &SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
 {
-    i.local.type_expression_episode_policy().is_some_and(|policy| {
-        policy.fresh_primary_owns_adjacent_polymorphic_variant_starter
-    })
+    i.local
+        .type_expression_episode_policy()
+        .is_some_and(|policy| policy.fresh_primary_owns_adjacent_polymorphic_variant_starter)
 }
 
 /// The single TypeExpression-side stop ownership query. Scoped ownership is
@@ -5951,7 +6740,11 @@ mod tests {
         )
         .set_local(&mut local);
         let value = i.run(from_fn(parse_type_expression));
-        assert!(value.is_some(), "type expression AST for {source:?}; remainder={:?}", i.input.remainder());
+        assert!(
+            value.is_some(),
+            "type expression AST for {source:?}; remainder={:?}",
+            i.input.remainder()
+        );
         let value = value.expect("asserted above");
         assert_eq!(i.input.remainder(), "", "complete type source");
         assert_eq!(i.local.type_expression_episode_depth(), 0);
@@ -5971,7 +6764,9 @@ mod tests {
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
-        let value = i.run(from_fn(parse_type_expression)).expect("type expression AST prefix");
+        let value = i
+            .run(from_fn(parse_type_expression))
+            .expect("type expression AST prefix");
         (i.input.remainder(), value)
     }
 
@@ -6023,7 +6818,9 @@ mod tests {
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
-        let value = i.run(from_fn(parse_type_expression)).expect("type expression AST prefix with outer stop");
+        let value = i
+            .run(from_fn(parse_type_expression))
+            .expect("type expression AST prefix with outer stop");
         (i.input.remainder(), value)
     }
 
@@ -6090,7 +6887,11 @@ mod tests {
         )
         .set_local(&mut local);
         let value = i
-            .run(from_fn(|i| Some(parse_required_type_expression_with_outer_missing_role(None, i))))
+            .run(from_fn(|i| {
+                Some(parse_required_type_expression_with_outer_missing_role(
+                    None, i,
+                ))
+            }))
             .expect("required type expression AST prefix");
         (i.input.remainder(), value)
     }
@@ -6111,7 +6912,11 @@ mod tests {
         )
         .set_local(&mut local);
         let value = i
-            .run(from_fn(|i| Some(parse_required_type_expression_with_outer_missing_role(None, i))))
+            .run(from_fn(|i| {
+                Some(parse_required_type_expression_with_outer_missing_role(
+                    None, i,
+                ))
+            }))
             .expect("required type expression AST prefix with outer stop");
         (i.input.remainder(), value)
     }
@@ -6238,7 +7043,8 @@ mod tests {
         .set_local(&mut local);
         let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
-        commit_direct_type_expression(&mut committed).expect("direct type expression with outer stop");
+        commit_direct_type_expression(&mut committed)
+            .expect("direct type expression with outer stop");
         assert_eq!(
             committed.probe(|probe| probe.input().input.remainder()),
             "",
@@ -6282,7 +7088,9 @@ mod tests {
         (remainder, recoveries)
     }
 
-    fn parse_direct_pattern_recovered(source: &str) -> Vec<crate::session::CommittedRecoveryRecord> {
+    fn parse_direct_pattern_recovered(
+        source: &str,
+    ) -> Vec<crate::session::CommittedRecoveryRecord> {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
@@ -6341,11 +7149,16 @@ mod tests {
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
-        let expression = i.run(from_fn(parse_type_expression)).expect("type expression prefix");
+        let expression = i
+            .run(from_fn(parse_type_expression))
+            .expect("type expression prefix");
         assert!(expression.postfix.is_empty());
         assert_eq!(i.input.remainder(), "\nelse: 0");
         drop(i);
-        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
 
         let mut source_input = SourceInput::new(source);
@@ -6370,7 +7183,10 @@ mod tests {
         committed.finish_node();
         let output = committed.into_output();
         assert!(output.committed_recoveries().is_empty());
-        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
     }
 
@@ -6390,15 +7206,23 @@ mod tests {
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
-        let expression = i.run(from_fn(parse_type_expression)).expect("forall type prefix");
-        assert!(matches!(expression.complete_primary(), TypePrimary::Forall(ForallType {
-            colon: Recovered::Incomplete,
-            body: Recovered::Incomplete,
-            ..
-        })));
+        let expression = i
+            .run(from_fn(parse_type_expression))
+            .expect("forall type prefix");
+        assert!(matches!(
+            expression.complete_primary(),
+            TypePrimary::Forall(ForallType {
+                colon: Recovered::Incomplete,
+                body: Recovered::Incomplete,
+                ..
+            })
+        ));
         assert_eq!(i.input.remainder(), "\n    else: 0");
         drop(i);
-        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
 
         let mut source_input = SourceInput::new(source);
@@ -6422,11 +7246,18 @@ mod tests {
         );
         committed.finish_node();
         let output = committed.into_output();
-        assert!(matches!(output.committed_recoveries(), [record]
+        assert!(
+            matches!(output.committed_recoveries(), [record]
             if record.kind == RecoveryKind::Missing
                 && record.site.role == GrammarRole::Type(TypeRole::ForallColon)
-                && record.site.range == (6..6)), "{:#?}", output.committed_recoveries());
-        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+                && record.site.range == (6..6)),
+            "{:#?}",
+            output.committed_recoveries()
+        );
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
 
         let source = "for 'a @\n    else: 0";
@@ -6451,11 +7282,18 @@ mod tests {
         );
         committed.finish_node();
         let output = committed.into_output();
-        assert!(matches!(output.committed_recoveries(), [record]
+        assert!(
+            matches!(output.committed_recoveries(), [record]
             if record.kind == RecoveryKind::Error
                 && record.site.role == GrammarRole::Type(TypeRole::ForallColon)
-                && record.site.range == (7..8)), "{:#?}", output.committed_recoveries());
-        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+                && record.site.range == (7..8)),
+            "{:#?}",
+            output.committed_recoveries()
+        );
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
     }
 
@@ -6493,39 +7331,49 @@ mod tests {
                 IsCut::new(&mut is_cut),
             )
             .set_local(&mut local);
-            let expression = i.run(from_fn(parse_type_expression))
+            let expression = i
+                .run(from_fn(parse_type_expression))
                 .expect("type-delimited prefix");
             assert_eq!(i.input.remainder(), "\nelse: 0", "AST {source:?}");
-            assert!(match expression {
-                TypeExpression {
-                    postfix,
-                    primary: Recovered::Complete(TypePrimary::Atom(_)),
-                    ..
-                } if matches!(postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            assert!(
+                match expression {
+                    TypeExpression {
+                        postfix,
+                        primary: Recovered::Complete(TypePrimary::Atom(_)),
+                        ..
+                    } if matches!(postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
                     arguments,
                     close: Recovered::Incomplete,
                     ..
-                })] if arguments.len() == 1) => true,
-                TypeExpression {
-                    primary: Recovered::Complete(TypePrimary::Parenthesized(ParenthesizedTypeGroup {
-                        elements,
-                        close: Recovered::Incomplete,
+                })] if arguments.len() == 1) =>
+                        true,
+                    TypeExpression {
+                        primary:
+                            Recovered::Complete(TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                                elements,
+                                close: Recovered::Incomplete,
+                                ..
+                            })),
                         ..
-                    })),
-                    ..
-                } if elements.len() == 1 => true,
-                TypeExpression {
-                    primary: Recovered::Complete(TypePrimary::EffectRow(EffectRowType {
-                        items,
-                        close: Recovered::Incomplete,
+                    } if elements.len() == 1 => true,
+                    TypeExpression {
+                        primary:
+                            Recovered::Complete(TypePrimary::EffectRow(EffectRowType {
+                                items,
+                                close: Recovered::Incomplete,
+                                ..
+                            })),
                         ..
-                    })),
-                    ..
-                } if items.len() == 1 => true,
-                _ => false,
-            }, "AST {source:?}");
+                    } if items.len() == 1 => true,
+                    _ => false,
+                },
+                "AST {source:?}"
+            );
             drop(i);
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
 
             let mut source_input = SourceInput::new(source);
@@ -6542,8 +7390,7 @@ mod tests {
             .set_local(&mut local);
             let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
-            commit_direct_type_expression(&mut committed)
-                .expect("direct type-delimited prefix");
+            commit_direct_type_expression(&mut committed).expect("direct type-delimited prefix");
             assert_eq!(
                 committed.probe(|probe| probe.input().input.remainder()),
                 "\nelse: 0",
@@ -6562,12 +7409,17 @@ mod tests {
                 "direct {source:?}: {recoveries:#?}",
             );
             assert!(
-                !recoveries.iter().any(|record| record.kind == RecoveryKind::Missing
-                    && record.site.role == GrammarRole::Type(item_role)),
+                !recoveries
+                    .iter()
+                    .any(|record| record.kind == RecoveryKind::Missing
+                        && record.site.role == GrammarRole::Type(item_role)),
                 "direct {source:?}: {recoveries:#?}",
             );
             drop(output);
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
         }
     }
@@ -6587,13 +7439,21 @@ mod tests {
                 IsCut::new(&mut is_cut),
             )
             .set_local(&mut local);
-            let expression = i.run(from_fn(parse_type_expression)).expect("named record prefix");
+            let expression = i
+                .run(from_fn(parse_type_expression))
+                .expect("named record prefix");
             assert_eq!(i.input.remainder(), "\nelse: 0", "AST {source:?}");
-            assert!(matches!(expression.complete_primary(), TypePrimary::Record(NamedRecordType {
+            assert!(
+                matches!(expression.complete_primary(), TypePrimary::Record(NamedRecordType {
                 fields, close: Recovered::Incomplete, ..
-            }) if fields.len() == 1), "AST {source:?}");
+            }) if fields.len() == 1),
+                "AST {source:?}"
+            );
             drop(i);
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
 
             let mut source_input = SourceInput::new(source);
@@ -6620,14 +7480,17 @@ mod tests {
             let output = committed.into_output();
             let recoveries = output.committed_recoveries();
             assert_eq!(
-                recoveries.iter().filter(|record| {
-                    record.kind == RecoveryKind::Missing
-                        && record.site.role
-                            == GrammarRole::ClosingDelimiter {
-                                owner: ConstructRole::NamedRecordType,
-                                delimiter: Delimiter::Brace,
-                            }
-                }).count(),
+                recoveries
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role
+                                == GrammarRole::ClosingDelimiter {
+                                    owner: ConstructRole::NamedRecordType,
+                                    delimiter: Delimiter::Brace,
+                                }
+                    })
+                    .count(),
                 1,
                 "direct {source:?}",
             );
@@ -6638,7 +7501,10 @@ mod tests {
                 }));
             }
             drop(output);
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
         }
     }
@@ -6695,16 +7561,22 @@ mod tests {
                 .count(),
             1,
         );
-        for owner in [ConstructRole::NamedRecordType, ConstructRole::StructNamedFields] {
+        for owner in [
+            ConstructRole::NamedRecordType,
+            ConstructRole::StructNamedFields,
+        ] {
             assert_eq!(
-                recoveries.iter().filter(|record| {
-                    record.kind == RecoveryKind::Missing
-                        && record.site.role
-                            == GrammarRole::ClosingDelimiter {
-                                owner,
-                                delimiter: Delimiter::Brace,
-                            }
-                }).count(),
+                recoveries
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role
+                                == GrammarRole::ClosingDelimiter {
+                                    owner,
+                                    delimiter: Delimiter::Brace,
+                                }
+                    })
+                    .count(),
                 1,
                 "{owner:?}: {recoveries:#?}",
             );
@@ -6839,11 +7711,14 @@ mod tests {
             );
             if let Some(role) = malformed_item_role {
                 let at = source.find('@').expect("malformed row item");
-                assert!(recoveries.iter().any(|record| {
-                    record.kind == RecoveryKind::Error
-                        && record.site.role == GrammarRole::Type(role)
-                        && record.site.range == (at..at + 1)
-                }), "{source:?}: {recoveries:#?}");
+                assert!(
+                    recoveries.iter().any(|record| {
+                        record.kind == RecoveryKind::Error
+                            && record.site.role == GrammarRole::Type(role)
+                            && record.site.range == (at..at + 1)
+                    }),
+                    "{source:?}: {recoveries:#?}"
+                );
             }
             assert_eq!(
                 recoveries
@@ -6902,7 +7777,8 @@ mod tests {
         .set_local(&mut local);
         let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
-        commit_direct_type_expression(&mut committed).expect("direct type expression prefix with outer stop");
+        commit_direct_type_expression(&mut committed)
+            .expect("direct type expression prefix with outer stop");
         let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
         committed.finish_node();
         let output = committed.into_output();
@@ -6970,74 +7846,115 @@ mod tests {
     #[test]
     fn type_apply_path_precedence_uses_the_ml_boundary() {
         let tight = parse("F A::B");
-        assert!(matches!(tight.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Path(_)])));
+        assert!(
+            matches!(tight.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Path(_)]))
+        );
 
         let outer = parse("F A ::B");
-        assert!(matches!(outer.postfix.as_slice(), [TypePostfixTail::Apply(_), TypePostfixTail::Path(_)]));
+        assert!(matches!(
+            outer.postfix.as_slice(),
+            [TypePostfixTail::Apply(_), TypePostfixTail::Path(_)]
+        ));
     }
 
     #[test]
     fn type_core_forms_keep_fixed_flat_structure() {
         let value = parse("List(Int)::Result Arg -> Out -> Final");
-        assert!(matches!(value.complete_primary(), TypePrimary::Atom(TypeAtom::Identifier(_))));
-        assert!(matches!(value.postfix.as_slice(), [
-            TypePostfixTail::Call(_),
-            TypePostfixTail::Path(_),
-            TypePostfixTail::Apply(_),
-        ]));
-        assert!(matches!(value.arrow, Some(TypeArrowTail { rhs: Recovered::Complete(rhs), .. })
-            if rhs.arrow.is_some()));
-        assert_eq!(parse_direct("List(Int)::Result Arg -> Out -> Final").to_string(), "List(Int)::Result Arg -> Out -> Final");
+        assert!(matches!(
+            value.complete_primary(),
+            TypePrimary::Atom(TypeAtom::Identifier(_))
+        ));
+        assert!(matches!(
+            value.postfix.as_slice(),
+            [
+                TypePostfixTail::Call(_),
+                TypePostfixTail::Path(_),
+                TypePostfixTail::Apply(_),
+            ]
+        ));
+        assert!(
+            matches!(value.arrow, Some(TypeArrowTail { rhs: Recovered::Complete(rhs), .. })
+            if rhs.arrow.is_some())
+        );
+        assert_eq!(
+            parse_direct("List(Int)::Result Arg -> Out -> Final").to_string(),
+            "List(Int)::Result Arg -> Out -> Final"
+        );
     }
 
     #[test]
     fn type_arrow_is_right_associative_without_an_operator_table() {
         let value = parse("A -> B -> C");
-        assert!(matches!(value.arrow, Some(TypeArrowTail { rhs: Recovered::Complete(rhs), .. })
-            if matches!(rhs.arrow, Some(TypeArrowTail { rhs: Recovered::Complete(_), .. }))));
+        assert!(
+            matches!(value.arrow, Some(TypeArrowTail { rhs: Recovered::Complete(rhs), .. })
+            if matches!(rhs.arrow, Some(TypeArrowTail { rhs: Recovered::Complete(_), .. })))
+        );
     }
 
     #[test]
     fn type_call_and_group_accept_comma_and_semicolon() {
         let call = parse("List(Int; String)");
-        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(tail)] if tail.arguments.len() == 2));
+        assert!(
+            matches!(call.postfix.as_slice(), [TypePostfixTail::Call(tail)] if tail.arguments.len() == 2)
+        );
         let group = parse("(Int, String)");
-        assert!(matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup { ref elements, .. }) if elements.len() == 2));
-        assert_eq!(parse_direct("List(Int; String)").to_string(), "List(Int; String)");
+        assert!(
+            matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup { ref elements, .. }) if elements.len() == 2)
+        );
+        assert_eq!(
+            parse_direct("List(Int; String)").to_string(),
+            "List(Int; String)"
+        );
         assert_eq!(parse_direct("(Int, String)").to_string(), "(Int, String)");
         let trailing = parse("List(Int,)");
-        assert!(matches!(trailing.postfix.as_slice(), [TypePostfixTail::Call(tail)] if tail.arguments.len() == 1));
+        assert!(
+            matches!(trailing.postfix.as_slice(), [TypePostfixTail::Call(tail)] if tail.arguments.len() == 1)
+        );
         assert_eq!(parse_direct("List(Int,)").to_string(), "List(Int,)");
     }
 
     #[test]
     fn type_groups_reuse_layout_boundaries_without_synthetic_separator_nodes() {
         let group = parse("(\n  A\n  B\n)");
-        assert!(matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(
+            matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, ..
-        }) if elements.len() == 2));
+        }) if elements.len() == 2)
+        );
         assert_eq!(parse_direct("(\n  A\n  B\n)").to_string(), "(\n  A\n  B\n)");
     }
 
     #[test]
     fn type_apply_uses_one_argument_per_nonempty_trivia_boundary() {
         let value = parse("Dict String Int");
-        assert!(matches!(value.postfix.as_slice(), [
-            TypePostfixTail::Apply(_),
-            TypePostfixTail::Apply(_),
-        ]));
-        assert_eq!(parse_direct("Dict String Int").to_string(), "Dict String Int");
+        assert!(matches!(
+            value.postfix.as_slice(),
+            [TypePostfixTail::Apply(_), TypePostfixTail::Apply(_),]
+        ));
+        assert_eq!(
+            parse_direct("Dict String Int").to_string(),
+            "Dict String Int"
+        );
     }
 
     #[test]
     fn type_apply_respects_comment_and_newline_boundaries() {
-        assert!(matches!(parse("List/* note */(Int)").postfix.as_slice(), [TypePostfixTail::Apply(_)]));
-        assert!(matches!(parse("List\n  Int").postfix.as_slice(), [TypePostfixTail::Apply(_)]));
+        assert!(matches!(
+            parse("List/* note */(Int)").postfix.as_slice(),
+            [TypePostfixTail::Apply(_)]
+        ));
+        assert!(matches!(
+            parse("List\n  Int").postfix.as_slice(),
+            [TypePostfixTail::Apply(_)]
+        ));
         let (remainder, value) = parse_prefix("List\nInt");
         assert!(value.postfix.is_empty());
         assert_eq!(remainder, "\nInt");
-        assert_eq!(parse_direct("List/* note */(Int)").to_string(), "List/* note */(Int)");
+        assert_eq!(
+            parse_direct("List/* note */(Int)").to_string(),
+            "List/* note */(Int)"
+        );
         assert_eq!(parse_direct("List\n  Int").to_string(), "List\n  Int");
     }
 
@@ -7045,25 +7962,43 @@ mod tests {
     fn path_and_arrow_missing_rhs_leave_an_outer_layout_newline_unconsumed() {
         let (remainder, path) = parse_prefix("A::\nB");
         assert_eq!(remainder, "\nB");
-        assert!(matches!(path.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
-            segment: Recovered::Incomplete, ..
-        })]));
+        assert!(matches!(
+            path.postfix.as_slice(),
+            [TypePostfixTail::Path(TypePathTail {
+                segment: Recovered::Incomplete,
+                ..
+            })]
+        ));
 
         let (remainder, arrow) = parse_prefix("A ->\nB");
         assert_eq!(remainder, "\nB");
-        assert!(matches!(arrow.arrow, Some(TypeArrowTail {
-            rhs: Recovered::Incomplete, ..
-        })));
+        assert!(matches!(
+            arrow.arrow,
+            Some(TypeArrowTail {
+                rhs: Recovered::Incomplete,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn type_primary_and_path_segments_keep_their_own_surface_categories() {
-        assert!(matches!(parse("'a").complete_primary(), TypePrimary::Atom(TypeAtom::SigilIdentifier(_))));
-        assert!(matches!(parse("42").complete_primary(), TypePrimary::Atom(TypeAtom::Number(_))));
+        assert!(matches!(
+            parse("'a").complete_primary(),
+            TypePrimary::Atom(TypeAtom::SigilIdentifier(_))
+        ));
+        assert!(matches!(
+            parse("42").complete_primary(),
+            TypePrimary::Atom(TypeAtom::Number(_))
+        ));
         let path = parse("A::'b");
-        assert!(matches!(path.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
-            segment: Recovered::Complete(TypePathSegment::SigilIdentifier(_)), ..
-        })]));
+        assert!(matches!(
+            path.postfix.as_slice(),
+            [TypePostfixTail::Path(TypePathTail {
+                segment: Recovered::Complete(TypePathSegment::SigilIdentifier(_)),
+                ..
+            })]
+        ));
         assert_eq!(parse_direct("A::'b").to_string(), "A::'b");
     }
 
@@ -7077,10 +8012,8 @@ mod tests {
 
     #[test]
     fn mandatory_type_entry_allows_only_its_outer_missing_primary_role_to_be_overridden() {
-        let recoveries = parse_direct_mandatory_recovered(
-            "",
-            Some(GrammarRole::Type(TypeRole::ArrowRhs)),
-        );
+        let recoveries =
+            parse_direct_mandatory_recovered("", Some(GrammarRole::Type(TypeRole::ArrowRhs)));
         assert!(matches!(recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)
                 && record.site.range == (0..0)));
@@ -7110,7 +8043,9 @@ mod tests {
     fn ast_type_item_recovery_scans_past_same_line_trivia() {
         let (remainder, mandatory) = parse_required_prefix("@ A");
         assert_eq!(remainder, "");
-        assert!(matches!(mandatory, Recovered::Complete(TypeExpression { range, .. }) if range == (2..3)));
+        assert!(
+            matches!(mandatory, Recovered::Complete(TypeExpression { range, .. }) if range == (2..3))
+        );
         let (remainder, mandatory_direct) =
             parse_direct_mandatory_prefix_with_outer_stop("@ A", None, None);
         assert_eq!(remainder, "");
@@ -7128,25 +8063,29 @@ mod tests {
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (4..6)));
 
-        assert!(matches!(parse("{name: @ A}").complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(parse("{name: @ A}").complete_primary(), TypePrimary::Record(NamedRecordType {
             close: Recovered::Complete(_),
             ref fields,
             ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             type_expr: Recovered::Complete(type_expr),
             ..
-        })] if type_expr.range == (9..10))));
+        })] if type_expr.range == (9..10)))
+        );
         let record_direct = parse_direct_recovered("{name: @ A}");
         assert!(matches!(record_direct.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordFieldType)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (7..9)));
 
-        assert!(matches!(parse("T(@ A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(parse("T(@ A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments,
             close: Recovered::Complete(_),
             ..
-        })] if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { range, .. })] if *range == (4..5))));
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { range, .. })] if *range == (4..5)))
+        );
         let call_direct = parse_direct_recovered("T(@ A)");
         assert!(matches!(call_direct.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::CallArgument)
@@ -7156,11 +8095,8 @@ mod tests {
 
     #[test]
     fn mandatory_type_recovery_leaves_an_active_outer_stop_unconsumed() {
-        let (remainder, recoveries) = parse_direct_mandatory_prefix_with_outer_stop(
-            "@=A",
-            None,
-            Some(StopKind::Equal),
-        );
+        let (remainder, recoveries) =
+            parse_direct_mandatory_prefix_with_outer_stop("@=A", None, Some(StopKind::Equal));
         assert_eq!(remainder, "=A");
         assert!(matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::Primary)
@@ -7177,16 +8113,22 @@ mod tests {
         let (remainder, recoveries) =
             parse_direct_mandatory_prefix_with_outer_stop("@\n  Int", None, None);
         assert_eq!(remainder, "");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::Primary)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (0..1)), "{recoveries:#?}");
+                && error.site.range == (0..1)),
+            "{recoveries:#?}"
+        );
 
         let recoveries = parse_direct_pattern_recovered("x: @\n  Int");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::Primary)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (3..4)), "{recoveries:#?}");
+                && error.site.range == (3..4)),
+            "{recoveries:#?}"
+        );
 
         let (remainder, recovered) = parse_required_prefix("@\n  ");
         assert_eq!(remainder, "\n  ");
@@ -7194,21 +8136,24 @@ mod tests {
         let (remainder, recoveries) =
             parse_direct_mandatory_prefix_with_outer_stop("@\n  ", None, None);
         assert_eq!(remainder, "\n  ");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::Primary)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (0..1)), "{recoveries:#?}");
-
-        let (remainder, recoveries) = parse_direct_mandatory_prefix_with_outer_stop(
-            "@\n  = 0",
-            None,
-            Some(StopKind::Equal),
+                && error.site.range == (0..1)),
+            "{recoveries:#?}"
         );
+
+        let (remainder, recoveries) =
+            parse_direct_mandatory_prefix_with_outer_stop("@\n  = 0", None, Some(StopKind::Equal));
         assert_eq!(remainder, "\n  = 0");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::Primary)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (0..1)), "{recoveries:#?}");
+                && error.site.range == (0..1)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -7219,10 +8164,13 @@ mod tests {
             Some(StopKind::Newline),
         );
         assert_eq!(remainder, " \n  Int");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::Primary)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (0..1)), "{recoveries:#?}");
+                && error.site.range == (0..1)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -7230,17 +8178,22 @@ mod tests {
         let source = "for @ \n  'a: T";
         let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  'a: T");
-        assert!(matches!(ast.complete_primary(), TypePrimary::Forall(ForallType {
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Forall(ForallType {
             binders, ..
-        }) if matches!(binders.as_slice(), [Recovered::Incomplete])));
+        }) if matches!(binders.as_slice(), [Recovered::Incomplete]))
+        );
 
         let (remainder, recoveries) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  'a: T");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (4..5)), "{recoveries:#?}");
+                && error.site.range == (4..5)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -7269,10 +8222,13 @@ mod tests {
             let (remainder, recoveries) =
                 parse_direct_mandatory_prefix_with_outer_stop(source, None, None);
             assert_eq!(remainder, "", "{source}");
-            assert!(matches!(recoveries.as_slice(), [error]
+            assert!(
+                matches!(recoveries.as_slice(), [error]
                 if error.site.role == GrammarRole::Type(TypeRole::Primary)
                     && error.kind == RecoveryKind::Error
-                    && error.site.range == range), "{source}: {recoveries:#?}");
+                    && error.site.range == range),
+                "{source}: {recoveries:#?}"
+            );
             assert_eq!(parse_required_prefix(source).0, "", "AST {source}");
         }
 
@@ -7300,32 +8256,45 @@ mod tests {
     #[test]
     fn type_call_missing_item_and_close_keep_distinct_typed_slots() {
         let recoveries = parse_direct_recovered("T(");
-        assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::CallArgument)));
-        assert!(recoveries.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: crate::session::ConstructRole::TypeCall,
-            delimiter: crate::session::Delimiter::Parenthesis,
-        })));
+        assert!(
+            recoveries
+                .iter()
+                .any(|record| record.site.role == GrammarRole::Type(TypeRole::CallArgument))
+        );
+        assert!(recoveries.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: crate::session::ConstructRole::TypeCall,
+                delimiter: crate::session::Delimiter::Parenthesis,
+            }
+        )));
         let leading = parse_direct_recovered("T(,)");
         assert!(matches!(leading.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::CallArgument)
                 && record.site.range == (2..2)));
         let separator_at_eof = parse_direct_recovered("T(A;");
-        assert!(separator_at_eof.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::CallArgument)
-                && record.kind == crate::session::RecoveryKind::Missing
-                && record.site.range == (4..4)));
-        assert!(separator_at_eof.iter().any(|record| matches!(record.site.role,
-            GrammarRole::ClosingDelimiter { owner: crate::session::ConstructRole::TypeCall,
-                delimiter: crate::session::Delimiter::Parenthesis }
-        ) && record.kind == crate::session::RecoveryKind::Missing));
+        assert!(separator_at_eof.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::CallArgument)
+            && record.kind == crate::session::RecoveryKind::Missing
+            && record.site.range == (4..4)));
+        assert!(separator_at_eof.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: crate::session::ConstructRole::TypeCall,
+                delimiter: crate::session::Delimiter::Parenthesis
+            }
+        ) && record.kind
+            == crate::session::RecoveryKind::Missing));
     }
 
     #[test]
     fn call_and_group_retry_a_same_line_item_after_a_nested_ml_argument_stops() {
         let call = parse("G T(F A)");
-        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+        assert!(
+            matches!(call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
             if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(tail)]
-                if tail.arguments.len() == 2)));
+                if tail.arguments.len() == 2))
+        );
         let call_recoveries = parse_direct_recovered("G T(F A)");
         assert!(matches!(call_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::CallArgumentSeparator)
@@ -7333,10 +8302,12 @@ mod tests {
                 && record.kind == crate::session::RecoveryKind::Missing));
 
         let group = parse("G (F A)");
-        assert!(matches!(group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+        assert!(
+            matches!(group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
             if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
                 ref elements, ..
-            }) if elements.len() == 2)));
+            }) if elements.len() == 2))
+        );
         let group_recoveries = parse_direct_recovered("G (F A)");
         assert!(matches!(group_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedSeparator)
@@ -7344,46 +8315,67 @@ mod tests {
                 && record.kind == crate::session::RecoveryKind::Missing));
 
         let deeper_call = parse("G T(F\n  A)");
-        assert!(matches!(deeper_call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+        assert!(
+            matches!(deeper_call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
             if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(tail)]
-                if tail.arguments.len() == 2)));
+                if tail.arguments.len() == 2))
+        );
         let deeper_call_recoveries = parse_direct_recovered("G T(F\n  A)");
-        assert!(matches!(deeper_call_recoveries.as_slice(), [record]
+        assert!(
+            matches!(deeper_call_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::CallArgumentSeparator)
                 && record.site.range == (8..8)
-                && record.kind == crate::session::RecoveryKind::Missing), "{deeper_call_recoveries:#?}");
+                && record.kind == crate::session::RecoveryKind::Missing),
+            "{deeper_call_recoveries:#?}"
+        );
 
         let deeper_group = parse("G (F\n  A)");
-        assert!(matches!(deeper_group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+        assert!(
+            matches!(deeper_group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
             if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
                 ref elements, ..
-            }) if elements.len() == 2)));
+            }) if elements.len() == 2))
+        );
         let deeper_group_recoveries = parse_direct_recovered("G (F\n  A)");
-        assert!(matches!(deeper_group_recoveries.as_slice(), [record]
+        assert!(
+            matches!(deeper_group_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedSeparator)
                 && record.site.range == (7..7)
-                && record.kind == crate::session::RecoveryKind::Missing), "{deeper_group_recoveries:#?}");
+                && record.kind == crate::session::RecoveryKind::Missing),
+            "{deeper_group_recoveries:#?}"
+        );
 
         let deeper_effect = parse("G '[F\n  A]");
-        assert!(matches!(deeper_effect.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+        assert!(
+            matches!(deeper_effect.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
             if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
                 ref items, ..
-            }) if items.len() == 2)));
+            }) if items.len() == 2))
+        );
         let deeper_effect_recoveries = parse_direct_recovered("G '[F\n  A]");
-        assert!(matches!(deeper_effect_recoveries.as_slice(), [record]
+        assert!(
+            matches!(deeper_effect_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::EffectRowSeparator)
                 && record.site.range == (8..8)
-                && record.kind == crate::session::RecoveryKind::Missing), "{deeper_effect_recoveries:#?}");
+                && record.kind == crate::session::RecoveryKind::Missing),
+            "{deeper_effect_recoveries:#?}"
+        );
     }
 
     #[test]
     fn call_and_group_recovery_leave_outer_owned_boundaries_unconsumed() {
-        let (call_remainder, call_ast) = parse_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
+        let (call_remainder, call_ast) =
+            parse_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
         assert_eq!(call_remainder, "]");
-        assert!(matches!(call_ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            close: Recovered::Incomplete, ..
-        })]));
-        let (call_remainder, call_recoveries) = parse_direct_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
+        assert!(matches!(
+            call_ast.postfix.as_slice(),
+            [TypePostfixTail::Call(TypeCallTail {
+                close: Recovered::Incomplete,
+                ..
+            })]
+        ));
+        let (call_remainder, call_recoveries) =
+            parse_direct_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
         assert_eq!(call_remainder, "]");
         assert!(matches!(call_recoveries.as_slice(), [error, close]
             if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
@@ -7396,12 +8388,18 @@ mod tests {
                 && close.site.range == (3..3)
                 && close.kind == crate::session::RecoveryKind::Missing));
 
-        let (group_remainder, group_ast) = parse_prefix_with_outer_stop("(@]", StopKind::RightBracket);
+        let (group_remainder, group_ast) =
+            parse_prefix_with_outer_stop("(@]", StopKind::RightBracket);
         assert_eq!(group_remainder, "]");
-        assert!(matches!(group_ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
-            close: Recovered::Incomplete, ..
-        })));
-        let (group_remainder, group_recoveries) = parse_direct_prefix_with_outer_stop("(@]", StopKind::RightBracket);
+        assert!(matches!(
+            group_ast.complete_primary(),
+            TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
+        let (group_remainder, group_recoveries) =
+            parse_direct_prefix_with_outer_stop("(@]", StopKind::RightBracket);
         assert_eq!(group_remainder, "]");
         assert!(matches!(group_recoveries.as_slice(), [error, close]
             if error.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
@@ -7416,10 +8414,15 @@ mod tests {
 
         let (arrow_remainder, arrow_ast) = parse_prefix_with_outer_stop("T(@->", StopKind::Arrow);
         assert_eq!(arrow_remainder, "->");
-        assert!(matches!(arrow_ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            close: Recovered::Incomplete, ..
-        })]));
-        let (arrow_remainder, arrow_recoveries) = parse_direct_prefix_with_outer_stop("T(@->", StopKind::Arrow);
+        assert!(matches!(
+            arrow_ast.postfix.as_slice(),
+            [TypePostfixTail::Call(TypeCallTail {
+                close: Recovered::Incomplete,
+                ..
+            })]
+        ));
+        let (arrow_remainder, arrow_recoveries) =
+            parse_direct_prefix_with_outer_stop("T(@->", StopKind::Arrow);
         assert_eq!(arrow_remainder, "->");
         assert!(matches!(arrow_recoveries.as_slice(), [error, close]
             if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
@@ -7432,12 +8435,16 @@ mod tests {
                 && close.site.range == (3..3)
                 && close.kind == crate::session::RecoveryKind::Missing));
 
-        let (call_separator_remainder, call_separator_ast) = parse_prefix_with_outer_stop("T(A,]", StopKind::RightBracket);
+        let (call_separator_remainder, call_separator_ast) =
+            parse_prefix_with_outer_stop("T(A,]", StopKind::RightBracket);
         assert_eq!(call_separator_remainder, "]");
-        assert!(matches!(call_separator_ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(call_separator_ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
-        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
-        let (call_separator_remainder, call_separator_recoveries) = parse_direct_prefix_with_outer_stop("T(A,]", StopKind::RightBracket);
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]))
+        );
+        let (call_separator_remainder, call_separator_recoveries) =
+            parse_direct_prefix_with_outer_stop("T(A,]", StopKind::RightBracket);
         assert_eq!(call_separator_remainder, "]");
         assert!(matches!(call_separator_recoveries.as_slice(), [item, close]
             if item.site.role == GrammarRole::Type(TypeRole::CallArgument)
@@ -7450,14 +8457,19 @@ mod tests {
                 && close.site.range == (4..4)
                 && close.kind == crate::session::RecoveryKind::Missing));
 
-        let (group_separator_remainder, group_separator_ast) = parse_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
+        let (group_separator_remainder, group_separator_ast) =
+            parse_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
         assert_eq!(group_separator_remainder, "]");
-        assert!(matches!(group_separator_ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(
+            matches!(group_separator_ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, close: Recovered::Incomplete, ..
-        }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
-        let (group_separator_remainder, group_separator_recoveries) = parse_direct_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
+        }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]))
+        );
+        let (group_separator_remainder, group_separator_recoveries) =
+            parse_direct_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
         assert_eq!(group_separator_remainder, "]");
-        assert!(matches!(group_separator_recoveries.as_slice(), [item, close]
+        assert!(
+            matches!(group_separator_recoveries.as_slice(), [item, close]
             if item.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
                 && item.site.range == (3..3)
                 && item.kind == crate::session::RecoveryKind::Missing
@@ -7466,17 +8478,25 @@ mod tests {
                     delimiter: crate::session::Delimiter::Parenthesis,
                 })
                 && close.site.range == (3..3)
-                && close.kind == crate::session::RecoveryKind::Missing));
+                && close.kind == crate::session::RecoveryKind::Missing)
+        );
     }
 
     #[test]
     fn call_and_group_delimited_recovery_rows_keep_ast_and_direct_slots_in_lockstep() {
         for source in ["T(A,)", "(A;)", "T(A,\n)", "(A;\n)"] {
-            assert!(parse_direct_recovered(source).is_empty(), "valid trailing boundary: {source}");
+            assert!(
+                parse_direct_recovered(source).is_empty(),
+                "valid trailing boundary: {source}"
+            );
         }
-        assert!(matches!(parse("(A,)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
-            trailing_explicit_separator: Some(TypeExplicitSeparator::Comma(_)), ..
-        })));
+        assert!(matches!(
+            parse("(A,)").complete_primary(),
+            TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                trailing_explicit_separator: Some(TypeExplicitSeparator::Comma(_)),
+                ..
+            })
+        ));
 
         let call_leading = parse_direct_recovered("T(,,A)");
         assert!(matches!(call_leading.as_slice(), [first, second]
@@ -7484,9 +8504,11 @@ mod tests {
                 && first.site.range == (2..2)
                 && second.site.role == GrammarRole::Type(TypeRole::CallArgument)
                 && second.site.range == (3..3)));
-        assert!(matches!(parse("T(,,A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(parse("T(,,A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, ..
-        })] if matches!(arguments.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)]))
+        );
 
         let group_leading = parse_direct_recovered("(,,A)");
         assert!(matches!(group_leading.as_slice(), [first, second]
@@ -7494,9 +8516,11 @@ mod tests {
                 && first.site.range == (1..1)
                 && second.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
                 && second.site.range == (2..2)));
-        assert!(matches!(parse("(,,A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(
+            matches!(parse("(,,A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, ..
-        }) if matches!(elements.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
+        }) if matches!(elements.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)]))
+        );
 
         let call_eof = parse_direct_recovered("T(A,");
         assert!(matches!(call_eof.as_slice(), [item, close]
@@ -7507,9 +8531,11 @@ mod tests {
                     delimiter: crate::session::Delimiter::Parenthesis,
                 })
                 && close.site.range == (4..4)));
-        assert!(matches!(parse("T(A,").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(parse("T(A,").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
-        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]))
+        );
 
         let group_eof = parse_direct_recovered("(A;");
         assert!(matches!(group_eof.as_slice(), [item, close]
@@ -7520,18 +8546,22 @@ mod tests {
                     delimiter: crate::session::Delimiter::Parenthesis,
                 })
                 && close.site.range == (3..3)));
-        assert!(matches!(parse("(A;").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(
+            matches!(parse("(A;").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, close: Recovered::Incomplete, ..
-        }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+        }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]))
+        );
 
         let group_malformed = parse_direct_recovered("(@A)");
         assert!(matches!(group_malformed.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
                 && record.site.range == (1..2)
                 && record.kind == crate::session::RecoveryKind::Error));
-        assert!(matches!(parse("(@A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(
+            matches!(parse("(@A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, ..
-        }) if matches!(elements.as_slice(), [Recovered::Complete(_)])));
+        }) if matches!(elements.as_slice(), [Recovered::Complete(_)]))
+        );
 
         let group_close = parse_direct_recovered("(A]");
         assert!(matches!(group_close.as_slice(), [error, missing]
@@ -7547,9 +8577,13 @@ mod tests {
                 })
                 && missing.site.range == (3..3)
                 && missing.kind == crate::session::RecoveryKind::Missing));
-        assert!(matches!(parse("(A]").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
-            close: Recovered::Incomplete, ..
-        })));
+        assert!(matches!(
+            parse("(A]").complete_primary(),
+            TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -7568,9 +8602,13 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)
                 && record.site.range == (4..5)
                 && record.kind == crate::session::RecoveryKind::Error));
-        assert!(matches!(parse("A ->@B").arrow, Some(TypeArrowTail {
-            rhs: Recovered::Complete(_), ..
-        })));
+        assert!(matches!(
+            parse("A ->@B").arrow,
+            Some(TypeArrowTail {
+                rhs: Recovered::Complete(_),
+                ..
+            })
+        ));
 
         let (remainder, boundary) = parse_direct_prefix("T -> @)");
         assert_eq!(remainder, ")");
@@ -7592,59 +8630,79 @@ mod tests {
     #[test]
     fn malformed_delimited_items_retry_after_deeper_trivia() {
         let call = parse("T(@\n  A)");
-        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments,
             close: Recovered::Complete(close),
             ..
         })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)] if argument.range == (6..7))
-            && *close == (7..8)));
+            && *close == (7..8))
+        );
         let call_recoveries = parse_direct_recovered("T(@\n  A)");
-        assert!(matches!(call_recoveries.as_slice(), [error]
+        assert!(
+            matches!(call_recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (2..3)), "{call_recoveries:#?}");
+                && error.site.range == (2..3)),
+            "{call_recoveries:#?}"
+        );
 
         let group = parse("(@\n  A)");
-        assert!(matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(
+            matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             elements,
             close: Recovered::Complete(close),
             ..
         }) if matches!(elements.as_slice(), [Recovered::Complete(element)] if element.range == (5..6))
-            && close == (6..7)));
+            && close == (6..7))
+        );
         let group_recoveries = parse_direct_recovered("(@\n  A)");
-        assert!(matches!(group_recoveries.as_slice(), [error]
+        assert!(
+            matches!(group_recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (1..2)), "{group_recoveries:#?}");
+                && error.site.range == (1..2)),
+            "{group_recoveries:#?}"
+        );
 
         let effect = parse("'[@\n  A]");
-        assert!(matches!(effect.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+        assert!(
+            matches!(effect.complete_primary(), TypePrimary::EffectRow(EffectRowType {
             items,
             close: Recovered::Complete(close),
             ..
         }) if matches!(items.as_slice(), [Recovered::Complete(item)] if item.range == (6..7))
-            && close == (7..8)));
+            && close == (7..8))
+        );
         let effect_recoveries = parse_direct_recovered("'[@\n  A]");
-        assert!(matches!(effect_recoveries.as_slice(), [error]
+        assert!(
+            matches!(effect_recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (2..3)), "{effect_recoveries:#?}");
+                && error.site.range == (2..3)),
+            "{effect_recoveries:#?}"
+        );
     }
 
     #[test]
     fn malformed_call_item_leaves_deeper_trivia_and_matching_close_to_its_owner() {
         let call = parse("T(@\n  )");
-        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments,
             close: Recovered::Complete(close),
             ..
-        })] if matches!(arguments.as_slice(), [Recovered::Incomplete]) && *close == (6..7)));
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete]) && *close == (6..7))
+        );
 
         let recoveries = parse_direct_recovered("T(@\n  )");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (2..3)), "{recoveries:#?}");
+                && error.site.range == (2..3)),
+            "{recoveries:#?}"
+        );
         assert_eq!(parse_direct("T(@\n  )").to_string(), "T(@\n  )");
     }
 
@@ -7653,14 +8711,17 @@ mod tests {
         let source = "T(@ \n  A)";
         let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  A)");
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
-        })] if matches!(arguments.as_slice(), [Recovered::Incomplete])));
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete]))
+        );
 
         let (remainder, recoveries) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  A)");
-        assert!(matches!(recoveries.as_slice(), [error, close]
+        assert!(
+            matches!(recoveries.as_slice(), [error, close]
             if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
                 && error.kind == RecoveryKind::Error
                 && error.site.range == (2..3)
@@ -7668,18 +8729,24 @@ mod tests {
                     owner: ConstructRole::TypeCall,
                     delimiter: Delimiter::Parenthesis,
                 })
-                && close.kind == RecoveryKind::Missing), "{recoveries:#?}");
+                && close.kind == RecoveryKind::Missing),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
     fn ast_delimited_recovery_keeps_the_same_item_slots_as_direct_cst() {
         let malformed = parse("T(@A)");
-        assert!(matches!(malformed.postfix.as_slice(), [TypePostfixTail::Call(tail)]
-            if matches!(tail.arguments.as_slice(), [Recovered::Complete(_)])));
+        assert!(
+            matches!(malformed.postfix.as_slice(), [TypePostfixTail::Call(tail)]
+            if matches!(tail.arguments.as_slice(), [Recovered::Complete(_)]))
+        );
 
         let leading_separator = parse("T(,)");
-        assert!(matches!(leading_separator.postfix.as_slice(), [TypePostfixTail::Call(tail)]
-            if matches!(tail.arguments.as_slice(), [Recovered::Incomplete])));
+        assert!(
+            matches!(leading_separator.postfix.as_slice(), [TypePostfixTail::Call(tail)]
+            if matches!(tail.arguments.as_slice(), [Recovered::Incomplete]))
+        );
     }
 
     #[test]
@@ -7691,19 +8758,28 @@ mod tests {
             ("'[@]", TypeRole::EffectRowItem),
         ] {
             let recoveries = parse_direct_recovered(source);
-            assert!(matches!(recoveries.as_slice(), [record]
+            assert!(
+                matches!(recoveries.as_slice(), [record]
                 if record.site.role == GrammarRole::Type(role)
-                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
+                    && record.kind == RecoveryKind::Error),
+                "{source}: {recoveries:#?}"
+            );
         }
-        assert!(matches!(parse("T(@)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(parse("T(@)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Complete(_), ..
-        })] if matches!(arguments.as_slice(), [Recovered::Incomplete])));
-        assert!(matches!(parse("(@)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete]))
+        );
+        assert!(
+            matches!(parse("(@)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             elements, close: Recovered::Complete(_), ..
-        }) if matches!(elements.as_slice(), [Recovered::Incomplete])));
-        assert!(matches!(parse("'[@]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
+        }) if matches!(elements.as_slice(), [Recovered::Incomplete]))
+        );
+        assert!(
+            matches!(parse("'[@]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             items, close: Recovered::Complete(_), ..
-        }) if matches!(items.as_slice(), [Recovered::Incomplete])));
+        }) if matches!(items.as_slice(), [Recovered::Incomplete]))
+        );
 
         for (source, role) in [
             ("T(@ , A)", TypeRole::CallArgument),
@@ -7711,9 +8787,12 @@ mod tests {
             ("'[@ , A]", TypeRole::EffectRowItem),
         ] {
             let recoveries = parse_direct_recovered(source);
-            assert!(matches!(recoveries.as_slice(), [record]
+            assert!(
+                matches!(recoveries.as_slice(), [record]
                 if record.site.role == GrammarRole::Type(role)
-                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
+                    && record.kind == RecoveryKind::Error),
+                "{source}: {recoveries:#?}"
+            );
         }
 
         for (source, owner) in [
@@ -7722,35 +8801,51 @@ mod tests {
             ("'[)]", ConstructRole::EffectRowType),
         ] {
             let recoveries = parse_direct_recovered(source);
-            assert!(matches!(recoveries.as_slice(), [record]
+            assert!(
+                matches!(recoveries.as_slice(), [record]
                 if matches!(record.site.role, GrammarRole::ClosingDelimiter { owner: found, .. }
                     if found == owner)
-                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
+                    && record.kind == RecoveryKind::Error),
+                "{source}: {recoveries:#?}"
+            );
         }
 
-        assert!(matches!(parse("T(A])").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(parse("T(A])").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             close: Recovered::Complete(close), ..
-        })] if *close == (4..5)));
+        })] if *close == (4..5))
+        );
         let close_retry = parse_direct_recovered("T(A])");
-        assert!(matches!(close_retry.as_slice(), [record]
+        assert!(
+            matches!(close_retry.as_slice(), [record]
             if matches!(record.site.role, GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::TypeCall,
                 delimiter: Delimiter::Parenthesis,
             })
                 && record.site.range == (3..4)
-                && record.kind == RecoveryKind::Error), "{close_retry:#?}");
+                && record.kind == RecoveryKind::Error),
+            "{close_retry:#?}"
+        );
 
         let deeper_close = parse("T(for 'a: A\n  )");
-        assert!(matches!(deeper_close.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            close: Recovered::Complete(_), ..
-        })]));
+        assert!(matches!(
+            deeper_close.postfix.as_slice(),
+            [TypePostfixTail::Call(TypeCallTail {
+                close: Recovered::Complete(_),
+                ..
+            })]
+        ));
         let deeper_mismatch = parse_direct_recovered("T(for 'a: A\n  ])");
-        assert!(deeper_mismatch.iter().any(|record| matches!(record.site.role,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::TypeCall,
-                delimiter: Delimiter::Parenthesis,
-            }
-        ) && record.kind == RecoveryKind::Error), "{deeper_mismatch:#?}");
+        assert!(
+            deeper_mismatch.iter().any(|record| matches!(
+                record.site.role,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::TypeCall,
+                    delimiter: Delimiter::Parenthesis,
+                }
+            ) && record.kind == RecoveryKind::Error),
+            "{deeper_mismatch:#?}"
+        );
     }
 
     #[test]
@@ -7761,59 +8856,123 @@ mod tests {
             ("'[@, A]", TypeRole::EffectRowItem),
         ] {
             let recoveries = parse_direct_recovered(source);
-            assert!(matches!(recoveries.as_slice(), [record]
+            assert!(
+                matches!(recoveries.as_slice(), [record]
                 if record.site.role == GrammarRole::Type(role)
-                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
+                    && record.kind == RecoveryKind::Error),
+                "{source}: {recoveries:#?}"
+            );
         }
-        assert!(matches!(parse("T(@, A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(parse("T(@, A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Complete(_), ..
-        })] if matches!(arguments.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
-        assert!(matches!(parse("(@, A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
+        assert!(
+            matches!(parse("(@, A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             elements, close: Recovered::Complete(_), ..
-        }) if matches!(elements.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
-        assert!(matches!(parse("'[@, A]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
+        }) if matches!(elements.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
+        assert!(
+            matches!(parse("'[@, A]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             items, close: Recovered::Complete(_), ..
-        }) if matches!(items.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+        }) if matches!(items.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
     }
 
     #[test]
     fn type_delimited_close_recovery_keeps_a_mismatched_closer_local() {
         let recoveries = parse_direct_recovered("T(A]");
-        assert!(recoveries.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: crate::session::ConstructRole::TypeCall,
-            delimiter: crate::session::Delimiter::Parenthesis,
-        }) && record.kind == crate::session::RecoveryKind::Error && record.site.range == (3..4)));
-        assert!(recoveries.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: crate::session::ConstructRole::TypeCall,
-            delimiter: crate::session::Delimiter::Parenthesis,
-        }) && record.kind == crate::session::RecoveryKind::Missing && record.site.range == (4..4)));
+        assert!(recoveries.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: crate::session::ConstructRole::TypeCall,
+                delimiter: crate::session::Delimiter::Parenthesis,
+            }
+        ) && record.kind
+            == crate::session::RecoveryKind::Error
+            && record.site.range == (3..4)));
+        assert!(recoveries.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: crate::session::ConstructRole::TypeCall,
+                delimiter: crate::session::Delimiter::Parenthesis,
+            }
+        ) && record.kind
+            == crate::session::RecoveryKind::Missing
+            && record.site.range == (4..4)));
         let ast = parse("T(A]");
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            close: Recovered::Incomplete, ..
-        })]));
+        assert!(matches!(
+            ast.postfix.as_slice(),
+            [TypePostfixTail::Call(TypeCallTail {
+                close: Recovered::Incomplete,
+                ..
+            })]
+        ));
     }
 
     #[test]
     fn type_close_slot_retries_past_local_trivia() {
         for (source, owner, delimiter, mismatch, close) in [
-            ("T(A] )", ConstructRole::TypeCall, Delimiter::Parenthesis, 3..4, 5..6),
-            ("(A] )", ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis, 2..3, 4..5),
-            ("{a:A] }", ConstructRole::NamedRecordType, Delimiter::Brace, 4..5, 6..7),
-            ("'[A) ]", ConstructRole::EffectRowType, Delimiter::Bracket, 3..4, 5..6),
-            ("T(A]/*c*/)", ConstructRole::TypeCall, Delimiter::Parenthesis, 3..4, 9..10),
-            (":{A] }", ConstructRole::PolymorphicVariantType, Delimiter::Brace, 3..4, 5..6),
+            (
+                "T(A] )",
+                ConstructRole::TypeCall,
+                Delimiter::Parenthesis,
+                3..4,
+                5..6,
+            ),
+            (
+                "(A] )",
+                ConstructRole::ParenthesizedTypeGroup,
+                Delimiter::Parenthesis,
+                2..3,
+                4..5,
+            ),
+            (
+                "{a:A] }",
+                ConstructRole::NamedRecordType,
+                Delimiter::Brace,
+                4..5,
+                6..7,
+            ),
+            (
+                "'[A) ]",
+                ConstructRole::EffectRowType,
+                Delimiter::Bracket,
+                3..4,
+                5..6,
+            ),
+            (
+                "T(A]/*c*/)",
+                ConstructRole::TypeCall,
+                Delimiter::Parenthesis,
+                3..4,
+                9..10,
+            ),
+            (
+                ":{A] }",
+                ConstructRole::PolymorphicVariantType,
+                Delimiter::Brace,
+                3..4,
+                5..6,
+            ),
         ] {
             let recoveries = parse_direct_recovered(source);
-            assert!(recoveries.iter().any(|record| matches!(record.site.role,
-                GrammarRole::ClosingDelimiter { owner: found, delimiter: found_delimiter }
-                    if found == owner && found_delimiter == delimiter
-            ) && record.kind == RecoveryKind::Error && record.site.range == mismatch),
-                "missing local mismatch for {source}: {recoveries:#?}");
-            assert!(!recoveries.iter().any(|record| matches!(record.site.role,
-                GrammarRole::ClosingDelimiter { owner: found, delimiter: found_delimiter }
-                    if found == owner && found_delimiter == delimiter
-            ) && record.kind == RecoveryKind::Missing),
-                "spurious missing close for {source}: {recoveries:#?}");
+            assert!(
+                recoveries.iter().any(|record| matches!(record.site.role,
+                    GrammarRole::ClosingDelimiter { owner: found, delimiter: found_delimiter }
+                        if found == owner && found_delimiter == delimiter
+                ) && record.kind == RecoveryKind::Error
+                    && record.site.range == mismatch),
+                "missing local mismatch for {source}: {recoveries:#?}"
+            );
+            assert!(
+                !recoveries.iter().any(|record| matches!(record.site.role,
+                    GrammarRole::ClosingDelimiter { owner: found, delimiter: found_delimiter }
+                        if found == owner && found_delimiter == delimiter
+                ) && record.kind == RecoveryKind::Missing),
+                "spurious missing close for {source}: {recoveries:#?}"
+            );
             let direct = parse_direct(source);
             assert_eq!(direct.to_string(), source, "lossless CST for {source}");
             let matching_kind = match delimiter {
@@ -7821,76 +8980,111 @@ mod tests {
                 Delimiter::Bracket => SyntaxKind::RBracket,
                 Delimiter::Brace => SyntaxKind::RBrace,
             };
-            assert!(direct.descendants_with_tokens().filter_map(|element| element.into_token()).any(|token| {
-                let range = token.text_range();
-                token.kind() == matching_kind
-                    && (u32::from(range.start()) as usize..u32::from(range.end()) as usize) == close
-            }), "missing {matching_kind:?} token at {close:?} for {source}");
+            assert!(
+                direct
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| {
+                        let range = token.text_range();
+                        token.kind() == matching_kind
+                            && (u32::from(range.start()) as usize..u32::from(range.end()) as usize)
+                                == close
+                    }),
+                "missing {matching_kind:?} token at {close:?} for {source}"
+            );
         }
 
-        assert!(matches!(parse("T(A] )").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(parse("T(A] )").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             close: Recovered::Complete(close), ..
-        })] if *close == (5..6)));
-        assert!(matches!(parse("(A] )").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        })] if *close == (5..6))
+        );
+        assert!(
+            matches!(parse("(A] )").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             close: Recovered::Complete(close), ..
-        }) if close == (4..5)));
-        assert!(matches!(parse("{a:A] }").complete_primary(), TypePrimary::Record(NamedRecordType {
+        }) if close == (4..5))
+        );
+        assert!(
+            matches!(parse("{a:A] }").complete_primary(), TypePrimary::Record(NamedRecordType {
             close: Recovered::Complete(close), ..
-        }) if close == (6..7)));
-        assert!(matches!(parse("'[A) ]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
+        }) if close == (6..7))
+        );
+        assert!(
+            matches!(parse("'[A) ]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             close: Recovered::Complete(close), ..
-        }) if close == (5..6)));
-        assert!(matches!(parse("T(A]/*c*/)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        }) if close == (5..6))
+        );
+        assert!(
+            matches!(parse("T(A]/*c*/)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             close: Recovered::Complete(close), ..
-        })] if *close == (9..10)));
-        assert!(matches!(parse(":{A] }").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        })] if *close == (9..10))
+        );
+        assert!(
+            matches!(parse(":{A] }").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Complete(close), ..
-        }) if close == (5..6)));
+        }) if close == (5..6))
+        );
     }
 
     #[test]
     fn type_close_slot_leaves_caller_owned_newlines_unconsumed() {
         let (remainder, call) = parse_prefix_with_outer_stop("T(A]\n)", StopKind::Newline);
         assert_eq!(remainder, "\n)");
-        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            close: Recovered::Incomplete, ..
-        })]));
+        assert!(matches!(
+            call.postfix.as_slice(),
+            [TypePostfixTail::Call(TypeCallTail {
+                close: Recovered::Incomplete,
+                ..
+            })]
+        ));
         let (remainder, call_recoveries) =
             parse_direct_prefix_with_outer_stop("T(A]\n)", StopKind::Newline);
         assert_eq!(remainder, "\n)");
-        assert!(call_recoveries.iter().any(|record| matches!(record.site.role,
+        assert!(call_recoveries.iter().any(|record| matches!(
+            record.site.role,
             GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::TypeCall,
                 delimiter: Delimiter::Parenthesis,
             }
-        ) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
-        assert!(call_recoveries.iter().any(|record| matches!(record.site.role,
+        ) && record.kind == RecoveryKind::Error
+            && record.site.range == (3..4)));
+        assert!(call_recoveries.iter().any(|record| matches!(
+            record.site.role,
             GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::TypeCall,
                 delimiter: Delimiter::Parenthesis,
             }
-        ) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
+        ) && record.kind == RecoveryKind::Missing
+            && record.site.range == (4..4)));
 
         let (remainder, variant) = parse_prefix_with_outer_stop(":{A]\n}", StopKind::Newline);
         assert_eq!(remainder, "\n}");
-        assert!(matches!(variant.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
-            close: Recovered::Incomplete, ..
-        })));
+        assert!(matches!(
+            variant.complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
         let (remainder, variant_recoveries) =
             parse_direct_prefix_with_outer_stop(":{A]\n}", StopKind::Newline);
         assert_eq!(remainder, "\n}");
-        assert!(variant_recoveries.iter().any(|record| matches!(record.site.role,
+        assert!(variant_recoveries.iter().any(|record| matches!(
+            record.site.role,
             GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::PolymorphicVariantType,
                 delimiter: Delimiter::Brace,
             }
-        ) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
-        assert!(variant_recoveries.iter().any(|record| matches!(record.site.role,
+        ) && record.kind == RecoveryKind::Error
+            && record.site.range == (3..4)));
+        assert!(variant_recoveries.iter().any(|record| matches!(
+            record.site.role,
             GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::PolymorphicVariantType,
                 delimiter: Delimiter::Brace,
             }
-        ) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
+        ) && record.kind == RecoveryKind::Missing
+            && record.site.range == (4..4)));
     }
 
     #[test]
@@ -7899,8 +9093,7 @@ mod tests {
         let (ast_remainder, _) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A))");
 
-        let (direct_remainder, _) =
-            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, _) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(direct_remainder, " \n  A))");
     }
 
@@ -7997,36 +9190,50 @@ mod tests {
                 && record.site.range == (3..4)
                 && record.kind == crate::session::RecoveryKind::Error));
         let ast = parse("A::@B");
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
-            segment: Recovered::Complete(TypePathSegment::Identifier(_)), ..
-        })]));
+        assert!(matches!(
+            ast.postfix.as_slice(),
+            [TypePostfixTail::Path(TypePathTail {
+                segment: Recovered::Complete(TypePathSegment::Identifier(_)),
+                ..
+            })]
+        ));
     }
 
     #[test]
     fn malformed_path_segment_retries_after_deeper_trivia() {
         let ast = parse("A::@\n  B");
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
             segment: Recovered::Complete(TypePathSegment::Identifier(segment)), ..
-        })] if segment.range() == (7..8)));
+        })] if segment.range() == (7..8))
+        );
         let recoveries = parse_direct_recovered("A::@\n  B");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::PathSegment)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (3..4)), "{recoveries:#?}");
+                && error.site.range == (3..4)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
     fn malformed_path_segment_retries_after_space_prefixed_deeper_trivia() {
         let ast = parse("A::@ \n  B");
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
             segment: Recovered::Complete(TypePathSegment::Identifier(segment)), ..
-        })] if segment.range() == (8..9)));
+        })] if segment.range() == (8..9))
+        );
 
         let recoveries = parse_direct_recovered("A::@ \n  B");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::PathSegment)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (3..4)), "{recoveries:#?}");
+                && error.site.range == (3..4)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -8036,10 +9243,13 @@ mod tests {
             rhs: Recovered::Complete(rhs), ..
         }) if rhs.range == (9..10)));
         let recoveries = parse_direct_recovered("A -> @\n  B");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::ArrowRhs)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (5..6)), "{recoveries:#?}");
+                && error.site.range == (5..6)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -8054,52 +9264,80 @@ mod tests {
             let (direct_remainder, recoveries) = parse_direct_prefix(source);
             assert_eq!(ast_remainder, expected_remainder, "AST {source}");
             assert_eq!(direct_remainder, expected_remainder, "direct {source}");
-            assert!(matches!(ast.postfix.first(), Some(TypePostfixTail::Path(TypePathTail {
-                segment: Recovered::Incomplete, ..
-            }))), "AST shape {source}");
-            assert!(matches!(recoveries.as_slice(), [error]
+            assert!(
+                matches!(
+                    ast.postfix.first(),
+                    Some(TypePostfixTail::Path(TypePathTail {
+                        segment: Recovered::Incomplete,
+                        ..
+                    }))
+                ),
+                "AST shape {source}"
+            );
+            assert!(
+                matches!(recoveries.as_slice(), [error]
                 if error.site.role == GrammarRole::Type(TypeRole::PathSegment)
                     && error.kind == RecoveryKind::Error
-                    && error.site.range == expected_range), "{source}: {recoveries:#?}");
+                    && error.site.range == expected_range),
+                "{source}: {recoveries:#?}"
+            );
         }
 
-        for (source, expected_range) in [
-            ("{name @ A}", 6..7),
-            ("{name @/*x*/ A}", 6..12),
-        ] {
+        for (source, expected_range) in [("{name @ A}", 6..7), ("{name @/*x*/ A}", 6..12)] {
             let (ast_remainder, _) = parse_prefix(source);
             let (direct_remainder, recoveries) = parse_direct_prefix(source);
             assert_eq!(ast_remainder, "A}", "AST {source}");
             assert_eq!(direct_remainder, "A}", "direct {source}");
-            assert!(recoveries.iter().any(|error|
-                error.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
+            assert!(
+                recoveries.iter().any(|error| error.site.role
+                    == GrammarRole::Type(TypeRole::RecordFieldColon)
                     && error.kind == RecoveryKind::Error
-                    && error.site.range == expected_range), "{source}: {recoveries:#?}");
+                    && error.site.range == expected_range),
+                "{source}: {recoveries:#?}"
+            );
         }
     }
 
     #[test]
     fn named_record_types_are_primary_fields_with_comma_or_newline_boundaries() {
         let single = parse("{a: A, b: B}");
-        assert!(matches!(single.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, close: Recovered::Complete(_), .. })
-            if fields.len() == 2 && fields.iter().all(|field| matches!(field, Recovered::Complete(_)))));
+        assert!(
+            matches!(single.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, close: Recovered::Complete(_), .. })
+            if fields.len() == 2 && fields.iter().all(|field| matches!(field, Recovered::Complete(_))))
+        );
         let newline = parse("{\n  a: A\n  b: B\n}");
-        assert!(matches!(newline.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. }) if fields.len() == 2));
+        assert!(
+            matches!(newline.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. }) if fields.len() == 2)
+        );
         let direct = parse_direct("{a: A, b: B}");
-        assert!(direct.descendants().any(|node| node.kind() == SyntaxKind::NamedRecordType));
-        assert!(direct.descendants().filter(|node| node.kind() == SyntaxKind::TypeRecordField).count() == 2);
+        assert!(
+            direct
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::NamedRecordType)
+        );
+        assert!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count()
+                == 2
+        );
     }
 
     #[test]
     fn named_record_field_head_yields_before_type_apply() {
         let applied = parse("{a: F B}");
-        assert!(matches!(applied.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
+        assert!(
+            matches!(applied.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(value), .. })]
-                if matches!(value.postfix.as_slice(), [TypePostfixTail::Apply(_)]))));
+                if matches!(value.postfix.as_slice(), [TypePostfixTail::Apply(_)])))
+        );
         let split = parse("{a: F b: B}");
-        assert!(matches!(split.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
+        assert!(
+            matches!(split.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(value), .. }), Recovered::Complete(_)]
-                if value.postfix.is_empty())));
+                if value.postfix.is_empty()))
+        );
         let recoveries = parse_direct_recovered("{a: F b: B}");
         assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::RecordFieldSeparator)));
     }
@@ -8128,76 +9366,117 @@ mod tests {
     fn named_record_malformed_field_boundary_does_not_cascade() {
         for source in ["{@", "{@ "] {
             let recoveries = parse_direct_recovered(source);
-            assert!(recoveries.iter().any(|record|
-                record.site.role == GrammarRole::Type(TypeRole::RecordField)
-                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
-            assert!(!recoveries.iter().any(|record|
-                record.site.role == GrammarRole::Type(TypeRole::RecordField)
-                    && record.kind == RecoveryKind::Missing), "{source}: {recoveries:#?}");
+            assert!(
+                recoveries.iter().any(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::RecordField)
+                    && record.kind == RecoveryKind::Error),
+                "{source}: {recoveries:#?}"
+            );
+            assert!(
+                !recoveries.iter().any(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::RecordField)
+                    && record.kind == RecoveryKind::Missing),
+                "{source}: {recoveries:#?}"
+            );
         }
 
         let separator = parse_direct_recovered("{@,}");
-        assert!(matches!(separator.as_slice(), [record]
+        assert!(
+            matches!(separator.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
-                && record.kind == RecoveryKind::Error), "{separator:#?}");
-        assert!(matches!(parse("{@,}").complete_primary(), TypePrimary::Record(NamedRecordType {
+                && record.kind == RecoveryKind::Error),
+            "{separator:#?}"
+        );
+        assert!(
+            matches!(parse("{@,}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Incomplete])));
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete]))
+        );
 
         let continued = parse_direct_recovered("{@, a: A}");
-        assert!(matches!(continued.as_slice(), [record]
+        assert!(
+            matches!(continued.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
-                && record.kind == RecoveryKind::Error), "{continued:#?}");
-        assert!(matches!(parse("{@, a: A}").complete_primary(), TypePrimary::Record(NamedRecordType {
+                && record.kind == RecoveryKind::Error),
+            "{continued:#?}"
+        );
+        assert!(
+            matches!(parse("{@, a: A}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
 
         let outer_close = parse_direct_recovered("'[{@]");
-        assert!(outer_close.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::RecordField)
+        assert!(
+            outer_close.iter().any(|record| record.site.role
+                == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (3..4)), "{outer_close:#?}");
-        assert!(outer_close.iter().any(|record| matches!(record.site.role,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::NamedRecordType,
-                delimiter: Delimiter::Brace,
-            }
-        ) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)), "{outer_close:#?}");
-        assert!(!outer_close.iter().any(|record| matches!(record.site.role,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::EffectRowType,
-                delimiter: Delimiter::Bracket,
-            }
-        )), "{outer_close:#?}");
-        assert!(matches!(parse("'[{@]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
-            close: Recovered::Complete(_),
-            items,
-            ..
-        }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
-            primary: Recovered::Complete(TypePrimary::Record(NamedRecordType { close: Recovered::Incomplete, .. })), ..
-        })])));
+                && record.site.range == (3..4)),
+            "{outer_close:#?}"
+        );
+        assert!(
+            outer_close.iter().any(|record| matches!(
+                record.site.role,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::NamedRecordType,
+                    delimiter: Delimiter::Brace,
+                }
+            ) && record.kind == RecoveryKind::Missing
+                && record.site.range == (4..4)),
+            "{outer_close:#?}"
+        );
+        assert!(
+            !outer_close.iter().any(|record| matches!(
+                record.site.role,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::EffectRowType,
+                    delimiter: Delimiter::Bracket,
+                }
+            )),
+            "{outer_close:#?}"
+        );
+        assert!(
+            matches!(parse("'[{@]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                close: Recovered::Complete(_),
+                items,
+                ..
+            }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
+                primary: Recovered::Complete(TypePrimary::Record(NamedRecordType { close: Recovered::Incomplete, .. })), ..
+            })]))
+        );
 
         let field_colon_outer_close = parse_direct_recovered("'[{name @]");
-        assert!(field_colon_outer_close.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
+        assert!(
+            field_colon_outer_close.iter().any(|record| record.site.role
+                == GrammarRole::Type(TypeRole::RecordFieldColon)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (8..9)), "{field_colon_outer_close:#?}");
-        assert!(!field_colon_outer_close.iter().any(|record| matches!(record.site.role,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::EffectRowType,
-                delimiter: Delimiter::Bracket,
-            }
-        )), "{field_colon_outer_close:#?}");
+                && record.site.range == (8..9)),
+            "{field_colon_outer_close:#?}"
+        );
+        assert!(
+            !field_colon_outer_close.iter().any(|record| matches!(
+                record.site.role,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::EffectRowType,
+                    delimiter: Delimiter::Bracket,
+                }
+            )),
+            "{field_colon_outer_close:#?}"
+        );
     }
 
     #[test]
     fn named_record_invalid_run_leaves_boundary_trivia_unclaimed() {
         let nested = parse_direct_recovered("'[{@ }]");
-        assert!(matches!(nested.as_slice(), [record]
+        assert!(
+            matches!(nested.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (3..4)), "{nested:#?}");
-        assert!(matches!(parse("'[{@ }]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                && record.site.range == (3..4)),
+            "{nested:#?}"
+        );
+        assert!(
+            matches!(parse("'[{@ }]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             close: Recovered::Complete(_),
             items,
             ..
@@ -8205,16 +9484,22 @@ mod tests {
             primary: Recovered::Complete(TypePrimary::Record(NamedRecordType {
                 fields, close: Recovered::Complete(_), ..
             })), ..
-        })] if matches!(fields.as_slice(), [Recovered::Incomplete]))));
+        })] if matches!(fields.as_slice(), [Recovered::Incomplete])))
+        );
 
         let separator = parse_direct_recovered("{@ , a: A}");
-        assert!(matches!(separator.as_slice(), [record]
+        assert!(
+            matches!(separator.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (1..2)), "{separator:#?}");
-        assert!(matches!(parse("{@ , a: A}").complete_primary(), TypePrimary::Record(NamedRecordType {
+                && record.site.range == (1..2)),
+            "{separator:#?}"
+        );
+        assert!(
+            matches!(parse("{@ , a: A}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
     }
 
     #[test]
@@ -8222,14 +9507,17 @@ mod tests {
         let source = "{@ \n  a:A}";
         let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  a:A}");
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Incomplete, ..
-        }) if matches!(fields.as_slice(), [Recovered::Incomplete])));
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete]))
+        );
 
         let (remainder, recoveries) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  a:A}");
-        assert!(matches!(recoveries.as_slice(), [error, missing]
+        assert!(
+            matches!(recoveries.as_slice(), [error, missing]
             if error.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && error.kind == RecoveryKind::Error
                 && error.site.range == (1..2)
@@ -8238,7 +9526,9 @@ mod tests {
                     delimiter: Delimiter::Brace,
                 }
                 && missing.kind == RecoveryKind::Missing
-                && missing.site.range == (2..2)), "{recoveries:#?}");
+                && missing.site.range == (2..2)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -8246,16 +9536,19 @@ mod tests {
         let source = "{a @ \n  b:B}";
         let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  b:B}", "{ast:#?}");
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Incomplete, ..
-        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
-            name: Recovered::Complete(_), colon: Recovered::Incomplete, ..
-        })])));
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Incomplete, ..
+            }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+                name: Recovered::Complete(_), colon: Recovered::Incomplete, ..
+            })]))
+        );
 
         let (remainder, recoveries) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  b:B}");
-        assert!(matches!(recoveries.as_slice(), [error, missing]
+        assert!(
+            matches!(recoveries.as_slice(), [error, missing]
             if error.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
                 && error.kind == RecoveryKind::Error
                 && error.site.range == (3..4)
@@ -8264,22 +9557,30 @@ mod tests {
                     delimiter: Delimiter::Brace,
                 }
                 && missing.kind == RecoveryKind::Missing
-                && missing.site.range == (4..4)), "{recoveries:#?}");
+                && missing.site.range == (4..4)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
     fn malformed_record_name_hands_plain_identifier_to_whole_field_recovery() {
         let source = "{@foo!: A}";
         let ast = parse(source);
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             ref fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Incomplete])), "{ast:#?}");
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete])),
+            "{ast:#?}"
+        );
 
         let recoveries = parse_direct_recovered(source);
-        assert!(matches!(recoveries.as_slice(), [record]
+        assert!(
+            matches!(recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (1..9)), "{recoveries:#?}");
+                && record.site.range == (1..9)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -8336,7 +9637,10 @@ mod tests {
         // is a new committed decision at the current trivia start, rather
         // than stale state leaked from the speculative malformed-name probe.
         let recovery = scan_record_invalid_run(&mut i).expect("whole-field recovery");
-        assert!(matches!(recovery.disposition, TypeInvalidRunDisposition::BoundaryCurrent));
+        assert!(matches!(
+            recovery.disposition,
+            TypeInvalidRunDisposition::BoundaryCurrent
+        ));
         assert_eq!(recovery.error_range, 0..1);
         assert_eq!(i.pos(), 1);
         assert_eq!(
@@ -8349,47 +9653,66 @@ mod tests {
     fn malformed_record_item_retries_an_immediately_adjacent_complete_field() {
         let source = "{@a:A}";
         let ast = parse(source);
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
-            ref fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [
-            Recovered::Incomplete,
-            Recovered::Complete(TypeRecordField {
-                name: Recovered::Complete(_),
-                colon: Recovered::Complete(_),
-                type_expr: Recovered::Complete(_),
-                ..
-            }),
-        ])), "{ast:#?}");
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+                ref fields, close: Recovered::Complete(_), ..
+            }) if matches!(fields.as_slice(), [
+                Recovered::Incomplete,
+                Recovered::Complete(TypeRecordField {
+                    name: Recovered::Complete(_),
+                    colon: Recovered::Complete(_),
+                    type_expr: Recovered::Complete(_),
+                    ..
+                }),
+            ])),
+            "{ast:#?}"
+        );
 
         let recoveries = parse_direct_recovered(source);
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (1..2)), "{recoveries:#?}");
+                && error.site.range == (1..2)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
     fn named_record_malformed_runs_leave_local_closes_for_the_close_slot() {
         let mismatch = parse_direct_recovered("{@]}");
-        assert!(mismatch.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::RecordField)
+        assert!(
+            mismatch.iter().any(|record| record.site.role
+                == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (1..2)), "{mismatch:#?}");
-        assert!(mismatch.iter().any(|record| matches!(record.site.role,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::NamedRecordType,
-                delimiter: Delimiter::Brace,
-            }
-        ) && record.kind == RecoveryKind::Error && record.site.range == (2..3)), "{mismatch:#?}");
-        assert!(matches!(parse("{@]}").complete_primary(), TypePrimary::Record(NamedRecordType {
+                && record.site.range == (1..2)),
+            "{mismatch:#?}"
+        );
+        assert!(
+            mismatch.iter().any(|record| matches!(
+                record.site.role,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::NamedRecordType,
+                    delimiter: Delimiter::Brace,
+                }
+            ) && record.kind == RecoveryKind::Error
+                && record.site.range == (2..3)),
+            "{mismatch:#?}"
+        );
+        assert!(
+            matches!(parse("{@]}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(close), ..
-        }) if matches!(fields.as_slice(), [Recovered::Incomplete]) && close == (3..4)));
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete]) && close == (3..4))
+        );
 
         let semicolon = parse_direct_recovered("{@;}");
-        assert!(matches!(semicolon.as_slice(), [record]
+        assert!(
+            matches!(semicolon.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (1..3)), "{semicolon:#?}");
+                && record.site.range == (1..3)),
+            "{semicolon:#?}"
+        );
     }
 
     #[test]
@@ -8400,8 +9723,10 @@ mod tests {
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (1..7)));
         let spread_ast = parse("{..Type}");
-        assert!(matches!(spread_ast.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
-            if matches!(fields.as_slice(), [Recovered::Incomplete])));
+        assert!(
+            matches!(spread_ast.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
+            if matches!(fields.as_slice(), [Recovered::Incomplete]))
+        );
 
         let shorthand = parse_direct_recovered("{name}");
         assert!(matches!(shorthand.as_slice(), [record]
@@ -8415,12 +9740,14 @@ mod tests {
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (6..7)));
         let ast = parse("{name = Value}");
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
                 colon: Recovered::Incomplete,
                 type_expr: Recovered::Complete(_),
                 ..
-            })])));
+            })]))
+        );
     }
 
     #[test]
@@ -8446,166 +9773,230 @@ mod tests {
                 && record.site.range == (7..8)));
 
         let recovered_ast = parse("{name: @A}");
-        assert!(matches!(recovered_ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(recovered_ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             close: Recovered::Complete(_),
             ref fields,
             ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             type_expr: Recovered::Complete(type_expr),
             ..
-        })] if type_expr.range == (8..9))));
+        })] if type_expr.range == (8..9)))
+        );
 
         let recovered_colon_ast = parse("{name @: A}");
-        assert!(matches!(recovered_colon_ast.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
-            colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), ..
-        })])));
+        assert!(
+            matches!(recovered_colon_ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Complete(_), ..
+            }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+                colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), ..
+            })]))
+        );
 
         let (ast_remainder, ast) = parse_prefix("{name @ A}");
         let (direct_remainder, direct) = parse_direct_prefix("{name @ A}");
         assert_eq!(ast_remainder, direct_remainder);
         assert_eq!(ast_remainder, "A}");
-        assert!(direct.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
-                && record.kind == RecoveryKind::Error));
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType { fields, .. })
+        assert!(direct.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::RecordFieldColon)
+            && record.kind == RecoveryKind::Error));
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType { fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
                 colon: Recovered::Incomplete, type_expr: Recovered::Incomplete, ..
-            })])));
+            })]))
+        );
     }
 
     #[test]
     fn malformed_named_record_slots_retry_after_deeper_trivia() {
         let whole_field = parse("{@\n  a: A}");
-        assert!(matches!(whole_field.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(whole_field.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [
             Recovered::Incomplete,
             Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(value), .. }),
-        ] if value.range == (8..9))));
+        ] if value.range == (8..9)))
+        );
         let whole_field_recoveries = parse_direct_recovered("{@\n  a: A}");
-        assert!(matches!(whole_field_recoveries.as_slice(), [error]
+        assert!(
+            matches!(whole_field_recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (1..2)), "{whole_field_recoveries:#?}");
+                && error.site.range == (1..2)),
+            "{whole_field_recoveries:#?}"
+        );
 
         let rhs = parse("{name: @\n  A}");
-        assert!(matches!(rhs.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(rhs.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             type_expr: Recovered::Complete(value), ..
-        })] if value.range == (11..12))));
+        })] if value.range == (11..12)))
+        );
         let rhs_recoveries = parse_direct_recovered("{name: @\n  A}");
-        assert!(matches!(rhs_recoveries.as_slice(), [error]
+        assert!(
+            matches!(rhs_recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::RecordFieldType)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (7..8)), "{rhs_recoveries:#?}");
+                && error.site.range == (7..8)),
+            "{rhs_recoveries:#?}"
+        );
 
         let colon = parse("{name @\n  A}");
-        assert!(matches!(colon.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(colon.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             colon: Recovered::Incomplete,
             type_expr: Recovered::Complete(value),
             ..
-        })] if value.range == (10..11))));
+        })] if value.range == (10..11)))
+        );
         let colon_recoveries = parse_direct_recovered("{name @\n  A}");
-        assert!(matches!(colon_recoveries.as_slice(), [error]
+        assert!(
+            matches!(colon_recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (6..7)), "{colon_recoveries:#?}");
+                && error.site.range == (6..7)),
+            "{colon_recoveries:#?}"
+        );
     }
 
     #[test]
     fn malformed_record_colon_leaves_outer_newlines_for_the_field_sequence() {
         for source in ["{name @\nA}", "{name @//x\nA}"] {
-            assert!(matches!(parse(source).complete_primary(), TypePrimary::Record(NamedRecordType {
-                fields, close: Recovered::Complete(_), ..
-            }) if matches!(fields.as_slice(), [
-                Recovered::Complete(TypeRecordField { colon: Recovered::Incomplete, .. }),
-                Recovered::Complete(_),
-            ])), "AST {source}");
+            assert!(
+                matches!(parse(source).complete_primary(), TypePrimary::Record(NamedRecordType {
+                    fields, close: Recovered::Complete(_), ..
+                }) if matches!(fields.as_slice(), [
+                    Recovered::Complete(TypeRecordField { colon: Recovered::Incomplete, .. }),
+                    Recovered::Complete(_),
+                ])),
+                "AST {source}"
+            );
 
             let (remainder, recoveries) = parse_direct_prefix(source);
             assert_eq!(remainder, "", "direct remainder {source}");
-            assert!(!recoveries.iter().any(|record| matches!(record.site.role,
-                GrammarRole::ClosingDelimiter {
-                    owner: ConstructRole::NamedRecordType,
-                    delimiter: Delimiter::Brace,
-                }
-            ) && record.kind == RecoveryKind::Missing), "{source}: {recoveries:#?}");
+            assert!(
+                !recoveries.iter().any(|record| matches!(
+                    record.site.role,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::NamedRecordType,
+                        delimiter: Delimiter::Brace,
+                    }
+                ) && record.kind == RecoveryKind::Missing),
+                "{source}: {recoveries:#?}"
+            );
             let direct = parse_direct(source);
-            assert_eq!(direct.descendants()
-                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
-                .count(), 2, "direct fields {source}");
+            assert_eq!(
+                direct
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                    .count(),
+                2,
+                "direct fields {source}"
+            );
         }
 
         let continuation = parse("{name @:\n  A}");
-        assert!(matches!(continuation.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
-            colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), ..
-        })])));
+        assert!(
+            matches!(continuation.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Complete(_), ..
+            }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+                colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), ..
+            })]))
+        );
         let continuation_direct = parse_direct("{name @:\n  A}");
-        assert_eq!(continuation_direct.descendants()
-            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
-            .count(), 1);
+        assert_eq!(
+            continuation_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn named_record_field_colon_uses_one_chain_gap_policy_on_both_paths() {
         let after_colon = parse("{name:\nA: B}");
-        assert!(matches!(after_colon.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [
-            Recovered::Complete(TypeRecordField { type_expr: Recovered::Incomplete, .. }),
-            Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(_), .. }),
-        ])));
-        assert_eq!(parse_direct("{name:\nA: B}").descendants()
-            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
-            .count(), 2);
+        assert!(
+            matches!(after_colon.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Complete(_), ..
+            }) if matches!(fields.as_slice(), [
+                Recovered::Complete(TypeRecordField { type_expr: Recovered::Incomplete, .. }),
+                Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(_), .. }),
+            ]))
+        );
+        assert_eq!(
+            parse_direct("{name:\nA: B}")
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            2
+        );
 
         let before_colon = parse("{name\nA: B}");
-        assert!(matches!(before_colon.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [
-            Recovered::Complete(TypeRecordField { colon: Recovered::Incomplete, type_expr: Recovered::Incomplete, .. }),
-            Recovered::Complete(TypeRecordField { colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), .. }),
-        ])));
-        assert_eq!(parse_direct("{name\nA: B}").descendants()
-            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
-            .count(), 2);
+        assert!(
+            matches!(before_colon.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Complete(_), ..
+            }) if matches!(fields.as_slice(), [
+                Recovered::Complete(TypeRecordField { colon: Recovered::Incomplete, type_expr: Recovered::Incomplete, .. }),
+                Recovered::Complete(TypeRecordField { colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), .. }),
+            ]))
+        );
+        assert_eq!(
+            parse_direct("{name\nA: B}")
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            2
+        );
 
         let same_position = parse("{a A}");
-        assert!(matches!(same_position.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
-            colon: Recovered::Incomplete, type_expr: Recovered::Complete(_), ..
-        })])));
+        assert!(
+            matches!(same_position.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Complete(_), ..
+            }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+                colon: Recovered::Incomplete, type_expr: Recovered::Complete(_), ..
+            })]))
+        );
         let recoveries = parse_direct_recovered("{a A}");
-        assert!(matches!(recoveries.as_slice(), [record]
+        assert!(
+            matches!(recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
                 && record.kind == RecoveryKind::Missing
-                && record.site.range == (3..3)), "{recoveries:#?}");
+                && record.site.range == (3..3)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
     fn named_record_comma_policy_and_close_recovery_are_typed() {
         let trailing = parse("{a: A,}");
-        assert!(matches!(trailing.complete_primary(), TypePrimary::Record(NamedRecordType {
-            trailing_comma: Some(_), close: Recovered::Complete(_), ..
-        })));
+        assert!(matches!(
+            trailing.complete_primary(),
+            TypePrimary::Record(NamedRecordType {
+                trailing_comma: Some(_),
+                close: Recovered::Complete(_),
+                ..
+            })
+        ));
 
         let incomplete = parse_direct_recovered("{a: A,");
         assert!(incomplete.iter().any(|record| {
             record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Missing
         }));
-        assert!(incomplete.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::NamedRecordType,
-            delimiter: Delimiter::Brace,
-        })));
+        assert!(incomplete.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::NamedRecordType,
+                delimiter: Delimiter::Brace,
+            }
+        )));
 
         let semicolon = parse_direct_recovered("{a: A; b: B}");
         assert!(semicolon.iter().any(|record| {
@@ -8615,85 +10006,138 @@ mod tests {
         }));
 
         let mismatch = parse_direct_recovered("{a: A]");
-        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::NamedRecordType,
-            delimiter: Delimiter::Brace,
-        }) && record.kind == RecoveryKind::Error && record.site.range == (5..6)));
-        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::NamedRecordType,
-            delimiter: Delimiter::Brace,
-        }) && record.kind == RecoveryKind::Missing && record.site.range == (6..6)));
+        assert!(mismatch.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::NamedRecordType,
+                delimiter: Delimiter::Brace,
+            }
+        ) && record.kind == RecoveryKind::Error
+            && record.site.range == (5..6)));
+        assert!(mismatch.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::NamedRecordType,
+                delimiter: Delimiter::Brace,
+            }
+        ) && record.kind == RecoveryKind::Missing
+            && record.site.range == (6..6)));
 
-        let (remainder, outer_owned) = parse_direct_prefix_with_outer_stop("{a: A]", StopKind::RightBracket);
+        let (remainder, outer_owned) =
+            parse_direct_prefix_with_outer_stop("{a: A]", StopKind::RightBracket);
         assert_eq!(remainder, "]");
-        assert!(!outer_owned.iter().any(|record| record.kind == RecoveryKind::Error));
+        assert!(
+            !outer_owned
+                .iter()
+                .any(|record| record.kind == RecoveryKind::Error)
+        );
     }
 
     #[test]
     fn named_record_sequence_classifies_recovery_gaps_before_consuming_them() {
         let newline = parse("{@\nA: B}");
-        assert!(matches!(newline.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(newline.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
         let newline_recoveries = parse_direct_recovered("{@\nA: B}");
-        assert!(matches!(newline_recoveries.as_slice(), [record]
+        assert!(
+            matches!(newline_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (1..2)), "{newline_recoveries:#?}");
+                && record.site.range == (1..2)),
+            "{newline_recoveries:#?}"
+        );
 
         let entry_mismatch = parse_direct_recovered("{]}");
-        assert!(matches!(entry_mismatch.as_slice(), [record]
+        assert!(
+            matches!(entry_mismatch.as_slice(), [record]
             if matches!(record.site.role, GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::NamedRecordType,
                 delimiter: Delimiter::Brace,
-            }) && record.kind == RecoveryKind::Error && record.site.range == (1..2)), "{entry_mismatch:#?}");
-        assert!(matches!(parse("{]}").complete_primary(), TypePrimary::Record(NamedRecordType {
+            }) && record.kind == RecoveryKind::Error && record.site.range == (1..2)),
+            "{entry_mismatch:#?}"
+        );
+        assert!(
+            matches!(parse("{]}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(close), ..
-        }) if fields.is_empty() && close == (2..3)));
+        }) if fields.is_empty() && close == (2..3))
+        );
 
         let semicolon = parse("{a: A; \nB: C}");
-        assert!(matches!(semicolon.complete_primary(), TypePrimary::Record(NamedRecordType {
+        assert!(
+            matches!(semicolon.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
-        }) if matches!(fields.as_slice(), [Recovered::Complete(_), Recovered::Complete(_)])));
+        }) if matches!(fields.as_slice(), [Recovered::Complete(_), Recovered::Complete(_)]))
+        );
         let semicolon_recoveries = parse_direct_recovered("{a: A; \nB: C}");
-        assert!(matches!(semicolon_recoveries.as_slice(), [record]
+        assert!(
+            matches!(semicolon_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordFieldSeparator)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (5..6)), "{semicolon_recoveries:#?}");
+                && record.site.range == (5..6)),
+            "{semicolon_recoveries:#?}"
+        );
     }
 
     #[test]
     fn forall_type_primary_owns_a_non_delimited_binder_sequence_and_body() {
         let single = parse("for 'a: 'a -> 'a");
-        assert!(matches!(single.complete_primary(), TypePrimary::Forall(ForallType {
+        assert!(
+            matches!(single.complete_primary(), TypePrimary::Forall(ForallType {
             ref binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
-        }) if binders.len() == 1));
+        }) if binders.len() == 1)
+        );
         assert!(single.postfix.is_empty() && single.arrow.is_none());
 
         let multiple = parse("for 'a 'b 'c: T");
-        assert!(matches!(multiple.complete_primary(), TypePrimary::Forall(ForallType { ref binders, .. })
-            if binders.len() == 3 && binders.iter().all(|binder| matches!(binder, Recovered::Complete(ForallTypeBinder { boundary: Recovered::Complete(_), .. })) )));
+        assert!(
+            matches!(multiple.complete_primary(), TypePrimary::Forall(ForallType { ref binders, .. })
+            if binders.len() == 3 && binders.iter().all(|binder| matches!(binder, Recovered::Complete(ForallTypeBinder { boundary: Recovered::Complete(_), .. })) ))
+        );
 
         let direct = parse_direct("for 'a 'b: T");
-        assert!(direct.descendants().any(|node| node.kind() == SyntaxKind::ForallType));
-        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::ForallTypeBinder).count(), 2);
+        assert!(
+            direct
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::ForallType)
+        );
+        assert_eq!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+                .count(),
+            2
+        );
     }
 
     #[test]
     fn forall_is_nud_only_apostrophe_only_and_terminal() {
         for source in ["for $a: T", "for &a: T", "for _a: T"] {
             let recoveries = parse_direct_recovered(source);
-            assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinder)));
+            assert!(
+                recoveries
+                    .iter()
+                    .any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinder))
+            );
         }
         let adjacent = parse_direct_recovered("for 'a'b: T");
-        assert!(adjacent.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinderBoundary)
+        assert!(adjacent.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::ForallBinderBoundary)
             && record.kind == RecoveryKind::Missing));
 
         let grouped = parse("(for 'a: T)::Result");
-        assert!(matches!(grouped.postfix.as_slice(), [TypePostfixTail::Path(_)]));
+        assert!(matches!(
+            grouped.postfix.as_slice(),
+            [TypePostfixTail::Path(_)]
+        ));
         let (_, led) = parse_prefix("F for 'a: T");
         assert!(!matches!(led.complete_primary(), TypePrimary::Forall(_)));
-        assert!(matches!(led.postfix.first(), Some(TypePostfixTail::Apply(_))));
+        assert!(matches!(
+            led.postfix.first(),
+            Some(TypePostfixTail::Apply(_))
+        ));
     }
 
     #[test]
@@ -8719,102 +10163,163 @@ mod tests {
             let recoveries = parse_direct_recovered(source);
             assert_eq!(recoveries.len(), 1, "{source}: {recoveries:#?}");
             let record = &recoveries[0];
-            assert_eq!(record.site.role, GrammarRole::Type(role), "{source}: {record:#?}");
+            assert_eq!(
+                record.site.role,
+                GrammarRole::Type(role),
+                "{source}: {record:#?}"
+            );
             assert_eq!(record.kind, RecoveryKind::Error, "{source}: {record:#?}");
             assert_eq!(record.site.range, range, "{source}: {record:#?}");
         }
         let malformed = parse_direct_recovered("for 'a: @T");
-        assert!(malformed.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBody)
-            && record.kind == RecoveryKind::Error && record.site.range == (8..9)), "{malformed:#?}");
+        assert!(
+            malformed.iter().any(|record| record.site.role
+                == GrammarRole::Type(TypeRole::ForallBody)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (8..9)),
+            "{malformed:#?}"
+        );
 
         let (trailing_remainder, trailing_trivia) = parse_direct_prefix("for 'a: @ ");
         assert_eq!(trailing_remainder, " ");
-        assert!(matches!(trailing_trivia.as_slice(), [record]
+        assert!(
+            matches!(trailing_trivia.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
-                && record.kind == RecoveryKind::Error), "{trailing_trivia:#?}");
+                && record.kind == RecoveryKind::Error),
+            "{trailing_trivia:#?}"
+        );
 
         let colon_retry = parse_direct_recovered("for 'a @T");
-        assert!(matches!(colon_retry.as_slice(), [record]
+        assert!(
+            matches!(colon_retry.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
-                && record.kind == RecoveryKind::Error), "{colon_retry:#?}");
-        assert!(matches!(parse("for 'a @T").complete_primary(), TypePrimary::Forall(ForallType {
-            colon: Recovered::Incomplete, body: Recovered::Complete(_), ..
-        })));
+                && record.kind == RecoveryKind::Error),
+            "{colon_retry:#?}"
+        );
+        assert!(matches!(
+            parse("for 'a @T").complete_primary(),
+            TypePrimary::Forall(ForallType {
+                colon: Recovered::Incomplete,
+                body: Recovered::Complete(_),
+                ..
+            })
+        ));
 
         let first_binder = parse_direct_recovered("for @T");
-        assert!(matches!(first_binder.as_slice(), [record]
+        assert!(
+            matches!(first_binder.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (4..6)), "{first_binder:#?}");
+                && record.site.range == (4..6)),
+            "{first_binder:#?}"
+        );
 
         let (newline_remainder, _) = parse_prefix("for 'a: @\nT");
         assert_eq!(newline_remainder, "\nT");
         let (newline_remainder, newline_recoveries) = parse_direct_prefix("for 'a: @\nT");
         assert_eq!(newline_remainder, "\nT");
-        assert!(matches!(newline_recoveries.as_slice(), [record]
+        assert!(
+            matches!(newline_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (8..9)), "{newline_recoveries:#?}");
+                && record.site.range == (8..9)),
+            "{newline_recoveries:#?}"
+        );
 
-        for (source, expected_remainder) in [
-            ("for 'a: @ \nT", " \nT"),
-            ("for 'a: @ //x\nT", " //x\nT"),
-        ] {
+        for (source, expected_remainder) in
+            [("for 'a: @ \nT", " \nT"), ("for 'a: @ //x\nT", " //x\nT")]
+        {
             let (ast_remainder, _) = parse_prefix(source);
             let (direct_remainder, recoveries) = parse_direct_prefix(source);
-            assert_eq!(ast_remainder, direct_remainder, "AST/direct remainder: {source}");
+            assert_eq!(
+                ast_remainder, direct_remainder,
+                "AST/direct remainder: {source}"
+            );
             assert_eq!(direct_remainder, expected_remainder, "{source}");
-            assert!(matches!(recoveries.as_slice(), [record]
+            assert!(
+                matches!(recoveries.as_slice(), [record]
                 if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
                     && record.kind == RecoveryKind::Error
-                    && record.site.range == (8..9)), "{source}: {recoveries:#?}");
+                    && record.site.range == (8..9)),
+                "{source}: {recoveries:#?}"
+            );
         }
 
         let binder_trivia = parse_direct_recovered("for @ 'a: T");
-        assert!(matches!(binder_trivia.as_slice(), [record]
+        assert!(
+            matches!(binder_trivia.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (4..5)), "{binder_trivia:#?}");
-        assert!(matches!(parse("for @ 'a: T").complete_primary(), TypePrimary::Forall(ForallType {
+                && record.site.range == (4..5)),
+            "{binder_trivia:#?}"
+        );
+        assert!(
+            matches!(parse("for @ 'a: T").complete_primary(), TypePrimary::Forall(ForallType {
             binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
-        }) if matches!(binders.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+        }) if matches!(binders.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
 
         let recovered_colon = parse_direct_recovered("for @ : T");
-        assert!(matches!(recovered_colon.as_slice(), [record]
+        assert!(
+            matches!(recovered_colon.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (4..5)), "{recovered_colon:#?}");
-        assert!(matches!(parse("for @ : T").complete_primary(), TypePrimary::Forall(ForallType {
+                && record.site.range == (4..5)),
+            "{recovered_colon:#?}"
+        );
+        assert!(
+            matches!(parse("for @ : T").complete_primary(), TypePrimary::Forall(ForallType {
             binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
-        }) if matches!(binders.as_slice(), [Recovered::Incomplete])));
+        }) if matches!(binders.as_slice(), [Recovered::Incomplete]))
+        );
 
-        assert!(matches!(parse("for 'a: @ T").complete_primary(), TypePrimary::Forall(ForallType {
-            colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
-        })));
+        assert!(matches!(
+            parse("for 'a: @ T").complete_primary(),
+            TypePrimary::Forall(ForallType {
+                colon: Recovered::Complete(_),
+                body: Recovered::Complete(_),
+                ..
+            })
+        ));
 
         let first_separator = parse_direct_recovered("for , 'a: T");
-        assert!(matches!(first_separator.as_slice(), [record]
+        assert!(
+            matches!(first_separator.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (4..5)), "{first_separator:#?}");
-        assert!(matches!(parse("for , 'a: T").complete_primary(), TypePrimary::Forall(ForallType {
+                && record.site.range == (4..5)),
+            "{first_separator:#?}"
+        );
+        assert!(
+            matches!(parse("for , 'a: T").complete_primary(), TypePrimary::Forall(ForallType {
             binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
-        }) if matches!(binders.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+        }) if matches!(binders.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
 
         let missing_colon = parse_direct_recovered("for 'a T");
         assert!(matches!(missing_colon.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
                 && record.kind == RecoveryKind::Missing && record.site.range == (7..7)));
-        assert!(matches!(parse("for 'a T").complete_primary(), TypePrimary::Forall(ForallType {
-            colon: Recovered::Incomplete, body: Recovered::Complete(_), ..
-        })));
+        assert!(matches!(
+            parse("for 'a T").complete_primary(),
+            TypePrimary::Forall(ForallType {
+                colon: Recovered::Incomplete,
+                body: Recovered::Complete(_),
+                ..
+            })
+        ));
 
         let comma = parse_direct_recovered("for 'a, 'b: T");
-        assert!(comma.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinderBoundary)
-            && record.kind == RecoveryKind::Error && record.site.range == (6..7)));
-        assert!(matches!(parse("for 'a, 'b: T").complete_primary(), TypePrimary::Forall(ForallType { ref binders, .. }) if binders.len() == 2));
+        assert!(comma.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::ForallBinderBoundary)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (6..7)));
+        assert!(
+            matches!(parse("for 'a, 'b: T").complete_primary(), TypePrimary::Forall(ForallType { ref binders, .. }) if binders.len() == 2)
+        );
 
-        let (remainder, outer_comma) = parse_direct_prefix_with_outer_stop("for 'a, T", StopKind::Comma);
+        let (remainder, outer_comma) =
+            parse_direct_prefix_with_outer_stop("for 'a, T", StopKind::Comma);
         assert_eq!(remainder, ", T");
         assert!(matches!(outer_comma.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
@@ -8826,14 +10331,19 @@ mod tests {
     #[test]
     fn malformed_forall_body_retries_after_deeper_trivia() {
         let ast = parse("for 'a: @\n  T");
-        assert!(matches!(ast.complete_primary(), TypePrimary::Forall(ForallType {
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Forall(ForallType {
             body: Recovered::Complete(body), ..
-        }) if body.range == (12..13)));
+        }) if body.range == (12..13))
+        );
         let recoveries = parse_direct_recovered("for 'a: @\n  T");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(
+            matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::ForallBody)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (8..9)), "{recoveries:#?}");
+                && error.site.range == (8..9)),
+            "{recoveries:#?}"
+        );
     }
 
     #[test]
@@ -8902,12 +10412,15 @@ mod tests {
             } if *close == (2..3) && postfix.is_empty() && *range == (0..3)
         ));
         let missing_recoveries = parse_direct_recovered("[e]");
-        assert!(matches!(missing_recoveries.as_slice(), [record]
+        assert!(
+            matches!(missing_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Missing
                 && record.site.range == (3..3)
                 && record.expectations[record.primary_expectation].expected
-                    == ExpectedSyntax::TypeExpression), "{missing_recoveries:#?}");
+                    == ExpectedSyntax::TypeExpression),
+            "{missing_recoveries:#?}"
+        );
         let (boundary_remainder, boundary_ast) =
             parse_prefix_with_outer_stop("[e]\nT", StopKind::Newline);
         assert_eq!(boundary_remainder, "\nT");
@@ -8915,10 +10428,13 @@ mod tests {
         let (boundary_remainder, boundary_recoveries) =
             parse_direct_prefix_with_outer_stop("[e]\nT", StopKind::Newline);
         assert_eq!(boundary_remainder, "\nT");
-        assert!(matches!(boundary_recoveries.as_slice(), [record]
+        assert!(
+            matches!(boundary_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Missing
-                && record.site.range == (3..3)), "{boundary_recoveries:#?}");
+                && record.site.range == (3..3)),
+            "{boundary_recoveries:#?}"
+        );
 
         let nested = parse("[e][f]T");
         assert!(matches!(
@@ -8947,33 +10463,42 @@ mod tests {
             1,
         );
         let nested_recoveries = parse_direct_recovered("[e][f]T");
-        assert!(matches!(nested_recoveries.as_slice(), [record]
+        assert!(
+            matches!(nested_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (3..6)
                 && record.expectations[record.primary_expectation].expected
-                    == ExpectedSyntax::TypeExpression), "{nested_recoveries:#?}");
+                    == ExpectedSyntax::TypeExpression),
+            "{nested_recoveries:#?}"
+        );
 
         let nested_at_boundary = parse("[e][f]");
         assert!(matches!(nested_at_boundary.primary, Recovered::Incomplete));
         let nested_boundary_recoveries = parse_direct_recovered("[e][f]");
-        assert!(matches!(nested_boundary_recoveries.as_slice(), [record]
+        assert!(
+            matches!(nested_boundary_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (3..6)), "{nested_boundary_recoveries:#?}");
+                && record.site.range == (3..6)),
+            "{nested_boundary_recoveries:#?}"
+        );
 
         let repeated = parse("[e][f][g]T");
         assert!(matches!(repeated.primary,
             Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head)))
                 if head.text() == "T" && head.range() == (9..10)));
         let repeated_recoveries = parse_direct_recovered("[e][f][g]T");
-        assert!(matches!(repeated_recoveries.as_slice(), [first, second]
+        assert!(
+            matches!(repeated_recoveries.as_slice(), [first, second]
             if first.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && first.kind == RecoveryKind::Error
                 && first.site.range == (3..6)
                 && second.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && second.kind == RecoveryKind::Error
-                && second.site.range == (6..9)), "{repeated_recoveries:#?}");
+                && second.site.range == (6..9)),
+            "{repeated_recoveries:#?}"
+        );
 
         let malformed = parse("[e]@");
         assert!(matches!(malformed, TypeExpression {
@@ -8983,22 +10508,28 @@ mod tests {
             ..
         } if *range == (0..4)));
         let malformed_recoveries = parse_direct_recovered("[e]@");
-        assert!(matches!(malformed_recoveries.as_slice(), [record]
+        assert!(
+            matches!(malformed_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (3..4)
                 && record.expectations[record.primary_expectation].expected
-                    == ExpectedSyntax::TypeExpression), "{malformed_recoveries:#?}");
+                    == ExpectedSyntax::TypeExpression),
+            "{malformed_recoveries:#?}"
+        );
 
         let retried = parse("[e]@T");
         assert!(matches!(retried.primary,
             Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head)))
                 if head.text() == "T" && head.range() == (4..5)));
         let retried_recoveries = parse_direct_recovered("[e]@T");
-        assert!(matches!(retried_recoveries.as_slice(), [record]
+        assert!(
+            matches!(retried_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Error
-                && record.site.range == (3..4)), "{retried_recoveries:#?}");
+                && record.site.range == (3..4)),
+            "{retried_recoveries:#?}"
+        );
     }
 
     #[test]
@@ -9007,9 +10538,15 @@ mod tests {
         let forall_source = "[e] for 'a: T";
         let forall = parse(forall_source);
         assert!(forall.leading_effect_row.is_some());
-        assert!(matches!(forall.complete_primary(), TypePrimary::Forall(ForallType { .. })));
+        assert!(matches!(
+            forall.complete_primary(),
+            TypePrimary::Forall(ForallType { .. })
+        ));
         assert!(forall.postfix.is_empty() && forall.arrow.is_none());
-        assert!(matches!(bare_forall.complete_primary(), TypePrimary::Forall(ForallType { .. })));
+        assert!(matches!(
+            bare_forall.complete_primary(),
+            TypePrimary::Forall(ForallType { .. })
+        ));
         assert!(bare_forall.postfix.is_empty() && bare_forall.arrow.is_none());
         assert_eq!(parse_direct(forall_source).to_string(), forall_source);
         assert!(parse_direct_recovered("for 'a: T").is_empty());
@@ -9018,35 +10555,48 @@ mod tests {
         let bare_variant_source = ":{A Int\n B}";
         let (bare_variant_remainder, bare_variant) = parse_prefix(bare_variant_source);
         assert_eq!(bare_variant_remainder, "\n B}");
-        assert!(matches!(bare_variant.complete_primary(), TypePrimary::PolymorphicVariant(
-            PolymorphicVariantType { close: Recovered::Incomplete, .. }
-        )));
+        assert!(matches!(
+            bare_variant.complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
 
         let variant_source = "[e] :{A Int\n B}";
         let (variant_remainder, variant) = parse_prefix(variant_source);
         assert_eq!(variant_remainder, "\n B}");
         assert!(variant.leading_effect_row.is_some());
-        assert!(matches!(variant.complete_primary(), TypePrimary::PolymorphicVariant(
-            PolymorphicVariantType { close: Recovered::Incomplete, .. }
-        )));
+        assert!(matches!(
+            variant.complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
         assert!(variant.postfix.is_empty() && variant.arrow.is_none());
 
-        let (bare_direct_remainder, bare_direct_recoveries) = parse_direct_prefix(bare_variant_source);
+        let (bare_direct_remainder, bare_direct_recoveries) =
+            parse_direct_prefix(bare_variant_source);
         assert_eq!(bare_direct_remainder, "\n B}");
-        assert!(matches!(bare_direct_recoveries.as_slice(), [record]
+        assert!(
+            matches!(bare_direct_recoveries.as_slice(), [record]
             if matches!(record.site.role, GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::PolymorphicVariantType,
                 delimiter: Delimiter::Brace,
             }) && record.kind == RecoveryKind::Missing && record.site.range == (7..7)),
-            "{bare_direct_recoveries:#?}");
+            "{bare_direct_recoveries:#?}"
+        );
         let (direct_remainder, direct_recoveries) = parse_direct_prefix(variant_source);
         assert_eq!(direct_remainder, "\n B}");
-        assert!(matches!(direct_recoveries.as_slice(), [record]
+        assert!(
+            matches!(direct_recoveries.as_slice(), [record]
             if matches!(record.site.role, GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::PolymorphicVariantType,
                 delimiter: Delimiter::Brace,
             }) && record.kind == RecoveryKind::Missing && record.site.range == (11..11)),
-            "{direct_recoveries:#?}");
+            "{direct_recoveries:#?}"
+        );
     }
 
     #[test]
@@ -9068,8 +10618,20 @@ mod tests {
                 TypePrimary::Atom(TypeAtom::Identifier(ref applied)) if applied.text() == "A"))));
         let leading_direct = parse_direct("[e] F A -> U");
         assert_eq!(leading_direct.to_string(), "[e] F A -> U");
-        assert_eq!(leading_direct.descendants().filter(|node| node.kind() == SyntaxKind::BracketRow).count(), 1);
-        assert_eq!(leading_direct.descendants().filter(|node| node.kind() == SyntaxKind::TypeArrowTail).count(), 1);
+        assert_eq!(
+            leading_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                .count(),
+            1
+        );
+        assert_eq!(
+            leading_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeArrowTail)
+                .count(),
+            1
+        );
 
         let trailing = parse("T[e]->U");
         assert!(matches!(trailing, TypeExpression {
@@ -9086,17 +10648,26 @@ mod tests {
         } if head.text() == "T" && postfix.is_empty()));
         let trailing_direct = parse_direct("T[e]->U");
         assert_eq!(trailing_direct.to_string(), "T[e]->U");
-        assert_eq!(trailing_direct.descendants().filter(|node| node.kind() == SyntaxKind::BracketRow).count(), 1);
-        assert_eq!(trailing_direct.descendants().filter(|node| node.kind() == SyntaxKind::TypeArrowTail).count(), 1);
+        assert_eq!(
+            trailing_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                .count(),
+            1
+        );
+        assert_eq!(
+            trailing_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeArrowTail)
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn trailing_bracket_row_is_an_arrow_effect_and_not_a_type_apply_argument() {
-        for (source, expected_items) in [
-            ("T [e] -> U", 1),
-            ("T [e, f] -> U", 2),
-            ("T [] -> U", 0),
-        ] {
+        for (source, expected_items) in [("T [e] -> U", 1), ("T [e, f] -> U", 2), ("T [] -> U", 0)]
+        {
             let ast = parse(source);
             assert!(matches!(
                 ast.arrow,
@@ -9263,18 +10834,20 @@ mod tests {
                 )
         ));
         assert_eq!(parse_direct("F ([e] T)").to_string(), "F ([e] T)");
-
     }
 
     #[test]
     fn bracket_row_post_close_trivia_is_bounded_for_heads_and_arrows() {
         for source in ["[e]T", "[e] T", "[e]\n T"] {
             let ast = parse(source);
-            assert!(matches!(ast, TypeExpression {
+            assert!(
+                matches!(ast, TypeExpression {
                 leading_effect_row: Some(BracketRow { close: Recovered::Complete(_), .. }),
                 primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head))),
                 ..
-            } if head.text() == "T"), "AST {source}: {ast:#?}");
+            } if head.text() == "T"),
+                "AST {source}: {ast:#?}"
+            );
             assert_eq!(parse_direct(source).to_string(), source, "direct {source}");
         }
 
@@ -9289,10 +10862,12 @@ mod tests {
         } if postfix.is_empty()));
         let (head_equal_direct_remainder, head_equal_recoveries) = parse_direct_prefix("[e]\nT");
         assert_eq!(head_equal_direct_remainder, "\nT");
-        assert!(matches!(head_equal_recoveries.as_slice(), [record]
+        assert!(
+            matches!(head_equal_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Missing && record.site.range == (3..3)),
-            "{head_equal_recoveries:#?}");
+            "{head_equal_recoveries:#?}"
+        );
 
         let (head_shallower_remainder, head_shallower) =
             parse_prefix_with_continuation_base("[e]\nT", 1);
@@ -9301,54 +10876,75 @@ mod tests {
         let (head_shallower_direct_remainder, head_shallower_recoveries) =
             parse_direct_prefix_with_continuation_base("[e]\nT", 1);
         assert_eq!(head_shallower_direct_remainder, "\nT");
-        assert!(matches!(head_shallower_recoveries.as_slice(), [record]
+        assert!(
+            matches!(head_shallower_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
                 && record.kind == RecoveryKind::Missing && record.site.range == (3..3)),
-            "{head_shallower_recoveries:#?}");
+            "{head_shallower_recoveries:#?}"
+        );
 
         for source in ["T[e]->U", "T [e] -> U", "T [e]\n -> U"] {
             let ast = parse(source);
-            assert!(matches!(ast.arrow, Some(TypeArrowTail {
-                argument_effect: Some(BracketRow { close: Recovered::Complete(_), .. }),
-                arrow: Recovered::Complete(_),
-                rhs: Recovered::Complete(_),
-                ..
-            })), "AST {source}: {ast:#?}");
+            assert!(
+                matches!(
+                    ast.arrow,
+                    Some(TypeArrowTail {
+                        argument_effect: Some(BracketRow {
+                            close: Recovered::Complete(_),
+                            ..
+                        }),
+                        arrow: Recovered::Complete(_),
+                        rhs: Recovered::Complete(_),
+                        ..
+                    })
+                ),
+                "AST {source}: {ast:#?}"
+            );
             assert_eq!(parse_direct(source).to_string(), source, "direct {source}");
         }
 
         let (arrow_equal_remainder, arrow_equal) = parse_prefix("T [e]\n-> U");
         assert_eq!(arrow_equal_remainder, "\n-> U");
-        assert!(matches!(arrow_equal.arrow, Some(TypeArrowTail {
-            argument_effect: Some(_),
-            arrow: Recovered::Incomplete,
-            rhs: Recovered::Incomplete,
-            ..
-        })));
+        assert!(matches!(
+            arrow_equal.arrow,
+            Some(TypeArrowTail {
+                argument_effect: Some(_),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Incomplete,
+                ..
+            })
+        ));
         let (arrow_equal_direct_remainder, arrow_equal_recoveries) =
             parse_direct_prefix("T [e]\n-> U");
         assert_eq!(arrow_equal_direct_remainder, "\n-> U");
-        assert!(matches!(arrow_equal_recoveries.as_slice(), [record]
+        assert!(
+            matches!(arrow_equal_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && record.kind == RecoveryKind::Missing && record.site.range == (5..5)),
-            "{arrow_equal_recoveries:#?}");
+            "{arrow_equal_recoveries:#?}"
+        );
 
         let (arrow_shallower_remainder, arrow_shallower) =
             parse_prefix_with_continuation_base("T [e]\n-> U", 1);
         assert_eq!(arrow_shallower_remainder, "\n-> U");
-        assert!(matches!(arrow_shallower.arrow, Some(TypeArrowTail {
-            argument_effect: Some(_),
-            arrow: Recovered::Incomplete,
-            rhs: Recovered::Incomplete,
-            ..
-        })));
+        assert!(matches!(
+            arrow_shallower.arrow,
+            Some(TypeArrowTail {
+                argument_effect: Some(_),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Incomplete,
+                ..
+            })
+        ));
         let (arrow_shallower_direct_remainder, arrow_shallower_recoveries) =
             parse_direct_prefix_with_continuation_base("T [e]\n-> U", 1);
         assert_eq!(arrow_shallower_direct_remainder, "\n-> U");
-        assert!(matches!(arrow_shallower_recoveries.as_slice(), [record]
+        assert!(
+            matches!(arrow_shallower_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && record.kind == RecoveryKind::Missing && record.site.range == (5..5)),
-            "{arrow_shallower_recoveries:#?}");
+            "{arrow_shallower_recoveries:#?}"
+        );
     }
 
     #[test]
@@ -9378,13 +10974,15 @@ mod tests {
             1,
         );
         let missing_with_rhs_recoveries = parse_direct_recovered("F [e] T");
-        assert!(matches!(missing_with_rhs_recoveries.as_slice(), [record]
+        assert!(
+            matches!(missing_with_rhs_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && record.kind == RecoveryKind::Missing
                 && record.site.range == (6..6)
                 && record.expectations[record.primary_expectation].expected
                     == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
-            "{missing_with_rhs_recoveries:#?}");
+            "{missing_with_rhs_recoveries:#?}"
+        );
 
         let missing_at_boundary = parse("F [e]");
         assert!(matches!(
@@ -9397,15 +10995,20 @@ mod tests {
             }) if *range == (2..5)
         ));
         let missing_at_boundary_recoveries = parse_direct_recovered("F [e]");
-        assert!(matches!(missing_at_boundary_recoveries.as_slice(), [record]
+        assert!(
+            matches!(missing_at_boundary_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && record.kind == RecoveryKind::Missing
                 && record.site.range == (5..5)
                 && record.expectations[record.primary_expectation].expected
                     == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
-            "{missing_at_boundary_recoveries:#?}");
-        assert!(!missing_at_boundary_recoveries.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)));
+            "{missing_at_boundary_recoveries:#?}"
+        );
+        assert!(
+            !missing_at_boundary_recoveries
+                .iter()
+                .any(|record| record.site.role == GrammarRole::Type(TypeRole::ArrowRhs))
+        );
 
         let malformed_arrow = parse("F [e] @ -> U");
         assert!(matches!(
@@ -9418,13 +11021,15 @@ mod tests {
             }) if *arrow == (8..10) && rhs.range == (11..12)
         ));
         let malformed_arrow_recoveries = parse_direct_recovered("F [e] @ -> U");
-        assert!(matches!(malformed_arrow_recoveries.as_slice(), [record]
+        assert!(
+            matches!(malformed_arrow_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (6..8)
                 && record.expectations[record.primary_expectation].expected
                     == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
-            "{malformed_arrow_recoveries:#?}");
+            "{malformed_arrow_recoveries:#?}"
+        );
 
         let malformed_rhs = parse("F [e] @ T");
         assert!(matches!(
@@ -9437,13 +11042,15 @@ mod tests {
             }) if rhs.range == (8..9)
         ));
         let malformed_rhs_recoveries = parse_direct_recovered("F [e] @ T");
-        assert!(matches!(malformed_rhs_recoveries.as_slice(), [record]
+        assert!(
+            matches!(malformed_rhs_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (6..8)
                 && record.expectations[record.primary_expectation].expected
                     == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
-            "{malformed_rhs_recoveries:#?}");
+            "{malformed_rhs_recoveries:#?}"
+        );
 
         let malformed_boundary = parse("F [e] @");
         assert!(matches!(
@@ -9456,15 +11063,20 @@ mod tests {
             }) if *range == (2..7)
         ));
         let malformed_boundary_recoveries = parse_direct_recovered("F [e] @");
-        assert!(matches!(malformed_boundary_recoveries.as_slice(), [record]
+        assert!(
+            matches!(malformed_boundary_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (6..7)
                 && record.expectations[record.primary_expectation].expected
                     == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
-            "{malformed_boundary_recoveries:#?}");
-        assert!(!malformed_boundary_recoveries.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)));
+            "{malformed_boundary_recoveries:#?}"
+        );
+        assert!(
+            !malformed_boundary_recoveries
+                .iter()
+                .any(|record| record.site.role == GrammarRole::Type(TypeRole::ArrowRhs))
+        );
     }
 
     #[test]
@@ -9482,7 +11094,10 @@ mod tests {
             let row = tail.argument_effect.as_ref().expect("argument effect row");
             assert_eq!(row.items.len(), item_count, "{source}");
             assert_eq!(
-                row.items.iter().filter(|item| matches!(item, Recovered::Incomplete)).count(),
+                row.items
+                    .iter()
+                    .filter(|item| matches!(item, Recovered::Incomplete))
+                    .count(),
                 incomplete_count,
                 "{source}",
             );
@@ -9490,13 +11105,15 @@ mod tests {
             assert!(matches!(tail.arrow, Recovered::Complete(_)), "{source}");
 
             let recoveries = parse_direct_recovered(source);
-            assert!(matches!(recoveries.as_slice(), [record]
+            assert!(
+                matches!(recoveries.as_slice(), [record]
                 if record.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                     && record.kind == RecoveryKind::Error
                     && record.site.range == error_range
                     && record.expectations[record.primary_expectation].expected
                         == ExpectedSyntax::TypeExpression),
-                "{source}: {recoveries:#?}");
+                "{source}: {recoveries:#?}"
+            );
         }
 
         let separator = parse("T [@, A] -> U");
@@ -9505,16 +11122,18 @@ mod tests {
             .as_ref()
             .and_then(|tail| tail.argument_effect.as_ref())
             .expect("separator recovery row");
-        assert!(matches!(separator_row.items.as_slice(), [
-            Recovered::Incomplete,
-            Recovered::Complete(_),
-        ]));
+        assert!(matches!(
+            separator_row.items.as_slice(),
+            [Recovered::Incomplete, Recovered::Complete(_),]
+        ));
         let separator_recoveries = parse_direct_recovered("T [@, A] -> U");
-        assert!(matches!(separator_recoveries.as_slice(), [record]
+        assert!(
+            matches!(separator_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (3..4)),
-            "{separator_recoveries:#?}");
+            "{separator_recoveries:#?}"
+        );
 
         let matching = parse("T [@] -> U");
         let matching_row = matching
@@ -9525,19 +11144,28 @@ mod tests {
         assert!(matching_row.items.is_empty());
         assert!(matches!(matching_row.close, Recovered::Complete(ref close) if *close == (4..5)));
         let matching_recoveries = parse_direct_recovered("T [@] -> U");
-        assert!(matches!(matching_recoveries.as_slice(), [record]
+        assert!(
+            matches!(matching_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (3..4)),
-            "{matching_recoveries:#?}");
+            "{matching_recoveries:#?}"
+        );
 
         let terminal = parse("T [@");
         let terminal_tail = terminal.arrow.as_ref().expect("terminal recovery tail");
-        let terminal_row = terminal_tail.argument_effect.as_ref().expect("terminal recovery row");
-        assert!(matches!(terminal_row.items.as_slice(), [Recovered::Incomplete]));
+        let terminal_row = terminal_tail
+            .argument_effect
+            .as_ref()
+            .expect("terminal recovery row");
+        assert!(matches!(
+            terminal_row.items.as_slice(),
+            [Recovered::Incomplete]
+        ));
         assert!(matches!(terminal_row.close, Recovered::Incomplete));
         let terminal_recoveries = parse_direct_recovered("T [@");
-        assert!(matches!(terminal_recoveries.as_slice(), [item, close, arrow]
+        assert!(
+            matches!(terminal_recoveries.as_slice(), [item, close, arrow]
             if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && item.kind == RecoveryKind::Error
                 && item.site.range == (3..4)
@@ -9550,18 +11178,29 @@ mod tests {
                 && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && arrow.kind == RecoveryKind::Missing
                 && arrow.site.range == (4..4)),
-            "{terminal_recoveries:#?}");
+            "{terminal_recoveries:#?}"
+        );
     }
 
     #[test]
     fn bracket_row_rp2_rp3_rp4_converge_item_and_close_slots() {
         let initial_mismatch = parse("T [)] -> U");
-        let initial_tail = initial_mismatch.arrow.as_ref().expect("initial mismatch tail");
-        let initial_row = initial_tail.argument_effect.as_ref().expect("initial mismatch row");
-        assert!(matches!(initial_row.items.as_slice(), [Recovered::Incomplete]));
+        let initial_tail = initial_mismatch
+            .arrow
+            .as_ref()
+            .expect("initial mismatch tail");
+        let initial_row = initial_tail
+            .argument_effect
+            .as_ref()
+            .expect("initial mismatch row");
+        assert!(matches!(
+            initial_row.items.as_slice(),
+            [Recovered::Incomplete]
+        ));
         assert!(matches!(initial_row.close, Recovered::Complete(ref close) if *close == (4..5)));
         let initial_recoveries = parse_direct_recovered("T [)] -> U");
-        assert!(matches!(initial_recoveries.as_slice(), [item, close]
+        assert!(
+            matches!(initial_recoveries.as_slice(), [item, close]
             if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && item.kind == RecoveryKind::Missing
                 && item.site.range == (3..3)
@@ -9571,7 +11210,8 @@ mod tests {
                 }
                 && close.kind == RecoveryKind::Error
                 && close.site.range == (3..4)),
-            "{initial_recoveries:#?}");
+            "{initial_recoveries:#?}"
+        );
 
         let deeper_close = parse("T [A\n  ] -> U");
         let deeper_row = deeper_close
@@ -9579,7 +11219,10 @@ mod tests {
             .as_ref()
             .and_then(|tail| tail.argument_effect.as_ref())
             .expect("deeper close row");
-        assert!(matches!(deeper_row.items.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(
+            deeper_row.items.as_slice(),
+            [Recovered::Complete(_)]
+        ));
         assert!(matches!(deeper_row.close, Recovered::Complete(ref close) if *close == (7..8)));
         assert!(parse_direct_recovered("T [A\n  ] -> U").is_empty());
 
@@ -9589,17 +11232,24 @@ mod tests {
             .as_ref()
             .and_then(|tail| tail.argument_effect.as_ref())
             .expect("deeper mismatch row");
-        assert!(matches!(deeper_mismatch_row.items.as_slice(), [Recovered::Complete(_)]));
-        assert!(matches!(deeper_mismatch_row.close, Recovered::Complete(ref close) if *close == (8..9)));
+        assert!(matches!(
+            deeper_mismatch_row.items.as_slice(),
+            [Recovered::Complete(_)]
+        ));
+        assert!(
+            matches!(deeper_mismatch_row.close, Recovered::Complete(ref close) if *close == (8..9))
+        );
         let deeper_mismatch_recoveries = parse_direct_recovered("T [A\n  )] -> U");
-        assert!(matches!(deeper_mismatch_recoveries.as_slice(), [record]
+        assert!(
+            matches!(deeper_mismatch_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::ClosingDelimiter {
                     owner: ConstructRole::BracketRow,
                     delimiter: Delimiter::Bracket,
                 }
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (7..8)),
-            "{deeper_mismatch_recoveries:#?}");
+            "{deeper_mismatch_recoveries:#?}"
+        );
 
         let malformed_mismatch = parse("T [@)] -> U");
         let malformed_mismatch_row = malformed_mismatch
@@ -9608,9 +11258,12 @@ mod tests {
             .and_then(|tail| tail.argument_effect.as_ref())
             .expect("malformed mismatch row");
         assert!(malformed_mismatch_row.items.is_empty());
-        assert!(matches!(malformed_mismatch_row.close, Recovered::Complete(ref close) if *close == (5..6)));
+        assert!(
+            matches!(malformed_mismatch_row.close, Recovered::Complete(ref close) if *close == (5..6))
+        );
         let malformed_mismatch_recoveries = parse_direct_recovered("T [@)] -> U");
-        assert!(matches!(malformed_mismatch_recoveries.as_slice(), [item, close]
+        assert!(
+            matches!(malformed_mismatch_recoveries.as_slice(), [item, close]
             if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && item.kind == RecoveryKind::Error
                 && item.site.range == (3..4)
@@ -9620,7 +11273,8 @@ mod tests {
                 }
                 && close.kind == RecoveryKind::Error
                 && close.site.range == (4..5)),
-            "{malformed_mismatch_recoveries:#?}");
+            "{malformed_mismatch_recoveries:#?}"
+        );
 
         let post_item_mismatch = parse("T [A)] -> U");
         let post_item_row = post_item_mismatch
@@ -9628,17 +11282,22 @@ mod tests {
             .as_ref()
             .and_then(|tail| tail.argument_effect.as_ref())
             .expect("post-item mismatch row");
-        assert!(matches!(post_item_row.items.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(
+            post_item_row.items.as_slice(),
+            [Recovered::Complete(_)]
+        ));
         assert!(matches!(post_item_row.close, Recovered::Complete(ref close) if *close == (5..6)));
         let post_item_recoveries = parse_direct_recovered("T [A)] -> U");
-        assert!(matches!(post_item_recoveries.as_slice(), [record]
+        assert!(
+            matches!(post_item_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::ClosingDelimiter {
                     owner: ConstructRole::BracketRow,
                     delimiter: Delimiter::Bracket,
                 }
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (4..5)),
-            "{post_item_recoveries:#?}");
+            "{post_item_recoveries:#?}"
+        );
 
         let post_item_eof = parse("T [A)");
         let post_item_eof_tail = post_item_eof.arrow.as_ref().expect("post-item EOF tail");
@@ -9646,10 +11305,14 @@ mod tests {
             .argument_effect
             .as_ref()
             .expect("post-item EOF row");
-        assert!(matches!(post_item_eof_row.items.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(
+            post_item_eof_row.items.as_slice(),
+            [Recovered::Complete(_)]
+        ));
         assert!(matches!(post_item_eof_row.close, Recovered::Incomplete));
         let post_item_eof_recoveries = parse_direct_recovered("T [A)");
-        assert!(matches!(post_item_eof_recoveries.as_slice(), [mismatch, close, arrow]
+        assert!(
+            matches!(post_item_eof_recoveries.as_slice(), [mismatch, close, arrow]
             if mismatch.site.role == GrammarRole::ClosingDelimiter {
                     owner: ConstructRole::BracketRow,
                     delimiter: Delimiter::Bracket,
@@ -9662,15 +11325,20 @@ mod tests {
                 && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && arrow.kind == RecoveryKind::Missing
                 && arrow.site.range == (5..5)),
-            "{post_item_eof_recoveries:#?}");
+            "{post_item_eof_recoveries:#?}"
+        );
 
         let missing = parse("T [");
         let missing_tail = missing.arrow.as_ref().expect("unclosed row tail");
         let missing_row = missing_tail.argument_effect.as_ref().expect("unclosed row");
-        assert!(matches!(missing_row.items.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(
+            missing_row.items.as_slice(),
+            [Recovered::Incomplete]
+        ));
         assert!(matches!(missing_row.close, Recovered::Incomplete));
         let missing_recoveries = parse_direct_recovered("T [");
-        assert!(matches!(missing_recoveries.as_slice(), [item, close, arrow]
+        assert!(
+            matches!(missing_recoveries.as_slice(), [item, close, arrow]
             if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && item.kind == RecoveryKind::Missing
                 && item.site.range == (3..3)
@@ -9683,7 +11351,8 @@ mod tests {
                 && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && arrow.kind == RecoveryKind::Missing
                 && arrow.site.range == (3..3)),
-            "{missing_recoveries:#?}");
+            "{missing_recoveries:#?}"
+        );
 
         let separator_eof = parse("T [A,");
         let separator_eof_tail = separator_eof.arrow.as_ref().expect("separator EOF tail");
@@ -9691,12 +11360,13 @@ mod tests {
             .argument_effect
             .as_ref()
             .expect("separator EOF row");
-        assert!(matches!(separator_eof_row.items.as_slice(), [
-            Recovered::Complete(_),
-            Recovered::Incomplete,
-        ]));
+        assert!(matches!(
+            separator_eof_row.items.as_slice(),
+            [Recovered::Complete(_), Recovered::Incomplete,]
+        ));
         let separator_eof_recoveries = parse_direct_recovered("T [A,");
-        assert!(matches!(separator_eof_recoveries.as_slice(), [item, close, arrow]
+        assert!(
+            matches!(separator_eof_recoveries.as_slice(), [item, close, arrow]
             if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && item.kind == RecoveryKind::Missing
                 && item.site.range == (5..5)
@@ -9709,7 +11379,8 @@ mod tests {
                 && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
                 && arrow.kind == RecoveryKind::Missing
                 && arrow.site.range == (5..5)),
-            "{separator_eof_recoveries:#?}");
+            "{separator_eof_recoveries:#?}"
+        );
     }
 
     #[test]
@@ -9731,7 +11402,9 @@ mod tests {
                 .expect("normal bracket row");
             assert_eq!(row.items.len(), item_count, "{source}");
             assert!(
-                row.items.iter().all(|item| matches!(item, Recovered::Complete(_))),
+                row.items
+                    .iter()
+                    .all(|item| matches!(item, Recovered::Complete(_))),
                 "{source}",
             );
             assert!(matches!(row.close, Recovered::Complete(_)), "{source}");
@@ -9744,20 +11417,25 @@ mod tests {
             .as_ref()
             .and_then(|tail| tail.argument_effect.as_ref())
             .expect("leading separator row");
-        assert!(matches!(leading_row.items.as_slice(), [
-            Recovered::Incomplete,
-            Recovered::Incomplete,
-            Recovered::Complete(_),
-        ]));
+        assert!(matches!(
+            leading_row.items.as_slice(),
+            [
+                Recovered::Incomplete,
+                Recovered::Incomplete,
+                Recovered::Complete(_),
+            ]
+        ));
         let leading_recoveries = parse_direct_recovered("T [,;A] -> U");
-        assert!(matches!(leading_recoveries.as_slice(), [first, second]
+        assert!(
+            matches!(leading_recoveries.as_slice(), [first, second]
             if first.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && first.kind == RecoveryKind::Missing
                 && first.site.range == (3..3)
                 && second.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
                 && second.kind == RecoveryKind::Missing
                 && second.site.range == (4..4)),
-            "{leading_recoveries:#?}");
+            "{leading_recoveries:#?}"
+        );
 
         let missing_separator = parse("T [A{}] -> U");
         let missing_separator_row = missing_separator
@@ -9767,11 +11445,13 @@ mod tests {
             .expect("same-line missing separator row");
         assert_eq!(missing_separator_row.items.len(), 2);
         let missing_separator_recoveries = parse_direct_recovered("T [A{}] -> U");
-        assert!(matches!(missing_separator_recoveries.as_slice(), [record]
+        assert!(
+            matches!(missing_separator_recoveries.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::BracketRowSeparator)
                 && record.kind == RecoveryKind::Missing
                 && record.site.range == (4..4)),
-            "{missing_separator_recoveries:#?}");
+            "{missing_separator_recoveries:#?}"
+        );
 
         let apply = parse("T [F A] -> U");
         let apply_row = apply
@@ -9791,7 +11471,8 @@ mod tests {
             .expect("terminal-item deeper candidate row");
         assert_eq!(terminal_row.items.len(), 2);
         let terminal_recoveries = parse_direct_recovered(terminal_source);
-        assert!(matches!(terminal_recoveries.as_slice(), [variant_close, separator]
+        assert!(
+            matches!(terminal_recoveries.as_slice(), [variant_close, separator]
             if variant_close.site.role == GrammarRole::ClosingDelimiter {
                     owner: ConstructRole::PolymorphicVariantType,
                     delimiter: Delimiter::Brace,
@@ -9801,59 +11482,92 @@ mod tests {
                 && separator.site.role == GrammarRole::Type(TypeRole::BracketRowSeparator)
                 && separator.kind == RecoveryKind::Missing
                 && separator.site.range == (13..13)),
-            "{terminal_recoveries:#?}");
+            "{terminal_recoveries:#?}"
+        );
     }
 
     #[test]
     fn effect_row_primary_is_adjacent_semantically_blind_and_composes_normally() {
         let empty = parse("'[]");
-        assert!(matches!(empty.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+        assert!(
+            matches!(empty.complete_primary(), TypePrimary::EffectRow(EffectRowType {
             ref items, close: Recovered::Complete(_), ..
-        }) if items.is_empty()));
+        }) if items.is_empty())
+        );
 
         let ordinary = parse("'[e]");
-        assert!(matches!(ordinary.complete_primary(), TypePrimary::EffectRow(EffectRowType {
-            ref items, ..
-        }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
-            primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))), ..
-        })])));
+        assert!(
+            matches!(ordinary.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                ref items, ..
+            }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
+                primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))), ..
+            })]))
+        );
 
         let sigil = parse("'['e]");
-        assert!(matches!(sigil.complete_primary(), TypePrimary::EffectRow(EffectRowType {
-            ref items, ..
-        }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
-            primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::SigilIdentifier(_))), ..
-        })])));
+        assert!(
+            matches!(sigil.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                ref items, ..
+            }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
+                primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::SigilIdentifier(_))), ..
+            })]))
+        );
 
         let multi = parse("'[A, B; C]");
-        assert!(matches!(multi.complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 3));
+        assert!(
+            matches!(multi.complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 3)
+        );
         let direct = parse_direct("'[A, B; C]");
         assert_eq!(direct.to_string(), "'[A, B; C]");
-        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::EffectRowType).count(), 1);
+        assert_eq!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::EffectRowType)
+                .count(),
+            1
+        );
         let newline = parse("'[\n  A\n  B\n]");
-        assert!(matches!(newline.complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
-        assert_eq!(parse_direct("'[\n  A\n  B\n]").to_string(), "'[\n  A\n  B\n]");
+        assert!(
+            matches!(newline.complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2)
+        );
+        assert_eq!(
+            parse_direct("'[\n  A\n  B\n]").to_string(),
+            "'[\n  A\n  B\n]"
+        );
 
         let applied = parse("Foo '['e]");
-        assert!(matches!(applied.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(_))));
+        assert!(
+            matches!(applied.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(_)))
+        );
         let called = parse("F('[e])");
-        assert!(matches!(called.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail { arguments, .. })]
-            if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { primary: Recovered::Complete(TypePrimary::EffectRow(_)), .. })])));
+        assert!(
+            matches!(called.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail { arguments, .. })]
+            if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { primary: Recovered::Complete(TypePrimary::EffectRow(_)), .. })]))
+        );
         let path = parse("'[e]::Result");
-        assert!(matches!(path.postfix.as_slice(), [TypePostfixTail::Path(_)]));
+        assert!(matches!(
+            path.postfix.as_slice(),
+            [TypePostfixTail::Path(_)]
+        ));
         assert!(parse("'[e] -> Out").arrow.is_some());
 
         assert!(!primary_candidate("'"));
         assert!(!primary_candidate("' [e]"));
         assert!(!primary_candidate("'/*c*/[e]"));
-        assert!(matches!(parse("'e").complete_primary(), TypePrimary::Atom(TypeAtom::SigilIdentifier(_))));
+        assert!(matches!(
+            parse("'e").complete_primary(),
+            TypePrimary::Atom(TypeAtom::SigilIdentifier(_))
+        ));
     }
 
     #[test]
     fn effect_row_reuses_type_call_delimited_recovery_slots() {
         for source in ["'[A,]", "'[A;]", "'[A,\n]"] {
-            assert!(parse_direct_recovered(source).is_empty(), "valid trailing boundary: {source}");
+            assert!(
+                parse_direct_recovered(source).is_empty(),
+                "valid trailing boundary: {source}"
+            );
         }
         let leading = parse_direct_recovered("'[,;A]");
         assert!(matches!(leading.as_slice(), [first, second]
@@ -9861,23 +11575,29 @@ mod tests {
                 && first.site.range == (2..2)
                 && second.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
                 && second.site.range == (3..3)));
-        assert!(matches!(parse("'[,;A]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. })
-            if matches!(items.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
+        assert!(
+            matches!(parse("'[,;A]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. })
+            if matches!(items.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)]))
+        );
 
         let missing_separator = parse_direct_recovered("'[A{}]");
         assert!(matches!(missing_separator.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::EffectRowSeparator)
                 && record.site.range == (3..3)
                 && record.kind == RecoveryKind::Missing));
-        assert!(matches!(parse("'[A{}]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
+        assert!(
+            matches!(parse("'[A{}]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2)
+        );
 
         let malformed = parse_direct_recovered("'[@A]");
         assert!(matches!(malformed.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
                 && record.site.range == (2..3)
                 && record.kind == RecoveryKind::Error));
-        assert!(matches!(parse("'[@A]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. })
-            if matches!(items.as_slice(), [Recovered::Complete(_)])));
+        assert!(
+            matches!(parse("'[@A]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. })
+            if matches!(items.as_slice(), [Recovered::Complete(_)]))
+        );
 
         let eof = parse_direct_recovered("'[A,");
         assert!(matches!(eof.as_slice(), [item, close]
@@ -9888,200 +11608,326 @@ mod tests {
                     delimiter: Delimiter::Bracket,
                 })
                 && close.site.range == (4..4)));
-        assert!(matches!(parse("'[A,").complete_primary(), TypePrimary::EffectRow(EffectRowType {
+        assert!(
+            matches!(parse("'[A,").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             ref items, close: Recovered::Incomplete, ..
-        }) if matches!(items.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+        }) if matches!(items.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]))
+        );
 
         let mismatch = parse_direct_recovered("'[A)");
-        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::EffectRowType,
-            delimiter: Delimiter::Bracket,
-        }) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
-        assert!(!mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::EffectRowType,
-            delimiter: Delimiter::Bracket,
-        }) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
+        assert!(mismatch.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::EffectRowType,
+                delimiter: Delimiter::Bracket,
+            }
+        ) && record.kind == RecoveryKind::Error
+            && record.site.range == (3..4)));
+        assert!(!mismatch.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::EffectRowType,
+                delimiter: Delimiter::Bracket,
+            }
+        ) && record.kind == RecoveryKind::Missing
+            && record.site.range == (4..4)));
 
-        let (remainder, records) = parse_direct_prefix_with_outer_stop("'[@)", StopKind::RightParenthesis);
+        let (remainder, records) =
+            parse_direct_prefix_with_outer_stop("'[@)", StopKind::RightParenthesis);
         assert_eq!(remainder, ")");
-        assert!(records.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
+        assert!(records.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::EffectRowItem)
             && record.kind == RecoveryKind::Error));
-        assert!(records.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::EffectRowType,
-            delimiter: Delimiter::Bracket,
-        }) && record.kind == RecoveryKind::Missing));
+        assert!(records.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::EffectRowType,
+                delimiter: Delimiter::Bracket,
+            }
+        ) && record.kind == RecoveryKind::Missing));
     }
 
     #[test]
     fn polymorphic_variant_type_is_a_two_level_primary() {
         let paired = parse(":{A Int, B}");
-        assert!(matches!(paired.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(paired.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             ref tags, close: Recovered::Complete(_), ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. }), Recovered::Complete(PolymorphicVariantTag { payloads: empty, .. })]
-            if payloads.len() == 1 && empty.is_empty())));
+            if payloads.len() == 1 && empty.is_empty()))
+        );
 
         let siblings = parse(":{A Int Bool}");
-        assert!(matches!(siblings.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
-            if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2)));
+        assert!(
+            matches!(siblings.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+            if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2))
+        );
 
         let newline = parse(":{A Int\nB}");
-        assert!(matches!(newline.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+        assert!(
+            matches!(newline.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2)
+        );
 
         let direct = parse_direct(":{A Int, B}");
         assert_eq!(direct.to_string(), ":{A Int, B}");
-        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantType).count(), 1);
-        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag).count(), 2);
-        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload).count(), 1);
+        assert_eq!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+                .count(),
+            1
+        );
+        assert_eq!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+                .count(),
+            2
+        );
+        assert_eq!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload)
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn polymorphic_variant_type_preserves_primary_and_ml_payload_boundaries() {
-        assert!(matches!(parse(":{}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.is_empty()));
-        assert!(matches!(parse(":{A,}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { trailing_comma: Some(_), close: Recovered::Complete(_), .. })));
+        assert!(
+            matches!(parse(":{}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.is_empty())
+        );
+        assert!(matches!(
+            parse(":{A,}").complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                trailing_comma: Some(_),
+                close: Recovered::Complete(_),
+                ..
+            })
+        ));
         let nested = parse(":{\n  A Pair(\n    Int,\n    Bool\n  )\n  B\n}");
-        assert!(matches!(nested.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+        assert!(
+            matches!(nested.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2)
+        );
         let ml = parse(":{A Pair(Int, Bool) B}");
-        assert!(matches!(ml.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
-            if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2)));
-        assert!(matches!(parse("F :{A}").postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.complete_primary(), TypePrimary::PolymorphicVariant(_))));
-        assert!(matches!(parse(":{A}::Result").postfix.as_slice(), [TypePostfixTail::Path(_)]));
+        assert!(
+            matches!(ml.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+            if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2))
+        );
+        assert!(
+            matches!(parse("F :{A}").postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.complete_primary(), TypePrimary::PolymorphicVariant(_)))
+        );
+        assert!(matches!(
+            parse(":{A}::Result").postfix.as_slice(),
+            [TypePostfixTail::Path(_)]
+        ));
         assert!(!primary_candidate(": {A}"));
     }
 
     #[test]
     fn polymorphic_variant_type_uses_phase_specific_recovery_roles() {
         let leading = parse_direct_recovered(":{,,A}");
-        assert_eq!(leading.iter().filter(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Missing).count(), 2);
+        assert_eq!(
+            leading
+                .iter()
+                .filter(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                    && record.kind == RecoveryKind::Missing)
+                .count(),
+            2
+        );
 
         let semicolon = parse_direct_recovered(":{;A}");
-        assert!(semicolon.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (2..3)));
+        assert!(semicolon.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (2..3)));
 
         let wrong_name = parse_direct_recovered(":{123 Int}");
-        assert!(wrong_name.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (2..5)));
+        assert!(wrong_name.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (2..5)));
 
         let malformed = parse_direct_recovered(":{A@,B}");
-        assert!(malformed.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (3..4)));
+        assert!(malformed.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (3..4)));
 
         let payload = parse_direct_recovered(":{A @Int}");
-        assert!(payload.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (4..5)));
-        assert!(!payload.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary)
-                && record.kind == RecoveryKind::Missing));
+        assert!(payload.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (4..5)));
+        assert!(!payload.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary)
+            && record.kind == RecoveryKind::Missing));
 
         let missing = parse_direct_recovered(":{A");
-        assert!(missing.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::PolymorphicVariantType,
-            delimiter: Delimiter::Brace,
-        }) && record.kind == RecoveryKind::Missing));
+        assert!(missing.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            }
+        ) && record.kind == RecoveryKind::Missing));
 
         let mismatched = parse_direct_recovered(":{A]}");
-        assert!(mismatched.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::PolymorphicVariantType,
-            delimiter: Delimiter::Brace,
-        }) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
+        assert!(mismatched.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            }
+        ) && record.kind == RecoveryKind::Error
+            && record.site.range == (3..4)));
     }
 
     #[test]
     fn polymorphic_variant_outer_judge_preserves_owner_boundaries_and_reentry_order() {
-        let (remainder, caller_semicolon) = parse_prefix_with_outer_stop(":{A;", StopKind::Semicolon);
+        let (remainder, caller_semicolon) =
+            parse_prefix_with_outer_stop(":{A;", StopKind::Semicolon);
         assert_eq!(remainder, ";");
-        assert!(matches!(caller_semicolon.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(caller_semicolon.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ref tags, ..
-        }) if tags.len() == 1));
+        }) if tags.len() == 1)
+        );
         let (remainder, records) = parse_direct_prefix_with_outer_stop(":{A;", StopKind::Semicolon);
         assert_eq!(remainder, ";");
-        assert!(!records.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)));
+        assert!(!records.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)));
 
-        let (remainder, caller_close) = parse_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
+        let (remainder, caller_close) =
+            parse_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        assert!(matches!(caller_close.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(caller_close.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ref tags, ..
-        }) if tags.len() == 1));
-        let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
+        }) if tags.len() == 1)
+        );
+        let (remainder, _) =
+            parse_direct_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
 
-        let (remainder, required_tag) = parse_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
+        let (remainder, required_tag) =
+            parse_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        assert!(matches!(required_tag.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(required_tag.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, tags, ..
-        }) if matches!(tags.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
-        let (remainder, records) = parse_direct_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
+        }) if matches!(tags.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]))
+        );
+        let (remainder, records) =
+            parse_direct_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        assert_eq!(records.iter().filter(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Missing).count(), 1);
+        assert_eq!(
+            records
+                .iter()
+                .filter(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                    && record.kind == RecoveryKind::Missing)
+                .count(),
+            1
+        );
 
         let (remainder, left_brace) = parse_prefix_with_outer_stop(":{A {", StopKind::LeftBrace);
         assert_eq!(remainder, " {");
-        assert!(matches!(left_brace.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
-            close: Recovered::Incomplete, ..
-        })));
+        assert!(matches!(
+            left_brace.complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
         let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A {", StopKind::LeftBrace);
         assert_eq!(remainder, " {");
         let (remainder, with) = parse_prefix_with_outer_stop(":{A with", StopKind::With);
         assert_eq!(remainder, " with");
-        assert!(matches!(with.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
-            close: Recovered::Incomplete, ..
-        })));
+        assert!(matches!(
+            with.complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
         let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A with", StopKind::With);
         assert_eq!(remainder, " with");
 
         for source in [":{A;B}", ":{A ; B}"] {
             let parsed = parse(source);
-            assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+            assert!(
+                matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2)
+            );
             let records = parse_direct_recovered(source);
-            assert_eq!(records.iter().filter(|record|
-                record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)
-                    && record.kind == RecoveryKind::Error).count(), 1);
+            assert_eq!(
+                records
+                    .iter()
+                    .filter(|record| record.site.role
+                        == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)
+                        && record.kind == RecoveryKind::Error)
+                    .count(),
+                1
+            );
         }
 
         let mismatch = parse_direct_recovered(":{A ]}");
-        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::PolymorphicVariantType,
-            delimiter: Delimiter::Brace,
-        }) && record.kind == RecoveryKind::Error && record.site.range == (4..5)));
-        assert!(matches!(parse(":{A ]}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(mismatch.iter().any(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            }
+        ) && record.kind == RecoveryKind::Error
+            && record.site.range == (4..5)));
+        assert!(
+            matches!(parse(":{A ]}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, close: Recovered::Complete(close), ..
-        }) if tags.len() == 1 && close == (5..6)));
+        }) if tags.len() == 1 && close == (5..6))
+        );
     }
 
     #[test]
     fn polymorphic_variant_never_consumes_a_deeper_outer_newline() {
-        for (source, expected_incomplete_tags, expected_missing_records) in [
-            (":{A,\n  B}", 1, 1),
-            (":{@\n  B}", 1, 0),
-        ] {
+        for (source, expected_incomplete_tags, expected_missing_records) in
+            [(":{A,\n  B}", 1, 1), (":{@\n  B}", 1, 0)]
+        {
             let (remainder, value) = parse_prefix(source);
-            assert_eq!(remainder, "\n  B}", "AST leaves the deep newline for {source:?}");
-            assert_eq!(match value.complete_primary() {
-                TypePrimary::PolymorphicVariant(PolymorphicVariantType {
-                    close: Recovered::Incomplete,
-                    tags,
-                    ..
-                }) => tags.iter()
-                    .filter(|tag| matches!(tag, Recovered::Incomplete)).count(),
-                _ => unreachable!(),
-            }, expected_incomplete_tags);
+            assert_eq!(
+                remainder, "\n  B}",
+                "AST leaves the deep newline for {source:?}"
+            );
+            assert_eq!(
+                match value.complete_primary() {
+                    TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                        close: Recovered::Incomplete,
+                        tags,
+                        ..
+                    }) => tags
+                        .iter()
+                        .filter(|tag| matches!(tag, Recovered::Incomplete))
+                        .count(),
+                    _ => unreachable!(),
+                },
+                expected_incomplete_tags
+            );
             let (remainder, records) = parse_direct_prefix(source);
-            assert_eq!(remainder, "\n  B}", "direct CST leaves the deep newline for {source:?}");
-            assert_eq!(records.iter().filter(|record|
-                record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                    && record.kind == RecoveryKind::Missing).count(), expected_missing_records);
+            assert_eq!(
+                remainder, "\n  B}",
+                "direct CST leaves the deep newline for {source:?}"
+            );
+            assert_eq!(
+                records
+                    .iter()
+                    .filter(|record| record.site.role
+                        == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                        && record.kind == RecoveryKind::Missing)
+                    .count(),
+                expected_missing_records
+            );
         }
     }
 
@@ -10089,59 +11935,97 @@ mod tests {
     fn polymorphic_variant_retries_malformed_tag_and_payload_slots_in_place() {
         for source in [":{@123}", ":{@123 Int}"] {
             let parsed = parse(source);
-            let TypePrimary::PolymorphicVariant(PolymorphicVariantType { tags, .. }) = parsed.complete_primary() else {
+            let TypePrimary::PolymorphicVariant(PolymorphicVariantType { tags, .. }) =
+                parsed.complete_primary()
+            else {
                 panic!("expected polymorphic variant");
             };
-            let [Recovered::Complete(PolymorphicVariantTag { name: Recovered::Incomplete, payloads, .. })] = tags.as_slice() else {
+            let [
+                Recovered::Complete(PolymorphicVariantTag {
+                    name: Recovered::Incomplete,
+                    payloads,
+                    ..
+                }),
+            ] = tags.as_slice()
+            else {
                 panic!("expected one recovered tag");
             };
             assert_eq!(payloads.len(), usize::from(source == ":{@123 Int}"));
             let records = parse_direct_recovered(source);
-            assert_eq!(records.iter().filter(|record|
-                record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                    && record.kind == RecoveryKind::Error).count(), 1);
-            assert_eq!(records.iter().filter(|record|
-                record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
-                    && record.kind == RecoveryKind::Error).count(), 1);
+            assert_eq!(
+                records
+                    .iter()
+                    .filter(|record| record.site.role
+                        == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                        && record.kind == RecoveryKind::Error)
+                    .count(),
+                1
+            );
+            assert_eq!(
+                records
+                    .iter()
+                    .filter(|record| record.site.role
+                        == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+                        && record.kind == RecoveryKind::Error)
+                    .count(),
+                1
+            );
         }
 
         let direct = parse_direct(":{@123}");
-        let tags = direct.descendants()
+        let tags = direct
+            .descendants()
             .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
             .collect::<Vec<_>>();
         assert_eq!(tags.len(), 1);
-        assert_eq!(tags[0].descendants().filter(|node| node.kind() == SyntaxKind::Error).count(), 2);
+        assert_eq!(
+            tags[0]
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            2
+        );
 
         let parsed = parse(":{A@123}");
-        assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+        assert!(
+            matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
             if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })]
                 if matches!(payloads.as_slice(), [Recovered::Complete(PolymorphicVariantPayload {
                     boundary: Recovered::Incomplete,
                     type_expr: Recovered::Complete(_),
                     ..
-                })]))));
+                })])))
+        );
         let records = parse_direct_recovered(":{A@123}");
-        assert!(records.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (3..4)));
+        assert!(records.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (3..4)));
 
         let trailing = parse_direct_recovered(":{,");
-        assert_eq!(trailing.iter().filter(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Missing).count(), 1);
+        assert_eq!(
+            trailing
+                .iter()
+                .filter(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                    && record.kind == RecoveryKind::Missing)
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn polymorphic_variant_nt6_and_malformed_scanners_use_canonical_primaries() {
         let forall = parse(":{for 'a: T}");
-        assert!(matches!(forall.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(forall.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
             name: Recovered::Incomplete,
             payloads,
             range,
-        })] if payloads.is_empty() && range == &(2..11))));
+        })] if payloads.is_empty() && range == &(2..11)))
+        );
         let records = parse_direct_recovered(":{for 'a: T}");
         assert!(matches!(records.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
@@ -10149,85 +12033,115 @@ mod tests {
                 && record.site.range == (2..11)));
 
         let malformed_tag = parse(":{@ 123}");
-        assert!(matches!(malformed_tag.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(malformed_tag.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
             name: Recovered::Incomplete,
             payloads,
             ..
-        })] if payloads.is_empty())));
+        })] if payloads.is_empty()))
+        );
         let records = parse_direct_recovered(":{@ 123}");
-        assert_eq!(records.iter().filter(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Error).count(), 1);
-        assert_eq!(records.iter().filter(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
-                && record.kind == RecoveryKind::Error).count(), 1);
+        assert_eq!(
+            records
+                .iter()
+                .filter(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                    && record.kind == RecoveryKind::Error)
+                .count(),
+            1
+        );
+        assert_eq!(
+            records
+                .iter()
+                .filter(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+                    && record.kind == RecoveryKind::Error)
+                .count(),
+            1
+        );
         let direct = parse_direct(":{@ 123}");
-        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag).count(), 1);
+        assert_eq!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+                .count(),
+            1
+        );
 
         let malformed_payload = parse(":{A @ 123}");
-        assert!(matches!(malformed_payload.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+        assert!(
+            matches!(malformed_payload.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
             if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })]
                 if matches!(payloads.as_slice(), [Recovered::Complete(PolymorphicVariantPayload {
                     boundary: Recovered::Complete(_),
                     type_expr: Recovered::Complete(_),
                     ..
-                })]))));
+                })])))
+        );
         let records = parse_direct_recovered(":{A @ 123}");
-        assert!(records.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (4..6)));
+        assert!(records.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (4..6)));
         let direct = parse_direct(":{A @ 123}");
-        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload).count(), 1);
+        assert_eq!(
+            direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload)
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn polymorphic_variant_malformed_scanner_preserves_outer_gaps_and_comment_atomicity() {
         let (remainder, _) = parse_prefix_with_outer_stop(":{@ )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        let (remainder, records) = parse_direct_prefix_with_outer_stop(":{@ )", StopKind::RightParenthesis);
+        let (remainder, records) =
+            parse_direct_prefix_with_outer_stop(":{@ )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        assert!(records.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (2..3)));
+        assert!(records.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (2..3)));
 
         let (remainder, _) = parse_prefix_with_outer_stop(":{A @ )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        let (remainder, records) = parse_direct_prefix_with_outer_stop(":{A @ )", StopKind::RightParenthesis);
+        let (remainder, records) =
+            parse_direct_prefix_with_outer_stop(":{A @ )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        assert!(records.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (4..5)));
+        assert!(records.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (4..5)));
 
         let block = parse_direct_recovered(":{@ /*x*/ 123}");
-        assert!(block.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (2..10)));
-        assert!(block.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (10..13)));
+        assert!(block.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (2..10)));
+        assert!(block.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (10..13)));
 
         let payload_block = parse_direct_recovered(":{A @ /*x*/ 123}");
-        assert!(payload_block.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (4..12)));
+        assert!(payload_block.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (4..12)));
 
         let line = parse_direct_recovered(":{@ //x\n123}");
-        assert!(line.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (2..3)));
-        assert!(line.iter().any(|record|
-            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
-                && record.kind == RecoveryKind::Error
-                && record.site.range == (8..11)));
+        assert!(line.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (2..3)));
+        assert!(line.iter().any(|record| record.site.role
+            == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+            && record.kind == RecoveryKind::Error
+            && record.site.range == (8..11)));
     }
 
     #[test]
@@ -10250,25 +12164,35 @@ mod tests {
             ":{@ /*x*/ 123}",
         ] {
             let parsed = parse(source);
-            assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(_)), "{source}");
+            assert!(
+                matches!(
+                    parsed.complete_primary(),
+                    TypePrimary::PolymorphicVariant(_)
+                ),
+                "{source}"
+            );
             assert_eq!(parse_direct(source).to_string(), source, "{source}");
         }
 
         let (remainder, newline) = parse_prefix(":{A Int\n B}");
         assert_eq!(remainder, "\n B}");
-        assert!(matches!(newline.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(newline.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             ref tags, close: Recovered::Incomplete, ..
-        }) if tags.len() == 1));
+        }) if tags.len() == 1)
+        );
         let (remainder, _) = parse_direct_prefix(":{A Int\n B}");
         assert_eq!(remainder, "\n B}");
         let nested = parse(":{:{A} B}");
-        assert!(matches!(nested.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(
+            matches!(nested.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
             name: Recovered::Incomplete,
             payloads,
             ..
-        })] if payloads.len() == 1)));
+        })] if payloads.len() == 1))
+        );
 
         let (remainder, _) = parse_prefix(":{@\n  B}");
         assert_eq!(remainder, "\n  B}");
@@ -10277,9 +12201,13 @@ mod tests {
 
         let (remainder, comma_eof) = parse_prefix(":{,");
         assert_eq!(remainder, "");
-        assert!(matches!(comma_eof.complete_primary(), TypePrimary::PolymorphicVariant(
-            PolymorphicVariantType { close: Recovered::Incomplete, .. }
-        )));
+        assert!(matches!(
+            comma_eof.complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete,
+                ..
+            })
+        ));
 
         for (source, stop, expected) in [
             (":{A;", StopKind::Semicolon, ";"),
@@ -10291,7 +12219,11 @@ mod tests {
             (":{with", StopKind::With, "with"),
             (":{A with", StopKind::With, " with"),
         ] {
-            assert_eq!(parse_prefix_with_outer_stop(source, stop).0, expected, "AST {source}");
+            assert_eq!(
+                parse_prefix_with_outer_stop(source, stop).0,
+                expected,
+                "AST {source}"
+            );
             assert_eq!(
                 parse_direct_prefix_with_outer_stop(source, stop).0,
                 expected,
@@ -10302,7 +12234,8 @@ mod tests {
         for source in [":{@ )}", ":{A @ )}"] {
             let (remainder, _) = parse_prefix_with_outer_stop(source, StopKind::RightParenthesis);
             assert!(remainder.starts_with(" )}"), "{source}: {remainder:?}");
-            let (remainder, _) = parse_direct_prefix_with_outer_stop(source, StopKind::RightParenthesis);
+            let (remainder, _) =
+                parse_direct_prefix_with_outer_stop(source, StopKind::RightParenthesis);
             assert!(remainder.starts_with(" )}"), "{source}: {remainder:?}");
         }
 
@@ -10321,16 +12254,22 @@ mod tests {
         ] {
             let (remainder, parsed) = parse_prefix_with_outer_stop(source, stop);
             assert_eq!(remainder, "", "AST {source}");
-            assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(
-                PolymorphicVariantType { close: Recovered::Complete(_), .. }
-            )));
+            assert!(matches!(
+                parsed.complete_primary(),
+                TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                    close: Recovered::Complete(_),
+                    ..
+                })
+            ));
 
             let (remainder, records) = parse_direct_prefix_with_outer_stop(source, stop);
             assert_eq!(remainder, "", "direct {source}");
-            assert!(records.iter().any(|record|
-                record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+            assert!(
+                records.iter().any(|record| record.site.role
+                    == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
                     && record.kind == RecoveryKind::Error),
-                "{source}: {records:#?}");
+                "{source}: {records:#?}"
+            );
         }
     }
 
@@ -10340,35 +12279,88 @@ mod tests {
             let expected_remainder = &source[1..];
             let (ast_remainder, ast) =
                 parse_required_prefix_with_outer_stop(source, StopKind::Newline);
-            let (direct_remainder, records) =
-                parse_direct_mandatory_prefix_with_outer_stop(source, None, Some(StopKind::Newline));
+            let (direct_remainder, records) = parse_direct_mandatory_prefix_with_outer_stop(
+                source,
+                None,
+                Some(StopKind::Newline),
+            );
             assert_eq!(ast_remainder, expected_remainder, "AST {source}");
             assert_eq!(direct_remainder, expected_remainder, "direct {source}");
-            assert!(matches!(ast, Recovered::Incomplete), "AST {source}: {ast:#?}");
-            assert!(matches!(records.as_slice(), [error]
+            assert!(
+                matches!(ast, Recovered::Incomplete),
+                "AST {source}: {ast:#?}"
+            );
+            assert!(
+                matches!(records.as_slice(), [error]
                 if error.site.role == GrammarRole::Type(TypeRole::Primary)
                     && error.kind == RecoveryKind::Error
-                    && error.site.range == (0..1)), "{source}: {records:#?}");
+                    && error.site.range == (0..1)),
+                "{source}: {records:#?}"
+            );
         }
 
         for (raw, space_prefixed, role, error_range, close) in [
             ("A::@\n  B", "A::@ \n  B", TypeRole::PathSegment, 3..4, None),
             ("A ->@\n  B", "A ->@ \n  B", TypeRole::ArrowRhs, 4..5, None),
-            ("for @\n  'a: T", "for @ \n  'a: T", TypeRole::ForallBinder, 4..5, None),
-            ("T(@\n  A)", "T(@ \n  A)", TypeRole::CallArgument, 2..3,
-                Some((ConstructRole::TypeCall, Delimiter::Parenthesis))),
-            ("(@\n  A)", "(@ \n  A)", TypeRole::ParenthesizedItem, 1..2,
-                Some((ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis))),
-            ("'[@\n  A]", "'[@ \n  A]", TypeRole::EffectRowItem, 2..3,
-                Some((ConstructRole::EffectRowType, Delimiter::Bracket))),
-            ("{@\n  a:A}", "{@ \n  a:A}", TypeRole::RecordField, 1..2,
-                Some((ConstructRole::NamedRecordType, Delimiter::Brace))),
-            ("{a @\n  B:B}", "{a @ \n  B:B}", TypeRole::RecordFieldColon, 3..4,
-                Some((ConstructRole::NamedRecordType, Delimiter::Brace))),
-            ("{a: @\n  B}", "{a: @ \n  B}", TypeRole::RecordFieldType, 4..5,
-                Some((ConstructRole::NamedRecordType, Delimiter::Brace))),
-            (":{@\n  B}", ":{@ \n  B}", TypeRole::PolymorphicVariantTag, 2..3,
-                Some((ConstructRole::PolymorphicVariantType, Delimiter::Brace))),
+            (
+                "for @\n  'a: T",
+                "for @ \n  'a: T",
+                TypeRole::ForallBinder,
+                4..5,
+                None,
+            ),
+            (
+                "T(@\n  A)",
+                "T(@ \n  A)",
+                TypeRole::CallArgument,
+                2..3,
+                Some((ConstructRole::TypeCall, Delimiter::Parenthesis)),
+            ),
+            (
+                "(@\n  A)",
+                "(@ \n  A)",
+                TypeRole::ParenthesizedItem,
+                1..2,
+                Some((
+                    ConstructRole::ParenthesizedTypeGroup,
+                    Delimiter::Parenthesis,
+                )),
+            ),
+            (
+                "'[@\n  A]",
+                "'[@ \n  A]",
+                TypeRole::EffectRowItem,
+                2..3,
+                Some((ConstructRole::EffectRowType, Delimiter::Bracket)),
+            ),
+            (
+                "{@\n  a:A}",
+                "{@ \n  a:A}",
+                TypeRole::RecordField,
+                1..2,
+                Some((ConstructRole::NamedRecordType, Delimiter::Brace)),
+            ),
+            (
+                "{a @\n  B:B}",
+                "{a @ \n  B:B}",
+                TypeRole::RecordFieldColon,
+                3..4,
+                Some((ConstructRole::NamedRecordType, Delimiter::Brace)),
+            ),
+            (
+                "{a: @\n  B}",
+                "{a: @ \n  B}",
+                TypeRole::RecordFieldType,
+                4..5,
+                Some((ConstructRole::NamedRecordType, Delimiter::Brace)),
+            ),
+            (
+                ":{@\n  B}",
+                ":{@ \n  B}",
+                TypeRole::PolymorphicVariantTag,
+                2..3,
+                Some((ConstructRole::PolymorphicVariantType, Delimiter::Brace)),
+            ),
         ] {
             for source in [raw, space_prefixed] {
                 let expected_remainder = &source[error_range.end..];
@@ -10377,9 +12369,21 @@ mod tests {
                     parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
                 assert_eq!(ast_remainder, expected_remainder, "AST {source}");
                 assert_eq!(direct_remainder, expected_remainder, "direct {source}");
-                assert_eq!(records.len(), 1 + usize::from(close.is_some()), "{source}: {records:#?}");
-                assert_eq!(records[0].site.role, GrammarRole::Type(role), "{source}: {records:#?}");
-                assert_eq!(records[0].kind, RecoveryKind::Error, "{source}: {records:#?}");
+                assert_eq!(
+                    records.len(),
+                    1 + usize::from(close.is_some()),
+                    "{source}: {records:#?}"
+                );
+                assert_eq!(
+                    records[0].site.role,
+                    GrammarRole::Type(role),
+                    "{source}: {records:#?}"
+                );
+                assert_eq!(
+                    records[0].kind,
+                    RecoveryKind::Error,
+                    "{source}: {records:#?}"
+                );
                 assert_eq!(records[0].site.range, error_range, "{source}: {records:#?}");
                 if let Some((owner, delimiter)) = close {
                     let missing = &records[1];
@@ -10388,8 +12392,16 @@ mod tests {
                         GrammarRole::ClosingDelimiter { owner, delimiter },
                         "{source}: {records:#?}",
                     );
-                    assert_eq!(missing.kind, RecoveryKind::Missing, "{source}: {records:#?}");
-                    assert_eq!(missing.site.range, error_range.end..error_range.end, "{source}: {records:#?}");
+                    assert_eq!(
+                        missing.kind,
+                        RecoveryKind::Missing,
+                        "{source}: {records:#?}"
+                    );
+                    assert_eq!(
+                        missing.site.range,
+                        error_range.end..error_range.end,
+                        "{source}: {records:#?}"
+                    );
                 }
             }
         }
@@ -10402,7 +12414,11 @@ mod tests {
         closes: &[(ConstructRole, Delimiter)],
     ) {
         assert_eq!(records.len(), 1 + closes.len(), "{records:#?}");
-        assert_eq!(records[0].site.role, GrammarRole::Type(error_role), "{records:#?}");
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Type(error_role),
+            "{records:#?}"
+        );
         assert_eq!(records[0].kind, RecoveryKind::Error, "{records:#?}");
         assert_eq!(records[0].site.range, error_range, "{records:#?}");
         for (record, &(owner, delimiter)) in records[1..].iter().zip(closes) {
@@ -10412,7 +12428,11 @@ mod tests {
                 "{records:#?}",
             );
             assert_eq!(record.kind, RecoveryKind::Missing, "{records:#?}");
-            assert_eq!(record.site.range, error_range.end..error_range.end, "{records:#?}");
+            assert_eq!(
+                record.site.range,
+                error_range.end..error_range.end,
+                "{records:#?}"
+            );
         }
     }
 
@@ -10420,37 +12440,46 @@ mod tests {
     fn nested_caller_boundary_realizes_each_unclosed_delimiter_once() {
         let source = "T((@ \n  A))";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A))");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            arguments, close: Recovered::Incomplete, ..
-        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
-                close: Recovered::Incomplete, ..
-            })))));
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                arguments, close: Recovered::Incomplete, ..
+            })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
+                if matches!(argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    close: Recovered::Incomplete, ..
+                }))))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::ParenthesizedItem,
             3..4,
             &[
-                (ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis),
+                (
+                    ConstructRole::ParenthesizedTypeGroup,
+                    Delimiter::Parenthesis,
+                ),
                 (ConstructRole::TypeCall, Delimiter::Parenthesis),
             ],
         );
 
         let source = "{a: T(@ \n  A";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Incomplete, ..
-        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
-            type_expr: Recovered::Complete(value), ..
-        })] if matches!(value.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            close: Recovered::Incomplete, ..
-        })]))));
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Incomplete, ..
+            }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+                type_expr: Recovered::Complete(value), ..
+            })] if matches!(value.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                close: Recovered::Incomplete, ..
+            })])))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::CallArgument,
@@ -10463,34 +12492,46 @@ mod tests {
 
         let source = "((@ \n  A))";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A))");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
-            elements, close: Recovered::Incomplete, ..
-        }) if matches!(elements.as_slice(), [Recovered::Complete(element)]
-            if matches!(element.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
-                close: Recovered::Incomplete, ..
-            })))));
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                elements, close: Recovered::Incomplete, ..
+            }) if matches!(elements.as_slice(), [Recovered::Complete(element)]
+                if matches!(element.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    close: Recovered::Incomplete, ..
+                }))))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::ParenthesizedItem,
             2..3,
             &[
-                (ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis),
-                (ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis),
+                (
+                    ConstructRole::ParenthesizedTypeGroup,
+                    Delimiter::Parenthesis,
+                ),
+                (
+                    ConstructRole::ParenthesizedTypeGroup,
+                    Delimiter::Parenthesis,
+                ),
             ],
         );
 
         let source = "T(for @ \n  'a: T)";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  'a: T)");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
         })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.complete_primary(), TypePrimary::Forall(_)))));
+            if matches!(argument.complete_primary(), TypePrimary::Forall(_))))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::ForallBinder,
@@ -10500,16 +12541,19 @@ mod tests {
 
         let source = "{a: :{@ \n  B}}";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  B}}");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
-            fields, close: Recovered::Incomplete, ..
-        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
-            type_expr: Recovered::Complete(value), ..
-        })] if matches!(value.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
-            close: Recovered::Incomplete, ..
-        })))));
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Incomplete, ..
+            }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+                type_expr: Recovered::Complete(value), ..
+            })] if matches!(value.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                close: Recovered::Incomplete, ..
+            }))))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::PolymorphicVariantTag,
@@ -10522,15 +12566,18 @@ mod tests {
 
         let source = "T('[@ \n  A])";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A])");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            arguments, close: Recovered::Incomplete, ..
-        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
-                close: Recovered::Incomplete, ..
-            })))));
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                arguments, close: Recovered::Incomplete, ..
+            })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
+                if matches!(argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                    close: Recovered::Incomplete, ..
+                }))))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::EffectRowItem,
@@ -10543,15 +12590,18 @@ mod tests {
 
         let source = "'[T(@ \n  A)]";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A)]");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.complete_primary(), TypePrimary::EffectRow(EffectRowType {
-            items, close: Recovered::Incomplete, ..
-        }) if matches!(items.as_slice(), [Recovered::Complete(item)]
-            if matches!(item.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-                close: Recovered::Incomplete, ..
-            })]))));
+        assert!(
+            matches!(ast.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                items, close: Recovered::Incomplete, ..
+            }) if matches!(items.as_slice(), [Recovered::Complete(item)]
+                if matches!(item.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                    close: Recovered::Incomplete, ..
+                })])))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::CallArgument,
@@ -10564,15 +12614,18 @@ mod tests {
 
         let source = "T({@ \n  a:A})";
         let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
-        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  a:A})");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
-            arguments, close: Recovered::Incomplete, ..
-        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.complete_primary(), TypePrimary::Record(NamedRecordType {
-                close: Recovered::Incomplete, ..
-            })))));
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                arguments, close: Recovered::Incomplete, ..
+            })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
+                if matches!(argument.complete_primary(), TypePrimary::Record(NamedRecordType {
+                    close: Recovered::Incomplete, ..
+                }))))
+        );
         assert_nested_fence_records(
             &records,
             TypeRole::RecordField,
@@ -10592,9 +12645,12 @@ mod tests {
                 parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
             assert_eq!(ast_remainder, &source[error_range.end..], "AST {source}");
             assert_eq!(direct_remainder, ast_remainder, "direct {source}");
-            assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            assert!(
+                matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
                 arguments, close: Recovered::Incomplete, ..
-            })] if matches!(arguments.as_slice(), [Recovered::Complete(_)])), "AST {source}: {ast:#?}");
+            })] if matches!(arguments.as_slice(), [Recovered::Complete(_)])),
+                "AST {source}: {ast:#?}"
+            );
             assert_nested_fence_records(
                 &records,
                 error_role,
@@ -10642,26 +12698,33 @@ mod tests {
         let (ast_remainder, ast, fence) =
             parse_prefix_with_outer_stop_and_fence(source, StopKind::Newline);
         assert_eq!(ast_remainder, "");
-        assert_eq!(fence, None, "same-slot retry must not mark a caller-boundary fence");
+        assert_eq!(
+            fence, None,
+            "same-slot retry must not mark a caller-boundary fence"
+        );
         assert_eq!(ast.range(), 0..source.len());
-        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+        assert!(
+            matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Complete(_), ..
-        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Complete(_)])));
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Complete(_)]))
+        );
 
         let (direct_remainder, records) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(direct_remainder, "");
-        assert!(matches!(records.as_slice(), [error, separator]
+        assert!(
+            matches!(records.as_slice(), [error, separator]
             if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
                 && error.kind == RecoveryKind::Error
                 && error.site.range == (2..3)
                 && separator.site.role == GrammarRole::Type(TypeRole::CallArgumentSeparator)
                 && separator.kind == RecoveryKind::Missing
-                && separator.site.range == (7..7)), "{records:#?}");
+                && separator.site.range == (7..7)),
+            "{records:#?}"
+        );
         assert_eq!(
             parse_direct_with_outer_stop(source, StopKind::Newline).to_string(),
             source,
         );
     }
-
 }

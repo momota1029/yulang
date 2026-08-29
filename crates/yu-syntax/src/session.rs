@@ -3,14 +3,16 @@
 use std::{ops::Range, sync::Arc};
 
 use chasa::{
-    Back,
-    ErrorSink,
+    Back, ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
     prelude::In,
 };
 
 use crate::{
-    HeaderInfo, input::SourceInput, operator::OperatorTable, parse::SyntaxEnvironment,
+    HeaderInfo,
+    input::SourceInput,
+    operator::OperatorTable,
+    parse::SyntaxEnvironment,
     scan::{
         trivia::{TriviaRun, scan_trivia},
         word::scan_word,
@@ -42,7 +44,8 @@ impl LayoutDelimitedFrame {
         trivia: &TriviaRun,
         following_indent: usize,
     ) -> Self {
-        let base_indent = if trivia_has_physical_newline(trivia) && following_indent > incoming_base {
+        let base_indent = if trivia_has_physical_newline(trivia) && following_indent > incoming_base
+        {
             following_indent
         } else {
             incoming_base
@@ -51,7 +54,9 @@ impl LayoutDelimitedFrame {
     }
 
     pub(crate) fn inline(incoming_base: usize) -> Self {
-        Self { base_indent: incoming_base }
+        Self {
+            base_indent: incoming_base,
+        }
     }
 
     pub(crate) fn base_indent(self) -> usize {
@@ -74,9 +79,10 @@ impl LayoutDelimitedFrame {
 }
 
 fn trivia_has_physical_newline(trivia: &TriviaRun) -> bool {
-    trivia.parts().iter().any(|part| {
-        matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline)
-    })
+    trivia
+        .parts()
+        .iter()
+        .any(|part| matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline))
 }
 
 pub(crate) type SynIn<'a, 'source, 'b, E> = In<'a, SourceInput<'source>, (), &'b mut ParseLocal, E>;
@@ -611,10 +617,8 @@ impl ParseLocal {
         &mut self,
         origin: BracedBarrierOrigin,
     ) -> AmbientOwnerScopeFrame {
-        let frame = AmbientOwnerScopeFrame::braced_barrier(
-            origin,
-            self.if_expression_companion_depth(),
-        );
+        let frame =
+            AmbientOwnerScopeFrame::braced_barrier(origin, self.if_expression_companion_depth());
         self.push_ambient_owner_scope(frame);
         frame
     }
@@ -626,11 +630,12 @@ impl ParseLocal {
     ) -> IfExpressionCompanionId {
         let id = IfExpressionCompanionId(self.next_if_expression_companion_id);
         self.next_if_expression_companion_id += 1;
-        self.if_expression_companions.push(IfExpressionCompanionFrame {
-            id,
-            if_base_indent,
-            exact_words,
-        });
+        self.if_expression_companions
+            .push(IfExpressionCompanionFrame {
+                id,
+                if_base_indent,
+                exact_words,
+            });
         id
     }
 
@@ -764,9 +769,7 @@ where
 
 /// Returns the innermost visible IfExpression identity that owns the current
 /// trivia-plus-word gap. This probe never consumes source or commits evidence.
-pub(crate) fn if_continuation_owner<E>(
-    i: &mut SynIn<E>,
-) -> Option<IfExpressionCompanionId>
+pub(crate) fn if_continuation_owner<E>(i: &mut SynIn<E>) -> Option<IfExpressionCompanionId>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1412,7 +1415,9 @@ pub(crate) enum RecoveryKind {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum UnexpectedSyntax {
-    EndOfInput { at: usize },
+    EndOfInput {
+        at: usize,
+    },
     Token {
         range: Range<usize>,
         category: UnexpectedCategory,
@@ -2044,17 +2049,25 @@ mod tests {
             assert_eq!(singleton.without(stop), StopSet::default());
         }
 
-        let existing = StopSet::default().with(StopKind::Newline).with(StopKind::With);
+        let existing = StopSet::default()
+            .with(StopKind::Newline)
+            .with(StopKind::With);
         assert_eq!(existing.0, (1u32 << 0) | (1u32 << 14));
         let extended = existing
             .with(StopKind::Derives)
             .with(StopKind::Via)
             .with(StopKind::LeftParenthesis);
-        assert_eq!(extended.0, (1u32 << 0) | (1u32 << 14) | (1u32 << 15) | (1u32 << 16) | (1u32 << 17));
-        assert_eq!(extended.difference(existing), StopSet::default()
-            .with(StopKind::Derives)
-            .with(StopKind::Via)
-            .with(StopKind::LeftParenthesis));
+        assert_eq!(
+            extended.0,
+            (1u32 << 0) | (1u32 << 14) | (1u32 << 15) | (1u32 << 16) | (1u32 << 17)
+        );
+        assert_eq!(
+            extended.difference(existing),
+            StopSet::default()
+                .with(StopKind::Derives)
+                .with(StopKind::Via)
+                .with(StopKind::LeftParenthesis)
+        );
     }
 
     #[test]
@@ -2302,7 +2315,8 @@ mod tests {
         assert_eq!(i.local.line(), LineState::default());
         drop(i);
 
-        local.push_braced_ambient_owner_barrier(BracedBarrierOrigin::BracedStatementBlockExpression);
+        local
+            .push_braced_ambient_owner_barrier(BracedBarrierOrigin::BracedStatementBlockExpression);
         assert_eq!(local.nearest_visible_statement_baseline(), None);
         let mut source = SourceInput::new("\n  value");
         let mut expectations = chasa::LatestSink::new();
@@ -2350,15 +2364,37 @@ mod tests {
         assert!(any_ambient_owner_claims(&mut i));
         assert_eq!(i.pos(), 0);
         assert_eq!(i.local.line(), LineState::default());
-        assert_eq!(i.local.indentation_baseline().map(|baseline| baseline.column), Some(3));
-        assert_eq!(i.local.stop_set(), Some(StopSet::default().with(StopKind::Newline)));
+        assert_eq!(
+            i.local
+                .indentation_baseline()
+                .map(|baseline| baseline.column),
+            Some(3)
+        );
+        assert_eq!(
+            i.local.stop_set(),
+            Some(StopSet::default().with(StopKind::Newline))
+        );
         assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis));
-        assert_eq!(i.local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
-        assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-        assert_eq!(i.local.lexical_mode(), Some(EmbeddedLexicalMode::BlockComment { depth: 1 }));
+        assert_eq!(
+            i.local.expression_delimited_owner(),
+            Some(ExpressionDelimitedOwner::Call)
+        );
+        assert_eq!(
+            i.local.type_delimited_owner(),
+            Some(TypeDelimitedOwner::Call)
+        );
+        assert_eq!(
+            i.local.lexical_mode(),
+            Some(EmbeddedLexicalMode::BlockComment { depth: 1 })
+        );
         assert_eq!(i.local.ambient_owner_scope_depth(), 1);
         assert_eq!(i.local.if_expression_companion_depth(), 2);
-        assert_eq!(i.local.if_expression_companion().map(IfExpressionCompanionFrame::id), Some(inner));
+        assert_eq!(
+            i.local
+                .if_expression_companion()
+                .map(IfExpressionCompanionFrame::id),
+            Some(inner)
+        );
         drop(i);
         assert!(!is_cut);
 

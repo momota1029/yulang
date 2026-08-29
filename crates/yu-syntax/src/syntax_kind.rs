@@ -258,30 +258,50 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::IdentifierPattern as u16 => SyntaxKind::IdentifierPattern,
             value if value == SyntaxKind::IntegerPattern as u16 => SyntaxKind::IntegerPattern,
             value if value == SyntaxKind::SymbolPattern as u16 => SyntaxKind::SymbolPattern,
-            value if value == SyntaxKind::ParenthesizedPattern as u16 => SyntaxKind::ParenthesizedPattern,
+            value if value == SyntaxKind::ParenthesizedPattern as u16 => {
+                SyntaxKind::ParenthesizedPattern
+            }
             value if value == SyntaxKind::ListPattern as u16 => SyntaxKind::ListPattern,
-            value if value == SyntaxKind::ListPatternSpreadItem as u16 => SyntaxKind::ListPatternSpreadItem,
+            value if value == SyntaxKind::ListPatternSpreadItem as u16 => {
+                SyntaxKind::ListPatternSpreadItem
+            }
             value if value == SyntaxKind::RecordPattern as u16 => SyntaxKind::RecordPattern,
-            value if value == SyntaxKind::RecordPatternField as u16 => SyntaxKind::RecordPatternField,
-            value if value == SyntaxKind::RecordPatternSpreadItem as u16 => SyntaxKind::RecordPatternSpreadItem,
+            value if value == SyntaxKind::RecordPatternField as u16 => {
+                SyntaxKind::RecordPatternField
+            }
+            value if value == SyntaxKind::RecordPatternSpreadItem as u16 => {
+                SyntaxKind::RecordPatternSpreadItem
+            }
             value if value == SyntaxKind::TypeExpression as u16 => SyntaxKind::TypeExpression,
-            value if value == SyntaxKind::ParenthesizedTypeGroup as u16 => SyntaxKind::ParenthesizedTypeGroup,
+            value if value == SyntaxKind::ParenthesizedTypeGroup as u16 => {
+                SyntaxKind::ParenthesizedTypeGroup
+            }
             value if value == SyntaxKind::NamedRecordType as u16 => SyntaxKind::NamedRecordType,
             value if value == SyntaxKind::TypeRecordField as u16 => SyntaxKind::TypeRecordField,
             value if value == SyntaxKind::ForallType as u16 => SyntaxKind::ForallType,
             value if value == SyntaxKind::ForallTypeBinder as u16 => SyntaxKind::ForallTypeBinder,
             value if value == SyntaxKind::EffectRowType as u16 => SyntaxKind::EffectRowType,
             value if value == SyntaxKind::BracketRow as u16 => SyntaxKind::BracketRow,
-            value if value == SyntaxKind::PolymorphicVariantType as u16 => SyntaxKind::PolymorphicVariantType,
-            value if value == SyntaxKind::PolymorphicVariantTag as u16 => SyntaxKind::PolymorphicVariantTag,
-            value if value == SyntaxKind::PolymorphicVariantPayload as u16 => SyntaxKind::PolymorphicVariantPayload,
+            value if value == SyntaxKind::PolymorphicVariantType as u16 => {
+                SyntaxKind::PolymorphicVariantType
+            }
+            value if value == SyntaxKind::PolymorphicVariantTag as u16 => {
+                SyntaxKind::PolymorphicVariantTag
+            }
+            value if value == SyntaxKind::PolymorphicVariantPayload as u16 => {
+                SyntaxKind::PolymorphicVariantPayload
+            }
             value if value == SyntaxKind::TypePathTail as u16 => SyntaxKind::TypePathTail,
             value if value == SyntaxKind::TypeCallTail as u16 => SyntaxKind::TypeCallTail,
             value if value == SyntaxKind::TypeApplyArgument as u16 => SyntaxKind::TypeApplyArgument,
             value if value == SyntaxKind::TypeArrowTail as u16 => SyntaxKind::TypeArrowTail,
             value if value == SyntaxKind::PatternAliasTail as u16 => SyntaxKind::PatternAliasTail,
-            value if value == SyntaxKind::PatternAlternationTail as u16 => SyntaxKind::PatternAlternationTail,
-            value if value == SyntaxKind::PatternTypeAnnotation as u16 => SyntaxKind::PatternTypeAnnotation,
+            value if value == SyntaxKind::PatternAlternationTail as u16 => {
+                SyntaxKind::PatternAlternationTail
+            }
+            value if value == SyntaxKind::PatternTypeAnnotation as u16 => {
+                SyntaxKind::PatternTypeAnnotation
+            }
             value if value == SyntaxKind::IfArm as u16 => SyntaxKind::IfArm,
             value if value == SyntaxKind::ElseArm as u16 => SyntaxKind::ElseArm,
             value if value == SyntaxKind::Condition as u16 => SyntaxKind::Condition,
@@ -291,9 +311,15 @@ impl Language for YulangLanguage {
             }
             value if value == SyntaxKind::CallTail as u16 => SyntaxKind::CallTail,
             value if value == SyntaxKind::IndexTail as u16 => SyntaxKind::IndexTail,
-            value if value == SyntaxKind::ProjectionTupleTail as u16 => SyntaxKind::ProjectionTupleTail,
-            value if value == SyntaxKind::ProjectionRecordTail as u16 => SyntaxKind::ProjectionRecordTail,
-            value if value == SyntaxKind::ProjectionRecordSpreadItem as u16 => SyntaxKind::ProjectionRecordSpreadItem,
+            value if value == SyntaxKind::ProjectionTupleTail as u16 => {
+                SyntaxKind::ProjectionTupleTail
+            }
+            value if value == SyntaxKind::ProjectionRecordTail as u16 => {
+                SyntaxKind::ProjectionRecordTail
+            }
+            value if value == SyntaxKind::ProjectionRecordSpreadItem as u16 => {
+                SyntaxKind::ProjectionRecordSpreadItem
+            }
             value if value == SyntaxKind::FieldTail as u16 => SyntaxKind::FieldTail,
             value if value == SyntaxKind::PathTail as u16 => SyntaxKind::PathTail,
             value if value == SyntaxKind::MlArgument as u16 => SyntaxKind::MlArgument,
@@ -308,7 +334,9 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::PrefixOperatorUse as u16 => SyntaxKind::PrefixOperatorUse,
             value if value == SyntaxKind::InfixOperatorUse as u16 => SyntaxKind::InfixOperatorUse,
             value if value == SyntaxKind::SuffixOperatorUse as u16 => SyntaxKind::SuffixOperatorUse,
-            value if value == SyntaxKind::NullfixOperatorUse as u16 => SyntaxKind::NullfixOperatorUse,
+            value if value == SyntaxKind::NullfixOperatorUse as u16 => {
+                SyntaxKind::NullfixOperatorUse
+            }
             value if value == SyntaxKind::UseKw as u16 => SyntaxKind::UseKw,
             value if value == SyntaxKind::ModKw as u16 => SyntaxKind::ModKw,
             value if value == SyntaxKind::StructKw as u16 => SyntaxKind::StructKw,

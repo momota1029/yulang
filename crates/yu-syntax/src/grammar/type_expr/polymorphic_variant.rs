@@ -599,8 +599,8 @@ where
             companion_spelling_is_local: true,
         }
     ) && matches!(
-            boundary,
-            Some(TypeBoundary::ActiveStop(StopKind::Elsif | StopKind::Else))
+        boundary,
+        Some(TypeBoundary::ActiveStop(StopKind::Elsif | StopKind::Else))
     ) && any_ambient_owner_claims(i)
     {
         return false;
@@ -800,8 +800,8 @@ where
             .payloads
             .last()
             .and_then(|payload| match payload {
-            Recovered::Complete(payload) => Some(payload.range.end),
-            Recovered::Incomplete => None,
+                Recovered::Complete(payload) => Some(payload.range.end),
+                Recovered::Incomplete => None,
             })
             .unwrap_or(tag.head_end);
         self.tags.push(Recovered::Complete(PolymorphicVariantTag {
@@ -1146,14 +1146,14 @@ mod tests {
             !recoveries
                 .iter()
                 .any(|record| record.kind == RecoveryKind::Missing
-                && matches!(
-                    record.site.role,
-                    GrammarRole::Type(
-                        TypeRole::PolymorphicVariantTag
-                            | TypeRole::PolymorphicVariantPayload
-                            | TypeRole::PolymorphicVariantPayloadBoundary
-                    )
-                )),
+                    && matches!(
+                        record.site.role,
+                        GrammarRole::Type(
+                            TypeRole::PolymorphicVariantTag
+                                | TypeRole::PolymorphicVariantPayload
+                                | TypeRole::PolymorphicVariantPayloadBoundary
+                        )
+                    )),
             "direct {source:?}: {recoveries:#?}",
         );
         drop(output);
