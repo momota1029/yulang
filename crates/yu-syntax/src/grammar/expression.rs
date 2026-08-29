@@ -17,14 +17,14 @@ use crate::{
         commit_binding_declaration, commit_cast_declaration_isolated,
         commit_enum_declaration_isolated, commit_error_declaration_isolated,
         commit_for_statement_isolated, commit_impl_declaration_isolated, commit_mod_declaration,
-        commit_role_declaration_isolated, commit_struct_declaration, commit_type_declaration,
-        commit_use_declaration, parse_act_declaration_isolated,
-        parse_binding_declaration_with_operators, parse_cast_declaration_form_aware_isolated,
-        parse_enum_declaration_isolated, parse_error_declaration_isolated,
-        parse_for_statement_isolated, parse_impl_declaration_isolated,
-        parse_mod_declaration_with_operators, parse_role_declaration_isolated,
-        parse_struct_declaration, parse_type_declaration, parse_use_declaration,
-        recognize_statement_intro,
+        commit_role_declaration_isolated, commit_struct_declaration,
+        commit_type_declaration_with_operators, commit_use_declaration,
+        parse_act_declaration_isolated, parse_binding_declaration_with_operators,
+        parse_cast_declaration_form_aware_isolated, parse_enum_declaration_isolated,
+        parse_error_declaration_isolated, parse_for_statement_isolated,
+        parse_impl_declaration_isolated, parse_mod_declaration_with_operators,
+        parse_role_declaration_isolated, parse_struct_declaration,
+        parse_type_declaration_with_operators, parse_use_declaration, recognize_statement_intro,
     },
     grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
     operator::OperatorTable,
@@ -2017,7 +2017,9 @@ where
         Some(StatementIntro::Error(_)) => i
             .run(from_fn(parse_error_declaration_isolated))
             .map(Statement::Error),
-        Some(StatementIntro::Type(_)) => i.run(parse_type_declaration).map(Statement::Type),
+        Some(StatementIntro::Type(_)) => i
+            .run(from_fn(|i| parse_type_declaration_with_operators(table, i)))
+            .map(Statement::Type),
         Some(StatementIntro::Role(_)) => i
             .run(from_fn(|i| parse_role_declaration_isolated(table, i)))
             .map(Statement::Role),
@@ -5945,7 +5947,7 @@ where
             true
         }
         Some(StatementIntro::Type(intro)) => {
-            let _ = commit_type_declaration(committed, intro);
+            let _ = commit_type_declaration_with_operators(table, committed, intro);
             true
         }
         Some(StatementIntro::Role(intro)) => {

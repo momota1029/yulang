@@ -476,7 +476,11 @@ fn parse_direct_root_candidate_with_local(
                 StatementKind::ErrorDeclaration
             }
             StatementIntro::Type(intro) => {
-                let _ = commit_type_declaration(&mut committed, intro);
+                let _ = commit_type_declaration_with_operators(
+                    operators,
+                    &mut committed,
+                    intro,
+                );
                 StatementKind::TypeDeclaration
             }
             StatementIntro::Role(intro) => {
@@ -5796,7 +5800,6 @@ where
 /// Type-owned AST realization after the sink-free post-header judge has cut
 /// to its exact `impl` evidence. The shared tail supplies every post-keyword
 /// slot; this adapter contributes only the Type form payload and its range.
-#[allow(dead_code)]
 fn parse_type_attached_impl_isolated<'source, E>(
     table: &crate::operator::OperatorTable,
     start: TypeAttachedImplStart<'source>,
@@ -6070,7 +6073,6 @@ fn commit_impl_tail<'parse, 'source, 'local, E, O>(
 /// `TypeDeclaration` and emitted the shared header. No declaration wrapper is
 /// started here: the accepted gap, `ImplKw`, and shared tail remain flat
 /// children of that caller-owned node.
-#[allow(dead_code)]
 fn commit_type_attached_impl_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     start: TypeAttachedImplStart<'source>,
@@ -11482,11 +11484,25 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    parse_type_declaration_with_derives_isolated(i)
+    parse_type_declaration_with_derives_isolated(&crate::operator::OperatorTable::empty(), i)
+}
+
+/// Operator-aware Type entry used by canonical Statement owners. Attached
+/// Impl bodies receive the same table as every other statement-body family.
+pub(crate) fn parse_type_declaration_with_operators<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_type_declaration_with_derives_isolated(table, i)
 }
 
 /// Direct-CST counterpart of [`parse_type_declaration`], promoted atomically
-/// through the same derives-aware core used by the pre-promotion harness.
+/// through the same derives-aware core used by the isolated harness.
 pub(crate) fn commit_type_declaration<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: TypeStatementIntro<'source>,
@@ -11497,13 +11513,35 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    commit_type_declaration_with_derives_isolated(committed, intro).0
+    commit_type_declaration_with_derives_isolated(
+        &crate::operator::OperatorTable::empty(),
+        committed,
+        intro,
+    )
+    .0
+}
+
+/// Operator-aware direct Type entry used by root and canonical Statement
+/// owners. The accepted AttachedImpl tail shares their current table.
+pub(crate) fn commit_type_declaration_with_operators<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: TypeStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_type_declaration_with_derives_isolated(table, committed, intro).0
 }
 
 /// Shared promotion core for Type derives attachments. Header clauses run
 /// after the shared name/parameter phase and before TND form selection;
 /// trailing clauses run only after a selected Equality RHS episode.
 fn parse_type_declaration_with_derives_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<TypeDeclaration<'source>>
 where
@@ -11527,19 +11565,26 @@ where
         Vec::new()
     };
 
-    let disposition = classify_type_declaration_form(&shared.name, intro.type_base, &mut i);
-    let form = match disposition {
-        TypeDeclarationFormDisposition::Nominal {
+    let decision = classify_type_declaration_post_header(&shared.name, intro.type_base, &mut i);
+    let form = match decision {
+        TypeDeclarationPostHeaderDecision::AttachedImpl(start) => {
+            Recovered::Complete(TypeDeclarationForm::AttachedImpl(
+                parse_type_attached_impl_isolated(table, start, &mut i),
+            ))
+        }
+        TypeDeclarationPostHeaderDecision::Existing(TypeDeclarationFormDisposition::Nominal {
             owns_trailing_trivia_through,
-        } => {
+        }) => {
             consume_type_declaration_nominal_trailing_trivia_until(
                 owns_trailing_trivia_through,
                 &mut i,
             );
             Recovered::Complete(TypeDeclarationForm::Nominal)
         }
-        TypeDeclarationFormDisposition::Equality
-        | TypeDeclarationFormDisposition::EqualityRecovery => {
+        TypeDeclarationPostHeaderDecision::Existing(
+            TypeDeclarationFormDisposition::Equality
+            | TypeDeclarationFormDisposition::EqualityRecovery,
+        ) => {
             let (equals, rhs_retry) = parse_type_declaration_definition_phase(
                 &intro,
                 &shared.name,
@@ -11574,7 +11619,9 @@ where
                 Recovered::Incomplete
             }
         }
-        TypeDeclarationFormDisposition::Incomplete => Recovered::Incomplete,
+        TypeDeclarationPostHeaderDecision::Existing(TypeDeclarationFormDisposition::Incomplete) => {
+            Recovered::Incomplete
+        }
     };
     let range = intro.start..i.pos();
     Some(TypeDeclaration {
@@ -11593,6 +11640,7 @@ where
 /// [`parse_type_declaration_with_derives_isolated`].  It replays each phase
 /// only after the shared probes have selected the same AST disposition.
 fn commit_type_declaration_with_derives_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: TypeStatementIntro<'source>,
 ) -> (Recovered<Range<usize>>, Vec<DirectDerivesAttachment>)
@@ -11650,19 +11698,25 @@ where
         Vec::new()
     };
 
-    let disposition = committed.probe(|probe| {
-        classify_type_declaration_form(&shared.name, intro.type_base, probe.input())
+    let decision = committed.probe(|probe| {
+        classify_type_declaration_post_header(&shared.name, intro.type_base, probe.input())
     });
-    match disposition {
-        TypeDeclarationFormDisposition::Nominal {
+    match decision {
+        TypeDeclarationPostHeaderDecision::AttachedImpl(start) => {
+            let _ = commit_type_attached_impl_isolated(table, start, committed);
+        }
+        TypeDeclarationPostHeaderDecision::Existing(TypeDeclarationFormDisposition::Nominal {
             owns_trailing_trivia_through,
-        } => commit_type_declaration_nominal_trailing_trivia_until(
+        }) => commit_type_declaration_nominal_trailing_trivia_until(
             owns_trailing_trivia_through,
             committed,
         ),
-        TypeDeclarationFormDisposition::Incomplete => {}
-        TypeDeclarationFormDisposition::Equality
-        | TypeDeclarationFormDisposition::EqualityRecovery => {
+        TypeDeclarationPostHeaderDecision::Existing(TypeDeclarationFormDisposition::Incomplete) => {
+        }
+        TypeDeclarationPostHeaderDecision::Existing(
+            TypeDeclarationFormDisposition::Equality
+            | TypeDeclarationFormDisposition::EqualityRecovery,
+        ) => {
             let (header, definition_recoveries, definition_end) = committed.probe(|probe| {
                 let i = probe.input();
                 let checkpoint = i.checkpoint();
@@ -12202,9 +12256,6 @@ enum DerivesOwnerTailClassifier {
     ActHeader,
     ActTrailing,
     TypeHeader,
-    /// Gate 3's isolated Type-header contract with attached-Impl authority.
-    /// Production remains on `TypeHeader` until the atomic Gate 6 switch.
-    TypeHeaderAttachedImpl,
     TypeTrailing,
 }
 
@@ -12277,21 +12328,6 @@ impl DerivesDriverSpec {
             )),
         }
     }
-}
-
-/// Opt-in Type Header derives spec for the isolated attached-Impl path.
-///
-/// Keeping this separate from [`DerivesDriverSpec::new`] preserves current
-/// Type production behavior until Gate 6 changes that constructor arm.
-#[allow(dead_code)]
-fn type_attached_impl_header_derives_driver_spec(owner_base: usize) -> DerivesDriverSpec {
-    let mut spec = DerivesDriverSpec::new(
-        DerivesAttachmentOwner::Type,
-        DerivesAttachmentPosition::Header,
-        owner_base,
-    );
-    spec.owner_tail_classifier = DerivesOwnerTailClassifier::TypeHeaderAttachedImpl;
-    spec
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -12472,7 +12508,7 @@ fn derives_role_episode_spec(
             stops = stops.with(stop);
             scoped_stops = scoped_stops.with(stop);
         }
-    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::TypeHeaderAttachedImpl {
+    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::TypeHeader {
         // Equality and attached Impl belong only to the outer Header RoleRef
         // episode. Nested TypeExpression episodes retain both words as local
         // syntax, and fresh-primary `impl` hands back a Missing RoleRef.
@@ -12480,8 +12516,6 @@ fn derives_role_episode_spec(
             stops = stops.with(stop);
             scoped_stops = scoped_stops.with(stop);
         }
-    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::TypeHeader {
-        stops = stops.with(StopKind::Equal);
     }
     DerivesRoleEpisodeSpec {
         stops,
@@ -12543,13 +12577,8 @@ where
 {
     let checkpoint = i.checkpoint();
     let owner_tail = match classifier {
-        DerivesOwnerTailClassifier::TypeHeaderAttachedImpl if declaration_exact_impl_pending(i) => {
+        DerivesOwnerTailClassifier::TypeHeader if declaration_exact_impl_pending(i) => {
             Some(DerivesOwnerTail::TypeAttachedImpl)
-        }
-        DerivesOwnerTailClassifier::TypeHeaderAttachedImpl
-            if declaration_exact_equals_pending(i) =>
-        {
-            Some(DerivesOwnerTail::TypeDefinitionIntroducer)
         }
         DerivesOwnerTailClassifier::TypeHeader if declaration_exact_equals_pending(i) => {
             Some(DerivesOwnerTail::TypeDefinitionIntroducer)
@@ -13235,12 +13264,11 @@ fn emit_derives_via_recovery<'parse, 'source, 'local, E, O>(
     }
 }
 
-/// The complete post-header priority decision reserved for Type promotion.
+/// The complete post-header priority decision used by production Type dispatch.
 ///
 /// The `Existing` arm is the explicit insertion seam: a future `with:` form
 /// goes before delegation, while a future role-like body belongs inside the
 /// existing classifier after Equality and before its terminal dispositions.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum TypeDeclarationPostHeaderDecision<'source> {
     AttachedImpl(TypeAttachedImplStart<'source>),
@@ -13248,7 +13276,6 @@ enum TypeDeclarationPostHeaderDecision<'source> {
 }
 
 /// Exact attached-Impl evidence captured without consuming the Type gap.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TypeAttachedImplStart<'source> {
     leading: TriviaRun,
@@ -13258,7 +13285,6 @@ struct TypeAttachedImplStart<'source> {
 
 /// Judges Type's post-header form in TAI-J priority order without committing
 /// input, line state, diagnostics, or any rollback-owned local state.
-#[allow(dead_code)]
 fn classify_type_declaration_post_header<'source, E>(
     name: &Recovered<WordSpan<'source>>,
     type_base: usize,
@@ -18965,11 +18991,9 @@ pub(crate) enum TypeDeclarationForm<'source> {
         equals: Recovered<Range<usize>>,
         rhs: Recovered<Box<TypeExpression<'source>>>,
     },
-    #[allow(dead_code)]
     AttachedImpl(TypeAttachedImpl<'source>),
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TypeAttachedImpl<'source> {
     impl_keyword: Range<usize>,
@@ -30697,7 +30721,10 @@ mod tests {
                     IsCut::new(&mut is_cut),
                 )
                 .set_local(&mut local);
-                parse_type_declaration_with_derives_isolated(i)
+                parse_type_declaration_with_derives_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    i,
+                )
                     .expect("the isolated fixture starts with Type")
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
@@ -30736,7 +30763,11 @@ mod tests {
                 .expect("the isolated fixture starts with Type");
             let mut committed = probe.commit(HeaderOutput::new());
             let (range, attachments) =
-                commit_type_declaration_with_derives_isolated(&mut committed, intro);
+                commit_type_declaration_with_derives_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    &mut committed,
+                    intro,
+                );
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let records = committed
                 .into_output()
@@ -31105,8 +31136,11 @@ mod tests {
                         )
                     }
                     Candidate::Type => {
-                        let declaration = parse_type_declaration_with_derives_isolated(i)
-                            .expect("Type matrix candidate");
+                        let declaration = parse_type_declaration_with_derives_isolated(
+                            &crate::operator::OperatorTable::empty(),
+                            i,
+                        )
+                        .expect("Type matrix candidate");
                         (
                             declaration.range,
                             declaration
@@ -31170,7 +31204,12 @@ mod tests {
                     let intro = committed
                         .probe(|probe| probe.input().run(recognize_type_statement_intro))
                         .expect("Type matrix candidate");
-                    commit_type_declaration_with_derives_isolated(&mut committed, intro).1
+                    commit_type_declaration_with_derives_isolated(
+                        &crate::operator::OperatorTable::empty(),
+                        &mut committed,
+                        intro,
+                    )
+                    .1
                 }
             };
             let end = committed.probe(|probe| probe.input().pos());
@@ -31410,7 +31449,11 @@ mod tests {
                         let _ = parse_struct_declaration_with_derives_isolated(i).unwrap();
                     }
                     Candidate::Type => {
-                        let _ = parse_type_declaration_with_derives_isolated(i).unwrap();
+                        let _ = parse_type_declaration_with_derives_isolated(
+                            &crate::operator::OperatorTable::empty(),
+                            i,
+                        )
+                        .unwrap();
                     }
                 }
             }
@@ -31455,7 +31498,11 @@ mod tests {
                 Candidate::Type => {
                     let intro = probe.input().run(recognize_type_statement_intro).unwrap();
                     let mut committed = probe.commit(HeaderOutput::new());
-                    let _ = commit_type_declaration_with_derives_isolated(&mut committed, intro);
+                    let _ = commit_type_declaration_with_derives_isolated(
+                        &crate::operator::OperatorTable::empty(),
+                        &mut committed,
+                        intro,
+                    );
                     let _ = committed.into_output();
                 }
             }
@@ -31510,7 +31557,11 @@ mod tests {
                     let intro = committed
                         .probe(|probe| probe.input().run(recognize_type_statement_intro))
                         .unwrap();
-                    let _ = commit_type_declaration_with_derives_isolated(&mut committed, intro);
+                    let _ = commit_type_declaration_with_derives_isolated(
+                        &crate::operator::OperatorTable::empty(),
+                        &mut committed,
+                        intro,
+                    );
                 }
             }
             committed.finish_node();
@@ -32315,7 +32366,11 @@ mod tests {
                 .expect("Header derives recognition precedes the post-header judge");
                 let (attachment, repeated) = parse_derives_clause_isolated(
                     start,
-                    type_attached_impl_header_derives_driver_spec(0),
+                    DerivesDriverSpec::new(
+                        DerivesAttachmentOwner::Type,
+                        DerivesAttachmentPosition::Header,
+                        0,
+                    ),
                     &mut i,
                 );
                 assert!(repeated.is_none(), "one clause fixture: {source:?}");
@@ -32343,16 +32398,11 @@ mod tests {
         assert_eq!(
             production.owner_tail_classifier,
             DerivesOwnerTailClassifier::TypeHeader,
-            "Gate 3 must not switch the production Type Header spec",
-        );
-        let isolated = type_attached_impl_header_derives_driver_spec(0);
-        assert_eq!(
-            isolated.owner_tail_classifier,
-            DerivesOwnerTailClassifier::TypeHeaderAttachedImpl,
+            "Gate 6 keeps attached-Impl handoff in the production Type Header spec",
         );
 
         let incoming = StopSet::default().with(StopKind::RightBracket);
-        let episode = derives_role_episode_spec(isolated, incoming, 3, None);
+        let episode = derives_role_episode_spec(production, incoming, 3, None);
         for stop in [StopKind::Equal, StopKind::Impl] {
             assert!(episode.stops.contains(stop), "outer stop: {stop:?}");
             assert!(
@@ -32371,23 +32421,23 @@ mod tests {
         );
 
         assert_eq!(
-            decide(" impl Pick", isolated),
+            decide(" impl Pick", production),
             DerivesDriverDecision::OwnerTail(DerivesOwnerTail::TypeAttachedImpl),
         );
         assert_eq!(
-            decide(" = Int", isolated),
+            decide(" = Int", production),
             DerivesDriverDecision::OwnerTail(DerivesOwnerTail::TypeDefinitionIntroducer),
         );
         assert_eq!(
-            decide(" implement Pick", isolated),
+            decide(" implement Pick", production),
             DerivesDriverDecision::NoContinuation,
         );
         assert!(matches!(
-            decide(" via key", isolated),
+            decide(" via key", production),
             DerivesDriverDecision::Via { keyword, .. } if keyword == (1..4)
         ));
         assert!(matches!(
-            decide(" derives Debug", isolated),
+            decide(" derives Debug", production),
             DerivesDriverDecision::RepeatedClause { start, .. } if start.keyword == (1..8)
         ));
 
@@ -32487,7 +32537,8 @@ mod tests {
         .expect("direct fixture recognizes Header derives");
         let mut committed = probe.commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
-        let (direct, repeated) = commit_derives_clause_isolated(start, isolated, &mut committed);
+        let (direct, repeated) =
+            commit_derives_clause_isolated(start, production, &mut committed);
         assert!(repeated.is_none());
         committed.finish_node();
         let output = committed.into_output();
@@ -32859,6 +32910,55 @@ mod tests {
             declaration
         }
 
+        fn parse_production_ast<'source>(source: &'source str) -> TypeDeclaration<'source> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_type_declaration(i)
+                    .expect("the production Type path accepts the Gate 4 fixture")
+            };
+            assert_eq!(source_input.remainder(), "", "AST cursor: {source:?}");
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            declaration
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, usize, Vec<CommittedRecoveryRecord>) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
+            (
+                public,
+                direct_root,
+                parsed.diagnostics().len(),
+                direct.committed_recoveries().to_vec(),
+            )
+        }
+
         fn commit_direct(
             source: &str,
         ) -> (
@@ -33196,6 +33296,8 @@ mod tests {
         for fixture in fixtures {
             let source = fixture.source;
             let ast = parse_ast(source);
+            let production_ast = parse_production_ast(source);
+            assert_eq!(production_ast, ast, "isolated/production AST: {source:?}");
             let Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)) = &ast.form else {
                 panic!("the isolated AST form must be AttachedImpl: {source:?}");
             };
@@ -33315,29 +33417,26 @@ mod tests {
                 fixture.cst,
                 "byte-exact CST: {source:?}"
             );
-        }
 
-        let source = "type Box 't impl Pick Int;";
-        let mut source_input = SourceInput::new(source);
-        let mut local = ParseLocal::new();
-        let mut expectations = chasa::LatestSink::new();
-        let mut is_cut = false;
-        let public = {
-            let i = In::new(
-                &mut source_input,
-                &mut expectations,
-                IsCut::new(&mut is_cut),
-            )
-            .set_local(&mut local);
-            parse_type_declaration(i).expect("the public path still recognizes its Type prefix")
-        };
-        assert!(
-            !matches!(
-                public.form,
-                Recovered::Complete(TypeDeclarationForm::AttachedImpl(_))
-            ),
-            "Gate 4 must not promote AttachedImpl through the public Type path",
-        );
+            let (public, direct_root, public_recoveries, direct_recoveries) =
+                parse_public_and_direct(source);
+            assert_eq!(public_recoveries, 0, "public recovery: {source:?}");
+            assert!(direct_recoveries.is_empty(), "direct recovery: {source:?}");
+            for production_root in [&public, &direct_root] {
+                assert!(production_root
+                    .descendants()
+                    .all(|node| node.kind() != SyntaxKind::ImplDeclaration));
+                let production_declaration = production_root
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                    .expect("one production TypeDeclaration");
+                assert_eq!(
+                    cst_shape(&production_declaration),
+                    fixture.cst,
+                    "production byte-exact CST: {source:?}",
+                );
+            }
+        }
     }
 
     #[test]
@@ -33514,7 +33613,11 @@ mod tests {
                 while let Some(start) = next_start.take() {
                     let (attachment, repeated) = parse_derives_clause_isolated(
                         start,
-                        type_attached_impl_header_derives_driver_spec(intro.type_base),
+                        DerivesDriverSpec::new(
+                            DerivesAttachmentOwner::Type,
+                            DerivesAttachmentPosition::Header,
+                            intro.type_base,
+                        ),
                         i,
                     );
                     derives.push(attachment);
@@ -33601,7 +33704,11 @@ mod tests {
             while let Some(start) = next_start.take() {
                 let (_, repeated) = commit_derives_clause_isolated(
                     start,
-                    type_attached_impl_header_derives_driver_spec(intro.type_base),
+                    DerivesDriverSpec::new(
+                        DerivesAttachmentOwner::Type,
+                        DerivesAttachmentPosition::Header,
+                        intro.type_base,
+                    ),
                     committed,
                 );
                 next_start = repeated;
@@ -33707,6 +33814,38 @@ mod tests {
         }
 
         fn commit_full(source: &str) -> (SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            fn cst_shape(node: &SyntaxNode) -> String {
+                fn append(node: &SyntaxNode, depth: usize, shape: &mut String) {
+                    use std::fmt::Write as _;
+
+                    let _ = writeln!(
+                        shape,
+                        "{}{:?} {:?}",
+                        "  ".repeat(depth),
+                        node.kind(),
+                        syntax_range(node.text_range()),
+                    );
+                    for element in node.children_with_tokens() {
+                        if let Some(child) = element.clone().into_node() {
+                            append(&child, depth + 1, shape);
+                        } else if let Some(token) = element.into_token() {
+                            let _ = writeln!(
+                                shape,
+                                "{}{:?} {:?} {:?}",
+                                "  ".repeat(depth + 1),
+                                token.kind(),
+                                syntax_range(token.text_range()),
+                                token.text(),
+                            );
+                        }
+                    }
+                }
+
+                let mut shape = String::new();
+                append(node, 0, &mut shape);
+                shape
+            }
+
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -33754,6 +33893,43 @@ mod tests {
                 "full sink: {source:?}"
             );
             let _ = is_cut;
+
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(
+                cst_shape(&public),
+                cst_shape(&root),
+                "Gate 5 isolated/public CST: {source:?}",
+            );
+            assert_eq!(
+                cst_shape(&direct_root),
+                cst_shape(&root),
+                "Gate 5 isolated/direct-root CST: {source:?}",
+            );
+            assert_eq!(
+                parsed.diagnostics().len(),
+                records.len(),
+                "Gate 5 public recovery count: {source:?}",
+            );
+            assert_eq!(
+                recovery_tuples(direct.committed_recoveries()),
+                recovery_tuples(&records),
+                "Gate 5 direct-root recovery identity: {source:?}",
+            );
+            for production_root in [&public, &direct_root] {
+                assert!(production_root
+                    .descendants()
+                    .all(|node| node.kind() != SyntaxKind::ImplDeclaration));
+            }
             (root, records)
         }
 
@@ -34459,25 +34635,6 @@ mod tests {
             assert!(!direct_cut, "direct rollback cut: {source:?}");
         }
 
-        // Gate 6 alone promotes the isolated form into real Type dispatch.
-        let source = "type Box 't impl Pick Int:";
-        let mut source_input = SourceInput::new(source);
-        let mut local = ParseLocal::new();
-        let mut expectations = chasa::LatestSink::new();
-        let mut is_cut = false;
-        let public = {
-            let i = In::new(
-                &mut source_input,
-                &mut expectations,
-                IsCut::new(&mut is_cut),
-            )
-            .set_local(&mut local);
-            parse_type_declaration(i).expect("the public path still recognizes Type")
-        };
-        assert!(!matches!(
-            public.form,
-            Recovered::Complete(TypeDeclarationForm::AttachedImpl(_))
-        ));
     }
 
     #[test]
@@ -38012,19 +38169,6 @@ mod tests {
         assert_eq!(i.input.remainder(), "");
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
-
-        // `impl` remains a deferred role-like tail.  TD-R's ordinary RHS retry may consume
-        // its word-shaped prefix, but no `impl` declaration owner is synthesized.
-        let source = "type Box 't impl Pick Int:";
-        let root = parse_public(source);
-        assert_eq!(root.to_string(), source);
-        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..25);
-        assert_eq!(
-            ranges(&root, SyntaxKind::TypeExpression),
-            vec![12..25, 17..21, 22..25]
-        );
-        assert_eq!(ranges(&root, SyntaxKind::Error), vec![25..26]);
-        assert!(!has(&root, SyntaxKind::BindingStatement));
 
         // `with:` owns neither a companion body nor `struct self` here: TD-T installs the
         // existing With stop so the entire deferred tail remains outside TypeDeclaration.
@@ -55981,6 +56125,101 @@ mod tests {
     }
 
     #[test]
+    fn type_attached_impl_gate_6_blocking_recovery_is_public_and_type_owned() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        let source = "type Box 't impl Pick Int:";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let declaration = {
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Type(declaration) = i
+                .run(parse_declaration)
+                .expect("the production root AST path accepts the Type declaration")
+            else {
+                panic!("the blocking source must remain Type-owned")
+            };
+            declaration
+        };
+        assert_eq!(source_input.remainder(), "");
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+        let Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)) = declaration.form
+        else {
+            panic!("the production Type form must be AttachedImpl")
+        };
+        assert!(matches!(
+            attached.head,
+            Recovered::Complete(ref head) if head.range() == (17..25)
+        ));
+        assert!(matches!(
+            attached.description,
+            Some(ImplDescription {
+                colon,
+                value: Recovered::Incomplete,
+                range,
+            }) if colon == (25..26) && range == (25..26)
+        ));
+        assert!(matches!(attached.body, Recovered::Incomplete));
+
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+        let parsed = crate::parse_file(
+            source_text,
+            header,
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        let public = SyntaxNode::new_root(parsed.green().clone());
+        let direct =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let direct_root = SyntaxNode::new_root(direct.green().clone());
+
+        assert_eq!(parsed.diagnostics().len(), 1);
+        assert_eq!(direct.committed_recoveries().len(), 1);
+        assert_eq!(
+            direct.committed_recoveries()[0].kind,
+            RecoveryKind::Missing,
+        );
+        assert_eq!(
+            direct.committed_recoveries()[0].site,
+            RecoverySiteKey {
+                role: GrammarRole::Declaration(DeclarationRole::Type(
+                    TypeDeclarationRole::AttachedImpl(ImplRole::Description),
+                )),
+                range: 26..26,
+            },
+        );
+        assert!(direct.committed_recoveries().iter().all(|record| {
+            !matches!(
+                record.site.role,
+                GrammarRole::Declaration(DeclarationRole::Type(
+                    TypeDeclarationRole::DefinitionIntroducer
+                        | TypeDeclarationRole::Rhs
+                        | TypeDeclarationRole::AttachedImpl(ImplRole::BodyIntroducer)
+                ))
+            )
+        }));
+        for root in [&public, &direct_root] {
+            assert_eq!(root.to_string(), source);
+            assert_eq!(node_ranges(root, SyntaxKind::TypeDeclaration), vec![0..26]);
+            assert_eq!(node_ranges(root, SyntaxKind::Missing), vec![26..26]);
+            assert!(node_ranges(root, SyntaxKind::ImplDeclaration).is_empty());
+        }
+    }
+
+    #[test]
     fn impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity() {
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
         enum BodyKind {
@@ -56213,11 +56452,10 @@ mod tests {
         assert!(node_ranges(&public, SyntaxKind::ImplDeclaration).is_empty());
         assert!(node_ranges(&direct_root, SyntaxKind::ImplDeclaration).is_empty());
 
-        // The deferred Type-tail, `with:` companion, and Type role-like body
-        // surfaces retain ordinary existing grammar behavior. In particular,
-        // none may synthesize an Impl owner from a Type-owned continuation.
+        // The deferred `with:` companion and Type role-like body surfaces
+        // retain ordinary existing grammar behavior. Neither may synthesize
+        // an Impl owner from a Type-owned continuation.
         for source in [
-            "type Box 't impl Pick Int:",
             "struct Point { value: Int } with:\n  my method = value",
             "type Point:\n  impl Eq;",
             "type Point { impl Eq; }",
