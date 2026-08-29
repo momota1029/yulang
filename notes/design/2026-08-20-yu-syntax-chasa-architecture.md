@@ -26572,3 +26572,383 @@ lowerし、parser recovery identityをsemantic meaningへ流用しない。
 
 著者: Claude (Fable 5)（2026-08-29、canonical Statement / root Declarationの`for` loop statement grammar
 追補案。ユーザ承認済み）
+
+## 追補案: standalone `act` declarationへのshared `derives` clause attachment拡張
+
+Status: Authoritative（ユーザ承認済み、2026-08-29）。
+
+Date: 2026-08-29。
+
+### Scope and authority
+
+本追補は、standalone Act追補（本document:23516-24318）が明示的future extensionとして残したAct-owned derives
+attachmentを、approvedなshared `DerivesClause` driver（`DRV-G/J/T/R`、本document:20278-21009）のone new ownerとして
+設計する。new grammar constructは作らない。対象は次だけである。
+
+- `DerivesAttachmentOwner::Act`のHeader / Trailing attachment pointと、ActのHead → optional Source → Bodyという
+  3-slot chain上のattachment位置。
+- Act Head / Source outer TypeExpression episodeへのdepth-fenced `StopKind::Derives`追加と、Y2 surfaceを保つ
+  fresh-primary local ownership。
+- owner-tail classifier `ActHeader` / `ActTrailing`、Act向け`DerivesOwnerTail`、existing ACT-R no-cascade chainとの合流。
+- `ActDeclaration` ASTへのexisting `DerivesAttachment` collection追加、direct-CST child order、AST / direct parity。
+
+本追補は次を設計しない。
+
+- derives semantics（derive request登録、role resolution、generated impl / method）と、Actがvalid derives targetで
+  あるというsemantic claim。DRV追補と同様、parserはsource shapeとspanだけを保持する。
+- declaration companion `with:` / `with {}`とderivesの相互order。Y2はpost-source derivesを`with`検査より先に
+  parseした（後述oracle fact 3）ため、future companion addendumはcompanion attachmentのorderを本追補のpointに
+  対して固定する。
+- contextual `host` act、operation tier、act copy semanticsその他Act追補のdeferred surface。
+- Role / Impl / Cast / Modなど他declaration kindへのattachment拡張。
+- shared DRV clause grammar自体（`DerivesClause` / comma / `via` / RoleRef episode / `DerivesRole` recovery）の変更。
+  一切変更しない。
+
+本追補の正本prefixは`ACTDRV`である。shared clause grammarの正本は引き続き`DRV-G/J/T/R`、Act shellの正本は
+`ACT-G/J/T/R`であり、本追補は両者の間のattachment authorityだけを追加する。`ACTDRV`はcurrent documentの
+既存prefixと衝突しない。
+
+### Deferred-scope discharge and problem statement
+
+Act追補のdeferred surfaceは次を明記した（本document:24232）。
+
+> Act-owned derives attachment。future extensionはexisting `DerivesClause` driverをreuseするが、attachment point / priority / recoveryを別追補で固定する。
+
+同追補のnamed divergence 10は「Y2 parserにはAct-owned derives経路があったが、current DRV addendumはStruct / Typeだけを
+Authoritative ownerとする。future Act attachment extensionまで`derives`をAct head stopにしない」と固定し
+（本document:24211-24212）、supersession boundaryとして「shared declaration companion `with:`とActへのderives
+attachmentがfuture ownerであるscope boundary」を維持し（本document:23581）、explicit non-reuseとして「existing
+`DerivesClause`をActへattachment pointなしで呼ぶこと」を禁じた（本document:24187）。DRV追補もEnum / Error / Actへの
+attachmentをscope外へ置いた（本document:20297-20298）。本追補はAct追補の要求（本document:24241-24242）どおり、
+`ACT-J`のhead / source / body priorityに対するattachment pointとmigration boundaryを明記してこのdeferred scopeを
+fifth owner `Act`として閉じ、divergence 10の「head stopにしない」temporary保証を承認時にsupersedeする。
+
+current implementation（HEAD `002ae891`時点）のownerは`Struct | Enum | Error | Type`である
+（`crates/yu-syntax/src/grammar/declaration.rs:11822-11828`）。`act_type_expression_episode_spec`はHead episodeへ
+`Equal | Colon | LeftBrace | Semicolon`、Source episodeへ`Colon | LeftBrace | Semicolon`だけを渡し（同`:2535-2570`）、
+`StopKind::Derives`を含まないため、current public behaviorでは`act local 't derives Eq`の`derives Eq`がhead
+TypeApplicationへ吸収される。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`のpeeled commitは`a58eefc31e22141574b6f20c6a5748151c6d79f1`であった。
+Act追補fact 10とDRV追補fact 5が既に記録したAct-derives経路の存在に加え、次をact-specific ground truthとして
+再確認した。
+
+1. Y2 Actのlive derives surfaceはname-adjacent header positionだった。`parse_act_decl`はpath-like act name直後に
+   shared `parse_header_derives`をouter stops `[Colon, BraceL, Semicolon]`で呼び、derives runがbody punctuationで
+   終わるとact tail（parenthesized type parameters、whitespace type arguments、`= source`、`with`）を完全にskipして
+   直接bodyへ進んだ（`yulang2-oracle:crates/parser/src/stmt/act_decl.rs:29-38`）。brace / colon / semicolon bodyの
+   後にderives経路はない（同`:40-49,52-88`）。
+2. Y2 scannerは`derives`を、active stop setに`SyntaxKind::Derives`が入っているときだけcontextual keywordへ
+   reclassifyした（`yulang2-oracle:crates/parser/src/scan/mod.rs:300-307`）。Act tailのtype-argument loopと`=`後の
+   copy source type parserのstop listにDerivesはなく（同`act_decl.rs:157-167,111-119`）、name直後以外のsame-line
+   `derives`はordinary Identとしてhead application / source typeへ吸収された。Y2がType equality RHSへDerivesを
+   stopとして明示的に渡したのと対照的である（DRV追補fact 4、本document:20354-20356）。
+3. Y2 Actの`= source` tail終端は`finish_with_or_stmt_stop`であり、そこでshared derives parserを`with`検査より先に
+   再実行するpost-source経路を構造上持った（`yulang2-oracle:crates/parser/src/stmt/act_decl.rs:43-46`、
+   `type_decl.rs:278-330`）。しかしfact 2のstop欠落により、same-lineのpost-source `derives`はsource typeへ
+   吸収され、この経路は実質shadowedだった。Error追補がY2 error equals-indent実装gapで採ったのと同じ扱いで、
+   本追補は「構造上意図されたsurface」をtranscription対象、stop欠落をimplementation gapとして扱う。
+4. Y2 parser-tree fixtureにactとderivesの組み合わせは存在しない（`yulang2-oracle:crates/parser/tests/stmt_grammar.rs`
+   全文をexact検索）。representative stdlib / corpusにも見つからなかった。従って上記以外の細部（derives clause後の
+   `=`の正確な挙動など）はfixture未確定のimplementation挙動であり、oracle transcriptionの対象はfact 1-3の構造だけである。
+
+従って本追補はY2前例のあるYulang3設計である。ただしfact 2-4のとおりY2の実挙動はname-adjacent point以外で
+自己矛盾的（intended surfaceがstopの欠落でshadowed）なので、細部はY2細部の逐語transcriptionではなく、
+shared driverが確立済みのattachment-position vocabularyとstop-wins規則への整列で決める。
+
+### `ACTDRV-G`: attachment surface
+
+`ACT-G`（本document:23673-23713）のnonterminalをそのまま使い、attachment positionだけを追加する。
+
+```text
+ActDeclarationWithDerives :=
+    [ VisibilityKw Gact+ ] ActKw Gact-head
+    RequiredTypeExpression(ActDeclaration::Head)
+    [ HeaderDerivesAttachment(Act) ]     -- post-Head point: Head slotがCompleteのときだけ
+    [ ActSourceClause ]
+    [ HeaderDerivesAttachment(Act) ]     -- post-Source point: actual source clauseがありSource slotがCompleteのときだけ
+    ActBody
+    [ TrailingDerivesAttachment(Act) ]   -- ActBody::Bracedのactual matching closeがCompleteのときだけ
+```
+
+`HeaderDerivesAttachment` / `TrailingDerivesAttachment`の内部（clause / comma / `via` / repeated clause /
+attachment trivia規則）は`DRV-G`（本document:20399-20464）をそのまま使い、本追補は再定義しない。3点のowner_baseは
+いずれも`intro.act_base`である。3点は既存の`DerivesAttachmentPosition::Header`（post-Head / post-Source）と
+`::Trailing`（post-body）のtwo-position vocabularyへ写像し、new positionを作らない。post-Headとpost-Sourceの
+attachmentはclause rangeで区別でき、AST / CSTはsource orderを保つ。
+
+owner-specific surfaceを次で固定する。
+
+- **Act header（post-Head）:** Head slotがCompleteで、source-clause judgeがbyteをconsumeする前のqualifying exact
+  `derives`。clause runはpending exact `=`（source introducer）、actual `;` / `{` / `:`（body starter）、caller
+  boundaryでownerへ返る。`act Console::Read derives Eq;`、`act a derives Eq { ... }`、`act a derives Eq = b;`は
+  validである。
+- **Act header（post-Source）:** actual `=`でopenしたsource clauseのSource slotがCompleteで、body-form judgeが
+  byteをconsumeする前のqualifying exact `derives`。`act local 't = var 't derives Eq`はsource `var 't` +
+  one clauseである。
+- **Act trailing:** `ActBody::Braced`のactual matching closeがCompleteのときだけ。explicit / implicit bodyless、
+  colon inline / indented body、missing / recovered braced close後は選ばない。colon-indented dedent後の`derives`は
+  outer Statement ownerの、colon-inline body内のsame-line `derives`はinline statementのordinary surfaceのままである
+  （Enum equals-inlineのlast-variant absorption、本document:24595-24596と同型）。
+
+### `ACTDRV-J`: episode stops, fresh-primary preservation, and driver integration
+
+**Episode変更。** `act_type_expression_episode_spec`（`declaration.rs:2535-2570`）のHead / Source両slotで、outer
+stopsとepisode-scoped frameの双方へ`StopKind::Derives`を追加する。Type equality RHSのGate-7 episode
+（`declaration.rs:10974-11036`）と同じdepth-fencingであり、parenthesized group / arrow / forall等のnested episodeでは
+suspendされる。同時に両slotの`TypeExpressionEpisodePolicy.fresh_primary_locally_owned_stops`
+（`crates/yu-syntax/src/session.rs:898-904`）へ`StopKind::Derives`を入れる。fresh primary slotの
+`classify_type_boundary`はlocally-owned stopをboundaryとして返さない（`crates/yu-syntax/src/grammar/type_expr.rs:3703-3730,6281-6289`）ため、`act derives Eq;`のheadと`act a = derives Eq;`のsourceはY2どおりordinary
+TypeExpression `derives Eq`のままである。complete primaryのtail judgeではDerives stopがTypeApply continuationより
+先に勝ち（DRV追補、本document:20321-20322）、`act local 't derives Eq`のheadは`local 't`でCompleteになる。この
+fresh-primary / tail非対称はY2自身の非対称（oracle fact 2: Act name-scanはstopなし、Type RHSはstopあり）を
+transcribeするものであり、Type equality RHSの`type Id = derives Eq` = Missing Rhs + clause規則
+（本document:20487-20491）は変更しない。
+
+**Driver統合。** 次のmechanical extensionだけを行う。
+
+- `DerivesAttachmentOwner::Act`（`declaration.rs:11822-11828`）。
+- `DerivesOwnerTailClassifier::ActHeader` / `ActTrailing`（同`:11838-11848`）と、`DerivesDriverSpec::new`の
+  `(Act, Header)` / `(Act, Trailing)` arm（同`:11868-11910`）。
+- `DerivesOwnerTail::ActSourceIntroducer` / `ActBodyStarter`（同`:11850-11857`）。`classify_derives_owner_tail`
+  （同`:12133-12191`）の`ActHeader` armは`declaration_exact_equals_pending`（同`:11773`）で`ActSourceIntroducer`、
+  actual `;` / `{` / `:` punctuationで`ActBodyStarter`を返す。EnumHeader / ErrorHeader armと同じ判定順であり、
+  `ActTrailing`はStruct / Enum / Error trailingと同じく`_ => None` + `CallerBoundary` fallbackだけを使う。
+  `DerivesDriverDecision::OwnerTail`のpayloadはclause adapterがmatchしない（同`:12303-12305`）ため、two-variant
+  追加はdriver挙動を変えない。
+- `derives_role_episode_spec`（同`:12030-12093`）のEnumHeader | ErrorHeader arm（同`:12064-12080`）へActHeaderを
+  加える。Act Header RoleRef outer episodeのscoped stopsはEnum / Errorと同一の`LeftBrace | Colon | Equal |
+  Semicolon`である（EqualはActではsource introducer、Enumではequals bodyだが、driver上の意味は「ownerへ返るtail」で
+  同一である）。ActTrailingはowner stopを加えない。
+
+**Attachment pointのwiring。** `parse_act_declaration_isolated`（`declaration.rs:2846-2889`）と
+`commit_act_declaration_isolated`（同`:3143-3192`）のsame chainへ、Enum / Errorのwiring（同`:9314-9338,9945-9971`）と
+同型の3 recognition pointを挿す。
+
+1. Head slot後、Head Completeのときだけ`recognize_derives_attachment_start(Act, Header, act_base)`を呼び、startが
+   あれば`parse_derives_attachments_isolated` / `commit_derives_attachments_isolated`（同`:12227-12245,12465-12484`）へ
+   渡す。Head Incomplete（Missing / malformed terminal）では呼ばず、existing ACT-Rのno-cascade chainへそのまま進む。
+2. source-clause judge（`parse_act_source_clause_after_head_isolated`、同`:2738-2775`）の後、actual clauseがあり
+   Source Completeのときだけsame owner / same `Header` positionで2つ目のrecognitionを行う。source絶無 / Source
+   Incompleteでは呼ばない。fresh-primary local ownershipによりDerives stopがSource Missingの原因になるcaseは
+   存在しないため、このComplete gatingはType trailingの「RHS Missing + clause」規則と衝突しない。
+3. body後、bodyが`ActBody::Braced`でbraced blockのcloseがCompleteのときだけ`(Act, Trailing)`のrecognitionを行う。
+   AST側は`enum_body_has_actual_trailing_close`（同`:12193-12205`）と同型のAct predicateが
+   `BracedStatementBlockExpression`のclose（`crates/yu-syntax/src/grammar/expression.rs:274-280`、crate accessorの
+   追加が必要）を見る。direct側は`commit_act_body_isolated`（同`:3201-3303`）が`commit_enum_body_isolated -> bool`
+   （同`:10020-10102`）と同型にactual-braced-close flagを返し、braced armは
+   `committed_struct_body_has_actual_trailing_close`（同`:13611-13630`）と同じlast-byte probeを使ってよい。
+
+`recognize_derives_attachment_start`はsink-freeで全stateをrollbackし（同`:11941-11978`）、owner tailがpendingの
+pointでは即Noneを返すため、derivesを含まないActのparse cost、recovery挙動、rollback disciplineは3点とも不変である。
+`act_body_implicit_boundary_pending`（同`:3020-3047`）と`head_and_source_complete`判定（同`:2873-2876`）は変更しない。
+post-Head / post-Source attachmentの後、driverはbody starter / `=`をnon-consumeで返すため、existing body-form
+authority、implicit bodyless success、introducer error retryはそのまま機能する。`derives`はStatementIntroにならず
+（DRV追補、本document:20495）、header discoveryのsource-leading Act `FirstNonHeader`終了、root / nested dispatch
+priority、equal-or-shallower newlineのouter Statement ownershipはすべて不変である。
+
+**AST / CST。** `ActDeclaration`（`declaration.rs:18116-18124`）へ`derives: Vec<DerivesAttachment<'source>>`
+（同`:18460-18486`）をsource orderで追加する。field位置はStruct / Enum / Errorに合わせ`source`と`body`の間とする。
+CSTはEnum / Errorと同じく`DerivesClause`をActDeclaration直下のflat childとして各attachment positionへemitし、
+new node kind / wrapperを作らない（本document:20599-20602）。`ActDeclaration.range`はexisting
+`intro.start..i.pos()`（`declaration.rs:2878`）のままでtrailing clauseを自然に含む。
+
+### `ACTDRV-R`: typed recovery
+
+新しいrecovery record kindは追加しない。attachment内部のrecoveryはexisting `DerivesRole`
+（`crates/yu-syntax/src/session.rs:1263-1267`）のauthorityであり、Act-owned recordを重ねない。
+
+| case | result | boundary discipline |
+| --- | --- | --- |
+| Head Complete + exact `derives` + roles | Header attachment(s) Complete | driverが`=` / `;` / `{` / `:` / caller boundaryをnon-consumeでownerへ返す |
+| Head Incomplete後の`derives` spelling | no attachment authority | existing Head Missing / Error + body-introducer chainのまま。same-cause cascadeなし |
+| `act derives Eq;`（head fresh primaryの`derives`） | head = ordinary TypeExpression `derives Eq`、attachmentなし | fresh-primary local ownershipによるY2 preservation |
+| post-Head clause後のpending `=` | clauseが`ActSourceIntroducer`でyield、source clauseは通常どおりparse | `act a derives Eq = b;`はattachmentとsourceの両方がvalid |
+| Source Complete + exact `derives` | post-Source Header attachment | body starterのnon-consume、同上 |
+| source clause絶無 / Source Incomplete | post-Source pointを開かない | existing Source recovery、no cascade |
+| clauseのrole missing / malformed、`via` target missing | existing DerivesRole recoveryのみ | body starter preservation、Act-owned duplicateなし |
+| post-Source clause後のsecond `=` | clauseは`ActSourceIntroducer`でyield、existing body-introducer error retryがmalformed runを処理 | one range = one node = one record |
+| actual Complete braced close + exact `derives` | Trailing attachment | source order、outer boundary non-consume |
+| bodyless（explicit / implicit）/ colon body / missing braced close後の`derives` | no trailing authority | outer Statement owner / inline statement surfaceが保持 |
+
+ASOB追補のcondition-based known residualは、Act Head / Source episodeと同様に本追補のattachment RoleRef episodeにも
+適用する（Enum / Error追補の同項、本document:25220-25222,25790-25792と同じ扱い）。
+
+### Worked examples
+
+#### Post-Head header derives and explicit semicolon
+
+```yu
+act Console::Read derives Eq;
+```
+
+```text
+ActDeclaration 0..29
+  ActKw 0..3 "act"
+  Trivia 3..4 " "
+  TypeExpression 4..17 "Console::Read"
+    Identifier 4..11 "Console"
+    TypePathTail 11..17
+      ColonColon 11..13 "::"
+      Identifier 13..17 "Read"
+  Trivia 17..18 " "
+  DerivesClause 18..28
+    DerivesKw 18..25 "derives"
+    Trivia 25..26 " "
+    TypeExpression 26..28 "Eq"
+  Semicolon 28..29 ";"
+```
+
+ASTはhead Complete `4..17`、source None、derives = one Header attachment（clause `18..28`、roles = [`Eq`]、via
+None）、`Bodyless { semicolon: Some(28..29) }`、range `0..29`、recovery zeroである。head episodeはtail judgeの
+Derives stopで`derives`の前にyieldし、post-Head pointがclauseを所有し、driverが`;`を`ActBodyStarter`として
+non-consumeで返し、existing body judgeが`;`をconsumeする。
+
+#### Post-Source header derives and implicit boundary bodyless form
+
+Act追補のoracle fixture（`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1137-1159`）へclauseを加えた
+Y3 fixtureである。
+
+```yu
+act local 't = var 't derives Eq
+```
+
+```text
+ActDeclaration 0..32
+  ActKw 0..3 "act"
+  Trivia 3..4 " "
+  TypeExpression 4..12 "local 't"
+    Identifier 4..9 "local"
+    TypeApplyArgument 9..12
+      Trivia 9..10 " "
+      TypeExpression 10..12 "'t"
+  Trivia 12..13 " "
+  Equals 13..14 "="
+  Trivia 14..15 " "
+  TypeExpression 15..21 "var 't"
+    Identifier 15..18 "var"
+    TypeApplyArgument 18..21
+      Trivia 18..19 " "
+      TypeExpression 19..21 "'t"
+  Trivia 21..22 " "
+  DerivesClause 22..32
+    DerivesKw 22..29 "derives"
+    Trivia 29..30 " "
+    TypeExpression 30..32 "Eq"
+```
+
+ASTはhead Complete `4..12`、source clause `13..21` / source Complete `15..21`、derives = one Header attachment
+（clause `22..32`）、`Bodyless { semicolon: None }`、range `0..32`である。post-Head pointはpending `=`により何も
+開かず、source episodeがDerives stopで`var 't`後にyieldし、post-Source pointがclauseを所有する。EOFはdriverの
+Boundary、その後のbody judgeはexisting implicit bodyless successである。Y2はfact 2によりsourceを
+`var 't derives Eq`として吸収したため、これはnamed divergence 1のcharacterization fixtureを兼ねる。
+
+#### Trailing derives after an actual braced close
+
+Act追補のbraced substitute fixture（本document:23960-23997）へtrailing clauseを加えたY3 fixtureである。
+
+```yu
+act Eq {
+  our eq: Self -> Self -> Bool
+} derives Debug
+```
+
+```text
+ActDeclaration 0..55
+  ActKw 0..3 "act"
+  Trivia 3..4 " "
+  TypeExpression 4..6 "Eq"
+  Trivia 6..7 " "
+  BracedStatementBlockExpression 7..41
+    LBrace 7..8 "{"
+    Trivia 8..11 "\n  "
+    Statement 11..39
+      BindingStatement 11..39 "our eq: Self -> Self -> Bool"
+        BindingHeader 11..39
+          OurKw 11..14 "our"
+          Trivia 14..15 " "
+          Pattern 15..39
+            IdentifierPattern 15..17 "eq"
+            PatternTypeAnnotation 17..39
+              Colon 17..18 ":"
+              Trivia 18..19 " "
+              TypeExpression 19..39 "Self -> Self -> Bool"
+    BlockStatementSeparator 39..40 "\n"
+    RBrace 40..41 "}"
+  Trivia 41..42 " "
+  DerivesClause 42..55
+    DerivesKw 42..49 "derives"
+    Trivia 49..50 " "
+    TypeExpression 50..55 "Debug"
+```
+
+ASTはhead Complete、source None、Braced body（close Complete `40..41`）、derives = one Trailing attachment
+（clause `42..55`）、range `0..55`である。closeがMissingのsame surfaceではtrailing authorityが開かず、
+`derives Debug`はbody内 / outer ownerのordinary surfaceに残る。
+
+### Named Yulang2 divergences
+
+1. **Post-primary derives yield（intended-surface restoration）:** Y2はname直後以外のsame-line `derives`を
+   head / source TypeExpressionへ吸収した（oracle fact 2）。Y3はHead / Source outer episodeのDerives stopで
+   post-primary `derives`をattachmentへyieldする。これはY2 `finish_with_or_stmt_stop`が構造上意図した
+   post-source surface（oracle fact 3）の復元であり、DRV追補がType equality RHSで固定したstop-wins規則
+   （本document:20321-20322）とuniformである。
+2. **Fresh-primary preservation:** `act derives Eq` / `act a = derives Eq`はY2どおりheadまたはsourceが
+   TypeExpression `derives Eq`のままであり、Missing + clauseへ変えない。Type equality RHS（`type Id = derives Eq`
+   = Missing Rhs + clause）とは意図的に非対称で、双方がそれぞれのY2挙動をtranscribeする。
+3. **Name-adjacent foreclosureの非継承:** Y2のname-adjacent derivesはtail全体（type arguments / `= source` /
+   `with`）をskipした（oracle fact 1）。Y3のheadはone full TypeExpressionでname / argumentを分離しないため、
+   この中間positionは表現できず、post-Head derivesの後もsource clause / body judgeが通常どおり続く。
+   `act a derives Eq = b;`はY3でattachmentとsource clauseがともにvalidである（Y2の同surfaceの挙動はfixture
+   未確定、oracle fact 4）。
+4. **Trailing attachmentの新設:** Y2 Actにpost-body derives経路はない（oracle fact 1）。Y3はStruct / Enum /
+   Error / Typeとのowner uniformityのため、actual Complete braced closeの後だけにTrailing pointを開く。Y2で
+   このpositionの`derives`は次のstatementのordinary expression surfaceになり、resolvableな意味を持つ余地が
+   なかったため、working Y2 programの観測挙動は変わらない。
+
+### Implementation boundary and gates
+
+本追補はProposalであり、コード変更を含まない。implementationをtwo gatesで固定する。Actは既にGate 10で
+public dispatchへpromoted済みのため、public behaviorへ触れる変更をGate 2へ隔離する。
+
+1. **Gate 1 — driver-side owner extension（isolated、byte-identical）:** `DerivesAttachmentOwner::Act`、
+   `DerivesOwnerTailClassifier::ActHeader` / `ActTrailing`、`DerivesOwnerTail::ActSourceIntroducer` /
+   `ActBodyStarter`、`DerivesDriverSpec::new` / `classify_derives_owner_tail` / `derives_role_episode_spec`の
+   Act arms。Error Gate 4（`b6b8f4d4`）と同型のisolated fixtureで、hand-positioned cursorからのrecognize /
+   drive / clause parse（AST / direct parity、tail classification、equals tail、rollback exactness、trailing
+   CallerBoundary fallback）を閉じる。Act episode / parse / commit pathは変更せず、full suite byte-identicalを
+   固定する。
+2. **Gate 2 — Act-side wiring（atomic public change）:** `act_type_expression_episode_spec`へのDerives stop +
+   fresh-primary policy、`ActDeclaration.derives` field、3 recognition pointのwiring（AST / direct両path）、
+   braced-close predicate（AST accessor + direct flag）。本追補のthree worked examplesをpublic `parse_file`から
+   byte-exactで、fresh-primary preservation（`act derives Eq;` / `act a = derives Eq;`）、equals-tail continuation
+   （`act a derives Eq = b;`）、absorption→yield transition（worked example 2）、trailing restrictionの
+   negative群（bodyless / colon / dedent / missing close）、ACTDRV-R全row、state restoration、AST / direct
+   parity、full-suite zero regressionをsame changeで閉じる。
+
+Gate 2が予定より大きくなる場合はepisode変更（stop + policy）とwiring本体を分けてもよいが、episode変更単独でも
+public CSTが変わる（head / source吸収がattachmentなしのyieldへ変わる）ため、分けるならepisode変更側にも
+transition fixtureを置き、両gateでfull-suite greenを要求する。
+
+### Open design questions and Claude review focus
+
+本Proposal初稿は次をdesign decision候補として置く。ユーザ承認時に確定 / 修正対象として扱う。
+
+- Trailing attachmentをActへ与える判断（named divergence 4）。strict Y2 parityを優先するならHeader-onlyへ
+  縮められるが、`DerivesDriverSpec::new`の(owner, position) exhaustive matchへunreachable armが残る。
+- fresh-primary local ownershipによる`act derives Eq` preservationの判断（named divergence 2）。Type equality
+  RHSのMissing + clause規則との非対称を、Y2 transcriptionとして受け入れるかどうか。
+- post-Head pointで`=`をowner tailとして受け、`act a derives Eq = b`をattachment + sourceの両立でacceptする判断
+  （named divergence 3）。Y2のname-adjacent foreclosureへ寄せる代替案は、driver外の新しい拒否規則を要する。
+- post-Source recognitionのSource Complete gating。Type trailingの「Missing RHSでもattach」と異なる規則だが、
+  fresh-primary ownershipによりDerives stopがMissingの原因になり得ないため衝突しない、という論証の妥当性。
+- `DerivesOwnerTail`へtwo variants（`ActSourceIntroducer` / `ActBodyStarter`）を置く命名判断。EnumはEqualを
+  `EnumBodyStarter`へ折り込んだが、ActのEqualはbody starterでないため分けた。
+- `BracedStatementBlockExpression`のclose completenessをAST側へ公開する最小手段（crate accessor vs crate
+  predicate）と、direct側のlast-byte probe再利用の妥当性。
+- companion `with:` addendumが将来post-Source pointとのorder（Y2: derives先、`with`後）を固定するという前提。
+
+著者: Claude (Fable 5)（2026-08-29、standalone `act` declarationへのshared `derives` clause attachment拡張
+追補案。ユーザ承認済み）
