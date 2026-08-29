@@ -8391,6 +8391,74 @@ where
     declaration
 }
 
+/// Parses one accepted Error continuation without making Error reachable from
+/// public statement dispatch. Its declaration identity remains Error-specific;
+/// only the established Enum variant body vocabulary is shared.
+#[allow(dead_code)]
+pub(crate) fn parse_error_declaration_isolated<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<ErrorDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    let declaration = (|| {
+        let intro = i.run(recognize_error_statement_intro)?;
+        let (header, _recoveries) = parse_required_error_header_isolated(&intro, &mut i);
+        let header_complete = matches!(header.name, Recovered::Complete(_));
+        let mut derives = header_complete
+            .then(|| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Error,
+                    DerivesAttachmentPosition::Header,
+                    intro.error_base,
+                    &mut i,
+                )
+                .map(|start| parse_derives_attachments_isolated(start, &mut i))
+                .unwrap_or_default()
+            })
+            .unwrap_or_default();
+        let body = header_complete
+            .then(|| parse_error_body_ast(intro.error_base, &mut i))
+            .unwrap_or(Recovered::Incomplete);
+        if enum_body_has_actual_trailing_close(&body) {
+            if let Some(start) = recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Error,
+                DerivesAttachmentPosition::Trailing,
+                intro.error_base,
+                &mut i,
+            ) {
+                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+            }
+        }
+        let header_end = match &header.name {
+            Recovered::Complete(name) => header
+                .parameters
+                .last()
+                .map_or_else(|| name.range().end, declaration_type_parameter_end),
+            Recovered::Incomplete => intro.error_keyword.range().end,
+        };
+        let body_end = enum_body_range_end(&body).unwrap_or(header_end);
+        let derives_end = derives
+            .last()
+            .map_or(0, |attachment| attachment.clause.range.end);
+        Some(ErrorDeclaration {
+            visibility: intro
+                .visibility
+                .map_or(Visibility::Private, |prefix| prefix.visibility),
+            name: header.name,
+            parameters: header.parameters,
+            derives,
+            body,
+            range: intro.start..header_end.max(body_end).max(derives_end),
+        })
+    })();
+    i.errors_rollback(errors_checkpoint);
+    declaration
+}
+
 fn declaration_type_parameter_end(parameter: &DeclarationTypeParameter<'_>) -> usize {
     declaration_type_parameter_range(parameter).end
 }
@@ -8614,6 +8682,180 @@ where
             enum_base,
         ),
         enum_variant_declaration_owner_spec(enum_base),
+        i,
+    );
+    let end = i.pos();
+    Recovered::Complete(EnumEqualsVariantBody::Inline {
+        variants: sequence.variants,
+        trailing_pipe: sequence.trailing_pipe,
+        range: equals.end..end,
+    })
+}
+
+fn parse_error_body_ast<'source, E>(
+    error_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<EnumBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if enum_body_implicit_boundary_pending(error_base, i) {
+        return Recovered::Complete(EnumBody::Bodyless { semicolon: None });
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(error_base, i) else {
+        i.rollback(checkpoint);
+        return Recovered::Complete(EnumBody::Bodyless { semicolon: None });
+    };
+    if let Some(equals) = i.run(scan_declaration_exact_equals) {
+        return Recovered::Complete(EnumBody::Equals {
+            equals: equals.clone(),
+            body: parse_error_equals_body_ast(error_base, equals, i),
+        });
+    }
+    let punctuation_checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation);
+    match punctuation.map(|punctuation| (punctuation.kind(), punctuation.range())) {
+        Some((PunctuationKind::Semicolon, semicolon)) => Recovered::Complete(EnumBody::Bodyless {
+            semicolon: Some(semicolon),
+        }),
+        Some((PunctuationKind::Open(Delimiter::Brace), open)) => Recovered::Complete(
+            EnumBody::Braced(parse_error_braced_body_ast(error_base, open, i)),
+        ),
+        Some((PunctuationKind::Colon, colon)) => Recovered::Complete(EnumBody::Colon {
+            colon: colon.clone(),
+            body: parse_error_colon_body_ast(error_base, colon, i),
+        }),
+        _ => {
+            i.rollback(punctuation_checkpoint);
+            i.rollback(checkpoint);
+            match enum_body_introducer_error_retry_ast(error_base, i) {
+                Some(true) => parse_error_body_ast(error_base, i),
+                Some(false) | None => Recovered::Incomplete,
+            }
+        }
+    }
+}
+
+fn parse_error_braced_body_ast<'source, E>(
+    error_base: usize,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> EnumBracedBody<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let opening = i.run(scan_trivia).expect("trivia scanning is total");
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        error_base,
+        &opening,
+        i.local.line().line_indent,
+    );
+    let sequence = parse_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::Braced,
+            layout,
+            error_base,
+        ),
+        error_variant_declaration_owner_spec(error_base),
+        i,
+    );
+    let end = match &sequence.close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    EnumBracedBody {
+        open: open.clone(),
+        variants: sequence.variants,
+        trailing_comma: sequence.trailing_comma,
+        close: sequence.close,
+        range: open.start..end,
+    }
+}
+
+fn parse_error_colon_body_ast<'source, E>(
+    error_base: usize,
+    colon: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<EnumIndentedVariantBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+    if !enum_variant_trivia_has_newline(&trivia) || i.local.line().line_indent <= error_base {
+        i.rollback(checkpoint);
+        return Recovered::Incomplete;
+    }
+    let block_indent = i.local.line().line_indent;
+    let sequence = parse_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::ColonIndented,
+            LayoutDelimitedFrame::inline(block_indent),
+            error_base,
+        ),
+        error_variant_declaration_owner_spec(error_base),
+        i,
+    );
+    let end = i.pos();
+    let _ = sequence.trailing_pipe;
+    Recovered::Complete(EnumIndentedVariantBody {
+        base_indent: error_base,
+        block_indent,
+        variants: sequence.variants,
+        range: colon.end..end,
+    })
+}
+
+fn parse_error_equals_body_ast<'source, E>(
+    error_base: usize,
+    equals: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<EnumEqualsVariantBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+    if enum_variant_trivia_has_newline(&trivia) {
+        if i.local.line().line_indent <= error_base {
+            i.rollback(checkpoint);
+            return Recovered::Incomplete;
+        }
+        let block_indent = i.local.line().line_indent;
+        let sequence = parse_variant_declaration_sequence_with_payload(
+            variant_declaration_sequence_spec(
+                VariantDeclarationSequenceForm::EqualsIndented,
+                LayoutDelimitedFrame::inline(block_indent),
+                error_base,
+            ),
+            error_variant_declaration_owner_spec(error_base),
+            i,
+        );
+        let end = i.pos();
+        let _ = sequence.trailing_pipe;
+        return Recovered::Complete(EnumEqualsVariantBody::Indented(EnumIndentedVariantBody {
+            base_indent: error_base,
+            block_indent,
+            variants: sequence.variants,
+            range: equals.end..end,
+        }));
+    }
+    let sequence = parse_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::EqualsInline,
+            LayoutDelimitedFrame::inline(error_base),
+            error_base,
+        ),
+        error_variant_declaration_owner_spec(error_base),
         i,
     );
     let end = i.pos();
@@ -9063,6 +9305,230 @@ where
         committed,
     );
     Some(recovered.1)
+}
+
+/// Direct-CST counterpart of [`parse_error_declaration_isolated`]. It remains
+/// deliberately unwired until Gate 9 promotes the shared statement path.
+#[allow(dead_code)]
+pub(crate) fn commit_error_declaration_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: ErrorStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
+    committed.start_node(SyntaxKind::ErrorDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::ErrorKw, intro.error_keyword.range());
+    let header = commit_required_error_header_isolated(&intro, committed);
+    let header_complete = matches!(header.name, Recovered::Complete(_));
+    if header_complete {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Error,
+                DerivesAttachmentPosition::Header,
+                intro.error_base,
+                probe.input(),
+            )
+        }) {
+            let _ = commit_derives_attachments_isolated(start, committed);
+        }
+    }
+    let has_actual_braced_close =
+        header_complete && commit_error_body_isolated(intro.error_base, committed);
+    if has_actual_braced_close {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Error,
+                DerivesAttachmentPosition::Trailing,
+                intro.error_base,
+                probe.input(),
+            )
+        }) {
+            let _ = commit_derives_attachments_isolated(start, committed);
+        }
+    }
+    let end = committed_position(committed);
+    committed.finish_node();
+    committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+    Recovered::Complete(intro.start..end)
+}
+
+fn commit_error_body_isolated<'parse, 'source, 'local, E, O>(
+    error_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if committed.probe(|probe| enum_body_implicit_boundary_pending(error_base, probe.input())) {
+        return false;
+    }
+    let starter = committed.probe(|probe| enum_direct_body_starter(error_base, probe.input()));
+    let Some((trivia, starter)) = starter else {
+        // Gate 7 assigns Error-specific body-introducer recovery. Gate 6 only
+        // needs the successful form adapter and must leave a clean boundary
+        // bodyless without borrowing Enum recovery identity.
+        return false;
+    };
+    let consumed_trivia = committed
+        .probe(|probe| mod_trivia(error_base, probe.input()))
+        .expect("the selected Error body starter retains its declaration-continuing trivia");
+    assert_eq!(consumed_trivia.range(), trivia.range());
+    committed.emit_trivia(&consumed_trivia);
+    match starter {
+        DirectEnumBodyStarter::Bodyless(range) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("the selected Error semicolon remains at the cursor");
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Semicolon, range);
+            false
+        }
+        DirectEnumBodyStarter::Braced(range) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("the selected Error brace remains at the cursor");
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::LBrace, range);
+            commit_error_braced_body_isolated(error_base, committed)
+        }
+        DirectEnumBodyStarter::Colon(range) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("the selected Error colon remains at the cursor");
+            assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Colon, range);
+            commit_error_colon_body_isolated(error_base, committed);
+            false
+        }
+        DirectEnumBodyStarter::Equals(range) => {
+            let equals = committed
+                .probe(|probe| probe.input().run(scan_declaration_exact_equals))
+                .expect("the selected Error equals remains at the cursor");
+            assert_eq!(equals, range);
+            committed.token(SyntaxKind::Equals, range);
+            commit_error_equals_body_isolated(error_base, committed);
+            false
+        }
+    }
+}
+
+fn commit_error_braced_body_isolated<'parse, 'source, 'local, E, O>(
+    error_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let layout = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let opening = i.run(scan_trivia).expect("trivia scanning is total");
+        let layout = LayoutDelimitedFrame::after_opening_trivia(
+            error_base,
+            &opening,
+            i.local.line().line_indent,
+        );
+        i.rollback(checkpoint);
+        layout
+    });
+    matches!(
+        commit_variant_declaration_sequence_with_payload(
+            variant_declaration_sequence_spec(
+                VariantDeclarationSequenceForm::Braced,
+                layout,
+                error_base
+            ),
+            error_variant_declaration_owner_spec(error_base),
+            committed,
+        ),
+        EnumVariantSequenceTermination::MatchingClose(_)
+    )
+}
+
+fn commit_error_colon_body_isolated<'parse, 'source, 'local, E, O>(
+    error_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scanning is total");
+    let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+    if !enum_variant_trivia_has_newline(&trivia) || block_indent <= error_base {
+        return;
+    }
+    committed.emit_trivia(&trivia);
+    let _ = commit_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::ColonIndented,
+            LayoutDelimitedFrame::inline(block_indent),
+            error_base,
+        ),
+        error_variant_declaration_owner_spec(error_base),
+        committed,
+    );
+}
+
+fn commit_error_equals_body_isolated<'parse, 'source, 'local, E, O>(
+    error_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scanning is total");
+    if enum_variant_trivia_has_newline(&trivia) {
+        let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+        if block_indent <= error_base {
+            return;
+        }
+        committed.emit_trivia(&trivia);
+        let _ = commit_variant_declaration_sequence_with_payload(
+            variant_declaration_sequence_spec(
+                VariantDeclarationSequenceForm::EqualsIndented,
+                LayoutDelimitedFrame::inline(block_indent),
+                error_base,
+            ),
+            error_variant_declaration_owner_spec(error_base),
+            committed,
+        );
+        return;
+    }
+    committed.emit_trivia(&trivia);
+    let _ = commit_variant_declaration_sequence_with_payload(
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::EqualsInline,
+            LayoutDelimitedFrame::inline(error_base),
+            error_base,
+        ),
+        error_variant_declaration_owner_spec(error_base),
+        committed,
+    );
 }
 
 /// This is intentionally local rather than a global reserved-word state:
@@ -20688,6 +21154,147 @@ where
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn error_gate_6_worked_examples_are_lossless_and_ast_direct_parity() {
+        fn outline(node: &SyntaxNode, entries: &mut Vec<(SyntaxKind, Range<usize>)>) {
+            for element in node.children_with_tokens() {
+                entries.push((element.kind(), syntax_range(element.text_range())));
+                if let Some(child) = element.into_node() {
+                    outline(&child, entries);
+                }
+            }
+        }
+
+        fn parse_ast<'source>(source: &'source str) -> ErrorDeclaration<'source> {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let declaration = parse_error_declaration_isolated(
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("accepted isolated Error intro");
+            assert_eq!(input.remainder(), "", "AST remainder: {source:?}");
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!cut, "AST cut: {source:?}");
+            declaration
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (
+            Recovered<Range<usize>>,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_error_statement_intro)
+                .expect("accepted Error intro");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_error_declaration_isolated(&mut committed, intro);
+            committed.finish_node();
+            let output = committed.into_output();
+            assert_eq!(input.remainder(), "", "direct remainder: {source:?}");
+            assert!(sink.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!cut, "direct cut: {source:?}");
+            let recoveries = output.committed_recoveries().to_vec();
+            (
+                range,
+                SyntaxNode::new_root(output.finish_complete()),
+                recoveries,
+            )
+        }
+
+        for (source, expected) in [
+            (
+                "error fs_err:\n  not_found str\n  denied str",
+                vec![
+                    (SyntaxKind::ErrorKw, 0..5),
+                    (SyntaxKind::Whitespace, 5..6),
+                    (SyntaxKind::Identifier, 6..12),
+                    (SyntaxKind::Colon, 12..13),
+                    (SyntaxKind::Newline, 13..14),
+                    (SyntaxKind::Whitespace, 14..16),
+                    (SyntaxKind::EnumVariant, 16..29),
+                    (SyntaxKind::Identifier, 16..25),
+                    (SyntaxKind::Whitespace, 25..26),
+                    (SyntaxKind::TypeExpression, 26..29),
+                    (SyntaxKind::Identifier, 26..29),
+                    (SyntaxKind::Newline, 29..30),
+                    (SyntaxKind::Whitespace, 30..32),
+                    (SyntaxKind::EnumVariant, 32..42),
+                    (SyntaxKind::Identifier, 32..38),
+                    (SyntaxKind::Whitespace, 38..39),
+                    (SyntaxKind::TypeExpression, 39..42),
+                    (SyntaxKind::Identifier, 39..42),
+                ],
+            ),
+            (
+                "error io_err:\n  fs from fs_err",
+                vec![
+                    (SyntaxKind::ErrorKw, 0..5),
+                    (SyntaxKind::Whitespace, 5..6),
+                    (SyntaxKind::Identifier, 6..12),
+                    (SyntaxKind::Colon, 12..13),
+                    (SyntaxKind::Newline, 13..14),
+                    (SyntaxKind::Whitespace, 14..16),
+                    (SyntaxKind::EnumVariant, 16..30),
+                    (SyntaxKind::Identifier, 16..18),
+                    (SyntaxKind::Whitespace, 18..19),
+                    (SyntaxKind::FromKw, 19..23),
+                    (SyntaxKind::Whitespace, 23..24),
+                    (SyntaxKind::TypeExpression, 24..30),
+                    (SyntaxKind::Identifier, 24..30),
+                ],
+            ),
+            (
+                "my error E:\n  failed",
+                vec![
+                    (SyntaxKind::MyKw, 0..2),
+                    (SyntaxKind::Whitespace, 2..3),
+                    (SyntaxKind::ErrorKw, 3..8),
+                    (SyntaxKind::Whitespace, 8..9),
+                    (SyntaxKind::Identifier, 9..10),
+                    (SyntaxKind::Colon, 10..11),
+                    (SyntaxKind::Newline, 11..12),
+                    (SyntaxKind::Whitespace, 12..14),
+                    (SyntaxKind::EnumVariant, 14..20),
+                    (SyntaxKind::Identifier, 14..20),
+                ],
+            ),
+        ] {
+            let ast = parse_ast(source);
+            let (range, root, recoveries) = commit_direct(source);
+            assert_eq!(
+                range,
+                Recovered::Complete(ast.range()),
+                "range parity: {source:?}"
+            );
+            assert_eq!(ast.range(), 0..source.len(), "AST range: {source:?}");
+            assert!(matches!(
+                ast.body,
+                Recovered::Complete(EnumBody::Colon { .. })
+            ));
+            assert!(recoveries.is_empty(), "zero recovery: {source:?}");
+            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            let declaration = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::ErrorDeclaration)
+                .expect("one ErrorDeclaration");
+            let mut actual = Vec::new();
+            outline(&declaration, &mut actual);
+            assert_eq!(actual, expected, "byte-exact CST: {source:?}");
+        }
+    }
+
     use super::*;
     use chasa::{
         input::IsCut,
