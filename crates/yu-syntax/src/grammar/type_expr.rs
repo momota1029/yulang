@@ -6325,6 +6325,7 @@ where
         StopKind::ArmGuardIf => i.run(scan_word).is_some_and(|word| word.text() == "if"),
         StopKind::ArmGuardWhere => i.run(scan_word).is_some_and(|word| word.text() == "where"),
         StopKind::In => i.run(scan_word).is_some_and(|word| word.text() == "in"),
+        StopKind::Impl => i.run(scan_word).is_some_and(|word| word.text() == "impl"),
         StopKind::With => i.run(scan_word).is_some_and(|word| word.text() == "with"),
         StopKind::Derives => i
             .run(scan_word)

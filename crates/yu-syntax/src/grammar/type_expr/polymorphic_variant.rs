@@ -1287,6 +1287,7 @@ mod tests {
             StopKind::Derives => "derives",
             StopKind::Via => "via",
             StopKind::In => "in",
+            StopKind::Impl => "impl",
             StopKind::LeftParenthesis => "(",
             StopKind::Pipe => "|",
         }

@@ -18584,6 +18584,18 @@ pub(crate) enum TypeDeclarationForm<'source> {
         equals: Recovered<Range<usize>>,
         rhs: Recovered<Box<TypeExpression<'source>>>,
     },
+    #[allow(dead_code)]
+    AttachedImpl(TypeAttachedImpl<'source>),
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TypeAttachedImpl<'source> {
+    impl_keyword: Range<usize>,
+    head: Recovered<Box<TypeExpression<'source>>>,
+    description: Option<ImplDescription<'source>>,
+    body: Recovered<ImplBody<'source>>,
+    range: Range<usize>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

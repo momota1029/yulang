@@ -938,6 +938,7 @@ define_stop_kinds!(
     Derives,
     Via,
     In,
+    Impl,
     LeftParenthesis,
     Pipe,
 );
@@ -1221,6 +1222,7 @@ pub(crate) enum TypeDeclarationRole {
     Name,
     DefinitionIntroducer,
     Rhs,
+    AttachedImpl(ImplRole),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -2052,6 +2054,7 @@ mod tests {
             StopKind::Derives,
             StopKind::Via,
             StopKind::In,
+            StopKind::Impl,
             StopKind::LeftParenthesis,
             StopKind::Pipe,
         ];
@@ -2071,10 +2074,17 @@ mod tests {
             .with(StopKind::Derives)
             .with(StopKind::Via)
             .with(StopKind::In)
+            .with(StopKind::Impl)
             .with(StopKind::LeftParenthesis);
         assert_eq!(
             extended.0,
-            (1u32 << 0) | (1u32 << 14) | (1u32 << 15) | (1u32 << 16) | (1u32 << 17) | (1u32 << 18)
+            (1u32 << 0)
+                | (1u32 << 14)
+                | (1u32 << 15)
+                | (1u32 << 16)
+                | (1u32 << 17)
+                | (1u32 << 18)
+                | (1u32 << 19)
         );
         assert_eq!(
             extended.difference(existing),
@@ -2082,6 +2092,7 @@ mod tests {
                 .with(StopKind::Derives)
                 .with(StopKind::Via)
                 .with(StopKind::In)
+                .with(StopKind::Impl)
                 .with(StopKind::LeftParenthesis)
         );
     }
