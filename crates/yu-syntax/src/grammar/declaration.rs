@@ -1479,11 +1479,51 @@ where
         .with(StopKind::LeftBrace);
     i.local.push_stop_set(stops);
     let _ = i.run(scan_trivia).expect("trivia scanning is total");
-    let iterable = (!for_iterable_primary_stop_pending(i))
+    let mut iterable = (!for_iterable_primary_stop_pending(i))
         .then(|| i.run(from_fn(|i| parse_expression_with_operators(table, i))))
         .flatten();
+    if iterable.is_none() && for_iterable_error_retry_ast(table, i) {
+        iterable = i.run(from_fn(|i| parse_expression_with_operators(table, i)));
+    }
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     iterable.map_or(Recovered::Incomplete, Recovered::Complete)
+}
+
+fn for_iterable_error_retry_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if for_iterable_primary_stop_pending(i) {
+            return false;
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return false;
+        };
+        if matches!(character, '\r' | '\n' | ';') {
+            return false;
+        }
+        i.input.next();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        let checkpoint = i.checkpoint();
+        let errors_checkpoint = i.errors_checkpoint();
+        let candidate = i
+            .run(from_fn(|i| parse_expression_with_operators(table, i)))
+            .is_some();
+        i.rollback(checkpoint);
+        i.errors_rollback(errors_checkpoint);
+        if candidate {
+            return start < i.pos();
+        }
+    }
 }
 
 fn commit_for_in_and_iterable_isolated<'parse, 'source, 'local, E, O>(
@@ -1672,6 +1712,41 @@ fn emit_for_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
+fn emit_for_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: ForStatementRole,
+    expected: ExpectedSyntax,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::ForStatement(role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
 /// Parses one accepted For continuation without making For reachable from the
 /// public statement dispatcher.  The body adapter owns only For's local
 /// punctuation and returns every outer separator and boundary untouched.
@@ -1711,7 +1786,13 @@ where
         } else {
             parse_for_in_and_iterable_isolated(table, &mut i)
         };
-        let body = parse_for_body_isolated(table, intro.for_base, &mut i);
+        let body = if matches!(iterable, Recovered::Complete(_))
+            || for_body_starter_after_gap_pending(intro.for_base, &mut i)
+        {
+            parse_for_body_isolated(table, intro.for_base, &mut i)
+        } else {
+            Recovered::Incomplete
+        };
         let end = i.pos();
         Some(ForStatement {
             label,
@@ -1746,6 +1827,9 @@ where
     };
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
+        if for_body_introducer_error_retry_ast(for_base, i).is_some_and(|retry| retry) {
+            return parse_for_body_isolated(table, for_base, i);
+        }
         return Recovered::Incomplete;
     };
     match punctuation.kind() {
@@ -1777,6 +1861,9 @@ where
         }
         _ => {
             i.rollback(checkpoint);
+            if for_body_introducer_error_retry_ast(for_base, i).is_some_and(|retry| retry) {
+                return parse_for_body_isolated(table, for_base, i);
+            }
             Recovered::Incomplete
         }
     }
@@ -1826,10 +1913,21 @@ where
     let pattern = commit_required_for_pattern_isolated(table, committed);
     let header_truncated = !pattern.is_complete()
         && committed.probe(|probe| for_header_truncation_pending(probe.input()));
-    if !header_truncated {
-        let _ = commit_for_in_and_iterable_isolated(table, committed);
+    if header_truncated {
+        if committed
+            .probe(|probe| for_body_starter_after_gap_pending(intro.for_base, probe.input()))
+        {
+            commit_for_body_isolated(table, intro.for_base, committed);
+        }
+    } else {
+        let (_, iterable) = commit_for_in_and_iterable_isolated(table, committed);
+        if matches!(iterable, Recovered::Complete(_))
+            || committed
+                .probe(|probe| for_body_starter_after_gap_pending(intro.for_base, probe.input()))
+        {
+            commit_for_body_isolated(table, intro.for_base, committed);
+        }
     }
-    commit_for_body_isolated(table, intro.for_base, committed);
     let end = committed_position(committed);
     committed.finish_node();
     committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
@@ -1864,6 +1962,11 @@ fn commit_for_body_isolated<'parse, 'source, 'local, E, O>(
         starter
     });
     let Some((trivia, starter)) = starter else {
+        let recovered = for_body_introducer_error_retry(committed, for_base);
+        if matches!(recovered, Some(true)) {
+            commit_for_body_isolated(table, for_base, committed);
+            return;
+        }
         if !committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
             emit_for_missing(
                 committed,
@@ -1892,6 +1995,133 @@ fn commit_for_body_isolated<'parse, 'source, 'local, E, O>(
         }
         _ => unreachable!("For body starter was classified from colon or brace only"),
     }
+}
+
+/// Skips one malformed For body-introducer run without taking ownership of a
+/// later body starter or caller boundary.  The direct path records that run as
+/// the sole For-specific error, then retries the body judge at the starter.
+fn for_body_introducer_error_retry_ast<'source, E>(
+    _for_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    loop {
+        if for_body_starter_pending(i) {
+            return (start < i.pos()).then_some(true);
+        }
+        if for_body_boundary_pending(i) {
+            return (start < i.pos()).then_some(false);
+        }
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            i.rollback(checkpoint);
+            return None;
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn for_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Colon | PunctuationKind::Open(Delimiter::Brace)
+        )
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn for_body_starter_after_gap_pending<E>(for_base: usize, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = for_continuation_trivia(for_base, i).is_some() && for_body_starter_pending(i);
+    i.rollback(checkpoint);
+    pending
+}
+
+fn for_body_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) || i.input.remainder().is_empty() {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Comma
+                | PunctuationKind::Close(
+                    Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                )
+        )
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn for_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    _for_base: usize,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let start = i.pos();
+        loop {
+            if for_body_starter_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), true));
+            }
+            if for_body_boundary_pending(i) {
+                return (start < i.pos()).then_some((start..i.pos(), false));
+            }
+            let character = i.input.remainder().chars().next()?;
+            if matches!(character, '\r' | '\n') {
+                i.rollback(checkpoint);
+                return None;
+            }
+            i.input.next()?;
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    })?;
+    emit_for_error(
+        committed,
+        ForStatementRole::BodyIntroducer,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        recovered.0,
+    );
+    Some(recovered.1)
 }
 
 fn commit_for_colon_body_isolated<'parse, 'source, 'local, E, O>(
@@ -30488,10 +30718,11 @@ mod tests {
             committed.finish_node();
             let output = committed.into_output();
             let record_count = output.committed_recoveries().len();
-            let root = SyntaxNode::new_root(output.finish_complete());
-            assert_eq!(root.to_string(), source, "lossless: {source:?}");
+            let cst_root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(cst_root.to_string(), source, "lossless: {source:?}");
             assert_eq!(
-                root.descendants()
+                cst_root
+                    .descendants()
                     .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
                     .count(),
                 record_count,
@@ -39078,6 +39309,318 @@ mod tests {
         assert_eq!(range, 0..14);
         assert_eq!(remainder, ";", "direct inline semicolon is outer-owned");
         assert!(recoveries.is_empty());
+    }
+
+    #[test]
+    fn for_gate_7_recovery_matrix_fixtures_the_full_for_r_table() {
+        type Recovery = (RecoveryKind, GrammarRole, Range<usize>);
+
+        fn ast<'source>(source: &'source str) -> (ForStatement<'source>, String) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_indentation_baseline(IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            });
+            let root = local.push_root_statement_ambient_scope();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let statement = parse_for_statement_isolated(
+                &crate::operator::OperatorTable::empty(),
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("bare For intro is accepted");
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            (statement, input.remainder().to_owned())
+        }
+
+        fn direct(source: &str) -> (Range<usize>, String, Vec<Recovery>) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_indentation_baseline(IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            });
+            let root = local.push_root_statement_ambient_scope();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_for_statement_intro)
+                .expect("bare For intro is accepted");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = match commit_for_statement_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+                intro,
+            ) {
+                Recovered::Complete(range) => range,
+                Recovered::Incomplete => panic!("accepted For continuation stays complete"),
+            };
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            if !remainder.is_empty() {
+                let start = committed.probe(|probe| probe.input().pos());
+                committed.token(SyntaxKind::Unknown, start..source.len());
+            }
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect::<Vec<_>>();
+            let cst_root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(cst_root.to_string(), source, "lossless: {source:?}");
+            assert_eq!(
+                cst_root
+                    .descendants()
+                    .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                    .count(),
+                records.len(),
+                "one record = one CST recovery node: {source:?}",
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root));
+            assert!(sink.take_merged().is_none(), "direct sink: {source:?}");
+            (range, remainder, records)
+        }
+
+        let for_role = |role| GrammarRole::ForStatement(role);
+        let assert_case = |source: &str, remainder: &str, expected: Vec<Recovery>| {
+            let (statement, ast_remainder) = ast(source);
+            let (direct_range, direct_remainder, records) = direct(source);
+            let for_owned = records
+                .iter()
+                .all(|(_, role, _)| matches!(role, GrammarRole::ForStatement(_)));
+            if for_owned {
+                assert_eq!(
+                    statement.range(),
+                    direct_range,
+                    "AST/direct range: {source:?}"
+                );
+                assert_eq!(ast_remainder, remainder, "AST boundary: {source:?}");
+            }
+            assert_eq!(direct_remainder, remainder, "direct boundary: {source:?}");
+            assert_eq!(records, expected, "FOR-R recovery: {source:?}");
+        };
+
+        // Normal, label-probe, Pattern, `in`, and iterable rows.
+        for source in [
+            "for x in xs: body",
+            "for x in xs:\n  body",
+            "for x in xs { body }",
+            "for 'outer x in xs: body",
+            "for 'x in xs: body",
+            "for 'outer in xs: body",
+            "for x: T in xs: body",
+        ] {
+            assert_case(source, "", vec![]);
+        }
+        assert_case(
+            "for",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::Pattern),
+                3..3,
+            )],
+        );
+        assert_case(
+            "for in xs: body",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::Pattern),
+                4..4,
+            )],
+        );
+        assert_case(
+            "for : body",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::Pattern),
+                4..4,
+            )],
+        );
+        assert_case(
+            "for @ x in xs: body",
+            "",
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                4..6,
+            )],
+        );
+        assert_case(
+            "for @ : body",
+            "",
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                4..6,
+            )],
+        );
+        assert_case(
+            "for x xs: body",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::InKeyword),
+                6..6,
+            )],
+        );
+        assert_case(
+            "for x { body }",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::InKeyword),
+                6..6,
+            )],
+        );
+        assert_case(
+            "for x in: body",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::Iterable),
+                8..8,
+            )],
+        );
+        assert_case(
+            "for x in",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::Iterable),
+                8..8,
+            )],
+        );
+        assert_case(
+            "for x in @ xs: body",
+            "",
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Expression(crate::session::ExpressionRole::Nud),
+                9..11,
+            )],
+        );
+
+        // Body rows: ownership of outer boundaries, retry, and delegated body recovery.
+        assert_case(
+            "for x in xs:\nbody",
+            "\nbody",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::Body),
+                12..12,
+            )],
+        );
+        assert_case(
+            "for x in xs:",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::Body),
+                12..12,
+            )],
+        );
+        assert_case(
+            "for x in xs",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::BodyIntroducer),
+                11..11,
+            )],
+        );
+        assert_case(
+            "for x in xs; next",
+            "; next",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::BodyIntroducer),
+                11..11,
+            )],
+        );
+        assert_case(
+            "for x in xs @: body",
+            "",
+            vec![(
+                RecoveryKind::Error,
+                for_role(ForStatementRole::BodyIntroducer),
+                11..13,
+            )],
+        );
+        assert_case(
+            "for x in xs { body",
+            "",
+            vec![
+                ((
+                    RecoveryKind::Missing,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::BracedStatementBlockExpression,
+                        delimiter: Delimiter::Brace,
+                    },
+                    18..18,
+                )),
+            ],
+        );
+        assert_case(
+            "for x in xs { @ }",
+            "",
+            vec![
+                ((
+                    RecoveryKind::Error,
+                    GrammarRole::BracedStatementBlock(
+                        crate::session::BracedStatementBlockRole::Statement,
+                    ),
+                    14..16,
+                )),
+            ],
+        );
+        assert_case(
+            "for x in xs { body]",
+            "",
+            vec![
+                (
+                    RecoveryKind::Error,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::BracedStatementBlockExpression,
+                        delimiter: Delimiter::Brace,
+                    },
+                    18..19,
+                ),
+                (
+                    RecoveryKind::Missing,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::BracedStatementBlockExpression,
+                        delimiter: Delimiter::Brace,
+                    },
+                    19..19,
+                ),
+            ],
+        );
+
+        // The label EOF rollback, truncation rule, and inline sibling all keep
+        // their next legitimate construct untouched.
+        let (statement, remainder) = ast("for 'x");
+        assert!(statement.label.is_none());
+        assert_eq!(remainder, "");
+        assert_case(
+            "for 'x",
+            "",
+            vec![(
+                RecoveryKind::Missing,
+                for_role(ForStatementRole::InKeyword),
+                6..6,
+            )],
+        );
+        assert_case("for x in xs: body\nnext", "\nnext", vec![]);
     }
 
     #[test]
