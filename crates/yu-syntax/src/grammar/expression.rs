@@ -15,11 +15,12 @@ use crate::{
         ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro,
         StructDeclaration, TypeDeclaration, UseDeclaration, commit_act_declaration_isolated,
         commit_binding_declaration, commit_cast_declaration_isolated,
-        commit_enum_declaration_isolated, commit_impl_declaration_isolated, commit_mod_declaration,
-        commit_role_declaration_isolated, commit_struct_declaration, commit_type_declaration,
-        commit_use_declaration, parse_act_declaration_isolated,
-        parse_binding_declaration_with_operators, parse_cast_declaration_form_aware_isolated,
-        parse_enum_declaration_isolated, parse_impl_declaration_isolated,
+        commit_enum_declaration_isolated, commit_error_declaration_isolated,
+        commit_impl_declaration_isolated, commit_mod_declaration, commit_role_declaration_isolated,
+        commit_struct_declaration, commit_type_declaration, commit_use_declaration,
+        parse_act_declaration_isolated, parse_binding_declaration_with_operators,
+        parse_cast_declaration_form_aware_isolated, parse_enum_declaration_isolated,
+        parse_error_declaration_isolated, parse_impl_declaration_isolated,
         parse_mod_declaration_with_operators, parse_role_declaration_isolated,
         parse_struct_declaration, parse_type_declaration, parse_use_declaration,
         recognize_statement_intro,
@@ -2004,6 +2005,9 @@ where
         Some(StatementIntro::Enum(_)) => i
             .run(from_fn(parse_enum_declaration_isolated))
             .map(Statement::Enum),
+        Some(StatementIntro::Error(_)) => i
+            .run(from_fn(parse_error_declaration_isolated))
+            .map(Statement::Error),
         Some(StatementIntro::Type(_)) => i.run(parse_type_declaration).map(Statement::Type),
         Some(StatementIntro::Role(_)) => i
             .run(from_fn(|i| parse_role_declaration_isolated(table, i)))
@@ -5877,8 +5881,9 @@ where
             let _ = commit_enum_declaration_isolated(committed, intro);
             true
         }
-        Some(StatementIntro::Error(_)) => {
-            unreachable!("Error dispatch is introduced in its Gate 9 promotion")
+        Some(StatementIntro::Error(intro)) => {
+            let _ = commit_error_declaration_isolated(committed, intro);
+            true
         }
         Some(StatementIntro::Type(intro)) => {
             let _ = commit_type_declaration(committed, intro);
@@ -5926,6 +5931,7 @@ where
                 | StatementIntro::Mod(_)
                 | StatementIntro::Struct(_)
                 | StatementIntro::Enum(_)
+                | StatementIntro::Error(_)
                 | StatementIntro::Type(_)
                 | StatementIntro::Role(_)
                 | StatementIntro::Impl(_)

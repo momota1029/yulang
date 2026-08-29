@@ -455,8 +455,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_enum_declaration_isolated(&mut committed, intro);
                 StatementKind::EnumDeclaration
             }
-            StatementIntro::Error(_) => {
-                unreachable!("Error dispatch is introduced in its Gate 9 promotion")
+            StatementIntro::Error(intro) => {
+                let _ = commit_error_declaration_isolated(&mut committed, intro);
+                StatementKind::ErrorDeclaration
             }
             StatementIntro::Type(intro) => {
                 let _ = commit_type_declaration(&mut committed, intro);
@@ -754,6 +755,10 @@ where
 
     if let Some(intro) = i.run(recognize_enum_statement_intro) {
         return Some(StatementIntro::Enum(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_error_statement_intro) {
+        return Some(StatementIntro::Error(intro));
     }
 
     if let Some(intro) = i.run(recognize_mod_statement_intro) {
@@ -1166,7 +1171,6 @@ where
 /// Error authority only when a raw TypeExpression name is visible after the
 /// keyword; the lookahead rolls back so the later header driver owns the same
 /// bytes.
-#[allow(dead_code)]
 fn recognize_error_statement_intro<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ErrorStatementIntro<'source>>
@@ -8441,10 +8445,9 @@ where
     declaration
 }
 
-/// Parses one accepted Error continuation without making Error reachable from
-/// public statement dispatch. Its declaration identity remains Error-specific;
-/// only the established Enum variant body vocabulary is shared.
-#[allow(dead_code)]
+/// Parses one accepted Error continuation shared by isolated fixtures and
+/// Gate 9's promoted public statement dispatch. Its declaration identity
+/// remains Error-specific; only the established Enum body vocabulary is shared.
 pub(crate) fn parse_error_declaration_isolated<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ErrorDeclaration<'source>>
@@ -9357,9 +9360,8 @@ where
     Some(recovered.1)
 }
 
-/// Direct-CST counterpart of [`parse_error_declaration_isolated`]. It remains
-/// deliberately unwired until Gate 9 promotes the shared statement path.
-#[allow(dead_code)]
+/// Direct-CST counterpart of [`parse_error_declaration_isolated`]. Gate 9
+/// promotes this exact adapter into shared statement dispatch.
 pub(crate) fn commit_error_declaration_isolated<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: ErrorStatementIntro<'source>,
@@ -18030,6 +18032,7 @@ where
     i.choice((
         parse_struct_declaration.map(Declaration::Struct),
         from_fn(parse_enum_declaration_isolated).map(Declaration::Enum),
+        from_fn(parse_error_declaration_isolated).map(Declaration::Error),
         parse_type_declaration.map(Declaration::Type),
         from_fn(|i| parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
             .map(Declaration::Role),
@@ -21757,6 +21760,175 @@ mod tests {
                 matches!(records[0].1, GrammarRole::Type(_)),
                 "Type role stays inner: {source:?}"
             );
+        }
+    }
+
+    #[test]
+    fn error_gate_9_real_dispatch_reaches_root_and_canonical_statement_owners() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ErrorDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ErrorDeclaration),
+                "public/direct Error range parity: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> Range<usize> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Error(declaration) = i
+                .run(parse_declaration)
+                .expect("the promoted root parser recognizes Error")
+            else {
+                panic!("the exact Error intro must win root declaration dispatch")
+            };
+            assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "root AST sink: {source:?}"
+            );
+            assert!(!is_cut, "root AST cut: {source:?}");
+            declaration.range()
+        }
+
+        // These are ERROR-G's positional, `from`, and contextual-visibility
+        // worked examples through the real public entrypoint, not the
+        // isolated adapters from Gates 1-8.
+        for source in [
+            "error fs_err:\n  not_found str\n  denied str",
+            "error io_err:\n  fs from fs_err",
+            "my error E:\n  failed",
+        ] {
+            assert_eq!(
+                parse_root_ast(source),
+                0..source.len(),
+                "root AST: {source:?}"
+            );
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ErrorDeclaration),
+                vec![0..source.len()],
+                "public Error declaration: {source:?}",
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "root recovery: {source:?}"
+            );
+        }
+
+        let nested_ast_source = "error E { A, B }";
+        let mut source_input = SourceInput::new(nested_ast_source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let table = crate::operator::OperatorTable::empty();
+        let Some(Statement::Error(declaration)) =
+            i.run(from_fn(|i| parse_canonical_statement(&table, i)))
+        else {
+            panic!("the promoted canonical Statement dispatcher recognizes Error")
+        };
+        assert_eq!(declaration.range(), 0..nested_ast_source.len());
+        assert_eq!(i.input.remainder(), "");
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+
+        // Existing indented and braced statement owners reach the same
+        // direct-CST canonical adapter.
+        for source in [
+            "role Outer:\n  error E { A, B }\n  my value = 1",
+            "my block = { error E { A, B }\n  my value = 1 }",
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert!(
+                !node_ranges(&public, SyntaxKind::ErrorDeclaration).is_empty(),
+                "canonical owner: {source:?}",
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "owner recovery: {source:?}"
+            );
+        }
+
+        // ERROR-J's contextual collision proves the shared ordered dispatch:
+        // a raw head after `my error` selects Error before Binding, while no
+        // head restores Binding authority.
+        let (public, direct_root, direct) = parse_public_and_direct("my error E = A");
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::ErrorDeclaration),
+            vec![0..14],
+        );
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::ErrorDeclaration),
+            node_ranges(&direct_root, SyntaxKind::ErrorDeclaration),
+        );
+        assert!(direct.committed_recoveries().is_empty());
+
+        let (public, direct_root, direct) = parse_public_and_direct("my error = 1");
+        assert!(node_ranges(&public, SyntaxKind::ErrorDeclaration).is_empty());
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            vec![0..12]
+        );
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            node_ranges(&direct_root, SyntaxKind::BindingStatement),
+        );
+        assert!(direct.committed_recoveries().is_empty());
+
+        // Error is full-only: header discovery must stop without producing a
+        // header fact, matching the existing rollback arm.
+        for source in ["error E { A, B }", "pub error E;"] {
+            let source: Arc<crate::SourceText> = Arc::from(source);
+            let header = crate::scan_header(source);
+            assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+            assert_eq!(header.coverage().range(), &(0..0));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
         }
     }
 
