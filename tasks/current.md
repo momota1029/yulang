@@ -3,7 +3,8 @@
 更新: 2026-08-28（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
 2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走→
-standalone `for`文も全10 gate完走→Act-derives attachment addendumも両gate完走）
+standalone `for`文も全10 gate完走→Act-derives attachment addendumも両gate完走→
+Type-attached `impl` addendumも全6 gate完走）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -183,6 +184,34 @@ standalone `for`文も全10 gate完走→Act-derives attachment addendumも両ga
   exampleとACTDRV-R recovery tableをreal `parse_file`で固定し、562 tests green・workspace build
   greenで両gate完走。これは既存shared mechanismへの第5 owner追加であり、standalone
   declaration/statement familyの追加ではない。
+- Type-attached `impl` form addendum(TAI、`type Name impl ...`)は、Fable 5がセッション途中で
+  rate limitに達したためFable-5-absent substitute procedureによりCodex gpt-5.6-sol (xhigh)が
+  起草し、Claude Sonnet 5が査読・finalizeした設計(`8268a182`)を実装。`TypeDeclarationForm`
+  の第3 form `AttachedImpl`として、standalone Impl全体ではなく`impl` keyword後の
+  head/description/bodyだけを既存tailと共有し、wrapper nodeなしでflat emitする。Gate 1
+  (`7d4291ba`)はinert vocabulary scaffold、Gate 2(`4b36550c`)はstandalone Implの
+  post-keyword tailをowner-parameterized shared core
+  (`ImplTailOwnerSpec`/`parse_impl_tail_ast`/`commit_impl_tail`)へ純粋抽出して既存Implを
+  byte-identicalに維持、Gate 3(`f4bcf125`)はpost-header decisionと
+  `DerivesOwnerTailClassifier::TypeHeaderAttachedImpl`/tail owner specをproduction未接続で
+  分離、Gate 4(`5202b438`)はType-owned AST/direct-CST adapterでbodyless・description+
+  bodyless・brace・colon-inline・colon-indentedの5形をbyte-exactかつnested
+  `ImplDeclaration`なしで固定。Gate 5(`660eab42`)はTAI-R recovery/state matrixを閉じ、共有tail
+  coreのerrors checkpoint rollback欠落とmissing-Head時にMissing recordを出さない実gap 2件を
+  修正（standalone Implの18関連testは不変確認）。Gate 6(`2d04232a`)はHeader derives後、
+  Nominal/Equality前のreal Type AST/direct dispatchへatomic promotionし、production TypeHeader
+  RoleRefもscoped classifierへ切替——deferredとして両方でpinされていたblocking sourceを
+  standalone Impl Gate 9のnegative loopと別scope-gate testの2箇所から新しいpositive
+  production-path testへ移し、`with:`/Type colon-brace role-like bodyのdeferred rowsは保持した。
+  dispatch slotはHeader derives → AttachedImpl → (future With) → Equality → (future role-like body)
+  → Nominal/recoveryとして将来addendum用に予約。568 tests green・zero regressions・workspace
+  build green、new SyntaxKind・attached trailing derives・`with:`/role-like body・`via`・
+  semantics/HIR/resolver/formatterの追加なし。なお本gateでは56,000行超の`declaration.rs`に新testを
+  含めるとsandboxのrustfmtが12.4GB allocation failureでcrashする既知のfile-size limitationを
+  patch splitで再現確認したため、当該commitだけはClaudeが新規codeのformatを目視検証した
+  (`cargo check`/testはclean)。新grammar surfaceを持つため2 gateのACTDRVより大きいが、既存Type/
+  Impl machineryを再利用し新しいintro/root-nested dispatchやCST vocabularyを増やさない、
+  declaration family未満のmedium-sized addendumとして全6 gate完走。
 
 ## 既知の未修正バグ
 
@@ -203,8 +232,8 @@ standalone `for`文も全10 gate完走→Act-derives attachment addendumも両ga
 2. **canonical Statement / root Declarationの残りvariant**:
    declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`/`error`/`for`文は実装完了。
    `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。
-3. **defer済み3項目の優先順位決定**: Type-attached `impl`(`type Name impl ...`)・
-   shared declaration companion `with:`・Type colon/brace role-like body。正本はどれも
+3. **defer済み2項目の優先順位決定**: shared declaration companion `with:`・Type colon/brace
+   role-like body。正本はどれも
    「別addendumへ」としか書いておらず、
    相対的な実装順序は未決定。
 4. **Cast known-residualの一般化解消**: 追補が明示的に別addendum送りにした、caller
