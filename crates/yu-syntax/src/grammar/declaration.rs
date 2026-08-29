@@ -39624,6 +39624,434 @@ mod tests {
     }
 
     #[test]
+    fn for_gate_8_isolated_adapters_restore_full_boundary_state_before_promotion() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Copy, Debug)]
+        enum Context {
+            Root,
+            Indented,
+            Braced,
+            InlineAmbient,
+            NestedIf,
+        }
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct State {
+            baseline: Option<IndentationBaseline>,
+            stops: Option<StopSet>,
+            delimiter: Option<Delimiter>,
+            expression_owner: Option<ExpressionDelimitedOwner>,
+            type_owner: Option<TypeDelimitedOwner>,
+            inline: bool,
+            ml_arg: bool,
+            type_ml_arg: bool,
+            positional_fence: Option<TypeMalformedCallerBoundaryFence>,
+            ambient: Vec<AmbientOwnerScopeFrame>,
+            if_depth: usize,
+            innermost_if: Option<IfExpressionCompanionId>,
+            type_episode_depth: usize,
+            scoped_type_stops: Vec<TypeExpressionScopedStopFrame>,
+        }
+
+        fn snapshot(local: &ParseLocal) -> State {
+            State {
+                baseline: local.indentation_baseline(),
+                stops: local.stop_set(),
+                delimiter: local.delimiter(),
+                expression_owner: local.expression_delimited_owner(),
+                type_owner: local.type_delimited_owner(),
+                inline: local.inline(),
+                ml_arg: local.ml_arg(),
+                type_ml_arg: local.type_ml_arg(),
+                positional_fence: local.type_malformed_caller_boundary(),
+                ambient: local.ambient_owner_scope_frames().copied().collect(),
+                if_depth: local.if_expression_companion_depth(),
+                innermost_if: local.if_expression_companion().map(|frame| frame.id()),
+                type_episode_depth: local.type_expression_episode_depth(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
+            }
+        }
+
+        fn install_context(local: &mut ParseLocal, context: Context, stop: StopKind) {
+            let base = matches!(context, Context::Indented | Context::NestedIf)
+                .then_some(2)
+                .unwrap_or(0);
+            local.push_indentation_baseline(IndentationBaseline {
+                column: base,
+                kind: IndentationBaselineKind::Block,
+            });
+            local.push_stop_set(StopSet::default().with(stop));
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: usize::MAX,
+            }));
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            local.push_type_expression_scoped_stop_frame(TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::Semicolon),
+                visible_episode_depth: episode_depth,
+            });
+            local.push_root_statement_ambient_scope();
+            match context {
+                Context::Root => {}
+                Context::Indented => {
+                    local.push_indented_statement_ambient_scope(2);
+                }
+                Context::Braced => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    );
+                }
+                Context::InlineAmbient => {
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+                Context::NestedIf => {
+                    local.push_indented_statement_ambient_scope(2);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                }
+            }
+        }
+
+        fn skip_prefix<E>(prefix_len: usize, i: &mut SynIn<E>)
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            while i.pos() < prefix_len {
+                i.input.next().expect("the matrix prefix remains available");
+            }
+            if prefix_len > 0 {
+                i.local.set_line(LineState {
+                    at_line_start: false,
+                    ..i.local.line()
+                });
+            }
+        }
+
+        fn parse_ast(
+            source: &str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+        ) -> (Range<usize>, String, LineState) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let range = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                skip_prefix(prefix_len, &mut i);
+                let before = snapshot(i.local);
+                let statement =
+                    parse_for_statement_isolated(&crate::operator::OperatorTable::empty(), i)
+                        .expect("For matrix candidate");
+                assert_eq!(snapshot(&local), before, "AST state: {source:?}");
+                statement.range()
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (range, source_input.remainder().to_owned(), local.line())
+        }
+
+        fn parse_direct(
+            source: &str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+        ) -> (
+            Range<usize>,
+            String,
+            LineState,
+            Vec<CommittedRecoveryRecord>,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (range, remainder, records) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(chasa::prelude::uncut(chasa::prelude::from_fn_once(|i| {
+                    let mut probe = Probe::new(i);
+                    skip_prefix(prefix_len, probe.input());
+                    let before = snapshot(probe.input().local);
+                    let intro = probe
+                        .input()
+                        .run(recognize_for_statement_intro)
+                        .expect("For matrix intro");
+                    let mut committed = probe.commit(HeaderOutput::new());
+                    let range = commit_for_statement_isolated(
+                        &crate::operator::OperatorTable::empty(),
+                        &mut committed,
+                        intro,
+                    );
+                    let remainder =
+                        committed.probe(|probe| probe.input().input.remainder().to_owned());
+                    let after = committed.probe(|probe| snapshot(probe.input().local));
+                    assert_eq!(after, before, "direct state: {source:?}");
+                    let records = committed.into_output().committed_recoveries().to_vec();
+                    Some((range, remainder, records))
+                })))
+                .expect("the uncut direct For matrix adapter is total")
+            };
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
+            assert!(!is_cut, "direct cut: {source:?}");
+            (
+                match range {
+                    Recovered::Complete(range) => range,
+                    Recovered::Incomplete => panic!("For statement range is complete"),
+                },
+                remainder,
+                local.line(),
+                records,
+            )
+        }
+
+        fn assert_case(
+            source: &str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+            expected_remainder: &str,
+        ) -> Vec<CommittedRecoveryRecord> {
+            let (ast_range, ast_remainder, ast_line) = parse_ast(source, prefix_len, context, stop);
+            let (direct_range, direct_remainder, direct_line, records) =
+                parse_direct(source, prefix_len, context, stop);
+            assert_eq!(
+                ast_range.start, direct_range.start,
+                "range start: {source:?}"
+            );
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(ast_line, direct_line, "line state: {source:?}");
+            records
+        }
+
+        for context in [
+            Context::Root,
+            Context::Indented,
+            Context::Braced,
+            Context::InlineAmbient,
+            Context::NestedIf,
+        ] {
+            let records = assert_case("for x in xs: body", 0, context, StopKind::RightBracket, "");
+            assert!(records.is_empty(), "normal: {context:?}");
+        }
+
+        let inline_prefix = "value with: ".len();
+        assert!(
+            assert_case(
+                "value with: for x in xs: body; fallback",
+                inline_prefix,
+                Context::InlineAmbient,
+                StopKind::RightBracket,
+                "; fallback",
+            )
+            .is_empty()
+        );
+
+        for (stop, punctuation) in [
+            (StopKind::Comma, ","),
+            (StopKind::RightParenthesis, ")"),
+            (StopKind::RightBracket, "]"),
+            (StopKind::RightBrace, "}"),
+        ] {
+            let source = format!("for x in xs{punctuation} tail");
+            let records = assert_case(
+                &source,
+                0,
+                Context::Root,
+                stop,
+                &format!("{punctuation} tail"),
+            );
+            assert_eq!(records.len(), 1, "boundary recovery: {source:?}");
+            assert_eq!(
+                records[0].site.role,
+                GrammarRole::ForStatement(ForStatementRole::BodyIntroducer),
+                "boundary recovery: {source:?}"
+            );
+        }
+
+        for (source, remainder) in [
+            ("for x in xs: body", ""),
+            ("for x in xs: body; next", "; next"),
+            ("for x in xs: body, next", ", next"),
+            ("for x in xs: body\nnext", "\nnext"),
+            ("for x in xs:\nbody", "\nbody"),
+            ("for x in xs", ""),
+        ] {
+            let _ = assert_case(source, 0, Context::Root, StopKind::RightBracket, remainder);
+        }
+
+        for (source, context, expected_remainder, expected_role) in [
+            (
+                "for @ x in xs: body",
+                Context::Braced,
+                "",
+                GrammarRole::Pattern(crate::session::PatternRole::Primary),
+            ),
+            (
+                "for x xs: body",
+                Context::InlineAmbient,
+                "",
+                GrammarRole::ForStatement(ForStatementRole::InKeyword),
+            ),
+            (
+                "for x in @ xs: body",
+                Context::NestedIf,
+                "",
+                GrammarRole::Expression(crate::session::ExpressionRole::Nud),
+            ),
+            (
+                "for x in xs @: body",
+                Context::Indented,
+                "",
+                GrammarRole::ForStatement(ForStatementRole::BodyIntroducer),
+            ),
+        ] {
+            let records = assert_case(
+                source,
+                0,
+                context,
+                StopKind::RightBracket,
+                expected_remainder,
+            );
+            assert_eq!(records.len(), 1, "recovery: {source:?}");
+            assert_eq!(records[0].site.role, expected_role, "recovery: {source:?}");
+        }
+
+        for source in [
+            "for x in xs: body",
+            "for x: T in xs: body",
+            "for @ x in xs: body",
+            "for x xs: body",
+            "for x in @ xs: body",
+            "for x in xs @: body",
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, Context::NestedIf, StopKind::RightBracket);
+            let input_checkpoint = source_input.checkpoint();
+            let local_checkpoint = local.checkpoint();
+            let before = snapshot(&local);
+            let before_line = local.line();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let _ = parse_for_statement_isolated(&crate::operator::OperatorTable::empty(), i)
+                    .expect("For rollback candidate");
+            }
+            source_input.rollback(input_checkpoint);
+            local.rollback(local_checkpoint);
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "rollback input: {source:?}"
+            );
+            assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
+            assert_eq!(local.line(), before_line, "rollback line: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "rollback sink: {source:?}"
+            );
+            assert!(!is_cut, "rollback cut: {source:?}");
+
+            let mut direct_source = SourceInput::new(source);
+            let mut direct_local = ParseLocal::new();
+            install_context(&mut direct_local, Context::NestedIf, StopKind::RightBracket);
+            let direct_input_checkpoint = direct_source.checkpoint();
+            let direct_local_checkpoint = direct_local.checkpoint();
+            let direct_before = snapshot(&direct_local);
+            let direct_before_line = direct_local.line();
+            let mut direct_expectations = chasa::LatestSink::new();
+            let mut direct_cut = false;
+            let mut i = In::new(
+                &mut direct_source,
+                &mut direct_expectations,
+                IsCut::new(&mut direct_cut),
+            )
+            .set_local(&mut direct_local);
+            i.run(chasa::prelude::uncut(chasa::prelude::from_fn_once(|i| {
+                let mut probe = Probe::new(i);
+                let intro = probe
+                    .input()
+                    .run(recognize_for_statement_intro)
+                    .expect("For direct rollback intro");
+                let mut committed = probe.commit(HeaderOutput::new());
+                let _ = commit_for_statement_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    &mut committed,
+                    intro,
+                );
+                let _ = committed.into_output();
+                Some(())
+            })))
+            .expect("the uncut direct For rollback adapter is total");
+            direct_source.rollback(direct_input_checkpoint);
+            direct_local.rollback(direct_local_checkpoint);
+            assert_eq!(
+                direct_source.remainder(),
+                source,
+                "direct rollback input: {source:?}"
+            );
+            assert_eq!(
+                snapshot(&direct_local),
+                direct_before,
+                "direct rollback state: {source:?}"
+            );
+            assert_eq!(
+                direct_local.line(),
+                direct_before_line,
+                "direct rollback line: {source:?}"
+            );
+            assert!(
+                direct_expectations.take_merged().is_none(),
+                "direct rollback sink: {source:?}"
+            );
+            assert!(!direct_cut, "direct rollback cut: {source:?}");
+        }
+    }
+
+    #[test]
     fn enum_required_header_isolated_is_raw_optional_and_recovery_exact() {
         type DirectRecovery = (RecoveryKind, GrammarRole, Range<usize>);
         const IF_WORDS: &[&str] = &["elsif", "else"];
