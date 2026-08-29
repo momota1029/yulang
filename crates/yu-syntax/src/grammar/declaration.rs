@@ -21932,6 +21932,227 @@ mod tests {
         }
     }
 
+    #[test]
+    fn error_gate_10_final_public_scope_and_contextual_word_matrix() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn identifier_tokens(root: &SyntaxNode, text: &str) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.text() == text)
+                .map(|token| {
+                    assert_eq!(
+                        token.kind(),
+                        SyntaxKind::Identifier,
+                        "ordinary word: {text:?}"
+                    );
+                    syntax_range(token.text_range())
+                })
+                .collect()
+        }
+
+        fn recovery_node_ranges(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ErrorDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ErrorDeclaration),
+                "public/direct Error range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_node_ranges(&public),
+                recovery_node_ranges(&direct_root),
+                "public/direct recovery-node parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_node_ranges(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        // ERROR-J permits `my` only when its raw declaration name follows;
+        // bare, `our`, and `pub` select the Error declaration immediately.
+        for source in ["error E;", "my error E = A", "our error E;", "pub error E;"] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ErrorDeclaration),
+                vec![0..source.len()]
+            );
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::ErrorDeclaration),
+                vec![0..source.len()],
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "visibility recovery: {source:?}"
+            );
+        }
+
+        // ERROR-G shares Enum's body and payload grammar. Every form reaches
+        // the promoted public root, including the normative equals-indent form.
+        for source in [
+            "error E",
+            "error E;",
+            "error E { Unit, From from Source, Named { field: Int }, Tuple(Int), Pos Int Str }",
+            "error E:\n  Pos Int Str",
+            "error E = Pos Int Str",
+            "error E =\n  Pos Int Str",
+            "error E derives Eq { A }",
+            "error E { A } derives Eq",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ErrorDeclaration),
+                vec![0..source.len()]
+            );
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::ErrorDeclaration),
+                vec![0..source.len()],
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "complete form recovery: {source:?}"
+            );
+        }
+
+        // Re-run ERROR-R through both promoted entrypoints. These span Error
+        // Name and BodyIntroducer recovery plus imported Enum item, payload,
+        // field, and closing-delimiter recovery.
+        for source in [
+            "error",
+            "our error",
+            "pub error",
+            "error {",
+            "error :",
+            "error =",
+            "error ;",
+            "error @ E;",
+            "error @;",
+            "error E 'a @ { A }",
+            "error E @;",
+            "error E @,",
+            "error E {,A}",
+            "error E {A,,B}",
+            "error E {A",
+            "error E {A]",
+            "error E:",
+            "error E:;",
+            "error E:,",
+            "error E:)",
+            "error E:\nnext",
+            "error E =",
+            "error E =;",
+            "error E =,",
+            "error E =)",
+            "error E =\nnext",
+            "error E = A || B",
+            "error E { @ A, B }",
+            "error E { @, B }",
+            "error E { From from, Next }",
+            "error E { Named { : Int }, Next }",
+            "error E { Tuple (, Int) }",
+            "error E { From from @ Int, Next }",
+            "error E { Rect @ Int, Next }",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(
+                !node_ranges(&public, SyntaxKind::ErrorDeclaration).is_empty(),
+                "public malformed Error owner: {source:?}",
+            );
+            assert!(
+                !recovery_node_ranges(&direct_root).is_empty(),
+                "public malformed Error recovery: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_node_ranges(&public).len(),
+                "public recovery cardinality: {source:?}",
+            );
+        }
+
+        // `error` and payload-local `from` remain ordinary identifiers away
+        // from their accepted declaration and variant-introducer positions.
+        for source in [
+            "my value = object.error",
+            "my value = error",
+            "my value: error = output",
+            "my value: ({ error: Int }) = output",
+            "my result = case value:\n  error -> output",
+            "my from = 1",
+            "my value = from",
+        ] {
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::ErrorDeclaration).is_empty(),
+                    "no ErrorDeclaration outside an accepted Statement slot: {source:?}",
+                );
+                let word = if source.contains("from") {
+                    "from"
+                } else {
+                    "error"
+                };
+                assert!(
+                    !identifier_tokens(root, word).is_empty(),
+                    "ordinary identifier: {source:?}"
+                );
+                assert!(
+                    node_ranges(root, SyntaxKind::FromKw).is_empty(),
+                    "FromKw only belongs to an Error variant payload: {source:?}",
+                );
+            }
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "ordinary-word recovery: {source:?}"
+            );
+        }
+
+        // The contextual `my` exception still rolls back to Binding through
+        // the real public dispatch rather than the isolated Gate 2 recognizer.
+        let (public, direct_root, direct) = parse_public_and_direct("my error = 1");
+        for root in [&public, &direct_root] {
+            assert!(node_ranges(root, SyntaxKind::ErrorDeclaration).is_empty());
+            assert_eq!(node_ranges(root, SyntaxKind::BindingStatement), vec![0..12]);
+            assert_eq!(identifier_tokens(root, "error"), vec![3..8]);
+        }
+        assert!(direct.committed_recoveries().is_empty());
+    }
+
     use super::*;
     use chasa::{
         input::IsCut,
