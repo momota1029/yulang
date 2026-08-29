@@ -2,7 +2,7 @@
 
 更新: 2026-08-28（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
-2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ）
+2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -103,18 +103,36 @@ standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendum�
   recognizer(`3eb199b4`)・Gate 3 header adapter(`3894ec98`)・Gate 4 derives
   integration(`b6b8f4d4`)・Gate 5 neutral variant owner core extraction(`0b64aaa7`、
   `VariantDeclarationOwnerSpec`/`drive_variant_declaration_sequence`をEnum/Error共有へ
-  抽出)を完了。Gate 6はformat-only driftを先行して別commit `1704ba4a`で分離した後、
-  `6402ec00`でisolated AST/direct-CST adapterを実装——`parse_error_declaration_isolated`/
+  抽出)を完了。Gate 6(`6402ec00`)でisolated AST/direct-CST adapterを実装——
+  `parse_error_declaration_isolated`/
   `commit_error_declaration_isolated`が新規Error固有body/variant型を作らず既存
   `EnumBody`/`EnumVariant`/`EnumVariantPayload`および`EnumVariant`/`StructField`/`FromKw`
   direct-CST node kindを再利用する。`error fs_err:`(positional variants)、`error io_err:`
   (from variant)、`my error E:`(contextual form)の3 worked exampleをbyte-exact/lossless/
   zero-recoveryかつAST/direct-CST parityで固定し、`cargo test -p yu-syntax`は546→547
-  passed、0 failed。reviewでunrelated `impl` block内に残っていたdeadなcommented-out
-  duplicate testを除去し、sandbox側rustfmt version driftにより12 unrelated fileへ生じた
-  format変更もdiscardして、Gate 6 commitを必要範囲だけに保った。Gate 6は意図どおり
-  isolated/unwiredで、root loopの`StatementIntro::Error`はGate 5時点どおり`unreachable!`;
-  public dispatchはGate 9の責務。
+  passed、0 failed。Gate 7(`142ae7a0`)でError outer roleの`ERROR-R` recovery matrix全行を
+  修正し、Enumの`ENUM-R` variant/payload recovery rowsがError自身のouter roleで正しく
+  importされることを確認、`emit_error_variant_item_missing`・
+  `emit_error_declaration_error`・`error_body_introducer_error_retry`を追加して548 tests
+  green。Gate 8(`41f95997`)はisolated adapterのfull boundary/ambient/state-restoration
+  matrix(root/indented/braced/inline/catch-inline/depth-2-If ambient context、caller
+  boundary、payload form、recovery role)を閉じ、実gapなしのverificationとして549 tests
+  green。Gate 9(`f7d760f2`、`b5269e01`)でErrorをisolated adapterからREAL PUBLIC DISPATCHへ
+  atomic promotion——Enum後/Mod・Type前の優先順位で
+  shared statement-intro dispatch・direct root-loop candidate(`unreachable!()` placeholderを
+  置換)・AST canonical Statement・AST root Declaration・direct-CST canonical Statementへ挿入し、
+  他familyの相対順序は不変、Gate 6 adapterの不要になった`#[allow(dead_code)]`も除去した。
+  全other familyのregressionなし・workspace build greenで550 tests green。Gate 10(`37f6b8b5`)は
+  real public dispatch経由のfinal matrixとして、全visibility form、`my error`とBindingの衝突、
+  全body/payload form、header/trailing derives、Gate 7の全malformed/recovery row、
+  declaration-intro外でのordinary wordとしての`error`/`from`を確認し、実gapなしで551 tests
+  green。Gate 6〜10を通じ、Codex sandboxとreview hostのrustfmt version/toolchain差による
+  pre-existingな`declaration.rs`/`expression.rs`のformat driftはlogic変更と混ぜず
+  `1704ba4a`/`f7d760f2`へ分離した。workspace-wide grepでyu-syntax外にError internalsの参照が
+  ないことも確認済みで、HIR/resolver/inference/formatter/semantic error effectsはrole/act/enum/castと
+  同じくsyntax-only scope外。Enumのvariant-sequence/payload coreを共有するstandalone `error`宣言は
+  全10 gate完走、551 tests green——role(10)・act(11)・enum(12)に続く5番目の完了family
+  (cast(13)は先行完了)。
 
 ## 既知の未修正バグ
 
@@ -132,13 +150,9 @@ standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendum�
    (2026-08-27調査)——着手にはまず宣言family自体の設計が要るうえ、正本が
    「type-specific where clauseをYulang3に発明しない」と明記していて位置付けが
    不明確。
-2. **canonical Statement / root Declarationの残りvariant**: `error`/`for`文/
-   declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`は実装完了。
-   `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。`error`は
-   Gate 1〜6を完了し、Enumのvariant-sequence/payload coreを共有するisolated
-   adapterまで実装済み(Task #24)。直近の次stepはError outer roleの`ERROR-R` recovery
-   rows修正とEnumの`ENUM-R` variant/payload recovery rows importから成るGate 7;
-   Gate 9のpublic dispatch promotionまでは未実装。
+2. **canonical Statement / root Declarationの残りvariant**: `for`文/
+   declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`/`error`は実装完了。
+   `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。
 3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(残りはError/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
    Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
