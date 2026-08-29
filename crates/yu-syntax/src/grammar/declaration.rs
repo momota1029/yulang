@@ -77,6 +77,7 @@ pub(crate) enum Declaration<'source> {
     Impl(ImplDeclaration<'source>),
     Cast(CastDeclaration<'source>),
     Act(ActDeclaration<'source>),
+    For(ForStatement<'source>),
 }
 
 /// A declaration shape that can contribute a source-leading header fact.
@@ -120,6 +121,8 @@ pub(crate) enum StatementIntro<'source> {
     Cast(CastStatementIntro<'source>),
     #[allow(dead_code)]
     Act(ActStatementIntro<'source>),
+    #[allow(dead_code)]
+    For(ForStatementIntro<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -171,6 +174,18 @@ pub(crate) struct ActStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     act_keyword: WordSpan<'source>,
     act_base: usize,
+}
+
+/// The sink-free prefix reserved for standalone For statements.
+///
+/// Gate 1 carries this source shape only. Gate 2 supplies recognition, and
+/// Gate 9 connects it to shared statement dispatch.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ForStatementIntro<'source> {
+    start: usize,
+    for_keyword: WordSpan<'source>,
+    for_base: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -479,6 +494,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_act_declaration_isolated(operators, &mut committed, intro);
                 StatementKind::ActDeclaration
             }
+            StatementIntro::For(_) => {
+                unreachable!("For dispatch is introduced in its Gate 9 promotion")
+            }
             StatementIntro::Operator(intro) => {
                 if matches!(
                     commit_operator_header(&mut committed, intro),
@@ -705,6 +723,10 @@ where
             return None;
         }
         StatementIntro::Act(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::For(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -17364,6 +17386,57 @@ pub(crate) struct ErrorDeclaration<'source> {
     derives: Vec<DerivesAttachment<'source>>,
     body: Recovered<EnumBody<'source>>,
     range: Range<usize>,
+}
+
+/// A standalone For statement shared by root and canonical Statements.
+///
+/// Gate 1 establishes only the approved AST shape. Recognition and body
+/// parsing remain unreachable until their later dedicated gates.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ForStatement<'source> {
+    label: Option<ForLabel<'source>>,
+    pattern: Recovered<Box<Pattern<'source>>>,
+    in_keyword: Recovered<Range<usize>>,
+    iterable: Recovered<OperatorChain<'source>>,
+    body: Recovered<ForBody<'source>>,
+    range: Range<usize>,
+}
+
+impl ForStatement<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ForLabel<'source> {
+    text: &'source str,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ForBody<'source> {
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<ForColonBody<'source>>,
+    },
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ForColonBody<'source> {
+    Inline {
+        expression: OperatorChain<'source>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 impl ErrorDeclaration<'_> {

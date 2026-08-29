@@ -937,6 +937,7 @@ define_stop_kinds!(
     With,
     Derives,
     Via,
+    In,
     LeftParenthesis,
     Pipe,
 );
@@ -1072,6 +1073,7 @@ impl<'parse, 'source, 'local, E: ErrorSink<usize>> Probe<'parse, 'source, 'local
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum GrammarRole {
     Declaration(DeclarationRole),
+    ForStatement(ForStatementRole),
     ClosingDelimiter {
         owner: ConstructRole,
         delimiter: Delimiter,
@@ -1137,6 +1139,7 @@ pub(crate) enum StatementKind {
     ImplDeclaration,
     CastDeclaration,
     ActDeclaration,
+    ForStatement,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1145,6 +1148,16 @@ pub(crate) enum StatementRole {
     Separator,
     TrailingInput { owner: StatementKind },
     OperatorDefinitionBody,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ForStatementRole {
+    Pattern,
+    InKeyword,
+    Iterable,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -2038,6 +2051,7 @@ mod tests {
             StopKind::With,
             StopKind::Derives,
             StopKind::Via,
+            StopKind::In,
             StopKind::LeftParenthesis,
             StopKind::Pipe,
         ];
@@ -2056,16 +2070,18 @@ mod tests {
         let extended = existing
             .with(StopKind::Derives)
             .with(StopKind::Via)
+            .with(StopKind::In)
             .with(StopKind::LeftParenthesis);
         assert_eq!(
             extended.0,
-            (1u32 << 0) | (1u32 << 14) | (1u32 << 15) | (1u32 << 16) | (1u32 << 17)
+            (1u32 << 0) | (1u32 << 14) | (1u32 << 15) | (1u32 << 16) | (1u32 << 17) | (1u32 << 18)
         );
         assert_eq!(
             extended.difference(existing),
             StopSet::default()
                 .with(StopKind::Derives)
                 .with(StopKind::Via)
+                .with(StopKind::In)
                 .with(StopKind::LeftParenthesis)
         );
     }

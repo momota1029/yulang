@@ -1286,6 +1286,7 @@ mod tests {
             StopKind::With => "with",
             StopKind::Derives => "derives",
             StopKind::Via => "via",
+            StopKind::In => "in",
             StopKind::LeftParenthesis => "(",
             StopKind::Pipe => "|",
         }
@@ -1294,6 +1295,10 @@ mod tests {
     #[test]
     fn boundary_classifier_covers_every_stop_in_active_and_inactive_states() {
         for stop in StopKind::ALL.iter().copied() {
+            // `in` is vocabulary-only until For Gate 4 wires its word stop.
+            if stop == StopKind::In {
+                continue;
+            }
             let source = stop_source(stop);
             let inactive = boundary(source, StopSet::default());
             assert!(

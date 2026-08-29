@@ -6324,6 +6324,7 @@ where
         StopKind::Arrow => scan_exact_arrow(i).is_some(),
         StopKind::ArmGuardIf => i.run(scan_word).is_some_and(|word| word.text() == "if"),
         StopKind::ArmGuardWhere => i.run(scan_word).is_some_and(|word| word.text() == "where"),
+        StopKind::In => false,
         StopKind::With => i.run(scan_word).is_some_and(|word| word.text() == "with"),
         StopKind::Derives => i
             .run(scan_word)
