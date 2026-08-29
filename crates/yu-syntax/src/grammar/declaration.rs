@@ -1432,6 +1432,245 @@ where
     pattern
 }
 
+/// Parses the isolated For header tail after Gate 4's Pattern slot.
+///
+/// This deliberately does not compose Pattern with the tail yet: the later
+/// header adapter owns that assembly.  The tail nevertheless keeps the two
+/// slots together because a missing `in` at a header boundary is the single
+/// cause that makes the iterable incomplete too.
+fn parse_for_in_and_iterable_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (Recovered<Range<usize>>, Recovered<OperatorChain<'source>>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let _ = i.run(scan_trivia).expect("trivia scanning is total");
+    let in_keyword = for_exact_in(i);
+    if in_keyword.is_none() && for_header_truncation_pending(i) {
+        return (Recovered::Incomplete, Recovered::Incomplete);
+    }
+    let iterable = parse_for_iterable_isolated(table, i);
+    (
+        in_keyword.map_or(Recovered::Incomplete, |word| {
+            Recovered::Complete(word.range())
+        }),
+        iterable,
+    )
+}
+
+fn parse_for_iterable_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<OperatorChain<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
+        .with(StopKind::Colon)
+        .with(StopKind::LeftBrace);
+    i.local.push_stop_set(stops);
+    let _ = i.run(scan_trivia).expect("trivia scanning is total");
+    let iterable = (!for_iterable_primary_stop_pending(i))
+        .then(|| i.run(from_fn(|i| parse_expression_with_operators(table, i))))
+        .flatten();
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    iterable.map_or(Recovered::Incomplete, Recovered::Complete)
+}
+
+fn commit_for_in_and_iterable_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> (
+    Recovered<Range<usize>>,
+    Recovered<ParsedExpression<O::Checkpoint>>,
+)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = committed.probe(|probe| {
+        probe
+            .input()
+            .run(scan_trivia)
+            .expect("trivia scanning is total")
+    });
+    committed.emit_trivia(&trivia);
+    let in_keyword = committed.probe(|probe| for_exact_in(probe.input()));
+    if let Some(word) = in_keyword {
+        committed.token(SyntaxKind::InKw, word.range());
+    } else {
+        emit_for_missing(
+            committed,
+            ForStatementRole::InKeyword,
+            ExpectedSyntax::Expression,
+        );
+        if committed.probe(|probe| for_header_truncation_pending(probe.input())) {
+            return (Recovered::Incomplete, Recovered::Incomplete);
+        }
+    }
+    let iterable = commit_for_iterable_isolated(table, committed);
+    (
+        in_keyword.map_or(Recovered::Incomplete, |word| {
+            Recovered::Complete(word.range())
+        }),
+        iterable,
+    )
+}
+
+fn commit_for_iterable_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<ParsedExpression<O::Checkpoint>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let stops = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
+            .with(StopKind::Colon)
+            .with(StopKind::LeftBrace)
+    });
+    committed.probe(|probe| probe.input().local.push_stop_set(stops));
+    committed.start_node(SyntaxKind::ForIterable);
+    let trivia = committed.probe(|probe| {
+        probe
+            .input()
+            .run(scan_trivia)
+            .expect("trivia scanning is total")
+    });
+    let leading = (!trivia.is_empty())
+        .then_some(LeadingTrivia::Present)
+        .unwrap_or(LeadingTrivia::None);
+    committed.emit_trivia(&trivia);
+    let primary_stop = committed.probe(|probe| for_iterable_primary_stop_pending(probe.input()));
+    let mut iterable = (!primary_stop)
+        .then(|| parse_direct_expression_with_operators(table, leading, committed))
+        .flatten();
+    if !primary_stop
+        && iterable.is_none()
+        && direct_expression_error_retry(
+            table,
+            GrammarRole::Expression(crate::session::ExpressionRole::Nud),
+            committed,
+        )
+    {
+        iterable = parse_direct_expression_with_operators(table, LeadingTrivia::None, committed);
+    }
+    if iterable.is_none() {
+        emit_for_missing(
+            committed,
+            ForStatementRole::Iterable,
+            ExpectedSyntax::Expression,
+        );
+    }
+    committed.finish_node();
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+    iterable.map_or(Recovered::Incomplete, Recovered::Complete)
+}
+
+/// A body starter or caller boundary immediately after Pattern has the one
+/// shared absence cause covered by FOR-R's truncation rule.
+fn for_header_truncation_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() || any_ambient_owner_claims(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Colon | PunctuationKind::Open(Delimiter::Brace)
+        )
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn for_exact_in<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let word = i.run(scan_word)?;
+    if word.text() == "in" {
+        Some(word)
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+fn for_iterable_primary_stop_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Colon | PunctuationKind::Open(Delimiter::Brace)
+        )
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn emit_for_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: ForStatementRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ForStatement(role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
 /// Recognizes the sink-free prefix reserved for a standalone Impl declaration.
 ///
 /// This remains deliberately separate from `recognize_statement_intro` until
@@ -38206,6 +38445,170 @@ mod tests {
                 )],
             ),
         );
+    }
+
+    #[test]
+    fn for_in_and_iterable_slots_commit_exactly_and_restore_their_stop_frame() {
+        type DirectRecovery = (RecoveryKind, GrammarRole, Range<usize>);
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            stops: StopSet,
+        ) -> (
+            (Recovered<Range<usize>>, Recovered<OperatorChain<'source>>),
+            String,
+            StopSet,
+        ) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(stops);
+            let root = local.push_root_statement_ambient_scope();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let slots = {
+                let mut i =
+                    In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+                parse_for_in_and_iterable_isolated(&crate::operator::OperatorTable::empty(), &mut i)
+            };
+            assert!(!cut, "AST cut: {source:?}");
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![root],
+                "AST ambient frame: {source:?}"
+            );
+            let restored = local.pop_stop_set().expect("outer stop frame");
+            (slots, input.remainder().to_owned(), restored)
+        }
+
+        fn commit_direct(
+            source: &str,
+            stops: StopSet,
+        ) -> (
+            (bool, bool),
+            String,
+            StopSet,
+            Vec<DirectRecovery>,
+            Vec<(SyntaxKind, Range<usize>)>,
+        ) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(stops);
+            let root = local.push_root_statement_ambient_scope();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let (in_keyword, iterable) = commit_for_in_and_iterable_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+            );
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let tail_start = committed.probe(|probe| probe.input().pos());
+            if tail_start < source.len() {
+                committed.token(SyntaxKind::Unknown, tail_start..source.len());
+            }
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            let tokens = SyntaxNode::new_root(output.finish_complete())
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), syntax_range(token.text_range())))
+                .collect();
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                vec![root],
+                "direct ambient frame: {source:?}"
+            );
+            let restored = local.pop_stop_set().expect("outer stop frame");
+            (
+                (
+                    matches!(in_keyword, Recovered::Complete(_)),
+                    matches!(iterable, Recovered::Complete(_)),
+                ),
+                remainder,
+                restored,
+                recoveries,
+                tokens,
+            )
+        }
+
+        let outer = StopSet::default().with(StopKind::RightBracket);
+        let (ast, remainder, restored) = parse_ast(" in xs:", outer);
+        assert!(matches!(ast.0, Recovered::Complete(ref range) if *range == (1..3)));
+        assert!(matches!(ast.1, Recovered::Complete(ref iterable) if iterable.range() == (4..6)));
+        assert_eq!(remainder, ":");
+        assert_eq!(restored, outer);
+        let (complete, remainder, restored, recoveries, tokens) = commit_direct(" in xs:", outer);
+        assert_eq!(complete, (true, true));
+        assert_eq!(remainder, ":");
+        assert_eq!(restored, outer);
+        assert!(recoveries.is_empty());
+        assert!(tokens.contains(&(SyntaxKind::InKw, 1..3)));
+
+        let (complete, remainder, restored, recoveries, _) = commit_direct(" :", outer);
+        assert_eq!(complete, (false, false));
+        assert_eq!(remainder, ":");
+        assert_eq!(restored, outer);
+        assert_eq!(
+            recoveries,
+            vec![(
+                RecoveryKind::Missing,
+                GrammarRole::ForStatement(ForStatementRole::InKeyword),
+                1..1,
+            )],
+            "FOR-R truncation is one Missing InKeyword, not an iterable cascade"
+        );
+
+        let (complete, remainder, restored, recoveries, _) = commit_direct(" in {", outer);
+        assert_eq!(complete, (true, false));
+        assert_eq!(remainder, "{");
+        assert_eq!(restored, outer);
+        assert_eq!(
+            recoveries,
+            vec![(
+                RecoveryKind::Missing,
+                GrammarRole::ForStatement(ForStatementRole::Iterable),
+                4..4,
+            )]
+        );
+
+        let (complete, remainder, restored, recoveries, _) = commit_direct(" xs:", outer);
+        assert_eq!(complete, (false, true));
+        assert_eq!(remainder, ":");
+        assert_eq!(restored, outer);
+        assert_eq!(
+            recoveries,
+            vec![(
+                RecoveryKind::Missing,
+                GrammarRole::ForStatement(ForStatementRole::InKeyword),
+                1..1,
+            )]
+        );
+
+        let (complete, remainder, restored, recoveries, _) = commit_direct(" in @ xs:", outer);
+        assert_eq!(complete, (true, true));
+        assert_eq!(remainder, ":");
+        assert_eq!(restored, outer);
+        assert!(recoveries.iter().any(|(kind, role, _)| {
+            *kind == RecoveryKind::Error
+                && *role == GrammarRole::Expression(crate::session::ExpressionRole::Nud)
+        }));
+        assert!(!recoveries.iter().any(|(_, role, _)| {
+            *role == GrammarRole::ForStatement(ForStatementRole::Iterable)
+        }));
     }
 
     #[test]
