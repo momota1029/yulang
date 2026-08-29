@@ -3,7 +3,7 @@
 更新: 2026-08-28（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
 2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走→
-standalone `for`文も全10 gate完走）
+standalone `for`文も全10 gate完走→Act-derives attachment addendumも両gate完走）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -171,6 +171,18 @@ standalone `for`文も全10 gate完走）
   loop execution semantics/HIR/resolver/inferenceはsyntax-only scope外。standalone `for`文は
   全10 gate完走、560 tests green——role(10)・act(11)・enum(12)・cast(13)・error(10)に続く
   6番目の完了declaration/statement family。
+- Act-derives attachment addendum(ACTDRV)は、Claude (Fable 5)起草・2026-08-29ユーザ承認済み
+  Authoritative化(`261f3e9f`)された共有`DerivesClause` driverの小規模拡張。Fable 5は
+  yulang2 oracleを照合し、「Y2にAct-derivesのprecedentはない」という初期前提を訂正——
+  `act_decl.rs:29-38`にliveなname-adjacent header derives pathがあり、scanner-stopにshadow
+  されたpost-source pathも構造上は存在した。Gate 1(`d84bd3df`)はdriver側だけにAct owner・
+  header/trailing classifier・tail/spec・episode-stopを追加し、560 testsで不変。Gate 2
+  (`713d383e`)はAct実parserへHead後・actual Source後(ともに既存`Header`)・braced close後
+  (新規`Trailing`)の3 attachment point、`ActDeclaration.derives`、必要なepisode stopと
+  braced-close completeness accessorを配線し、fresh-primary local ownershipも維持した。3 worked
+  exampleとACTDRV-R recovery tableをreal `parse_file`で固定し、562 tests green・workspace build
+  greenで両gate完走。これは既存shared mechanismへの第5 owner追加であり、standalone
+  declaration/statement familyの追加ではない。
 
 ## 既知の未修正バグ
 
@@ -191,9 +203,9 @@ standalone `for`文も全10 gate完走）
 2. **canonical Statement / root Declarationの残りvariant**:
    declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`/`error`/`for`文は実装完了。
    `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。
-3. **defer済み4 familyの優先順位決定**: derives ownerの拡張(残りはError/Act)・
-   Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
-   Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
+3. **defer済み3項目の優先順位決定**: Type-attached `impl`(`type Name impl ...`)・
+   shared declaration companion `with:`・Type colon/brace role-like body。正本はどれも
+   「別addendumへ」としか書いておらず、
    相対的な実装順序は未決定。
 4. **Cast known-residualの一般化解消**: 追補が明示的に別addendum送りにした、caller
    boundary hidden behind a missing nested delimiterというcondition-based residual
