@@ -1400,6 +1400,7 @@ where
     let stops = policy.fresh_primary_recovery_stops;
     (stops.contains(StopKind::Colon) && colon_pending(i))
         || (stops.contains(StopKind::Equal) && exact_equals_pending_input(i))
+        || (stops.contains(StopKind::LeftBrace) && i.input.remainder().starts_with('{'))
 }
 
 /// Keeps a recovered outer primary's annotation-looking colon available to
@@ -1443,6 +1444,7 @@ where
     i.rollback(checkpoint);
     matches!(word, Some("if") if stops.contains(StopKind::ArmGuardIf))
         || matches!(word, Some("where") if stops.contains(StopKind::ArmGuardWhere))
+        || matches!(word, Some("in") if stops.contains(StopKind::In))
 }
 
 /// Composite probe: a symbol owns only a colon immediately followed by a word.
@@ -3224,6 +3226,7 @@ where
     i.rollback(checkpoint);
     matches!(word, Some("if") if stops.contains(StopKind::ArmGuardIf))
         || matches!(word, Some("where") if stops.contains(StopKind::ArmGuardWhere))
+        || matches!(word, Some("in") if stops.contains(StopKind::In))
 }
 
 /// Recognizes only a carried caller close.  The current container's own close

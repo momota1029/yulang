@@ -52,7 +52,7 @@ use crate::{
         AmbientOwnerScopeKind, BindingRole, BracedBarrierOrigin, CastRole, CommitOutput, Committed,
         CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter, DerivesRole,
         EnumDeclarationRole, ErrorDeclarationRole, ExpectationSources, ExpectedSyntax,
-        FullCstOutput, GrammarRole, ImplRole, ImportRole, IndentationBaseline,
+        ForStatementRole, FullCstOutput, GrammarRole, ImplRole, ImportRole, IndentationBaseline,
         IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, LayoutRole,
         ModRole, OperatorHeaderRole, ParseLocal, Probe, RecoveryKind, RecoverySiteKey,
         RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, StopKind, StopSet, SynIn,
@@ -1360,6 +1360,76 @@ where
     });
     i.rollback(checkpoint);
     pending
+}
+
+/// The mandatory Pattern slot used by For's isolated header phase.
+///
+/// The frame carries For's word boundary through canonical Pattern and its
+/// annotation TypeExpression.  Punctuation belongs only to fresh-primary
+/// recovery policy so a completed Pattern can still own its annotation colon.
+fn for_pattern_stops<E>(i: &SynIn<E>) -> StopSet
+where
+    E: ErrorSink<usize>,
+{
+    i.local.stop_set().unwrap_or_default().with(StopKind::In)
+}
+
+fn for_pattern_policy() -> PatternMandatorySlotPolicy {
+    PatternMandatorySlotPolicy {
+        fresh_primary_recovery_stops: StopSet::default()
+            .with(StopKind::Colon)
+            .with(StopKind::LeftBrace)
+            .with(StopKind::In),
+        ..PatternMandatorySlotPolicy::default()
+    }
+}
+
+fn parse_required_for_pattern_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<Pattern<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let stops = for_pattern_stops(i);
+    i.local.push_stop_set(stops);
+    let pattern = i
+        .run(from_fn(|i| {
+            Some(parse_required_pattern_with_outer_missing_role_and_policy(
+                table,
+                Some(GrammarRole::ForStatement(ForStatementRole::Pattern)),
+                for_pattern_policy(),
+                i,
+            ))
+        }))
+        .expect("the mandatory For Pattern entry is total");
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    pattern
+}
+
+fn commit_required_for_pattern_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedPattern<O::Checkpoint>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let stops = committed.probe(|probe| for_pattern_stops(probe.input()));
+    committed.probe(|probe| probe.input().local.push_stop_set(stops));
+    let pattern = commit_direct_pattern_with_outer_missing_role_and_policy(
+        table,
+        LeadingTrivia::None,
+        Some(GrammarRole::ForStatement(ForStatementRole::Pattern)),
+        for_pattern_policy(),
+        committed,
+    );
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+    pattern
 }
 
 /// Recognizes the sink-free prefix reserved for a standalone Impl declaration.
@@ -38026,6 +38096,116 @@ mod tests {
             assert_eq!(pattern.range(), 0..2, "sigil Pattern range");
         }
         assert_eq!(input.remainder(), " in xs", "Pattern remainder");
+    }
+
+    #[test]
+    fn for_required_pattern_slot_stops_at_in_and_preserves_mandatory_retry() {
+        type DirectRecovery = (RecoveryKind, GrammarRole, Range<usize>);
+
+        fn parse_ast<'source>(source: &'source str) -> (Recovered<Box<Pattern<'source>>>, String) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let pattern = {
+                let mut i =
+                    In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+                parse_required_for_pattern_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    &mut i,
+                )
+            };
+            assert!(!cut, "AST cut: {source:?}");
+            (pattern, input.remainder().to_owned())
+        }
+
+        fn commit_direct(source: &str) -> (Range<usize>, bool, String, Vec<DirectRecovery>) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let pattern = commit_required_for_pattern_isolated(
+                &crate::operator::OperatorTable::empty(),
+                &mut committed,
+            );
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            (
+                pattern.range(),
+                pattern.is_complete(),
+                remainder,
+                recoveries,
+            )
+        }
+
+        let (pattern, remainder) = parse_ast("in xs");
+        assert!(matches!(pattern, Recovered::Incomplete));
+        assert_eq!(remainder, "in xs");
+        assert_eq!(
+            commit_direct("in xs"),
+            (
+                0..0,
+                false,
+                "in xs".to_owned(),
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::ForStatement(ForStatementRole::Pattern),
+                    0..0,
+                )],
+            ),
+        );
+
+        let (pattern, remainder) = parse_ast("x : SomeType in xs");
+        assert!(
+            matches!(pattern, Recovered::Complete(ref pattern)
+            if pattern.range() == (0..12) && pattern.type_annotation().is_some()),
+            "{pattern:#?}"
+        );
+        assert_eq!(remainder, " in xs");
+        assert_eq!(
+            commit_direct("x : SomeType in xs"),
+            (0..12, true, " in xs".to_owned(), Vec::new()),
+        );
+
+        let (pattern, remainder) = parse_ast("@ x in xs");
+        assert!(matches!(pattern, Recovered::Complete(pattern) if pattern.range() == (0..3)));
+        assert_eq!(remainder, " in xs");
+        assert_eq!(
+            commit_direct("@ x in xs"),
+            (
+                0..3,
+                true,
+                " in xs".to_owned(),
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                    0..2,
+                )],
+            ),
+        );
+
+        assert_eq!(
+            commit_direct("@ in xs"),
+            (
+                0..2,
+                false,
+                "in xs".to_owned(),
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                    0..2,
+                )],
+            ),
+        );
     }
 
     #[test]

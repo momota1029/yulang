@@ -6324,7 +6324,7 @@ where
         StopKind::Arrow => scan_exact_arrow(i).is_some(),
         StopKind::ArmGuardIf => i.run(scan_word).is_some_and(|word| word.text() == "if"),
         StopKind::ArmGuardWhere => i.run(scan_word).is_some_and(|word| word.text() == "where"),
-        StopKind::In => false,
+        StopKind::In => i.run(scan_word).is_some_and(|word| word.text() == "in"),
         StopKind::With => i.run(scan_word).is_some_and(|word| word.text() == "with"),
         StopKind::Derives => i
             .run(scan_word)
@@ -7125,6 +7125,7 @@ mod tests {
             ("Int -> value", StopKind::Arrow, " -> value"),
             ("Int if ready", StopKind::ArmGuardIf, " if ready"),
             ("Int where ready", StopKind::ArmGuardWhere, " where ready"),
+            ("Int in values", StopKind::In, " in values"),
             ("Int\nnext", StopKind::Newline, "\nnext"),
         ] {
             let (actual, recoveries) =
