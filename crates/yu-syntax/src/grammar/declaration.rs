@@ -123,7 +123,6 @@ pub(crate) enum StatementIntro<'source> {
     Cast(CastStatementIntro<'source>),
     #[allow(dead_code)]
     Act(ActStatementIntro<'source>),
-    #[allow(dead_code)]
     For(ForStatementIntro<'source>),
 }
 
@@ -496,8 +495,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_act_declaration_isolated(operators, &mut committed, intro);
                 StatementKind::ActDeclaration
             }
-            StatementIntro::For(_) => {
-                unreachable!("For dispatch is introduced in its Gate 9 promotion")
+            StatementIntro::For(intro) => {
+                let _ = commit_for_statement_isolated(operators, &mut committed, intro);
+                StatementKind::ForStatement
             }
             StatementIntro::Operator(intro) => {
                 if matches!(
@@ -807,6 +807,10 @@ where
 
     if let Some(intro) = i.run(recognize_act_statement_intro) {
         return Some(StatementIntro::Act(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_for_statement_intro) {
+        return Some(StatementIntro::For(intro));
     }
 
     if binding_statement_selected(&mut i) {
@@ -1276,8 +1280,7 @@ where
 /// Recognizes the sink-free prefix reserved for a standalone For statement.
 ///
 /// For has no visibility form: only a bare exact maximal `for` establishes
-/// its continuation authority. Dispatch remains deferred until Gate 9.
-#[allow(dead_code)]
+/// its continuation authority.
 fn recognize_for_statement_intro<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ForStatementIntro<'source>>
@@ -1747,10 +1750,8 @@ fn emit_for_error<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
-/// Parses one accepted For continuation without making For reachable from the
-/// public statement dispatcher.  The body adapter owns only For's local
-/// punctuation and returns every outer separator and boundary untouched.
-#[allow(dead_code)]
+/// Parses one accepted For continuation. The body adapter owns only For's
+/// local punctuation and returns every outer separator and boundary untouched.
 pub(crate) fn parse_for_statement_isolated<'source, E>(
     table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
@@ -1869,9 +1870,7 @@ where
     }
 }
 
-/// Direct-CST counterpart of [`parse_for_statement_isolated`].  Gate 9 will
-/// promote this exact adapter; until then no public dispatch reaches it.
-#[allow(dead_code)]
+/// Direct-CST counterpart of [`parse_for_statement_isolated`].
 pub(crate) fn commit_for_statement_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -19013,6 +19012,8 @@ where
         .map(Declaration::Cast),
         from_fn(|i| parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
             .map(Declaration::Act),
+        from_fn(|i| parse_for_statement_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::For),
         parse_use_declaration.map(Declaration::Use),
         parse_operator_header.map(Declaration::OperatorHeader),
         parse_binding_declaration.map(Declaration::Binding),
@@ -40049,6 +40050,144 @@ mod tests {
             );
             assert!(!direct_cut, "direct rollback cut: {source:?}");
         }
+    }
+
+    #[test]
+    fn for_gate_9_real_dispatch_reaches_root_and_canonical_statement_owners() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ForStatement),
+                node_ranges(&direct_root, SyntaxKind::ForStatement),
+                "public/direct For range parity: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> Range<usize> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::For(statement) = i
+                .run(parse_declaration)
+                .expect("the promoted root parser recognizes For")
+            else {
+                panic!("the exact For intro must win root declaration dispatch")
+            };
+            assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "root AST sink: {source:?}"
+            );
+            assert!(!is_cut, "root AST cut: {source:?}");
+            statement.range()
+        }
+
+        // FOR-G's four worked examples all reach the public parser, with the
+        // AST root dispatcher and direct-CST root loop retaining the same
+        // byte range and no recovery records.
+        for source in [
+            "for x in xs:\n  x",
+            "for 'outer x in xs:\n  x",
+            "for x in xs { x }",
+            "for x in xs: x",
+        ] {
+            assert_eq!(
+                parse_root_ast(source),
+                0..source.len(),
+                "root AST: {source:?}"
+            );
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ForStatement),
+                vec![0..source.len()],
+                "public For statement: {source:?}",
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "root recovery: {source:?}"
+            );
+        }
+
+        let nested_ast_source = "for x in xs { x }";
+        let mut source_input = SourceInput::new(nested_ast_source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let table = crate::operator::OperatorTable::empty();
+        let Some(Statement::For(statement)) =
+            i.run(from_fn(|i| parse_canonical_statement(&table, i)))
+        else {
+            panic!("the promoted canonical Statement dispatcher recognizes For")
+        };
+        assert_eq!(statement.range(), 0..nested_ast_source.len());
+        assert_eq!(i.input.remainder(), "");
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+
+        // For has no visibility form, so this remains a Binding rather than a
+        // competing For introduction.
+        let (public, direct_root, direct) = parse_public_and_direct("my for = 1");
+        assert!(node_ranges(&public, SyntaxKind::ForStatement).is_empty());
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            vec![0..10]
+        );
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            node_ranges(&direct_root, SyntaxKind::BindingStatement),
+        );
+        assert!(direct.committed_recoveries().is_empty());
+
+        // For is full-only: header discovery stops without producing a fact.
+        let source: Arc<crate::SourceText> = Arc::from("for x in xs: x");
+        let header = crate::scan_header(source);
+        assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+        assert_eq!(header.coverage().range(), &(0..0));
+        assert!(header.imports().is_empty());
+        assert!(header.operators().is_empty());
     }
 
     #[test]
