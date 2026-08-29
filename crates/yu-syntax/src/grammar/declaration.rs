@@ -22,6 +22,7 @@ use crate::{
         parse_direct_expression_with_operators, parse_expression_with_operators,
         parse_indented_act_body, parse_indented_binding_body, parse_indented_cast_body,
         parse_indented_impl_body, parse_indented_mod_body, parse_indented_role_body,
+        probe_apostrophe_sigil_word,
     },
     grammar::{
         pattern::{
@@ -1303,6 +1304,62 @@ where
         for_keyword,
         for_base,
     })
+}
+
+/// Probes For's optional label without claiming a sigil Pattern.
+///
+/// Unlike case/catch, For leaves the composite available to Pattern when its
+/// next significant token is exact `in`, absent, or already caller-owned.
+#[allow(dead_code)]
+fn probe_for_label<'source, E>(
+    for_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<ForLabel<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let range = probe_apostrophe_sigil_word(i)?;
+    let after_composite = i.checkpoint();
+    let following = mod_trivia(for_base, i).is_some()
+        && !i.input.remainder().is_empty()
+        && !any_ambient_owner_claims(i)
+        && !for_label_outer_boundary_pending(i);
+    let exact_in = i.run(scan_word).is_some_and(|word| word.text() == "in");
+    i.rollback(after_composite);
+    if !following || exact_in {
+        i.rollback(checkpoint);
+        return None;
+    }
+    Some(ForLabel {
+        text: &i.input.source()[range.clone()],
+        range,
+    })
+}
+
+/// Tests only punctuation that an active caller has already made a boundary.
+/// Other punctuation remains a significant token for For's label lookahead.
+fn for_label_outer_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        let stop = match punctuation.kind() {
+            PunctuationKind::Comma => StopKind::Comma,
+            PunctuationKind::Close(Delimiter::Parenthesis) => StopKind::RightParenthesis,
+            PunctuationKind::Close(Delimiter::Bracket) => StopKind::RightBracket,
+            PunctuationKind::Close(Delimiter::Brace) => StopKind::RightBrace,
+            _ => return false,
+        };
+        i.local.stop_set().is_some_and(|stops| stops.contains(stop))
+    });
+    i.rollback(checkpoint);
+    pending
 }
 
 /// Recognizes the sink-free prefix reserved for a standalone Impl declaration.
@@ -37867,6 +37924,108 @@ mod tests {
         ] {
             run(source, baseline, expected);
         }
+    }
+
+    #[test]
+    fn for_label_probe_uses_the_shared_composite_without_claiming_sigil_patterns() {
+        fn run(
+            source: &str,
+            for_base: usize,
+            stops: StopSet,
+            expected: Option<(&str, Range<usize>)>,
+        ) {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(stops);
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            {
+                let mut i =
+                    In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+                let checkpoint = i.checkpoint();
+                let label = probe_for_label(for_base, &mut i);
+                match (label, expected) {
+                    (Some(label), Some((text, range))) => {
+                        assert_eq!(label.text, text, "label text: {source:?}");
+                        assert_eq!(label.range, range, "label range: {source:?}");
+                        assert_eq!(
+                            i.input.remainder(),
+                            &source[range.end..],
+                            "label remainder: {source:?}"
+                        );
+                    }
+                    (None, None) => {
+                        assert_eq!(i.pos(), 0, "rejected position: {source:?}");
+                        assert_eq!(
+                            i.input.remainder(),
+                            source,
+                            "rejected remainder: {source:?}"
+                        );
+                    }
+                    (actual, expected) => panic!(
+                        "For label mismatch for {source:?}: actual={actual:?}, expected={expected:?}"
+                    ),
+                }
+                i.rollback(checkpoint);
+                assert_eq!(i.pos(), 0, "rollback position: {source:?}");
+                assert_eq!(
+                    i.input.remainder(),
+                    source,
+                    "rollback remainder: {source:?}"
+                );
+            }
+            assert!(sink.take_merged().is_none(), "sink: {source:?}");
+            assert!(!cut, "cut: {source:?}");
+            assert_eq!(local.pop_stop_set(), Some(stops), "stops: {source:?}");
+        }
+
+        for (source, for_base, stops, expected) in [
+            (
+                "'outer x in xs",
+                0,
+                StopSet::default(),
+                Some(("'outer", 0..6)),
+            ),
+            (
+                "'outer inside xs",
+                0,
+                StopSet::default(),
+                Some(("'outer", 0..6)),
+            ),
+            ("'x in xs", 0, StopSet::default(), None),
+            ("'outer in xs", 0, StopSet::default(), None),
+            ("'x", 0, StopSet::default(), None),
+            ("'x\nnext", 0, StopSet::default(), None),
+            (
+                "'x]",
+                0,
+                StopSet::default().with(StopKind::RightBracket),
+                None,
+            ),
+            ("'[items]", 0, StopSet::default(), None),
+            ("'{item}", 0, StopSet::default(), None),
+            ("~\"rule\"", 0, StopSet::default(), None),
+        ] {
+            run(source, for_base, stops, expected);
+        }
+
+        let source = "'x in xs";
+        let mut input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut sink = chasa::LatestSink::new();
+        let mut cut = false;
+        let table = crate::operator::OperatorTable::empty();
+        {
+            let mut i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+            assert!(probe_for_label(0, &mut i).is_none());
+            let pattern = i
+                .run(from_fn(|i| {
+                    crate::grammar::pattern::parse_pattern(&table, i)
+                }))
+                .expect("the rejected composite remains available to Pattern");
+            assert_eq!(pattern.range(), 0..2, "sigil Pattern range");
+        }
+        assert_eq!(input.remainder(), " in xs", "Pattern remainder");
     }
 
     #[test]

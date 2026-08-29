@@ -2514,19 +2514,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let checkpoint = i.checkpoint();
-    let Some(punctuation) = i.run(scan_punctuation) else {
-        return None;
-    };
-    if punctuation.kind() != PunctuationKind::Apostrophe {
-        i.rollback(checkpoint);
-        return None;
-    }
-    let Some(word) = i.run(scan_word) else {
-        i.rollback(checkpoint);
-        return None;
-    };
-    let range = punctuation.range().start..word.range().end;
+    let range = probe_apostrophe_sigil_word(i)?;
     Some(CaseLikeLabel {
         text: &i.input.source()[range.clone()],
         range,
@@ -6168,7 +6156,7 @@ fn commit_case_like_expression<'parse, 'source, 'local, E, O>(
     committed.token(family.keyword_kind(), keyword.range());
     let trivia = consume_direct_trivia(committed);
     committed.emit_trivia(&trivia);
-    if let Some(label) = committed.probe(|probe| probe_case_like_label(probe.input())) {
+    if let Some(label) = committed.probe(|probe| probe_apostrophe_sigil_word(probe.input())) {
         committed.start_node(family.label_kind());
         committed.token(SyntaxKind::SigilIdentifier, label);
         committed.finish_node();
@@ -6332,7 +6320,13 @@ impl CaseLikeFamily {
     }
 }
 
-fn probe_case_like_label<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+/// Probes the apostrophe-plus-adjacent-word composite shared by label owners.
+///
+/// The composite is deliberately neutral: each caller decides whether its
+/// following token imposes additional label eligibility rules.
+pub(crate) fn probe_apostrophe_sigil_word<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
