@@ -2543,14 +2543,16 @@ fn act_type_expression_episode_spec(
     }
     .with(StopKind::Colon)
     .with(StopKind::LeftBrace)
-    .with(StopKind::Semicolon);
+    .with(StopKind::Semicolon)
+    .with(StopKind::Derives);
     let stops = match slot {
         ActTypeExpressionSlot::Head => incoming.with(StopKind::Equal),
         ActTypeExpressionSlot::Source => incoming,
     }
     .with(StopKind::Colon)
     .with(StopKind::LeftBrace)
-    .with(StopKind::Semicolon);
+    .with(StopKind::Semicolon)
+    .with(StopKind::Derives);
     let act_role = match slot {
         ActTypeExpressionSlot::Head => crate::session::ActDeclarationRole::Head,
         ActTypeExpressionSlot::Source => crate::session::ActDeclarationRole::Source,
@@ -2562,7 +2564,7 @@ fn act_type_expression_episode_spec(
             visible_episode_depth: current_episode_depth + 1,
         },
         policy: TypeExpressionEpisodePolicy {
-            fresh_primary_locally_owned_stops: StopSet::default(),
+            fresh_primary_locally_owned_stops: StopSet::default().with(StopKind::Derives),
             fresh_primary_owns_adjacent_polymorphic_variant_starter: true,
         },
         outer_role: GrammarRole::Declaration(DeclarationRole::Act(act_role)),
@@ -2869,17 +2871,53 @@ where
                 Recovered::Incomplete
             }
         };
+        let mut derives = matches!(head, Recovered::Complete(_))
+            .then(|| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Act,
+                    DerivesAttachmentPosition::Header,
+                    intro.act_base,
+                    &mut i,
+                )
+                .map(|start| parse_derives_attachments_isolated(start, &mut i))
+                .unwrap_or_default()
+            })
+            .unwrap_or_default();
         let source = parse_act_source_clause_after_head_isolated(intro.act_base, &mut i);
+        if source
+            .as_ref()
+            .is_some_and(|clause| matches!(clause.source, Recovered::Complete(_)))
+        {
+            if let Some(start) = recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Act,
+                DerivesAttachmentPosition::Header,
+                intro.act_base,
+                &mut i,
+            ) {
+                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+            }
+        }
         let head_and_source_complete = matches!(head, Recovered::Complete(_))
             && source
                 .as_ref()
                 .is_none_or(|clause| matches!(clause.source, Recovered::Complete(_)));
         let body = parse_act_body_ast(table, intro.act_base, head_and_source_complete, &mut i);
+        if act_body_has_actual_trailing_close(&body) {
+            if let Some(start) = recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Act,
+                DerivesAttachmentPosition::Trailing,
+                intro.act_base,
+                &mut i,
+            ) {
+                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+            }
+        }
         let end = i.pos();
         Some(ActDeclaration {
             visibility,
             head,
             source,
+            derives,
             body,
             range: intro.start..end,
         })
@@ -3175,16 +3213,55 @@ where
     } else {
         true
     };
+    if !head_terminated_incomplete {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Act,
+                DerivesAttachmentPosition::Header,
+                intro.act_base,
+                probe.input(),
+            )
+        }) {
+            let _ = commit_derives_attachments_isolated(start, committed);
+        }
+    }
     let source = commit_act_source_clause_after_head_isolated(intro.act_base, committed);
     let source_terminated_incomplete = source
         .as_ref()
         .is_some_and(|source| matches!(source.source, Recovered::Incomplete));
-    commit_act_body_isolated(
+    if source
+        .as_ref()
+        .is_some_and(|source| matches!(source.source, Recovered::Complete(_)))
+    {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Act,
+                DerivesAttachmentPosition::Header,
+                intro.act_base,
+                probe.input(),
+            )
+        }) {
+            let _ = commit_derives_attachments_isolated(start, committed);
+        }
+    }
+    let has_actual_braced_close = commit_act_body_isolated(
         table,
         intro.act_base,
         !head_terminated_incomplete && !source_terminated_incomplete,
         committed,
     );
+    if has_actual_braced_close {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Act,
+                DerivesAttachmentPosition::Trailing,
+                intro.act_base,
+                probe.input(),
+            )
+        }) {
+            let _ = commit_derives_attachments_isolated(start, committed);
+        }
+    }
     let end = committed_position(committed);
     committed.finish_node();
     committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
@@ -3203,14 +3280,15 @@ fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
     act_base: usize,
     head_and_source_complete: bool,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where
+) -> bool
+where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-        return;
+        return false;
     }
     let starter = committed.probe(|probe| {
         let i = probe.input();
@@ -3236,7 +3314,7 @@ fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
         {
             // Tail-nothing is a completed body form. It deliberately emits
             // neither a recovery node nor a synthetic semicolon/token.
-            return;
+            return false;
         }
         let trivia = committed.probe(|probe| {
             let i = probe.input();
@@ -3247,19 +3325,19 @@ fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
         });
         let Some(trivia) = trivia else {
             if !head_and_source_complete {
-                return;
+                return false;
             }
             emit_act_body_introducer_missing(committed);
-            return;
+            return false;
         };
         let newline = committed
             .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
         if newline {
             if !head_and_source_complete {
-                return;
+                return false;
             }
             emit_act_body_introducer_missing(committed);
-            return;
+            return false;
         }
         let consumed_trivia = committed
             .probe(|probe| mod_trivia(act_base, probe.input()))
@@ -3268,13 +3346,18 @@ fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
         committed.emit_trivia(&consumed_trivia);
         match act_body_introducer_error_retry(act_base, committed) {
             Some(true) => {
-                commit_act_body_isolated(table, act_base, head_and_source_complete, committed);
+                return commit_act_body_isolated(
+                    table,
+                    act_base,
+                    head_and_source_complete,
+                    committed,
+                );
             }
             Some(false) => {}
             None if head_and_source_complete => emit_act_body_introducer_missing(committed),
             None => {}
         }
-        return;
+        return false;
     };
 
     let consumed_trivia = committed
@@ -3289,17 +3372,33 @@ fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
         ActBodyStarter::Bodyless(range) => {
             assert_eq!(punctuation.range(), range);
             committed.token(SyntaxKind::Semicolon, range);
+            false
         }
         ActBodyStarter::Braced(range) => {
             assert_eq!(punctuation.range(), range);
             commit_braced_statement_block_expression(table, range, committed);
+            committed_act_body_has_actual_trailing_close(committed)
         }
         ActBodyStarter::Colon(range) => {
             assert_eq!(punctuation.range(), range);
             committed.token(SyntaxKind::Colon, range);
             commit_act_colon_body_isolated(table, act_base, committed);
+            false
         }
     }
+}
+
+fn committed_act_body_has_actual_trailing_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.pos() > 0 && i.input.source().as_bytes().get(i.pos() - 1) == Some(&b'}')
+    })
 }
 
 fn commit_act_colon_body_isolated<'parse, 'source, 'local, E, O>(
@@ -12229,6 +12328,16 @@ fn enum_body_has_actual_trailing_close(body: &Recovered<EnumBody<'_>>) -> bool {
     )
 }
 
+/// Act opens a trailing derives attachment point only after its own braced
+/// statement block has consumed a real matching close. Every bodyless, colon,
+/// and recovered braced form leaves `derives` to the surrounding statement.
+fn act_body_has_actual_trailing_close(body: &Recovered<ActBody<'_>>) -> bool {
+    matches!(
+        body,
+        Recovered::Complete(ActBody::Braced { block }) if block.has_complete_close()
+    )
+}
+
 fn scan_derives_comma<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -18144,6 +18253,7 @@ pub(crate) struct ActDeclaration<'source> {
     visibility: Visibility,
     head: Recovered<Box<TypeExpression<'source>>>,
     source: Option<ActSourceClause<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
     body: Recovered<ActBody<'source>>,
     range: Range<usize>,
 }
@@ -48924,6 +49034,338 @@ mod tests {
             assert_eq!(identifier_tokens(root, "act"), vec![3..6]);
         }
         assert!(direct.committed_recoveries().is_empty());
+    }
+
+    #[test]
+    fn act_derives_gate_2_worked_examples_are_public_byte_exact_and_ast_direct_parity() {
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn token_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == kind)
+                .map(|token| syntax_range(token.text_range()))
+                .collect()
+        }
+
+        fn parse_ast<'source>(source: &'source str) -> ActDeclaration<'source> {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let Declaration::Act(declaration) =
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut))
+                    .set_local(&mut local)
+                    .run(parse_declaration)
+                    .expect("the public Act declaration is accepted by the AST dispatcher")
+            else {
+                panic!("the Act dispatcher must retain Act ownership")
+            };
+            assert_eq!(input.remainder(), "", "AST remainder: {source:?}");
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!cut, "AST cut: {source:?}");
+            declaration
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ActDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ActDeclaration),
+                "public/direct Act range parity: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::DerivesClause),
+                node_ranges(&direct_root, SyntaxKind::DerivesClause),
+                "public/direct derives range parity: {source:?}",
+            );
+            assert_eq!(
+                parsed.diagnostics().len(),
+                direct.committed_recoveries().len(),
+                "public/direct recovery parity: {source:?}",
+            );
+            (public, direct_root, direct.committed_recoveries().to_vec())
+        }
+
+        for (source, derives_range, derives_node_range, position, body_range) in [
+            (
+                "act Console::Read derives Eq;",
+                18..28,
+                17..28,
+                DerivesAttachmentPosition::Header,
+                0..0,
+            ),
+            (
+                "act local 't = var 't derives Eq",
+                22..32,
+                21..32,
+                DerivesAttachmentPosition::Header,
+                32..32,
+            ),
+            (
+                "act Eq {\n  our eq: Self -> Self -> Bool\n} derives Debug",
+                42..55,
+                41..55,
+                DerivesAttachmentPosition::Trailing,
+                7..41,
+            ),
+        ] {
+            let ast = parse_ast(source);
+            let (public, direct, recoveries) = parse_public_and_direct(source);
+            assert_eq!(ast.range(), 0..source.len(), "AST range: {source:?}");
+            assert!(
+                matches!(ast.derives.as_slice(), [DerivesAttachment { position: actual, clause }]
+                    if *actual == position && clause.range == derives_range),
+                "AST attachment: {source:?}",
+            );
+            assert!(recoveries.is_empty(), "zero direct recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ActDeclaration),
+                vec![0..source.len()],
+                "public Act range: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::DerivesClause),
+                vec![derives_node_range],
+                "byte-exact derives clause: {source:?}",
+            );
+            assert_eq!(
+                token_ranges(&public, SyntaxKind::DerivesKw),
+                vec![derives_range.start..derives_range.start + 7],
+                "byte-exact derives keyword: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::BracedStatementBlockExpression),
+                (body_range.start < body_range.end)
+                    .then_some(vec![body_range])
+                    .unwrap_or_default(),
+                "body shape: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::DerivesClause),
+                node_ranges(&direct, SyntaxKind::DerivesClause),
+                "direct CST attachment: {source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn act_derives_gate_2_fixtures_the_full_actdrv_r_table() {
+        fn parse_ast<'source>(source: &'source str) -> ActDeclaration<'source> {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let declaration = parse_act_declaration_isolated(
+                &crate::operator::OperatorTable::empty(),
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("the Act introducer establishes isolated ownership");
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "AST depth: {source:?}"
+            );
+            assert!(local.stop_set().is_none(), "AST stops: {source:?}");
+            declaration
+        }
+
+        fn public_direct(source: &str) -> (SyntaxNode, Vec<CommittedRecoveryRecord>) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            assert_eq!(root.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(
+                root.to_string(),
+                SyntaxNode::new_root(direct.green().clone()).to_string(),
+                "public/direct losslessness: {source:?}",
+            );
+            assert_eq!(
+                parsed.diagnostics().len(),
+                direct.committed_recoveries().len(),
+                "public/direct recovery parity: {source:?}",
+            );
+            (root, direct.committed_recoveries().to_vec())
+        }
+
+        fn act_derives_ranges(root: &SyntaxNode) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ActDeclaration)
+                .flat_map(|act| {
+                    act.descendants()
+                        .filter(|node| node.kind() == SyntaxKind::DerivesClause)
+                        .map(|node| syntax_range(node.text_range()))
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        }
+
+        let header = parse_ast("act A derives Eq;");
+        assert!(matches!(
+            header.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Header,
+                ..
+            }]
+        ));
+        let (root, _) = public_direct("act A derives Eq;");
+        assert_eq!(act_derives_ranges(&root), vec![5..16]);
+
+        let incomplete_head = parse_ast("act @ derives Eq;");
+        assert!(incomplete_head.derives.is_empty());
+        let (root, _) = public_direct("act @ derives Eq;");
+        assert!(act_derives_ranges(&root).is_empty());
+
+        for source in ["act derives Eq;", "act a = derives Eq;"] {
+            let declaration = parse_ast(source);
+            assert!(declaration.derives.is_empty(), "fresh primary: {source:?}");
+            assert!(matches!(declaration.head, Recovered::Complete(_)));
+            if source.contains(" = ") {
+                assert!(matches!(
+                    declaration.source,
+                    Some(ActSourceClause {
+                        source: Recovered::Complete(_),
+                        ..
+                    })
+                ));
+            }
+            let (root, _) = public_direct(source);
+            assert!(
+                act_derives_ranges(&root).is_empty(),
+                "fresh CST: {source:?}"
+            );
+        }
+
+        let equals_tail = parse_ast("act a derives Eq = b;");
+        assert_eq!(equals_tail.derives.len(), 1);
+        assert!(matches!(
+            equals_tail.source,
+            Some(ActSourceClause {
+                source: Recovered::Complete(_),
+                ..
+            })
+        ));
+        let (root, _) = public_direct("act a derives Eq = b;");
+        assert_eq!(act_derives_ranges(&root), vec![5..16]);
+
+        let post_source = parse_ast("act a = b derives Eq");
+        assert!(matches!(
+            post_source.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Header,
+                ..
+            }]
+        ));
+        let (root, _) = public_direct("act a = b derives Eq");
+        assert_eq!(act_derives_ranges(&root), vec![9..20]);
+
+        let source_absent = parse_ast("act a;");
+        assert!(source_absent.source.is_none());
+        assert!(source_absent.derives.is_empty());
+        let source_incomplete = parse_ast("act a = ; derives Eq;");
+        assert!(matches!(
+            source_incomplete.source,
+            Some(ActSourceClause {
+                source: Recovered::Incomplete,
+                ..
+            })
+        ));
+        assert!(source_incomplete.derives.is_empty());
+        for source in ["act a;", "act a = ; derives Eq;"] {
+            let (root, _) = public_direct(source);
+            assert!(
+                act_derives_ranges(&root).is_empty(),
+                "skipped source CST: {source:?}"
+            );
+        }
+
+        for source in ["act A derives ;", "act A derives Eq via ;"] {
+            let (root, records) = public_direct(source);
+            assert_eq!(act_derives_ranges(&root), vec![5..source.len() - 1]);
+            assert!(records.iter().any(|record| matches!(
+                record.site.role,
+                GrammarRole::Declaration(DeclarationRole::Derives(_))
+            )));
+            assert!(records.iter().all(|record| {
+                record.site.role
+                    != GrammarRole::Declaration(DeclarationRole::Act(
+                        crate::session::ActDeclarationRole::BodyIntroducer,
+                    ))
+            }));
+        }
+
+        let (root, records) = public_direct("act a = b derives Eq = c;");
+        assert_eq!(act_derives_ranges(&root), vec![9..20]);
+        assert!(records.iter().any(|record| {
+            record.site.role
+                == GrammarRole::Declaration(DeclarationRole::Act(
+                    crate::session::ActDeclarationRole::BodyIntroducer,
+                ))
+        }));
+
+        let trailing = parse_ast("act A { our x = Int } derives Eq");
+        assert!(matches!(
+            trailing.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
+        let (root, _) = public_direct("act A { our x = Int } derives Eq");
+        assert_eq!(act_derives_ranges(&root), vec![21..32]);
+
+        for source in [
+            "act A; derives Eq",
+            "act A: our x = Int derives Eq",
+            "act A:\n  our x = Int\nderives Eq",
+            "act A { our x = Int\nderives Eq",
+        ] {
+            let declaration = parse_ast(source);
+            assert!(
+                declaration.derives.is_empty(),
+                "no trailing AST: {source:?}"
+            );
+            let (root, _) = public_direct(source);
+            assert!(
+                act_derives_ranges(&root).is_empty(),
+                "no trailing CST: {source:?}",
+            );
+        }
     }
 
     #[test]

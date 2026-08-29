@@ -283,6 +283,10 @@ impl<'source> BracedStatementBlockExpression<'source> {
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
     }
+
+    pub(crate) fn has_complete_close(&self) -> bool {
+        matches!(self.close, Recovered::Complete(_))
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
