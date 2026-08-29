@@ -5793,6 +5793,45 @@ where
     }
 }
 
+/// Type-owned AST realization after the sink-free post-header judge has cut
+/// to its exact `impl` evidence. The shared tail supplies every post-keyword
+/// slot; this adapter contributes only the Type form payload and its range.
+#[allow(dead_code)]
+fn parse_type_attached_impl_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
+    start: TypeAttachedImplStart<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeAttachedImpl<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = i
+        .run(scan_trivia)
+        .expect("the accepted Type-attached Impl gap remains at the cursor");
+    debug_assert_eq!(leading.range(), start.leading.range());
+    let keyword = i
+        .run(scan_word)
+        .expect("the accepted Type-attached Impl keyword remains at the cursor");
+    debug_assert_eq!(keyword.range(), start.keyword.range());
+    debug_assert_eq!(keyword.text(), "impl");
+
+    let tail = parse_impl_tail_ast(
+        table,
+        type_attached_impl_tail_owner_spec(start.type_base),
+        i,
+    );
+    let end = i.pos();
+    TypeAttachedImpl {
+        impl_keyword: keyword.range(),
+        head: tail.head,
+        description: tail.description,
+        body: tail.body,
+        range: keyword.range().start..end,
+    }
+}
+
 fn parse_impl_after_head_ast<'source, E>(
     table: &crate::operator::OperatorTable,
     owner_spec: ImplTailOwnerSpec,
@@ -6010,6 +6049,41 @@ fn commit_impl_tail<'parse, 'source, 'local, E, O>(
         };
 
     commit_impl_after_head(table, owner_spec, committed, head_terminated_incomplete);
+}
+
+/// Type-owned direct-CST realization for a caller that already opened its
+/// `TypeDeclaration` and emitted the shared header. No declaration wrapper is
+/// started here: the accepted gap, `ImplKw`, and shared tail remain flat
+/// children of that caller-owned node.
+#[allow(dead_code)]
+fn commit_type_attached_impl_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    start: TypeAttachedImplStart<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("the accepted Type-attached Impl gap remains at the cursor");
+    debug_assert_eq!(leading.range(), start.leading.range());
+    committed.emit_trivia(&leading);
+    let keyword = committed
+        .probe(|probe| probe.input().run(scan_word))
+        .expect("the accepted Type-attached Impl keyword remains at the cursor");
+    debug_assert_eq!(keyword.range(), start.keyword.range());
+    debug_assert_eq!(keyword.text(), "impl");
+    committed.token(SyntaxKind::ImplKw, keyword.range());
+    commit_impl_tail(
+        table,
+        type_attached_impl_tail_owner_spec(start.type_base),
+        committed,
+    );
+    Recovered::Complete(keyword.range().start..committed_position(committed))
 }
 
 fn commit_impl_after_head<'parse, 'source, 'local, E, O>(
@@ -32697,6 +32771,549 @@ mod tests {
                 ),)),
             );
         }
+    }
+
+    #[test]
+    fn type_attached_impl_gate_4_adapters_flat_emit_all_worked_forms_byte_exact() {
+        fn parse_ast<'source>(source: &'source str) -> TypeDeclaration<'source> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let intro = i
+                    .run(recognize_type_statement_intro)
+                    .expect("the Gate 4 AST harness starts with Type");
+                let mut recoveries = Vec::new();
+                let shared =
+                    parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
+                assert!(recoveries.is_empty(), "AST header recovery: {source:?}");
+                let start = match classify_type_declaration_post_header(
+                    &shared.name,
+                    intro.type_base,
+                    &mut i,
+                ) {
+                    TypeDeclarationPostHeaderDecision::AttachedImpl(start) => start,
+                    decision => {
+                        panic!("the Gate 4 AST harness requires AttachedImpl: {decision:?}")
+                    }
+                };
+                let attached = parse_type_attached_impl_isolated(
+                    &crate::operator::OperatorTable::empty(),
+                    start,
+                    &mut i,
+                );
+                TypeDeclaration {
+                    visibility: intro
+                        .visibility
+                        .map_or(Visibility::Private, |prefix| prefix.visibility),
+                    name: shared.name,
+                    parameters: shared.parameters,
+                    derives: Vec::new(),
+                    form: Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)),
+                    range: intro.start..i.pos(),
+                }
+            };
+            assert_eq!(
+                source_input.remainder(),
+                "",
+                "AST lossless cursor: {source:?}"
+            );
+            let _ = expectations.take_merged();
+            assert!(!is_cut, "AST cut: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "AST state: {source:?}"
+            );
+            declaration
+        }
+
+        fn commit_direct(
+            source: &str,
+        ) -> (
+            Recovered<Range<usize>>,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("the Gate 4 direct harness starts with Type");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            committed.start_node(SyntaxKind::TypeDeclaration);
+            if let Some(visibility) = &intro.visibility {
+                emit_visibility(&mut committed, visibility);
+                if let Some(trivia) = &intro.after_visibility {
+                    committed.emit_trivia(trivia);
+                }
+            }
+            committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
+
+            let (shared, recoveries, shared_end) = committed.probe(|probe| {
+                let i = probe.input();
+                let checkpoint = i.checkpoint();
+                let mut recoveries = Vec::new();
+                let shared = parse_type_declaration_shared_header_phase(&intro, i, &mut recoveries);
+                let end = i.pos();
+                i.rollback(checkpoint);
+                (shared, recoveries, end)
+            });
+            assert!(recoveries.is_empty(), "direct header recovery: {source:?}");
+            commit_type_declaration_header_surface(
+                intro.type_base,
+                &ParsedTypeDeclarationHeader {
+                    name: shared.name.clone(),
+                    parameters: shared.parameters.clone(),
+                    equals: Recovered::Incomplete,
+                    rhs_retry: false,
+                },
+                recoveries,
+                shared_end,
+                &mut committed,
+            );
+            let start = match committed.probe(|probe| {
+                classify_type_declaration_post_header(&shared.name, intro.type_base, probe.input())
+            }) {
+                TypeDeclarationPostHeaderDecision::AttachedImpl(start) => start,
+                decision => {
+                    panic!("the Gate 4 direct harness requires AttachedImpl: {decision:?}")
+                }
+            };
+            let attached = commit_type_attached_impl_isolated(
+                &crate::operator::OperatorTable::empty(),
+                start,
+                &mut committed,
+            );
+            committed.finish_node();
+            committed.finish_node();
+            committed.probe(|probe| {
+                assert_eq!(
+                    probe.input().input.remainder(),
+                    "",
+                    "direct cursor: {source:?}"
+                )
+            });
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "direct losslessness: {source:?}");
+            let _ = expectations.take_merged();
+            let _ = is_cut;
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "direct state: {source:?}"
+            );
+            (attached, root, recoveries)
+        }
+
+        fn cst_shape(node: &SyntaxNode) -> String {
+            fn append(node: &SyntaxNode, depth: usize, shape: &mut String) {
+                use std::fmt::Write as _;
+
+                let _ = writeln!(
+                    shape,
+                    "{}{:?} {:?}",
+                    "  ".repeat(depth),
+                    node.kind(),
+                    syntax_range(node.text_range()),
+                );
+                for element in node.children_with_tokens() {
+                    if let Some(child) = element.clone().into_node() {
+                        append(&child, depth + 1, shape);
+                    } else if let Some(token) = element.into_token() {
+                        let _ = writeln!(
+                            shape,
+                            "{}{:?} {:?} {:?}",
+                            "  ".repeat(depth + 1),
+                            token.kind(),
+                            syntax_range(token.text_range()),
+                            token.text(),
+                        );
+                    }
+                }
+            }
+
+            let mut shape = String::new();
+            append(node, 0, &mut shape);
+            shape
+        }
+
+        #[derive(Clone, Debug)]
+        enum ExpectedBody {
+            Bodyless(Range<usize>),
+            Braced(Range<usize>),
+            ColonInline {
+                colon: Range<usize>,
+                statement: Range<usize>,
+            },
+            ColonIndented {
+                colon: Range<usize>,
+                block: Range<usize>,
+                statement: Range<usize>,
+            },
+        }
+
+        struct Fixture {
+            source: &'static str,
+            attached: Range<usize>,
+            head: Range<usize>,
+            description: Option<(Range<usize>, Range<usize>, Range<usize>)>,
+            body: ExpectedBody,
+            cst: &'static str,
+        }
+
+        let fixtures = [
+            Fixture {
+                source: "type Box 't impl Pick Int;",
+                attached: 12..26,
+                head: 17..25,
+                description: None,
+                body: ExpectedBody::Bodyless(25..26),
+                cst: r#"TypeDeclaration 0..26
+  TypeKw 0..4 "type"
+  Whitespace 4..5 " "
+  Identifier 5..8 "Box"
+  DeclarationTypeParameterList 8..11
+    Whitespace 8..9 " "
+    SigilIdentifier 9..11 "'t"
+  Whitespace 11..12 " "
+  ImplKw 12..16 "impl"
+  Whitespace 16..17 " "
+  TypeExpression 17..25
+    Identifier 17..21 "Pick"
+    TypeApplyArgument 21..25
+      Whitespace 21..22 " "
+      TypeExpression 22..25
+        Identifier 22..25 "Int"
+  Semicolon 25..26 ";"
+"#,
+            },
+            Fixture {
+                source: "type Box impl Pick Int: Show;",
+                attached: 9..29,
+                head: 14..22,
+                description: Some((22..23, 24..28, 22..28)),
+                body: ExpectedBody::Bodyless(28..29),
+                cst: r#"TypeDeclaration 0..29
+  TypeKw 0..4 "type"
+  Whitespace 4..5 " "
+  Identifier 5..8 "Box"
+  Whitespace 8..9 " "
+  ImplKw 9..13 "impl"
+  Whitespace 13..14 " "
+  TypeExpression 14..22
+    Identifier 14..18 "Pick"
+    TypeApplyArgument 18..22
+      Whitespace 18..19 " "
+      TypeExpression 19..22
+        Identifier 19..22 "Int"
+  ImplDescription 22..28
+    Colon 22..23 ":"
+    Whitespace 23..24 " "
+    TypeExpression 24..28
+      Identifier 24..28 "Show"
+  Semicolon 28..29 ";"
+"#,
+            },
+            Fixture {
+                source: "type Box impl Pick Int { my value = 1 }",
+                attached: 9..39,
+                head: 14..22,
+                description: None,
+                body: ExpectedBody::Braced(23..39),
+                cst: r#"TypeDeclaration 0..39
+  TypeKw 0..4 "type"
+  Whitespace 4..5 " "
+  Identifier 5..8 "Box"
+  Whitespace 8..9 " "
+  ImplKw 9..13 "impl"
+  Whitespace 13..14 " "
+  TypeExpression 14..22
+    Identifier 14..18 "Pick"
+    TypeApplyArgument 18..22
+      Whitespace 18..19 " "
+      TypeExpression 19..22
+        Identifier 19..22 "Int"
+  Whitespace 22..23 " "
+  BracedStatementBlockExpression 23..39
+    LBrace 23..24 "{"
+    Whitespace 24..25 " "
+    Statement 25..37
+      BindingStatement 25..37
+        BindingHeader 25..35
+          MyKw 25..27 "my"
+          Whitespace 27..28 " "
+          Pattern 28..33
+            IdentifierPattern 28..33
+              Identifier 28..33 "value"
+          Whitespace 33..34 " "
+          Equals 34..35 "="
+        BindingBody 35..37
+          Whitespace 35..36 " "
+          OperatorChain 36..37
+            IntegerLiteral 36..37
+              Integer 36..37 "1"
+    Whitespace 37..38 " "
+    RBrace 38..39 "}"
+"#,
+            },
+            Fixture {
+                source: "type Box impl Pick Int: Show: my value = 1;",
+                attached: 9..43,
+                head: 14..22,
+                description: Some((22..23, 24..28, 22..28)),
+                body: ExpectedBody::ColonInline {
+                    colon: 28..29,
+                    statement: 30..42,
+                },
+                cst: r#"TypeDeclaration 0..43
+  TypeKw 0..4 "type"
+  Whitespace 4..5 " "
+  Identifier 5..8 "Box"
+  Whitespace 8..9 " "
+  ImplKw 9..13 "impl"
+  Whitespace 13..14 " "
+  TypeExpression 14..22
+    Identifier 14..18 "Pick"
+    TypeApplyArgument 18..22
+      Whitespace 18..19 " "
+      TypeExpression 19..22
+        Identifier 19..22 "Int"
+  ImplDescription 22..28
+    Colon 22..23 ":"
+    Whitespace 23..24 " "
+    TypeExpression 24..28
+      Identifier 24..28 "Show"
+  Colon 28..29 ":"
+  Whitespace 29..30 " "
+  BindingStatement 30..42
+    BindingHeader 30..40
+      MyKw 30..32 "my"
+      Whitespace 32..33 " "
+      Pattern 33..38
+        IdentifierPattern 33..38
+          Identifier 33..38 "value"
+      Whitespace 38..39 " "
+      Equals 39..40 "="
+    BindingBody 40..42
+      Whitespace 40..41 " "
+      OperatorChain 41..42
+        IntegerLiteral 41..42
+          Integer 41..42 "1"
+  Semicolon 42..43 ";"
+"#,
+            },
+            Fixture {
+                source: "type Box impl Pick Int:\n  my value = 1",
+                attached: 9..38,
+                head: 14..22,
+                description: None,
+                body: ExpectedBody::ColonIndented {
+                    colon: 22..23,
+                    block: 23..38,
+                    statement: 26..38,
+                },
+                cst: r#"TypeDeclaration 0..38
+  TypeKw 0..4 "type"
+  Whitespace 4..5 " "
+  Identifier 5..8 "Box"
+  Whitespace 8..9 " "
+  ImplKw 9..13 "impl"
+  Whitespace 13..14 " "
+  TypeExpression 14..22
+    Identifier 14..18 "Pick"
+    TypeApplyArgument 18..22
+      Whitespace 18..19 " "
+      TypeExpression 19..22
+        Identifier 19..22 "Int"
+  Colon 22..23 ":"
+  IndentedStatementBlock 23..38
+    Newline 23..24 "\n"
+    Whitespace 24..26 "  "
+    Statement 26..38
+      BindingStatement 26..38
+        BindingHeader 26..36
+          MyKw 26..28 "my"
+          Whitespace 28..29 " "
+          Pattern 29..34
+            IdentifierPattern 29..34
+              Identifier 29..34 "value"
+          Whitespace 34..35 " "
+          Equals 35..36 "="
+        BindingBody 36..38
+          Whitespace 36..37 " "
+          OperatorChain 37..38
+            IntegerLiteral 37..38
+              Integer 37..38 "1"
+"#,
+            },
+        ];
+
+        for fixture in fixtures {
+            let source = fixture.source;
+            let ast = parse_ast(source);
+            let Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)) = &ast.form else {
+                panic!("the isolated AST form must be AttachedImpl: {source:?}");
+            };
+            let (direct_range, root, recoveries) = commit_direct(source);
+            assert_eq!(
+                attached.range, fixture.attached,
+                "AST attached range: {source:?}"
+            );
+            assert_eq!(
+                attached.impl_keyword,
+                fixture.attached.start..fixture.attached.start + "impl".len(),
+                "AST ImplKw: {source:?}",
+            );
+            assert!(matches!(
+                attached.head,
+                Recovered::Complete(ref head) if head.range() == fixture.head
+            ));
+            match (&attached.description, fixture.description) {
+                (
+                    Some(ImplDescription {
+                        colon,
+                        value: Recovered::Complete(value),
+                        range,
+                    }),
+                    Some((expected_colon, expected_value, expected_range)),
+                ) => {
+                    assert_eq!(*colon, expected_colon, "description colon: {source:?}");
+                    assert_eq!(
+                        value.range(),
+                        expected_value,
+                        "description value: {source:?}"
+                    );
+                    assert_eq!(*range, expected_range, "description range: {source:?}");
+                }
+                (None, None) => {}
+                actual => panic!("description mismatch for {source:?}: {actual:?}"),
+            }
+            match (&attached.body, fixture.body) {
+                (
+                    Recovered::Complete(ImplBody::Bodyless { semicolon }),
+                    ExpectedBody::Bodyless(expected),
+                ) => assert_eq!(*semicolon, expected, "bodyless: {source:?}"),
+                (
+                    Recovered::Complete(ImplBody::Braced { block }),
+                    ExpectedBody::Braced(expected),
+                ) => assert_eq!(block.range(), expected, "brace body: {source:?}"),
+                (
+                    Recovered::Complete(ImplBody::Colon {
+                        colon,
+                        body: Recovered::Complete(ImplColonBody::Inline { statement }),
+                    }),
+                    ExpectedBody::ColonInline {
+                        colon: expected_colon,
+                        statement: expected_statement,
+                    },
+                ) => {
+                    assert_eq!(*colon, expected_colon, "inline colon: {source:?}");
+                    assert_eq!(
+                        statement.range(),
+                        expected_statement,
+                        "inline body: {source:?}"
+                    );
+                }
+                (
+                    Recovered::Complete(ImplBody::Colon {
+                        colon,
+                        body: Recovered::Complete(ImplColonBody::Indented { block }),
+                    }),
+                    ExpectedBody::ColonIndented {
+                        colon: expected_colon,
+                        block: expected_block,
+                        statement: expected_statement,
+                    },
+                ) => {
+                    assert_eq!(*colon, expected_colon, "indented colon: {source:?}");
+                    assert_eq!(block.range(), expected_block, "indented block: {source:?}");
+                    assert!(matches!(
+                        block.statements(),
+                        [Recovered::Complete(statement)] if statement.range() == expected_statement
+                    ));
+                }
+                actual => panic!("body mismatch for {source:?}: {actual:?}"),
+            }
+            assert_eq!(direct_range, Recovered::Complete(fixture.attached));
+            assert_eq!(ast.range, 0..source.len());
+            assert_eq!(ast.visibility, Visibility::Private);
+            assert!(matches!(
+                ast.name,
+                Recovered::Complete(ref name) if name.text() == "Box" && name.range() == (5..8)
+            ));
+            if source == "type Box 't impl Pick Int;" {
+                assert!(matches!(
+                    ast.parameters.as_slice(),
+                    [DeclarationTypeParameter::SigilIdentifier(parameter)]
+                        if parameter.text() == "'t" && parameter.range() == (9..11)
+                ));
+            } else {
+                assert!(ast.parameters.is_empty(), "parameters: {source:?}");
+            }
+            assert!(ast.derives.is_empty(), "derives: {source:?}");
+            assert!(recoveries.is_empty(), "direct recovery: {source:?}");
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::ImplDeclaration)
+            );
+            let declaration = root.children().next().expect("one TypeDeclaration");
+            assert_eq!(declaration.kind(), SyntaxKind::TypeDeclaration);
+            assert_eq!(syntax_range(declaration.text_range()), ast.range);
+            assert_eq!(
+                root.children_with_tokens().count(),
+                1,
+                "all bytes stay in TypeDeclaration"
+            );
+            assert_eq!(
+                cst_shape(&declaration),
+                fixture.cst,
+                "byte-exact CST: {source:?}"
+            );
+        }
+
+        let source = "type Box 't impl Pick Int;";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let public = {
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            parse_type_declaration(i).expect("the public path still recognizes its Type prefix")
+        };
+        assert!(
+            !matches!(
+                public.form,
+                Recovered::Complete(TypeDeclarationForm::AttachedImpl(_))
+            ),
+            "Gate 4 must not promote AttachedImpl through the public Type path",
+        );
     }
 
     #[test]
