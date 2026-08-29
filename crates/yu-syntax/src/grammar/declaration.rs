@@ -14,24 +14,22 @@ use crate::{
     BindingPower as HeaderBindingPower, BindingPowers, HeaderImport, HeaderImportForm,
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
     grammar::expression::{
-        IndentedStatementBlock, OperatorChain, ParsedExpression, commit_indented_binding_body,
-        commit_indented_cast_body,
-        commit_indented_act_body, commit_indented_impl_body, commit_indented_mod_body,
-        commit_indented_role_body,
-        Statement, BracedStatementBlockExpression, commit_braced_statement_block_expression,
-        commit_canonical_statement, parse_braced_statement_block_expression,
+        BracedStatementBlockExpression, IndentedStatementBlock, OperatorChain, ParsedExpression,
+        Statement, commit_braced_statement_block_expression, commit_canonical_statement,
+        commit_indented_act_body, commit_indented_binding_body, commit_indented_cast_body,
+        commit_indented_impl_body, commit_indented_mod_body, commit_indented_role_body,
+        parse_braced_statement_block_expression, parse_canonical_statement,
         parse_direct_expression_with_operators, parse_expression_with_operators,
         parse_indented_act_body, parse_indented_binding_body, parse_indented_cast_body,
         parse_indented_impl_body, parse_indented_mod_body, parse_indented_role_body,
-        parse_canonical_statement,
     },
     grammar::{
-        pattern::{ParsedPattern, Pattern, PatternMandatorySlotPolicy,
+        pattern::{
+            ParsedPattern, Pattern, PatternMandatorySlotPolicy,
             commit_direct_pattern_with_outer_missing_role_and_policy,
-            pattern_nud_candidate_input,
-            parse_direct_pattern_with_outer_missing_role,
-            parse_pattern_with_outer_missing_role,
-            parse_required_pattern_with_outer_missing_role_and_policy},
+            parse_direct_pattern_with_outer_missing_role, parse_pattern_with_outer_missing_role,
+            parse_required_pattern_with_outer_missing_role_and_policy, pattern_nud_candidate_input,
+        },
         type_expr::{
             TypeExpression, commit_direct_type_expression_with_outer_missing_role,
             commit_direct_type_expression_with_outer_missing_role_and_policy,
@@ -50,15 +48,15 @@ use crate::{
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
-        AmbientOwnerScopeKind, BindingRole, BracedBarrierOrigin, CommitOutput, Committed,
-        CommittedRecoveryRecord, ConstructRole,
-        CastRole, DeclarationRole, Delimiter, DerivesRole, EnumDeclarationRole, ErrorDeclarationRole, VariantDeclarationRole, ExpectationSources, ExpectedSyntax,
-        FullCstOutput, GrammarRole,
-        ImplRole, ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
-        LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
-        ModRole, ParseLocal, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole,
-        StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner,
-        TypeExpressionEpisodePolicy, TypeExpressionScopedStopFrame, UnexpectedSyntax,
+        AmbientOwnerScopeKind, BindingRole, BracedBarrierOrigin, CastRole, CommitOutput, Committed,
+        CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter, DerivesRole,
+        EnumDeclarationRole, ErrorDeclarationRole, ExpectationSources, ExpectedSyntax,
+        FullCstOutput, GrammarRole, ImplRole, ImportRole, IndentationBaseline,
+        IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, LayoutRole,
+        ModRole, OperatorHeaderRole, ParseLocal, Probe, RecoveryKind, RecoverySiteKey,
+        RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, StopKind, StopSet, SynIn,
+        SyntaxExpectation, TypeDelimitedOwner, TypeExpressionEpisodePolicy,
+        TypeExpressionScopedStopFrame, UnexpectedSyntax, VariantDeclarationRole,
         any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
@@ -317,17 +315,27 @@ impl<'source, C> ParsedBindingDeclaration<'source, C> {
     pub(crate) fn definition(&self) -> Option<&ParsedBindingDefinition<C>> {
         self.definition.as_ref()
     }
-
 }
 
 impl<C> ParsedBindingDefinition<C> {
-    pub(crate) fn body(&self) -> &Recovered<ParsedBindingBody<C>> { &self.body }
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn body(&self) -> &Recovered<ParsedBindingBody<C>> {
+        &self.body
+    }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
 }
 
 impl<C> ParsedBindingBody<C> {
-    fn new(range: Range<usize>) -> Self { Self { range, marker: std::marker::PhantomData } }
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    fn new(range: Range<usize>) -> Self {
+        Self {
+            range,
+            marker: std::marker::PhantomData,
+        }
+    }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
 }
 
 /// Builds the direct full-parse root candidate without changing `parse_file`.
@@ -379,9 +387,8 @@ fn parse_direct_root_candidate_with_local(
     let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
 
     committed.start_node(SyntaxKind::Root);
-    let ambient_scope = committed.probe(|probe| {
-        probe.input().local.push_root_statement_ambient_scope()
-    });
+    let ambient_scope =
+        committed.probe(|probe| probe.input().local.push_root_statement_ambient_scope());
     let mut root_statement_start = true;
     let mut previous_statement = None;
 
@@ -863,7 +870,8 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(struct_base, &mut i) else {
             i.rollback(checkpoint);
             return None;
@@ -910,7 +918,8 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(type_base, &mut i) else {
             i.rollback(checkpoint);
             return None;
@@ -957,7 +966,8 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(role_base, &mut i).filter(|trivia| !trivia.is_empty()) else {
             i.rollback(checkpoint);
             return None;
@@ -1005,7 +1015,8 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(act_base, &mut i).filter(|trivia| !trivia.is_empty()) else {
             i.rollback(checkpoint);
             return None;
@@ -1022,10 +1033,16 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    if matches!(visibility, Some(VisibilityPrefix { visibility: Visibility::Private, .. })) {
+    if matches!(
+        visibility,
+        Some(VisibilityPrefix {
+            visibility: Visibility::Private,
+            ..
+        })
+    ) {
         let head_checkpoint = i.checkpoint();
-        let head_candidate = mod_trivia(act_base, &mut i).is_some()
-            && act_raw_type_head_candidate(&mut i);
+        let head_candidate =
+            mod_trivia(act_base, &mut i).is_some() && act_raw_type_head_candidate(&mut i);
         i.rollback(head_checkpoint);
         if !head_candidate {
             i.rollback(checkpoint);
@@ -1053,9 +1070,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let candidate = i.run(scan_path_segment).is_some_and(|name| {
-        !matches!(name.text().chars().next(), Some('$' | '&'))
-    });
+    let candidate = i
+        .run(scan_path_segment)
+        .is_some_and(|name| !matches!(name.text().chars().next(), Some('$' | '&')));
     i.rollback(checkpoint);
     candidate
 }
@@ -1081,7 +1098,8 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(enum_base, &mut i).filter(|trivia| !trivia.is_empty()) else {
             i.rollback(checkpoint);
             return None;
@@ -1098,10 +1116,16 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    if matches!(visibility, Some(VisibilityPrefix { visibility: Visibility::Private, .. })) {
+    if matches!(
+        visibility,
+        Some(VisibilityPrefix {
+            visibility: Visibility::Private,
+            ..
+        })
+    ) {
         let head_checkpoint = i.checkpoint();
-        let head_candidate = mod_trivia(enum_base, &mut i).is_some()
-            && enum_raw_type_head_candidate(&mut i);
+        let head_candidate =
+            mod_trivia(enum_base, &mut i).is_some() && enum_raw_type_head_candidate(&mut i);
         i.rollback(head_checkpoint);
         if !head_candidate {
             i.rollback(checkpoint);
@@ -1129,9 +1153,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let candidate = i.run(scan_path_segment).is_some_and(|name| {
-        !matches!(name.text().chars().next(), Some('$' | '&'))
-    });
+    let candidate = i
+        .run(scan_path_segment)
+        .is_some_and(|name| !matches!(name.text().chars().next(), Some('$' | '&')));
     i.rollback(checkpoint);
     candidate
 }
@@ -1158,8 +1182,10 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
-        let Some(trivia) = mod_trivia(error_base, &mut i).filter(|trivia| !trivia.is_empty()) else {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
+        let Some(trivia) = mod_trivia(error_base, &mut i).filter(|trivia| !trivia.is_empty())
+        else {
             i.rollback(checkpoint);
             return None;
         };
@@ -1175,10 +1201,16 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    if matches!(visibility, Some(VisibilityPrefix { visibility: Visibility::Private, .. })) {
+    if matches!(
+        visibility,
+        Some(VisibilityPrefix {
+            visibility: Visibility::Private,
+            ..
+        })
+    ) {
         let head_checkpoint = i.checkpoint();
-        let head_candidate = mod_trivia(error_base, &mut i).is_some()
-            && error_raw_type_head_candidate(&mut i);
+        let head_candidate =
+            mod_trivia(error_base, &mut i).is_some() && error_raw_type_head_candidate(&mut i);
         i.rollback(head_checkpoint);
         if !head_candidate {
             i.rollback(checkpoint);
@@ -1206,9 +1238,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let candidate = i.run(scan_path_segment).is_some_and(|name| {
-        !matches!(name.text().chars().next(), Some('$' | '&'))
-    });
+    let candidate = i
+        .run(scan_path_segment)
+        .is_some_and(|name| !matches!(name.text().chars().next(), Some('$' | '&')));
     i.rollback(checkpoint);
     candidate
 }
@@ -1233,7 +1265,8 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(impl_base, &mut i).filter(|trivia| !trivia.is_empty()) else {
             i.rollback(checkpoint);
             return None;
@@ -1280,7 +1313,8 @@ where
         .local
         .indentation_baseline()
         .map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(cast_base, &mut i).filter(|trivia| !trivia.is_empty()) else {
             i.rollback(checkpoint);
             return None;
@@ -1338,9 +1372,7 @@ fn impl_type_expression_episode_spec(
         .with(StopKind::Semicolon);
     let fresh_primary_locally_owned_stops = match slot {
         ImplTypeExpressionSlot::Head => StopSet::default(),
-        ImplTypeExpressionSlot::Description => {
-            StopSet::default().with(StopKind::LeftBrace)
-        }
+        ImplTypeExpressionSlot::Description => StopSet::default().with(StopKind::LeftBrace),
     };
     let role = match slot {
         ImplTypeExpressionSlot::Head => ImplRole::Head,
@@ -1379,11 +1411,13 @@ where
         .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let parsed = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory Impl TypeExpression entry is total");
     assert_eq!(
@@ -1497,11 +1531,13 @@ where
         .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let parsed = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory Role head TypeExpression entry is total");
     assert_eq!(
@@ -1584,9 +1620,9 @@ fn act_type_expression_episode_spec(
         ActTypeExpressionSlot::Head => StopSet::default().with(StopKind::Equal),
         ActTypeExpressionSlot::Source => StopSet::default(),
     }
-        .with(StopKind::Colon)
-        .with(StopKind::LeftBrace)
-        .with(StopKind::Semicolon);
+    .with(StopKind::Colon)
+    .with(StopKind::LeftBrace)
+    .with(StopKind::Semicolon);
     let stops = match slot {
         ActTypeExpressionSlot::Head => incoming.with(StopKind::Equal),
         ActTypeExpressionSlot::Source => incoming,
@@ -1630,11 +1666,13 @@ where
         .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let parsed = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory Act head TypeExpression entry is total");
     assert_eq!(
@@ -1710,11 +1748,13 @@ where
         .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let parsed = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory Act source TypeExpression entry is total");
     assert_eq!(
@@ -2009,11 +2049,9 @@ where
             block: parse_indented_act_body(table, trivia, act_base, block_indent, i),
         });
     }
-    let ambient_scope = i
-        .local
-        .push_inline_canonical_statement_ambient_scope(
-            crate::session::InlineStatementOwnerKind::ActColonBody,
-        );
+    let ambient_scope = i.local.push_inline_canonical_statement_ambient_scope(
+        crate::session::InlineStatementOwnerKind::ActColonBody,
+    );
     let statement = i
         .run(from_fn(|i| parse_canonical_statement(table, i)))
         .or_else(|| {
@@ -2024,8 +2062,7 @@ where
         });
     let body = statement.map(|statement| {
         let terminal = i.checkpoint();
-        if i
-            .run(scan_punctuation)
+        if i.run(scan_punctuation)
             .is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon)
         {
             i.rollback(terminal);
@@ -2045,10 +2082,14 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -2070,11 +2111,15 @@ where
             .run(scan_trivia)
             .is_some_and(|trivia| i.input.source()[trivia.range()].contains(['\r', '\n'])),
         Some(_) if i.input.remainder().is_empty() => true,
-        Some(_) => i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-            punctuation.kind(),
-            PunctuationKind::Comma
-                | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
-        )),
+        Some(_) => i.run(scan_punctuation).is_some_and(|punctuation| {
+            matches!(
+                punctuation.kind(),
+                PunctuationKind::Comma
+                    | PunctuationKind::Close(
+                        Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                    )
+            )
+        }),
     };
     i.rollback(checkpoint);
     pending
@@ -2090,12 +2135,16 @@ where
         return true;
     }
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon
-            | PunctuationKind::Comma
-            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Comma
+                | PunctuationKind::Close(
+                    Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                )
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -2158,7 +2207,9 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
         let checkpoint = i.checkpoint();
-        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        let candidate = i
+            .run(from_fn(|i| parse_canonical_statement(table, i)))
+            .is_some();
         i.rollback(checkpoint);
         if candidate {
             return Some(true);
@@ -2189,9 +2240,12 @@ where
     }
     committed.token(SyntaxKind::ActKw, intro.act_keyword.range());
 
-    let head_terminated_incomplete = if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+    let head_terminated_incomplete = if committed
+        .probe(|probe| any_ambient_owner_claims(probe.input()))
+    {
         true
-    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.act_base, probe.input())) {
+    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.act_base, probe.input()))
+    {
         committed.emit_trivia(&trivia);
         matches!(
             commit_required_act_head_type_expression_isolated(committed),
@@ -2244,7 +2298,9 @@ fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
             let punctuation = i.run(scan_punctuation)?;
             let starter = match punctuation.kind() {
                 PunctuationKind::Semicolon => ActBodyStarter::Bodyless(punctuation.range()),
-                PunctuationKind::Open(Delimiter::Brace) => ActBodyStarter::Braced(punctuation.range()),
+                PunctuationKind::Open(Delimiter::Brace) => {
+                    ActBodyStarter::Braced(punctuation.range())
+                }
                 PunctuationKind::Colon => ActBodyStarter::Colon(punctuation.range()),
                 _ => return None,
             };
@@ -2275,9 +2331,8 @@ fn commit_act_body_isolated<'parse, 'source, 'local, E, O>(
             emit_act_body_introducer_missing(committed);
             return;
         };
-        let newline = committed.probe(|probe| {
-            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-        });
+        let newline = committed
+            .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
         if newline {
             if !head_and_source_complete {
                 return;
@@ -2340,9 +2395,8 @@ fn commit_act_colon_body_isolated<'parse, 'source, 'local, E, O>(
     let trivia = committed
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scan is total");
-    let newline = committed.probe(|probe| {
-        probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-    });
+    let newline = committed
+        .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
     if newline && committed.probe(|probe| probe.input().local.line().line_indent <= act_base) {
         committed.probe(|probe| probe.input().rollback(checkpoint));
         emit_act_body_missing(committed);
@@ -2374,9 +2428,7 @@ fn commit_act_colon_body_isolated<'parse, 'source, 'local, E, O>(
             }
         }
     };
-    if statement_committed
-        && let Some(semicolon) = commit_character(committed, ';')
-    {
+    if statement_committed && let Some(semicolon) = commit_character(committed, ';') {
         committed.token(SyntaxKind::Semicolon, semicolon);
     }
     committed.probe(|probe| {
@@ -2585,11 +2637,9 @@ where
             block: parse_indented_role_body(table, trivia, role_base, block_indent, i),
         });
     }
-    let ambient_scope = i
-        .local
-        .push_inline_canonical_statement_ambient_scope(
-            crate::session::InlineStatementOwnerKind::RoleColonBody,
-        );
+    let ambient_scope = i.local.push_inline_canonical_statement_ambient_scope(
+        crate::session::InlineStatementOwnerKind::RoleColonBody,
+    );
     let statement = i
         .run(from_fn(|i| parse_canonical_statement(table, i)))
         .or_else(|| {
@@ -2600,8 +2650,7 @@ where
         });
     let body = statement.map(|statement| {
         let terminal = i.checkpoint();
-        if i
-            .run(scan_punctuation)
+        if i.run(scan_punctuation)
             .is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon)
         {
             i.rollback(terminal);
@@ -2621,10 +2670,14 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -2639,14 +2692,18 @@ where
         return true;
     }
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Comma
-            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
-            | PunctuationKind::Open(Delimiter::Brace)
-            | PunctuationKind::Colon
-            | PunctuationKind::Semicolon
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Comma
+                | PunctuationKind::Close(
+                    Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                )
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon
+                | PunctuationKind::Semicolon
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -2708,7 +2765,9 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
         let checkpoint = i.checkpoint();
-        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        let candidate = i
+            .run(from_fn(|i| parse_canonical_statement(table, i)))
+            .is_some();
         i.rollback(checkpoint);
         if candidate {
             return Some(true);
@@ -2740,9 +2799,12 @@ where
     }
     committed.token(SyntaxKind::RoleKw, intro.role_keyword.range());
 
-    let head_terminated_incomplete = if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+    let head_terminated_incomplete = if committed
+        .probe(|probe| any_ambient_owner_claims(probe.input()))
+    {
         true
-    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.role_base, probe.input())) {
+    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.role_base, probe.input()))
+    {
         committed.emit_trivia(&trivia);
         matches!(
             commit_required_role_head_type_expression_isolated(committed),
@@ -2752,7 +2814,12 @@ where
         true
     };
 
-    commit_role_body_isolated(table, intro.role_base, committed, head_terminated_incomplete);
+    commit_role_body_isolated(
+        table,
+        intro.role_base,
+        committed,
+        head_terminated_incomplete,
+    );
     let end = committed_position(committed);
     committed.finish_node();
     committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
@@ -2787,7 +2854,9 @@ fn commit_role_body_isolated<'parse, 'source, 'local, E, O>(
             let punctuation = i.run(scan_punctuation)?;
             let starter = match punctuation.kind() {
                 PunctuationKind::Semicolon => RoleBodyStarter::Bodyless(punctuation.range()),
-                PunctuationKind::Open(Delimiter::Brace) => RoleBodyStarter::Braced(punctuation.range()),
+                PunctuationKind::Open(Delimiter::Brace) => {
+                    RoleBodyStarter::Braced(punctuation.range())
+                }
                 PunctuationKind::Colon => RoleBodyStarter::Colon(punctuation.range()),
                 _ => return None,
             };
@@ -2810,9 +2879,8 @@ fn commit_role_body_isolated<'parse, 'source, 'local, E, O>(
             }
             return;
         };
-        let newline = committed.probe(|probe| {
-            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-        });
+        let newline = committed
+            .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
         if newline {
             if !head_terminated_incomplete {
                 emit_role_body_introducer_missing(committed);
@@ -2874,9 +2942,8 @@ fn commit_role_colon_body_isolated<'parse, 'source, 'local, E, O>(
     let trivia = committed
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scan is total");
-    let newline = committed.probe(|probe| {
-        probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-    });
+    let newline = committed
+        .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
     if newline && committed.probe(|probe| probe.input().local.line().line_indent <= role_base) {
         committed.probe(|probe| probe.input().rollback(checkpoint));
         emit_role_body_missing(committed);
@@ -2908,9 +2975,7 @@ fn commit_role_colon_body_isolated<'parse, 'source, 'local, E, O>(
             }
         }
     };
-    if statement_committed
-        && let Some(semicolon) = commit_character(committed, ';')
-    {
+    if statement_committed && let Some(semicolon) = commit_character(committed, ';') {
         committed.token(SyntaxKind::Semicolon, semicolon);
     }
     committed.probe(|probe| {
@@ -3021,9 +3086,7 @@ fn cast_target_episode_spec(
     current_episode_depth: usize,
     ambient_newline_owner: Option<DeclarationBracedNewlineOwner>,
 ) -> CastTargetEpisodeSpec {
-    let mut stops = incoming
-        .with(StopKind::Equal)
-        .with(StopKind::Semicolon);
+    let mut stops = incoming.with(StopKind::Equal).with(StopKind::Semicolon);
     let mut scoped_stops = StopSet::default()
         .with(StopKind::Equal)
         .with(StopKind::Semicolon);
@@ -3060,11 +3123,13 @@ where
         .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let parsed = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory Cast target type entry is total");
     assert_eq!(
@@ -3270,19 +3335,17 @@ where
             return Some(CastPrefixTarget::Pattern);
         }
     }
-    if phase == CastPrefixPhase::TargetIntroducer
-        && i.input.remainder().starts_with(':')
-    {
+    if phase == CastPrefixPhase::TargetIntroducer && i.input.remainder().starts_with(':') {
         return Some(CastPrefixTarget::TargetColon);
     }
     if i.input.remainder().starts_with(')') {
-        return Some(if has_local_pattern_frame
-            && i.local.delimiter() == Some(Delimiter::Parenthesis)
-        {
-            CastPrefixTarget::LocalPatternClose
-        } else {
-            CastPrefixTarget::OuterPatternClose
-        });
+        return Some(
+            if has_local_pattern_frame && i.local.delimiter() == Some(Delimiter::Parenthesis) {
+                CastPrefixTarget::LocalPatternClose
+            } else {
+                CastPrefixTarget::OuterPatternClose
+            },
+        );
     }
     if i.input.remainder().starts_with(':') {
         return Some(CastPrefixTarget::TargetColon);
@@ -3444,7 +3507,10 @@ fn emit_cast_body_introducer_recovery<'parse, 'source, 'local, E, O>(
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             kind,
             unexpected,
             Arc::from([
@@ -3512,7 +3578,9 @@ where
     i.run(from_fn(|i| {
         Some(parse_required_pattern_with_outer_missing_role_and_policy(
             table,
-            Some(GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern))),
+            Some(GrammarRole::Declaration(DeclarationRole::Cast(
+                CastRole::Pattern,
+            ))),
             cast_pattern_policy(),
             i,
         ))
@@ -3533,7 +3601,9 @@ where
     let parsed = commit_direct_pattern_with_outer_missing_role_and_policy(
         table,
         LeadingTrivia::None,
-        Some(GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern))),
+        Some(GrammarRole::Declaration(DeclarationRole::Cast(
+            CastRole::Pattern,
+        ))),
         cast_pattern_policy(),
         committed,
     );
@@ -3561,12 +3631,8 @@ where
             handoff: CastPatternHandoff::Boundary,
         };
     }
-    let introducer = scan_cast_prefix_invalid_run(
-        CastPrefixPhase::PatternIntroducer,
-        cast_base,
-        false,
-        i,
-    );
+    let introducer =
+        scan_cast_prefix_invalid_run(CastPrefixPhase::PatternIntroducer, cast_base, false, i);
     let has_group_evidence = matches!(
         introducer.target,
         CastPrefixTarget::OpenPattern | CastPrefixTarget::Pattern
@@ -3603,13 +3669,9 @@ where
         i.rollback(close_trivia_checkpoint);
     }
     let (close, handoff) = if !value_complete {
-        let target = cast_prefix_target(
-            CastPrefixPhase::PatternClose,
-            cast_base,
-            has_local_frame,
-            i,
-        )
-        .unwrap_or(CastPrefixTarget::Boundary);
+        let target =
+            cast_prefix_target(CastPrefixPhase::PatternClose, cast_base, has_local_frame, i)
+                .unwrap_or(CastPrefixTarget::Boundary);
         if target == CastPrefixTarget::LocalPatternClose {
             let close = i
                 .run(from_fn(|mut i| scan_character(&mut i, ')')))
@@ -3631,10 +3693,7 @@ where
                 .expect("the inspected Cast-local close remains available");
             (Recovered::Complete(close), CastPatternHandoff::Target)
         } else {
-            (
-                Recovered::Incomplete,
-                cast_pattern_handoff(recovery.target),
-            )
+            (Recovered::Incomplete, cast_pattern_handoff(recovery.target))
         }
     };
     if has_local_frame {
@@ -3831,12 +3890,8 @@ where
             handoff: CastTargetHandoff::Boundary,
         };
     }
-    let introducer = scan_cast_prefix_invalid_run(
-        CastPrefixPhase::TargetIntroducer,
-        cast_base,
-        false,
-        i,
-    );
+    let introducer =
+        scan_cast_prefix_invalid_run(CastPrefixPhase::TargetIntroducer, cast_base, false, i);
     let has_target_evidence = matches!(
         introducer.target,
         CastPrefixTarget::TargetColon | CastPrefixTarget::TargetType
@@ -3883,7 +3938,10 @@ fn commit_cast_target_isolated<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> CommittedCastTargetPhase
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let leading = committed.probe(|probe| mod_trivia(cast_base, probe.input()));
     let Some(leading) = leading else {
@@ -3973,7 +4031,9 @@ fn parse_cast_signature_isolated<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<CastDeclaration<'source>>
 where
-    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let errors_checkpoint = i.errors_checkpoint();
     let intro = i.run(recognize_cast_statement_intro)?;
@@ -3997,7 +4057,9 @@ fn parse_cast_signature_after_intro_isolated<'source, E>(
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> ParsedCastSignature<'source>
 where
-    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let visibility = intro
         .visibility
@@ -4027,7 +4089,9 @@ pub(crate) fn parse_cast_declaration_form_aware_isolated<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<CastDeclaration<'source>>
 where
-    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let errors_checkpoint = i.errors_checkpoint();
     let intro = i.run(recognize_cast_statement_intro)?;
@@ -4055,7 +4119,9 @@ fn parse_cast_form_isolated<'source, E>(
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Recovered<CastForm<'source>>
 where
-    E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     if any_ambient_owner_claims(i) {
         return Recovered::Incomplete;
@@ -4080,7 +4146,9 @@ where
         i.rollback(checkpoint);
         return cast_body_introducer_error_retry_ast(i)
             .filter(|retry| *retry)
-            .map_or(Recovered::Incomplete, |_| parse_cast_form_isolated(table, cast_base, i));
+            .map_or(Recovered::Incomplete, |_| {
+                parse_cast_form_isolated(table, cast_base, i)
+            });
     };
     let body = parse_binding_style_body(
         cast_base,
@@ -4118,10 +4186,12 @@ fn commit_cast_signature_isolated<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Recovered<Range<usize>>
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
-    let errors_checkpoint =
-        committed.probe(|probe| probe.input().errors_checkpoint());
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
     committed.start_node(SyntaxKind::CastDeclaration);
     let _ = commit_cast_signature_after_intro_isolated(table, &intro, committed);
     let end = committed.probe(|probe| probe.input().pos());
@@ -4141,17 +4211,23 @@ fn commit_cast_signature_after_intro_isolated<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> CommittedCastSignature
 where
-    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     if let Some(visibility) = &intro.visibility {
         emit_visibility(committed, visibility);
-        if let Some(trivia) = &intro.after_visibility { committed.emit_trivia(trivia); }
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
     }
     committed.token(SyntaxKind::CastKw, intro.cast_keyword.range());
     let pattern = commit_cast_pattern_isolated(table, intro.cast_base, committed);
     let form_handoff = match pattern.handoff {
         CastPatternHandoff::Target => {
-            commit_cast_target_isolated(intro.cast_base, committed).handoff == CastTargetHandoff::Form
+            commit_cast_target_isolated(intro.cast_base, committed).handoff
+                == CastTargetHandoff::Form
         }
         CastPatternHandoff::Form => true,
         CastPatternHandoff::Boundary => false,
@@ -4217,9 +4293,8 @@ where
             emit_cast_body_introducer_recovery(committed, at..at);
             return Recovered::Incomplete;
         };
-        let newline = committed.probe(|probe| {
-            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-        });
+        let newline = committed
+            .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
         if newline {
             let at = committed.probe(|probe| probe.input().pos());
             emit_cast_body_introducer_recovery(committed, at..at);
@@ -4257,13 +4332,7 @@ where
         GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Body)),
         |expression| expression.range(),
         |opening_trivia, block_indent, committed| {
-            commit_indented_cast_body(
-                table,
-                opening_trivia,
-                cast_base,
-                block_indent,
-                committed,
-            );
+            commit_indented_cast_body(table, opening_trivia, cast_base, block_indent, committed);
             body_start..committed.probe(|probe| probe.input().pos())
         },
         |committed| cast_inline_body_error_retry(table, committed),
@@ -4284,9 +4353,10 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
-        punctuation.kind() == PunctuationKind::Semicolon
-    }) || i.run(scan_declaration_exact_equals).is_some();
+    let pending = i
+        .run(scan_punctuation)
+        .is_some_and(|punctuation| punctuation.kind() == PunctuationKind::Semicolon)
+        || i.run(scan_declaration_exact_equals).is_some();
     i.rollback(checkpoint);
     pending
 }
@@ -4304,12 +4374,16 @@ where
         return true;
     }
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Comma
-            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
-            | PunctuationKind::Colon
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Comma
+                | PunctuationKind::Close(
+                    Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                )
+                | PunctuationKind::Colon
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -4423,12 +4497,16 @@ where
         return true;
     }
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon
-            | PunctuationKind::Comma
-            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Comma
+                | PunctuationKind::Close(
+                    Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                )
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -4458,7 +4536,9 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
         let checkpoint = i.checkpoint();
-        let candidate = i.run(from_fn(|i| parse_expression_with_operators(table, i))).is_some();
+        let candidate = i
+            .run(from_fn(|i| parse_expression_with_operators(table, i)))
+            .is_some();
         i.rollback(checkpoint);
         if candidate {
             return Some(true);
@@ -4508,12 +4588,7 @@ where
     let Some((range, retry)) = recovered else {
         return BindingStyleInlineRecovery::None;
     };
-    emit_cast_slot_recovery(
-        committed,
-        CastRole::Body,
-        ExpectedSyntax::Expression,
-        range,
-    );
+    emit_cast_slot_recovery(committed, CastRole::Body, ExpectedSyntax::Expression, range);
     if retry {
         BindingStyleInlineRecovery::Retry
     } else {
@@ -4595,7 +4670,10 @@ fn parse_impl_after_head_ast<'source, E>(
     table: &crate::operator::OperatorTable,
     impl_base: usize,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> (Option<ImplDescription<'source>>, Recovered<ImplBody<'source>>)
+) -> (
+    Option<ImplDescription<'source>>,
+    Recovered<ImplBody<'source>>,
+)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -4624,7 +4702,8 @@ where
         i.rollback(checkpoint);
         return (None, parse_impl_body_ast(table, impl_base, i));
     }
-    let value = parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Description, i);
+    let value =
+        parse_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Description, i);
     let description = ImplDescription {
         colon: colon.clone(),
         value,
@@ -4703,11 +4782,9 @@ where
             block: parse_indented_impl_body(table, trivia, impl_base, block_indent, i),
         });
     }
-    let ambient_scope = i
-        .local
-        .push_inline_canonical_statement_ambient_scope(
-            crate::session::InlineStatementOwnerKind::ImplColonBody,
-        );
+    let ambient_scope = i.local.push_inline_canonical_statement_ambient_scope(
+        crate::session::InlineStatementOwnerKind::ImplColonBody,
+    );
     let statement = i
         .run(from_fn(|i| parse_canonical_statement(table, i)))
         .or_else(|| {
@@ -4718,8 +4795,7 @@ where
         });
     let body = statement.map(|statement| {
         let terminal = i.checkpoint();
-        if i
-            .run(scan_punctuation)
+        if i.run(scan_punctuation)
             .is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon)
         {
             i.rollback(terminal);
@@ -4745,8 +4821,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let errors_checkpoint =
-        committed.probe(|probe| probe.input().errors_checkpoint());
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
     committed.start_node(SyntaxKind::ImplDeclaration);
     if let Some(visibility) = &intro.visibility {
         emit_visibility(committed, visibility);
@@ -4756,9 +4831,12 @@ where
     }
     committed.token(SyntaxKind::ImplKw, intro.impl_keyword.range());
 
-    let head_terminated_incomplete = if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+    let head_terminated_incomplete = if committed
+        .probe(|probe| any_ambient_owner_claims(probe.input()))
+    {
         true
-    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.impl_base, probe.input())) {
+    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.impl_base, probe.input()))
+    {
         committed.emit_trivia(&trivia);
         matches!(
             commit_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Head, committed),
@@ -4768,7 +4846,12 @@ where
         true
     };
 
-    commit_impl_after_head_isolated(table, intro.impl_base, committed, head_terminated_incomplete);
+    commit_impl_after_head_isolated(
+        table,
+        intro.impl_base,
+        committed,
+        head_terminated_incomplete,
+    );
     let end = committed_position(committed);
     committed.finish_node();
     committed.probe(|probe| {
@@ -4799,8 +4882,7 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
                 (punctuation.kind() == PunctuationKind::Colon).then_some(punctuation.range())
             })?;
             let trailing = i.run(scan_trivia).expect("trivia scan is total");
-            (!i.input.source()[trailing.range()].contains(['\r', '\n']))
-                .then_some((leading, colon))
+            (!i.input.source()[trailing.range()].contains(['\r', '\n'])).then_some((leading, colon))
         });
         i.rollback(checkpoint);
         result
@@ -4891,9 +4973,8 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
             }
             return;
         };
-        let newline = committed.probe(|probe| {
-            probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-        });
+        let newline = committed
+            .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
         if newline {
             if !upstream_slot_terminated_incomplete {
                 emit_impl_body_introducer_missing(committed);
@@ -4907,10 +4988,17 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
         committed.emit_trivia(&consumed_trivia);
         match impl_body_introducer_error_retry(committed) {
             Some(true) => {
-                commit_impl_body_isolated(table, impl_base, committed, upstream_slot_terminated_incomplete);
+                commit_impl_body_isolated(
+                    table,
+                    impl_base,
+                    committed,
+                    upstream_slot_terminated_incomplete,
+                );
             }
             Some(false) => {}
-            None if !upstream_slot_terminated_incomplete => emit_impl_body_introducer_missing(committed),
+            None if !upstream_slot_terminated_incomplete => {
+                emit_impl_body_introducer_missing(committed)
+            }
             None => {}
         }
         return;
@@ -4954,9 +5042,8 @@ fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
     let trivia = committed
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scan is total");
-    let newline = committed.probe(|probe| {
-        probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-    });
+    let newline = committed
+        .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
     if newline && committed.probe(|probe| probe.input().local.line().line_indent <= impl_base) {
         committed.probe(|probe| probe.input().rollback(checkpoint));
         emit_impl_body_missing(committed);
@@ -4988,9 +5075,7 @@ fn commit_impl_colon_body_isolated<'parse, 'source, 'local, E, O>(
             }
         }
     };
-    if statement_committed
-        && let Some(semicolon) = commit_character(committed, ';')
-    {
+    if statement_committed && let Some(semicolon) = commit_character(committed, ';') {
         committed.token(SyntaxKind::Semicolon, semicolon);
     }
     committed.probe(|probe| {
@@ -5008,10 +5093,14 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -5023,14 +5112,18 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Comma
-            | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
-            | PunctuationKind::Open(Delimiter::Brace)
-            | PunctuationKind::Colon
-            | PunctuationKind::Semicolon
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Comma
+                | PunctuationKind::Close(
+                    Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                )
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon
+                | PunctuationKind::Semicolon
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -5092,7 +5185,9 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
         let checkpoint = i.checkpoint();
-        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        let candidate = i
+            .run(from_fn(|i| parse_canonical_statement(table, i)))
+            .is_some();
         i.rollback(checkpoint);
         if candidate {
             return Some(true);
@@ -5448,7 +5543,10 @@ fn emit_enum_header_recovery<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Name));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             kind,
             unexpected,
             Arc::from([SyntaxExpectation {
@@ -5547,14 +5645,21 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    if i.input.remainder().is_empty() || any_ambient_owner_claims(i) || declaration_exact_equals_pending(i) {
+    if i.input.remainder().is_empty()
+        || any_ambient_owner_claims(i)
+        || declaration_exact_equals_pending(i)
+    {
         return true;
     }
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon,
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon,
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -5642,7 +5747,13 @@ where
         i.rollback(checkpoint);
         (header, recoveries, end)
     });
-    commit_error_header_surface(intro.error_base, &header, &recoveries, header_end, committed);
+    commit_error_header_surface(
+        intro.error_base,
+        &header,
+        &recoveries,
+        header_end,
+        committed,
+    );
     header
 }
 
@@ -5754,7 +5865,10 @@ fn emit_error_header_recovery<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Name));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             kind,
             unexpected,
             Arc::from([SyntaxExpectation {
@@ -5838,14 +5952,21 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    if i.input.remainder().is_empty() || any_ambient_owner_claims(i) || declaration_exact_equals_pending(i) {
+    if i.input.remainder().is_empty()
+        || any_ambient_owner_claims(i)
+        || declaration_exact_equals_pending(i)
+    {
         return true;
     }
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon,
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon,
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -6038,7 +6159,8 @@ where
             finish_enum_variant_sequence(&mut state, spec, context);
             return EnumVariantSequenceTermination::MismatchedClose;
         }
-        if let Some(cluster) = context.with_input(|i| scan_enum_variant_separator_cluster(spec, i)) {
+        if let Some(cluster) = context.with_input(|i| scan_enum_variant_separator_cluster(spec, i))
+        {
             apply_enum_variant_separator(&mut state, spec, &cluster.separator, context);
             if !cluster.trivia.is_empty() {
                 context.emit_trivia(&cluster.trivia);
@@ -6056,9 +6178,8 @@ where
 
         match context.with_input(|i| classify_enum_variant_gap(spec, i)) {
             EnumVariantGap::SameLine(trivia) => {
-                let terminal_follows = context.with_input(|i| {
-                    enum_variant_same_line_trivia_precedes_terminal(spec, i)
-                });
+                let terminal_follows = context
+                    .with_input(|i| enum_variant_same_line_trivia_precedes_terminal(spec, i));
                 if matches!(origin, EnumVariantJudgeOrigin::FreshSlot) || terminal_follows {
                     let consumed = context.with_input(consume_enum_variant_trivia);
                     debug_assert_eq!(consumed.range(), trivia.range());
@@ -6198,10 +6319,7 @@ fn finish_enum_variant_sequence<'source, C>(
     }
 }
 
-fn classify_enum_variant_gap<E>(
-    spec: EnumVariantSequenceSpec,
-    i: &mut SynIn<E>,
-) -> EnumVariantGap
+fn classify_enum_variant_gap<E>(spec: EnumVariantSequenceSpec, i: &mut SynIn<E>) -> EnumVariantGap
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -6372,11 +6490,13 @@ where
         return true;
     }
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| match punctuation.kind() {
-        PunctuationKind::Semicolon | PunctuationKind::Close(_) => true,
-        PunctuationKind::Comma => !spec.explicit_separators.comma,
-        _ => false,
-    });
+    let pending = i
+        .run(scan_punctuation)
+        .is_some_and(|punctuation| match punctuation.kind() {
+            PunctuationKind::Semicolon | PunctuationKind::Close(_) => true,
+            PunctuationKind::Comma => !spec.explicit_separators.comma,
+            _ => false,
+        });
     i.rollback(checkpoint);
     pending
 }
@@ -6522,9 +6642,9 @@ struct VariantDeclarationOwnerSpec {
 impl VariantDeclarationOwnerSpec {
     fn variant_role(self, role: VariantDeclarationRole) -> GrammarRole {
         match self.owner {
-            VariantDeclarationOwner::Enum => GrammarRole::Declaration(DeclarationRole::Enum(
-                EnumDeclarationRole::Variant(role),
-            )),
+            VariantDeclarationOwner::Enum => {
+                GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(role)))
+            }
             VariantDeclarationOwner::Error => GrammarRole::Declaration(DeclarationRole::Error(
                 ErrorDeclarationRole::Variant(role),
             )),
@@ -6536,9 +6656,9 @@ fn enum_variant_declaration_owner_spec(declaration_base: usize) -> VariantDeclar
     VariantDeclarationOwnerSpec {
         owner: VariantDeclarationOwner::Enum,
         declaration_base,
-        item_role: GrammarRole::Declaration(DeclarationRole::Enum(
-            EnumDeclarationRole::Variant(VariantDeclarationRole::Item),
-        )),
+        item_role: GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+            VariantDeclarationRole::Item,
+        ))),
         from_type_role: GrammarRole::Declaration(DeclarationRole::Enum(
             EnumDeclarationRole::Variant(VariantDeclarationRole::FromType),
         )),
@@ -6553,9 +6673,9 @@ fn error_variant_declaration_owner_spec(declaration_base: usize) -> VariantDecla
     VariantDeclarationOwnerSpec {
         owner: VariantDeclarationOwner::Error,
         declaration_base,
-        item_role: GrammarRole::Declaration(DeclarationRole::Error(
-            ErrorDeclarationRole::Variant(VariantDeclarationRole::Item),
-        )),
+        item_role: GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+            VariantDeclarationRole::Item,
+        ))),
         from_type_role: GrammarRole::Declaration(DeclarationRole::Error(
             ErrorDeclarationRole::Variant(VariantDeclarationRole::FromType),
         )),
@@ -6609,9 +6729,9 @@ fn variant_declaration_type_expression_episode_spec(
         EnumVariantTypeExpressionSlot::PositionalPayload => owner.positional_payload_role,
     };
     let stops = match form {
-        EnumVariantSequenceForm::Braced => incoming
-            .with(StopKind::Comma)
-            .with(StopKind::RightBrace),
+        EnumVariantSequenceForm::Braced => {
+            incoming.with(StopKind::Comma).with(StopKind::RightBrace)
+        }
         EnumVariantSequenceForm::EqualsInline => incoming.with(StopKind::Pipe),
         EnumVariantSequenceForm::ColonIndented | EnumVariantSequenceForm::EqualsIndented => {
             incoming
@@ -6690,11 +6810,13 @@ where
     i.local.set_type_ml_arg(episode.outer_ml_arg);
     let parsed = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory Enum payload TypeExpression entry is total");
     i.local.set_type_ml_arg(saved_ml_arg);
@@ -6780,11 +6902,13 @@ where
         .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let parsed = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("mandatory Enum tuple field TypeExpression is total");
     assert_eq!(
@@ -6879,13 +7003,19 @@ where
         return false;
     }
     let checkpoint = i.checkpoint();
-    let punctuation = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
+    let punctuation = i
+        .run(scan_punctuation)
+        .map(|punctuation| punctuation.kind());
     i.rollback(checkpoint);
     !matches!(
         punctuation,
         Some(PunctuationKind::Comma | PunctuationKind::Semicolon | PunctuationKind::Close(_))
-    ) && !(matches!(form, EnumVariantSequenceForm::EqualsInline | EnumVariantSequenceForm::ColonIndented | EnumVariantSequenceForm::EqualsIndented)
-        && i.input.remainder().starts_with('|'))
+    ) && !(matches!(
+        form,
+        EnumVariantSequenceForm::EqualsInline
+            | EnumVariantSequenceForm::ColonIndented
+            | EnumVariantSequenceForm::EqualsIndented
+    ) && i.input.remainder().starts_with('|'))
 }
 
 fn consume_enum_variant_payload_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
@@ -7016,7 +7146,12 @@ where
             Recovered::Incomplete => name_end,
         },
     };
-    Some(StructNamedField { name, colon, type_expr, range: start..end })
+    Some(StructNamedField {
+        name,
+        colon,
+        type_expr,
+        range: start..end,
+    })
 }
 
 fn parse_variant_tuple_field_ast<'source, E>(
@@ -7105,7 +7240,11 @@ where
             Recovered::Complete(type_expr) => type_expr.range().end,
             Recovered::Incomplete => keyword.end,
         };
-        return EnumVariantPayload::From { keyword: keyword.clone(), type_expr, range: keyword.start..end };
+        return EnumVariantPayload::From {
+            keyword: keyword.clone(),
+            type_expr,
+            range: keyword.start..end,
+        };
     }
     if let Some(open) = enum_variant_payload_open(Delimiter::Brace, i) {
         return parse_variant_declaration_named_payload_ast(owner, form, open, i);
@@ -7148,7 +7287,10 @@ where
                 Recovered::Incomplete => None,
             })
             .unwrap_or(start);
-        return EnumVariantPayload::Positional { types, range: start..end };
+        return EnumVariantPayload::Positional {
+            types,
+            range: start..end,
+        };
     }
     i.rollback(checkpoint);
     EnumVariantPayload::Unit
@@ -7175,11 +7317,8 @@ where
     i.local.push_delimiter(Delimiter::Brace);
     i.local.push_stop_set(stops);
     let opening = i.run(scan_trivia).expect("trivia is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(
-        0,
-        &opening,
-        i.local.line().line_indent,
-    );
+    let layout =
+        LayoutDelimitedFrame::after_opening_trivia(0, &opening, i.local.line().line_indent);
     push_struct_layout(layout, i);
     let mut fields = Vec::new();
     let mut trailing_comma = None;
@@ -7229,7 +7368,13 @@ where
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
-    EnumVariantPayload::Named { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
+    EnumVariantPayload::Named {
+        open: open.clone(),
+        fields,
+        trailing_comma,
+        close,
+        range: open.start..end,
+    }
 }
 
 fn parse_variant_declaration_tuple_payload_ast<'source, E>(
@@ -7301,7 +7446,13 @@ where
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
-    EnumVariantPayload::Tuple { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
+    EnumVariantPayload::Tuple {
+        open: open.clone(),
+        fields,
+        trailing_comma,
+        close,
+        range: open.start..end,
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -7332,10 +7483,7 @@ where
 {
     type Error = E;
 
-    fn with_input<R>(
-        &mut self,
-        f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R,
-    ) -> R {
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R) -> R {
         f(self.i)
     }
 
@@ -7359,7 +7507,9 @@ where
     }
 
     fn parse_variant_item(&mut self, malformed: Option<Range<usize>>) -> bool {
-        let start = malformed.as_ref().map_or_else(|| self.i.pos(), |range| range.start);
+        let start = malformed
+            .as_ref()
+            .map_or_else(|| self.i.pos(), |range| range.start);
         if let Some(range) = malformed {
             while self.i.pos() < range.end {
                 self.i
@@ -7456,7 +7606,10 @@ fn emit_variant_declaration_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -7500,7 +7653,10 @@ fn emit_enum_declaration_error<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Declaration(DeclarationRole::Enum(enum_role));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -7533,7 +7689,10 @@ fn emit_enum_braced_close_error<'parse, 'source, 'local, E, O>(
         };
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -7568,7 +7727,10 @@ fn emit_enum_braced_close_missing<'parse, 'source, 'local, E, O>(
         };
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -7614,7 +7776,10 @@ fn emit_variant_declaration_error<'parse, 'source, 'local, E, O>(
         let i = probe.input();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -7646,12 +7811,17 @@ fn emit_variant_payload_missing_close<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::ClosingDelimiter { owner, delimiter };
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
                 role,
-                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(delimiter)),
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    delimiter,
+                )),
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -7679,13 +7849,17 @@ fn commit_variant_tuple_field<'parse, 'source, 'local, E, O>(
     }
     match spec {
         VariantFieldDriverSpec::Struct => {
-            let _ = commit_direct_type_expression_with_outer_missing_role(Some(spec.type_role()), committed);
+            let _ = commit_direct_type_expression_with_outer_missing_role(
+                Some(spec.type_role()),
+                committed,
+            );
         }
         VariantFieldDriverSpec::EnumNamed
         | VariantFieldDriverSpec::EnumTuple
         | VariantFieldDriverSpec::ErrorNamed
         | VariantFieldDriverSpec::ErrorTuple => {
-            let _ = commit_required_variant_declaration_tuple_field_type_expression(spec, committed);
+            let _ =
+                commit_required_variant_declaration_tuple_field_type_expression(spec, committed);
         }
     }
     if let Some(owner) = owner {
@@ -7728,7 +7902,11 @@ fn commit_variant_declaration_named_payload<'parse, 'source, 'local, E, O>(
         .expect("trivia is total");
     committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| {
-        LayoutDelimitedFrame::after_opening_trivia(0, &opening, probe.input().local.line().line_indent)
+        LayoutDelimitedFrame::after_opening_trivia(
+            0,
+            &opening,
+            probe.input().local.line().line_indent,
+        )
     });
     committed.probe(|probe| push_struct_layout(layout, probe.input()));
     loop {
@@ -7736,38 +7914,73 @@ fn commit_variant_declaration_named_payload<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::RBrace, close);
             break;
         }
-        if committed.probe(|probe| probe.input().input.remainder().is_empty() || struct_outer_owned_mismatched_close_pending(probe.input())) {
-            emit_variant_payload_missing_close(ConstructRole::VariantNamedPayload, Delimiter::Brace, committed);
+        if committed.probe(|probe| {
+            probe.input().input.remainder().is_empty()
+                || struct_outer_owned_mismatched_close_pending(probe.input())
+        }) {
+            emit_variant_payload_missing_close(
+                ConstructRole::VariantNamedPayload,
+                Delimiter::Brace,
+                committed,
+            );
             break;
         }
         if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
             committed.start_node(SyntaxKind::StructField);
-            emit_variant_field_missing(owner.field_driver, VariantFieldRecoverySlot::Item, committed, ExpectedSyntax::Identifier);
+            emit_variant_field_missing(
+                owner.field_driver,
+                VariantFieldRecoverySlot::Item,
+                committed,
+                ExpectedSyntax::Identifier,
+            );
             committed.finish_node();
             committed.token(SyntaxKind::Comma, comma);
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
         }
         if !commit_variant_named_field(owner.field_driver, true, committed) {
-            if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
+            if let Some(run) =
+                committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input()))
+            {
                 committed.start_node(SyntaxKind::StructField);
-                emit_variant_field_error(owner.field_driver, VariantFieldRecoverySlot::Item, committed, run.range.clone(), ExpectedSyntax::Identifier);
+                emit_variant_field_error(
+                    owner.field_driver,
+                    VariantFieldRecoverySlot::Item,
+                    committed,
+                    run.range.clone(),
+                    ExpectedSyntax::Identifier,
+                );
                 committed.probe(|probe| consume_source_range(run.range, probe.input()));
                 committed.finish_node();
             } else {
                 committed.start_node(SyntaxKind::StructField);
-                emit_variant_field_missing(owner.field_driver, VariantFieldRecoverySlot::Item, committed, ExpectedSyntax::Identifier);
+                emit_variant_field_missing(
+                    owner.field_driver,
+                    VariantFieldRecoverySlot::Item,
+                    committed,
+                    ExpectedSyntax::Identifier,
+                );
                 committed.finish_node();
-                emit_variant_payload_missing_close(ConstructRole::VariantNamedPayload, Delimiter::Brace, committed);
+                emit_variant_payload_missing_close(
+                    ConstructRole::VariantNamedPayload,
+                    Delimiter::Brace,
+                    committed,
+                );
                 break;
             }
         }
-        let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+        let trivia = committed
+            .probe(|probe| probe.input().run(scan_trivia))
+            .expect("trivia is total");
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
             committed.token(SyntaxKind::Comma, comma);
-            let post = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+            let post = committed
+                .probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
             committed.emit_trivia(&post);
             continue;
         }
@@ -7775,10 +7988,17 @@ fn commit_variant_declaration_named_payload<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::RBrace, close);
             break;
         }
-        if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline) {
+        if committed.probe(|probe| {
+            layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+                == LayoutDelimitedBoundary::ImplicitNewline
+        }) {
             continue;
         }
-        emit_variant_payload_missing_close(ConstructRole::VariantNamedPayload, Delimiter::Brace, committed);
+        emit_variant_payload_missing_close(
+            ConstructRole::VariantNamedPayload,
+            Delimiter::Brace,
+            committed,
+        );
         break;
     }
     committed.probe(|probe| {
@@ -7802,7 +8022,11 @@ fn commit_variant_declaration_tuple_payload<'parse, 'source, 'local, E, O>(
 {
     committed.token(SyntaxKind::LParen, open);
     let stops = committed.probe(|probe| {
-        probe.input().local.stop_set().unwrap_or_default()
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
             .without(StopKind::Newline)
             .with(StopKind::Comma)
             .with(StopKind::RightParenthesis)
@@ -7812,15 +8036,27 @@ fn commit_variant_declaration_tuple_payload<'parse, 'source, 'local, E, O>(
         i.local.push_delimiter(Delimiter::Parenthesis);
         i.local.push_stop_set(stops);
     });
-    let opening = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+    let opening = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia is total");
     committed.emit_trivia(&opening);
     loop {
         if let Some(close) = committed.probe(|probe| scan_struct_close_parenthesis(probe.input())) {
             committed.token(SyntaxKind::RParen, close);
             break;
         }
-        if committed.probe(|probe| probe.input().input.remainder().is_empty() || struct_outer_owned_mismatched_close_pending_for(Delimiter::Parenthesis, probe.input())) {
-            emit_variant_payload_missing_close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis, committed);
+        if committed.probe(|probe| {
+            probe.input().input.remainder().is_empty()
+                || struct_outer_owned_mismatched_close_pending_for(
+                    Delimiter::Parenthesis,
+                    probe.input(),
+                )
+        }) {
+            emit_variant_payload_missing_close(
+                ConstructRole::VariantTuplePayload,
+                Delimiter::Parenthesis,
+                committed,
+            );
             break;
         }
         if committed.probe(|probe| scan_struct_comma_pending(probe.input())) {
@@ -7829,16 +8065,22 @@ fn commit_variant_declaration_tuple_payload<'parse, 'source, 'local, E, O>(
                 .probe(|probe| scan_struct_comma(probe.input()))
                 .expect("the empty Enum tuple field slot is followed by its comma");
             committed.token(SyntaxKind::Comma, comma);
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
         }
         commit_variant_tuple_field(owner.field_driver.tuple_payload(), committed);
-        let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+        let trivia = committed
+            .probe(|probe| probe.input().run(scan_trivia))
+            .expect("trivia is total");
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
             committed.token(SyntaxKind::Comma, comma);
-            let post = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+            let post = committed
+                .probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
             committed.emit_trivia(&post);
             continue;
         }
@@ -7846,7 +8088,11 @@ fn commit_variant_declaration_tuple_payload<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::RParen, close);
             break;
         }
-        emit_variant_payload_missing_close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis, committed);
+        emit_variant_payload_missing_close(
+            ConstructRole::VariantTuplePayload,
+            Delimiter::Parenthesis,
+            committed,
+        );
         break;
     }
     committed.probe(|probe| {
@@ -7867,24 +8113,28 @@ fn commit_variant_declaration_payload<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = committed.probe(|probe| probe.input().checkpoint());
-    if let Some(open) = committed.probe(|probe| {
-        enum_variant_payload_open(Delimiter::Brace, probe.input())
-    }) {
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Brace, probe.input()))
+    {
         commit_variant_declaration_named_payload(owner, form, open, committed);
         return;
     }
-    if let Some(open) = committed.probe(|probe| {
-        enum_variant_payload_open(Delimiter::Parenthesis, probe.input())
-    }) {
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Parenthesis, probe.input()))
+    {
         commit_variant_declaration_tuple_payload(owner, form, open, committed);
         return;
     }
     let gap = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()));
-    let Some(gap) = gap else { return; };
+    let Some(gap) = gap else {
+        return;
+    };
     if let Some(keyword) = committed.probe(|probe| enum_variant_exact_from_pending(probe.input())) {
         committed.emit_trivia(&gap);
         committed.token(SyntaxKind::FromKw, keyword);
-        if let Some(trivia) = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input())) {
+        if let Some(trivia) =
+            committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()))
+        {
             committed.emit_trivia(&trivia);
         }
         let _ = commit_required_variant_declaration_type_expression(
@@ -7895,12 +8145,16 @@ fn commit_variant_declaration_payload<'parse, 'source, 'local, E, O>(
         );
         return;
     }
-    if let Some(open) = committed.probe(|probe| enum_variant_payload_open(Delimiter::Brace, probe.input())) {
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Brace, probe.input()))
+    {
         committed.emit_trivia(&gap);
         commit_variant_declaration_named_payload(owner, form, open, committed);
         return;
     }
-    if let Some(open) = committed.probe(|probe| enum_variant_payload_open(Delimiter::Parenthesis, probe.input())) {
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Parenthesis, probe.input()))
+    {
         committed.emit_trivia(&gap);
         commit_variant_declaration_tuple_payload(owner, form, open, committed);
         return;
@@ -7915,8 +8169,14 @@ fn commit_variant_declaration_payload<'parse, 'source, 'local, E, O>(
         );
         loop {
             let checkpoint = committed.probe(|probe| probe.input().checkpoint());
-            let Some(trivia) = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input())) else { break; };
-            if !committed.probe(|probe| enum_variant_positional_payload_pending(form, probe.input())) {
+            let Some(trivia) =
+                committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()))
+            else {
+                break;
+            };
+            if !committed
+                .probe(|probe| enum_variant_positional_payload_pending(form, probe.input()))
+            {
                 committed.probe(|probe| probe.input().rollback(checkpoint));
                 break;
             }
@@ -7933,7 +8193,14 @@ fn commit_variant_declaration_payload<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| probe.input().rollback(checkpoint));
 }
 
-struct DirectEnumVariantPayloadContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>> {
+struct DirectEnumVariantPayloadContext<
+    'context,
+    'parse,
+    'source,
+    'local,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+> {
     committed: &'context mut Committed<'parse, 'source, 'local, E, O>,
     spec: VariantDeclarationSequenceSpec,
     owner: VariantDeclarationOwnerSpec,
@@ -7953,11 +8220,17 @@ where
         self.committed.probe(|probe| f(probe.input()))
     }
 
-    fn emit_trivia(&mut self, trivia: &TriviaRun) { self.committed.emit_trivia(trivia); }
+    fn emit_trivia(&mut self, trivia: &TriviaRun) {
+        self.committed.emit_trivia(trivia);
+    }
 
     fn emit_missing_variant(&mut self) {
         self.committed.start_node(SyntaxKind::EnumVariant);
-        emit_variant_declaration_missing(self.owner.item_role, self.committed, ExpectedSyntax::Identifier);
+        emit_variant_declaration_missing(
+            self.owner.item_role,
+            self.committed,
+            ExpectedSyntax::Identifier,
+        );
         self.committed.finish_node();
     }
 
@@ -8023,7 +8296,11 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     debug_assert_eq!(spec.declaration_base, owner.declaration_base);
-    let mut context = DirectEnumVariantPayloadContext { committed, spec, owner };
+    let mut context = DirectEnumVariantPayloadContext {
+        committed,
+        spec,
+        owner,
+    };
     drive_variant_declaration_sequence(&mut context, spec)
 }
 
@@ -8154,17 +8431,15 @@ fn variant_declaration_sequence_spec(
             allow_trailing_pipe: false,
         },
         VariantDeclarationSequenceForm::ColonIndented
-        | VariantDeclarationSequenceForm::EqualsIndented => {
-            VariantDeclarationSequenceSpec {
-                form,
-                layout,
-                declaration_base,
-                explicit_separators: EnumVariantSeparatorSet::new(true, true),
-                matching_close: None,
-                allow_leading_pipe: true,
-                allow_trailing_pipe: true,
-            }
-        }
+        | VariantDeclarationSequenceForm::EqualsIndented => VariantDeclarationSequenceSpec {
+            form,
+            layout,
+            declaration_base,
+            explicit_separators: EnumVariantSeparatorSet::new(true, true),
+            matching_close: None,
+            allow_leading_pipe: true,
+            allow_trailing_pipe: true,
+        },
         VariantDeclarationSequenceForm::EqualsInline => VariantDeclarationSequenceSpec {
             form,
             layout,
@@ -8204,16 +8479,12 @@ where
     let punctuation_checkpoint = i.checkpoint();
     let punctuation = i.run(scan_punctuation);
     match punctuation.map(|punctuation| (punctuation.kind(), punctuation.range())) {
-        Some((PunctuationKind::Semicolon, semicolon)) => {
-            Recovered::Complete(EnumBody::Bodyless {
-                semicolon: Some(semicolon),
-            })
-        }
-        Some((PunctuationKind::Open(Delimiter::Brace), open)) => {
-            Recovered::Complete(EnumBody::Braced(parse_enum_braced_body_ast(
-                enum_base, open, i,
-            )))
-        }
+        Some((PunctuationKind::Semicolon, semicolon)) => Recovered::Complete(EnumBody::Bodyless {
+            semicolon: Some(semicolon),
+        }),
+        Some((PunctuationKind::Open(Delimiter::Brace), open)) => Recovered::Complete(
+            EnumBody::Braced(parse_enum_braced_body_ast(enum_base, open, i)),
+        ),
         Some((PunctuationKind::Colon, colon)) => Recovered::Complete(EnumBody::Colon {
             colon: colon.clone(),
             body: parse_enum_colon_body_ast(enum_base, colon, i),
@@ -8240,13 +8511,14 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let opening = i.run(scan_trivia).expect("trivia scanning is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(
-        enum_base,
-        &opening,
-        i.local.line().line_indent,
-    );
+    let layout =
+        LayoutDelimitedFrame::after_opening_trivia(enum_base, &opening, i.local.line().line_indent);
     let sequence = parse_variant_declaration_sequence_with_payload(
-        variant_declaration_sequence_spec(VariantDeclarationSequenceForm::Braced, layout, enum_base),
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::Braced,
+            layout,
+            enum_base,
+        ),
         enum_variant_declaration_owner_spec(enum_base),
         i,
     );
@@ -8328,14 +8600,12 @@ where
         );
         let end = i.pos();
         let _ = sequence.trailing_pipe;
-        return Recovered::Complete(EnumEqualsVariantBody::Indented(
-            EnumIndentedVariantBody {
-                base_indent: enum_base,
-                block_indent,
-                variants: sequence.variants,
-                range: equals.end..end,
-            },
-        ));
+        return Recovered::Complete(EnumEqualsVariantBody::Indented(EnumIndentedVariantBody {
+            base_indent: enum_base,
+            block_indent,
+            variants: sequence.variants,
+            range: equals.end..end,
+        }));
     }
     let sequence = parse_variant_declaration_sequence_with_payload(
         variant_declaration_sequence_spec(
@@ -8369,11 +8639,15 @@ where
             .run(scan_trivia)
             .is_some_and(|trivia| enum_variant_trivia_has_newline(&trivia)),
         Some(_) if i.input.remainder().is_empty() => true,
-        Some(_) => i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-            punctuation.kind(),
-            PunctuationKind::Comma
-                | PunctuationKind::Close(Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace)
-        )),
+        Some(_) => i.run(scan_punctuation).is_some_and(|punctuation| {
+            matches!(
+                punctuation.kind(),
+                PunctuationKind::Comma
+                    | PunctuationKind::Close(
+                        Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+                    )
+            )
+        }),
     };
     i.rollback(checkpoint);
     pending
@@ -8387,10 +8661,14 @@ where
 {
     let checkpoint = i.checkpoint();
     let pending = i.run(scan_declaration_exact_equals).is_some()
-        || i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-            punctuation.kind(),
-            PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
-        ));
+        || i.run(scan_punctuation).is_some_and(|punctuation| {
+            matches!(
+                punctuation.kind(),
+                PunctuationKind::Semicolon
+                    | PunctuationKind::Open(Delimiter::Brace)
+                    | PunctuationKind::Colon
+            )
+        });
     i.rollback(checkpoint);
     pending
 }
@@ -8465,8 +8743,8 @@ where
         }
     }
 
-    let has_actual_braced_close = header_complete
-        && commit_enum_body_isolated(intro.enum_base, committed);
+    let has_actual_braced_close =
+        header_complete && commit_enum_body_isolated(intro.enum_base, committed);
     if has_actual_braced_close {
         if let Some(start) = committed.probe(|probe| {
             recognize_derives_attachment_start(
@@ -8512,7 +8790,9 @@ where
         let punctuation = i.run(scan_punctuation)?;
         let starter = match punctuation.kind() {
             PunctuationKind::Semicolon => DirectEnumBodyStarter::Bodyless(punctuation.range()),
-            PunctuationKind::Open(Delimiter::Brace) => DirectEnumBodyStarter::Braced(punctuation.range()),
+            PunctuationKind::Open(Delimiter::Brace) => {
+                DirectEnumBodyStarter::Braced(punctuation.range())
+            }
             PunctuationKind::Colon => DirectEnumBodyStarter::Colon(punctuation.range()),
             _ => return None,
         };
@@ -8548,9 +8828,8 @@ where
             trivia
         });
         if let Some(trivia) = trivia {
-            let newline = committed.probe(|probe| {
-                probe.input().input.source()[trivia.range()].contains(['\r', '\n'])
-            });
+            let newline = committed
+                .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
             if newline {
                 return false;
             }
@@ -8632,7 +8911,11 @@ where
         layout
     });
     match commit_variant_declaration_sequence_with_payload(
-        variant_declaration_sequence_spec(VariantDeclarationSequenceForm::Braced, layout, enum_base),
+        variant_declaration_sequence_spec(
+            VariantDeclarationSequenceForm::Braced,
+            layout,
+            enum_base,
+        ),
         enum_variant_declaration_owner_spec(enum_base),
         committed,
     ) {
@@ -8641,7 +8924,9 @@ where
             let range = committed.probe(|probe| {
                 let i = probe.input();
                 let checkpoint = i.checkpoint();
-                let range = i.run(scan_punctuation).map(|punctuation| punctuation.range());
+                let range = i
+                    .run(scan_punctuation)
+                    .map(|punctuation| punctuation.range());
                 i.rollback(checkpoint);
                 range.expect("a mismatched Enum brace close remains at the cursor")
             });
@@ -8709,7 +8994,8 @@ fn commit_enum_equals_body_isolated<'parse, 'source, 'local, E, O>(
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scanning is total");
     if enum_variant_trivia_has_newline(&trivia) {
-        let valid_indent = committed.probe(|probe| probe.input().local.line().line_indent > enum_base);
+        let valid_indent =
+            committed.probe(|probe| probe.input().local.line().line_indent > enum_base);
         if !valid_indent {
             committed.probe(|probe| probe.input().rollback(checkpoint));
             emit_enum_variant_item_missing(committed);
@@ -8849,7 +9135,10 @@ enum TypeDeclarationHeaderRecovery {
 fn parse_type_declaration_header_slots<'source, E>(
     intro: &TypeStatementIntro<'source>,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> (ParsedTypeDeclarationHeader<'source>, Vec<TypeDeclarationHeaderRecovery>)
+) -> (
+    ParsedTypeDeclarationHeader<'source>,
+    Vec<TypeDeclarationHeaderRecovery>,
+)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -8857,12 +9146,8 @@ where
 {
     let mut recoveries = Vec::new();
     let shared = parse_type_declaration_shared_header_phase(intro, i, &mut recoveries);
-    let (equals, rhs_retry) = parse_type_declaration_definition_phase(
-        intro,
-        &shared.name,
-        i,
-        &mut recoveries,
-    );
+    let (equals, rhs_retry) =
+        parse_type_declaration_definition_phase(intro, &shared.name, i, &mut recoveries);
 
     (
         ParsedTypeDeclarationHeader {
@@ -8909,9 +9194,8 @@ where
                         i.run(scan_word)
                             .expect("a Type name retry must leave its raw word at the cursor"),
                     ),
-                    TypeDeclarationInvalidTarget::Equals | TypeDeclarationInvalidTarget::Boundary => {
-                        Recovered::Incomplete
-                    }
+                    TypeDeclarationInvalidTarget::Equals
+                    | TypeDeclarationInvalidTarget::Boundary => Recovered::Incomplete,
                     TypeDeclarationInvalidTarget::Rhs => {
                         unreachable!("name recovery never retries a RHS")
                     }
@@ -8974,15 +9258,17 @@ where
                 });
                 match recovery.target {
                     TypeDeclarationInvalidTarget::Equals => {
-                        let equals = i
-                            .run(scan_declaration_exact_equals)
-                            .expect("definition-introducer retry must leave exact equals at the cursor");
+                        let equals = i.run(scan_declaration_exact_equals).expect(
+                            "definition-introducer retry must leave exact equals at the cursor",
+                        );
                         (Recovered::Complete(equals), true)
                     }
                     TypeDeclarationInvalidTarget::Rhs => (Recovered::Incomplete, true),
                     TypeDeclarationInvalidTarget::Boundary => (Recovered::Incomplete, false),
                     TypeDeclarationInvalidTarget::RawName => {
-                        unreachable!("definition-introducer recovery never retries a declaration name")
+                        unreachable!(
+                            "definition-introducer recovery never retries a declaration name"
+                        )
                     }
                 }
             }
@@ -9016,9 +9302,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (header, recoveries) = committed.probe(|probe| {
-        parse_type_declaration_header_slots(intro, probe.input())
-    });
+    let (header, recoveries) =
+        committed.probe(|probe| parse_type_declaration_header_slots(intro, probe.input()));
     for recovery in recoveries {
         emit_type_declaration_header_recovery(committed, recovery);
     }
@@ -9208,11 +9493,13 @@ where
     i.local.push_type_expression_scoped_stop_frame(scoped_frame);
     let rhs = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(type_declaration_rhs_role()),
-                TypeExpressionEpisodePolicy::default(),
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(type_declaration_rhs_role()),
+                    TypeExpressionEpisodePolicy::default(),
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory derives-aware Type declaration RHS entry is total");
     assert_eq!(
@@ -9388,7 +9675,8 @@ where
             );
             Recovered::Complete(TypeDeclarationForm::Nominal)
         }
-        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
+        TypeDeclarationFormDisposition::Equality
+        | TypeDeclarationFormDisposition::EqualityRecovery => {
             let (equals, rhs_retry) = parse_type_declaration_definition_phase(
                 &intro,
                 &shared.name,
@@ -9510,7 +9798,8 @@ where
             committed,
         ),
         TypeDeclarationFormDisposition::Incomplete => {}
-        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
+        TypeDeclarationFormDisposition::Equality
+        | TypeDeclarationFormDisposition::EqualityRecovery => {
             let (header, definition_recoveries, definition_end) = committed.probe(|probe| {
                 let i = probe.input();
                 let checkpoint = i.checkpoint();
@@ -9590,11 +9879,7 @@ fn commit_type_declaration_definition_surface_isolated<'parse, 'source, 'local, 
             Recovered::Incomplete => None,
         })
         .unwrap_or(definition_end);
-    commit_type_declaration_continuation_trivia_until(
-        type_base,
-        definition_target,
-        committed,
-    );
+    commit_type_declaration_continuation_trivia_until(type_base, definition_target, committed);
     if let Some(recovery) = definition_recovery {
         commit_type_declaration_header_recovery(recovery.clone(), committed);
     }
@@ -9621,8 +9906,7 @@ fn commit_type_declaration_header_surface<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let name_recovery = recoveries.iter().find(|recovery| {
-        type_declaration_header_recovery_role(recovery)
-            == crate::session::TypeDeclarationRole::Name
+        type_declaration_header_recovery_role(recovery) == crate::session::TypeDeclarationRole::Name
     });
     let definition_recovery = recoveries.iter().find(|recovery| {
         type_declaration_header_recovery_role(recovery)
@@ -9674,11 +9958,7 @@ fn commit_type_declaration_header_surface<'parse, 'source, 'local, E, O>(
             Recovered::Incomplete => None,
         })
         .unwrap_or(header_end);
-    commit_type_declaration_continuation_trivia_until(
-        type_base,
-        definition_target,
-        committed,
-    );
+    commit_type_declaration_continuation_trivia_until(type_base, definition_target, committed);
     if let Some(recovery) = definition_recovery {
         commit_type_declaration_header_recovery(recovery.clone(), committed);
     }
@@ -9738,10 +10018,8 @@ fn commit_type_declaration_nominal_trailing_trivia_until<'parse, 'source, 'local
 
 /// Consumes only the trailing trivia whose ownership the sink-free nominal
 /// form judge already established.  It is replay, not a second form probe.
-fn consume_type_declaration_nominal_trailing_trivia_until<E>(
-    target: usize,
-    i: &mut SynIn<E>,
-) where
+fn consume_type_declaration_nominal_trailing_trivia_until<E>(target: usize, i: &mut SynIn<E>)
+where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
@@ -9849,7 +10127,10 @@ fn emit_type_declaration_header_recovery<'parse, 'source, 'local, E, O>(
         };
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             kind,
             unexpected,
             Arc::from([SyntaxExpectation {
@@ -10110,9 +10391,18 @@ impl DerivesDriverSpec {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DerivesDriverDecision {
-    Comma { leading: Range<usize>, comma: Range<usize> },
-    Via { leading: Range<usize>, keyword: Range<usize> },
-    RepeatedClause { leading: Range<usize>, start: DerivesAttachmentStart },
+    Comma {
+        leading: Range<usize>,
+        comma: Range<usize>,
+    },
+    Via {
+        leading: Range<usize>,
+        keyword: Range<usize>,
+    },
+    RepeatedClause {
+        leading: Range<usize>,
+        start: DerivesAttachmentStart,
+    },
     OwnerTail(DerivesOwnerTail),
     Boundary,
     NoContinuation,
@@ -10169,10 +10459,7 @@ where
 
 /// One sink-free clause-tail decision shared by the future AST and direct-CST
 /// adapters. Local comma/contextual continuations precede owner-tail handoff.
-fn drive_derives_clauses<E>(
-    spec: DerivesDriverSpec,
-    i: &mut SynIn<E>,
-) -> DerivesDriverDecision
+fn drive_derives_clauses<E>(spec: DerivesDriverSpec, i: &mut SynIn<E>) -> DerivesDriverDecision
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -10337,16 +10624,18 @@ where
         DerivesOwnerTailClassifier::TypeHeader if declaration_exact_equals_pending(i) => {
             Some(DerivesOwnerTail::TypeDefinitionIntroducer)
         }
-        DerivesOwnerTailClassifier::StructHeader => i.run(scan_punctuation).and_then(|punctuation| {
-            matches!(
-                punctuation.kind(),
-                PunctuationKind::Open(Delimiter::Brace)
-                    | PunctuationKind::Open(Delimiter::Parenthesis)
-                    | PunctuationKind::Colon
-                    | PunctuationKind::Semicolon
-            )
-            .then_some(DerivesOwnerTail::StructBodyStarter)
-        }),
+        DerivesOwnerTailClassifier::StructHeader => {
+            i.run(scan_punctuation).and_then(|punctuation| {
+                matches!(
+                    punctuation.kind(),
+                    PunctuationKind::Open(Delimiter::Brace)
+                        | PunctuationKind::Open(Delimiter::Parenthesis)
+                        | PunctuationKind::Colon
+                        | PunctuationKind::Semicolon
+                )
+                .then_some(DerivesOwnerTail::StructBodyStarter)
+            })
+        }
         DerivesOwnerTailClassifier::EnumHeader if declaration_exact_equals_pending(i) => {
             Some(DerivesOwnerTail::EnumBodyStarter)
         }
@@ -10362,15 +10651,17 @@ where
         DerivesOwnerTailClassifier::ErrorHeader if declaration_exact_equals_pending(i) => {
             Some(DerivesOwnerTail::ErrorBodyStarter)
         }
-        DerivesOwnerTailClassifier::ErrorHeader => i.run(scan_punctuation).and_then(|punctuation| {
-            matches!(
-                punctuation.kind(),
-                PunctuationKind::Open(Delimiter::Brace)
-                    | PunctuationKind::Colon
-                    | PunctuationKind::Semicolon
-            )
-            .then_some(DerivesOwnerTail::ErrorBodyStarter)
-        }),
+        DerivesOwnerTailClassifier::ErrorHeader => {
+            i.run(scan_punctuation).and_then(|punctuation| {
+                matches!(
+                    punctuation.kind(),
+                    PunctuationKind::Open(Delimiter::Brace)
+                        | PunctuationKind::Colon
+                        | PunctuationKind::Semicolon
+                )
+                .then_some(DerivesOwnerTail::ErrorBodyStarter)
+            })
+        }
         _ => None,
     };
     i.rollback(checkpoint);
@@ -10443,7 +10734,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let leading = i.run(scan_trivia).expect("the derives attachment gap is total");
+    let leading = i
+        .run(scan_trivia)
+        .expect("the derives attachment gap is total");
     debug_assert_eq!(leading.range().end, start.keyword.start);
     let keyword = i
         .run(scan_word)
@@ -10496,13 +10789,13 @@ where
     let clause_start = start.keyword.start;
     (
         DerivesAttachment {
-        position: start.position,
-        clause: DerivesClause {
-            keyword: start.keyword,
-            roles,
-            via,
-            range: clause_start..end,
-        },
+            position: start.position,
+            clause: DerivesClause {
+                keyword: start.keyword,
+                roles,
+                via,
+                range: clause_start..end,
+            },
         },
         repeated_start,
     )
@@ -10541,8 +10834,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let incoming = i.local.stop_set().unwrap_or_default();
-    let ambient_newline_owner =
-        declaration_braced_newline_owner_for_physical_newline(i.local);
+    let ambient_newline_owner = declaration_braced_newline_owner_for_physical_newline(i.local);
     let episode = derives_role_episode_spec(
         spec,
         incoming,
@@ -10550,14 +10842,17 @@ where
         ambient_newline_owner,
     );
     i.local.push_stop_set(episode.stops);
-    i.local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    i.local
+        .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let role = i
         .run(from_fn(|i| {
-            Some(parse_required_type_expression_with_outer_missing_role_and_policy(
-                Some(episode.outer_role),
-                episode.policy,
-                i,
-            ))
+            Some(
+                parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                ),
+            )
         }))
         .expect("the mandatory derives RoleReference entry is total");
     assert_eq!(
@@ -10680,7 +10975,8 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::DerivesClause);
-    let leading = committed.probe(|probe| probe.input().run(scan_trivia))
+    let leading = committed
+        .probe(|probe| probe.input().run(scan_trivia))
         .expect("the derives attachment gap is total");
     debug_assert_eq!(leading.range().end, start.keyword.start);
     committed.emit_trivia(&leading);
@@ -10697,7 +10993,8 @@ where
         match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
             DerivesDriverDecision::Comma { leading, comma } => {
                 commit_derives_trivia(leading, committed);
-                let consumed = committed.probe(|probe| scan_derives_comma(probe.input()))
+                let consumed = committed
+                    .probe(|probe| scan_derives_comma(probe.input()))
                     .expect("the shared derives driver leaves its comma at the cursor");
                 assert_eq!(consumed, comma);
                 committed.token(SyntaxKind::Comma, consumed);
@@ -10710,17 +11007,18 @@ where
                 debug_assert_eq!(consumed.text(), "via");
                 committed.token(SyntaxKind::ViaKw, consumed.range());
                 let via = commit_derives_via_isolated(keyword, spec, committed);
-                let repeated_start = match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
-                    DerivesDriverDecision::RepeatedClause { leading, start } => {
-                        commit_derives_trivia(leading, committed);
-                        Some(start)
-                    }
-                    DerivesDriverDecision::Comma { .. }
-                    | DerivesDriverDecision::Via { .. }
-                    | DerivesDriverDecision::OwnerTail(_)
-                    | DerivesDriverDecision::Boundary
-                    | DerivesDriverDecision::NoContinuation => None,
-                };
+                let repeated_start =
+                    match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
+                        DerivesDriverDecision::RepeatedClause { leading, start } => {
+                            commit_derives_trivia(leading, committed);
+                            Some(start)
+                        }
+                        DerivesDriverDecision::Comma { .. }
+                        | DerivesDriverDecision::Via { .. }
+                        | DerivesDriverDecision::OwnerTail(_)
+                        | DerivesDriverDecision::Boundary
+                        | DerivesDriverDecision::NoContinuation => None,
+                    };
                 break (Some(via), repeated_start);
             }
             DerivesDriverDecision::RepeatedClause { leading, start } => {
@@ -10758,7 +11056,8 @@ fn commit_derives_trivia<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia is total");
     assert_eq!(trivia.range(), expected);
     committed.emit_trivia(&trivia);
@@ -10812,7 +11111,8 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         i.local.push_stop_set(episode.stops);
-        i.local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+        i.local
+            .push_type_expression_scoped_stop_frame(episode.scoped_frame);
     });
     let role = commit_direct_type_expression_with_outer_missing_role_and_policy(
         Some(episode.outer_role),
@@ -10821,7 +11121,10 @@ where
     );
     committed.probe(|probe| {
         let i = probe.input();
-        assert_eq!(i.local.pop_type_expression_scoped_stop_frame(), Some(episode.scoped_frame));
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(episode.scoped_frame)
+        );
         assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
     });
     let range = role.range();
@@ -10987,7 +11290,9 @@ fn emit_derives_via_recovery<'parse, 'source, 'local, E, O>(
 enum TypeDeclarationFormDisposition {
     /// The exclusive endpoint of terminal trivia the declaration owns.  A
     /// caller-owned boundary reports the shared-header end instead.
-    Nominal { owns_trailing_trivia_through: usize },
+    Nominal {
+        owns_trailing_trivia_through: usize,
+    },
     Equality,
     EqualityRecovery,
     Incomplete,
@@ -11033,25 +11338,24 @@ where
                 .run(scan_trivia)
                 .expect("the maximal Type form gap trivia scan is total");
             let has_physical_newline = i.input.source()[trivia.range()].contains(['\r', '\n']);
-            let accepted_continuation = !has_physical_newline || i.local.line().line_indent > type_base;
+            let accepted_continuation =
+                !has_physical_newline || i.local.line().line_indent > type_base;
             let disposition = if accepted_continuation && declaration_exact_equals_pending(i) {
                 TypeDeclarationFormDisposition::Equality
             } else {
-                let owns_trailing_trivia_through = if declaration_braced_newline_owner_from_stack(
-                    has_physical_newline,
-                    i.local,
-                )
-                .is_some()
-                {
-                    Some(shared_end)
-                } else {
-                    type_declaration_nominal_terminal_trivia_end_after_trivia(
-                        type_base,
-                        shared_end,
-                        has_physical_newline,
-                        i,
-                    )
-                };
+                let owns_trailing_trivia_through =
+                    if declaration_braced_newline_owner_from_stack(has_physical_newline, i.local)
+                        .is_some()
+                    {
+                        Some(shared_end)
+                    } else {
+                        type_declaration_nominal_terminal_trivia_end_after_trivia(
+                            type_base,
+                            shared_end,
+                            has_physical_newline,
+                            i,
+                        )
+                    };
                 match owns_trailing_trivia_through {
                     Some(owns_trailing_trivia_through) => TypeDeclarationFormDisposition::Nominal {
                         owns_trailing_trivia_through,
@@ -11086,18 +11390,16 @@ where
 /// Reads the ambient owner stack without changing it.  A braced statement
 /// block owns its own physical-newline statement boundary; a catch barrier
 /// does so only after crossing an inline canonical arm-body frame.
-fn declaration_braced_newline_owner<E>(
-    i: &mut SynIn<E>,
-) -> Option<DeclarationBracedNewlineOwner>
+fn declaration_braced_newline_owner<E>(i: &mut SynIn<E>) -> Option<DeclarationBracedNewlineOwner>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let has_physical_newline = i.run(scan_trivia).is_some_and(|trivia| {
-        i.input.source()[trivia.range()].contains(['\r', '\n'])
-    });
+    let has_physical_newline = i
+        .run(scan_trivia)
+        .is_some_and(|trivia| i.input.source()[trivia.range()].contains(['\r', '\n']));
     let owner = declaration_braced_newline_owner_from_stack(has_physical_newline, i.local);
     i.rollback(checkpoint);
     owner
@@ -11120,7 +11422,9 @@ fn declaration_braced_newline_owner_for_physical_newline(
     for frame in local.ambient_owner_scope_frames() {
         match frame.kind() {
             AmbientOwnerScopeKind::InlineCanonicalStatement(_) => skipped_inline += 1,
-            AmbientOwnerScopeKind::BracedBarrier(BracedBarrierOrigin::BracedStatementBlockExpression) => {
+            AmbientOwnerScopeKind::BracedBarrier(
+                BracedBarrierOrigin::BracedStatementBlockExpression,
+            ) => {
                 return Some(DeclarationBracedNewlineOwner::BracedStatementSequence);
             }
             AmbientOwnerScopeKind::BracedBarrier(BracedBarrierOrigin::CatchBracedArmSequence) => {
@@ -11176,7 +11480,9 @@ where
     let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
         let stop = match punctuation.kind() {
             PunctuationKind::Comma => StopKind::Comma,
-            PunctuationKind::Close(crate::session::Delimiter::Parenthesis) => StopKind::RightParenthesis,
+            PunctuationKind::Close(crate::session::Delimiter::Parenthesis) => {
+                StopKind::RightParenthesis
+            }
             PunctuationKind::Close(crate::session::Delimiter::Bracket) => StopKind::RightBracket,
             PunctuationKind::Close(crate::session::Delimiter::Brace) => StopKind::RightBrace,
             _ => return false,
@@ -11198,8 +11504,12 @@ where
     let checkpoint = i.checkpoint();
     let start = i.pos();
     let first = i.run(scan_word)?;
-    let base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+    let base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
         let Some(trivia) = mod_trivia(base, &mut i) else {
             i.rollback(checkpoint);
             return None;
@@ -11216,7 +11526,12 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    Some(ModStatementIntro { start, visibility, after_visibility, mod_keyword: keyword })
+    Some(ModStatementIntro {
+        start,
+        visibility,
+        after_visibility,
+        mod_keyword: keyword,
+    })
 }
 
 /// Applies the binding-specific structural rule before visibility-prefixed
@@ -11244,17 +11559,23 @@ where
         };
         if target_head.text() == "use" {
             let use_checkpoint = i.checkpoint();
-            let selected_as_use = scan_required_inline_trivia(i).is_some()
-                && parse_use_tree(i).is_some();
+            let selected_as_use =
+                scan_required_inline_trivia(i).is_some() && parse_use_tree(i).is_some();
             i.rollback(use_checkpoint);
             return !selected_as_use;
         }
         if target_head.text() == "mod" {
             return false;
         }
-        if matches!(target_head.text(), "lazy" | "prefix" | "infix" | "suffix" | "nullfix") {
+        if matches!(
+            target_head.text(),
+            "lazy" | "prefix" | "infix" | "suffix" | "nullfix"
+        ) {
             let definition_checkpoint = i.checkpoint();
-            let binding_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+            let binding_base = i
+                .local
+                .indentation_baseline()
+                .map_or(0, |baseline| baseline.column);
             let is_binding_definition = binding_trivia(binding_base, i).is_some()
                 && i.run(scan_declaration_exact_equals).is_some();
             i.rollback(definition_checkpoint);
@@ -11377,27 +11698,40 @@ where
     committed.start_node(SyntaxKind::BindingHeader);
     emit_visibility(committed, &intro.visibility);
     let binding_base = committed.probe(|probe| {
-        probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column)
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
     });
     let target_trivia = committed.probe(|probe| binding_trivia(binding_base, probe.input()));
     if let Some(trivia) = &target_trivia {
         committed.emit_trivia(trivia);
     }
-    let stops = committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default().with(StopKind::Equal));
+    let stops = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
+            .with(StopKind::Equal)
+    });
     committed.probe(|probe| probe.input().local.push_stop_set(stops));
     let target = parse_direct_pattern_with_outer_missing_role(
         operators,
         LeadingTrivia::None,
-        Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Target))),
+        Some(GrammarRole::Declaration(DeclarationRole::Binding(
+            BindingRole::Target,
+        ))),
         committed,
     )
-        .map_or_else(
-            || {
-                emit_binding_missing(committed, BindingRole::Target, ExpectedSyntax::Pattern);
-                Recovered::Incomplete
-            },
-            Recovered::Complete,
-        );
+    .map_or_else(
+        || {
+            emit_binding_missing(committed, BindingRole::Target, ExpectedSyntax::Pattern);
+            Recovered::Incomplete
+        },
+        Recovered::Complete,
+    );
     committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
     let definition_intro = committed.probe(|probe| {
         let i = probe.input();
@@ -11426,7 +11760,11 @@ where
             Recovered::Incomplete => equals.end,
         };
         committed.finish_node();
-        ParsedBindingDefinition { equals: equals.clone(), body, range: equals.start..end }
+        ParsedBindingDefinition {
+            equals: equals.clone(),
+            body,
+            range: equals.start..end,
+        }
     });
     let end = definition.as_ref().map_or_else(
         || match &target {
@@ -11465,22 +11803,38 @@ where
         if let Some(trivia) = &intro.after_visibility {
             committed.emit_trivia(trivia);
         }
-        let base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+        let base = committed.probe(|probe| {
+            probe
+                .input()
+                .local
+                .indentation_baseline()
+                .map_or(0, |baseline| baseline.column)
+        });
         let _ = base;
     }
     committed.token(SyntaxKind::ModKw, intro.mod_keyword.range());
-    let mod_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    let mod_base = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column)
+    });
     if let Some(trivia) = committed.probe(|probe| mod_trivia(mod_base, probe.input())) {
         committed.emit_trivia(&trivia);
     }
 
     let mut identity_missing = false;
     let mut identity_error = false;
-    let first = commit_word(committed).or_else(|| match mod_word_error_retry(committed, ModRole::Name) {
-        Some(true) => commit_word(committed),
-        Some(false) => { identity_error = true; None }
-        None => None,
-    });
+    let first =
+        commit_word(committed).or_else(|| match mod_word_error_retry(committed, ModRole::Name) {
+            Some(true) => commit_word(committed),
+            Some(false) => {
+                identity_error = true;
+                None
+            }
+            None => None,
+        });
     let is_test = first.as_ref().is_some_and(|word| word.text() == "test");
     if is_test {
         let marker = first.expect("checked above");
@@ -11498,13 +11852,15 @@ where
             if let Some(trivia) = committed.probe(|probe| mod_trivia(mod_base, probe.input())) {
                 committed.emit_trivia(&trivia);
             }
-            let name = commit_word(committed).or_else(|| match mod_word_error_retry(committed, ModRole::TestName) {
-                Some(true) => commit_word(committed),
-                Some(false) => {
-                    identity_error = true;
-                    None
+            let name = commit_word(committed).or_else(|| {
+                match mod_word_error_retry(committed, ModRole::TestName) {
+                    Some(true) => commit_word(committed),
+                    Some(false) => {
+                        identity_error = true;
+                        None
+                    }
+                    None => None,
                 }
-                None => None,
             });
             if let Some(name) = name {
                 committed.token(SyntaxKind::Identifier, name.range());
@@ -11530,12 +11886,16 @@ where
     let mut body_starter = committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let starter = i.run(scan_punctuation).and_then(|punctuation| match punctuation.kind() {
-            PunctuationKind::Semicolon => Some(PunctuationKind::Semicolon),
-            PunctuationKind::Open(Delimiter::Brace) => Some(PunctuationKind::Open(Delimiter::Brace)),
-            PunctuationKind::Colon => Some(PunctuationKind::Colon),
-            _ => None,
-        });
+        let starter = i
+            .run(scan_punctuation)
+            .and_then(|punctuation| match punctuation.kind() {
+                PunctuationKind::Semicolon => Some(PunctuationKind::Semicolon),
+                PunctuationKind::Open(Delimiter::Brace) => {
+                    Some(PunctuationKind::Open(Delimiter::Brace))
+                }
+                PunctuationKind::Colon => Some(PunctuationKind::Colon),
+                _ => None,
+            });
         i.rollback(checkpoint);
         starter
     });
@@ -11553,12 +11913,16 @@ where
             body_starter = committed.probe(|probe| {
                 let i = probe.input();
                 let checkpoint = i.checkpoint();
-                let starter = i.run(scan_punctuation).and_then(|punctuation| match punctuation.kind() {
-                    PunctuationKind::Semicolon => Some(PunctuationKind::Semicolon),
-                    PunctuationKind::Open(Delimiter::Brace) => Some(PunctuationKind::Open(Delimiter::Brace)),
-                    PunctuationKind::Colon => Some(PunctuationKind::Colon),
-                    _ => None,
-                });
+                let starter =
+                    i.run(scan_punctuation)
+                        .and_then(|punctuation| match punctuation.kind() {
+                            PunctuationKind::Semicolon => Some(PunctuationKind::Semicolon),
+                            PunctuationKind::Open(Delimiter::Brace) => {
+                                Some(PunctuationKind::Open(Delimiter::Brace))
+                            }
+                            PunctuationKind::Colon => Some(PunctuationKind::Colon),
+                            _ => None,
+                        });
                 i.rollback(checkpoint);
                 starter
             });
@@ -11566,15 +11930,21 @@ where
     }
     match body_starter {
         Some(PunctuationKind::Semicolon) => {
-            let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation)).expect("accepted starter remains");
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("accepted starter remains");
             committed.token(SyntaxKind::Semicolon, punctuation.range());
         }
         Some(PunctuationKind::Open(Delimiter::Brace)) => {
-            let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation)).expect("accepted starter remains");
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("accepted starter remains");
             commit_braced_statement_block_expression(operators, punctuation.range(), committed);
         }
         Some(PunctuationKind::Colon) => {
-            let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation)).expect("accepted starter remains");
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("accepted starter remains");
             committed.token(SyntaxKind::Colon, punctuation.range());
             commit_mod_colon_body(operators, mod_base, committed);
         }
@@ -11644,9 +12014,9 @@ where
         }
     }
     committed.token(SyntaxKind::StructKw, intro.struct_keyword.range());
-    if let Some(trivia) = committed.probe(|probe| {
-        struct_continuation_trivia(intro.struct_base, probe.input())
-    }) {
+    if let Some(trivia) =
+        committed.probe(|probe| struct_continuation_trivia(intro.struct_base, probe.input()))
+    {
         committed.emit_trivia(&trivia);
     }
 
@@ -11666,7 +12036,11 @@ where
             }
             None => {
                 name_incomplete = true;
-                emit_struct_missing(committed, crate::session::StructRole::Name, ExpectedSyntax::Identifier);
+                emit_struct_missing(
+                    committed,
+                    crate::session::StructRole::Name,
+                    ExpectedSyntax::Identifier,
+                );
             }
         }
     }
@@ -11690,9 +12064,9 @@ where
     let body_starter_pending = committed.probe(|probe| struct_body_starter_pending(probe.input()));
     let mut body_starter = None;
     if !name_incomplete || body_starter_pending {
-        if let Some(trivia) = committed.probe(|probe| {
-            struct_continuation_trivia(intro.struct_base, probe.input())
-        }) {
+        if let Some(trivia) =
+            committed.probe(|probe| struct_continuation_trivia(intro.struct_base, probe.input()))
+        {
             committed.emit_trivia(&trivia);
         }
         body_starter = committed.probe(|probe| struct_body_starter(probe.input()));
@@ -11803,14 +12177,23 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let opening = committed.probe(|probe| consume_struct_indented_opening(struct_base, probe.input()));
+    let opening =
+        committed.probe(|probe| consume_struct_indented_opening(struct_base, probe.input()));
     let Some((opening, block_indent)) = opening else {
-        emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+        emit_struct_missing(
+            committed,
+            crate::session::StructRole::Field,
+            ExpectedSyntax::Identifier,
+        );
         return;
     };
     committed.emit_trivia(&opening);
     let stops = committed.probe(|probe| {
-        probe.input().local.stop_set().unwrap_or_default()
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
             .without(StopKind::Newline)
             .with(StopKind::Comma)
     });
@@ -11822,7 +12205,9 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
 
     let mut field_count = 0usize;
     loop {
-        if committed.probe(|probe| struct_indented_terminal_boundary_pending(block_indent, probe.input())) {
+        if committed
+            .probe(|probe| struct_indented_terminal_boundary_pending(block_indent, probe.input()))
+        {
             if field_count == 0 {
                 commit_empty_struct_named_field(committed);
             }
@@ -11837,9 +12222,13 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::Comma, comma);
             match commit_struct_indented_gap(block_indent, committed) {
                 StructIndentedGap::Dedent => break,
-                StructIndentedGap::Trivia(_) if committed.probe(|probe| {
-                    struct_indented_terminal_boundary_pending(block_indent, probe.input())
-                }) => break,
+                StructIndentedGap::Trivia(_)
+                    if committed.probe(|probe| {
+                        struct_indented_terminal_boundary_pending(block_indent, probe.input())
+                    }) =>
+                {
+                    break;
+                }
                 StructIndentedGap::Trivia(_) => continue,
             }
         }
@@ -11857,7 +12246,9 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
         }
 
         if !commit_struct_named_field(false, committed) {
-            if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
+            if let Some(run) =
+                committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input()))
+            {
                 emit_struct_error(
                     committed,
                     crate::session::StructRole::Field,
@@ -11880,7 +12271,9 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
         if matches!(gap, StructIndentedGap::Dedent) {
             break;
         }
-        let StructIndentedGap::Trivia(trivia) = gap else { unreachable!() };
+        let StructIndentedGap::Trivia(trivia) = gap else {
+            unreachable!()
+        };
         let newline_boundary = committed.probe(|probe| {
             struct_trivia_has_newline(&trivia)
                 && probe.input().local.line().line_indent == block_indent
@@ -11892,9 +12285,13 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::Comma, comma);
             match commit_struct_indented_gap(block_indent, committed) {
                 StructIndentedGap::Dedent => break,
-                StructIndentedGap::Trivia(_) if committed.probe(|probe| {
-                    struct_indented_terminal_boundary_pending(block_indent, probe.input())
-                }) => break,
+                StructIndentedGap::Trivia(_)
+                    if committed.probe(|probe| {
+                        struct_indented_terminal_boundary_pending(block_indent, probe.input())
+                    }) =>
+                {
+                    break;
+                }
                 StructIndentedGap::Trivia(_) => continue,
             }
         }
@@ -11908,7 +12305,9 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
             let _ = commit_struct_indented_gap(block_indent, committed);
             continue;
         }
-        if committed.probe(|probe| struct_indented_terminal_boundary_pending(block_indent, probe.input())) {
+        if committed
+            .probe(|probe| struct_indented_terminal_boundary_pending(block_indent, probe.input()))
+        {
             break;
         }
         if committed.probe(|probe| struct_next_named_field_candidate(probe.input(), &trivia)) {
@@ -11941,7 +12340,11 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let stops = committed.probe(|probe| {
-        probe.input().local.stop_set().unwrap_or_default()
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
             .without(StopKind::Newline)
             .with(StopKind::Comma)
             .with(StopKind::RightParenthesis)
@@ -11951,7 +12354,8 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
         i.local.push_delimiter(Delimiter::Parenthesis);
         i.local.push_stop_set(stops);
     });
-    let opening = committed.probe(|probe| probe.input().run(scan_trivia))
+    let opening = committed
+        .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia is total");
     committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| {
@@ -11978,9 +12382,9 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
             );
             break;
         }
-        if let Some((range, actual)) = committed.probe(|probe| {
-            scan_struct_mismatched_close_for(Delimiter::Parenthesis, probe.input())
-        }) {
+        if let Some((range, actual)) = committed
+            .probe(|probe| scan_struct_mismatched_close_for(Delimiter::Parenthesis, probe.input()))
+        {
             emit_struct_mismatched_close_for(
                 committed,
                 ConstructRole::StructTupleFields,
@@ -11996,7 +12400,8 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 );
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -12015,7 +12420,8 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 .probe(|probe| scan_struct_comma(probe.input()))
                 .expect("the empty Struct tuple slot is followed by its comma");
             committed.token(SyntaxKind::Comma, comma);
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -12035,7 +12441,8 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 );
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -12050,15 +12457,19 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
             );
             break;
         }
-        let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+        let trivia = committed
+            .probe(|probe| probe.input().run(scan_trivia))
             .expect("trivia is total");
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
             committed.token(SyntaxKind::Comma, comma);
-            let post = committed.probe(|probe| probe.input().run(scan_trivia))
+            let post = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&post);
-            if let Some(close) = committed.probe(|probe| scan_struct_close_parenthesis(probe.input())) {
+            if let Some(close) =
+                committed.probe(|probe| scan_struct_close_parenthesis(probe.input()))
+            {
                 committed.token(SyntaxKind::RParen, close);
                 break;
             }
@@ -12099,9 +12510,9 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
             );
             break;
         }
-        if let Some((range, actual)) = committed.probe(|probe| {
-            scan_struct_mismatched_close_for(Delimiter::Parenthesis, probe.input())
-        }) {
+        if let Some((range, actual)) = committed
+            .probe(|probe| scan_struct_mismatched_close_for(Delimiter::Parenthesis, probe.input()))
+        {
             emit_struct_mismatched_close_for(
                 committed,
                 ConstructRole::StructTupleFields,
@@ -12117,7 +12528,8 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 );
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -12137,7 +12549,8 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 );
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -12199,8 +12612,12 @@ where
     let punctuation = i.run(scan_punctuation)?;
     let starter = match punctuation.kind() {
         PunctuationKind::Semicolon => StructBodyStarter::Bodyless(punctuation.range()),
-        PunctuationKind::Open(Delimiter::Brace) => StructBodyStarter::NamedBraced(punctuation.range()),
-        PunctuationKind::Open(Delimiter::Parenthesis) => StructBodyStarter::Tuple(punctuation.range()),
+        PunctuationKind::Open(Delimiter::Brace) => {
+            StructBodyStarter::NamedBraced(punctuation.range())
+        }
+        PunctuationKind::Open(Delimiter::Parenthesis) => {
+            StructBodyStarter::Tuple(punctuation.range())
+        }
         PunctuationKind::Colon => StructBodyStarter::NamedIndented(punctuation.range()),
         _ => {
             i.rollback(checkpoint);
@@ -12231,8 +12648,11 @@ fn commit_mod_colon_body<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = committed.probe(|probe| probe.input().checkpoint());
-    let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
-    let newline = committed.probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia is total");
+    let newline = committed
+        .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
     if newline && committed.probe(|probe| probe.input().local.line().line_indent <= mod_base) {
         committed.probe(|probe| probe.input().rollback(checkpoint));
         emit_mod_missing(committed, ModRole::Body, ExpectedSyntax::Statement);
@@ -12240,9 +12660,7 @@ fn commit_mod_colon_body<'parse, 'source, 'local, E, O>(
     }
     if newline {
         let indent = committed.probe(|probe| probe.input().local.line().line_indent);
-        commit_indented_mod_body(
-            operators, trivia, mod_base, indent, committed,
-        );
+        commit_indented_mod_body(operators, trivia, mod_base, indent, committed);
         return;
     }
     committed.emit_trivia(&trivia);
@@ -12266,7 +12684,8 @@ fn commit_mod_inline_colon_body<'parse, 'source, 'local, E, O>(
                 crate::session::InlineStatementOwnerKind::ModColonBody,
             )
     });
-    let mut statement_committed = commit_canonical_statement(operators, LeadingTrivia::None, committed);
+    let mut statement_committed =
+        commit_canonical_statement(operators, LeadingTrivia::None, committed);
     if !statement_committed {
         match mod_body_error_retry(operators, committed) {
             Some(true) => {
@@ -12322,7 +12741,9 @@ where
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum BindingStyleBodyLayout {
-    Inline { trivia: TriviaRun },
+    Inline {
+        trivia: TriviaRun,
+    },
     Indented {
         opening_trivia: TriviaRun,
         block_indent: usize,
@@ -12437,12 +12858,19 @@ where
             };
             committed.emit_trivia(&trivia);
             let mut recovery = BindingStyleInlineRecovery::None;
-            let body = parse_direct_expression_with_operators(operators, leading, committed).or_else(|| {
-                recovery = inline_error_retry(committed);
-                (recovery == BindingStyleInlineRecovery::Retry)
-                    .then(|| parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed))
-                    .flatten()
-            });
+            let body = parse_direct_expression_with_operators(operators, leading, committed)
+                .or_else(|| {
+                    recovery = inline_error_retry(committed);
+                    (recovery == BindingStyleInlineRecovery::Retry)
+                        .then(|| {
+                            parse_direct_expression_with_operators(
+                                operators,
+                                LeadingTrivia::None,
+                                committed,
+                            )
+                        })
+                        .flatten()
+                });
             match body {
                 Some(body) => Recovered::Complete(commit_inline(body)),
                 None if recovery != BindingStyleInlineRecovery::TerminalError => {
@@ -12473,13 +12901,7 @@ where
         GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
         |expression| ParsedBindingBody::new(expression.range()),
         |trivia, block_indent, committed| {
-            commit_indented_binding_body(
-                operators,
-                trivia,
-                binding_base,
-                block_indent,
-                committed,
-            );
+            commit_indented_binding_body(operators, trivia, binding_base, block_indent, committed);
             let end = committed.probe(|probe| probe.input().pos());
             ParsedBindingBody::new(body_start..end)
         },
@@ -12735,7 +13157,10 @@ fn emit_mod_missing<'parse, 'source, 'local, E, O>(
         let grammar_role = GrammarRole::Declaration(DeclarationRole::Mod(role));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role: grammar_role, range: at..at },
+            RecoverySiteKey {
+                role: grammar_role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -12763,13 +13188,37 @@ fn emit_mod_body_introducer_missing<'parse, 'source, 'local, E, O>(
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Brace),
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Colon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
             ]),
             0,
         )
@@ -12793,13 +13242,37 @@ fn emit_impl_body_introducer_missing<'parse, 'source, 'local, E, O>(
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Brace),
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Colon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
             ]),
             0,
         )
@@ -12830,7 +13303,10 @@ fn emit_impl_missing<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Declaration(DeclarationRole::Impl(role));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -12896,13 +13372,37 @@ fn emit_role_body_introducer_missing<'parse, 'source, 'local, E, O>(
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Brace),
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Colon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
             ]),
             0,
         )
@@ -12937,7 +13437,10 @@ fn emit_role_missing<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Declaration(DeclarationRole::Role(role));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -13005,13 +13508,37 @@ fn emit_act_body_introducer_missing<'parse, 'source, 'local, E, O>(
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Brace),
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Colon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
             ]),
             0,
         )
@@ -13046,7 +13573,10 @@ fn emit_act_missing<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Declaration(DeclarationRole::Act(act_role));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -13110,7 +13640,10 @@ fn emit_struct_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -13140,14 +13673,45 @@ fn emit_struct_body_introducer_missing<'parse, 'source, 'local, E, O>(
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis)), range: at..at, sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Brace),
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis),
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Colon,
+                    ),
+                    range: at..at,
+                    sources: source,
+                },
             ]),
             0,
         )
@@ -13266,10 +13830,38 @@ where
             GrammarRole::Declaration(DeclarationRole::Struct(
                 crate::session::StructRole::BodyIntroducer,
             )) => Arc::from([
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: range.clone(), sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: range.clone(), sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis)), range: range.clone(), sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: range.clone(), sources: source },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Brace),
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis),
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Colon,
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
             ]),
             _ => Arc::from([SyntaxExpectation {
                 role,
@@ -13280,7 +13872,10 @@ where
         };
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -13339,7 +13934,10 @@ where
         let grammar_role = GrammarRole::Declaration(DeclarationRole::Mod(role));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role: grammar_role, range: range.clone() },
+            RecoverySiteKey {
+                role: grammar_role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -13376,7 +13974,10 @@ where
         let mut end = start;
         loop {
             let character = probe.input().input.remainder().chars().next()?;
-            if matches!(character, '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':') {
+            if matches!(
+                character,
+                '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':'
+            ) {
                 return (start < end).then_some((start..end, false));
             }
             {
@@ -13403,16 +14004,40 @@ where
         let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
                 category: crate::session::UnexpectedCategory::OtherCharacter,
             }]),
             Arc::from([
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: range.clone(), sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: range.clone(), sources: source },
-                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range, sources: source },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Semicolon,
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Open(Delimiter::Brace),
+                    ),
+                    range: range.clone(),
+                    sources: source,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(
+                        crate::session::PunctuationEvidence::Colon,
+                    ),
+                    range,
+                    sources: source,
+                },
             ]),
             0,
         )
@@ -13439,7 +14064,10 @@ where
         let mut end = start;
         loop {
             let character = probe.input().input.remainder().chars().next()?;
-            if matches!(character, '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':') {
+            if matches!(
+                character,
+                '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':'
+            ) {
                 return (start < end).then_some((start..end, false));
             }
             {
@@ -13465,7 +14093,10 @@ where
         let role = GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Body));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -15797,15 +16428,25 @@ pub(crate) struct BindingDefinition<'source> {
 }
 
 impl<'source> BindingDefinition<'source> {
-    pub(crate) fn equals(&self) -> Range<usize> { self.equals.clone() }
-    pub(crate) fn body(&self) -> &Recovered<BindingBody<'source>> { &self.body }
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn equals(&self) -> Range<usize> {
+        self.equals.clone()
+    }
+    pub(crate) fn body(&self) -> &Recovered<BindingBody<'source>> {
+        &self.body
+    }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum BindingBody<'source> {
-    Inline { expression: OperatorChain<'source> },
-    Indented { block: IndentedStatementBlock<'source> },
+    Inline {
+        expression: OperatorChain<'source>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 /// A module declaration has the same child shape at root and in a canonical
@@ -15820,20 +16461,33 @@ pub(crate) struct ModDeclaration<'source> {
 }
 
 impl<'source> ModDeclaration<'source> {
-    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ModBody<'source> {
-    Bodyless { semicolon: Range<usize> },
-    Braced { block: BracedStatementBlockExpression<'source> },
-    Colon { colon: Recovered<Range<usize>>, body: Recovered<ModColonBody<'source>> },
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Recovered<Range<usize>>,
+        body: Recovered<ModColonBody<'source>>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ModColonBody<'source> {
-    Inline { statement: Box<Statement<'source>> },
-    Indented { block: IndentedStatementBlock<'source> },
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 /// A standalone Impl declaration shared by root and canonical Statements.
@@ -15867,16 +16521,27 @@ pub(crate) struct ImplDescription<'source> {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ImplBody<'source> {
-    Bodyless { semicolon: Range<usize> },
-    Braced { block: BracedStatementBlockExpression<'source> },
-    Colon { colon: Range<usize>, body: Recovered<ImplColonBody<'source>> },
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<ImplColonBody<'source>>,
+    },
 }
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ImplColonBody<'source> {
-    Inline { statement: Box<Statement<'source>> },
-    Indented { block: IndentedStatementBlock<'source> },
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 /// A standalone Role declaration shared by root and canonical Statements.
@@ -15901,16 +16566,27 @@ impl RoleDeclaration<'_> {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RoleBody<'source> {
-    Bodyless { semicolon: Range<usize> },
-    Braced { block: BracedStatementBlockExpression<'source> },
-    Colon { colon: Range<usize>, body: Recovered<RoleColonBody<'source>> },
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<RoleColonBody<'source>>,
+    },
 }
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RoleColonBody<'source> {
-    Inline { statement: Box<Statement<'source>> },
-    Indented { block: IndentedStatementBlock<'source> },
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 /// A standalone Act declaration shared by root and canonical Statements.
@@ -15944,16 +16620,27 @@ pub(crate) struct ActSourceClause<'source> {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ActBody<'source> {
-    Bodyless { semicolon: Option<Range<usize>> },
-    Braced { block: BracedStatementBlockExpression<'source> },
-    Colon { colon: Range<usize>, body: Recovered<ActColonBody<'source>> },
+    Bodyless {
+        semicolon: Option<Range<usize>>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Range<usize>,
+        body: Recovered<ActColonBody<'source>>,
+    },
 }
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ActColonBody<'source> {
-    Inline { statement: Box<Statement<'source>> },
-    Indented { block: IndentedStatementBlock<'source> },
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 /// A standalone Cast declaration shared by root and canonical Statements.
@@ -15996,7 +16683,9 @@ pub(crate) struct CastTarget<'source> {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CastForm<'source> {
-    Bodyless { semicolon: Range<usize> },
+    Bodyless {
+        semicolon: Range<usize>,
+    },
     Definition {
         equals: Range<usize>,
         body: Recovered<CastBody<'source>>,
@@ -16007,8 +16696,12 @@ pub(crate) enum CastForm<'source> {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CastBody<'source> {
-    Inline { expression: OperatorChain<'source> },
-    Indented { block: IndentedStatementBlock<'source> },
+    Inline {
+        expression: OperatorChain<'source>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
 }
 
 /// A structure declaration shared by root and nested canonical Statements.
@@ -16750,7 +17443,10 @@ where
         parse_use_declaration.map(Declaration::Use),
         parse_operator_header.map(Declaration::OperatorHeader),
         parse_binding_declaration.map(Declaration::Binding),
-        from_fn(|i| parse_mod_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)).map(Declaration::Mod),
+        from_fn(|i| {
+            parse_mod_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)
+        })
+        .map(Declaration::Mod),
     ))
 }
 
@@ -16810,7 +17506,8 @@ where
     let body_starter_pending = struct_body_starter_pending(&mut i);
     let body = if !name_incomplete || body_starter_pending {
         let _ = struct_continuation_trivia(intro.struct_base, &mut i);
-        parse_struct_body_ast(intro.struct_base, &mut i).map_or(Recovered::Incomplete, Recovered::Complete)
+        parse_struct_body_ast(intro.struct_base, &mut i)
+            .map_or(Recovered::Incomplete, Recovered::Complete)
     } else {
         Recovered::Incomplete
     };
@@ -16835,9 +17532,13 @@ where
             Recovered::Incomplete => intro.struct_keyword.range().end,
         },
     };
-    let derives_end = derives.last().map_or(0, |attachment| attachment.clause.range.end);
+    let derives_end = derives
+        .last()
+        .map_or(0, |attachment| attachment.clause.range.end);
     Some(StructDeclaration {
-        visibility: intro.visibility.map_or(Visibility::Private, |prefix| prefix.visibility),
+        visibility: intro
+            .visibility
+            .map_or(Visibility::Private, |prefix| prefix.visibility),
         name,
         derives,
         body,
@@ -16874,7 +17575,9 @@ where
         }
     }
     let starter = starter?;
-    let punctuation = i.run(scan_punctuation).expect("a selected Struct body starter remains available");
+    let punctuation = i
+        .run(scan_punctuation)
+        .expect("a selected Struct body starter remains available");
     match starter {
         StructBodyStarter::Bodyless(range) => {
             debug_assert_eq!(punctuation.range(), range);
@@ -16882,11 +17585,19 @@ where
         }
         StructBodyStarter::NamedBraced(range) => {
             debug_assert_eq!(punctuation.range(), range);
-            Some(StructBody::NamedBraced(parse_struct_named_braced_body_ast(struct_base, range, i)))
+            Some(StructBody::NamedBraced(parse_struct_named_braced_body_ast(
+                struct_base,
+                range,
+                i,
+            )))
         }
         StructBodyStarter::Tuple(range) => {
             debug_assert_eq!(punctuation.range(), range);
-            Some(StructBody::Tuple(parse_struct_tuple_body_ast(struct_base, range, i)))
+            Some(StructBody::Tuple(parse_struct_tuple_body_ast(
+                struct_base,
+                range,
+                i,
+            )))
         }
         StructBodyStarter::NamedIndented(range) => {
             debug_assert_eq!(punctuation.range(), range);
@@ -16917,7 +17628,10 @@ where
             range: colon,
         };
     };
-    let stops = i.local.stop_set().unwrap_or_default()
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
         .without(StopKind::Newline)
         .with(StopKind::Comma);
     i.local.push_stop_set(stops);
@@ -16939,7 +17653,9 @@ where
                     trailing_comma = Some(comma);
                     break;
                 }
-                StructIndentedGap::Trivia(_) if struct_indented_terminal_boundary_pending(block_indent, i) => {
+                StructIndentedGap::Trivia(_)
+                    if struct_indented_terminal_boundary_pending(block_indent, i) =>
+                {
                     trailing_comma = Some(comma);
                     break;
                 }
@@ -16967,7 +17683,9 @@ where
         if matches!(gap, StructIndentedGap::Dedent) {
             break;
         }
-        let StructIndentedGap::Trivia(trivia) = gap else { unreachable!() };
+        let StructIndentedGap::Trivia(trivia) = gap else {
+            unreachable!()
+        };
         if struct_trivia_has_newline(&trivia) && i.local.line().line_indent == block_indent {
             continue;
         }
@@ -16978,7 +17696,9 @@ where
                     trailing_comma = Some(comma);
                     break;
                 }
-                StructIndentedGap::Trivia(_) if struct_indented_terminal_boundary_pending(block_indent, i) => {
+                StructIndentedGap::Trivia(_)
+                    if struct_indented_terminal_boundary_pending(block_indent, i) =>
+                {
                     trailing_comma = Some(comma);
                     break;
                 }
@@ -17027,7 +17747,10 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let stops = i.local.stop_set().unwrap_or_default()
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
         .without(StopKind::Newline)
         .with(StopKind::Comma)
         .with(StopKind::RightParenthesis);
@@ -17073,7 +17796,10 @@ where
             continue;
         }
 
-        fields.push(parse_variant_tuple_field_ast(VariantFieldDriverSpec::Struct, i));
+        fields.push(parse_variant_tuple_field_ast(
+            VariantFieldDriverSpec::Struct,
+            i,
+        ));
 
         if any_ambient_owner_claims(i) {
             break Recovered::Incomplete;
@@ -17130,7 +17856,13 @@ where
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
-    StructTupleBody { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
+    StructTupleBody {
+        open: open.clone(),
+        fields,
+        trailing_comma,
+        close,
+        range: open.start..end,
+    }
 }
 
 /// Parse the brace-owned named field sequence.  The layout frame is captured
@@ -17147,18 +17879,18 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let incoming = struct_base;
-    let stops = i.local.stop_set().unwrap_or_default()
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
         .without(StopKind::Newline)
         .with(StopKind::Comma)
         .with(StopKind::RightBrace);
     i.local.push_delimiter(Delimiter::Brace);
     i.local.push_stop_set(stops);
     let opening = i.run(scan_trivia).expect("trivia is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(
-        incoming,
-        &opening,
-        i.local.line().line_indent,
-    );
+    let layout =
+        LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent);
     push_struct_layout(layout, i);
 
     let mut fields = Vec::new();
@@ -17274,7 +18006,13 @@ where
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
-    StructNamedBracedBody { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
+    StructNamedBracedBody {
+        open: open.clone(),
+        fields,
+        trailing_comma,
+        close,
+        range: open.start..end,
+    }
 }
 
 fn parse_struct_named_field_ast<'source, E>(
@@ -17301,7 +18039,11 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
 {
     let incoming = struct_base;
     let stops = committed.probe(|probe| {
-        probe.input().local.stop_set().unwrap_or_default()
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
             .without(StopKind::Newline)
             .with(StopKind::Comma)
             .with(StopKind::RightBrace)
@@ -17311,7 +18053,8 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
         i.local.push_delimiter(Delimiter::Brace);
         i.local.push_stop_set(stops);
     });
-    let opening = committed.probe(|probe| probe.input().run(scan_trivia))
+    let opening = committed
+        .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia is total");
     committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| {
@@ -17332,7 +18075,9 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
             emit_struct_missing_close(committed);
             break;
         }
-        if let Some((range, actual)) = committed.probe(|probe| scan_struct_mismatched_close(probe.input())) {
+        if let Some((range, actual)) =
+            committed.probe(|probe| scan_struct_mismatched_close(probe.input()))
+        {
             emit_struct_mismatched_close(committed, range, actual);
             // Keep recovery at the close slot: trivia after a consumed local
             // mismatch precedes the next close retry, not a field slot.
@@ -17340,7 +18085,8 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 emit_struct_missing_close(committed);
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -17355,7 +18101,8 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 .probe(|probe| scan_struct_comma(probe.input()))
                 .expect("the empty Struct field slot is followed by its comma");
             committed.token(SyntaxKind::Comma, comma);
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -17371,13 +18118,16 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 emit_struct_missing_close(committed);
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
         }
         if !commit_struct_named_field(true, committed) {
-            if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
+            if let Some(run) =
+                committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input()))
+            {
                 emit_struct_error(
                     committed,
                     crate::session::StructRole::Field,
@@ -17388,12 +18138,17 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                     emit_struct_missing_close(committed);
                     break;
                 }
-                let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+                let trivia = committed
+                    .probe(|probe| probe.input().run(scan_trivia))
                     .expect("trivia is total");
                 committed.emit_trivia(&trivia);
                 continue;
             } else {
-                emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+                emit_struct_missing(
+                    committed,
+                    crate::session::StructRole::Field,
+                    ExpectedSyntax::Identifier,
+                );
                 break;
             }
         }
@@ -17402,12 +18157,14 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
             emit_struct_missing_close(committed);
             break;
         }
-        let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+        let trivia = committed
+            .probe(|probe| probe.input().run(scan_trivia))
             .expect("trivia is total");
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
             committed.token(SyntaxKind::Comma, comma);
-            let post = committed.probe(|probe| probe.input().run(scan_trivia))
+            let post = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&post);
             if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
@@ -17418,7 +18175,11 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 probe.input().input.remainder().is_empty()
                     || struct_outer_owned_mismatched_close_pending(probe.input())
             }) {
-                emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+                emit_struct_missing(
+                    committed,
+                    crate::session::StructRole::Field,
+                    ExpectedSyntax::Identifier,
+                );
                 emit_struct_missing_close(committed);
                 break;
             }
@@ -17436,7 +18197,11 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 probe.input().input.remainder().is_empty()
                     || struct_outer_owned_mismatched_close_pending(probe.input())
             }) {
-                emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+                emit_struct_missing(
+                    committed,
+                    crate::session::StructRole::Field,
+                    ExpectedSyntax::Identifier,
+                );
                 emit_struct_missing_close(committed);
                 break;
             }
@@ -17454,13 +18219,16 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
             emit_struct_missing_close(committed);
             break;
         }
-        if let Some((range, actual)) = committed.probe(|probe| scan_struct_mismatched_close(probe.input())) {
+        if let Some((range, actual)) =
+            committed.probe(|probe| scan_struct_mismatched_close(probe.input()))
+        {
             emit_struct_mismatched_close(committed, range, actual);
             if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
                 emit_struct_missing_close(committed);
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -17476,7 +18244,8 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 emit_struct_missing_close(committed);
                 break;
             }
-            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            let trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
@@ -17501,7 +18270,11 @@ fn commit_empty_struct_named_field<'parse, 'source, 'local, E, O>(
     O: CommitOutput<'source>,
 {
     committed.start_node(SyntaxKind::StructField);
-    emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+    emit_struct_missing(
+        committed,
+        crate::session::StructRole::Field,
+        ExpectedSyntax::Identifier,
+    );
     committed.finish_node();
 }
 
@@ -17523,53 +18296,83 @@ fn variant_field_recovery_role(
             GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::Field))
         }
         (VariantFieldDriverSpec::Struct, VariantFieldRecoverySlot::Name) => {
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldName))
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldName,
+            ))
         }
         (VariantFieldDriverSpec::Struct, VariantFieldRecoverySlot::Colon) => {
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldColon))
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldColon,
+            ))
         }
         (VariantFieldDriverSpec::Struct, VariantFieldRecoverySlot::Type) => {
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldType))
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldType,
+            ))
         }
         (VariantFieldDriverSpec::Struct, VariantFieldRecoverySlot::Separator) => {
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldSeparator))
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldSeparator,
+            ))
         }
-        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Item) => GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::NamedField)),
-        ),
-        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Name) => GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::NamedFieldName)),
-        ),
-        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Colon) => GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::NamedFieldColon)),
-        ),
-        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Type) => GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::NamedFieldType)),
-        ),
-        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Separator) => GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator)),
-        ),
+        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Item) => {
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedField,
+            )))
+        }
+        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Name) => {
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldName,
+            )))
+        }
+        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Colon) => {
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldColon,
+            )))
+        }
+        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Type) => {
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldType,
+            )))
+        }
+        (VariantFieldDriverSpec::EnumNamed, VariantFieldRecoverySlot::Separator) => {
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldSeparator,
+            )))
+        }
         (VariantFieldDriverSpec::EnumTuple, _) => GrammarRole::Declaration(DeclarationRole::Enum(
             EnumDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
         )),
-        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Item) => GrammarRole::Declaration(
-            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedField)),
-        ),
-        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Name) => GrammarRole::Declaration(
-            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldName)),
-        ),
-        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Colon) => GrammarRole::Declaration(
-            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldColon)),
-        ),
-        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Type) => GrammarRole::Declaration(
-            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldType)),
-        ),
-        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Separator) => GrammarRole::Declaration(
-            DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator)),
-        ),
-        (VariantFieldDriverSpec::ErrorTuple, _) => GrammarRole::Declaration(DeclarationRole::Error(
-            ErrorDeclarationRole::Variant(VariantDeclarationRole::TupleFieldType),
-        )),
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Item) => {
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedField,
+            )))
+        }
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Name) => {
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldName,
+            )))
+        }
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Colon) => {
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldColon,
+            )))
+        }
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Type) => {
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldType,
+            )))
+        }
+        (VariantFieldDriverSpec::ErrorNamed, VariantFieldRecoverySlot::Separator) => {
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldSeparator,
+            )))
+        }
+        (VariantFieldDriverSpec::ErrorTuple, _) => {
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::TupleFieldType,
+            )))
+        }
     }
 }
 
@@ -17588,7 +18391,10 @@ fn emit_variant_field_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -17618,7 +18424,10 @@ fn emit_variant_field_error<'parse, 'source, 'local, E, O>(
         let role = variant_field_recovery_role(spec, slot);
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -17667,7 +18476,9 @@ where
     committed.start_node(SyntaxKind::StructField);
     if let Some(name) = name {
         committed.token(SyntaxKind::Identifier, name.range());
-        if let Some(trivia) = committed.probe(|probe| consume_struct_field_name_trivia(probe.input())) {
+        if let Some(trivia) =
+            committed.probe(|probe| consume_struct_field_name_trivia(probe.input()))
+        {
             committed.emit_trivia(&trivia);
         }
     } else {
@@ -17695,7 +18506,8 @@ where
             ),
         }
     }
-    let colon = colon_without_name.or_else(|| committed.probe(|probe| scan_struct_colon(probe.input())));
+    let colon =
+        colon_without_name.or_else(|| committed.probe(|probe| scan_struct_colon(probe.input())));
     if let Some(colon) = colon {
         committed.token(SyntaxKind::Colon, colon);
     } else {
@@ -17765,10 +18577,8 @@ where
         let i = probe.input();
         i.local.push_type_delimited_owner(spec.named_type_owner());
     });
-    let _ = commit_direct_type_expression_with_outer_missing_role(
-        Some(spec.type_role()),
-        committed,
-    );
+    let _ =
+        commit_direct_type_expression_with_outer_missing_role(Some(spec.type_role()), committed);
     committed.probe(|probe| {
         assert_eq!(
             probe.input().local.pop_type_delimited_owner(),
@@ -17793,7 +18603,9 @@ where
 }
 
 fn push_struct_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
-where E: ErrorSink<usize> {
+where
+    E: ErrorSink<usize>,
+{
     i.local.push_indentation_baseline(IndentationBaseline {
         column: layout.base_indent(),
         kind: IndentationBaselineKind::Introducer,
@@ -17801,15 +18613,22 @@ where E: ErrorSink<usize> {
 }
 
 fn pop_struct_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
-where E: ErrorSink<usize> {
+where
+    E: ErrorSink<usize>,
+{
     assert_eq!(
         i.local.pop_indentation_baseline(),
-        Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }),
+        Some(IndentationBaseline {
+            column: layout.base_indent(),
+            kind: IndentationBaselineKind::Introducer
+        }),
     );
 }
 
 fn push_struct_indented_layout<E>(block_indent: usize, i: &mut SynIn<E>)
-where E: ErrorSink<usize> {
+where
+    E: ErrorSink<usize>,
+{
     i.local.push_indentation_baseline(IndentationBaseline {
         column: block_indent,
         kind: IndentationBaselineKind::Block,
@@ -17817,7 +18636,9 @@ where E: ErrorSink<usize> {
 }
 
 fn pop_struct_indented_layout<E>(block_indent: usize, i: &mut SynIn<E>)
-where E: ErrorSink<usize> {
+where
+    E: ErrorSink<usize>,
+{
     assert_eq!(
         i.local.pop_indentation_baseline(),
         Some(IndentationBaseline {
@@ -17859,10 +18680,7 @@ where
 /// Consume one inter-field gap without stealing a dedent. A same-column
 /// newline is the implicit separator; a deeper line stays ordinary trivia so
 /// the mandatory type entry retains continuation authority.
-fn consume_struct_indented_gap<E>(
-    block_indent: usize,
-    i: &mut SynIn<E>,
-) -> StructIndentedGap
+fn consume_struct_indented_gap<E>(block_indent: usize, i: &mut SynIn<E>) -> StructIndentedGap
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -17895,10 +18713,7 @@ where
     gap
 }
 
-fn struct_indented_terminal_boundary_pending<E>(
-    block_indent: usize,
-    i: &mut SynIn<E>,
-) -> bool
+fn struct_indented_terminal_boundary_pending<E>(block_indent: usize, i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -17958,7 +18773,10 @@ where
 {
     let checkpoint = i.checkpoint();
     let trivia = i.run(scan_trivia).expect("trivia is total");
-    let base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     if struct_trivia_has_newline(&trivia) && i.local.line().line_indent <= base {
         i.rollback(checkpoint);
         None
@@ -18013,7 +18831,9 @@ where
     let start = i.pos();
     let mut end = start;
     loop {
-        if end == start && (struct_colon_pending(i) || (allow_type_primary && struct_type_primary_pending(i))) {
+        if end == start
+            && (struct_colon_pending(i) || (allow_type_primary && struct_type_primary_pending(i)))
+        {
             return None;
         }
         if end > start {
@@ -18041,18 +18861,25 @@ where
             if !trivia.is_empty() {
                 if struct_trivia_has_newline(&trivia) {
                     i.rollback(checkpoint);
-                    return Some(StructFieldInvalidRun { range: start..end, target: StructFieldInvalidTarget::Boundary });
+                    return Some(StructFieldInvalidRun {
+                        range: start..end,
+                        target: StructFieldInvalidTarget::Boundary,
+                    });
                 }
                 if struct_colon_pending(i) {
                     return Some(StructFieldInvalidRun {
                         range: start..end,
-                        target: StructFieldInvalidTarget::Colon { trivia: Some(trivia) },
+                        target: StructFieldInvalidTarget::Colon {
+                            trivia: Some(trivia),
+                        },
                     });
                 }
                 if allow_type_primary && struct_type_primary_pending(i) {
                     return Some(StructFieldInvalidRun {
                         range: start..end,
-                        target: StructFieldInvalidTarget::TypePrimary { trivia: Some(trivia) },
+                        target: StructFieldInvalidTarget::TypePrimary {
+                            trivia: Some(trivia),
+                        },
                     });
                 }
                 i.rollback(checkpoint);
@@ -18062,7 +18889,10 @@ where
                 });
             }
             if struct_field_boundary_pending(i) || struct_mismatched_close_pending(i) {
-                return Some(StructFieldInvalidRun { range: start..end, target: StructFieldInvalidTarget::Boundary });
+                return Some(StructFieldInvalidRun {
+                    range: start..end,
+                    target: StructFieldInvalidTarget::Boundary,
+                });
             }
         }
 
@@ -18087,9 +18917,7 @@ where
 
 /// A malformed field name establishes field authority only if it reaches the
 /// literal-colon skeleton.  Other malformed input remains sequence-owned.
-fn scan_struct_field_name_colon_recovery<E>(
-    i: &mut SynIn<E>,
-) -> Option<StructFieldInvalidRun>
+fn scan_struct_field_name_colon_recovery<E>(i: &mut SynIn<E>) -> Option<StructFieldInvalidRun>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -18097,7 +18925,13 @@ where
 {
     let checkpoint = i.checkpoint();
     let recovered = scan_struct_field_invalid_run(false, i);
-    if matches!(recovered, Some(StructFieldInvalidRun { target: StructFieldInvalidTarget::Colon { .. }, .. })) {
+    if matches!(
+        recovered,
+        Some(StructFieldInvalidRun {
+            target: StructFieldInvalidTarget::Colon { .. },
+            ..
+        })
+    ) {
         recovered
     } else {
         i.rollback(checkpoint);
@@ -18249,10 +19083,7 @@ where
     struct_outer_owned_mismatched_close_pending_for(Delimiter::Brace, i)
 }
 
-fn struct_outer_owned_mismatched_close_pending_for<E>(
-    expected: Delimiter,
-    i: &mut SynIn<E>,
-) -> bool
+fn struct_outer_owned_mismatched_close_pending_for<E>(expected: Delimiter, i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -18363,7 +19194,10 @@ where
 }
 
 fn struct_trivia_has_newline(trivia: &TriviaRun) -> bool {
-    trivia.parts().iter().any(|part| matches!(part.kind(), TriviaPartKind::Newline))
+    trivia
+        .parts()
+        .iter()
+        .any(|part| matches!(part.kind(), TriviaPartKind::Newline))
 }
 
 fn emit_struct_missing_close<'parse, 'source, 'local, E, O>(
@@ -18372,7 +19206,11 @@ fn emit_struct_missing_close<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    emit_struct_missing_close_for(committed, ConstructRole::StructNamedFields, Delimiter::Brace);
+    emit_struct_missing_close_for(
+        committed,
+        ConstructRole::StructNamedFields,
+        Delimiter::Brace,
+    );
 }
 
 fn emit_struct_missing_close_for<'parse, 'source, 'local, E, O>(
@@ -18386,18 +19224,20 @@ fn emit_struct_missing_close_for<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = GrammarRole::ClosingDelimiter {
-            owner,
-            delimiter,
-        };
+        let role = GrammarRole::ClosingDelimiter { owner, delimiter };
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
                 role,
-                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(delimiter)),
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    delimiter,
+                )),
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -18436,13 +19276,13 @@ fn emit_struct_mismatched_close_for<'parse, 'source, 'local, E, O>(
 {
     let record = committed.probe(|probe| {
         let i = probe.input();
-        let role = GrammarRole::ClosingDelimiter {
-            owner,
-            delimiter,
-        };
+        let role = GrammarRole::ClosingDelimiter { owner, delimiter };
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -18452,7 +19292,9 @@ fn emit_struct_mismatched_close_for<'parse, 'source, 'local, E, O>(
             }]),
             Arc::from([SyntaxExpectation {
                 role,
-                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(delimiter)),
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    delimiter,
+                )),
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -18476,7 +19318,10 @@ fn emit_struct_error<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Declaration(DeclarationRole::Struct(role));
         CommittedRecoveryRecord::new(
             i.local,
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -18494,9 +19339,7 @@ fn emit_struct_error<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
-fn struct_name_error_retry_ast<'source, E>(
-    i: &mut SynIn<'_, 'source, '_, E>,
-) -> Option<bool>
+fn struct_name_error_retry_ast<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<bool>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -18752,12 +19595,17 @@ where
     let start = i.pos();
     let keyword = i.run(scan_word)?;
     let visibility = visibility_prefix(keyword)?.visibility;
-    let binding_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let binding_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     binding_trivia(binding_base, &mut i)?;
     let stops = i.local.stop_set().unwrap_or_default().with(StopKind::Equal);
     i.local.push_stop_set(stops);
     let target_role = GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Target));
-    let target = i.run(from_fn(|i| parse_pattern_with_outer_missing_role(table, Some(target_role), i)));
+    let target = i.run(from_fn(|i| {
+        parse_pattern_with_outer_missing_role(table, Some(target_role), i)
+    }));
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let target = target.map_or(Recovered::Incomplete, Recovered::Complete);
     let mut end = match &target {
@@ -18780,7 +19628,11 @@ where
                 Recovered::Incomplete => i.pos(),
             };
             end = body_end.max(equals.end);
-            Some(BindingDefinition { equals, body, range: body_start..end })
+            Some(BindingDefinition {
+                equals,
+                body,
+                range: body_start..end,
+            })
         } else {
             i.rollback(checkpoint);
             None
@@ -18806,7 +19658,10 @@ where
 {
     let start = i.pos();
     let first = i.run(scan_word)?;
-    let mod_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let mod_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
     let (visibility, mod_keyword) = if let Some(prefix) = visibility_prefix(first) {
         mod_trivia(mod_base, &mut i)?;
         let keyword = i.run(scan_word)?;
@@ -18829,7 +19684,9 @@ where
                 (Some(marker), None)
             } else {
                 let _ = mod_trivia(mod_base, &mut i);
-                let name = i.run(scan_word).map_or(Recovered::Incomplete, Recovered::Complete);
+                let name = i
+                    .run(scan_word)
+                    .map_or(Recovered::Incomplete, Recovered::Complete);
                 (Some(marker), Some(name))
             }
         }
@@ -18846,7 +19703,13 @@ where
         Recovered::Complete(ModBody::Colon { .. }) => i.pos(),
         Recovered::Incomplete => i.pos(),
     };
-    Some(ModDeclaration { visibility, test_marker, name, body, range: start..end })
+    Some(ModDeclaration {
+        visibility,
+        test_marker,
+        name,
+        body,
+        range: start..end,
+    })
 }
 
 fn parse_mod_inline_statement_ast<'source, E>(
@@ -18858,11 +19721,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let ambient_scope = i
-        .local
-        .push_inline_canonical_statement_ambient_scope(
-            crate::session::InlineStatementOwnerKind::ModColonBody,
-        );
+    let ambient_scope = i.local.push_inline_canonical_statement_ambient_scope(
+        crate::session::InlineStatementOwnerKind::ModColonBody,
+    );
     let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)));
     assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
     statement
@@ -18891,14 +19752,18 @@ where
         if let Some(statement) = parse_mod_inline_statement_ast(table, i) {
             return Some(ModBody::Colon {
                 colon: Recovered::Incomplete,
-                body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
+                body: Recovered::Complete(ModColonBody::Inline {
+                    statement: Box::new(statement),
+                }),
             });
         }
         if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
             let statement = parse_mod_inline_statement_ast(table, i)?;
             return Some(ModBody::Colon {
                 colon: Recovered::Incomplete,
-                body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
+                body: Recovered::Complete(ModColonBody::Inline {
+                    statement: Box::new(statement),
+                }),
             });
         }
         if i.pos() == start {
@@ -18907,7 +19772,9 @@ where
         return None;
     };
     match punctuation.kind() {
-        PunctuationKind::Semicolon => Some(ModBody::Bodyless { semicolon: punctuation.range() }),
+        PunctuationKind::Semicolon => Some(ModBody::Bodyless {
+            semicolon: punctuation.range(),
+        }),
         PunctuationKind::Open(Delimiter::Brace) => Some(ModBody::Braced {
             block: parse_braced_statement_block_expression(table, punctuation.range(), i),
         }),
@@ -18924,14 +19791,18 @@ where
             if let Some(statement) = parse_mod_inline_statement_ast(table, i) {
                 return Some(ModBody::Colon {
                     colon: Recovered::Incomplete,
-                    body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
+                    body: Recovered::Complete(ModColonBody::Inline {
+                        statement: Box::new(statement),
+                    }),
                 });
             }
             if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
                 let statement = parse_mod_inline_statement_ast(table, i)?;
                 return Some(ModBody::Colon {
                     colon: Recovered::Incomplete,
-                    body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
+                    body: Recovered::Complete(ModColonBody::Inline {
+                        statement: Box::new(statement),
+                    }),
                 });
             }
             None
@@ -18962,12 +19833,11 @@ where
             block: parse_indented_mod_body(table, trivia, mod_base, block_indent, i),
         });
     }
-    let ambient_scope = i
-        .local
-        .push_inline_canonical_statement_ambient_scope(
-            crate::session::InlineStatementOwnerKind::ModColonBody,
-        );
-    let statement = if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+    let ambient_scope = i.local.push_inline_canonical_statement_ambient_scope(
+        crate::session::InlineStatementOwnerKind::ModColonBody,
+    );
+    let statement = if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i)))
+    {
         Some(statement)
     } else if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
         i.run(from_fn(|i| parse_canonical_statement(table, i)))
@@ -18976,10 +19846,14 @@ where
     };
     let body = statement.map(|statement| {
         let terminal = i.checkpoint();
-        if i.run(scan_punctuation).is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon) {
+        if i.run(scan_punctuation)
+            .is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon)
+        {
             i.rollback(terminal);
         }
-        ModColonBody::Inline { statement: Box::new(statement) }
+        ModColonBody::Inline {
+            statement: Box::new(statement),
+        }
     });
     assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
     body
@@ -19000,7 +19874,10 @@ where
     let start = i.pos();
     loop {
         let character = i.input.remainder().chars().next()?;
-        if matches!(character, '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':') {
+        if matches!(
+            character,
+            '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':'
+        ) {
             return (start < i.pos()).then_some(false);
         }
         i.input.next()?;
@@ -19008,7 +19885,9 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
         let checkpoint = i.checkpoint();
-        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        let candidate = i
+            .run(from_fn(|i| parse_canonical_statement(table, i)))
+            .is_some();
         i.rollback(checkpoint);
         if candidate {
             return Some(true);
@@ -19023,10 +19902,14 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = i.run(scan_punctuation).is_some_and(|punctuation| matches!(
-        punctuation.kind(),
-        PunctuationKind::Semicolon | PunctuationKind::Open(Delimiter::Brace) | PunctuationKind::Colon
-    ));
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::Semicolon
+                | PunctuationKind::Open(Delimiter::Brace)
+                | PunctuationKind::Colon
+        )
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -19039,7 +19922,9 @@ where
 {
     let checkpoint = i.checkpoint();
     let trivia = i.run(scan_trivia)?;
-    if i.input.source()[trivia.range()].contains(['\r', '\n']) && i.local.line().line_indent <= mod_base {
+    if i.input.source()[trivia.range()].contains(['\r', '\n'])
+        && i.local.line().line_indent <= mod_base
+    {
         i.rollback(checkpoint);
         return None;
     }
@@ -19099,7 +19984,9 @@ where
 
 /// Scans a declaration definition introducer only when the entire contiguous
 /// operator run is the lone `=` spelling.
-fn scan_declaration_exact_equals<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+fn scan_declaration_exact_equals<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -19107,7 +19994,13 @@ where
 {
     let checkpoint = i.checkpoint();
     let start = i.pos();
-    while i.input.remainder().chars().next().is_some_and(declaration_operator_character) {
+    while i
+        .input
+        .remainder()
+        .chars()
+        .next()
+        .is_some_and(declaration_operator_character)
+    {
         i.input.next()?;
     }
     let end = i.pos();
@@ -19126,7 +20019,10 @@ fn declaration_operator_character(character: char) -> bool {
         && !character.is_ascii_digit()
         && character != '_'
         && !unicode_ident::is_xid_continue(character)
-        && !matches!(character, '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@')
+        && !matches!(
+            character,
+            '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@'
+        )
 }
 
 pub(crate) fn parse_use_declaration<'source, E>(
@@ -19793,7 +20689,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::{input::IsCut, prelude::{In, from_fn}};
+    use chasa::{
+        input::IsCut,
+        prelude::{In, from_fn},
+    };
     use std::{
         cell::RefCell,
         rc::Rc,
@@ -19809,8 +20708,7 @@ mod tests {
             AmbientOwnerScopeFrame, BracedBarrierOrigin, CommitOutput, CommittedRecoveryRecord,
             ExpectedSyntax, ExpressionDelimitedOwner, FullCstOutput, HeaderOutput,
             IfExpressionCompanionId, InlineStatementOwnerKind, LineState, ParseLocal, Probe,
-            StopSet, TypeDeclarationRole, TypeMalformedCallerBoundaryFence,
-            if_continuation_owner,
+            StopSet, TypeDeclarationRole, TypeMalformedCallerBoundaryFence, if_continuation_owner,
         },
     };
 
@@ -20563,7 +21461,10 @@ mod tests {
                 &crate::operator::OperatorTable::empty(),
                 &mut local,
             );
-            assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+            assert_eq!(
+                SyntaxNode::new_root(output.green().clone()).to_string(),
+                source
+            );
             assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
             assert_eq!(local.ambient_owner_scope(), None, "{source:?}");
         }
@@ -20576,8 +21477,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let table = crate::operator::OperatorTable::empty();
         i.run(from_fn(|i| parse_mod_declaration_with_operators(&table, i)))
             .expect("Mod inline AST body");
@@ -20591,7 +21496,10 @@ mod tests {
             &crate::operator::OperatorTable::empty(),
             &mut local,
         );
-        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        assert_eq!(
+            SyntaxNode::new_root(output.green().clone()).to_string(),
+            source
+        );
         assert_eq!(local.ambient_owner_scope_depth(), 0);
     }
 
@@ -21014,7 +21922,10 @@ mod tests {
             root.descendants()
                 .any(|node| node.kind() == SyntaxKind::OperatorHeader)
         );
-        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::OperatorChain));
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::OperatorChain)
+        );
         assert!(
             !root
                 .descendants_with_tokens()
@@ -21116,7 +22027,10 @@ mod tests {
         assert!(root.descendants().any(|node| {
             node.kind() == SyntaxKind::Error && syntax_range(node.text_range()) == (16..25)
         }));
-        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::OperatorChain));
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::OperatorChain)
+        );
         assert!(
             !root
                 .descendants_with_tokens()
@@ -21308,7 +22222,9 @@ mod tests {
         let root = SyntaxNode::new_root(output.finish_complete());
 
         assert_eq!(binding.range(), 0..source.len());
-        assert!(matches!(binding.target(), Recovered::Complete(target) if target.range() == (3..8)));
+        assert!(
+            matches!(binding.target(), Recovered::Complete(target) if target.range() == (3..8))
+        );
         assert!(matches!(binding.definition(), Some(definition)
             if matches!(definition.body(), Recovered::Complete(body) if body.range() == (11..19))));
         assert_eq!(root.kind(), SyntaxKind::BindingStatement);
@@ -21412,10 +22328,12 @@ mod tests {
             )
             .set_local(local);
             let declaration = i
-                .run(from_fn(|i| parse_binding_declaration_with_operators(
-                    &crate::operator::OperatorTable::empty(),
-                    i,
-                )))
+                .run(from_fn(|i| {
+                    parse_binding_declaration_with_operators(
+                        &crate::operator::OperatorTable::empty(),
+                        i,
+                    )
+                }))
                 .expect("binding declaration");
             let remainder = i.input.remainder().to_owned();
             (declaration, remainder)
@@ -21437,7 +22355,10 @@ mod tests {
         let inline_root = SyntaxNode::new_root(inline_output.finish_complete());
         assert_eq!(inline_root.to_string(), inline_source);
         assert_eq!(
-            inline_root.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            inline_root
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
             vec![SyntaxKind::BindingHeader, SyntaxKind::BindingBody],
         );
         let inline_body = inline_root
@@ -21467,7 +22388,10 @@ mod tests {
             .children()
             .find(|node| node.kind() == SyntaxKind::BindingBody)
             .expect("direct indented body node");
-        assert_eq!(syntax_range(indented_body.text_range()), 10..indented_source.len());
+        assert_eq!(
+            syntax_range(indented_body.text_range()),
+            10..indented_source.len()
+        );
         assert_eq!(indented_body.to_string(), "\n  my nested = value");
 
         let missing_source = "my value =";
@@ -21539,11 +22463,8 @@ mod tests {
     #[test]
     fn direct_binding_missing_target_uses_the_binding_owner_role() {
         for (source, at) in [("my", 2), ("our", 3), ("pub", 3)] {
-            let output = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let [recovery] = output.committed_recoveries() else {
                 panic!("missing target must create one recovery for {source:?}");
             };
@@ -22985,7 +23906,9 @@ mod tests {
         };
         assert_eq!(binding.range(), 0..14);
         assert_eq!(binding.visibility(), Visibility::Private);
-        assert!(matches!(binding.target(), Recovered::Complete(pattern) if pattern.range() == (3..8)));
+        assert!(
+            matches!(binding.target(), Recovered::Complete(pattern) if pattern.range() == (3..8))
+        );
         assert!(matches!(binding.definition(), Some(definition)
             if matches!(definition.body(), Recovered::Complete(BindingBody::Inline { expression }) if expression.range() == (11..14))));
         assert_eq!(i.input.remainder(), "\n");
@@ -23010,10 +23933,16 @@ mod tests {
     #[test]
     fn mod_ast_keeps_each_of_the_three_body_forms_distinct() {
         let (bodyless, _) = parse_mod("mod outer;");
-        assert!(matches!(bodyless.body, Recovered::Complete(ModBody::Bodyless { .. })));
+        assert!(matches!(
+            bodyless.body,
+            Recovered::Complete(ModBody::Bodyless { .. })
+        ));
 
         let (braced, _) = parse_mod("mod outer { my value = 1 }");
-        assert!(matches!(braced.body, Recovered::Complete(ModBody::Braced { .. })));
+        assert!(matches!(
+            braced.body,
+            Recovered::Complete(ModBody::Braced { .. })
+        ));
 
         let (colon, _) = parse_mod("mod outer: my value = 1");
         assert!(matches!(
@@ -23026,7 +23955,10 @@ mod tests {
 
         let (missing_name, _) = parse_mod("mod ;");
         assert!(matches!(missing_name.name, Some(Recovered::Incomplete)));
-        assert!(matches!(missing_name.body, Recovered::Complete(ModBody::Bodyless { .. })));
+        assert!(matches!(
+            missing_name.body,
+            Recovered::Complete(ModBody::Bodyless { .. })
+        ));
     }
 
     #[test]
@@ -23044,7 +23976,9 @@ mod tests {
         assert!(!parses_mod("modular outer;"));
         let (declaration, remainder) = parse_mod("mod testable;");
         assert!(declaration.test_marker.is_none());
-        assert!(matches!(declaration.name, Some(Recovered::Complete(word)) if word.text() == "testable"));
+        assert!(
+            matches!(declaration.name, Some(Recovered::Complete(word)) if word.text() == "testable")
+        );
         assert_eq!(remainder, "");
     }
 
@@ -23059,8 +23993,20 @@ mod tests {
             let output = parse_direct_root_candidate(source, &table, &[]);
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(root.to_string(), source, "{source}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ModDeclaration).count(), mods, "{source}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::TestModuleMarker).count(), markers, "{source}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+                    .count(),
+                mods,
+                "{source}"
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::TestModuleMarker)
+                    .count(),
+                markers,
+                "{source}"
+            );
         }
     }
 
@@ -23071,23 +24017,33 @@ mod tests {
         let output = parse_direct_root_candidate(source, &table, &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ModDeclaration).count(), 2);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+                .count(),
+            2
+        );
         assert_eq!(output.committed_recoveries().len(), 1);
     }
 
     #[test]
     fn direct_mod_missing_identity_does_not_cascade_a_body_introducer() {
         let table = crate::operator::OperatorTable::empty();
-        for (source, role) in [
-            ("mod", ModRole::Name),
-            ("mod test", ModRole::TestName),
-        ] {
+        for (source, role) in [("mod", ModRole::Name), ("mod test", ModRole::TestName)] {
             let output = parse_direct_root_candidate(source, &table, &[]);
             let records = output.committed_recoveries();
             assert_eq!(records.len(), 1, "{source}");
             assert_eq!(records[0].kind, RecoveryKind::Missing, "{source}");
-            assert_eq!(records[0].site.role, GrammarRole::Declaration(DeclarationRole::Mod(role)), "{source}");
-            assert_eq!(records[0].expectations[0].expected, ExpectedSyntax::Identifier, "{source}");
+            assert_eq!(
+                records[0].site.role,
+                GrammarRole::Declaration(DeclarationRole::Mod(role)),
+                "{source}"
+            );
+            assert_eq!(
+                records[0].expectations[0].expected,
+                ExpectedSyntax::Identifier,
+                "{source}"
+            );
         }
     }
 
@@ -23095,23 +24051,34 @@ mod tests {
     fn direct_mod_complete_identity_requires_one_union_body_introducer_slot() {
         let table = crate::operator::OperatorTable::empty();
         let output = parse_direct_root_candidate("mod outer", &table, &[]);
-        let [record] = output.committed_recoveries() else { panic!("one body-introducer slot expected"); };
-        assert_eq!(record.site.role, GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer)));
+        let [record] = output.committed_recoveries() else {
+            panic!("one body-introducer slot expected");
+        };
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer))
+        );
         assert_eq!(record.expectations.len(), 3);
-        assert_eq!(record.expectations.iter().map(|expectation| expectation.expected).collect::<Vec<_>>(), [
-            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
-            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)),
-            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
-        ]);
+        assert_eq!(
+            record
+                .expectations
+                .iter()
+                .map(|expectation| expectation.expected)
+                .collect::<Vec<_>>(),
+            [
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(
+                    Delimiter::Brace
+                )),
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+            ]
+        );
     }
 
     #[test]
     fn direct_mod_invalid_body_introducer_retries_a_starter_or_inline_statement() {
         let table = crate::operator::OperatorTable::empty();
-        for (source, bindings) in [
-            ("mod outer @;", 0),
-            ("mod outer @my value = 1", 1),
-        ] {
+        for (source, bindings) in [("mod outer @;", 0), ("mod outer @my value = 1", 1)] {
             let output = parse_direct_root_candidate(source, &table, &[]);
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(root.to_string(), source, "{source}");
@@ -23119,27 +24086,37 @@ mod tests {
                 panic!("one body-introducer error expected for {source}");
             };
             assert_eq!(record.kind, RecoveryKind::Error, "{source}");
-            assert_eq!(record.site.role, GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer)), "{source}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::BindingStatement).count(), bindings, "{source}");
+            assert_eq!(
+                record.site.role,
+                GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer)),
+                "{source}"
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                    .count(),
+                bindings,
+                "{source}"
+            );
         }
     }
 
     #[test]
     fn mod_ast_retries_malformed_introducer_and_colon_body_to_the_same_statement_slot() {
-        for source in [
-            "mod outer @my value = 1",
-            "mod outer: @my value = 1",
-        ] {
+        for source in ["mod outer @my value = 1", "mod outer: @my value = 1"] {
             let (declaration, remainder) = parse_mod(source);
             assert_eq!(remainder, "", "{source}");
             let Recovered::Complete(ModBody::Colon { body, .. }) = declaration.body else {
                 panic!("a recovered colon body was expected for {source}");
             };
-            assert!(matches!(
-                body,
-                Recovered::Complete(ModColonBody::Inline { statement })
-                    if matches!(*statement, crate::grammar::expression::Statement::Binding(_))
-            ), "{source}");
+            assert!(
+                matches!(
+                    body,
+                    Recovered::Complete(ModColonBody::Inline { statement })
+                        if matches!(*statement, crate::grammar::expression::Statement::Binding(_))
+                ),
+                "{source}"
+            );
         }
     }
 
@@ -23154,18 +24131,27 @@ mod tests {
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(root.to_string(), source, "{source}");
             assert_eq!(
-                output.committed_recoveries().iter().filter(|record| {
-                    record.kind == RecoveryKind::Error
-                        && record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(role))
-                }).count(),
+                output
+                    .committed_recoveries()
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Error
+                            && record.site.role
+                                == GrammarRole::Declaration(DeclarationRole::Mod(role))
+                    })
+                    .count(),
                 1,
                 "{source}: {:?}",
                 output.committed_recoveries(),
             );
-            assert!(!output.committed_recoveries().iter().any(|record| {
-                record.kind == RecoveryKind::Missing
-                    && record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(role))
-            }), "{source}: {:?}", output.committed_recoveries());
+            assert!(
+                !output.committed_recoveries().iter().any(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(role))
+                }),
+                "{source}: {:?}",
+                output.committed_recoveries()
+            );
         }
     }
 
@@ -23180,11 +24166,22 @@ mod tests {
             let output = parse_direct_root_candidate(source, &table, &[]);
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(root.to_string(), source, "{source}");
-            let body_records = output.committed_recoveries().iter().filter(|record| {
-                record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer))
-            }).count();
+            let body_records = output
+                .committed_recoveries()
+                .iter()
+                .filter(|record| {
+                    record.site.role
+                        == GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer))
+                })
+                .count();
             assert_eq!(body_records, 1, "{source}");
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ModDeclaration).count(), 2, "{source}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+                    .count(),
+                2,
+                "{source}"
+            );
         }
     }
 
@@ -23200,10 +24197,15 @@ mod tests {
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(root.to_string(), source, "{source}");
             assert_eq!(
-                output.committed_recoveries().iter().filter(|record| {
-                    record.kind == RecoveryKind::Missing
-                        && record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Body))
-                }).count(),
+                output
+                    .committed_recoveries()
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role
+                                == GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Body))
+                    })
+                    .count(),
                 1,
                 "{source}: {:?}",
                 output.committed_recoveries(),
@@ -23221,14 +24223,19 @@ mod tests {
             let output = parse_direct_root_candidate(source, &table, &[]);
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(root.to_string(), source, "{source}");
-            assert!(output.committed_recoveries().iter().any(|record| {
-                record.kind == kind
-                    && record.site.range == range
-                    && record.site.role == GrammarRole::ClosingDelimiter {
-                        owner: ConstructRole::BracedStatementBlockExpression,
-                        delimiter: Delimiter::Brace,
-                    }
-            }), "{source}: {:?}", output.committed_recoveries());
+            assert!(
+                output.committed_recoveries().iter().any(|record| {
+                    record.kind == kind
+                        && record.site.range == range
+                        && record.site.role
+                            == GrammarRole::ClosingDelimiter {
+                                owner: ConstructRole::BracedStatementBlockExpression,
+                                delimiter: Delimiter::Brace,
+                            }
+                }),
+                "{source}: {:?}",
+                output.committed_recoveries()
+            );
         }
     }
 
@@ -23236,9 +24243,14 @@ mod tests {
     fn direct_mod_indented_body_keeps_its_statement_recovery_under_mod_owner() {
         let table = crate::operator::OperatorTable::empty();
         let output = parse_direct_root_candidate("mod outer:\n  ", &table, &[]);
-        let [record] = output.committed_recoveries() else { panic!("one indented statement slot expected"); };
+        let [record] = output.committed_recoveries() else {
+            panic!("one indented statement slot expected");
+        };
         assert_eq!(record.kind, RecoveryKind::Missing);
-        assert_eq!(record.site.role, GrammarRole::Declaration(DeclarationRole::Mod(ModRole::IndentedStatement)));
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::IndentedStatement))
+        );
         assert_eq!(record.expectations[0].expected, ExpectedSyntax::Statement);
     }
 
@@ -23253,9 +24265,18 @@ mod tests {
             panic!("one recovered body introducer expected");
         };
         assert_eq!(record.kind, RecoveryKind::Missing);
-        assert_eq!(record.site.role, GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer)));
-        assert_eq!(record.expectations[0].expected, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon));
-        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement));
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer))
+        );
+        assert_eq!(
+            record.expectations[0].expected,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)
+        );
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::BindingStatement)
+        );
     }
 
     #[test]
@@ -23269,9 +24290,20 @@ mod tests {
             panic!("one recovered body introducer expected");
         };
         assert_eq!(record.kind, RecoveryKind::Missing);
-        assert_eq!(record.site.role, GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer)));
-        assert_eq!(record.expectations[0].expected, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon));
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ModDeclaration).count(), 2);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer))
+        );
+        assert_eq!(
+            record.expectations[0].expected,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -23281,9 +24313,14 @@ mod tests {
         let output = parse_direct_root_candidate(source, &table, &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
-        let [record] = output.committed_recoveries() else { panic!("one name error expected"); };
+        let [record] = output.committed_recoveries() else {
+            panic!("one name error expected");
+        };
         assert_eq!(record.kind, RecoveryKind::Error);
-        assert_eq!(record.site.role, GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Name)));
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Name))
+        );
         assert_eq!(record.site.range, 4..5);
         assert!(root.to_string().contains("outer"));
     }
@@ -23295,11 +24332,21 @@ mod tests {
         let output = parse_direct_root_candidate(source, &table, &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
-        let [record] = output.committed_recoveries() else { panic!("one test-name error expected"); };
+        let [record] = output.committed_recoveries() else {
+            panic!("one test-name error expected");
+        };
         assert_eq!(record.kind, RecoveryKind::Error);
-        assert_eq!(record.site.role, GrammarRole::Declaration(DeclarationRole::Mod(ModRole::TestName)));
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::TestName))
+        );
         assert_eq!(record.site.range, 9..10);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::TestModuleMarker).count(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TestModuleMarker)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -23311,27 +24358,73 @@ mod tests {
         let table = crate::operator::OperatorTable::empty();
         let output = parse_direct_root_candidate("my mod = value", &table, &[]);
         let root = SyntaxNode::new_root(output.green().clone());
-        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::ModDeclaration));
-        assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement));
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::ModDeclaration)
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::BindingStatement)
+        );
     }
 
     #[test]
     fn type_intro_judge_recognizes_exact_keyword_with_optional_visibility() {
-        for (source, expected_visibility, visibility_range, trivia_range, keyword_range, remainder) in [
+        for (
+            source,
+            expected_visibility,
+            visibility_range,
+            trivia_range,
+            keyword_range,
+            remainder,
+        ) in [
             ("type", None, None, None, 0..4, ""),
             ("type = Missing", None, None, None, 0..4, " = Missing"),
-            ("my type", Some(Visibility::Private), Some(0..2), Some(2..3), 3..7, ""),
-            ("our type", Some(Visibility::Our), Some(0..3), Some(3..4), 4..8, ""),
-            ("pub type", Some(Visibility::Public), Some(0..3), Some(3..4), 4..8, ""),
-            ("my\n  type", Some(Visibility::Private), Some(0..2), Some(2..5), 5..9, ""),
+            (
+                "my type",
+                Some(Visibility::Private),
+                Some(0..2),
+                Some(2..3),
+                3..7,
+                "",
+            ),
+            (
+                "our type",
+                Some(Visibility::Our),
+                Some(0..3),
+                Some(3..4),
+                4..8,
+                "",
+            ),
+            (
+                "pub type",
+                Some(Visibility::Public),
+                Some(0..3),
+                Some(3..4),
+                4..8,
+                "",
+            ),
+            (
+                "my\n  type",
+                Some(Visibility::Private),
+                Some(0..2),
+                Some(2..5),
+                5..9,
+                "",
+            ),
         ] {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let intro = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 i.run(recognize_type_statement_intro)
                     .expect("exact Type declaration introduction")
             };
@@ -23340,12 +24433,18 @@ mod tests {
             assert_eq!(intro.type_base, 0, "{source:?}");
             assert_eq!(intro.type_keyword.range(), keyword_range, "{source:?}");
             assert_eq!(
-                intro.visibility.as_ref().map(|visibility| visibility.visibility),
+                intro
+                    .visibility
+                    .as_ref()
+                    .map(|visibility| visibility.visibility),
                 expected_visibility,
                 "{source:?}"
             );
             assert_eq!(
-                intro.visibility.as_ref().map(|visibility| visibility.keyword.range()),
+                intro
+                    .visibility
+                    .as_ref()
+                    .map(|visibility| visibility.keyword.range()),
                 visibility_range,
                 "{source:?}"
             );
@@ -23367,8 +24466,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let intro = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 i.run(recognize_type_statement_intro)
             };
 
@@ -23431,7 +24534,10 @@ mod tests {
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stops);
             let line = local.line();
-            let ambient = local.ambient_owner_scope_frames().copied().collect::<Vec<_>>();
+            let ambient = local
+                .ambient_owner_scope_frames()
+                .copied()
+                .collect::<Vec<_>>();
             let if_depth = local.if_expression_companion_depth();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
@@ -23449,12 +24555,24 @@ mod tests {
             };
             assert_eq!(source_input.remainder(), source, "remainder: {source:?}");
             assert_eq!(local.line(), line, "line: {source:?}");
-            assert_eq!(local.indentation_baseline().map(|base| base.column), Some(0));
+            assert_eq!(
+                local.indentation_baseline().map(|base| base.column),
+                Some(0)
+            );
             assert_eq!(local.stop_set(), Some(stops));
             assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
-            assert_eq!(local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(), ambient);
+            assert_eq!(
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                ambient
+            );
             assert_eq!(local.if_expression_companion_depth(), if_depth);
             assert_eq!(local.type_expression_episode_depth(), 0);
             assert!(expectations.take_merged().is_none(), "sink: {source:?}");
@@ -23486,44 +24604,48 @@ mod tests {
                 "{source:?}",
             );
         }
-        assert!(recognize(
-            " = Int",
-            DerivesAttachmentOwner::Type,
-            DerivesAttachmentPosition::Header,
-            OwnerContext::Root,
-            StopSet::default(),
-        )
-        .is_none());
-        assert!(recognize(
-            " (Field)",
-            DerivesAttachmentOwner::Struct,
-            DerivesAttachmentPosition::Header,
-            OwnerContext::Root,
-            StopSet::default(),
-        )
-        .is_none());
-        assert!(recognize(
-            " = Variant",
-            DerivesAttachmentOwner::Enum,
-            DerivesAttachmentPosition::Header,
-            OwnerContext::Root,
-            StopSet::default(),
-        )
-        .is_none());
-        assert!(recognize(
-            ") derives",
-            DerivesAttachmentOwner::Type,
-            DerivesAttachmentPosition::Trailing,
-            OwnerContext::Root,
-            StopSet::default().with(StopKind::RightParenthesis),
-        )
-        .is_none());
+        assert!(
+            recognize(
+                " = Int",
+                DerivesAttachmentOwner::Type,
+                DerivesAttachmentPosition::Header,
+                OwnerContext::Root,
+                StopSet::default(),
+            )
+            .is_none()
+        );
+        assert!(
+            recognize(
+                " (Field)",
+                DerivesAttachmentOwner::Struct,
+                DerivesAttachmentPosition::Header,
+                OwnerContext::Root,
+                StopSet::default(),
+            )
+            .is_none()
+        );
+        assert!(
+            recognize(
+                " = Variant",
+                DerivesAttachmentOwner::Enum,
+                DerivesAttachmentPosition::Header,
+                OwnerContext::Root,
+                StopSet::default(),
+            )
+            .is_none()
+        );
+        assert!(
+            recognize(
+                ") derives",
+                DerivesAttachmentOwner::Type,
+                DerivesAttachmentPosition::Trailing,
+                OwnerContext::Root,
+                StopSet::default().with(StopKind::RightParenthesis),
+            )
+            .is_none()
+        );
 
-        fn decide(
-            source: &str,
-            spec: DerivesDriverSpec,
-            stops: StopSet,
-        ) -> DerivesDriverDecision {
+        fn decide(source: &str, spec: DerivesDriverSpec, stops: StopSet) -> DerivesDriverDecision {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             local.push_indentation_baseline(IndentationBaseline {
@@ -23569,7 +24691,11 @@ mod tests {
             0,
         );
         assert_eq!(
-            decide(", Debug", type_header, StopSet::default().with(StopKind::Comma)),
+            decide(
+                ", Debug",
+                type_header,
+                StopSet::default().with(StopKind::Comma)
+            ),
             DerivesDriverDecision::Comma {
                 leading: 0..0,
                 comma: 0..1,
@@ -23610,7 +24736,11 @@ mod tests {
             );
         }
         assert_eq!(
-            decide(")", type_header, StopSet::default().with(StopKind::RightParenthesis)),
+            decide(
+                ")",
+                type_header,
+                StopSet::default().with(StopKind::RightParenthesis)
+            ),
             DerivesDriverDecision::OwnerTail(DerivesOwnerTail::CallerBoundary),
         );
         assert_eq!(
@@ -23636,12 +24766,17 @@ mod tests {
             UnexpectedEndOfInput: Into<E::Error>,
         {
             while i.pos() < end {
-                i.input.next().expect("the fixture prefix remains available");
+                i.input
+                    .next()
+                    .expect("the fixture prefix remains available");
             }
             assert_eq!(i.pos(), end);
         }
 
-        fn parse_ast<'source>(source: &'source str, offset: usize) -> (Vec<DerivesAttachment<'source>>, String) {
+        fn parse_ast<'source>(
+            source: &'source str,
+            offset: usize,
+        ) -> (Vec<DerivesAttachment<'source>>, String) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -23669,7 +24804,13 @@ mod tests {
             (attachments, source_input.remainder().to_owned())
         }
 
-        fn parse_direct(source: &str) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, SyntaxNode) {
+        fn parse_direct(
+            source: &str,
+        ) -> (
+            Vec<DirectDerivesAttachment>,
+            Vec<CommittedRecoveryRecord>,
+            SyntaxNode,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -23718,7 +24859,13 @@ mod tests {
             (attachments, records, root)
         }
 
-        fn parse_direct_clause(source: &str) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, String) {
+        fn parse_direct_clause(
+            source: &str,
+        ) -> (
+            Vec<DirectDerivesAttachment>,
+            Vec<CommittedRecoveryRecord>,
+            String,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -23746,13 +24893,23 @@ mod tests {
             assert!(expectations.take_merged().is_none(), "{source:?}");
             assert!(!is_cut, "{source:?}");
             assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
-            (attachments, output.committed_recoveries().to_vec(), remainder)
+            (
+                attachments,
+                output.committed_recoveries().to_vec(),
+                remainder,
+            )
         }
 
         let source = "enum Choice derives Eq: Variant";
         let (ast, remainder) = parse_ast(source, 11);
         assert_eq!(remainder, ": Variant");
-        assert!(matches!(ast.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Header, .. }]));
+        assert!(matches!(
+            ast.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Header,
+                ..
+            }]
+        ));
         assert_eq!(ast[0].clause.range, 12..22);
         let (direct, records, root) = parse_direct(source);
         assert_eq!(direct.len(), 1);
@@ -23816,14 +24973,23 @@ mod tests {
             })
             .map(|start| commit_derives_attachments_isolated(start, &mut committed))
             .expect("the completed braced Enum body opens its trailing attachment point");
-        assert!(matches!(trailing.as_slice(), [DirectDerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            trailing.as_slice(),
+            [DirectDerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
         committed.finish_node();
         committed.finish_node();
         let output = committed.into_output();
         assert!(output.committed_recoveries().is_empty());
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
-        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), trailing_source);
+        assert_eq!(
+            SyntaxNode::new_root(output.finish_complete()).to_string(),
+            trailing_source
+        );
 
         let incoming = StopSet::default().with(StopKind::RightBracket);
         let episode = derives_role_episode_spec(
@@ -23842,14 +25008,20 @@ mod tests {
             StopKind::Equal,
             StopKind::Semicolon,
         ] {
-            assert!(episode.stops.contains(stop), "outer Enum header stop: {stop:?}");
+            assert!(
+                episode.stops.contains(stop),
+                "outer Enum header stop: {stop:?}"
+            );
             assert!(
                 episode.scoped_frame.stops.contains(stop),
                 "nested Enum header scoped stop: {stop:?}",
             );
         }
         assert_eq!(episode.scoped_frame.visible_episode_depth, 4);
-        assert_eq!(episode.policy.fresh_primary_locally_owned_stops, StopSet::default());
+        assert_eq!(
+            episode.policy.fresh_primary_locally_owned_stops,
+            StopSet::default()
+        );
 
         let (ordered, remainder) = parse_ast("derives Eq derives Debug: Variant", 0);
         assert_eq!(remainder, ": Variant");
@@ -23859,7 +25031,10 @@ mod tests {
 
         let (missing, records, remainder) = parse_direct_clause("derives : Variant");
         assert_eq!(remainder, ": Variant");
-        assert!(matches!(missing[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(
+            missing[0].clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].kind, RecoveryKind::Missing);
         assert_eq!(
@@ -23869,10 +25044,16 @@ mod tests {
 
         let (malformed, records, remainder) = parse_direct_clause("derives @: Variant");
         assert_eq!(remainder, ": Variant");
-        assert!(matches!(malformed[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(
+            malformed[0].clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].kind, RecoveryKind::Error);
-        assert_eq!(records[0].site.role, GrammarRole::Type(crate::session::TypeRole::Primary));
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Type(crate::session::TypeRole::Primary)
+        );
         assert_eq!(records[0].site.range, 8..9);
 
         let complete_braced = Recovered::Complete(EnumBody::Braced(EnumBracedBody {
@@ -23897,7 +25078,9 @@ mod tests {
             equals: 0..1,
             body: Recovered::Incomplete,
         });
-        let bodyless = Recovered::Complete(EnumBody::Bodyless { semicolon: Some(0..1) });
+        let bodyless = Recovered::Complete(EnumBody::Bodyless {
+            semicolon: Some(0..1),
+        });
         assert!(enum_body_has_actual_trailing_close(&complete_braced));
         for body in [&missing_braced, &colon_dedent, &equals_dedent, &bodyless] {
             assert!(
@@ -23926,19 +25109,28 @@ mod tests {
             UnexpectedEndOfInput: Into<E::Error>,
         {
             while i.pos() < end {
-                i.input.next().expect("the fixture prefix remains available");
+                i.input
+                    .next()
+                    .expect("the fixture prefix remains available");
             }
             assert_eq!(i.pos(), end);
         }
 
-        fn parse_ast<'source>(source: &'source str, offset: usize) -> (Vec<DerivesAttachment<'source>>, String) {
+        fn parse_ast<'source>(
+            source: &'source str,
+            offset: usize,
+        ) -> (Vec<DerivesAttachment<'source>>, String) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let attachments = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 advance_to(offset, &mut i);
                 let start = recognize_derives_attachment_start(
                     DerivesAttachmentOwner::Error,
@@ -23957,13 +25149,21 @@ mod tests {
 
         fn parse_direct_clause(
             source: &str,
-        ) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, String) {
+        ) -> (
+            Vec<DirectDerivesAttachment>,
+            Vec<CommittedRecoveryRecord>,
+            String,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut committed = Probe::new(i).commit(HeaderOutput::new());
             let start = committed
                 .probe(|probe| {
@@ -23981,21 +25181,35 @@ mod tests {
             assert!(expectations.take_merged().is_none(), "{source:?}");
             assert!(!is_cut, "{source:?}");
             assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
-            (attachments, output.committed_recoveries().to_vec(), remainder)
+            (
+                attachments,
+                output.committed_recoveries().to_vec(),
+                remainder,
+            )
         }
 
         let source = "error Fs derives Eq: Variant";
         let (ast, remainder) = parse_ast(source, 8);
         assert_eq!(remainder, ": Variant");
-        assert!(matches!(ast.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Header, .. }]));
+        assert!(matches!(
+            ast.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Header,
+                ..
+            }]
+        ));
         assert_eq!(ast[0].clause.range, 9..19);
 
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         committed.start_node(SyntaxKind::ErrorDeclaration);
@@ -24052,7 +25266,10 @@ mod tests {
 
         let (missing, records, remainder) = parse_direct_clause("derives : Variant");
         assert_eq!(remainder, ": Variant");
-        assert!(matches!(missing[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(
+            missing[0].clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].kind, RecoveryKind::Missing);
         assert_eq!(
@@ -24062,10 +25279,16 @@ mod tests {
 
         let (malformed, records, remainder) = parse_direct_clause("derives @: Variant");
         assert_eq!(remainder, ": Variant");
-        assert!(matches!(malformed[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(
+            malformed[0].clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].kind, RecoveryKind::Error);
-        assert_eq!(records[0].site.role, GrammarRole::Type(crate::session::TypeRole::Primary));
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Type(crate::session::TypeRole::Primary)
+        );
         assert_eq!(records[0].site.range, 8..9);
 
         let incoming = StopSet::default().with(StopKind::RightBracket);
@@ -24085,14 +25308,20 @@ mod tests {
             StopKind::Equal,
             StopKind::Semicolon,
         ] {
-            assert!(episode.stops.contains(stop), "outer Error header stop: {stop:?}");
+            assert!(
+                episode.stops.contains(stop),
+                "outer Error header stop: {stop:?}"
+            );
             assert!(
                 episode.scoped_frame.stops.contains(stop),
                 "nested Error header scoped stop: {stop:?}",
             );
         }
         assert_eq!(episode.scoped_frame.visible_episode_depth, 4);
-        assert_eq!(episode.policy.fresh_primary_locally_owned_stops, StopSet::default());
+        assert_eq!(
+            episode.policy.fresh_primary_locally_owned_stops,
+            StopSet::default()
+        );
 
         let complete_braced = Recovered::Complete(EnumBody::Braced(EnumBracedBody {
             open: 0..1,
@@ -24117,7 +25346,9 @@ mod tests {
             body: Recovered::Incomplete,
         });
         let implicit_bodyless = Recovered::Complete(EnumBody::Bodyless { semicolon: None });
-        let explicit_bodyless = Recovered::Complete(EnumBody::Bodyless { semicolon: Some(0..1) });
+        let explicit_bodyless = Recovered::Complete(EnumBody::Bodyless {
+            semicolon: Some(0..1),
+        });
         assert!(enum_body_has_actual_trailing_close(&complete_braced));
         for body in [
             &missing_braced,
@@ -24147,8 +25378,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(trailing_source));
         committed.start_node(SyntaxKind::Root);
         committed.start_node(SyntaxKind::ErrorDeclaration);
@@ -24174,14 +25409,23 @@ mod tests {
             })
             .map(|start| commit_derives_attachments_isolated(start, &mut committed))
             .expect("the completed braced Error body opens its trailing attachment point");
-        assert!(matches!(trailing.as_slice(), [DirectDerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            trailing.as_slice(),
+            [DirectDerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
         committed.finish_node();
         committed.finish_node();
         let output = committed.into_output();
         assert!(output.committed_recoveries().is_empty());
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
-        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), trailing_source);
+        assert_eq!(
+            SyntaxNode::new_root(output.finish_complete()).to_string(),
+            trailing_source
+        );
     }
 
     #[test]
@@ -24358,7 +25602,8 @@ mod tests {
                 expected_remainder,
             );
             assert_eq!(
-                committed.probe(|probe| probe.input().local.pop_type_expression_scoped_stop_frame()),
+                committed
+                    .probe(|probe| probe.input().local.pop_type_expression_scoped_stop_frame()),
                 Some(episode.scoped_frame),
             );
             assert_eq!(
@@ -24383,9 +25628,7 @@ mod tests {
                 source,
                 source,
                 RecoveryKind::Missing,
-                GrammarRole::Declaration(DeclarationRole::Derives(
-                    DerivesRole::RoleReference,
-                )),
+                GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)),
                 0..0,
             );
         }
@@ -24398,14 +25641,18 @@ mod tests {
         );
 
         for source in ["my derives = 1", "my via = 1"] {
-            let output = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let root = SyntaxNode::new_root(output.green().clone());
-            assert!(root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement));
-            assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::DerivesClause));
+            assert!(
+                root.descendants()
+                    .any(|node| node.kind() == SyntaxKind::BindingStatement)
+            );
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::DerivesClause)
+            );
             assert!(!root.descendants_with_tokens().any(|element| {
                 element.kind() == SyntaxKind::DerivesKw || element.kind() == SyntaxKind::ViaKw
             }));
@@ -24446,7 +25693,9 @@ mod tests {
             DerivesAttachmentPosition::Header,
         );
         assert_eq!(remainder, "");
-        let [single] = single.as_slice() else { panic!("one clause expected"); };
+        let [single] = single.as_slice() else {
+            panic!("one clause expected");
+        };
         assert_eq!(single.position, DerivesAttachmentPosition::Header);
         assert_eq!(single.clause.keyword, 0..7);
         assert_eq!(single.clause.range, 0..10);
@@ -24460,10 +25709,18 @@ mod tests {
             DerivesAttachmentPosition::Header,
         );
         assert_eq!(remainder, "");
-        let [comma_list] = comma_list.as_slice() else { panic!("one clause expected"); };
+        let [comma_list] = comma_list.as_slice() else {
+            panic!("one clause expected");
+        };
         assert_eq!(comma_list.position, DerivesAttachmentPosition::Header);
         assert_eq!(comma_list.clause.roles.len(), 3);
-        assert!(comma_list.clause.roles.iter().all(|role| matches!(role, Recovered::Complete(_))));
+        assert!(
+            comma_list
+                .clause
+                .roles
+                .iter()
+                .all(|role| matches!(role, Recovered::Complete(_)))
+        );
         assert!(comma_list.clause.via.is_none());
 
         let (type_apply, remainder) = parse(
@@ -24472,9 +25729,15 @@ mod tests {
             DerivesAttachmentPosition::Trailing,
         );
         assert_eq!(remainder, "");
-        let [type_apply] = type_apply.as_slice() else { panic!("one clause expected"); };
+        let [type_apply] = type_apply.as_slice() else {
+            panic!("one clause expected");
+        };
         assert_eq!(type_apply.position, DerivesAttachmentPosition::Trailing);
-        assert_eq!(type_apply.clause.roles.len(), 1, "whitespace remains TypeApply");
+        assert_eq!(
+            type_apply.clause.roles.len(),
+            1,
+            "whitespace remains TypeApply"
+        );
         let Recovered::Complete(type_apply_role) = &type_apply.clause.roles[0] else {
             panic!("the TypeApply role should complete");
         };
@@ -24487,7 +25750,9 @@ mod tests {
             DerivesAttachmentPosition::Header,
         );
         assert_eq!(remainder, "");
-        let [exotic] = exotic.as_slice() else { panic!("one clause expected"); };
+        let [exotic] = exotic.as_slice() else {
+            panic!("one clause expected");
+        };
         let Recovered::Complete(exotic_role) = &exotic.clause.roles[0] else {
             panic!("the exotic role should complete");
         };
@@ -24524,7 +25789,9 @@ mod tests {
             UnexpectedEndOfInput: Into<E::Error>,
         {
             while i.pos() < end {
-                i.input.next().expect("the worked-example prefix remains available");
+                i.input
+                    .next()
+                    .expect("the worked-example prefix remains available");
             }
             assert_eq!(i.pos(), end);
         }
@@ -24572,13 +25839,13 @@ mod tests {
             Unexpected<char>: Into<E::Error>,
             UnexpectedEndOfInput: Into<E::Error>,
         {
-            let incoming = committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default());
+            let incoming =
+                committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default());
             let stops = incoming.with(StopKind::Derives);
             let frame = TypeExpressionScopedStopFrame {
                 stops: StopSet::default().with(StopKind::Derives),
-                visible_episode_depth: committed.probe(|probe| {
-                    probe.input().local.type_expression_episode_depth() + 1
-                }),
+                visible_episode_depth: committed
+                    .probe(|probe| probe.input().local.type_expression_episode_depth() + 1),
             };
             committed.probe(|probe| {
                 let i = probe.input();
@@ -24622,7 +25889,11 @@ mod tests {
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "AST state: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "AST state: {source:?}"
+            );
             attachments
         }
 
@@ -24651,7 +25922,10 @@ mod tests {
                         assert_eq!(ast_via.keyword, direct_via.keyword);
                         assert_eq!(ast_via.range, direct_via.range);
                         match (&ast_via.target, &direct_via.target) {
-                            (Recovered::Complete(ast_target), Recovered::Complete(direct_range)) => {
+                            (
+                                Recovered::Complete(ast_target),
+                                Recovered::Complete(direct_range),
+                            ) => {
                                 assert_eq!(ast_target.range(), *direct_range);
                             }
                             (Recovered::Incomplete, Recovered::Incomplete) => {}
@@ -24665,7 +25939,11 @@ mod tests {
 
         fn parse_direct<'source>(
             source: &'source str,
-        ) -> (Vec<DirectDerivesAttachment>, Vec<CommittedRecoveryRecord>, SyntaxNode) {
+        ) -> (
+            Vec<DirectDerivesAttachment>,
+            Vec<CommittedRecoveryRecord>,
+            SyntaxNode,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -24701,7 +25979,8 @@ mod tests {
                     replay_token(SyntaxKind::Identifier, 41..46, &mut committed);
                     replay_token(SyntaxKind::Colon, 46..47, &mut committed);
                     replay_token(SyntaxKind::Whitespace, 47..48, &mut committed);
-                    let field = commit_direct_type_expression_with_outer_missing_role(None, &mut committed);
+                    let field =
+                        commit_direct_type_expression_with_outer_missing_role(None, &mut committed);
                     assert_eq!(field.range(), 48..51);
                     committed.finish_node();
                     replay_token(SyntaxKind::Whitespace, 51..52, &mut committed);
@@ -24721,7 +26000,8 @@ mod tests {
                     replay_token(SyntaxKind::Identifier, 15..20, &mut committed);
                     replay_token(SyntaxKind::Colon, 20..21, &mut committed);
                     replay_token(SyntaxKind::Whitespace, 21..22, &mut committed);
-                    let field = commit_direct_type_expression_with_outer_missing_role(None, &mut committed);
+                    let field =
+                        commit_direct_type_expression_with_outer_missing_role(None, &mut committed);
                     assert_eq!(field.range(), 22..25);
                     committed.finish_node();
                     replay_token(SyntaxKind::Whitespace, 25..26, &mut committed);
@@ -24774,9 +26054,16 @@ mod tests {
             committed.probe(|probe| assert_eq!(probe.input().input.remainder(), ""));
             committed.finish_node();
             let output = committed.into_output();
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "direct state: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "direct state: {source:?}"
+            );
             let records = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
             (attachments, records, root)
@@ -24809,14 +26096,21 @@ mod tests {
         );
         let declaration = root.children().next().expect("one declaration");
         assert_eq!(
-            declaration.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            declaration
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
             vec![SyntaxKind::DerivesClause, SyntaxKind::StructField],
             "no synthetic attachment wrapper sits between the declaration and clause",
         );
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .map(|token| (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range())
+                ))
                 .collect::<Vec<_>>(),
             vec![
                 (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
@@ -24871,13 +26165,20 @@ mod tests {
         );
         let declaration = root.children().next().expect("one declaration");
         assert_eq!(
-            declaration.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            declaration
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
             vec![SyntaxKind::StructField, SyntaxKind::DerivesClause],
         );
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .map(|token| (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range())
+                ))
                 .collect::<Vec<_>>(),
             vec![
                 (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
@@ -24932,7 +26233,10 @@ mod tests {
         );
         let declaration = root.children().next().expect("one declaration");
         assert_eq!(
-            declaration.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            declaration
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
             vec![
                 SyntaxKind::DerivesClause,
                 SyntaxKind::TypeExpression,
@@ -24942,7 +26246,11 @@ mod tests {
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .map(|token| (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range())
+                ))
                 .collect::<Vec<_>>(),
             vec![
                 (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
@@ -24995,8 +26303,16 @@ mod tests {
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
-            assert_eq!(local.stop_set(), Some(stops), "AST stop restoration: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "AST episode: {source:?}");
+            assert_eq!(
+                local.stop_set(),
+                Some(stops),
+                "AST stop restoration: {source:?}"
+            );
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "AST episode: {source:?}"
+            );
             (attachments, source_input.remainder().to_owned())
         }
 
@@ -25034,10 +26350,21 @@ mod tests {
                 .iter()
                 .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect();
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
-            assert_eq!(local.stop_set(), Some(stops), "direct stop restoration: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "direct episode: {source:?}");
+            assert_eq!(
+                local.stop_set(),
+                Some(stops),
+                "direct stop restoration: {source:?}"
+            );
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "direct episode: {source:?}"
+            );
             (attachments, records, remainder)
         }
 
@@ -25069,7 +26396,10 @@ mod tests {
             committed.probe(|probe| assert_eq!(probe.input().input.remainder(), ""));
             committed.finish_node();
             let output = committed.into_output();
-            assert!(expectations.take_merged().is_none(), "full direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "full direct sink: {source:?}"
+            );
             assert!(!is_cut, "full direct cut: {source:?}");
             let records = output.committed_recoveries().to_vec();
             (records, SyntaxNode::new_root(output.finish_complete()))
@@ -25097,7 +26427,10 @@ mod tests {
                         assert_eq!(ast_via.keyword, direct_via.keyword);
                         assert_eq!(ast_via.range, direct_via.range);
                         match (&ast_via.target, &direct_via.target) {
-                            (Recovered::Complete(ast_target), Recovered::Complete(direct_range)) => {
+                            (
+                                Recovered::Complete(ast_target),
+                                Recovered::Complete(direct_range),
+                            ) => {
                                 assert_eq!(ast_target.range(), *direct_range);
                             }
                             (Recovered::Incomplete, Recovered::Incomplete) => {}
@@ -25123,8 +26456,14 @@ mod tests {
             let (direct, records, direct_remainder) = parse_direct(source, stops);
             assert_parity(&ast, &direct);
             assert_eq!(records, expected_records, "direct records: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             ast
         }
 
@@ -25135,10 +26474,17 @@ mod tests {
         let attachments = run(
             "derives",
             empty,
-            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 7..7)],
+            vec![(
+                RecoveryKind::Missing,
+                derives_role(DerivesRole::RoleReference),
+                7..7,
+            )],
             "",
         );
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(
+            attachments[0].clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
 
         let attachments = run(
             "derives @ Eq",
@@ -25150,7 +26496,9 @@ mod tests {
             )],
             "",
         );
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(role)] if role.range() == (10..12)));
+        assert!(
+            matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(role)] if role.range() == (10..12))
+        );
 
         let attachments = run(
             "derives @",
@@ -25162,7 +26510,10 @@ mod tests {
             )],
             "",
         );
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(
+            attachments[0].clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
 
         // Leading and repeated commas each commit their own empty RoleRef
         // slot; commas remain real CST tokens owned by the clause.
@@ -25170,100 +26521,177 @@ mod tests {
             "derives , Eq,, Debug",
             empty,
             vec![
-                (RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 8..8),
-                (RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 13..13),
+                (
+                    RecoveryKind::Missing,
+                    derives_role(DerivesRole::RoleReference),
+                    8..8,
+                ),
+                (
+                    RecoveryKind::Missing,
+                    derives_role(DerivesRole::RoleReference),
+                    13..13,
+                ),
             ],
             "",
         );
         assert_eq!(attachments[0].clause.roles.len(), 4);
-        assert!(matches!(attachments[0].clause.roles[0], Recovered::Incomplete));
-        assert!(matches!(attachments[0].clause.roles[1], Recovered::Complete(ref role) if role.range() == (10..12)));
-        assert!(matches!(attachments[0].clause.roles[2], Recovered::Incomplete));
-        assert!(matches!(attachments[0].clause.roles[3], Recovered::Complete(ref role) if role.range() == (15..20)));
+        assert!(matches!(
+            attachments[0].clause.roles[0],
+            Recovered::Incomplete
+        ));
+        assert!(
+            matches!(attachments[0].clause.roles[1], Recovered::Complete(ref role) if role.range() == (10..12))
+        );
+        assert!(matches!(
+            attachments[0].clause.roles[2],
+            Recovered::Incomplete
+        ));
+        assert!(
+            matches!(attachments[0].clause.roles[3], Recovered::Complete(ref role) if role.range() == (15..20))
+        );
 
         let attachments = run(
             "derives Eq,",
             empty,
-            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 11..11)],
+            vec![(
+                RecoveryKind::Missing,
+                derives_role(DerivesRole::RoleReference),
+                11..11,
+            )],
             "",
         );
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
+        assert!(matches!(
+            attachments[0].clause.roles.as_slice(),
+            [Recovered::Complete(_), Recovered::Incomplete]
+        ));
 
         let attachments = run(
             "derives Eq, derives Debug",
             empty,
-            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 12..12)],
+            vec![(
+                RecoveryKind::Missing,
+                derives_role(DerivesRole::RoleReference),
+                12..12,
+            )],
             "",
         );
         assert_eq!(attachments.len(), 2, "next derives starts its own clause");
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
+        assert!(matches!(
+            attachments[0].clause.roles.as_slice(),
+            [Recovered::Complete(_), Recovered::Incomplete]
+        ));
 
         let attachments = run(
             "derives Eq, via key",
             empty,
-            vec![(RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 12..12)],
+            vec![(
+                RecoveryKind::Missing,
+                derives_role(DerivesRole::RoleReference),
+                12..12,
+            )],
             "",
         );
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
-        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+        assert!(matches!(
+            attachments[0].clause.roles.as_slice(),
+            [Recovered::Complete(_), Recovered::Incomplete]
+        ));
+        assert!(
+            matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key")
+        );
 
         let attachments = run("derives Eq via key", empty, vec![], "");
-        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+        assert!(
+            matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key")
+        );
 
         let attachments = run(
             "derives Eq via",
             empty,
-            vec![(RecoveryKind::Missing, derives_role(DerivesRole::ViaTarget), 14..14)],
+            vec![(
+                RecoveryKind::Missing,
+                derives_role(DerivesRole::ViaTarget),
+                14..14,
+            )],
             "",
         );
-        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Incomplete)));
+        assert!(matches!(
+            attachments[0].clause.via.as_ref().map(|via| &via.target),
+            Some(Recovered::Incomplete)
+        ));
 
         let attachments = run(
             "derives Eq via)",
             StopSet::default().with(StopKind::RightParenthesis),
-            vec![(RecoveryKind::Missing, derives_role(DerivesRole::ViaTarget), 14..14)],
+            vec![(
+                RecoveryKind::Missing,
+                derives_role(DerivesRole::ViaTarget),
+                14..14,
+            )],
             ")",
         );
-        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Incomplete)));
+        assert!(matches!(
+            attachments[0].clause.via.as_ref().map(|via| &via.target),
+            Some(Recovered::Incomplete)
+        ));
 
         let attachments = run(
             "derives Eq via @ key",
             empty,
-            vec![(RecoveryKind::Error, derives_role(DerivesRole::ViaTarget), 15..17)],
+            vec![(
+                RecoveryKind::Error,
+                derives_role(DerivesRole::ViaTarget),
+                15..17,
+            )],
             "",
         );
-        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+        assert!(
+            matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key")
+        );
 
         let attachments = run(
             "derives Eq via @",
             empty,
-            vec![(RecoveryKind::Error, derives_role(DerivesRole::ViaTarget), 15..16)],
+            vec![(
+                RecoveryKind::Error,
+                derives_role(DerivesRole::ViaTarget),
+                15..16,
+            )],
             "",
         );
-        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Incomplete)));
+        assert!(matches!(
+            attachments[0].clause.via.as_ref().map(|via| &via.target),
+            Some(Recovered::Incomplete)
+        ));
 
         let attachments = run("derives Eq Debug", empty, vec![], "");
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(role)] if role.range() == (8..16)));
+        assert!(
+            matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(role)] if role.range() == (8..16))
+        );
 
         let attachments = run("derives Eq derives Debug", empty, vec![], "");
         assert_eq!(attachments.len(), 2);
-        assert!(attachments.iter().all(|attachment| attachment.clause.roles.len() == 1));
+        assert!(
+            attachments
+                .iter()
+                .all(|attachment| attachment.clause.roles.len() == 1)
+        );
 
         // The shared driver keeps the type definition owner at the same
         // cursor, with neither a derives clause recovery nor synthetic list
         // separator.
         let attachments = run("derives Eq = Int", empty, vec![], " = Int");
         assert_eq!(attachments.len(), 1);
-        assert!(matches!(attachments[0].clause.roles.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(
+            attachments[0].clause.roles.as_slice(),
+            [Recovered::Complete(_)]
+        ));
 
         let outer = StopSet::default().with(StopKind::RightParenthesis);
-        let attachments = run(
-            ") derives Eq",
-            outer,
-            vec![],
-            ") derives Eq",
+        let attachments = run(") derives Eq", outer, vec![], ") derives Eq");
+        assert!(
+            attachments.is_empty(),
+            "outer boundary rejects attachment authority"
         );
-        assert!(attachments.is_empty(), "outer boundary rejects attachment authority");
 
         // Independent slots retain independent records: a leading empty item
         // and malformed ViaTarget do not stack or overwrite one another.
@@ -25271,15 +26699,28 @@ mod tests {
             "derives , Eq via @ key",
             empty,
             vec![
-                (RecoveryKind::Missing, derives_role(DerivesRole::RoleReference), 8..8),
-                (RecoveryKind::Error, derives_role(DerivesRole::ViaTarget), 17..19),
+                (
+                    RecoveryKind::Missing,
+                    derives_role(DerivesRole::RoleReference),
+                    8..8,
+                ),
+                (
+                    RecoveryKind::Error,
+                    derives_role(DerivesRole::ViaTarget),
+                    17..19,
+                ),
             ],
             "",
         );
         assert_eq!(attachments.len(), 1);
         assert_eq!(attachments[0].clause.roles.len(), 2);
-        assert!(matches!(attachments[0].clause.roles[0], Recovered::Incomplete));
-        assert!(matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key"));
+        assert!(matches!(
+            attachments[0].clause.roles[0],
+            Recovered::Incomplete
+        ));
+        assert!(
+            matches!(attachments[0].clause.via.as_ref().map(|via| &via.target), Some(Recovered::Complete(target)) if target.text() == "key")
+        );
         let (records, root) = direct_recovery_nodes("derives , Eq via @ key");
         assert_eq!(records.len(), 2, "one committed recovery per failed slot");
         assert_eq!(
@@ -25309,9 +26750,8 @@ mod tests {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let root_scope = with_if_companion.then(|| local.push_root_statement_ambient_scope());
-            let companion = with_if_companion.then(|| {
-                local.push_if_expression_companion(0, &["elsif", "else"])
-            });
+            let companion = with_if_companion
+                .then(|| local.push_if_expression_companion(0, &["elsif", "else"]));
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
@@ -25326,7 +26766,11 @@ mod tests {
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "AST episode: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "AST episode: {source:?}"
+            );
             if let Some(companion) = companion {
                 assert_eq!(
                     local.pop_if_expression_companion().map(|frame| frame.id()),
@@ -25351,9 +26795,8 @@ mod tests {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let root_scope = with_if_companion.then(|| local.push_root_statement_ambient_scope());
-            let companion = with_if_companion.then(|| {
-                local.push_if_expression_companion(0, &["elsif", "else"])
-            });
+            let companion = with_if_companion
+                .then(|| local.push_if_expression_companion(0, &["elsif", "else"]));
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let i = In::new(
@@ -25368,7 +26811,8 @@ mod tests {
                 .run(recognize_struct_statement_intro)
                 .expect("the isolated fixture starts with Struct");
             let mut committed = probe.commit(HeaderOutput::new());
-            let (_, attachments) = commit_struct_declaration_with_derives_isolated(&mut committed, intro);
+            let (_, attachments) =
+                commit_struct_declaration_with_derives_isolated(&mut committed, intro);
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
             let records = output
@@ -25376,9 +26820,16 @@ mod tests {
                 .iter()
                 .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect();
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "direct episode: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "direct episode: {source:?}"
+            );
             if let Some(companion) = companion {
                 assert_eq!(
                     local.pop_if_expression_companion().map(|frame| frame.id()),
@@ -25428,8 +26879,14 @@ mod tests {
                 "derives parity source: {source:?}",
             );
             assert_parity(&ast, &direct);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             (ast, records)
         }
 
@@ -25443,12 +26900,18 @@ mod tests {
         let (bodyless, records) = run("struct S derives Eq;", "");
         assert!(records.is_empty());
         assert_eq!(bodyless.derives.len(), 1);
-        assert!(matches!(bodyless.body, Recovered::Complete(StructBody::Bodyless { .. })));
+        assert!(matches!(
+            bodyless.body,
+            Recovered::Complete(StructBody::Bodyless { .. })
+        ));
 
         let (braced, records) = run("struct S derives Eq { x: Int }", "");
         assert!(records.is_empty());
         assert_eq!(braced.derives.len(), 1);
-        assert!(matches!(braced.body, Recovered::Complete(StructBody::NamedBraced(_))));
+        assert!(matches!(
+            braced.body,
+            Recovered::Complete(StructBody::NamedBraced(_))
+        ));
 
         for source in [
             "struct S derives Eq(Int)",
@@ -25458,18 +26921,30 @@ mod tests {
             let (tuple, records) = run(source, "");
             assert!(records.is_empty(), "{source:?}");
             assert_eq!(tuple.derives.len(), 1, "{source:?}");
-            assert!(matches!(tuple.body, Recovered::Complete(StructBody::Tuple(_))), "{source:?}");
+            assert!(
+                matches!(tuple.body, Recovered::Complete(StructBody::Tuple(_))),
+                "{source:?}"
+            );
         }
 
         let (indented, records) = run("struct S derives Eq:\n  x: Int", "");
         assert!(records.is_empty());
         assert_eq!(indented.derives.len(), 1);
-        assert!(matches!(indented.body, Recovered::Complete(StructBody::NamedIndented(_))));
+        assert!(matches!(
+            indented.body,
+            Recovered::Complete(StructBody::NamedIndented(_))
+        ));
 
         let (header_recovery, records) = run("struct S derives @ { x: Int }", "");
         assert_eq!(header_recovery.derives.len(), 1);
-        assert!(matches!(header_recovery.derives[0].clause.roles.as_slice(), [Recovered::Incomplete]));
-        assert!(matches!(header_recovery.body, Recovered::Complete(StructBody::NamedBraced(_))));
+        assert!(matches!(
+            header_recovery.derives[0].clause.roles.as_slice(),
+            [Recovered::Incomplete]
+        ));
+        assert!(matches!(
+            header_recovery.body,
+            Recovered::Complete(StructBody::NamedBraced(_))
+        ));
         assert_eq!(
             records,
             vec![(
@@ -25481,11 +26956,23 @@ mod tests {
 
         let (trailing_brace, records) = run("struct S { x: Int } derives Eq;", ";");
         assert!(records.is_empty());
-        assert!(matches!(trailing_brace.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            trailing_brace.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
 
         let (trailing_tuple, records) = run("struct S(Int) derives Eq\nnext", "\nnext");
         assert!(records.is_empty());
-        assert!(matches!(trailing_tuple.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            trailing_tuple.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
 
         let (trailing_ambient, records) = run_in_context(
             "struct S { x: Int } derives Eq else: fallback",
@@ -25493,22 +26980,45 @@ mod tests {
             true,
         );
         assert!(records.is_empty());
-        assert!(matches!(trailing_ambient.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            trailing_ambient.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
 
         let (missing_close, records) = run("struct S { x: Int derives Eq", "");
-        assert!(records.iter().any(|(kind, role, _)| *kind == RecoveryKind::Missing
-            && matches!(role, GrammarRole::ClosingDelimiter { .. })));
-        assert!(missing_close.derives.is_empty(), "missing close grants no trailing authority");
+        assert!(
+            records
+                .iter()
+                .any(|(kind, role, _)| *kind == RecoveryKind::Missing
+                    && matches!(role, GrammarRole::ClosingDelimiter { .. }))
+        );
+        assert!(
+            missing_close.derives.is_empty(),
+            "missing close grants no trailing authority"
+        );
 
         let (mismatched_close, records) = run("struct S(Int] derives Eq", "");
-        assert!(records.iter().any(|(kind, role, _)| *kind == RecoveryKind::Error
-            && matches!(role, GrammarRole::ClosingDelimiter { .. })));
-        assert!(mismatched_close.derives.is_empty(), "mismatched close grants no trailing authority");
+        assert!(
+            records
+                .iter()
+                .any(|(kind, role, _)| *kind == RecoveryKind::Error
+                    && matches!(role, GrammarRole::ClosingDelimiter { .. }))
+        );
+        assert!(
+            mismatched_close.derives.is_empty(),
+            "mismatched close grants no trailing authority"
+        );
 
         let (field_named_derives, records) = run("struct S { derives: Int }", "");
         assert!(records.is_empty());
         assert!(field_named_derives.derives.is_empty());
-        assert!(matches!(field_named_derives.body, Recovered::Complete(StructBody::NamedBraced(_))));
+        assert!(matches!(
+            field_named_derives.body,
+            Recovered::Complete(StructBody::NamedBraced(_))
+        ));
     }
 
     #[test]
@@ -25532,14 +27042,23 @@ mod tests {
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "AST episode: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "AST episode: {source:?}"
+            );
             assert!(local.type_expression_scoped_stop_frames().next().is_none());
             (declaration, source_input.remainder().to_owned())
         }
 
         fn parse_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, Vec<DirectDerivesAttachment>, Records, String) {
+        ) -> (
+            Recovered<Range<usize>>,
+            Vec<DirectDerivesAttachment>,
+            Records,
+            String,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -25565,9 +27084,16 @@ mod tests {
                 .iter()
                 .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect();
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
-            assert_eq!(local.type_expression_episode_depth(), 0, "direct episode: {source:?}");
+            assert_eq!(
+                local.type_expression_episode_depth(),
+                0,
+                "direct episode: {source:?}"
+            );
             assert!(local.type_expression_scoped_stop_frames().next().is_none());
             (range, attachments, records, remainder)
         }
@@ -25601,47 +27127,117 @@ mod tests {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct, records, direct_remainder) = parse_direct(source);
             assert_attachment_parity(&ast.derives, &direct);
-            assert_eq!(direct_range, Recovered::Complete(ast.range.clone()), "{source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range.clone()),
+                "{source:?}"
+            );
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             (ast, records)
         }
 
         let (nominal, records) = run("type Point derives Eq", "");
         assert!(records.is_empty());
-        assert!(matches!(nominal.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
-        assert!(matches!(nominal.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Header, .. }]));
+        assert!(matches!(
+            nominal.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
+        assert!(matches!(
+            nominal.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Header,
+                ..
+            }]
+        ));
 
         let (coexist, records) = run("type Id derives Eq = Int derives Debug", "");
         assert!(records.is_empty());
-        assert!(matches!(coexist.form, Recovered::Complete(TypeDeclarationForm::Equality { rhs: Recovered::Complete(_), .. })));
+        assert!(matches!(
+            coexist.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                rhs: Recovered::Complete(_),
+                ..
+            })
+        ));
         assert_eq!(
-            coexist.derives.iter().map(|attachment| attachment.position).collect::<Vec<_>>(),
-            [DerivesAttachmentPosition::Header, DerivesAttachmentPosition::Trailing],
+            coexist
+                .derives
+                .iter()
+                .map(|attachment| attachment.position)
+                .collect::<Vec<_>>(),
+            [
+                DerivesAttachmentPosition::Header,
+                DerivesAttachmentPosition::Trailing
+            ],
         );
 
         let (missing_rhs, records) = run("type Id = derives Eq", "");
-        assert!(matches!(missing_rhs.form, Recovered::Complete(TypeDeclarationForm::Equality { rhs: Recovered::Incomplete, .. })));
-        assert!(matches!(missing_rhs.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            missing_rhs.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                rhs: Recovered::Incomplete,
+                ..
+            })
+        ));
+        assert!(matches!(
+            missing_rhs.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].0, RecoveryKind::Missing);
-        assert_eq!(records[0].1, GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs)));
+        assert_eq!(
+            records[0].1,
+            GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs))
+        );
 
         let (malformed_rhs, records) = run("type Id = @ derives Eq", "");
-        assert!(matches!(malformed_rhs.form, Recovered::Complete(TypeDeclarationForm::Equality { rhs: Recovered::Incomplete, .. })));
-        assert!(matches!(malformed_rhs.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            malformed_rhs.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                rhs: Recovered::Incomplete,
+                ..
+            })
+        ));
+        assert!(matches!(
+            malformed_rhs.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].0, RecoveryKind::Error);
-        assert_eq!(records[0].1, GrammarRole::Type(crate::session::TypeRole::Primary));
+        assert_eq!(
+            records[0].1,
+            GrammarRole::Type(crate::session::TypeRole::Primary)
+        );
 
         let (exotic, records) = run("type Id derives [e] T = ({ x: Int }) derives (:{ A })", "");
         assert!(records.is_empty());
         assert_eq!(exotic.derives.len(), 2);
-        assert!(format!("{:?}", exotic.derives[0].clause.roles[0]).contains("leading_effect_row: Some"));
+        assert!(
+            format!("{:?}", exotic.derives[0].clause.roles[0]).contains("leading_effect_row: Some")
+        );
 
         let (multiline, records) = run("type Id =\n   Int derives Eq", "");
         assert!(records.is_empty());
-        assert!(matches!(multiline.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+        assert!(matches!(
+            multiline.derives.as_slice(),
+            [DerivesAttachment {
+                position: DerivesAttachmentPosition::Trailing,
+                ..
+            }]
+        ));
 
         for source in [
             "type F = Int -> derives Eq",
@@ -25649,7 +27245,10 @@ mod tests {
             "type F = F (derives Eq)",
         ] {
             let (nested, records) = run(source, "");
-            assert!(nested.derives.is_empty(), "nested episode leaked Derives: {source:?}");
+            assert!(
+                nested.derives.is_empty(),
+                "nested episode leaked Derives: {source:?}"
+            );
             if source == "type F = F (derives Eq)" {
                 assert_eq!(records.len(), 1);
                 assert_eq!(records[0].0, RecoveryKind::Missing);
@@ -25668,7 +27267,16 @@ mod tests {
         ] {
             let (grouped, records) = run(source, "");
             assert!(records.is_empty(), "{source:?}");
-            assert!(matches!(grouped.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]), "{source:?}");
+            assert!(
+                matches!(
+                    grouped.derives.as_slice(),
+                    [DerivesAttachment {
+                        position: DerivesAttachmentPosition::Trailing,
+                        ..
+                    }]
+                ),
+                "{source:?}"
+            );
         }
     }
 
@@ -25724,7 +27332,10 @@ mod tests {
                 if_depth: local.if_expression_companion_depth(),
                 innermost_if: local.if_expression_companion().map(|frame| frame.id()),
                 type_episode_depth: local.type_expression_episode_depth(),
-                scoped_type_stops: local.type_expression_scoped_stop_frames().copied().collect(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
             }
         }
 
@@ -25800,7 +27411,12 @@ mod tests {
             candidate: Candidate,
             context: Context,
             stop: StopKind,
-        ) -> (Range<usize>, Vec<DerivesAttachmentPosition>, String, LineState) {
+        ) -> (
+            Range<usize>,
+            Vec<DerivesAttachmentPosition>,
+            String,
+            LineState,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stop);
@@ -25821,7 +27437,11 @@ mod tests {
                             .expect("Struct matrix candidate");
                         (
                             declaration.range,
-                            declaration.derives.iter().map(|item| item.position).collect(),
+                            declaration
+                                .derives
+                                .iter()
+                                .map(|item| item.position)
+                                .collect(),
                         )
                     }
                     Candidate::Type => {
@@ -25829,7 +27449,11 @@ mod tests {
                             .expect("Type matrix candidate");
                         (
                             declaration.range,
-                            declaration.derives.iter().map(|item| item.position).collect(),
+                            declaration
+                                .derives
+                                .iter()
+                                .map(|item| item.position)
+                                .collect(),
                         )
                     }
                 };
@@ -25838,7 +27462,12 @@ mod tests {
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
-            (range, attachments, source_input.remainder().to_owned(), local.line())
+            (
+                range,
+                attachments,
+                source_input.remainder().to_owned(),
+                local.line(),
+            )
         }
 
         fn parse_direct(
@@ -25875,22 +27504,23 @@ mod tests {
                     let intro = committed
                         .probe(|probe| probe.input().run(recognize_struct_statement_intro))
                         .expect("Struct matrix candidate");
-                    commit_struct_declaration_with_derives_isolated(&mut committed, intro)
-                        .1
+                    commit_struct_declaration_with_derives_isolated(&mut committed, intro).1
                 }
                 Candidate::Type => {
                     let intro = committed
                         .probe(|probe| probe.input().run(recognize_type_statement_intro))
                         .expect("Type matrix candidate");
-                    commit_type_declaration_with_derives_isolated(&mut committed, intro)
-                        .1
+                    commit_type_declaration_with_derives_isolated(&mut committed, intro).1
                 }
             };
             let end = committed.probe(|probe| probe.input().pos());
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let records = committed.into_output().committed_recoveries().to_vec();
             assert_eq!(snapshot(&local), before, "direct state: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (
                 start..end,
@@ -25914,9 +27544,18 @@ mod tests {
             let (direct_range, direct_attachments, records, direct_remainder, direct_line) =
                 parse_direct(source, prefix_len, candidate, context, stop);
             assert_eq!(ast_range, direct_range, "range: {source:?}");
-            assert_eq!(ast_attachments, direct_attachments, "attachments: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_attachments, direct_attachments,
+                "attachments: {source:?}"
+            );
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert_eq!(ast_line, direct_line, "line state: {source:?}");
             records
         }
@@ -25928,39 +27567,45 @@ mod tests {
             Context::CatchInline,
             Context::NestedIf,
         ] {
-            assert!(assert_case(
-                "struct S derives Eq;",
-                0,
-                Candidate::Struct,
-                context,
-                StopKind::RightBracket,
-                "",
-            )
-            .is_empty());
-            assert!(assert_case(
-                "type S derives Eq",
-                0,
-                Candidate::Type,
-                context,
-                StopKind::RightBracket,
-                "",
-            )
-            .is_empty());
+            assert!(
+                assert_case(
+                    "struct S derives Eq;",
+                    0,
+                    Candidate::Struct,
+                    context,
+                    StopKind::RightBracket,
+                    "",
+                )
+                .is_empty()
+            );
+            assert!(
+                assert_case(
+                    "type S derives Eq",
+                    0,
+                    Candidate::Type,
+                    context,
+                    StopKind::RightBracket,
+                    "",
+                )
+                .is_empty()
+            );
         }
 
         for (candidate, source) in [
             (Candidate::Struct, "struct S(Int) derives Eq else: 0"),
             (Candidate::Type, "type S = Int derives Eq else: 0"),
         ] {
-            assert!(assert_case(
-                source,
-                0,
-                candidate,
-                Context::NestedIf,
-                StopKind::RightBracket,
-                " else: 0",
-            )
-            .is_empty());
+            assert!(
+                assert_case(
+                    source,
+                    0,
+                    candidate,
+                    Context::NestedIf,
+                    StopKind::RightBracket,
+                    " else: 0",
+                )
+                .is_empty()
+            );
         }
 
         let catch_prefix = "value with: ".len();
@@ -25974,15 +27619,17 @@ mod tests {
                 "value with: type S = Int derives Eq\n  B -> fallback",
             ),
         ] {
-            assert!(assert_case(
-                source,
-                catch_prefix,
-                candidate,
-                Context::CatchInline,
-                StopKind::RightBracket,
-                "\n  B -> fallback",
-            )
-            .is_empty());
+            assert!(
+                assert_case(
+                    source,
+                    catch_prefix,
+                    candidate,
+                    Context::CatchInline,
+                    StopKind::RightBracket,
+                    "\n  B -> fallback",
+                )
+                .is_empty()
+            );
         }
 
         for (stop, punctuation) in [
@@ -25995,15 +27642,17 @@ mod tests {
                 (Candidate::Type, "type S = Int derives Eq"),
             ] {
                 let source = format!("{prefix}{punctuation} tail");
-                assert!(assert_case(
-                    &source,
-                    0,
-                    candidate,
-                    Context::Root,
-                    stop,
-                    &format!("{punctuation} tail"),
-                )
-                .is_empty());
+                assert!(
+                    assert_case(
+                        &source,
+                        0,
+                        candidate,
+                        Context::Root,
+                        stop,
+                        &format!("{punctuation} tail"),
+                    )
+                    .is_empty()
+                );
             }
         }
 
@@ -26012,33 +27661,45 @@ mod tests {
             (Candidate::Type, "type S, tail", ", tail"),
             (Candidate::Struct, "struct S(Int) derives Eq;", ";"),
             (Candidate::Type, "type S = Int derives Eq;", ";"),
-            (Candidate::Struct, "struct S(Int) derives Eq\nnext", "\nnext"),
+            (
+                Candidate::Struct,
+                "struct S(Int) derives Eq\nnext",
+                "\nnext",
+            ),
             (Candidate::Type, "type S = Int derives Eq\nnext", "\nnext"),
         ] {
-            assert!(assert_case(
-                source,
-                0,
-                candidate,
-                Context::Root,
-                if remainder.starts_with(',') { StopKind::Comma } else { StopKind::RightBracket },
-                remainder,
-            )
-            .is_empty());
+            assert!(
+                assert_case(
+                    source,
+                    0,
+                    candidate,
+                    Context::Root,
+                    if remainder.starts_with(',') {
+                        StopKind::Comma
+                    } else {
+                        StopKind::RightBracket
+                    },
+                    remainder,
+                )
+                .is_empty()
+            );
         }
 
         for (candidate, source) in [
             (Candidate::Struct, "struct S derives\n  Eq;"),
             (Candidate::Type, "type S = Int derives\n  Eq"),
         ] {
-            assert!(assert_case(
-                source,
-                0,
-                candidate,
-                Context::Root,
-                StopKind::RightBracket,
-                "",
-            )
-            .is_empty());
+            assert!(
+                assert_case(
+                    source,
+                    0,
+                    candidate,
+                    Context::Root,
+                    StopKind::RightBracket,
+                    "",
+                )
+                .is_empty()
+            );
         }
 
         let struct_recovery = assert_case(
@@ -26095,19 +27756,22 @@ mod tests {
             }
             source_input.rollback(input_checkpoint);
             local.rollback(local_checkpoint);
-            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "rollback input: {source:?}"
+            );
             assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
             assert_eq!(local.line(), before_line, "rollback line: {source:?}");
-            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "rollback sink: {source:?}"
+            );
             assert!(!is_cut, "rollback cut: {source:?}");
 
             let mut direct_source = SourceInput::new(source);
             let mut direct_local = ParseLocal::new();
-            install_context(
-                &mut direct_local,
-                Context::NestedIf,
-                StopKind::RightBracket,
-            );
+            install_context(&mut direct_local, Context::NestedIf, StopKind::RightBracket);
             let direct_input_checkpoint = direct_source.checkpoint();
             let direct_local_checkpoint = direct_local.checkpoint();
             let direct_before = snapshot(&direct_local);
@@ -26123,36 +27787,39 @@ mod tests {
             let mut probe = Probe::new(i);
             match candidate {
                 Candidate::Struct => {
-                    let intro = probe
-                        .input()
-                        .run(recognize_struct_statement_intro)
-                        .unwrap();
+                    let intro = probe.input().run(recognize_struct_statement_intro).unwrap();
                     let mut committed = probe.commit(HeaderOutput::new());
-                    let _ = commit_struct_declaration_with_derives_isolated(
-                        &mut committed,
-                        intro,
-                    );
+                    let _ = commit_struct_declaration_with_derives_isolated(&mut committed, intro);
                     let _ = committed.into_output();
                 }
                 Candidate::Type => {
-                    let intro = probe
-                        .input()
-                        .run(recognize_type_statement_intro)
-                        .unwrap();
+                    let intro = probe.input().run(recognize_type_statement_intro).unwrap();
                     let mut committed = probe.commit(HeaderOutput::new());
-                    let _ = commit_type_declaration_with_derives_isolated(
-                        &mut committed,
-                        intro,
-                    );
+                    let _ = commit_type_declaration_with_derives_isolated(&mut committed, intro);
                     let _ = committed.into_output();
                 }
             }
             direct_source.rollback(direct_input_checkpoint);
             direct_local.rollback(direct_local_checkpoint);
-            assert_eq!(direct_source.remainder(), source, "direct rollback input: {source:?}");
-            assert_eq!(snapshot(&direct_local), direct_before, "direct rollback state: {source:?}");
-            assert_eq!(direct_local.line(), direct_before_line, "direct rollback line: {source:?}");
-            assert!(direct_expectations.take_merged().is_none(), "direct rollback sink: {source:?}");
+            assert_eq!(
+                direct_source.remainder(),
+                source,
+                "direct rollback input: {source:?}"
+            );
+            assert_eq!(
+                snapshot(&direct_local),
+                direct_before,
+                "direct rollback state: {source:?}"
+            );
+            assert_eq!(
+                direct_local.line(),
+                direct_before_line,
+                "direct rollback line: {source:?}"
+            );
+            assert!(
+                direct_expectations.take_merged().is_none(),
+                "direct rollback sink: {source:?}"
+            );
             assert!(!direct_cut, "direct rollback cut: {source:?}");
         }
 
@@ -26276,11 +27943,7 @@ mod tests {
                     panic!("the RoleReference should be complete: {source:?}");
                 };
                 assert_eq!(snapshot(i.local), before, "AST episode state: {source:?}");
-                (
-                    role.range(),
-                    i.input.remainder().to_owned(),
-                    i.local.line(),
-                )
+                (role.range(), i.input.remainder().to_owned(), i.local.line())
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
@@ -26318,7 +27981,10 @@ mod tests {
                 output.committed_recoveries(),
             );
             assert_eq!(snapshot(&local), before, "direct episode state: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (range, remainder, line)
         }
@@ -26328,10 +27994,22 @@ mod tests {
             Context::CatchArmThroughInline,
         ] {
             for (owner, position) in [
-                (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Header),
-                (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Trailing),
-                (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Header),
-                (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Trailing),
+                (
+                    DerivesAttachmentOwner::Struct,
+                    DerivesAttachmentPosition::Header,
+                ),
+                (
+                    DerivesAttachmentOwner::Struct,
+                    DerivesAttachmentPosition::Trailing,
+                ),
+                (
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                ),
+                (
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Trailing,
+                ),
             ] {
                 let spec = DerivesDriverSpec::new(owner, position, 0);
                 for (source, expected_end) in [
@@ -26340,9 +28018,16 @@ mod tests {
                 ] {
                     let ast = parse_ast(source, spec, context);
                     let direct = parse_direct(source, spec, context);
-                    assert_eq!(ast, direct, "AST/direct parity: {owner:?}/{position:?}/{context:?}");
+                    assert_eq!(
+                        ast, direct,
+                        "AST/direct parity: {owner:?}/{position:?}/{context:?}"
+                    );
                     assert_eq!(ast.0, 0..expected_end, "RoleReference range: {source:?}");
-                    assert_eq!(ast.1, &source[expected_end..], "caller-owned newline: {source:?}");
+                    assert_eq!(
+                        ast.1,
+                        &source[expected_end..],
+                        "caller-owned newline: {source:?}"
+                    );
                 }
             }
         }
@@ -26370,9 +28055,7 @@ mod tests {
                 .collect()
         }
 
-        fn parse_public_and_direct(
-            source: &str,
-        ) -> (SyntaxNode, DirectRootCandidateOutput) {
+        fn parse_public_and_direct(source: &str) -> (SyntaxNode, DirectRootCandidateOutput) {
             let source_text: Arc<crate::SourceText> = Arc::from(source);
             let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
             let parsed = crate::parse_file(
@@ -26381,14 +28064,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 recovery_nodes(&public),
                 recovery_nodes(&direct_root),
@@ -26472,7 +28160,11 @@ mod tests {
                 DerivesAttachmentPosition::Trailing,
             ),
         ] {
-            assert_eq!(parse_root_ast(source), (owner, vec![position]), "{source:?}");
+            assert_eq!(
+                parse_root_ast(source),
+                (owner, vec![position]),
+                "{source:?}"
+            );
             let (root, direct) = parse_public_and_direct(source);
             assert!(
                 direct.committed_recoveries().is_empty(),
@@ -26519,13 +28211,20 @@ mod tests {
                 16..16,
             ),
         ] {
-            assert_eq!(parse_root_ast(source), (owner, vec![position]), "{source:?}");
+            assert_eq!(
+                parse_root_ast(source),
+                (owner, vec![position]),
+                "{source:?}"
+            );
             let (root, direct) = parse_public_and_direct(source);
             assert_eq!(node_ranges(&root, SyntaxKind::DerivesClause).len(), 1);
             let [record] = direct.committed_recoveries() else {
                 panic!("one recovery record expected: {source:?}");
             };
-            assert_eq!((record.kind, record.site.role, record.site.range.clone()), (kind, role, range));
+            assert_eq!(
+                (record.kind, record.site.role, record.site.range.clone()),
+                (kind, role, range)
+            );
         }
 
         // Both real nested block drivers reach every owner/position. Struct
@@ -26600,7 +28299,11 @@ mod tests {
                 vec![declaration_start..boundary],
                 "caller-owned nested boundary: {owner:?}: {source:?}",
             );
-            assert_eq!(node_ranges(&root, SyntaxKind::DerivesClause).len(), 1, "{source:?}");
+            assert_eq!(
+                node_ranges(&root, SyntaxKind::DerivesClause).len(),
+                1,
+                "{source:?}"
+            );
             assert!(recovery_nodes(&root).is_empty(), "{source:?}");
         }
 
@@ -26657,14 +28360,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 recovery_nodes(&public),
                 recovery_nodes(&direct_root),
@@ -26680,7 +28388,12 @@ mod tests {
 
         fn parse_root_ast<'source>(
             source: &'source str,
-        ) -> (Owner, Vec<DerivesAttachmentPosition>, Vec<Range<usize>>, Range<usize>) {
+        ) -> (
+            Owner,
+            Vec<DerivesAttachmentPosition>,
+            Vec<Range<usize>>,
+            Range<usize>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -26758,7 +28471,11 @@ mod tests {
         ] {
             let (owner, positions, ast_clause_keywords, ast_range) = parse_root_ast(source);
             assert_eq!(owner, expected_owner, "AST owner: {source:?}");
-            assert_eq!(positions, vec![expected_position], "AST position: {source:?}");
+            assert_eq!(
+                positions,
+                vec![expected_position],
+                "AST position: {source:?}"
+            );
             let (public, direct_root, direct) = parse_public_and_direct(source);
             assert!(direct.committed_recoveries().is_empty(), "{source:?}");
             assert_eq!(
@@ -26814,7 +28531,11 @@ mod tests {
         ] {
             let (owner, positions, ast_clause_keywords, _) = parse_root_ast(source);
             assert_eq!(owner, expected_owner, "AST owner: {source:?}");
-            assert_eq!(positions, vec![expected_position], "AST position: {source:?}");
+            assert_eq!(
+                positions,
+                vec![expected_position],
+                "AST position: {source:?}"
+            );
             let (public, direct_root, direct) = parse_public_and_direct(source);
             assert_eq!(
                 token_ranges(&public, SyntaxKind::DerivesKw),
@@ -26910,11 +28631,11 @@ mod tests {
             let mut companion = None;
             match owner {
                 Owner::None => {}
-                Owner::BracedStatementSequence => pushed_scopes.push(
-                    local.push_braced_ambient_owner_barrier(
+                Owner::BracedStatementSequence => {
+                    pushed_scopes.push(local.push_braced_ambient_owner_barrier(
                         BracedBarrierOrigin::BracedStatementBlockExpression,
-                    ),
-                ),
+                    ))
+                }
                 Owner::CatchArmThroughInline => {
                     pushed_scopes.push(local.push_braced_ambient_owner_barrier(
                         BracedBarrierOrigin::CatchBracedArmSequence,
@@ -26923,11 +28644,11 @@ mod tests {
                         InlineStatementOwnerKind::WithBodyTail,
                     ));
                 }
-                Owner::CatchWithoutInline => pushed_scopes.push(
-                    local.push_braced_ambient_owner_barrier(
+                Owner::CatchWithoutInline => {
+                    pushed_scopes.push(local.push_braced_ambient_owner_barrier(
                         BracedBarrierOrigin::CatchBracedArmSequence,
-                    ),
-                ),
+                    ))
+                }
                 Owner::AmbientIf => {
                     companion = Some(local.push_if_expression_companion(0, IF_WORDS));
                 }
@@ -26936,8 +28657,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let intro = i
                     .run(recognize_type_statement_intro)
                     .expect("the isolated form harness starts at Type");
@@ -26968,17 +28693,33 @@ mod tests {
 
                 assert_eq!(i.pos(), pos, "input position: {source:?}");
                 assert_eq!(i.local.line(), line, "line state: {source:?}");
-                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(
+                    i.local.indentation_baseline(),
+                    Some(baseline),
+                    "baseline: {source:?}"
+                );
                 assert_eq!(i.local.stop_set(), Some(stops), "stop set: {source:?}");
-                assert_eq!(i.local.delimiter(), Some(crate::session::Delimiter::Parenthesis));
-                assert_eq!(i.local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
-                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+                assert_eq!(
+                    i.local.delimiter(),
+                    Some(crate::session::Delimiter::Parenthesis)
+                );
+                assert_eq!(
+                    i.local.expression_delimited_owner(),
+                    Some(ExpressionDelimitedOwner::Call)
+                );
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call)
+                );
                 assert!(i.local.inline());
                 assert!(i.local.ml_arg());
                 assert!(i.local.type_ml_arg());
                 assert_eq!(i.local.if_expression_companion_depth(), companion_depth);
                 assert_eq!(
-                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     ambient,
                     "ambient stack: {source:?}",
                 );
@@ -26995,9 +28736,18 @@ mod tests {
             while let Some(scope) = pushed_scopes.pop() {
                 assert_eq!(local.pop_ambient_owner_scope(), Some(scope));
             }
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
-            assert_eq!(local.pop_delimiter(), Some(crate::session::Delimiter::Parenthesis));
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_delimiter(),
+                Some(crate::session::Delimiter::Parenthesis)
+            );
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
         }
@@ -27130,8 +28880,12 @@ mod tests {
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
         {
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let intro = i.run(recognize_type_statement_intro).unwrap();
             let pos = i.pos();
             let line = i.local.line();
@@ -27154,8 +28908,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_type_declaration(i).expect("the form-aware entry recognizes Type")
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
@@ -27204,7 +28962,6 @@ mod tests {
                 ..
             }) if format!("{rhs:?}").contains("leading_effect_row: Some")
         ));
-
     }
 
     #[test]
@@ -27215,8 +28972,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none());
@@ -27227,13 +28988,22 @@ mod tests {
         fn parse_direct_tree(
             source: &str,
             outer_semicolon: Option<Range<usize>>,
-        ) -> (Recovered<Range<usize>>, Vec<CommittedRecoveryRecord>, String, SyntaxNode) {
+        ) -> (
+            Recovered<Range<usize>>,
+            Vec<CommittedRecoveryRecord>,
+            String,
+            SyntaxNode,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe
                 .input()
@@ -27255,9 +29025,11 @@ mod tests {
         }
 
         let (ast, ast_remainder) = parse_ast("type Point");
-        let (direct_range, records, direct_remainder, root) =
-            parse_direct_tree("type Point", None);
-        assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        let (direct_range, records, direct_remainder, root) = parse_direct_tree("type Point", None);
+        assert!(matches!(
+            ast.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
         assert_eq!(ast.range, 0..10);
         assert_eq!(direct_range, Recovered::Complete(0..10));
         assert_eq!(ast_remainder, "");
@@ -27274,7 +29046,11 @@ mod tests {
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .map(|token| (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range())
+                ))
                 .collect::<Vec<_>>(),
             vec![
                 (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
@@ -27287,7 +29063,10 @@ mod tests {
         let (ast, ast_remainder) = parse_ast(source);
         let (direct_range, records, direct_remainder, root) =
             parse_direct_tree(source, Some(19..20));
-        assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        assert!(matches!(
+            ast.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
         assert_eq!(ast.range, 0..19);
         assert_eq!(direct_range, Recovered::Complete(0..19));
         assert_eq!(ast_remainder, ";");
@@ -27307,7 +29086,11 @@ mod tests {
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .map(|token| (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range())
+                ))
                 .collect::<Vec<_>>(),
             vec![
                 (SyntaxKind::PubKw, "pub".to_owned(), 0..3),
@@ -27336,8 +29119,12 @@ mod tests {
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
         let direct_range = {
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(HeaderOutput::new());
@@ -27345,7 +29132,10 @@ mod tests {
             assert!(committed.into_output().committed_recoveries().is_empty());
             range
         };
-        assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        assert!(matches!(
+            ast.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
         assert_eq!(ast.range, 0..10);
         assert_eq!(direct_range, Recovered::Complete(0..10));
         assert_eq!(ast_remainder, "\nour x = 1");
@@ -27362,8 +29152,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
@@ -27379,8 +29173,12 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(FullCstOutput::new(source));
@@ -27395,7 +29193,11 @@ mod tests {
             assert!(output.committed_recoveries().is_empty(), "{source:?}");
             assert!(expectations.take_merged().is_none(), "{source:?}");
             assert!(!is_cut, "{source:?}");
-            (range, remainder, SyntaxNode::new_root(output.finish_complete()))
+            (
+                range,
+                remainder,
+                SyntaxNode::new_root(output.finish_complete()),
+            )
         }
 
         for (source, expected_range, expected_remainder, semicolon) in [
@@ -27405,9 +29207,16 @@ mod tests {
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, root) = parse_direct(source, semicolon);
-            assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+            assert!(matches!(
+                ast.form,
+                Recovered::Complete(TypeDeclarationForm::Nominal)
+            ));
             assert_eq!(ast.range, expected_range, "{source:?}");
-            assert_eq!(direct_range, Recovered::Complete(expected_range), "{source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(expected_range),
+                "{source:?}"
+            );
             assert_eq!(ast_remainder, expected_remainder, "{source:?}");
             assert_eq!(direct_remainder, expected_remainder, "{source:?}");
             assert_eq!(root.to_string(), source, "{source:?}");
@@ -27435,8 +29244,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
@@ -27446,13 +29259,21 @@ mod tests {
 
         fn parse_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, Vec<(RecoveryKind, TypeDeclarationRole, Range<usize>)>, String) {
+        ) -> (
+            Recovered<Range<usize>>,
+            Vec<(RecoveryKind, TypeDeclarationRole, Range<usize>)>,
+            String,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(HeaderOutput::new());
@@ -27463,8 +29284,12 @@ mod tests {
                 .committed_recoveries()
                 .iter()
                 .map(|record| {
-                    let GrammarRole::Declaration(DeclarationRole::Type(role)) = record.site.role else {
-                        panic!("unexpected recovery role for {source:?}: {:?}", record.site.role);
+                    let GrammarRole::Declaration(DeclarationRole::Type(role)) = record.site.role
+                    else {
+                        panic!(
+                            "unexpected recovery role for {source:?}: {:?}",
+                            record.site.role
+                        );
                     };
                     (record.kind, role, record.site.range.clone())
                 })
@@ -27485,28 +29310,44 @@ mod tests {
                 ExpectedForm::Equality,
                 0..12,
                 "",
-                vec![(RecoveryKind::Missing, TypeDeclarationRole::DefinitionIntroducer, 8..8)],
+                vec![(
+                    RecoveryKind::Missing,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    8..8,
+                )],
             ),
             (
                 "type Id @= Int",
                 ExpectedForm::Equality,
                 0..14,
                 "",
-                vec![(RecoveryKind::Error, TypeDeclarationRole::DefinitionIntroducer, 8..9)],
+                vec![(
+                    RecoveryKind::Error,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    8..9,
+                )],
             ),
             (
                 "type Id @('a)",
                 ExpectedForm::Equality,
                 0..13,
                 "",
-                vec![(RecoveryKind::Error, TypeDeclarationRole::DefinitionIntroducer, 8..9)],
+                vec![(
+                    RecoveryKind::Error,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    8..9,
+                )],
             ),
             (
                 "type Id @",
                 ExpectedForm::Incomplete,
                 0..9,
                 "",
-                vec![(RecoveryKind::Error, TypeDeclarationRole::DefinitionIntroducer, 8..9)],
+                vec![(
+                    RecoveryKind::Error,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    8..9,
+                )],
             ),
             (
                 "type",
@@ -27565,14 +29406,29 @@ mod tests {
                 }
             }
             assert_eq!(ast.range, expected_range, "AST range: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(expected_range), "direct range: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_records, expected_records, "direct recoveries: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(expected_range),
+                "direct range: {source:?}"
+            );
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_records, expected_records,
+                "direct recoveries: {source:?}"
+            );
             assert!(
-                direct_records
+                direct_records.iter().all(|record| direct_records
                     .iter()
-                    .all(|record| direct_records.iter().filter(|other| other == &record).count() == 1),
+                    .filter(|other| other == &record)
+                    .count()
+                    == 1),
                 "each TND-R slot failure is exactly one node/record: {source:?}"
             );
         }
@@ -27613,15 +29469,22 @@ mod tests {
             }
         }
 
-        fn parse_ast<'source>(source: &'source str, boundary: Boundary) -> (TypeDeclaration<'source>, String) {
+        fn parse_ast<'source>(
+            source: &'source str,
+            boundary: Boundary,
+        ) -> (TypeDeclaration<'source>, String) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install(&mut local, boundary);
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
@@ -27629,14 +29492,25 @@ mod tests {
             (declaration, source_input.remainder().to_owned())
         }
 
-        fn parse_direct(source: &str, boundary: Boundary) -> (Recovered<Range<usize>>, Vec<CommittedRecoveryRecord>, String) {
+        fn parse_direct(
+            source: &str,
+            boundary: Boundary,
+        ) -> (
+            Recovered<Range<usize>>,
+            Vec<CommittedRecoveryRecord>,
+            String,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install(&mut local, boundary);
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(HeaderOutput::new());
@@ -27661,16 +29535,35 @@ mod tests {
                 "\n  B -> fallback",
             ),
             ("type Point else: 0", Boundary::AmbientIf, " else: 0"),
-            ("type Point, tail", Boundary::Stop(StopKind::Comma), ", tail"),
-            ("type Point) tail", Boundary::Stop(StopKind::RightParenthesis), ") tail"),
-            ("type Point] tail", Boundary::Stop(StopKind::RightBracket), "] tail"),
-            ("type Point} tail", Boundary::Stop(StopKind::RightBrace), "} tail"),
+            (
+                "type Point, tail",
+                Boundary::Stop(StopKind::Comma),
+                ", tail",
+            ),
+            (
+                "type Point) tail",
+                Boundary::Stop(StopKind::RightParenthesis),
+                ") tail",
+            ),
+            (
+                "type Point] tail",
+                Boundary::Stop(StopKind::RightBracket),
+                "] tail",
+            ),
+            (
+                "type Point} tail",
+                Boundary::Stop(StopKind::RightBrace),
+                "} tail",
+            ),
         ];
 
         for (source, boundary, expected_remainder) in cases {
             let (ast, ast_remainder) = parse_ast(source, boundary);
             let (direct_range, records, direct_remainder) = parse_direct(source, boundary);
-            assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+            assert!(matches!(
+                ast.form,
+                Recovered::Complete(TypeDeclarationForm::Nominal)
+            ));
             assert_eq!(ast.range, 0..10, "{source:?}");
             assert_eq!(direct_range, Recovered::Complete(0..10), "{source:?}");
             assert_eq!(ast_remainder, expected_remainder, "{source:?}");
@@ -27729,7 +29622,9 @@ mod tests {
         }
 
         fn type_base(context: Context) -> usize {
-            matches!(context, Context::Indented | Context::NestedIf).then_some(2).unwrap_or(0)
+            matches!(context, Context::Indented | Context::NestedIf)
+                .then_some(2)
+                .unwrap_or(0)
         }
 
         fn install_context(local: &mut ParseLocal, context: Context, stop: StopKind) {
@@ -27812,7 +29707,9 @@ mod tests {
             UnexpectedEndOfInput: Into<E::Error>,
         {
             while i.pos() < prefix_len {
-                i.input.next().expect("the fixture prefix remains available");
+                i.input
+                    .next()
+                    .expect("the fixture prefix remains available");
             }
             i.local.set_line(LineState {
                 at_line_start: false,
@@ -27833,13 +29730,21 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 skip_same_line_prefix(prefix_len, &mut i);
                 let before_after_prefix = snapshot(i.local);
-                let declaration = parse_type_declaration(i)
-                    .expect("the fixture prefix is followed by Type");
-                assert_eq!(snapshot(&local), before_after_prefix, "AST state: {source:?}");
+                let declaration =
+                    parse_type_declaration(i).expect("the fixture prefix is followed by Type");
+                assert_eq!(
+                    snapshot(&local),
+                    before_after_prefix,
+                    "AST state: {source:?}"
+                );
                 declaration
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
@@ -27857,15 +29762,24 @@ mod tests {
             prefix_len: usize,
             context: Context,
             stop: StopKind,
-        ) -> (Recovered<Range<usize>>, Vec<CommittedRecoveryRecord>, String, State) {
+        ) -> (
+            Recovered<Range<usize>>,
+            Vec<CommittedRecoveryRecord>,
+            String,
+            State,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stop);
             let before = snapshot(&local);
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             skip_same_line_prefix(prefix_len, probe.input());
             let before_after_prefix = snapshot(probe.input().local);
@@ -27874,8 +29788,15 @@ mod tests {
             let range = commit_type_declaration(&mut committed, intro);
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let records = committed.into_output().committed_recoveries().to_vec();
-            assert_eq!(snapshot(&local), before_after_prefix, "direct state: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert_eq!(
+                snapshot(&local),
+                before_after_prefix,
+                "direct state: {source:?}"
+            );
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (range, records, remainder, before)
         }
@@ -27891,9 +29812,16 @@ mod tests {
             let (direct_range, records, direct_remainder, _) =
                 parse_direct(source, prefix_len, context, stop);
             let start = prefix_len;
-            assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+            assert!(matches!(
+                ast.form,
+                Recovered::Complete(TypeDeclarationForm::Nominal)
+            ));
             assert_eq!(ast.range, start..start + 10, "{source:?}");
-            assert_eq!(direct_range, Recovered::Complete(start..start + 10), "{source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(start..start + 10),
+                "{source:?}"
+            );
             assert_eq!(ast_remainder, expected_remainder, "{source:?}");
             assert_eq!(direct_remainder, expected_remainder, "{source:?}");
             assert!(records.is_empty(), "{source:?}");
@@ -27965,12 +29893,13 @@ mod tests {
             Recovered::Complete(TypeDeclarationForm::Equality { .. })
         ));
         assert_eq!(zero_inline_remainder, "");
-        let (zero_inline_direct, zero_inline_records, zero_inline_direct_remainder, _) = parse_direct(
-            "type Point\n  B",
-            0,
-            Context::CatchZeroInline,
-            StopKind::RightBracket,
-        );
+        let (zero_inline_direct, zero_inline_records, zero_inline_direct_remainder, _) =
+            parse_direct(
+                "type Point\n  B",
+                0,
+                Context::CatchZeroInline,
+                StopKind::RightBracket,
+            );
         assert_eq!(zero_inline_direct, Recovered::Complete(0..14));
         assert_eq!(zero_inline_direct_remainder, "");
         assert_eq!(zero_inline_records.len(), 1);
@@ -27983,18 +29912,10 @@ mod tests {
         );
         assert_eq!(zero_inline_records[0].site.range, 13..13);
 
-        let (deep_ast, deep_remainder, _) = parse_ast(
-            "type Point\n  T",
-            0,
-            Context::Root,
-            StopKind::RightBracket,
-        );
-        let (deep_direct, deep_records, deep_direct_remainder, _) = parse_direct(
-            "type Point\n  T",
-            0,
-            Context::Root,
-            StopKind::RightBracket,
-        );
+        let (deep_ast, deep_remainder, _) =
+            parse_ast("type Point\n  T", 0, Context::Root, StopKind::RightBracket);
+        let (deep_direct, deep_records, deep_direct_remainder, _) =
+            parse_direct("type Point\n  T", 0, Context::Root, StopKind::RightBracket);
         assert!(matches!(
             deep_ast.form,
             Recovered::Complete(TypeDeclarationForm::Equality {
@@ -28026,18 +29947,10 @@ mod tests {
         }
 
         for context in [Context::Root, Context::Braced] {
-            let (ast, ast_remainder, _) = parse_ast(
-                "type Id =\n   Int",
-                0,
-                context,
-                StopKind::RightBracket,
-            );
-            let (direct_range, records, direct_remainder, _) = parse_direct(
-                "type Id =\n   Int",
-                0,
-                context,
-                StopKind::RightBracket,
-            );
+            let (ast, ast_remainder, _) =
+                parse_ast("type Id =\n   Int", 0, context, StopKind::RightBracket);
+            let (direct_range, records, direct_remainder, _) =
+                parse_direct("type Id =\n   Int", 0, context, StopKind::RightBracket);
             assert!(matches!(
                 ast.form,
                 Recovered::Complete(TypeDeclarationForm::Equality {
@@ -28052,37 +29965,24 @@ mod tests {
             assert!(records.is_empty());
         }
 
-        let (trailing_ast, trailing_remainder, _) = parse_ast(
-            "type Point\n    ",
-            0,
-            Context::Root,
-            StopKind::RightBracket,
-        );
-        assert!(matches!(trailing_ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        let (trailing_ast, trailing_remainder, _) =
+            parse_ast("type Point\n    ", 0, Context::Root, StopKind::RightBracket);
+        assert!(matches!(
+            trailing_ast.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
         assert_eq!(trailing_ast.range, 0..15);
         assert_eq!(trailing_remainder, "");
-        let (trailing_direct, trailing_records, trailing_direct_remainder, _) = parse_direct(
-            "type Point\n    ",
-            0,
-            Context::Root,
-            StopKind::RightBracket,
-        );
+        let (trailing_direct, trailing_records, trailing_direct_remainder, _) =
+            parse_direct("type Point\n    ", 0, Context::Root, StopKind::RightBracket);
         assert_eq!(trailing_direct, Recovered::Complete(0..15));
         assert_eq!(trailing_direct_remainder, "");
         assert!(trailing_records.is_empty());
 
-        let (recovery_ast, recovery_remainder, _) = parse_ast(
-            "type Id @",
-            0,
-            Context::NestedIf,
-            StopKind::RightBracket,
-        );
-        let (recovery_direct, recovery_records, recovery_direct_remainder, _) = parse_direct(
-            "type Id @",
-            0,
-            Context::NestedIf,
-            StopKind::RightBracket,
-        );
+        let (recovery_ast, recovery_remainder, _) =
+            parse_ast("type Id @", 0, Context::NestedIf, StopKind::RightBracket);
+        let (recovery_direct, recovery_records, recovery_direct_remainder, _) =
+            parse_direct("type Id @", 0, Context::NestedIf, StopKind::RightBracket);
         assert!(matches!(recovery_ast.form, Recovered::Incomplete));
         assert_eq!(recovery_ast.range, 0..9);
         assert_eq!(recovery_remainder, "");
@@ -28111,16 +30011,27 @@ mod tests {
             let before = snapshot(&local);
             let before_line = local.line();
             {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let _ = parse_type_declaration(i).unwrap();
             }
             source_input.rollback(input_checkpoint);
             local.rollback(local_checkpoint);
-            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "rollback input: {source:?}"
+            );
             assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
             assert_eq!(local.line(), before_line, "rollback line state: {source:?}");
-            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "rollback sink: {source:?}"
+            );
             assert!(!is_cut, "rollback cut: {source:?}");
         }
     }
@@ -28135,8 +30046,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let parameters = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 assert!(matches!(i.run(scan_word), Some(word) if word.text() == "type"));
                 assert!(i.run(scan_trivia).is_some());
                 assert!(matches!(i.run(scan_word), Some(word) if word.text() == "Name"));
@@ -28396,18 +30311,33 @@ mod tests {
             ),
         ];
 
-        for (source, expected_name, parameter_count, expected_equals, rhs_retry, remainder, expected_records) in cases {
+        for (
+            source,
+            expected_name,
+            parameter_count,
+            expected_equals,
+            rhs_retry,
+            remainder,
+            expected_records,
+        ) in cases
+        {
             let (ast, ast_recoveries, ast_remainder) = parse_ast(source);
             let (direct, output, direct_remainder) = parse_direct(source);
 
-            assert_eq!(ast, direct, "AST/direct header slots diverged for {source:?}");
+            assert_eq!(
+                ast, direct,
+                "AST/direct header slots diverged for {source:?}"
+            );
             match (&ast.name, expected_name) {
                 (Recovered::Incomplete, None) => {}
                 (Recovered::Complete(actual), Some((text, range))) => {
                     assert_eq!(actual.text(), text, "{source:?}");
                     assert_eq!(actual.range(), range, "{source:?}");
                 }
-                _ => panic!("unexpected declaration name recovery for {source:?}: {:?}", ast.name),
+                _ => panic!(
+                    "unexpected declaration name recovery for {source:?}: {:?}",
+                    ast.name
+                ),
             }
             assert_eq!(ast.parameters.len(), parameter_count, "{source:?}");
             assert_eq!(ast.equals, expected_equals, "{source:?}");
@@ -28419,8 +30349,12 @@ mod tests {
                 .committed_recoveries()
                 .iter()
                 .map(|record| {
-                    let GrammarRole::Declaration(DeclarationRole::Type(role)) = record.site.role else {
-                        panic!("unexpected recovery role for {source:?}: {:?}", record.site.role);
+                    let GrammarRole::Declaration(DeclarationRole::Type(role)) = record.site.role
+                    else {
+                        panic!(
+                            "unexpected recovery role for {source:?}: {:?}",
+                            record.site.role
+                        );
                     };
                     (record.kind, role, record.site.range.clone())
                 })
@@ -28434,7 +30368,10 @@ mod tests {
                         assert_eq!(actual, role, "{source:?}");
                         assert_eq!((*at)..(*at), range.clone(), "{source:?}");
                     }
-                    TypeDeclarationHeaderRecovery::Error { role: actual, range: actual_range } => {
+                    TypeDeclarationHeaderRecovery::Error {
+                        role: actual,
+                        range: actual_range,
+                    } => {
                         assert_eq!(*kind, RecoveryKind::Error, "{source:?}");
                         assert_eq!(actual, role, "{source:?}");
                         assert_eq!(actual_range, range, "{source:?}");
@@ -28505,7 +30442,9 @@ mod tests {
             }]
         );
         assert_eq!(
-            ast_local.pop_if_expression_companion().map(|frame| frame.id()),
+            ast_local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
             Some(companion)
         );
         assert_eq!(ast_local.pop_ambient_owner_scope(), Some(root_scope));
@@ -28547,7 +30486,9 @@ mod tests {
         );
         assert_eq!(record.site.range, 7..7);
         assert_eq!(
-            direct_local.pop_if_expression_companion().map(|frame| frame.id()),
+            direct_local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
             Some(companion)
         );
         assert_eq!(direct_local.pop_ambient_owner_scope(), Some(root_scope));
@@ -28589,7 +30530,11 @@ mod tests {
                 let (header, _) = parse_type_declaration_header_slots(&intro, &mut i);
                 parse_type_declaration_rhs(&header, intro.type_base, &mut i)
             };
-            assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+            assert_eq!(
+                local.indentation_baseline(),
+                Some(outer_baseline),
+                "{source:?}"
+            );
             assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
             if let Some(companion) = companion {
                 assert_eq!(
@@ -28599,7 +30544,11 @@ mod tests {
                 );
             }
             if let Some(ambient_scope) = ambient_scope {
-                assert_eq!(local.pop_ambient_owner_scope(), Some(ambient_scope), "{source:?}");
+                assert_eq!(
+                    local.pop_ambient_owner_scope(),
+                    Some(ambient_scope),
+                    "{source:?}"
+                );
             }
             assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
             assert_eq!(
@@ -28641,7 +30590,11 @@ mod tests {
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
 
-            assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+            assert_eq!(
+                local.indentation_baseline(),
+                Some(outer_baseline),
+                "{source:?}"
+            );
             assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
             if let Some(companion) = companion {
                 assert_eq!(
@@ -28651,7 +30604,11 @@ mod tests {
                 );
             }
             if let Some(ambient_scope) = ambient_scope {
-                assert_eq!(local.pop_ambient_owner_scope(), Some(ambient_scope), "{source:?}");
+                assert_eq!(
+                    local.pop_ambient_owner_scope(),
+                    Some(ambient_scope),
+                    "{source:?}"
+                );
             }
             assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
             assert_eq!(
@@ -28670,9 +30627,7 @@ mod tests {
                 "",
                 vec![(
                     RecoveryKind::Missing,
-                    GrammarRole::Declaration(DeclarationRole::Type(
-                        TypeDeclarationRole::Name,
-                    )),
+                    GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Name)),
                     4..4,
                 )],
             ),
@@ -28683,9 +30638,7 @@ mod tests {
                 "",
                 vec![(
                     RecoveryKind::Missing,
-                    GrammarRole::Declaration(DeclarationRole::Type(
-                        TypeDeclarationRole::Name,
-                    )),
+                    GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Name)),
                     5..5,
                 )],
             ),
@@ -28709,22 +30662,14 @@ mod tests {
                 false,
                 None,
                 "",
-                vec![(
-                    RecoveryKind::Missing,
-                    type_declaration_rhs_role(),
-                    9..9,
-                )],
+                vec![(RecoveryKind::Missing, type_declaration_rhs_role(), 9..9)],
             ),
             (
                 "type Id =;",
                 false,
                 None,
                 ";",
-                vec![(
-                    RecoveryKind::Missing,
-                    type_declaration_rhs_role(),
-                    9..9,
-                )],
+                vec![(RecoveryKind::Missing, type_declaration_rhs_role(), 9..9)],
             ),
             (
                 "type Id = @Int",
@@ -28753,22 +30698,14 @@ mod tests {
                 true,
                 None,
                 " else: 0",
-                vec![(
-                    RecoveryKind::Missing,
-                    type_declaration_rhs_role(),
-                    9..9,
-                )],
+                vec![(RecoveryKind::Missing, type_declaration_rhs_role(), 9..9)],
             ),
             (
                 "type Id = with tail",
                 false,
                 None,
                 "with tail",
-                vec![(
-                    RecoveryKind::Missing,
-                    type_declaration_rhs_role(),
-                    10..10,
-                )],
+                vec![(RecoveryKind::Missing, type_declaration_rhs_role(), 10..10)],
             ),
             ("type Id =\n  [e] T", false, Some(12..17), "", vec![]),
             (
@@ -28776,17 +30713,12 @@ mod tests {
                 false,
                 None,
                 "\nInt",
-                vec![(
-                    RecoveryKind::Missing,
-                    type_declaration_rhs_role(),
-                    9..9,
-                )],
+                vec![(RecoveryKind::Missing, type_declaration_rhs_role(), 9..9)],
             ),
         ];
 
         for (source, ambient, expected_range, expected_remainder, expected_records) in cases {
-            let (ast_rhs, ast_remainder) =
-                parse_ast(source, ambient, outer_baseline, outer_stops);
+            let (ast_rhs, ast_remainder) = parse_ast(source, ambient, outer_baseline, outer_stops);
             let (direct_rhs, output, direct_remainder) =
                 parse_direct(source, ambient, outer_baseline, outer_stops);
             let ast_range = match &ast_rhs {
@@ -28892,12 +30824,18 @@ mod tests {
                 .run(recognize_type_statement_intro)
                 .expect("Type introduction is recognized in the boundary harness");
             let (header, _) = parse_type_declaration_header_slots(&intro, &mut i);
-            if let Some(innermost) = innermost && any_ambient_owner_claims(&mut i) {
+            if let Some(innermost) = innermost
+                && any_ambient_owner_claims(&mut i)
+            {
                 assert_eq!(if_continuation_owner(&mut i), Some(innermost), "{source:?}");
             }
             parse_type_declaration_rhs(&header, intro.type_base, &mut i)
         };
-        assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+        assert_eq!(
+            local.indentation_baseline(),
+            Some(outer_baseline),
+            "{source:?}"
+        );
         assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
         restore_type_declaration_rhs_boundary_owner(&mut local, scopes, companions);
         assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
@@ -28963,7 +30901,11 @@ mod tests {
             .map(|record| (record.kind, record.site.role, record.site.range.clone()))
             .collect();
 
-        assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+        assert_eq!(
+            local.indentation_baseline(),
+            Some(outer_baseline),
+            "{source:?}"
+        );
         assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
         restore_type_declaration_rhs_boundary_owner(&mut local, scopes, companions);
         assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
@@ -28998,14 +30940,18 @@ mod tests {
                 outer_stop,
                 TypeDeclarationRhsBoundaryOwner::None,
             );
-            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
-                source,
-                0,
-                outer_stop,
-                TypeDeclarationRhsBoundaryOwner::None,
-            );
+            let (direct_rhs, records, direct_remainder) =
+                parse_type_declaration_rhs_boundary_direct(
+                    source,
+                    0,
+                    outer_stop,
+                    TypeDeclarationRhsBoundaryOwner::None,
+                );
             assert!(matches!(ast_rhs, Recovered::Incomplete), "AST {source:?}");
-            assert!(matches!(direct_rhs, Recovered::Incomplete), "direct {source:?}");
+            assert!(
+                matches!(direct_rhs, Recovered::Incomplete),
+                "direct {source:?}"
+            );
             assert_eq!(ast_remainder, remainder, "AST {source:?}");
             assert_eq!(direct_remainder, remainder, "direct {source:?}");
             assert_eq!(records, missing_rhs(at), "direct {source:?}");
@@ -29020,14 +30966,18 @@ mod tests {
                 StopKind::RightBracket,
                 TypeDeclarationRhsBoundaryOwner::NestedIf,
             );
-            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
-                source,
-                0,
-                StopKind::RightBracket,
-                TypeDeclarationRhsBoundaryOwner::NestedIf,
-            );
+            let (direct_rhs, records, direct_remainder) =
+                parse_type_declaration_rhs_boundary_direct(
+                    source,
+                    0,
+                    StopKind::RightBracket,
+                    TypeDeclarationRhsBoundaryOwner::NestedIf,
+                );
             assert!(matches!(ast_rhs, Recovered::Incomplete), "AST {source:?}");
-            assert!(matches!(direct_rhs, Recovered::Incomplete), "direct {source:?}");
+            assert!(
+                matches!(direct_rhs, Recovered::Incomplete),
+                "direct {source:?}"
+            );
             assert_eq!(ast_remainder, &source[9..], "AST {source:?}");
             assert_eq!(direct_remainder, &source[9..], "direct {source:?}");
             assert_eq!(records, missing_rhs(9), "direct {source:?}");
@@ -29065,19 +31015,32 @@ mod tests {
                 StopKind::RightBracket,
                 TypeDeclarationRhsBoundaryOwner::None,
             );
-            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
-                source,
-                2,
-                StopKind::RightBracket,
-                TypeDeclarationRhsBoundaryOwner::None,
+            let (direct_rhs, records, direct_remainder) =
+                parse_type_declaration_rhs_boundary_direct(
+                    source,
+                    2,
+                    StopKind::RightBracket,
+                    TypeDeclarationRhsBoundaryOwner::None,
+                );
+            assert_eq!(
+                matches!(ast_rhs, Recovered::Complete(_)),
+                expected_complete,
+                "AST {source:?}"
             );
-            assert_eq!(matches!(ast_rhs, Recovered::Complete(_)), expected_complete, "AST {source:?}");
-            assert_eq!(matches!(direct_rhs, Recovered::Complete(_)), expected_complete, "direct {source:?}");
+            assert_eq!(
+                matches!(direct_rhs, Recovered::Complete(_)),
+                expected_complete,
+                "direct {source:?}"
+            );
             assert_eq!(ast_remainder, expected_remainder, "AST {source:?}");
             assert_eq!(direct_remainder, expected_remainder, "direct {source:?}");
             assert_eq!(
                 records,
-                if expected_complete { vec![] } else { missing_rhs(9) },
+                if expected_complete {
+                    vec![]
+                } else {
+                    missing_rhs(9)
+                },
                 "direct {source:?}"
             );
         }
@@ -29103,14 +31066,18 @@ mod tests {
                 StopKind::RightBracket,
                 TypeDeclarationRhsBoundaryOwner::NestedIf,
             );
-            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
-                source,
-                0,
-                StopKind::RightBracket,
-                TypeDeclarationRhsBoundaryOwner::NestedIf,
-            );
+            let (direct_rhs, records, direct_remainder) =
+                parse_type_declaration_rhs_boundary_direct(
+                    source,
+                    0,
+                    StopKind::RightBracket,
+                    TypeDeclarationRhsBoundaryOwner::NestedIf,
+                );
             assert!(matches!(ast_rhs, Recovered::Complete(_)), "AST {source:?}");
-            assert!(matches!(direct_rhs, Recovered::Complete(_)), "direct {source:?}");
+            assert!(
+                matches!(direct_rhs, Recovered::Complete(_)),
+                "direct {source:?}"
+            );
             assert_eq!(ast_remainder, "\nelse: 0", "AST {source:?}");
             assert_eq!(direct_remainder, "\nelse: 0", "direct {source:?}");
             assert!(
@@ -29119,9 +31086,11 @@ mod tests {
             );
             if source == "type Id = A::@\nelse: 0" {
                 assert!(
-                    records.iter().any(|(kind, role, range)| *kind == RecoveryKind::Error
-                        && *role == GrammarRole::Type(crate::session::TypeRole::PathSegment)
-                        && *range == (13..14)),
+                    records
+                        .iter()
+                        .any(|(kind, role, range)| *kind == RecoveryKind::Error
+                            && *role == GrammarRole::Type(crate::session::TypeRole::PathSegment)
+                            && *range == (13..14)),
                     "malformed tail must not consume the companion boundary: {records:#?}"
                 );
             }
@@ -29296,10 +31265,13 @@ mod tests {
 
         let pair = "type Pair 'left 'right = ('left, 'right)";
         let (ast_header, ast_recoveries, ast_rhs, ast_remainder) = parse_ast(pair);
-        let (direct_header, direct_rhs, direct_records, direct_remainder, root) = parse_direct(pair);
+        let (direct_header, direct_rhs, direct_records, direct_remainder, root) =
+            parse_direct(pair);
         assert_eq!(ast_header, direct_header);
         assert!(ast_recoveries.is_empty());
-        assert!(matches!(ast_header.name, Recovered::Complete(name) if name.text() == "Pair" && name.range() == (5..9)));
+        assert!(
+            matches!(ast_header.name, Recovered::Complete(name) if name.text() == "Pair" && name.range() == (5..9))
+        );
         assert!(matches!(ast_header.parameters.as_slice(), [
             DeclarationTypeParameter::SigilIdentifier(left),
             DeclarationTypeParameter::SigilIdentifier(right),
@@ -29328,7 +31300,11 @@ mod tests {
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .map(|token| (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range())
+                ))
                 .collect::<Vec<_>>(),
             vec![
                 (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
@@ -29352,10 +31328,13 @@ mod tests {
 
         let result = "type Result 'a = ;";
         let (ast_header, ast_recoveries, ast_rhs, ast_remainder) = parse_ast(result);
-        let (direct_header, direct_rhs, direct_records, direct_remainder, root) = parse_direct(result);
+        let (direct_header, direct_rhs, direct_records, direct_remainder, root) =
+            parse_direct(result);
         assert_eq!(ast_header, direct_header);
         assert!(ast_recoveries.is_empty());
-        assert!(matches!(ast_header.name, Recovered::Complete(name) if name.text() == "Result" && name.range() == (5..11)));
+        assert!(
+            matches!(ast_header.name, Recovered::Complete(name) if name.text() == "Result" && name.range() == (5..11))
+        );
         assert!(matches!(ast_header.parameters.as_slice(), [
             DeclarationTypeParameter::SigilIdentifier(parameter),
         ] if parameter.range() == (12..14)));
@@ -29364,9 +31343,10 @@ mod tests {
         assert_eq!(direct_rhs, Recovered::Incomplete);
         assert_eq!(ast_remainder, ";");
         assert_eq!(direct_remainder, ";");
-        assert_eq!(direct_records, vec![
-            (RecoveryKind::Missing, type_declaration_rhs_role(), 17..17),
-        ]);
+        assert_eq!(
+            direct_records,
+            vec![(RecoveryKind::Missing, type_declaration_rhs_role(), 17..17),]
+        );
         assert_eq!(root.to_string(), result);
         assert_eq!(
             root.descendants()
@@ -29383,7 +31363,11 @@ mod tests {
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .map(|token| (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range())
+                ))
                 .collect::<Vec<_>>(),
             vec![
                 (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
@@ -29413,7 +31397,11 @@ mod tests {
             (
                 "type =;",
                 vec![
-                    (RecoveryKind::Missing, GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Name)), 5..5),
+                    (
+                        RecoveryKind::Missing,
+                        GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Name)),
+                        5..5,
+                    ),
                     (RecoveryKind::Missing, type_declaration_rhs_role(), 6..6),
                 ],
                 ";",
@@ -29431,7 +31419,9 @@ mod tests {
                 "type Id @;",
                 vec![(
                     RecoveryKind::Error,
-                    GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::DefinitionIntroducer)),
+                    GrammarRole::Declaration(DeclarationRole::Type(
+                        TypeDeclarationRole::DefinitionIntroducer,
+                    )),
                     8..9,
                 )],
                 ";",
@@ -29443,9 +31433,15 @@ mod tests {
             assert_eq!(ast_header, direct_header, "header parity for {source:?}");
             assert_eq!(ast_remainder, expected_remainder, "AST {source:?}");
             assert_eq!(direct_remainder, expected_remainder, "direct {source:?}");
-            assert_eq!(direct_records, expected_records, "direct records for {source:?}");
+            assert_eq!(
+                direct_records, expected_records,
+                "direct records for {source:?}"
+            );
             assert!(matches!(ast_rhs, Recovered::Incomplete), "AST {source:?}");
-            assert!(matches!(direct_rhs, Recovered::Incomplete), "direct {source:?}");
+            assert!(
+                matches!(direct_rhs, Recovered::Incomplete),
+                "direct {source:?}"
+            );
             assert_eq!(
                 ast_recoveries.len(),
                 expected_records
@@ -29454,7 +31450,8 @@ mod tests {
                         matches!(
                             role,
                             GrammarRole::Declaration(DeclarationRole::Type(
-                                TypeDeclarationRole::Name | TypeDeclarationRole::DefinitionIntroducer
+                                TypeDeclarationRole::Name
+                                    | TypeDeclarationRole::DefinitionIntroducer
                             ))
                         )
                     })
@@ -29477,7 +31474,9 @@ mod tests {
             direct_records,
             vec![(
                 RecoveryKind::Missing,
-                GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::DefinitionIntroducer)),
+                GrammarRole::Declaration(DeclarationRole::Type(
+                    TypeDeclarationRole::DefinitionIntroducer
+                )),
                 11..11,
             )],
             "the missing '=' retries the RHS at the same parenthesized primary"
@@ -29530,7 +31529,9 @@ mod tests {
         assert_eq!(root_remainder, "");
         assert_eq!(nested_remainder, "");
         assert_eq!(root_declaration.range, 0..40);
-        assert!(matches!(root_declaration.name, Recovered::Complete(ref name) if name.range() == (5..9)));
+        assert!(
+            matches!(root_declaration.name, Recovered::Complete(ref name) if name.range() == (5..9))
+        );
         assert!(matches!(root_declaration.parameters.as_slice(), [
             DeclarationTypeParameter::SigilIdentifier(left),
             DeclarationTypeParameter::SigilIdentifier(right),
@@ -29543,11 +31544,8 @@ mod tests {
             }) if equals == &(23..24) && rhs.range() == (25..40)
         ));
 
-        let output = parse_direct_root_candidate(
-            source,
-            &crate::operator::OperatorTable::empty(),
-            &[],
-        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         assert!(output.committed_recoveries().is_empty());
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
@@ -29568,7 +31566,10 @@ mod tests {
         );
         assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
         assert!(parsed.diagnostics().is_empty());
-        assert_eq!(SyntaxNode::new_root(parsed.green().clone()).to_string(), source);
+        assert_eq!(
+            SyntaxNode::new_root(parsed.green().clone()).to_string(),
+            source
+        );
 
         // A real braced Statement sequence proves the direct nested consumer
         // wraps the same declaration node rather than falling back to an
@@ -29629,11 +31630,8 @@ mod tests {
         ));
         assert_eq!(i.input.remainder(), ";");
 
-        let output = parse_direct_root_candidate(
-            result,
-            &crate::operator::OperatorTable::empty(),
-            &[],
-        );
+        let output =
+            parse_direct_root_candidate(result, &crate::operator::OperatorTable::empty(), &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), result);
         assert_eq!(
@@ -29658,11 +31656,8 @@ mod tests {
         assert_eq!(record.site.range, 17..17);
 
         let interleaved = "my type Pair = Int;\nmy value = 1";
-        let output = parse_direct_root_candidate(
-            interleaved,
-            &crate::operator::OperatorTable::empty(),
-            &[],
-        );
+        let output =
+            parse_direct_root_candidate(interleaved, &crate::operator::OperatorTable::empty(), &[]);
         assert!(output.committed_recoveries().is_empty());
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), interleaved);
@@ -29818,16 +31813,14 @@ mod tests {
         };
         let assert_public_direct_lossless = |source: &str| {
             let public = parse_public(source);
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
             assert_eq!(public.to_string(), source, "public parser: {source:?}");
             assert_eq!(direct_root.to_string(), source, "direct parser: {source:?}");
             assert_eq!(
-                public.descendants()
+                public
+                    .descendants()
                     .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
                     .map(|node| (node.kind(), syntax_range(node.text_range())))
                     .collect::<Vec<_>>(),
@@ -29857,10 +31850,7 @@ mod tests {
             "{:?}",
             direct.committed_recoveries()
         );
-        assert_eq!(
-            declaration_ranges(&root),
-            vec![0..10, 11..30, 32..48],
-        );
+        assert_eq!(declaration_ranges(&root), vec![0..10, 11..30, 32..48],);
         assert_eq!(
             root.children()
                 .filter(|node| {
@@ -29896,9 +31886,11 @@ mod tests {
                 vec![type_start..type_start + "type Point".len()],
                 "{source:?}"
             );
-            assert!(root.descendants().all(|node| {
-                !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)
-            }));
+            assert!(
+                root.descendants().all(|node| {
+                    !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)
+                })
+            );
         }
 
         // Braced sequences supply the active comma and RightBrace statement boundaries.
@@ -29990,11 +31982,8 @@ mod tests {
                 "incomplete" => assert!(matches!(declaration.form, Recovered::Incomplete)),
                 _ => unreachable!(),
             }
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
             assert_eq!(
                 declaration_ranges(&direct_root),
@@ -30107,7 +32096,10 @@ mod tests {
         let source = "type Point";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
-        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..source.len());
+        assert_eq!(
+            syntax_range(type_declaration(&root).text_range()),
+            0..source.len()
+        );
         assert!(ranges(&root, SyntaxKind::Missing).is_empty());
         assert!(ranges(&root, SyntaxKind::Error).is_empty());
         assert!(!has(&root, SyntaxKind::TypeExpression));
@@ -30138,7 +32130,10 @@ mod tests {
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
         assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..25);
-        assert_eq!(ranges(&root, SyntaxKind::TypeExpression), vec![12..25, 17..21, 22..25]);
+        assert_eq!(
+            ranges(&root, SyntaxKind::TypeExpression),
+            vec![12..25, 17..21, 22..25]
+        );
         assert_eq!(ranges(&root, SyntaxKind::Error), vec![25..26]);
         assert!(!has(&root, SyntaxKind::BindingStatement));
 
@@ -30158,7 +32153,10 @@ mod tests {
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
         assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..11);
-        assert_eq!(ranges(&root, SyntaxKind::Error), vec![10..11, 14..source.len()]);
+        assert_eq!(
+            ranges(&root, SyntaxKind::Error),
+            vec![10..11, 14..source.len()]
+        );
         assert!(!has(&root, SyntaxKind::BindingStatement));
 
         // Brace bodies intentionally retain full-TypeExpression precedence: this is the
@@ -30177,7 +32175,10 @@ mod tests {
         let source = "type point = int derives Eq";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
-        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..source.len());
+        assert_eq!(
+            syntax_range(type_declaration(&root).text_range()),
+            0..source.len()
+        );
         assert_eq!(ranges(&root, SyntaxKind::DerivesClause), vec![16..27]);
         assert!(ranges(&root, SyntaxKind::TypeApplyArgument).is_empty());
         assert!(ranges(&root, SyntaxKind::Missing).is_empty());
@@ -30188,8 +32189,14 @@ mod tests {
         let source = "impl Pick Int:\n  type Item = Int";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
-        assert_eq!(ranges(&root, SyntaxKind::ImplDeclaration), vec![0..source.len()]);
-        assert_eq!(ranges(&root, SyntaxKind::TypeDeclaration), vec![17..source.len()]);
+        assert_eq!(
+            ranges(&root, SyntaxKind::ImplDeclaration),
+            vec![0..source.len()]
+        );
+        assert_eq!(
+            ranges(&root, SyntaxKind::TypeDeclaration),
+            vec![17..source.len()]
+        );
         assert!(ranges(&root, SyntaxKind::Missing).is_empty());
         assert!(ranges(&root, SyntaxKind::Error).is_empty());
 
@@ -30198,8 +32205,14 @@ mod tests {
         let source = "// doc\ntype Alias = Int";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
-        assert_eq!(syntax_range(type_declaration(&root).text_range()), 7..source.len());
-        assert_eq!(ranges(&root, SyntaxKind::TypeExpression), vec![20..source.len()]);
+        assert_eq!(
+            syntax_range(type_declaration(&root).text_range()),
+            7..source.len()
+        );
+        assert_eq!(
+            ranges(&root, SyntaxKind::TypeExpression),
+            vec![20..source.len()]
+        );
     }
 
     #[test]
@@ -30210,8 +32223,12 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             matches!(
                 i.run(recognize_statement_intro),
                 Some(StatementIntro::Struct(_))
@@ -30222,20 +32239,25 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
-            matches!(
-                i.run(parse_declaration),
-                Some(Declaration::Struct(_))
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
             )
+            .set_local(&mut local);
+            matches!(i.run(parse_declaration), Some(Declaration::Struct(_)))
         };
         let parses_nested_struct = |source: &str| {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             matches!(
                 i.run(from_fn(|i| parse_canonical_statement(&table, i))),
                 Some(Statement::Struct(_))
@@ -30300,13 +32322,15 @@ mod tests {
                     && matches!(body.close, Recovered::Complete(ref close) if *close == (10..11))
         ));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
-        assert!(root
-            .descendants_with_tokens()
-            .filter_map(|element| element.into_token())
-            .any(|token| token.kind() == SyntaxKind::LBrace));
+        assert!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::LBrace)
+        );
         let [record] = output.committed_recoveries() else {
             panic!("the malformed name is the only Struct recovery");
         };
@@ -30318,7 +32342,8 @@ mod tests {
         assert_eq!(record.site.range, 7..9);
 
         let source = "struct S @";
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let [record] = output.committed_recoveries() else {
             panic!("malformed body introducer must not cascade to Missing");
         };
@@ -30340,12 +32365,19 @@ mod tests {
         ] {
             let (declaration, remainder) = parse_struct_for_test(source);
             assert_eq!(declaration.visibility, visibility, "{source:?}");
-            assert!(matches!(declaration.name, Recovered::Complete(ref name) if name.range() == name_range), "{source:?}");
-            assert!(matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon: ref range }) if *range == semicolon), "{source:?}");
+            assert!(
+                matches!(declaration.name, Recovered::Complete(ref name) if name.range() == name_range),
+                "{source:?}"
+            );
+            assert!(
+                matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon: ref range }) if *range == semicolon),
+                "{source:?}"
+            );
             assert_eq!(declaration.range, 0..semicolon.end, "{source:?}");
             assert_eq!(remainder, "", "{source:?}");
 
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(root.to_string(), source, "{source:?}");
             assert_eq!(output.committed_recoveries().len(), 0, "{source:?}");
@@ -30360,23 +32392,33 @@ mod tests {
         let tokens: Vec<_> = root
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
-            .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+            .map(|token| {
+                (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range()),
+                )
+            })
             .collect();
-        assert_eq!(tokens, vec![
-            (SyntaxKind::PubKw, "pub".to_owned(), 0..3),
-            (SyntaxKind::Whitespace, " ".to_owned(), 3..4),
-            (SyntaxKind::StructKw, "struct".to_owned(), 4..10),
-            (SyntaxKind::Whitespace, " ".to_owned(), 10..11),
-            (SyntaxKind::Identifier, "Marker".to_owned(), 11..17),
-            (SyntaxKind::Semicolon, ";".to_owned(), 17..18),
-        ]);
+        assert_eq!(
+            tokens,
+            vec![
+                (SyntaxKind::PubKw, "pub".to_owned(), 0..3),
+                (SyntaxKind::Whitespace, " ".to_owned(), 3..4),
+                (SyntaxKind::StructKw, "struct".to_owned(), 4..10),
+                (SyntaxKind::Whitespace, " ".to_owned(), 10..11),
+                (SyntaxKind::Identifier, "Marker".to_owned(), 11..17),
+                (SyntaxKind::Semicolon, ";".to_owned(), 17..18),
+            ]
+        );
 
         for (source, role, range) in [
             ("struct", crate::session::StructRole::Name, 6..6),
             ("struct;", crate::session::StructRole::Name, 6..6),
             ("struct S", crate::session::StructRole::BodyIntroducer, 8..8),
         ] {
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let [record] = output.committed_recoveries() else {
                 panic!("one typed recovery expected for {source:?}");
             };
@@ -30391,12 +32433,18 @@ mod tests {
 
         let (declaration, remainder) = parse_struct_for_test("struct;");
         assert!(matches!(declaration.name, Recovered::Incomplete));
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon }) if semicolon == (6..7)));
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon }) if semicolon == (6..7))
+        );
         assert_eq!(remainder, "");
 
         let (declaration, remainder) = parse_struct_for_test("struct @ S;");
-        assert!(matches!(declaration.name, Recovered::Complete(ref name) if name.range() == (9..10)));
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon }) if semicolon == (10..11)));
+        assert!(
+            matches!(declaration.name, Recovered::Complete(ref name) if name.range() == (9..10))
+        );
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon }) if semicolon == (10..11))
+        );
         assert_eq!(remainder, "");
         let output = parse_direct_root_candidate(
             "struct @ S;",
@@ -30460,68 +32508,100 @@ mod tests {
         assert_eq!(body.trailing_comma, None);
         assert!(matches!(body.close, Recovered::Complete(ref close) if *close == (35..36)));
         assert_eq!(body.fields.len(), 2);
-        assert!(matches!(body.fields[0], Recovered::Complete(ref field) if field.range == (15..21)
+        assert!(
+            matches!(body.fields[0], Recovered::Complete(ref field) if field.range == (15..21)
             && matches!(field.name, Recovered::Complete(ref name) if name.range() == (15..16))
-            && matches!(field.colon, Recovered::Complete(ref colon) if *colon == (16..17))));
-        assert!(matches!(body.fields[1], Recovered::Complete(ref field) if field.range == (23..34)
+            && matches!(field.colon, Recovered::Complete(ref colon) if *colon == (16..17)))
+        );
+        assert!(
+            matches!(body.fields[1], Recovered::Complete(ref field) if field.range == (23..34)
             && matches!(field.name, Recovered::Complete(ref name) if name.range() == (23..24))
-            && matches!(field.colon, Recovered::Complete(ref colon) if *colon == (24..25))));
+            && matches!(field.colon, Recovered::Complete(ref colon) if *colon == (24..25)))
+        );
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
         assert_eq!(output.committed_recoveries().len(), 0);
         let tokens: Vec<_> = root
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
-            .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+            .map(|token| {
+                (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range()),
+                )
+            })
             .collect();
-        assert_eq!(tokens, vec![
-            (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
-            (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
-            (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
-            (SyntaxKind::Whitespace, " ".to_owned(), 12..13),
-            (SyntaxKind::LBrace, "{".to_owned(), 13..14),
-            (SyntaxKind::Whitespace, " ".to_owned(), 14..15),
-            (SyntaxKind::Identifier, "x".to_owned(), 15..16),
-            (SyntaxKind::Colon, ":".to_owned(), 16..17),
-            (SyntaxKind::Whitespace, " ".to_owned(), 17..18),
-            (SyntaxKind::Identifier, "Int".to_owned(), 18..21),
-            (SyntaxKind::Comma, ",".to_owned(), 21..22),
-            (SyntaxKind::Whitespace, " ".to_owned(), 22..23),
-            (SyntaxKind::Identifier, "y".to_owned(), 23..24),
-            (SyntaxKind::Colon, ":".to_owned(), 24..25),
-            (SyntaxKind::Whitespace, " ".to_owned(), 25..26),
-            (SyntaxKind::Identifier, "List".to_owned(), 26..30),
-            (SyntaxKind::Whitespace, " ".to_owned(), 30..31),
-            (SyntaxKind::Identifier, "Int".to_owned(), 31..34),
-            (SyntaxKind::Whitespace, " ".to_owned(), 34..35),
-            (SyntaxKind::RBrace, "}".to_owned(), 35..36),
-        ]);
         assert_eq!(
-            root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(),
+            tokens,
+            vec![
+                (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
+                (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
+                (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
+                (SyntaxKind::Whitespace, " ".to_owned(), 12..13),
+                (SyntaxKind::LBrace, "{".to_owned(), 13..14),
+                (SyntaxKind::Whitespace, " ".to_owned(), 14..15),
+                (SyntaxKind::Identifier, "x".to_owned(), 15..16),
+                (SyntaxKind::Colon, ":".to_owned(), 16..17),
+                (SyntaxKind::Whitespace, " ".to_owned(), 17..18),
+                (SyntaxKind::Identifier, "Int".to_owned(), 18..21),
+                (SyntaxKind::Comma, ",".to_owned(), 21..22),
+                (SyntaxKind::Whitespace, " ".to_owned(), 22..23),
+                (SyntaxKind::Identifier, "y".to_owned(), 23..24),
+                (SyntaxKind::Colon, ":".to_owned(), 24..25),
+                (SyntaxKind::Whitespace, " ".to_owned(), 25..26),
+                (SyntaxKind::Identifier, "List".to_owned(), 26..30),
+                (SyntaxKind::Whitespace, " ".to_owned(), 30..31),
+                (SyntaxKind::Identifier, "Int".to_owned(), 31..34),
+                (SyntaxKind::Whitespace, " ".to_owned(), 34..35),
+                (SyntaxKind::RBrace, "}".to_owned(), 35..36),
+            ]
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
             2,
         );
 
         for source in ["struct S {}", "struct S { x: Int, }"] {
             let (declaration, remainder) = parse_struct_for_test(source);
             assert_eq!(remainder, "", "{source:?}");
-            assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
-                if matches!(body.close, Recovered::Complete(_))), "{source:?}");
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-            assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source, "{source:?}");
+            assert!(
+                matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+                if matches!(body.close, Recovered::Complete(_))),
+                "{source:?}"
+            );
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            assert_eq!(
+                SyntaxNode::new_root(output.green().clone()).to_string(),
+                source,
+                "{source:?}"
+            );
         }
 
         let source = "struct S { x Int, y: Bool }";
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
-        assert!(output.committed_recoveries().iter().any(|record|
-            record.kind == RecoveryKind::Missing
-                && record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
-                    crate::session::StructRole::FieldColon,
-                ))
-                && record.site.range == (13..13)
-        ));
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert_eq!(
+            SyntaxNode::new_root(output.green().clone()).to_string(),
+            source
+        );
+        assert!(
+            output
+                .committed_recoveries()
+                .iter()
+                .any(|record| record.kind == RecoveryKind::Missing
+                    && record.site.role
+                        == GrammarRole::Declaration(DeclarationRole::Struct(
+                            crate::session::StructRole::FieldColon,
+                        ))
+                    && record.site.range == (13..13))
+        );
 
         let separated = parse_struct_for_test("struct S { x: F y: Y }").0;
         let Recovered::Complete(StructBody::NamedBraced(separated)) = separated.body else {
@@ -30533,11 +32613,15 @@ mod tests {
             &crate::operator::OperatorTable::empty(),
             &[],
         );
-        assert!(output.committed_recoveries().iter().any(|record|
-            record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
-                crate::session::StructRole::FieldSeparator,
-            ))
-        ));
+        assert!(
+            output
+                .committed_recoveries()
+                .iter()
+                .any(|record| record.site.role
+                    == GrammarRole::Declaration(DeclarationRole::Struct(
+                        crate::session::StructRole::FieldSeparator,
+                    )))
+        );
 
         let applied = parse_struct_for_test("struct S { x: F Y }").0;
         let Recovered::Complete(StructBody::NamedBraced(applied)) = applied.body else {
@@ -30570,7 +32654,9 @@ mod tests {
         assert_eq!(records[0].kind, RecoveryKind::Error);
         assert_eq!(
             records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldName)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldName
+            )),
         );
         assert_eq!(records[0].site.range, 11..12);
 
@@ -30587,16 +32673,27 @@ mod tests {
             let [Recovered::Complete(field)] = body.fields.as_slice() else {
                 panic!("one recovered field expected for {source:?}");
             };
-            assert_eq!(matches!(field.colon, Recovered::Complete(_)), colon_complete, "{source:?}");
-            assert_eq!(matches!(field.type_expr, Recovered::Complete(_)), type_complete, "{source:?}");
+            assert_eq!(
+                matches!(field.colon, Recovered::Complete(_)),
+                colon_complete,
+                "{source:?}"
+            );
+            assert_eq!(
+                matches!(field.type_expr, Recovered::Complete(_)),
+                type_complete,
+                "{source:?}"
+            );
 
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let records = output.committed_recoveries();
             assert_eq!(records.len(), 1, "{source:?}");
             assert_eq!(records[0].kind, RecoveryKind::Error, "{source:?}");
             assert_eq!(
                 records[0].site.role,
-                GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldColon)),
+                GrammarRole::Declaration(DeclarationRole::Struct(
+                    crate::session::StructRole::FieldColon
+                )),
                 "{source:?}",
             );
             assert_eq!(records[0].site.range, expected_range, "{source:?}");
@@ -30613,17 +32710,26 @@ mod tests {
         };
         assert_eq!(body.fields.len(), 2);
         assert!(matches!(body.close, Recovered::Complete(ref close) if *close == (27..28)));
-        assert!(matches!(body.fields.as_slice(), [Recovered::Complete(_), Recovered::Complete(_)]));
+        assert!(matches!(
+            body.fields.as_slice(),
+            [Recovered::Complete(_), Recovered::Complete(_)]
+        ));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert_eq!(
+            SyntaxNode::new_root(output.green().clone()).to_string(),
+            source
+        );
         let [record] = output.committed_recoveries() else {
             panic!("one separator error expected");
         };
         assert_eq!(record.kind, RecoveryKind::Error);
         assert_eq!(
             record.site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldSeparator)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldSeparator
+            )),
         );
         assert_eq!(record.site.range, 17..18);
     }
@@ -30644,15 +32750,21 @@ mod tests {
         assert!(matches!(field.type_expr, Recovered::Incomplete));
         assert!(matches!(body.close, Recovered::Complete(ref close) if *close == (13..14)));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert_eq!(
+            SyntaxNode::new_root(output.green().clone()).to_string(),
+            source
+        );
         let [record] = output.committed_recoveries() else {
             panic!("one missing field colon expected");
         };
         assert_eq!(record.kind, RecoveryKind::Missing);
         assert_eq!(
             record.site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldColon)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldColon
+            )),
         );
         assert_eq!(record.site.range, 12..12);
 
@@ -30668,11 +32780,17 @@ mod tests {
         assert!(matches!(field.colon, Recovered::Incomplete));
         assert!(matches!(field.type_expr, Recovered::Incomplete));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let records = output.committed_recoveries();
         let struct_records: Vec<_> = records
             .iter()
-            .filter(|record| matches!(record.site.role, GrammarRole::Declaration(DeclarationRole::Struct(_))))
+            .filter(|record| {
+                matches!(
+                    record.site.role,
+                    GrammarRole::Declaration(DeclarationRole::Struct(_))
+                )
+            })
             .collect();
         let [record] = struct_records.as_slice() else {
             panic!("one Struct recovery expected: {struct_records:#?}");
@@ -30680,7 +32798,9 @@ mod tests {
         assert_eq!(record.kind, RecoveryKind::Missing);
         assert_eq!(
             record.site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldColon)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldColon
+            )),
         );
         assert_eq!(record.site.range, 13..13);
     }
@@ -30701,15 +32821,21 @@ mod tests {
         assert!(matches!(field.type_expr, Recovered::Complete(_)));
         assert!(matches!(body.close, Recovered::Complete(ref close) if *close == (22..23)));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert_eq!(
+            SyntaxNode::new_root(output.green().clone()).to_string(),
+            source
+        );
         let [record] = output.committed_recoveries() else {
             panic!("one malformed field colon expected");
         };
         assert_eq!(record.kind, RecoveryKind::Error);
         assert_eq!(
             record.site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldColon)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldColon
+            )),
         );
         assert_eq!(record.site.range, 15..17);
     }
@@ -30722,10 +32848,14 @@ mod tests {
         let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
             panic!("expected named body");
         };
-        assert!(matches!(body.fields.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
+        assert!(matches!(
+            body.fields.as_slice(),
+            [Recovered::Complete(_), Recovered::Incomplete]
+        ));
         assert!(matches!(body.close, Recovered::Incomplete));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let records = output.committed_recoveries();
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].kind, RecoveryKind::Missing);
@@ -30750,10 +32880,14 @@ mod tests {
         let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
             panic!("expected named body");
         };
-        assert!(matches!(body.fields.as_slice(), [Recovered::Complete(_), Recovered::Incomplete]));
+        assert!(matches!(
+            body.fields.as_slice(),
+            [Recovered::Complete(_), Recovered::Incomplete]
+        ));
         assert!(matches!(body.close, Recovered::Incomplete));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let records = output.committed_recoveries();
         assert_eq!(records.len(), 2);
         assert_eq!(
@@ -30776,21 +32910,31 @@ mod tests {
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let declaration = i.run(parse_struct_declaration).expect("Struct authority");
         assert_eq!(i.input.remainder(), "]");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
             if matches!(body.fields.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])
-                && matches!(body.close, Recovered::Incomplete)));
+                && matches!(body.close, Recovered::Incomplete))
+        );
 
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         let intro = committed
             .probe(|probe| probe.input().run(recognize_struct_statement_intro))
@@ -30822,13 +32966,19 @@ mod tests {
         let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
             panic!("expected named body");
         };
-        assert!(matches!(body.fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(field)]
+        assert!(
+            matches!(body.fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(field)]
             if matches!(field.name, Recovered::Complete(ref name) if name.range() == (12..13))
                 && matches!(field.colon, Recovered::Complete(ref colon) if *colon == (13..14))
-                && matches!(field.type_expr, Recovered::Complete(_))));
+                && matches!(field.type_expr, Recovered::Complete(_)))
+        );
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert_eq!(
+            SyntaxNode::new_root(output.green().clone()).to_string(),
+            source
+        );
         let [record] = output.committed_recoveries() else {
             panic!("one whole-field error expected");
         };
@@ -30853,31 +33003,41 @@ mod tests {
             };
             assert_eq!(body.fields.len(), field_count, "{source:?}");
             assert_eq!(
-                body.fields.iter().filter(|field| matches!(field, Recovered::Incomplete)).count(),
+                body.fields
+                    .iter()
+                    .filter(|field| matches!(field, Recovered::Incomplete))
+                    .count(),
                 missing_ranges.len(),
                 "{source:?}",
             );
 
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let records: Vec<_> = output
                 .committed_recoveries()
                 .iter()
                 .filter(|record| {
                     record.kind == RecoveryKind::Missing
-                        && record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
-                            crate::session::StructRole::Field,
-                        ))
+                        && record.site.role
+                            == GrammarRole::Declaration(DeclarationRole::Struct(
+                                crate::session::StructRole::Field,
+                            ))
                 })
                 .collect();
             assert_eq!(records.len(), missing_ranges.len(), "{source:?}");
             assert_eq!(
-                records.iter().map(|record| record.site.range.clone()).collect::<Vec<_>>(),
+                records
+                    .iter()
+                    .map(|record| record.site.range.clone())
+                    .collect::<Vec<_>>(),
                 missing_ranges,
                 "{source:?}",
             );
             let root = SyntaxNode::new_root(output.green().clone());
             assert_eq!(
-                root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(),
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::StructField)
+                    .count(),
                 field_count,
                 "{source:?}",
             );
@@ -30889,9 +33049,12 @@ mod tests {
         let source = "struct S { ] }";
         let (declaration, remainder) = parse_struct_for_test(source);
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
-            if body.fields.is_empty() && matches!(body.close, Recovered::Complete(ref close) if *close == (13..14))));
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+            if body.fields.is_empty() && matches!(body.close, Recovered::Complete(ref close) if *close == (13..14)))
+        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let [record] = output.committed_recoveries() else {
             panic!("one local close error expected");
         };
@@ -30908,10 +33071,13 @@ mod tests {
         let source = "struct S { x: Int ] }";
         let (declaration, remainder) = parse_struct_for_test(source);
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
             if body.fields.len() == 1
-                && matches!(body.close, Recovered::Complete(ref close) if *close == (20..21))));
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+                && matches!(body.close, Recovered::Complete(ref close) if *close == (20..21)))
+        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let [record] = output.committed_recoveries() else {
             panic!("one local close error expected");
         };
@@ -30933,21 +33099,31 @@ mod tests {
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let declaration = i.run(parse_struct_declaration).expect("Struct authority");
         assert_eq!(i.input.remainder(), "]");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
             if matches!(body.fields.as_slice(), [Recovered::Complete(_)])
-                && matches!(body.close, Recovered::Incomplete)));
+                && matches!(body.close, Recovered::Incomplete))
+        );
 
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         let intro = committed
             .probe(|probe| probe.input().run(recognize_struct_statement_intro))
@@ -30973,21 +33149,31 @@ mod tests {
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let declaration = i.run(parse_struct_declaration).expect("Struct authority");
         assert_eq!(i.input.remainder(), "]");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
             if matches!(body.fields.as_slice(), [Recovered::Incomplete])
-                && matches!(body.close, Recovered::Incomplete)));
+                && matches!(body.close, Recovered::Incomplete))
+        );
 
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         let intro = committed
             .probe(|probe| probe.input().run(recognize_struct_statement_intro))
@@ -31031,34 +33217,49 @@ mod tests {
             Recovered::Complete(StructNamedField { range: second, .. }),
         ] if *range == (16..22) && *second == (25..34)));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
         assert!(output.committed_recoveries().is_empty());
         let tokens: Vec<_> = root
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
-            .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+            .map(|token| {
+                (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range()),
+                )
+            })
             .collect();
-        assert_eq!(tokens, vec![
-            (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
-            (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
-            (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
-            (SyntaxKind::Colon, ":".to_owned(), 12..13),
-            (SyntaxKind::Newline, "\n".to_owned(), 13..14),
-            (SyntaxKind::Whitespace, "  ".to_owned(), 14..16),
-            (SyntaxKind::Identifier, "x".to_owned(), 16..17),
-            (SyntaxKind::Colon, ":".to_owned(), 17..18),
-            (SyntaxKind::Whitespace, " ".to_owned(), 18..19),
-            (SyntaxKind::Identifier, "Int".to_owned(), 19..22),
-            (SyntaxKind::Newline, "\n".to_owned(), 22..23),
-            (SyntaxKind::Whitespace, "  ".to_owned(), 23..25),
-            (SyntaxKind::Identifier, "y".to_owned(), 25..26),
-            (SyntaxKind::Colon, ":".to_owned(), 26..27),
-            (SyntaxKind::Whitespace, " ".to_owned(), 27..28),
-            (SyntaxKind::Identifier, "String".to_owned(), 28..34),
-        ]);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(), 2);
+        assert_eq!(
+            tokens,
+            vec![
+                (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
+                (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
+                (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
+                (SyntaxKind::Colon, ":".to_owned(), 12..13),
+                (SyntaxKind::Newline, "\n".to_owned(), 13..14),
+                (SyntaxKind::Whitespace, "  ".to_owned(), 14..16),
+                (SyntaxKind::Identifier, "x".to_owned(), 16..17),
+                (SyntaxKind::Colon, ":".to_owned(), 17..18),
+                (SyntaxKind::Whitespace, " ".to_owned(), 18..19),
+                (SyntaxKind::Identifier, "Int".to_owned(), 19..22),
+                (SyntaxKind::Newline, "\n".to_owned(), 22..23),
+                (SyntaxKind::Whitespace, "  ".to_owned(), 23..25),
+                (SyntaxKind::Identifier, "y".to_owned(), 25..26),
+                (SyntaxKind::Colon, ":".to_owned(), 26..27),
+                (SyntaxKind::Whitespace, " ".to_owned(), 27..28),
+                (SyntaxKind::Identifier, "String".to_owned(), 28..34),
+            ]
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -31066,16 +33267,22 @@ mod tests {
         for source in ["struct S:", "struct S:\n  "] {
             let (declaration, remainder) = parse_struct_for_test(source);
             assert_eq!(remainder, "", "{source:?}");
-            assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
-                if matches!(body.fields.as_slice(), [Recovered::Incomplete])), "{source:?}");
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            assert!(
+                matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+                if matches!(body.fields.as_slice(), [Recovered::Incomplete])),
+                "{source:?}"
+            );
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let [record] = output.committed_recoveries() else {
                 panic!("one first-field recovery expected for {source:?}");
             };
             assert_eq!(record.kind, RecoveryKind::Missing, "{source:?}");
             assert_eq!(
                 record.site.role,
-                GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::Field)),
+                GrammarRole::Declaration(DeclarationRole::Struct(
+                    crate::session::StructRole::Field
+                )),
                 "{source:?}",
             );
         }
@@ -31083,37 +33290,55 @@ mod tests {
         let source = "struct S:\n  x:\n  y: Bool";
         let (declaration, remainder) = parse_struct_for_test(source);
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
             if body.block_indent == 2
                 && matches!(body.fields.as_slice(), [Recovered::Complete(first), Recovered::Complete(second)]
                     if matches!(first.type_expr, Recovered::Incomplete)
-                        && matches!(second.type_expr, Recovered::Complete(_)))));
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+                        && matches!(second.type_expr, Recovered::Complete(_))))
+        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let records = output.committed_recoveries();
-        let [record] = records else { panic!("one missing type expected"); };
+        let [record] = records else {
+            panic!("one missing type expected");
+        };
         assert_eq!(record.kind, RecoveryKind::Missing);
         assert_eq!(
             record.site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldType)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldType
+            )),
         );
         assert_eq!(record.site.range, 14..14);
 
         let source = "struct S:\n  x: Int, y: Bool,";
         let (declaration, remainder) = parse_struct_for_test(source);
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
-            if body.fields.len() == 2 && body.trailing_comma == Some(27..28)));
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+            if body.fields.len() == 2 && body.trailing_comma == Some(27..28))
+        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         assert!(output.committed_recoveries().is_empty());
-        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        assert_eq!(
+            SyntaxNode::new_root(output.green().clone()).to_string(),
+            source
+        );
 
         let source = "struct S:\n  @\n  x: Int";
         let (declaration, remainder) = parse_struct_for_test(source);
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
-            if matches!(body.fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-        let [record] = output.committed_recoveries() else { panic!("one whole-field error expected"); };
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+            if matches!(body.fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)]))
+        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let [record] = output.committed_recoveries() else {
+            panic!("one whole-field error expected");
+        };
         assert_eq!(record.kind, RecoveryKind::Error);
         assert_eq!(
             record.site.role,
@@ -31123,8 +33348,10 @@ mod tests {
 
         let (declaration, remainder) = parse_struct_for_test("struct S:\n  x: Int\nnext");
         assert_eq!(remainder, "\nnext");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
-            if body.fields.len() == 1));
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+            if body.fields.len() == 1)
+        );
     }
 
     #[test]
@@ -31144,29 +33371,44 @@ mod tests {
             Recovered::Complete(StructTupleField { range: second, type_expr: Recovered::Complete(_) }),
         ] if *range == (12..15) && *second == (17..25)));
 
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let root = SyntaxNode::new_root(output.green().clone());
         assert_eq!(root.to_string(), source);
         assert!(output.committed_recoveries().is_empty());
         let tokens: Vec<_> = root
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
-            .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+            .map(|token| {
+                (
+                    token.kind(),
+                    token.text().to_owned(),
+                    syntax_range(token.text_range()),
+                )
+            })
             .collect();
-        assert_eq!(tokens, vec![
-            (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
-            (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
-            (SyntaxKind::Identifier, "Pair".to_owned(), 7..11),
-            (SyntaxKind::LParen, "(".to_owned(), 11..12),
-            (SyntaxKind::Identifier, "Int".to_owned(), 12..15),
-            (SyntaxKind::Comma, ",".to_owned(), 15..16),
-            (SyntaxKind::Whitespace, " ".to_owned(), 16..17),
-            (SyntaxKind::Identifier, "List".to_owned(), 17..21),
-            (SyntaxKind::Whitespace, " ".to_owned(), 21..22),
-            (SyntaxKind::Identifier, "Int".to_owned(), 22..25),
-            (SyntaxKind::RParen, ")".to_owned(), 25..26),
-        ]);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(), 2);
+        assert_eq!(
+            tokens,
+            vec![
+                (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
+                (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
+                (SyntaxKind::Identifier, "Pair".to_owned(), 7..11),
+                (SyntaxKind::LParen, "(".to_owned(), 11..12),
+                (SyntaxKind::Identifier, "Int".to_owned(), 12..15),
+                (SyntaxKind::Comma, ",".to_owned(), 15..16),
+                (SyntaxKind::Whitespace, " ".to_owned(), 16..17),
+                (SyntaxKind::Identifier, "List".to_owned(), 17..21),
+                (SyntaxKind::Whitespace, " ".to_owned(), 21..22),
+                (SyntaxKind::Identifier, "Int".to_owned(), 22..25),
+                (SyntaxKind::RParen, ")".to_owned(), 25..26),
+            ]
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
+            2
+        );
 
         for source in [
             "struct Pair()",
@@ -31176,16 +33418,26 @@ mod tests {
         ] {
             let (declaration, remainder) = parse_struct_for_test(source);
             assert_eq!(remainder, "", "{source:?}");
-            assert!(matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
-                if matches!(body.close, Recovered::Complete(_))), "{source:?}");
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-            assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source, "{source:?}");
+            assert!(
+                matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
+                if matches!(body.close, Recovered::Complete(_))),
+                "{source:?}"
+            );
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            assert_eq!(
+                SyntaxNode::new_root(output.green().clone()).to_string(),
+                source,
+                "{source:?}"
+            );
             assert!(output.committed_recoveries().is_empty(), "{source:?}");
         }
 
         let applied = parse_struct_for_test("struct Pair(Int Bool)").0;
-        assert!(matches!(applied.body, Recovered::Complete(StructBody::Tuple(ref body))
-            if body.fields.len() == 1 && matches!(body.fields[0], Recovered::Complete(_))));
+        assert!(
+            matches!(applied.body, Recovered::Complete(StructBody::Tuple(ref body))
+            if body.fields.len() == 1 && matches!(body.fields[0], Recovered::Complete(_)))
+        );
         let output = parse_direct_root_candidate(
             "struct Pair(Int Bool)",
             &crate::operator::OperatorTable::empty(),
@@ -31205,42 +33457,69 @@ mod tests {
         ] {
             let (declaration, remainder) = parse_struct_for_test(source);
             assert_eq!(remainder, "", "{source:?}");
-            assert!(matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
-                if body.fields.len() == field_count), "{source:?}");
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-            let records: Vec<_> = output.committed_recoveries().iter().filter(|record| {
-                record.kind == RecoveryKind::Missing
-                    && record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
-                        crate::session::StructRole::FieldType,
-                    ))
-            }).collect();
-            assert_eq!(records.iter().map(|record| record.site.range.clone()).collect::<Vec<_>>(), missing_ranges);
+            assert!(
+                matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
+                if body.fields.len() == field_count),
+                "{source:?}"
+            );
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let records: Vec<_> = output
+                .committed_recoveries()
+                .iter()
+                .filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::Declaration(DeclarationRole::Struct(
+                                crate::session::StructRole::FieldType,
+                            ))
+                })
+                .collect();
+            assert_eq!(
+                records
+                    .iter()
+                    .map(|record| record.site.range.clone())
+                    .collect::<Vec<_>>(),
+                missing_ranges
+            );
             let root = SyntaxNode::new_root(output.green().clone());
-            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(), field_count);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::StructField)
+                    .count(),
+                field_count
+            );
         }
 
         let source = "struct Pair(Int; Bool)";
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let [record] = output.committed_recoveries() else {
             panic!("one tuple separator error expected");
         };
         assert_eq!(record.kind, RecoveryKind::Error);
         assert_eq!(
             record.site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldSeparator)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldSeparator
+            )),
         );
         assert_eq!(record.site.range, 15..16);
 
         let (declaration, remainder) = parse_struct_for_test("struct Pair(Int; Bool)");
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
-            if body.fields.len() == 2 && matches!(body.close, Recovered::Complete(_))));
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
+            if body.fields.len() == 2 && matches!(body.close, Recovered::Complete(_)))
+        );
 
         let (declaration, remainder) = parse_struct_for_test("struct Pair(Int,");
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
             if matches!(body.fields.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])
-                && matches!(body.close, Recovered::Incomplete)));
+                && matches!(body.close, Recovered::Incomplete))
+        );
         let output = parse_direct_root_candidate(
             "struct Pair(Int,",
             &crate::operator::OperatorTable::empty(),
@@ -31250,7 +33529,9 @@ mod tests {
         assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Missing);
         assert_eq!(
             output.committed_recoveries()[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldType)),
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldType
+            )),
         );
         assert_eq!(output.committed_recoveries()[0].site.range, 16..16);
         assert_eq!(
@@ -31268,22 +33549,33 @@ mod tests {
         ] {
             let (declaration, remainder) = parse_struct_for_test(source);
             assert_eq!(remainder, "", "{source:?}");
-            assert!(matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
+            assert!(
+                matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
                 if matches!(body.fields.as_slice(), [field] if matches!(field, Recovered::Complete(_)) == type_complete)),
-                "{source:?}");
-            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
-            let type_primary: Vec<_> = output.committed_recoveries().iter().filter(|record| {
-                record.kind == RecoveryKind::Error
-                    && record.site.role == GrammarRole::Type(crate::session::TypeRole::Primary)
-            }).collect();
+                "{source:?}"
+            );
+            let output =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let type_primary: Vec<_> = output
+                .committed_recoveries()
+                .iter()
+                .filter(|record| {
+                    record.kind == RecoveryKind::Error
+                        && record.site.role == GrammarRole::Type(crate::session::TypeRole::Primary)
+                })
+                .collect();
             assert_eq!(type_primary.len(), 1, "{source:?}");
             assert_eq!(type_primary[0].site.range, error_range, "{source:?}");
-            assert!(!output.committed_recoveries().iter().any(|record| {
-                record.kind == RecoveryKind::Missing
-                    && record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
-                        crate::session::StructRole::FieldType,
-                    ))
-            }), "{source:?}");
+            assert!(
+                !output.committed_recoveries().iter().any(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::Declaration(DeclarationRole::Struct(
+                                crate::session::StructRole::FieldType,
+                            ))
+                }),
+                "{source:?}"
+            );
         }
     }
 
@@ -31292,9 +33584,12 @@ mod tests {
         let source = "struct Pair(Int] )";
         let (declaration, remainder) = parse_struct_for_test(source);
         assert_eq!(remainder, "");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
-            if body.fields.len() == 1 && matches!(body.close, Recovered::Complete(ref close) if *close == (17..18))));
-        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
+            if body.fields.len() == 1 && matches!(body.close, Recovered::Complete(ref close) if *close == (17..18)))
+        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let [record] = output.committed_recoveries() else {
             panic!("one local tuple-close error expected");
         };
@@ -31314,21 +33609,31 @@ mod tests {
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let declaration = i.run(parse_struct_declaration).expect("Struct authority");
         assert_eq!(i.input.remainder(), "]");
-        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
+        assert!(
+            matches!(declaration.body, Recovered::Complete(StructBody::Tuple(ref body))
             if matches!(body.fields.as_slice(), [Recovered::Incomplete])
-                && matches!(body.close, Recovered::Incomplete)));
+                && matches!(body.close, Recovered::Incomplete))
+        );
 
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         let intro = committed
             .probe(|probe| probe.input().run(recognize_struct_statement_intro))
@@ -31338,7 +33643,10 @@ mod tests {
         let records = output.committed_recoveries();
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].kind, RecoveryKind::Error);
-        assert_eq!(records[0].site.role, GrammarRole::Type(crate::session::TypeRole::Primary));
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Type(crate::session::TypeRole::Primary)
+        );
         assert_eq!(records[0].site.range, 12..13);
         assert_eq!(records[1].kind, RecoveryKind::Missing);
         assert_eq!(
@@ -31390,15 +33698,22 @@ mod tests {
         let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let _ = i.run(scan_trivia).expect("trivia is total");
         let declaration = i
             .run(parse_struct_declaration)
             .expect("the Struct introduction must commit its header continuation");
         let remainder = i.input.remainder().to_owned();
         drop(i);
-        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
         assert_eq!(local.pop_ambient_owner_scope(), Some(block_scope));
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
         (declaration, remainder)
@@ -31406,9 +33721,8 @@ mod tests {
 
     #[test]
     fn struct_lists_leave_ambient_if_companions_for_the_statement_owner() {
-        let (declaration, remainder) = parse_struct_with_if_companion_for_test(
-            "  struct S { x: Int\nelse: 0",
-        );
+        let (declaration, remainder) =
+            parse_struct_with_if_companion_for_test("  struct S { x: Int\nelse: 0");
         assert_eq!(remainder, "\nelse: 0");
         assert!(matches!(
             declaration.body,
@@ -31416,9 +33730,8 @@ mod tests {
                 if body.fields.len() == 1 && matches!(body.close, Recovered::Incomplete)
         ));
 
-        let (declaration, remainder) = parse_struct_with_if_companion_for_test(
-            "  struct S { x: Int\n  else: Bool }",
-        );
+        let (declaration, remainder) =
+            parse_struct_with_if_companion_for_test("  struct S { x: Int\n  else: Bool }");
         assert_eq!(remainder, "\n  else: Bool }");
         assert!(matches!(
             declaration.body,
@@ -31436,9 +33749,8 @@ mod tests {
                 if body.fields.len() == 2 && matches!(body.close, Recovered::Complete(_))
         ));
 
-        let (declaration, remainder) = parse_struct_with_if_companion_for_test(
-            "  struct S(Int\nelse: 0",
-        );
+        let (declaration, remainder) =
+            parse_struct_with_if_companion_for_test("  struct S(Int\nelse: 0");
         assert_eq!(remainder, "\nelse: 0");
         assert!(matches!(
             declaration.body,
@@ -31491,9 +33803,13 @@ mod tests {
                 "{source:?}",
             );
             assert_eq!(
-                recoveries.iter().filter(|record| {
-                    record.kind == RecoveryKind::Missing && record.site.role == expected_close_role
-                }).count(),
+                recoveries
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role == expected_close_role
+                    })
+                    .count(),
                 1,
                 "{source:?}",
             );
@@ -31504,17 +33820,21 @@ mod tests {
         // for the surrounding statement owner, so this direct expression
         // probe intentionally observes that exact unconsumed tail.
         let source = "if condition:\n  struct S { x: Int\n  else: Bool }";
-        let (remainder, recoveries) = parse_direct_expression_prefix_for_struct_test(source, &table);
+        let (remainder, recoveries) =
+            parse_direct_expression_prefix_for_struct_test(source, &table);
         assert_eq!(remainder, " }");
         assert_eq!(
-            recoveries.iter().filter(|record| {
-                record.kind == RecoveryKind::Missing
-                    && record.site.role
-                        == GrammarRole::ClosingDelimiter {
-                            owner: ConstructRole::StructNamedFields,
-                            delimiter: Delimiter::Brace,
-                        }
-            }).count(),
+            recoveries
+                .iter()
+                .filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::ClosingDelimiter {
+                                owner: ConstructRole::StructNamedFields,
+                                delimiter: Delimiter::Brace,
+                            }
+                })
+                .count(),
             1,
         );
 
@@ -31556,13 +33876,21 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         parse_direct_expression_with_operators(table, LeadingTrivia::None, &mut committed)
             .expect("direct If expression");
-        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "",
+            "{source:?}"
+        );
         committed.finish_node();
         let output = committed.into_output();
         let recoveries = output.committed_recoveries().to_vec();
@@ -31578,8 +33906,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         parse_direct_expression_with_operators(table, LeadingTrivia::None, &mut committed)
@@ -31590,13 +33922,19 @@ mod tests {
         (remainder, output.committed_recoveries().to_vec())
     }
 
-    fn parse_struct_for_test<'source>(source: &'source str) -> (StructDeclaration<'source>, String) {
+    fn parse_struct_for_test<'source>(
+        source: &'source str,
+    ) -> (StructDeclaration<'source>, String) {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let declaration = i
             .run(parse_struct_declaration)
             .expect("the Struct introduction must commit its header continuation");
@@ -31608,10 +33946,15 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let table = crate::operator::OperatorTable::empty();
-        let declaration = i.run(from_fn(|i| parse_mod_declaration_with_operators(&table, i)))
+        let declaration = i
+            .run(from_fn(|i| parse_mod_declaration_with_operators(&table, i)))
             .expect("mod declaration should parse");
         (declaration, i.input.remainder())
     }
@@ -31621,10 +33964,15 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let table = crate::operator::OperatorTable::empty();
-        i.run(from_fn(|i| parse_mod_declaration_with_operators(&table, i))).is_some()
+        i.run(from_fn(|i| parse_mod_declaration_with_operators(&table, i)))
+            .is_some()
     }
 
     #[test]
@@ -31633,7 +33981,12 @@ mod tests {
             ("my value", Visibility::Private, false, 3..8),
             ("our (left, right) = pair", Visibility::Our, true, 4..17),
             ("pub [head, tail] = values", Visibility::Public, true, 4..16),
-            ("my {left, right} = record", Visibility::Private, true, 3..16),
+            (
+                "my {left, right} = record",
+                Visibility::Private,
+                true,
+                3..16,
+            ),
         ] {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
@@ -31650,7 +34003,10 @@ mod tests {
                 panic!("expected binding for {source:?}");
             };
             assert_eq!(binding.visibility(), visibility, "{source:?}");
-            assert!(matches!(binding.target(), Recovered::Complete(target) if target.range() == target_range), "{source:?}");
+            assert!(
+                matches!(binding.target(), Recovered::Complete(target) if target.range() == target_range),
+                "{source:?}"
+            );
             assert_eq!(binding.definition().is_some(), has_definition, "{source:?}");
             assert_eq!(i.input.remainder(), "", "{source:?}");
         }
@@ -31673,15 +34029,20 @@ mod tests {
         let Some(Declaration::Binding(binding)) = i.run(parse_declaration) else {
             panic!("expected binding declaration");
         };
-        let Some(definition) = binding.definition() else { panic!("expected definition"); };
+        let Some(definition) = binding.definition() else {
+            panic!("expected definition");
+        };
         let Recovered::Complete(BindingBody::Indented { block }) = definition.body() else {
             panic!("expected indented binding body");
         };
-        assert!(matches!(block.statements(), [
-            Recovered::Complete(crate::grammar::expression::Statement::Binding(_)),
-            Recovered::Complete(crate::grammar::expression::Statement::Use(_)),
-            Recovered::Complete(crate::grammar::expression::Statement::Mod(_)),
-        ]));
+        assert!(matches!(
+            block.statements(),
+            [
+                Recovered::Complete(crate::grammar::expression::Statement::Binding(_)),
+                Recovered::Complete(crate::grammar::expression::Statement::Use(_)),
+                Recovered::Complete(crate::grammar::expression::Statement::Mod(_)),
+            ]
+        ));
         assert_eq!(i.input.remainder(), "");
     }
 
@@ -31692,9 +34053,16 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
-            assert!(matches!(i.run(parse_declaration), Some(Declaration::Binding(_))), "{source:?}");
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            assert!(
+                matches!(i.run(parse_declaration), Some(Declaration::Binding(_))),
+                "{source:?}"
+            );
             assert_eq!(i.input.remainder(), "", "{source:?}");
         }
         for source in ["my use std", "our use std", "pub use std"] {
@@ -31702,9 +34070,16 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
-            assert!(matches!(i.run(parse_declaration), Some(Declaration::Use(_))), "{source:?}");
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            assert!(
+                matches!(i.run(parse_declaration), Some(Declaration::Use(_))),
+                "{source:?}"
+            );
             assert_eq!(i.input.remainder(), "", "{source:?}");
         }
     }
@@ -31776,7 +34151,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: scoped_stops,
                 visible_episode_depth: episode_depth,
@@ -31791,8 +34167,12 @@ mod tests {
             let mut is_cut = false;
 
             {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let checkpoint = i.checkpoint();
                 let intro = i.run(recognize_impl_statement_intro);
                 match (intro, expected) {
@@ -31809,8 +34189,16 @@ mod tests {
                         );
                         assert_eq!(intro.start, 0, "start: {source:?}");
                         assert_eq!(intro.impl_base, 2, "base: {source:?}");
-                        assert_eq!(intro.impl_keyword.range(), expected.keyword, "keyword: {source:?}");
-                        assert_eq!(i.input.remainder(), expected.remainder, "remainder: {source:?}");
+                        assert_eq!(
+                            intro.impl_keyword.range(),
+                            expected.keyword,
+                            "keyword: {source:?}"
+                        );
+                        assert_eq!(
+                            i.input.remainder(),
+                            expected.remainder,
+                            "remainder: {source:?}"
+                        );
                     }
                     (None, None) => {}
                     (actual, expected) => panic!(
@@ -31822,15 +34210,27 @@ mod tests {
                 assert_eq!(i.pos(), 0, "input position: {source:?}");
                 assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
                 assert_eq!(i.local.line(), LineState::default(), "line: {source:?}");
-                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(
+                    i.local.indentation_baseline(),
+                    Some(baseline),
+                    "baseline: {source:?}"
+                );
                 assert_eq!(i.local.stop_set(), Some(stops), "stops: {source:?}");
-                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "delimiter: {source:?}");
+                assert_eq!(
+                    i.local.delimiter(),
+                    Some(Delimiter::Parenthesis),
+                    "delimiter: {source:?}"
+                );
                 assert_eq!(
                     i.local.expression_delimited_owner(),
                     Some(ExpressionDelimitedOwner::Call),
                     "expression owner: {source:?}",
                 );
-                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "type owner: {source:?}");
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call),
+                    "type owner: {source:?}"
+                );
                 assert!(i.local.inline(), "inline: {source:?}");
                 assert!(i.local.ml_arg(), "ML: {source:?}");
                 assert!(i.local.type_ml_arg(), "type ML: {source:?}");
@@ -31839,29 +34239,57 @@ mod tests {
                     Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                     "positional fence: {source:?}",
                 );
-                assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "episode: {source:?}");
                 assert_eq!(
-                    i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                    i.local.type_expression_episode_depth(),
+                    episode_depth,
+                    "episode: {source:?}"
+                );
+                assert_eq!(
+                    i.local
+                        .type_expression_scoped_stop_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![scoped_frame],
                     "scoped stops: {source:?}",
                 );
                 assert_eq!(
-                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![inline, root],
                     "ambient stack: {source:?}",
                 );
-                assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                assert_eq!(
+                    i.local.if_expression_companion().map(|frame| frame.id()),
+                    Some(companion)
+                );
             }
 
             assert!(expectations.take_merged().is_none(), "sink: {source:?}");
             assert!(!is_cut, "cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -31962,7 +34390,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: scoped_stops,
                 visible_episode_depth: episode_depth,
@@ -31977,8 +34406,12 @@ mod tests {
             let mut is_cut = false;
 
             {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let checkpoint = i.checkpoint();
                 let intro = i.run(recognize_role_statement_intro);
                 match (intro, expected) {
@@ -31995,8 +34428,16 @@ mod tests {
                         );
                         assert_eq!(intro.start, 0, "start: {source:?}");
                         assert_eq!(intro.role_base, 2, "base: {source:?}");
-                        assert_eq!(intro.role_keyword.range(), expected.keyword, "keyword: {source:?}");
-                        assert_eq!(i.input.remainder(), expected.remainder, "remainder: {source:?}");
+                        assert_eq!(
+                            intro.role_keyword.range(),
+                            expected.keyword,
+                            "keyword: {source:?}"
+                        );
+                        assert_eq!(
+                            i.input.remainder(),
+                            expected.remainder,
+                            "remainder: {source:?}"
+                        );
                     }
                     (None, None) => {}
                     (actual, expected) => panic!(
@@ -32008,15 +34449,27 @@ mod tests {
                 assert_eq!(i.pos(), 0, "input position: {source:?}");
                 assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
                 assert_eq!(i.local.line(), LineState::default(), "line: {source:?}");
-                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(
+                    i.local.indentation_baseline(),
+                    Some(baseline),
+                    "baseline: {source:?}"
+                );
                 assert_eq!(i.local.stop_set(), Some(stops), "stops: {source:?}");
-                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "delimiter: {source:?}");
+                assert_eq!(
+                    i.local.delimiter(),
+                    Some(Delimiter::Parenthesis),
+                    "delimiter: {source:?}"
+                );
                 assert_eq!(
                     i.local.expression_delimited_owner(),
                     Some(ExpressionDelimitedOwner::Call),
                     "expression owner: {source:?}",
                 );
-                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "type owner: {source:?}");
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call),
+                    "type owner: {source:?}"
+                );
                 assert!(i.local.inline(), "inline: {source:?}");
                 assert!(i.local.ml_arg(), "ML: {source:?}");
                 assert!(i.local.type_ml_arg(), "type ML: {source:?}");
@@ -32025,29 +34478,57 @@ mod tests {
                     Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                     "positional fence: {source:?}",
                 );
-                assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "episode: {source:?}");
                 assert_eq!(
-                    i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                    i.local.type_expression_episode_depth(),
+                    episode_depth,
+                    "episode: {source:?}"
+                );
+                assert_eq!(
+                    i.local
+                        .type_expression_scoped_stop_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![scoped_frame],
                     "scoped stops: {source:?}",
                 );
                 assert_eq!(
-                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![inline, root],
                     "ambient stack: {source:?}",
                 );
-                assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                assert_eq!(
+                    i.local.if_expression_companion().map(|frame| frame.id()),
+                    Some(companion)
+                );
             }
 
             assert!(expectations.take_merged().is_none(), "sink: {source:?}");
             assert!(!is_cut, "cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -32151,7 +34632,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: scoped_stops,
                 visible_episode_depth: episode_depth,
@@ -32166,8 +34648,12 @@ mod tests {
             let mut is_cut = false;
 
             {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let checkpoint = i.checkpoint();
                 let intro = i.run(recognize_act_statement_intro);
                 match (intro, expected) {
@@ -32184,18 +34670,46 @@ mod tests {
                         );
                         assert_eq!(intro.start, 0, "start: {source:?}");
                         assert_eq!(intro.act_base, expected.act_base, "base: {source:?}");
-                        assert_eq!(intro.act_keyword.range(), expected.keyword, "keyword: {source:?}");
-                        assert_eq!(i.input.remainder(), expected.remainder, "remainder: {source:?}");
+                        assert_eq!(
+                            intro.act_keyword.range(),
+                            expected.keyword,
+                            "keyword: {source:?}"
+                        );
+                        assert_eq!(
+                            i.input.remainder(),
+                            expected.remainder,
+                            "remainder: {source:?}"
+                        );
                     }
                     (None, None) => {
                         assert_eq!(i.pos(), 0, "failure position: {source:?}");
                         assert_eq!(i.input.remainder(), source, "failure remainder: {source:?}");
-                        assert_eq!(i.local.line(), LineState::default(), "failure line: {source:?}");
-                        assert_eq!(i.local.indentation_baseline(), Some(baseline), "failure baseline: {source:?}");
+                        assert_eq!(
+                            i.local.line(),
+                            LineState::default(),
+                            "failure line: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.indentation_baseline(),
+                            Some(baseline),
+                            "failure baseline: {source:?}"
+                        );
                         assert_eq!(i.local.stop_set(), Some(stops), "failure stops: {source:?}");
-                        assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "failure delimiter: {source:?}");
-                        assert_eq!(i.local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call), "failure expression owner: {source:?}");
-                        assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "failure type owner: {source:?}");
+                        assert_eq!(
+                            i.local.delimiter(),
+                            Some(Delimiter::Parenthesis),
+                            "failure delimiter: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.expression_delimited_owner(),
+                            Some(ExpressionDelimitedOwner::Call),
+                            "failure expression owner: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.type_delimited_owner(),
+                            Some(TypeDelimitedOwner::Call),
+                            "failure type owner: {source:?}"
+                        );
                         assert!(i.local.inline(), "failure inline: {source:?}");
                         assert!(i.local.ml_arg(), "failure ML: {source:?}");
                         assert!(i.local.type_ml_arg(), "failure type ML: {source:?}");
@@ -32204,18 +34718,31 @@ mod tests {
                             Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                             "failure positional fence: {source:?}",
                         );
-                        assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "failure episode: {source:?}");
                         assert_eq!(
-                            i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                            i.local.type_expression_episode_depth(),
+                            episode_depth,
+                            "failure episode: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local
+                                .type_expression_scoped_stop_frames()
+                                .copied()
+                                .collect::<Vec<_>>(),
                             vec![scoped_frame],
                             "failure scoped stops: {source:?}",
                         );
                         assert_eq!(
-                            i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                            i.local
+                                .ambient_owner_scope_frames()
+                                .copied()
+                                .collect::<Vec<_>>(),
                             vec![inline, root],
                             "failure ambient stack: {source:?}",
                         );
-                        assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                        assert_eq!(
+                            i.local.if_expression_companion().map(|frame| frame.id()),
+                            Some(companion)
+                        );
                     }
                     (actual, expected) => panic!(
                         "Act intro mismatch for {source:?}: actual={actual:?}, expected={expected:?}"
@@ -32226,15 +34753,27 @@ mod tests {
                 assert_eq!(i.pos(), 0, "input position: {source:?}");
                 assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
                 assert_eq!(i.local.line(), LineState::default(), "line: {source:?}");
-                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(
+                    i.local.indentation_baseline(),
+                    Some(baseline),
+                    "baseline: {source:?}"
+                );
                 assert_eq!(i.local.stop_set(), Some(stops), "stops: {source:?}");
-                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "delimiter: {source:?}");
+                assert_eq!(
+                    i.local.delimiter(),
+                    Some(Delimiter::Parenthesis),
+                    "delimiter: {source:?}"
+                );
                 assert_eq!(
                     i.local.expression_delimited_owner(),
                     Some(ExpressionDelimitedOwner::Call),
                     "expression owner: {source:?}",
                 );
-                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "type owner: {source:?}");
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call),
+                    "type owner: {source:?}"
+                );
                 assert!(i.local.inline(), "inline: {source:?}");
                 assert!(i.local.ml_arg(), "ML: {source:?}");
                 assert!(i.local.type_ml_arg(), "type ML: {source:?}");
@@ -32243,29 +34782,57 @@ mod tests {
                     Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                     "positional fence: {source:?}",
                 );
-                assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "episode: {source:?}");
                 assert_eq!(
-                    i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                    i.local.type_expression_episode_depth(),
+                    episode_depth,
+                    "episode: {source:?}"
+                );
+                assert_eq!(
+                    i.local
+                        .type_expression_scoped_stop_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![scoped_frame],
                     "scoped stops: {source:?}",
                 );
                 assert_eq!(
-                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![inline, root],
                     "ambient stack: {source:?}",
                 );
-                assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                assert_eq!(
+                    i.local.if_expression_companion().map(|frame| frame.id()),
+                    Some(companion)
+                );
             }
 
             assert!(expectations.take_merged().is_none(), "sink: {source:?}");
             assert!(!is_cut, "cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -32408,7 +34975,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: scoped_stops,
                 visible_episode_depth: episode_depth,
@@ -32423,8 +34991,12 @@ mod tests {
             let mut is_cut = false;
 
             {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let checkpoint = i.checkpoint();
                 let intro = i.run(recognize_enum_statement_intro);
                 match (intro, expected) {
@@ -32441,18 +35013,46 @@ mod tests {
                         );
                         assert_eq!(intro.start, 0, "start: {source:?}");
                         assert_eq!(intro.enum_base, expected.enum_base, "base: {source:?}");
-                        assert_eq!(intro.enum_keyword.range(), expected.keyword, "keyword: {source:?}");
-                        assert_eq!(i.input.remainder(), expected.remainder, "remainder: {source:?}");
+                        assert_eq!(
+                            intro.enum_keyword.range(),
+                            expected.keyword,
+                            "keyword: {source:?}"
+                        );
+                        assert_eq!(
+                            i.input.remainder(),
+                            expected.remainder,
+                            "remainder: {source:?}"
+                        );
                     }
                     (None, None) => {
                         assert_eq!(i.pos(), 0, "failure position: {source:?}");
                         assert_eq!(i.input.remainder(), source, "failure remainder: {source:?}");
-                        assert_eq!(i.local.line(), LineState::default(), "failure line: {source:?}");
-                        assert_eq!(i.local.indentation_baseline(), Some(baseline), "failure baseline: {source:?}");
+                        assert_eq!(
+                            i.local.line(),
+                            LineState::default(),
+                            "failure line: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.indentation_baseline(),
+                            Some(baseline),
+                            "failure baseline: {source:?}"
+                        );
                         assert_eq!(i.local.stop_set(), Some(stops), "failure stops: {source:?}");
-                        assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "failure delimiter: {source:?}");
-                        assert_eq!(i.local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call), "failure expression owner: {source:?}");
-                        assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "failure type owner: {source:?}");
+                        assert_eq!(
+                            i.local.delimiter(),
+                            Some(Delimiter::Parenthesis),
+                            "failure delimiter: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.expression_delimited_owner(),
+                            Some(ExpressionDelimitedOwner::Call),
+                            "failure expression owner: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.type_delimited_owner(),
+                            Some(TypeDelimitedOwner::Call),
+                            "failure type owner: {source:?}"
+                        );
                         assert!(i.local.inline(), "failure inline: {source:?}");
                         assert!(i.local.ml_arg(), "failure ML: {source:?}");
                         assert!(i.local.type_ml_arg(), "failure type ML: {source:?}");
@@ -32461,18 +35061,31 @@ mod tests {
                             Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                             "failure positional fence: {source:?}",
                         );
-                        assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "failure episode: {source:?}");
                         assert_eq!(
-                            i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                            i.local.type_expression_episode_depth(),
+                            episode_depth,
+                            "failure episode: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local
+                                .type_expression_scoped_stop_frames()
+                                .copied()
+                                .collect::<Vec<_>>(),
                             vec![scoped_frame],
                             "failure scoped stops: {source:?}",
                         );
                         assert_eq!(
-                            i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                            i.local
+                                .ambient_owner_scope_frames()
+                                .copied()
+                                .collect::<Vec<_>>(),
                             vec![inline, root],
                             "failure ambient stack: {source:?}",
                         );
-                        assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                        assert_eq!(
+                            i.local.if_expression_companion().map(|frame| frame.id()),
+                            Some(companion)
+                        );
                     }
                     (actual, expected) => panic!(
                         "Enum intro mismatch for {source:?}: actual={actual:?}, expected={expected:?}"
@@ -32483,15 +35096,27 @@ mod tests {
                 assert_eq!(i.pos(), 0, "input position: {source:?}");
                 assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
                 assert_eq!(i.local.line(), LineState::default(), "line: {source:?}");
-                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(
+                    i.local.indentation_baseline(),
+                    Some(baseline),
+                    "baseline: {source:?}"
+                );
                 assert_eq!(i.local.stop_set(), Some(stops), "stops: {source:?}");
-                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "delimiter: {source:?}");
+                assert_eq!(
+                    i.local.delimiter(),
+                    Some(Delimiter::Parenthesis),
+                    "delimiter: {source:?}"
+                );
                 assert_eq!(
                     i.local.expression_delimited_owner(),
                     Some(ExpressionDelimitedOwner::Call),
                     "expression owner: {source:?}",
                 );
-                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "type owner: {source:?}");
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call),
+                    "type owner: {source:?}"
+                );
                 assert!(i.local.inline(), "inline: {source:?}");
                 assert!(i.local.ml_arg(), "ML: {source:?}");
                 assert!(i.local.type_ml_arg(), "type ML: {source:?}");
@@ -32500,29 +35125,57 @@ mod tests {
                     Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                     "positional fence: {source:?}",
                 );
-                assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "episode: {source:?}");
                 assert_eq!(
-                    i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                    i.local.type_expression_episode_depth(),
+                    episode_depth,
+                    "episode: {source:?}"
+                );
+                assert_eq!(
+                    i.local
+                        .type_expression_scoped_stop_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![scoped_frame],
                     "scoped stops: {source:?}",
                 );
                 assert_eq!(
-                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![inline, root],
                     "ambient stack: {source:?}",
                 );
-                assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                assert_eq!(
+                    i.local.if_expression_companion().map(|frame| frame.id()),
+                    Some(companion)
+                );
             }
 
             assert!(expectations.take_merged().is_none(), "sink: {source:?}");
             assert!(!is_cut, "cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -32666,7 +35319,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: scoped_stops,
                 visible_episode_depth: episode_depth,
@@ -32681,8 +35335,12 @@ mod tests {
             let mut is_cut = false;
 
             {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let checkpoint = i.checkpoint();
                 let intro = i.run(recognize_error_statement_intro);
                 match (intro, expected) {
@@ -32699,18 +35357,46 @@ mod tests {
                         );
                         assert_eq!(intro.start, 0, "start: {source:?}");
                         assert_eq!(intro.error_base, expected.error_base, "base: {source:?}");
-                        assert_eq!(intro.error_keyword.range(), expected.keyword, "keyword: {source:?}");
-                        assert_eq!(i.input.remainder(), expected.remainder, "remainder: {source:?}");
+                        assert_eq!(
+                            intro.error_keyword.range(),
+                            expected.keyword,
+                            "keyword: {source:?}"
+                        );
+                        assert_eq!(
+                            i.input.remainder(),
+                            expected.remainder,
+                            "remainder: {source:?}"
+                        );
                     }
                     (None, None) => {
                         assert_eq!(i.pos(), 0, "failure position: {source:?}");
                         assert_eq!(i.input.remainder(), source, "failure remainder: {source:?}");
-                        assert_eq!(i.local.line(), LineState::default(), "failure line: {source:?}");
-                        assert_eq!(i.local.indentation_baseline(), Some(baseline), "failure baseline: {source:?}");
+                        assert_eq!(
+                            i.local.line(),
+                            LineState::default(),
+                            "failure line: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.indentation_baseline(),
+                            Some(baseline),
+                            "failure baseline: {source:?}"
+                        );
                         assert_eq!(i.local.stop_set(), Some(stops), "failure stops: {source:?}");
-                        assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "failure delimiter: {source:?}");
-                        assert_eq!(i.local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call), "failure expression owner: {source:?}");
-                        assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "failure type owner: {source:?}");
+                        assert_eq!(
+                            i.local.delimiter(),
+                            Some(Delimiter::Parenthesis),
+                            "failure delimiter: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.expression_delimited_owner(),
+                            Some(ExpressionDelimitedOwner::Call),
+                            "failure expression owner: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local.type_delimited_owner(),
+                            Some(TypeDelimitedOwner::Call),
+                            "failure type owner: {source:?}"
+                        );
                         assert!(i.local.inline(), "failure inline: {source:?}");
                         assert!(i.local.ml_arg(), "failure ML: {source:?}");
                         assert!(i.local.type_ml_arg(), "failure type ML: {source:?}");
@@ -32719,18 +35405,31 @@ mod tests {
                             Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                             "failure positional fence: {source:?}",
                         );
-                        assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "failure episode: {source:?}");
                         assert_eq!(
-                            i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                            i.local.type_expression_episode_depth(),
+                            episode_depth,
+                            "failure episode: {source:?}"
+                        );
+                        assert_eq!(
+                            i.local
+                                .type_expression_scoped_stop_frames()
+                                .copied()
+                                .collect::<Vec<_>>(),
                             vec![scoped_frame],
                             "failure scoped stops: {source:?}",
                         );
                         assert_eq!(
-                            i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                            i.local
+                                .ambient_owner_scope_frames()
+                                .copied()
+                                .collect::<Vec<_>>(),
                             vec![inline, root],
                             "failure ambient stack: {source:?}",
                         );
-                        assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                        assert_eq!(
+                            i.local.if_expression_companion().map(|frame| frame.id()),
+                            Some(companion)
+                        );
                     }
                     (actual, expected) => panic!(
                         "Error intro mismatch for {source:?}: actual={actual:?}, expected={expected:?}"
@@ -32741,15 +35440,27 @@ mod tests {
                 assert_eq!(i.pos(), 0, "input position: {source:?}");
                 assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
                 assert_eq!(i.local.line(), LineState::default(), "line: {source:?}");
-                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(
+                    i.local.indentation_baseline(),
+                    Some(baseline),
+                    "baseline: {source:?}"
+                );
                 assert_eq!(i.local.stop_set(), Some(stops), "stops: {source:?}");
-                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "delimiter: {source:?}");
+                assert_eq!(
+                    i.local.delimiter(),
+                    Some(Delimiter::Parenthesis),
+                    "delimiter: {source:?}"
+                );
                 assert_eq!(
                     i.local.expression_delimited_owner(),
                     Some(ExpressionDelimitedOwner::Call),
                     "expression owner: {source:?}",
                 );
-                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "type owner: {source:?}");
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call),
+                    "type owner: {source:?}"
+                );
                 assert!(i.local.inline(), "inline: {source:?}");
                 assert!(i.local.ml_arg(), "ML: {source:?}");
                 assert!(i.local.type_ml_arg(), "type ML: {source:?}");
@@ -32758,29 +35469,57 @@ mod tests {
                     Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                     "positional fence: {source:?}",
                 );
-                assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "episode: {source:?}");
                 assert_eq!(
-                    i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                    i.local.type_expression_episode_depth(),
+                    episode_depth,
+                    "episode: {source:?}"
+                );
+                assert_eq!(
+                    i.local
+                        .type_expression_scoped_stop_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![scoped_frame],
                     "scoped stops: {source:?}",
                 );
                 assert_eq!(
-                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![inline, root],
                     "ambient stack: {source:?}",
                 );
-                assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                assert_eq!(
+                    i.local.if_expression_companion().map(|frame| frame.id()),
+                    Some(companion)
+                );
             }
 
             assert!(expectations.take_merged().is_none(), "sink: {source:?}");
             assert!(!is_cut, "cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -32910,7 +35649,10 @@ mod tests {
             assert_eq!(local.indentation_baseline(), Some(baseline));
             assert_eq!(local.stop_set(), Some(stops));
             assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
-            assert_eq!(local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
             assert!(local.inline());
             assert!(local.ml_arg());
@@ -32921,18 +35663,27 @@ mod tests {
             );
             assert_eq!(local.type_expression_episode_depth(), 1);
             assert_eq!(
-                local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
                 vec![scoped_frame],
             );
             assert_eq!(
-                local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
                 indented
                     .into_iter()
                     .chain(Some(inline))
                     .chain(Some(root))
                     .collect::<Vec<_>>(),
             );
-            assert_eq!(local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
         }
 
         fn parse_ast<'source>(
@@ -32957,7 +35708,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: StopSet::default().with(StopKind::Semicolon),
                 visible_episode_depth: episode_depth,
@@ -32972,8 +35724,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let (header, recoveries, remainder) = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let intro = i
                     .run(recognize_enum_statement_intro)
                     .expect("the isolated Enum header fixture has an accepted intro");
@@ -32985,21 +35741,45 @@ mod tests {
                 i.rollback(checkpoint);
                 assert_eq!(i.input.remainder(), after_intro, "AST rollback: {source:?}");
                 assert_eq!(i.local.line(), after_intro_line, "AST line: {source:?}");
-                assert_prepared_local(i.local, baseline, stops, scoped_frame, root, inline, indented, companion);
+                assert_prepared_local(
+                    i.local,
+                    baseline,
+                    stops,
+                    scoped_frame,
+                    root,
+                    inline,
+                    indented,
+                    companion,
+                );
                 (header, recoveries, remainder)
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             if let Some(indented) = indented {
                 assert_eq!(local.pop_ambient_owner_scope(), Some(indented));
             }
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -33028,7 +35808,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: StopSet::default().with(StopKind::Semicolon),
                 visible_episode_depth: episode_depth,
@@ -33042,8 +35823,12 @@ mod tests {
             let companion = local.push_if_expression_companion(4, IF_WORDS);
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe
                 .input()
@@ -33058,19 +35843,46 @@ mod tests {
                 .iter()
                 .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect();
-            assert_prepared_local(&local, baseline, stops, scoped_frame, root, inline, indented, companion);
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert_prepared_local(
+                &local,
+                baseline,
+                stops,
+                scoped_frame,
+                root,
+                inline,
+                indented,
+                companion,
+            );
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             if let Some(indented) = indented {
                 assert_eq!(local.pop_ambient_owner_scope(), Some(indented));
             }
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -33087,10 +35899,17 @@ mod tests {
             remainder: &str,
         ) {
             let (ast, actual_ast_recoveries, ast_remainder) = parse_ast(source, ambient_boundary);
-            let (direct, actual_direct_recoveries, direct_remainder) = parse_direct(source, ambient_boundary);
+            let (direct, actual_direct_recoveries, direct_remainder) =
+                parse_direct(source, ambient_boundary);
             assert_eq!(ast, direct, "AST/direct header: {source:?}");
-            assert_eq!(actual_ast_recoveries, ast_recoveries, "AST recovery: {source:?}");
-            assert_eq!(actual_direct_recoveries, direct_recoveries, "direct recovery: {source:?}");
+            assert_eq!(
+                actual_ast_recoveries, ast_recoveries,
+                "AST recovery: {source:?}"
+            );
+            assert_eq!(
+                actual_direct_recoveries, direct_recoveries,
+                "direct recovery: {source:?}"
+            );
             assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
             assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
             match (ast.name, name) {
@@ -33099,11 +35918,21 @@ mod tests {
                     assert_eq!(actual.range(), range, "name range: {source:?}");
                 }
                 (Recovered::Incomplete, None) => {}
-                (actual, expected) => panic!("name mismatch for {source:?}: {actual:?} vs {expected:?}"),
+                (actual, expected) => {
+                    panic!("name mismatch for {source:?}: {actual:?} vs {expected:?}")
+                }
             }
-            assert_eq!(ast.parameters.len(), parameters.len(), "parameter count: {source:?}");
+            assert_eq!(
+                ast.parameters.len(),
+                parameters.len(),
+                "parameter count: {source:?}"
+            );
             for (actual, (text, range)) in ast.parameters.iter().zip(parameters) {
-                assert_eq!(declaration_type_parameter_range(actual), range.clone(), "parameter range: {source:?}");
+                assert_eq!(
+                    declaration_type_parameter_range(actual),
+                    range.clone(),
+                    "parameter range: {source:?}"
+                );
                 let actual_text = match actual {
                     DeclarationTypeParameter::Identifier(word)
                     | DeclarationTypeParameter::SigilIdentifier(word) => word.text(),
@@ -33139,7 +35968,15 @@ mod tests {
             ("enum E = A", " = A"),
             ("enum E;", ";"),
         ] {
-            assert_header(source, false, Some(("E", 5..6)), &[], vec![], vec![], remainder);
+            assert_header(
+                source,
+                false,
+                Some(("E", 5..6)),
+                &[],
+                vec![],
+                vec![],
+                remainder,
+            );
         }
         assert_header(
             "enum @ E",
@@ -33210,8 +36047,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut probe = Probe::new(i);
         let intro = probe.input().run(recognize_enum_statement_intro).unwrap();
         let mut committed = probe.commit(FullCstOutput::new(source));
@@ -33261,7 +36102,10 @@ mod tests {
             assert_eq!(local.indentation_baseline(), Some(baseline));
             assert_eq!(local.stop_set(), Some(stops));
             assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
-            assert_eq!(local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
             assert!(local.inline());
             assert!(local.ml_arg());
@@ -33272,18 +36116,27 @@ mod tests {
             );
             assert_eq!(local.type_expression_episode_depth(), 1);
             assert_eq!(
-                local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
                 vec![scoped_frame],
             );
             assert_eq!(
-                local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>(),
                 indented
                     .into_iter()
                     .chain(Some(inline))
                     .chain(Some(root))
                     .collect::<Vec<_>>(),
             );
-            assert_eq!(local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
         }
 
         fn parse_ast<'source>(
@@ -33308,7 +36161,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: StopSet::default().with(StopKind::Semicolon),
                 visible_episode_depth: episode_depth,
@@ -33323,8 +36177,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let (header, recoveries, remainder) = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let intro = i
                     .run(recognize_error_statement_intro)
                     .expect("the isolated Error header fixture has an accepted intro");
@@ -33336,21 +36194,45 @@ mod tests {
                 i.rollback(checkpoint);
                 assert_eq!(i.input.remainder(), after_intro, "AST rollback: {source:?}");
                 assert_eq!(i.local.line(), after_intro_line, "AST line: {source:?}");
-                assert_prepared_local(i.local, baseline, stops, scoped_frame, root, inline, indented, companion);
+                assert_prepared_local(
+                    i.local,
+                    baseline,
+                    stops,
+                    scoped_frame,
+                    root,
+                    inline,
+                    indented,
+                    companion,
+                );
                 (header, recoveries, remainder)
             };
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             if let Some(indented) = indented {
                 assert_eq!(local.pop_ambient_owner_scope(), Some(indented));
             }
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -33379,7 +36261,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: StopSet::default().with(StopKind::Semicolon),
                 visible_episode_depth: episode_depth,
@@ -33393,8 +36276,12 @@ mod tests {
             let companion = local.push_if_expression_companion(4, IF_WORDS);
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe
                 .input()
@@ -33409,19 +36296,46 @@ mod tests {
                 .iter()
                 .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect();
-            assert_prepared_local(&local, baseline, stops, scoped_frame, root, inline, indented, companion);
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert_prepared_local(
+                &local,
+                baseline,
+                stops,
+                scoped_frame,
+                root,
+                inline,
+                indented,
+                companion,
+            );
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             if let Some(indented) = indented {
                 assert_eq!(local.pop_ambient_owner_scope(), Some(indented));
             }
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -33438,10 +36352,17 @@ mod tests {
             remainder: &str,
         ) {
             let (ast, actual_ast_recoveries, ast_remainder) = parse_ast(source, ambient_boundary);
-            let (direct, actual_direct_recoveries, direct_remainder) = parse_direct(source, ambient_boundary);
+            let (direct, actual_direct_recoveries, direct_remainder) =
+                parse_direct(source, ambient_boundary);
             assert_eq!(ast, direct, "AST/direct header: {source:?}");
-            assert_eq!(actual_ast_recoveries, ast_recoveries, "AST recovery: {source:?}");
-            assert_eq!(actual_direct_recoveries, direct_recoveries, "direct recovery: {source:?}");
+            assert_eq!(
+                actual_ast_recoveries, ast_recoveries,
+                "AST recovery: {source:?}"
+            );
+            assert_eq!(
+                actual_direct_recoveries, direct_recoveries,
+                "direct recovery: {source:?}"
+            );
             assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
             assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
             match (ast.name, name) {
@@ -33450,11 +36371,21 @@ mod tests {
                     assert_eq!(actual.range(), range, "name range: {source:?}");
                 }
                 (Recovered::Incomplete, None) => {}
-                (actual, expected) => panic!("name mismatch for {source:?}: {actual:?} vs {expected:?}"),
+                (actual, expected) => {
+                    panic!("name mismatch for {source:?}: {actual:?} vs {expected:?}")
+                }
             }
-            assert_eq!(ast.parameters.len(), parameters.len(), "parameter count: {source:?}");
+            assert_eq!(
+                ast.parameters.len(),
+                parameters.len(),
+                "parameter count: {source:?}"
+            );
             for (actual, (text, range)) in ast.parameters.iter().zip(parameters) {
-                assert_eq!(declaration_type_parameter_range(actual), range.clone(), "parameter range: {source:?}");
+                assert_eq!(
+                    declaration_type_parameter_range(actual),
+                    range.clone(),
+                    "parameter range: {source:?}"
+                );
                 let actual_text = match actual {
                     DeclarationTypeParameter::Identifier(word)
                     | DeclarationTypeParameter::SigilIdentifier(word) => word.text(),
@@ -33463,7 +36394,8 @@ mod tests {
             }
         }
 
-        let name_role = GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Name));
+        let name_role =
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Name));
         assert_header("error E", false, Some(("E", 6..7)), &[], vec![], vec![], "");
         assert_header(
             "error fs_err 't",
@@ -33490,7 +36422,15 @@ mod tests {
             ("error E = A", " = A"),
             ("error E;", ";"),
         ] {
-            assert_header(source, false, Some(("E", 6..7)), &[], vec![], vec![], remainder);
+            assert_header(
+                source,
+                false,
+                Some(("E", 6..7)),
+                &[],
+                vec![],
+                vec![],
+                remainder,
+            );
         }
         assert_header(
             "error @ E",
@@ -33561,8 +36501,12 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-            .set_local(&mut local);
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
         let mut probe = Probe::new(i);
         let intro = probe.input().run(recognize_error_statement_intro).unwrap();
         let mut committed = probe.commit(FullCstOutput::new(source));
@@ -33621,10 +36565,7 @@ mod tests {
         {
             type Error = E;
 
-            fn with_input<R>(
-                &mut self,
-                f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R,
-            ) -> R {
+            fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R) -> R {
                 f(self.i)
             }
 
@@ -33660,13 +36601,7 @@ mod tests {
             }
         }
 
-        struct DirectStubContext<
-            'context,
-            'parse,
-            'source,
-            'local,
-            E: ErrorSink<usize>,
-        > {
+        struct DirectStubContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
             committed: &'context mut Committed<'parse, 'source, 'local, E, HeaderOutput>,
             events: Vec<Event>,
         }
@@ -33680,10 +36615,7 @@ mod tests {
         {
             type Error = E;
 
-            fn with_input<R>(
-                &mut self,
-                f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R,
-            ) -> R {
+            fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R) -> R {
                 self.committed.probe(|probe| f(probe.input()))
             }
 
@@ -33711,9 +36643,7 @@ mod tests {
                 if let Some(range) = malformed {
                     self.events.push(Event::ErrorVariant(range));
                 }
-                let word = self
-                    .committed
-                    .probe(|probe| probe.input().run(scan_word));
+                let word = self.committed.probe(|probe| probe.input().run(scan_word));
                 let Some(word) = word else {
                     return false;
                 };
@@ -33776,8 +36706,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let (termination, events) = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let mut context = AstStubContext {
                     i: &mut i,
                     events: Vec::new(),
@@ -33803,8 +36737,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let (termination, events, remainder, output) = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let mut committed = Probe::new(i).commit(HeaderOutput::new());
                 let (termination, events) = {
                     let mut context = DirectStubContext {
@@ -33819,7 +36757,10 @@ mod tests {
             };
             let _ = expectations.take_merged();
             assert!(!is_cut, "the neutral direct driver never cuts: {source:?}");
-            assert!(output.committed_recoveries().is_empty(), "neutral direct output: {source:?}");
+            assert!(
+                output.committed_recoveries().is_empty(),
+                "neutral direct output: {source:?}"
+            );
             Run {
                 termination,
                 events,
@@ -33857,17 +36798,26 @@ mod tests {
 
         let leading_comma = assert_neutral_parity(" ,}", braced);
         assert_eq!(
-            leading_comma.events
+            leading_comma
+                .events
                 .iter()
                 .filter(|event| matches!(event, Event::MissingVariant))
                 .count(),
             1,
             "one leading comma opens exactly one empty required slot"
         );
-        assert!(leading_comma.events.contains(&Event::Trailing(EnumVariantSeparator::Comma(1..2))));
+        assert!(
+            leading_comma
+                .events
+                .contains(&Event::Trailing(EnumVariantSeparator::Comma(1..2)))
+        );
 
         let trailing_brace = assert_neutral_parity("A,\n}", braced);
-        assert!(trailing_brace.events.contains(&Event::Trailing(EnumVariantSeparator::Comma(1..2))));
+        assert!(
+            trailing_brace
+                .events
+                .contains(&Event::Trailing(EnumVariantSeparator::Comma(1..2)))
+        );
         assert!(!trailing_brace.events.contains(&Event::MissingVariant));
 
         let newline_brace = assert_neutral_parity("A\nB}", braced);
@@ -33897,7 +36847,10 @@ mod tests {
 
         let colon = spec(EnumVariantSequenceForm::ColonIndented, 2);
         let colon_indented = assert_neutral_parity("| A\n  B", colon);
-        assert_eq!(colon_indented.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(
+            colon_indented.termination,
+            EnumVariantSequenceTermination::EndOfInput
+        );
         assert_eq!(
             colon_indented
                 .events
@@ -33940,12 +36893,18 @@ mod tests {
         );
 
         let colon_dedent = assert_neutral_parity("A\nB", colon);
-        assert_eq!(colon_dedent.termination, EnumVariantSequenceTermination::Dedent);
+        assert_eq!(
+            colon_dedent.termination,
+            EnumVariantSequenceTermination::Dedent
+        );
         assert_eq!(colon_dedent.remainder, "\nB");
 
         let equals_inline = spec(EnumVariantSequenceForm::EqualsInline, 0);
         let inline_pipes = assert_neutral_parity("| A | B |", equals_inline);
-        assert_eq!(inline_pipes.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(
+            inline_pipes.termination,
+            EnumVariantSequenceTermination::EndOfInput
+        );
         assert_eq!(
             inline_pipes
                 .events
@@ -33954,7 +36913,11 @@ mod tests {
                 .count(),
             0
         );
-        assert!(inline_pipes.events.contains(&Event::Trailing(EnumVariantSeparator::Pipe(8..9))));
+        assert!(
+            inline_pipes
+                .events
+                .contains(&Event::Trailing(EnumVariantSeparator::Pipe(8..9)))
+        );
 
         let repeated_pipe = assert_neutral_parity("A||B", equals_inline);
         assert_eq!(
@@ -33968,12 +36931,18 @@ mod tests {
         );
 
         let inline_newline = assert_neutral_parity("A\n  | B", equals_inline);
-        assert_eq!(inline_newline.termination, EnumVariantSequenceTermination::ItemContinuation);
+        assert_eq!(
+            inline_newline.termination,
+            EnumVariantSequenceTermination::ItemContinuation
+        );
         assert_eq!(inline_newline.remainder, "\n  | B");
 
         let equals_indented = spec(EnumVariantSequenceForm::EqualsIndented, 2);
         let equals_indent = assert_neutral_parity("| A\n  B", equals_indented);
-        assert_eq!(equals_indent.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(
+            equals_indent.termination,
+            EnumVariantSequenceTermination::EndOfInput
+        );
         assert_eq!(
             equals_indent
                 .events
@@ -33987,8 +36956,16 @@ mod tests {
         );
 
         let equals_indent_trailing = assert_neutral_parity("| A\n  |", equals_indented);
-        assert!(equals_indent_trailing.events.contains(&Event::Trailing(EnumVariantSeparator::Pipe(6..7))));
-        assert!(!equals_indent_trailing.events.contains(&Event::MissingVariant));
+        assert!(
+            equals_indent_trailing
+                .events
+                .contains(&Event::Trailing(EnumVariantSeparator::Pipe(6..7)))
+        );
+        assert!(
+            !equals_indent_trailing
+                .events
+                .contains(&Event::MissingVariant)
+        );
 
         let equals_missing_first = assert_neutral_parity("", equals_indented);
         assert_eq!(equals_missing_first.events, vec![Event::MissingVariant]);
@@ -34000,7 +36977,11 @@ mod tests {
         assert!(!malformed_retry.events.contains(&Event::MissingVariant));
 
         let malformed_boundary = assert_neutral_parity("@, B}", braced);
-        assert!(malformed_boundary.events.contains(&Event::ErrorVariant(0..1)));
+        assert!(
+            malformed_boundary
+                .events
+                .contains(&Event::ErrorVariant(0..1))
+        );
         assert!(malformed_boundary.events.contains(&Event::Variant(3..4)));
         assert!(!malformed_boundary.events.contains(&Event::MissingVariant));
 
@@ -34021,7 +37002,10 @@ mod tests {
         assert_eq!(mismatched_close.events, vec![Event::Variant(0..1)]);
 
         let missing_close = assert_neutral_parity("A", braced);
-        assert_eq!(missing_close.termination, EnumVariantSequenceTermination::EndOfInput);
+        assert_eq!(
+            missing_close.termination,
+            EnumVariantSequenceTermination::EndOfInput
+        );
         assert_eq!(missing_close.events, vec![Event::Variant(0..1)]);
     }
 
@@ -34074,8 +37058,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let parsed = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_enum_variant_sequence_with_payload(spec, &mut i)
             };
             let _ = expectations.take_merged();
@@ -34097,7 +37085,10 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert!(matches!(complete[0].payload, EnumVariantPayload::Unit));
-        assert!(matches!(complete[1].payload, EnumVariantPayload::From { .. }));
+        assert!(matches!(
+            complete[1].payload,
+            EnumVariantPayload::From { .. }
+        ));
         match &complete[2].payload {
             EnumVariantPayload::Positional { types, .. } => assert_eq!(types.len(), 2),
             other => panic!("Rect owns two outer ML payload items, got {other:?}"),
@@ -34117,7 +37108,10 @@ mod tests {
             other => panic!("Tuple payload must outrank positional parsing, got {other:?}"),
         }
 
-        let calls = run("Boxed list(Int) | Group ((T)) | Record ({ x: T })", spec(EnumVariantSequenceForm::EqualsInline));
+        let calls = run(
+            "Boxed list(Int) | Group ((T)) | Record ({ x: T })",
+            spec(EnumVariantSequenceForm::EqualsInline),
+        );
         let calls = calls
             .variants
             .iter()
@@ -34133,16 +37127,28 @@ mod tests {
         assert!(matches!(calls[1].payload, EnumVariantPayload::Tuple { .. }));
         assert!(matches!(calls[2].payload, EnumVariantPayload::Tuple { .. }));
 
-        let from_record = run("From from ({ x: T })}", spec(EnumVariantSequenceForm::Braced));
+        let from_record = run(
+            "From from ({ x: T })}",
+            spec(EnumVariantSequenceForm::Braced),
+        );
         assert!(matches!(
             from_record.variants.as_slice(),
-            [Recovered::Complete(EnumVariant { payload: EnumVariantPayload::From { type_expr: Recovered::Complete(_), .. }, .. })]
+            [Recovered::Complete(EnumVariant {
+                payload: EnumVariantPayload::From {
+                    type_expr: Recovered::Complete(_),
+                    ..
+                },
+                ..
+            })]
         ));
         let missing_from = run("From from, Next}", spec(EnumVariantSequenceForm::Braced));
         assert!(matches!(
             missing_from.variants.first(),
             Some(Recovered::Complete(EnumVariant {
-                payload: EnumVariantPayload::From { type_expr: Recovered::Incomplete, .. },
+                payload: EnumVariantPayload::From {
+                    type_expr: Recovered::Incomplete,
+                    ..
+                },
                 ..
             }))
         ));
@@ -34153,15 +37159,22 @@ mod tests {
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
         let output = {
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
             let termination = commit_enum_variant_sequence_with_payload(
                 spec(EnumVariantSequenceForm::Braced),
                 &mut committed,
             );
-            assert!(matches!(termination, EnumVariantSequenceTermination::MatchingClose(_)));
+            assert!(matches!(
+                termination,
+                EnumVariantSequenceTermination::MatchingClose(_)
+            ));
             committed.finish_node();
             committed.into_output()
         };
@@ -34193,8 +37206,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let parsed = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_variant_declaration_sequence_with_payload(
                     spec,
                     error_variant_declaration_owner_spec(spec.declaration_base),
@@ -34215,8 +37232,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let output = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
                 committed.start_node(SyntaxKind::Root);
                 let _ = commit_variant_declaration_sequence_with_payload(
@@ -34230,7 +37251,11 @@ mod tests {
             assert!(!is_cut, "isolated Error owner never cuts: {source:?}");
             let _ = expectations.take_merged();
             let recoveries = output.committed_recoveries().to_vec();
-            assert_eq!(output.finish_complete().to_string(), source, "lossless: {source:?}");
+            assert_eq!(
+                output.finish_complete().to_string(),
+                source,
+                "lossless: {source:?}"
+            );
             recoveries
         }
 
@@ -34273,11 +37298,26 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(variants.len(), 5, "all payload forms: {source:?}");
             assert!(matches!(variants[0].payload, EnumVariantPayload::Unit));
-            assert!(matches!(variants[1].payload, EnumVariantPayload::From { .. }));
-            assert!(matches!(variants[2].payload, EnumVariantPayload::Named { .. }));
-            assert!(matches!(variants[3].payload, EnumVariantPayload::Tuple { .. }));
-            assert!(matches!(variants[4].payload, EnumVariantPayload::Positional { .. }));
-            assert!(direct(source, sequence_spec).is_empty(), "valid Error sequence: {source:?}");
+            assert!(matches!(
+                variants[1].payload,
+                EnumVariantPayload::From { .. }
+            ));
+            assert!(matches!(
+                variants[2].payload,
+                EnumVariantPayload::Named { .. }
+            ));
+            assert!(matches!(
+                variants[3].payload,
+                EnumVariantPayload::Tuple { .. }
+            ));
+            assert!(matches!(
+                variants[4].payload,
+                EnumVariantPayload::Positional { .. }
+            ));
+            assert!(
+                direct(source, sequence_spec).is_empty(),
+                "valid Error sequence: {source:?}"
+            );
         }
 
         let item_role = GrammarRole::Declaration(DeclarationRole::Error(
@@ -34290,9 +37330,12 @@ mod tests {
             (VariantDeclarationSequenceForm::EqualsIndented, 0, 2, "@"),
         ] {
             let records = direct(source, spec(form, declaration_base, layout_base));
-            assert!(records.iter().any(|record| {
-                record.kind == RecoveryKind::Error && record.site.role == item_role
-            }), "Error item identity in {form:?}: {records:?}");
+            assert!(
+                records.iter().any(|record| {
+                    record.kind == RecoveryKind::Error && record.site.role == item_role
+                }),
+                "Error item identity in {form:?}: {records:?}"
+            );
         }
 
         let missing_from = direct(
@@ -34344,17 +37387,18 @@ mod tests {
             allow_trailing_pipe: false,
         };
 
-        fn direct(
-            source: &str,
-            spec: EnumVariantSequenceSpec,
-        ) -> Vec<CommittedRecoveryRecord> {
+        fn direct(source: &str, spec: EnumVariantSequenceSpec) -> Vec<CommittedRecoveryRecord> {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let output = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
                 committed.start_node(SyntaxKind::Root);
                 let _ = commit_enum_variant_sequence_with_payload(spec, &mut committed);
@@ -34363,7 +37407,11 @@ mod tests {
             };
             assert!(!is_cut, "isolated payload driver must not cut: {source:?}");
             let recoveries = output.committed_recoveries().to_vec();
-            assert_eq!(output.finish_complete().to_string(), source, "lossless: {source:?}");
+            assert_eq!(
+                output.finish_complete().to_string(),
+                source,
+                "lossless: {source:?}"
+            );
             recoveries
         }
 
@@ -34465,13 +37513,20 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_enum_declaration_isolated(i)
                     .expect("the isolated Enum form fixture has an accepted intro")
             };
             let _ = expectations.take_merged();
-            assert!(!is_cut, "the isolated Enum adapter must not cut: {source:?}");
+            assert!(
+                !is_cut,
+                "the isolated Enum adapter must not cut: {source:?}"
+            );
             (declaration, source_input.remainder().to_owned())
         }
 
@@ -34569,7 +37624,10 @@ mod tests {
         let (header_derives, remainder) = parse(source);
         assert_eq!(remainder, "");
         assert_eq!(header_derives.derives.len(), 1);
-        assert_eq!(header_derives.derives[0].position, DerivesAttachmentPosition::Header);
+        assert_eq!(
+            header_derives.derives[0].position,
+            DerivesAttachmentPosition::Header
+        );
         assert_eq!(header_derives.derives[0].clause.range, 12..22);
         assert_eq!(header_derives.range(), 0..source.len());
         assert!(matches!(
@@ -34591,8 +37649,14 @@ mod tests {
 
         for source in ["enum { A }", "enum @ { A }"] {
             let (declaration, _) = parse(source);
-            assert!(matches!(declaration.name, Recovered::Incomplete), "{source:?}");
-            assert!(matches!(declaration.body, Recovered::Incomplete), "{source:?}");
+            assert!(
+                matches!(declaration.name, Recovered::Incomplete),
+                "{source:?}"
+            );
+            assert!(
+                matches!(declaration.body, Recovered::Incomplete),
+                "{source:?}"
+            );
             assert!(declaration.derives.is_empty(), "{source:?}");
             assert_eq!(declaration.range(), 0..4, "{source:?}");
         }
@@ -34662,8 +37726,12 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let declaration = parse_enum_declaration_isolated(i).unwrap();
             assert!(expectations.take_merged().is_none());
             assert!(!is_cut);
@@ -34675,8 +37743,12 @@ mod tests {
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_enum_statement_intro).unwrap();
             let mut committed = probe.commit(FullCstOutput::new(source));
@@ -34694,12 +37766,19 @@ mod tests {
                 let root = SyntaxNode::new_root(output.finish_complete());
                 assert_eq!(
                     root.descendants()
-                        .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                        .filter(|node| matches!(
+                            node.kind(),
+                            SyntaxKind::Missing | SyntaxKind::Error
+                        ))
                         .count(),
                     records.len(),
                     "one direct recovery node per record: {source:?}",
                 );
-                assert_eq!(root.to_string(), source, "lossless direct recovery: {source:?}");
+                assert_eq!(
+                    root.to_string(),
+                    source,
+                    "lossless direct recovery: {source:?}"
+                );
             }
             assert!(expectations.take_merged().is_none());
             assert!(!is_cut);
@@ -34708,10 +37787,22 @@ mod tests {
 
         fn run<'source>(
             source: &'source str,
-        ) -> (EnumDeclaration<'source>, String, Recovered<Range<usize>>, String, Vec<Recovery>) {
+        ) -> (
+            EnumDeclaration<'source>,
+            String,
+            Recovered<Range<usize>>,
+            String,
+            Vec<Recovery>,
+        ) {
             let (declaration, ast_remainder) = ast(source);
             let (direct_range, direct_remainder, records) = direct(source);
-            (declaration, ast_remainder, direct_range, direct_remainder, records)
+            (
+                declaration,
+                ast_remainder,
+                direct_range,
+                direct_remainder,
+                records,
+            )
         }
 
         let enum_role = |role| GrammarRole::Declaration(DeclarationRole::Enum(role));
@@ -34734,37 +37825,72 @@ mod tests {
             ("enum ;", ";", 5),
         ] {
             let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
-            assert!(matches!(ast.name, Recovered::Incomplete), "Name: {source:?}");
-            assert!(matches!(ast.body, Recovered::Incomplete), "body cascade: {source:?}");
+            assert!(
+                matches!(ast.name, Recovered::Incomplete),
+                "Name: {source:?}"
+            );
+            assert!(
+                matches!(ast.body, Recovered::Incomplete),
+                "body cascade: {source:?}"
+            );
             assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
             assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
-            assert!(matches!(direct_range, Recovered::Complete(range) if range.start == ast.range().start));
-            assert_eq!(records, vec![(RecoveryKind::Missing, enum_role(EnumDeclarationRole::Name), at..at)]);
+            assert!(
+                matches!(direct_range, Recovered::Complete(range) if range.start == ast.range().start)
+            );
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Missing,
+                    enum_role(EnumDeclarationRole::Name),
+                    at..at
+                )]
+            );
         }
 
         for (source, remainder, expected, complete_name) in [
             (
                 "enum @ E;",
                 "",
-                vec![(RecoveryKind::Error, enum_role(EnumDeclarationRole::Name), 5..7)],
+                vec![(
+                    RecoveryKind::Error,
+                    enum_role(EnumDeclarationRole::Name),
+                    5..7,
+                )],
                 true,
             ),
             (
                 "enum @;",
                 ";",
-                vec![(RecoveryKind::Error, enum_role(EnumDeclarationRole::Name), 5..6)],
+                vec![(
+                    RecoveryKind::Error,
+                    enum_role(EnumDeclarationRole::Name),
+                    5..6,
+                )],
                 false,
             ),
         ] {
             let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
-            assert_eq!(matches!(ast.name, Recovered::Complete(_)), complete_name, "Name retry: {source:?}");
+            assert_eq!(
+                matches!(ast.name, Recovered::Complete(_)),
+                complete_name,
+                "Name retry: {source:?}"
+            );
             assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
             assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
             if complete_name {
-                assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+                assert_eq!(
+                    direct_range,
+                    Recovered::Complete(ast.range()),
+                    "range: {source:?}"
+                );
             }
             assert_eq!(records, expected, "Name recovery: {source:?}");
-            assert!(records.iter().all(|(_, role, _)| *role != enum_role(EnumDeclarationRole::BodyIntroducer)));
+            assert!(
+                records
+                    .iter()
+                    .all(|(_, role, _)| *role != enum_role(EnumDeclarationRole::BodyIntroducer))
+            );
         }
 
         // Header parameters remain optional; an actual malformed body gap is
@@ -34773,23 +37899,37 @@ mod tests {
             (
                 "enum E 'a @ { A }",
                 "",
-                vec![(RecoveryKind::Error, enum_role(EnumDeclarationRole::BodyIntroducer), 10..12)],
+                vec![(
+                    RecoveryKind::Error,
+                    enum_role(EnumDeclarationRole::BodyIntroducer),
+                    10..12,
+                )],
             ),
             (
                 "enum E @;",
                 "",
-                vec![(RecoveryKind::Error, enum_role(EnumDeclarationRole::BodyIntroducer), 7..8)],
+                vec![(
+                    RecoveryKind::Error,
+                    enum_role(EnumDeclarationRole::BodyIntroducer),
+                    7..8,
+                )],
             ),
             (
                 "enum E @,",
                 ",",
-                vec![(RecoveryKind::Error, enum_role(EnumDeclarationRole::BodyIntroducer), 7..8)],
+                vec![(
+                    RecoveryKind::Error,
+                    enum_role(EnumDeclarationRole::BodyIntroducer),
+                    7..8,
+                )],
             ),
         ] {
             let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
             assert_eq!(ast_remainder, remainder, "AST remainder: {source:?}");
             assert_eq!(direct_remainder, remainder, "direct remainder: {source:?}");
-            assert!(matches!(direct_range, Recovered::Complete(range) if range.start == ast.range().start));
+            assert!(
+                matches!(direct_range, Recovered::Complete(range) if range.start == ast.range().start)
+            );
             assert_eq!(records, expected, "BodyIntroducer recovery: {source:?}");
         }
 
@@ -34799,24 +37939,50 @@ mod tests {
             ("enum E", vec![]),
             ("enum E;", vec![]),
             ("enum E {}", vec![]),
-            ("enum E {,A}", vec![(RecoveryKind::Missing, variant_role(VariantDeclarationRole::Item), 9..9)]),
-            ("enum E {A,,B}", vec![(RecoveryKind::Missing, variant_role(VariantDeclarationRole::Item), 11..11)]),
+            (
+                "enum E {,A}",
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    9..9,
+                )],
+            ),
+            (
+                "enum E {A,,B}",
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    11..11,
+                )],
+            ),
             ("enum E {A,}", vec![]),
             ("enum E {A", vec![(RecoveryKind::Missing, close_role, 9..9)]),
         ] {
             let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
             assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
             assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(records, expected, "braced recovery: {source:?}");
         }
 
-        let (mismatched_ast, mismatched_ast_remainder, mismatched_range, mismatched_remainder, records) =
-            run("enum E {A]");
+        let (
+            mismatched_ast,
+            mismatched_ast_remainder,
+            mismatched_range,
+            mismatched_remainder,
+            records,
+        ) = run("enum E {A]");
         assert_eq!(mismatched_ast_remainder, "]");
         assert_eq!(mismatched_remainder, "");
         assert_eq!(mismatched_range, Recovered::Complete(0..10));
-        assert!(matches!(mismatched_ast.body, Recovered::Complete(EnumBody::Braced(_))));
+        assert!(matches!(
+            mismatched_ast.body,
+            Recovered::Complete(EnumBody::Braced(_))
+        ));
         assert_eq!(
             records,
             vec![
@@ -34825,40 +37991,131 @@ mod tests {
             ],
         );
 
-        for source in ["enum E:", "enum E:;", "enum E:,", "enum E:)", "enum E:\nnext"] {
+        for source in [
+            "enum E:",
+            "enum E:;",
+            "enum E:,",
+            "enum E:)",
+            "enum E:\nnext",
+        ] {
             let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
-            let remainder = if source == "enum E:\nnext" { "\nnext" } else if source == "enum E:" { "" } else { &source[7..] };
+            let remainder = if source == "enum E:\nnext" {
+                "\nnext"
+            } else if source == "enum E:" {
+                ""
+            } else {
+                &source[7..]
+            };
             assert_eq!(ast_remainder, remainder, "AST colon boundary: {source:?}");
-            assert_eq!(direct_remainder, remainder, "direct colon boundary: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "colon range: {source:?}");
-            assert!(matches!(ast.body, Recovered::Complete(EnumBody::Colon { body: Recovered::Incomplete, .. })));
-            assert_eq!(records, vec![(RecoveryKind::Missing, variant_role(VariantDeclarationRole::Item), 7..7)]);
+            assert_eq!(
+                direct_remainder, remainder,
+                "direct colon boundary: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "colon range: {source:?}"
+            );
+            assert!(matches!(
+                ast.body,
+                Recovered::Complete(EnumBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
+            ));
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    7..7
+                )]
+            );
         }
 
-        for source in ["enum E =", "enum E =;", "enum E =,", "enum E =)", "enum E =\nnext"] {
+        for source in [
+            "enum E =",
+            "enum E =;",
+            "enum E =,",
+            "enum E =)",
+            "enum E =\nnext",
+        ] {
             let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
-            let remainder = if source == "enum E =\nnext" { "\nnext" } else if source == "enum E =" { "" } else { &source[8..] };
+            let remainder = if source == "enum E =\nnext" {
+                "\nnext"
+            } else if source == "enum E =" {
+                ""
+            } else {
+                &source[8..]
+            };
             assert_eq!(ast_remainder, remainder, "AST equals boundary: {source:?}");
-            assert_eq!(direct_remainder, remainder, "direct equals boundary: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "equals range: {source:?}");
-            assert_eq!(records, vec![(RecoveryKind::Missing, variant_role(VariantDeclarationRole::Item), 8..8)]);
+            assert_eq!(
+                direct_remainder, remainder,
+                "direct equals boundary: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "equals range: {source:?}"
+            );
+            assert_eq!(
+                records,
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    8..8
+                )]
+            );
         }
 
         for (source, expected) in [
             ("enum E = | A |", vec![]),
-            ("enum E = A || B", vec![(RecoveryKind::Missing, variant_role(VariantDeclarationRole::Item), 13..13)]),
-            ("enum E { @ A, B }", vec![(RecoveryKind::Error, variant_role(VariantDeclarationRole::Name), 9..11)]),
-            ("enum E { @, B }", vec![(RecoveryKind::Error, variant_role(VariantDeclarationRole::Item), 9..10)]),
-            ("enum E { From from, Next }", vec![(RecoveryKind::Missing, variant_role(VariantDeclarationRole::FromType), 18..18)]),
+            (
+                "enum E = A || B",
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::Item),
+                    13..13,
+                )],
+            ),
+            (
+                "enum E { @ A, B }",
+                vec![(
+                    RecoveryKind::Error,
+                    variant_role(VariantDeclarationRole::Name),
+                    9..11,
+                )],
+            ),
+            (
+                "enum E { @, B }",
+                vec![(
+                    RecoveryKind::Error,
+                    variant_role(VariantDeclarationRole::Item),
+                    9..10,
+                )],
+            ),
+            (
+                "enum E { From from, Next }",
+                vec![(
+                    RecoveryKind::Missing,
+                    variant_role(VariantDeclarationRole::FromType),
+                    18..18,
+                )],
+            ),
         ] {
             let (ast, ast_remainder, direct_range, direct_remainder, records) = run(source);
             assert_eq!(ast_remainder, "", "AST sequence: {source:?}");
             assert_eq!(direct_remainder, "", "direct sequence: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "sequence range: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "sequence range: {source:?}"
+            );
             assert_eq!(records, expected, "sequence/payload recovery: {source:?}");
         }
 
-        let (ast, ast_remainder, direct_range, direct_remainder, records) = run("enum E = rect int int");
+        let (ast, ast_remainder, direct_range, direct_remainder, records) =
+            run("enum E = rect int int");
         assert_eq!(ast_remainder, "");
         assert_eq!(direct_remainder, "");
         assert_eq!(direct_range, Recovered::Complete(ast.range()));
@@ -34921,7 +38178,10 @@ mod tests {
                 if_depth: local.if_expression_companion_depth(),
                 innermost_if: local.if_expression_companion().map(|frame| frame.id()),
                 type_episode_depth: local.type_expression_episode_depth(),
-                scoped_type_stops: local.type_expression_scoped_stop_frames().copied().collect(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
             }
         }
 
@@ -35007,12 +38267,16 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let range = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 skip_prefix(prefix_len, &mut i);
                 let before = snapshot(i.local);
-                let declaration = parse_enum_declaration_isolated(i)
-                    .expect("Enum matrix candidate");
+                let declaration =
+                    parse_enum_declaration_isolated(i).expect("Enum matrix candidate");
                 assert_eq!(snapshot(&local), before, "AST state: {source:?}");
                 declaration.range()
             };
@@ -35026,7 +38290,12 @@ mod tests {
             prefix_len: usize,
             context: Context,
             stop: StopKind,
-        ) -> (Range<usize>, String, LineState, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Range<usize>,
+            String,
+            LineState,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stop);
@@ -35049,8 +38318,8 @@ mod tests {
                         .expect("Enum matrix intro");
                     let mut committed = probe.commit(HeaderOutput::new());
                     let range = commit_enum_declaration_isolated(&mut committed, intro);
-                    let remainder = committed
-                        .probe(|probe| probe.input().input.remainder().to_owned());
+                    let remainder =
+                        committed.probe(|probe| probe.input().input.remainder().to_owned());
                     let after = committed.probe(|probe| snapshot(probe.input().local));
                     assert_eq!(after, before, "direct state: {source:?}");
                     let records = committed.into_output().committed_recoveries().to_vec();
@@ -35058,7 +38327,10 @@ mod tests {
                 })))
                 .expect("the uncut direct Enum matrix adapter is total")
             };
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (
                 match range {
@@ -35086,9 +38358,18 @@ mod tests {
             // while direct CST also owns the maximal malformed Error run.
             // Both adapters must nevertheless retain the same declaration
             // start while restoring all surrounding parser state.
-            assert_eq!(ast_range.start, direct_range.start, "range start: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_range.start, direct_range.start,
+                "range start: {source:?}"
+            );
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert_eq!(ast_line, direct_line, "line state: {source:?}");
             records
         }
@@ -35103,18 +38384,22 @@ mod tests {
         ] {
             assert!(assert_case("enum E;", 0, context, StopKind::RightBracket, "").is_empty());
             assert!(assert_case("enum E", 0, context, StopKind::RightBracket, "").is_empty());
-            assert!(assert_case("enum E = A | B", 0, context, StopKind::RightBracket, "").is_empty());
+            assert!(
+                assert_case("enum E = A | B", 0, context, StopKind::RightBracket, "").is_empty()
+            );
         }
 
         let catch_prefix = "value with: ".len();
-        assert!(assert_case(
-            "value with: enum E;\n  B -> fallback",
-            catch_prefix,
-            Context::CatchInline,
-            StopKind::RightBracket,
-            "\n  B -> fallback",
-        )
-        .is_empty());
+        assert!(
+            assert_case(
+                "value with: enum E;\n  B -> fallback",
+                catch_prefix,
+                Context::CatchInline,
+                StopKind::RightBracket,
+                "\n  B -> fallback",
+            )
+            .is_empty()
+        );
 
         for (stop, punctuation) in [
             (StopKind::Comma, ","),
@@ -35123,14 +38408,16 @@ mod tests {
             (StopKind::RightBrace, "}"),
         ] {
             let source = format!("enum E{punctuation} tail");
-            assert!(assert_case(
-                &source,
-                0,
-                Context::Root,
-                stop,
-                &format!("{punctuation} tail"),
-            )
-            .is_empty());
+            assert!(
+                assert_case(
+                    &source,
+                    0,
+                    Context::Root,
+                    stop,
+                    &format!("{punctuation} tail"),
+                )
+                .is_empty()
+            );
         }
 
         for (source, remainder) in [
@@ -35161,7 +38448,9 @@ mod tests {
                 "enum E @;",
                 Context::CatchInline,
                 "",
-                GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::BodyIntroducer)),
+                GrammarRole::Declaration(DeclarationRole::Enum(
+                    EnumDeclarationRole::BodyIntroducer,
+                )),
             ),
             (
                 "enum E = A || B",
@@ -35172,7 +38461,13 @@ mod tests {
                 ))),
             ),
         ] {
-            let records = assert_case(source, 0, context, StopKind::RightBracket, expected_remainder);
+            let records = assert_case(
+                source,
+                0,
+                context,
+                StopKind::RightBracket,
+                expected_remainder,
+            );
             assert_eq!(records.len(), 1, "recovery: {source:?}");
             assert_eq!(records[0].site.role, expected_role, "recovery: {source:?}");
         }
@@ -35208,10 +38503,17 @@ mod tests {
             }
             source_input.rollback(input_checkpoint);
             local.rollback(local_checkpoint);
-            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "rollback input: {source:?}"
+            );
             assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
             assert_eq!(local.line(), before_line, "rollback line: {source:?}");
-            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "rollback sink: {source:?}"
+            );
             assert!(!is_cut, "rollback cut: {source:?}");
 
             let mut direct_source = SourceInput::new(source);
@@ -35243,10 +38545,25 @@ mod tests {
             .expect("the uncut direct Enum rollback adapter is total");
             direct_source.rollback(direct_input_checkpoint);
             direct_local.rollback(direct_local_checkpoint);
-            assert_eq!(direct_source.remainder(), source, "direct rollback input: {source:?}");
-            assert_eq!(snapshot(&direct_local), direct_before, "direct rollback state: {source:?}");
-            assert_eq!(direct_local.line(), direct_before_line, "direct rollback line: {source:?}");
-            assert!(direct_expectations.take_merged().is_none(), "direct rollback sink: {source:?}");
+            assert_eq!(
+                direct_source.remainder(),
+                source,
+                "direct rollback input: {source:?}"
+            );
+            assert_eq!(
+                snapshot(&direct_local),
+                direct_before,
+                "direct rollback state: {source:?}"
+            );
+            assert_eq!(
+                direct_local.line(),
+                direct_before_line,
+                "direct rollback line: {source:?}"
+            );
+            assert!(
+                direct_expectations.take_merged().is_none(),
+                "direct rollback sink: {source:?}"
+            );
             assert!(!direct_cut, "direct rollback cut: {source:?}");
         }
     }
@@ -35278,14 +38595,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::EnumDeclaration),
                 node_ranges(&direct_root, SyntaxKind::EnumDeclaration),
@@ -35322,7 +38644,10 @@ mod tests {
                 panic!("the exact Enum intro must win root declaration dispatch")
             };
             assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
-            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "root AST sink: {source:?}"
+            );
             assert!(!is_cut, "root AST cut: {source:?}");
             declaration.range()
         }
@@ -35336,14 +38661,21 @@ mod tests {
             "enum E { A { x: int }, B(int, str) }",
             "enum choice derives Eq:\n    none\n    number int",
         ] {
-            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            assert_eq!(
+                parse_root_ast(source),
+                0..source.len(),
+                "root AST: {source:?}"
+            );
             let (public, _, direct) = parse_public_and_direct(source);
             assert_eq!(
                 node_ranges(&public, SyntaxKind::EnumDeclaration),
                 vec![0..source.len()],
                 "root Enum node: {source:?}",
             );
-            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "root recovery: {source:?}"
+            );
         }
 
         let nested_ast_source = "enum E { A, B }";
@@ -35379,14 +38711,20 @@ mod tests {
                 !node_ranges(&public, SyntaxKind::EnumDeclaration).is_empty(),
                 "canonical owner: {source:?}",
             );
-            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "owner recovery: {source:?}"
+            );
         }
 
         // Enum retains its contextual `my` collision after joining shared
         // recognition: the rejected Enum intro leaves Binding authority.
         let (public, direct_root, direct) = parse_public_and_direct("my enum = 1");
         assert!(node_ranges(&public, SyntaxKind::EnumDeclaration).is_empty());
-        assert_eq!(node_ranges(&public, SyntaxKind::BindingStatement), vec![0..11]);
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            vec![0..11]
+        );
         assert_eq!(
             node_ranges(&public, SyntaxKind::BindingStatement),
             node_ranges(&direct_root, SyntaxKind::BindingStatement),
@@ -35396,7 +38734,10 @@ mod tests {
         // Promoted malformed-body recovery remains Enum-owned through both
         // public and direct root paths.
         let (public, _, direct) = parse_public_and_direct("enum E @;");
-        assert_eq!(node_ranges(&public, SyntaxKind::EnumDeclaration), vec![0..9]);
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::EnumDeclaration),
+            vec![0..9]
+        );
         let [record] = direct.committed_recoveries() else {
             panic!("one promoted Enum recovery expected")
         };
@@ -35404,7 +38745,9 @@ mod tests {
             (record.kind, record.site.role, record.site.range.clone()),
             (
                 RecoveryKind::Error,
-                GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::BodyIntroducer)),
+                GrammarRole::Declaration(DeclarationRole::Enum(
+                    EnumDeclarationRole::BodyIntroducer
+                )),
                 7..8,
             ),
         );
@@ -35435,7 +38778,11 @@ mod tests {
                 .filter_map(|element| element.into_token())
                 .filter(|token| token.text() == text)
                 .map(|token| {
-                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    assert_eq!(
+                        token.kind(),
+                        SyntaxKind::Identifier,
+                        "ordinary word: {text:?}"
+                    );
                     syntax_range(token.text_range())
                 })
                 .collect()
@@ -35452,14 +38799,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::EnumDeclaration),
                 node_ranges(&direct_root, SyntaxKind::EnumDeclaration),
@@ -35480,12 +38832,18 @@ mod tests {
         // bare, `our`, and `pub` are unconditional Enum cuts.
         for source in ["enum E;", "my enum E = A", "our enum E;", "pub enum E;"] {
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::EnumDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::EnumDeclaration),
+                vec![0..source.len()]
+            );
             assert_eq!(
                 node_ranges(&direct_root, SyntaxKind::EnumDeclaration),
                 vec![0..source.len()],
             );
-            assert!(direct.committed_recoveries().is_empty(), "visibility recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "visibility recovery: {source:?}"
+            );
         }
 
         // `enum` is contextual only at a canonical Statement/root
@@ -35529,7 +38887,10 @@ mod tests {
                     "FromKw only belongs to an Enum variant payload: {source:?}",
                 );
             }
-            assert!(direct.committed_recoveries().is_empty(), "from recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "from recovery: {source:?}"
+            );
         }
 
         // ENUM-J's `my` collision exception remains a Binding target through
@@ -35551,8 +38912,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let declaration = {
-                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 parse_enum_declaration_isolated(i)
                     .expect("the isolated Enum direct fixture has an accepted intro")
             };
@@ -35563,13 +38928,22 @@ mod tests {
 
         fn commit_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
             let mut probe = Probe::new(i);
             let intro = probe
                 .input()
@@ -35578,13 +38952,15 @@ mod tests {
             let mut committed = probe.commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
             let range = commit_enum_declaration_isolated(&mut committed, intro);
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             committed.finish_node();
             let output = committed.into_output();
             let recoveries = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct adapter must not cut: {source:?}");
             (range, remainder, root, recoveries)
         }
@@ -35619,13 +38995,20 @@ mod tests {
                 body: BodyForm::Braced(2),
                 derives: 0,
                 expected: &[
-                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
-                    (SyntaxKind::Identifier, 5, 6), (SyntaxKind::Whitespace, 6, 7),
-                    (SyntaxKind::LBrace, 7, 8), (SyntaxKind::Whitespace, 8, 9),
-                    (SyntaxKind::EnumVariant, 9, 10), (SyntaxKind::Identifier, 9, 10),
-                    (SyntaxKind::Comma, 10, 11), (SyntaxKind::Whitespace, 11, 12),
-                    (SyntaxKind::EnumVariant, 12, 13), (SyntaxKind::Identifier, 12, 13),
-                    (SyntaxKind::Whitespace, 13, 14), (SyntaxKind::RBrace, 14, 15),
+                    (SyntaxKind::EnumKw, 0, 4),
+                    (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 6),
+                    (SyntaxKind::Whitespace, 6, 7),
+                    (SyntaxKind::LBrace, 7, 8),
+                    (SyntaxKind::Whitespace, 8, 9),
+                    (SyntaxKind::EnumVariant, 9, 10),
+                    (SyntaxKind::Identifier, 9, 10),
+                    (SyntaxKind::Comma, 10, 11),
+                    (SyntaxKind::Whitespace, 11, 12),
+                    (SyntaxKind::EnumVariant, 12, 13),
+                    (SyntaxKind::Identifier, 12, 13),
+                    (SyntaxKind::Whitespace, 13, 14),
+                    (SyntaxKind::RBrace, 14, 15),
                 ],
             },
             Case {
@@ -35633,15 +39016,24 @@ mod tests {
                 body: BodyForm::EqualsInline(2),
                 derives: 0,
                 expected: &[
-                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
-                    (SyntaxKind::Identifier, 5, 8), (SyntaxKind::DeclarationTypeParameterList, 8, 11),
-                    (SyntaxKind::Whitespace, 8, 9), (SyntaxKind::SigilIdentifier, 9, 11),
-                    (SyntaxKind::Whitespace, 11, 12), (SyntaxKind::Equals, 12, 13),
-                    (SyntaxKind::Whitespace, 13, 14), (SyntaxKind::EnumVariant, 14, 17),
-                    (SyntaxKind::Identifier, 14, 17), (SyntaxKind::Whitespace, 17, 18),
-                    (SyntaxKind::Pipe, 18, 19), (SyntaxKind::Whitespace, 19, 20),
-                    (SyntaxKind::EnumVariant, 20, 27), (SyntaxKind::Identifier, 20, 24),
-                    (SyntaxKind::Whitespace, 24, 25), (SyntaxKind::TypeExpression, 25, 27),
+                    (SyntaxKind::EnumKw, 0, 4),
+                    (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 8),
+                    (SyntaxKind::DeclarationTypeParameterList, 8, 11),
+                    (SyntaxKind::Whitespace, 8, 9),
+                    (SyntaxKind::SigilIdentifier, 9, 11),
+                    (SyntaxKind::Whitespace, 11, 12),
+                    (SyntaxKind::Equals, 12, 13),
+                    (SyntaxKind::Whitespace, 13, 14),
+                    (SyntaxKind::EnumVariant, 14, 17),
+                    (SyntaxKind::Identifier, 14, 17),
+                    (SyntaxKind::Whitespace, 17, 18),
+                    (SyntaxKind::Pipe, 18, 19),
+                    (SyntaxKind::Whitespace, 19, 20),
+                    (SyntaxKind::EnumVariant, 20, 27),
+                    (SyntaxKind::Identifier, 20, 24),
+                    (SyntaxKind::Whitespace, 24, 25),
+                    (SyntaxKind::TypeExpression, 25, 27),
                     (SyntaxKind::SigilIdentifier, 25, 27),
                 ],
             },
@@ -35650,15 +39042,24 @@ mod tests {
                 body: BodyForm::EqualsIndented(2),
                 derives: 0,
                 expected: &[
-                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
-                    (SyntaxKind::Identifier, 5, 9), (SyntaxKind::Whitespace, 9, 10),
-                    (SyntaxKind::Equals, 10, 11), (SyntaxKind::Newline, 11, 12),
-                    (SyntaxKind::Whitespace, 12, 16), (SyntaxKind::EnumVariant, 16, 20),
-                    (SyntaxKind::Identifier, 16, 20), (SyntaxKind::Newline, 20, 21),
-                    (SyntaxKind::Whitespace, 21, 25), (SyntaxKind::Pipe, 25, 26),
-                    (SyntaxKind::Whitespace, 26, 27), (SyntaxKind::EnumVariant, 27, 35),
-                    (SyntaxKind::Identifier, 27, 31), (SyntaxKind::Whitespace, 31, 32),
-                    (SyntaxKind::TypeExpression, 32, 35), (SyntaxKind::Identifier, 32, 35),
+                    (SyntaxKind::EnumKw, 0, 4),
+                    (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 9),
+                    (SyntaxKind::Whitespace, 9, 10),
+                    (SyntaxKind::Equals, 10, 11),
+                    (SyntaxKind::Newline, 11, 12),
+                    (SyntaxKind::Whitespace, 12, 16),
+                    (SyntaxKind::EnumVariant, 16, 20),
+                    (SyntaxKind::Identifier, 16, 20),
+                    (SyntaxKind::Newline, 20, 21),
+                    (SyntaxKind::Whitespace, 21, 25),
+                    (SyntaxKind::Pipe, 25, 26),
+                    (SyntaxKind::Whitespace, 26, 27),
+                    (SyntaxKind::EnumVariant, 27, 35),
+                    (SyntaxKind::Identifier, 27, 31),
+                    (SyntaxKind::Whitespace, 31, 32),
+                    (SyntaxKind::TypeExpression, 32, 35),
+                    (SyntaxKind::Identifier, 32, 35),
                 ],
             },
             Case {
@@ -35666,23 +39067,40 @@ mod tests {
                 body: BodyForm::Braced(2),
                 derives: 0,
                 expected: &[
-                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
-                    (SyntaxKind::Identifier, 5, 6), (SyntaxKind::Whitespace, 6, 7),
-                    (SyntaxKind::LBrace, 7, 8), (SyntaxKind::Whitespace, 8, 9),
-                    (SyntaxKind::EnumVariant, 9, 21), (SyntaxKind::Identifier, 9, 10),
-                    (SyntaxKind::Whitespace, 10, 11), (SyntaxKind::LBrace, 11, 12),
-                    (SyntaxKind::Whitespace, 12, 13), (SyntaxKind::StructField, 13, 19),
-                    (SyntaxKind::Identifier, 13, 14), (SyntaxKind::Colon, 14, 15),
-                    (SyntaxKind::Whitespace, 15, 16), (SyntaxKind::TypeExpression, 16, 19),
-                    (SyntaxKind::Identifier, 16, 19), (SyntaxKind::Whitespace, 19, 20),
-                    (SyntaxKind::RBrace, 20, 21), (SyntaxKind::Comma, 21, 22),
-                    (SyntaxKind::Whitespace, 22, 23), (SyntaxKind::EnumVariant, 23, 34),
-                    (SyntaxKind::Identifier, 23, 24), (SyntaxKind::LParen, 24, 25),
-                    (SyntaxKind::StructField, 25, 28), (SyntaxKind::TypeExpression, 25, 28),
-                    (SyntaxKind::Identifier, 25, 28), (SyntaxKind::Comma, 28, 29),
-                    (SyntaxKind::Whitespace, 29, 30), (SyntaxKind::StructField, 30, 33),
-                    (SyntaxKind::TypeExpression, 30, 33), (SyntaxKind::Identifier, 30, 33),
-                    (SyntaxKind::RParen, 33, 34), (SyntaxKind::Whitespace, 34, 35),
+                    (SyntaxKind::EnumKw, 0, 4),
+                    (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 6),
+                    (SyntaxKind::Whitespace, 6, 7),
+                    (SyntaxKind::LBrace, 7, 8),
+                    (SyntaxKind::Whitespace, 8, 9),
+                    (SyntaxKind::EnumVariant, 9, 21),
+                    (SyntaxKind::Identifier, 9, 10),
+                    (SyntaxKind::Whitespace, 10, 11),
+                    (SyntaxKind::LBrace, 11, 12),
+                    (SyntaxKind::Whitespace, 12, 13),
+                    (SyntaxKind::StructField, 13, 19),
+                    (SyntaxKind::Identifier, 13, 14),
+                    (SyntaxKind::Colon, 14, 15),
+                    (SyntaxKind::Whitespace, 15, 16),
+                    (SyntaxKind::TypeExpression, 16, 19),
+                    (SyntaxKind::Identifier, 16, 19),
+                    (SyntaxKind::Whitespace, 19, 20),
+                    (SyntaxKind::RBrace, 20, 21),
+                    (SyntaxKind::Comma, 21, 22),
+                    (SyntaxKind::Whitespace, 22, 23),
+                    (SyntaxKind::EnumVariant, 23, 34),
+                    (SyntaxKind::Identifier, 23, 24),
+                    (SyntaxKind::LParen, 24, 25),
+                    (SyntaxKind::StructField, 25, 28),
+                    (SyntaxKind::TypeExpression, 25, 28),
+                    (SyntaxKind::Identifier, 25, 28),
+                    (SyntaxKind::Comma, 28, 29),
+                    (SyntaxKind::Whitespace, 29, 30),
+                    (SyntaxKind::StructField, 30, 33),
+                    (SyntaxKind::TypeExpression, 30, 33),
+                    (SyntaxKind::Identifier, 30, 33),
+                    (SyntaxKind::RParen, 33, 34),
+                    (SyntaxKind::Whitespace, 34, 35),
                     (SyntaxKind::RBrace, 35, 36),
                 ],
             },
@@ -35691,16 +39109,26 @@ mod tests {
                 body: BodyForm::Colon(2),
                 derives: 1,
                 expected: &[
-                    (SyntaxKind::EnumKw, 0, 4), (SyntaxKind::Whitespace, 4, 5),
-                    (SyntaxKind::Identifier, 5, 11), (SyntaxKind::DerivesClause, 11, 22),
-                    (SyntaxKind::Whitespace, 11, 12), (SyntaxKind::DerivesKw, 12, 19),
-                    (SyntaxKind::Whitespace, 19, 20), (SyntaxKind::TypeExpression, 20, 22),
-                    (SyntaxKind::Identifier, 20, 22), (SyntaxKind::Colon, 22, 23),
-                    (SyntaxKind::Newline, 23, 24), (SyntaxKind::Whitespace, 24, 28),
-                    (SyntaxKind::EnumVariant, 28, 32), (SyntaxKind::Identifier, 28, 32),
-                    (SyntaxKind::Newline, 32, 33), (SyntaxKind::Whitespace, 33, 37),
-                    (SyntaxKind::EnumVariant, 37, 47), (SyntaxKind::Identifier, 37, 43),
-                    (SyntaxKind::Whitespace, 43, 44), (SyntaxKind::TypeExpression, 44, 47),
+                    (SyntaxKind::EnumKw, 0, 4),
+                    (SyntaxKind::Whitespace, 4, 5),
+                    (SyntaxKind::Identifier, 5, 11),
+                    (SyntaxKind::DerivesClause, 11, 22),
+                    (SyntaxKind::Whitespace, 11, 12),
+                    (SyntaxKind::DerivesKw, 12, 19),
+                    (SyntaxKind::Whitespace, 19, 20),
+                    (SyntaxKind::TypeExpression, 20, 22),
+                    (SyntaxKind::Identifier, 20, 22),
+                    (SyntaxKind::Colon, 22, 23),
+                    (SyntaxKind::Newline, 23, 24),
+                    (SyntaxKind::Whitespace, 24, 28),
+                    (SyntaxKind::EnumVariant, 28, 32),
+                    (SyntaxKind::Identifier, 28, 32),
+                    (SyntaxKind::Newline, 32, 33),
+                    (SyntaxKind::Whitespace, 33, 37),
+                    (SyntaxKind::EnumVariant, 37, 47),
+                    (SyntaxKind::Identifier, 37, 43),
+                    (SyntaxKind::Whitespace, 43, 44),
+                    (SyntaxKind::TypeExpression, 44, 47),
                     (SyntaxKind::Identifier, 44, 47),
                 ],
             },
@@ -35712,7 +39140,11 @@ mod tests {
             let (direct_range, direct_remainder, root, records) = commit_direct(source);
             assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
             assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert!(records.is_empty(), "recoveries: {source:?}");
             assert_eq!(root.to_string(), source, "lossless: {source:?}");
             let declaration = root
@@ -35721,10 +39153,9 @@ mod tests {
                 .expect("one EnumDeclaration");
             assert_eq!(syntax_range(declaration.text_range()), 0..source.len());
             assert!(
-                !root.descendants().any(|node| matches!(
-                    node.kind(),
-                    SyntaxKind::Missing | SyntaxKind::Error
-                )),
+                !root
+                    .descendants()
+                    .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
                 "valid worked example has no recovery node: {source:?}",
             );
             let mut entries = Vec::new();
@@ -35738,10 +39169,13 @@ mod tests {
 
             assert_eq!(ast.derives.len(), case.derives, "derives: {source:?}");
             let body = match &ast.body {
-                Recovered::Complete(EnumBody::Braced(body)) => BodyForm::Braced(body.variants.len()),
-                Recovered::Complete(EnumBody::Colon { body: Recovered::Complete(body), .. }) => {
-                    BodyForm::Colon(body.variants.len())
+                Recovered::Complete(EnumBody::Braced(body)) => {
+                    BodyForm::Braced(body.variants.len())
                 }
+                Recovered::Complete(EnumBody::Colon {
+                    body: Recovered::Complete(body),
+                    ..
+                }) => BodyForm::Colon(body.variants.len()),
                 Recovered::Complete(EnumBody::Equals {
                     body: Recovered::Complete(EnumEqualsVariantBody::Inline { variants, .. }),
                     ..
@@ -35788,7 +39222,8 @@ mod tests {
             local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
                 trivia_start: 1,
             }));
-            let episode_depth = local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
+            let episode_depth =
+                local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let scoped_frame = TypeExpressionScopedStopFrame {
                 stops: scoped_stops,
                 visible_episode_depth: episode_depth,
@@ -35803,8 +39238,12 @@ mod tests {
             let mut is_cut = false;
 
             {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 let checkpoint = i.checkpoint();
                 let intro = i.run(recognize_cast_statement_intro);
                 match (intro, expected) {
@@ -35821,8 +39260,16 @@ mod tests {
                         );
                         assert_eq!(intro.start, 0, "start: {source:?}");
                         assert_eq!(intro.cast_base, 2, "base: {source:?}");
-                        assert_eq!(intro.cast_keyword.range(), expected.keyword, "keyword: {source:?}");
-                        assert_eq!(i.input.remainder(), expected.remainder, "remainder: {source:?}");
+                        assert_eq!(
+                            intro.cast_keyword.range(),
+                            expected.keyword,
+                            "keyword: {source:?}"
+                        );
+                        assert_eq!(
+                            i.input.remainder(),
+                            expected.remainder,
+                            "remainder: {source:?}"
+                        );
                     }
                     (None, None) => {}
                     (actual, expected) => panic!(
@@ -35834,15 +39281,27 @@ mod tests {
                 assert_eq!(i.pos(), 0, "input position: {source:?}");
                 assert_eq!(i.input.remainder(), source, "input remainder: {source:?}");
                 assert_eq!(i.local.line(), LineState::default(), "line: {source:?}");
-                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(
+                    i.local.indentation_baseline(),
+                    Some(baseline),
+                    "baseline: {source:?}"
+                );
                 assert_eq!(i.local.stop_set(), Some(stops), "stops: {source:?}");
-                assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis), "delimiter: {source:?}");
+                assert_eq!(
+                    i.local.delimiter(),
+                    Some(Delimiter::Parenthesis),
+                    "delimiter: {source:?}"
+                );
                 assert_eq!(
                     i.local.expression_delimited_owner(),
                     Some(ExpressionDelimitedOwner::Call),
                     "expression owner: {source:?}",
                 );
-                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call), "type owner: {source:?}");
+                assert_eq!(
+                    i.local.type_delimited_owner(),
+                    Some(TypeDelimitedOwner::Call),
+                    "type owner: {source:?}"
+                );
                 assert!(i.local.inline(), "inline: {source:?}");
                 assert!(i.local.ml_arg(), "ML: {source:?}");
                 assert!(i.local.type_ml_arg(), "type ML: {source:?}");
@@ -35851,29 +39310,57 @@ mod tests {
                     Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
                     "positional fence: {source:?}",
                 );
-                assert_eq!(i.local.type_expression_episode_depth(), episode_depth, "episode: {source:?}");
                 assert_eq!(
-                    i.local.type_expression_scoped_stop_frames().copied().collect::<Vec<_>>(),
+                    i.local.type_expression_episode_depth(),
+                    episode_depth,
+                    "episode: {source:?}"
+                );
+                assert_eq!(
+                    i.local
+                        .type_expression_scoped_stop_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![scoped_frame],
                     "scoped stops: {source:?}",
                 );
                 assert_eq!(
-                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    i.local
+                        .ambient_owner_scope_frames()
+                        .copied()
+                        .collect::<Vec<_>>(),
                     vec![inline, root],
                     "ambient stack: {source:?}",
                 );
-                assert_eq!(i.local.if_expression_companion().map(|frame| frame.id()), Some(companion));
+                assert_eq!(
+                    i.local.if_expression_companion().map(|frame| frame.id()),
+                    Some(companion)
+                );
             }
 
             assert!(expectations.take_merged().is_none(), "sink: {source:?}");
             assert!(!is_cut, "cut: {source:?}");
-            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
             assert_eq!(local.pop_ambient_owner_scope(), Some(inline));
             assert_eq!(local.pop_ambient_owner_scope(), Some(root));
-            assert_eq!(local.pop_type_expression_scoped_stop_frame(), Some(scoped_frame));
-            assert_eq!(local.pop_type_expression_episode(), Some(TypeExpressionEpisodePolicy::default()));
-            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
-            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(scoped_frame)
+            );
+            assert_eq!(
+                local.pop_type_expression_episode(),
+                Some(TypeExpressionEpisodePolicy::default())
+            );
+            assert_eq!(
+                local.pop_type_delimited_owner(),
+                Some(TypeDelimitedOwner::Call)
+            );
+            assert_eq!(
+                local.pop_expression_delimited_owner(),
+                Some(ExpressionDelimitedOwner::Call)
+            );
             assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(local.pop_stop_set(), Some(stops));
             assert_eq!(local.pop_indentation_baseline(), Some(baseline));
@@ -35949,13 +39436,16 @@ mod tests {
         fn parse_ast(
             source: &str,
             outer_parenthesis: bool,
-        ) -> (CastDeclaration<'_>, String, Option<Delimiter>, Option<StopSet>) {
+        ) -> (
+            CastDeclaration<'_>,
+            String,
+            Option<Delimiter>,
+            Option<StopSet>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             if outer_parenthesis {
-                local.push_stop_set(
-                    StopSet::default().with(StopKind::RightParenthesis),
-                );
+                local.push_stop_set(StopSet::default().with(StopKind::RightParenthesis));
                 local.push_delimiter(Delimiter::Parenthesis);
             }
             let mut expectations = chasa::LatestSink::new();
@@ -35967,11 +39457,8 @@ mod tests {
                     IsCut::new(&mut is_cut),
                 )
                 .set_local(&mut local);
-                parse_cast_signature_isolated(
-                    &crate::operator::OperatorTable::empty(),
-                    i,
-                )
-                .expect("the isolated Cast intro establishes authority")
+                parse_cast_signature_isolated(&crate::operator::OperatorTable::empty(), i)
+                    .expect("the isolated Cast intro establishes authority")
             };
             let merged = expectations.take_merged();
             assert!(merged.is_none(), "AST sink: {source:?}: {merged:?}");
@@ -35998,9 +39485,7 @@ mod tests {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             if outer_parenthesis {
-                local.push_stop_set(
-                    StopSet::default().with(StopKind::RightParenthesis),
-                );
+                local.push_stop_set(StopSet::default().with(StopKind::RightParenthesis));
                 local.push_delimiter(Delimiter::Parenthesis);
             }
             let mut expectations = chasa::LatestSink::new();
@@ -36023,8 +39508,7 @@ mod tests {
                 intro,
                 &mut committed,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             if !remainder.is_empty() {
                 let trailing = committed.probe(|probe| {
                     let i = probe.input();
@@ -36060,13 +39544,7 @@ mod tests {
         let recoveries = |records: &[CommittedRecoveryRecord]| -> Vec<Recovery> {
             records
                 .iter()
-                .map(|record| {
-                    (
-                        record.kind,
-                        record.site.role,
-                        record.site.range.clone(),
-                    )
-                })
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect()
         };
         let cast_role = |role| GrammarRole::Declaration(DeclarationRole::Cast(role));
@@ -36275,9 +39753,22 @@ mod tests {
                 parse_ast(case.source, case.outer_parenthesis);
             let (direct_range, direct_remainder, root, records, direct_delimiter, direct_stops) =
                 commit_direct(case.source, case.outer_parenthesis);
-            assert_eq!(ast_remainder, case.remainder, "AST remainder: {:?}", case.source);
-            assert_eq!(direct_remainder, case.remainder, "direct remainder: {:?}", case.source);
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert_eq!(
+                ast_remainder, case.remainder,
+                "AST remainder: {:?}",
+                case.source
+            );
+            assert_eq!(
+                direct_remainder, case.remainder,
+                "direct remainder: {:?}",
+                case.source
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {:?}",
+                case.source
+            );
             assert_eq!(
                 match &ast.pattern {
                     Recovered::Complete(pattern) => Some(pattern.range.clone()),
@@ -36296,7 +39787,12 @@ mod tests {
                 "AST target range: {:?}",
                 case.source,
             );
-            assert_eq!(recoveries(&records), case.records, "recoveries: {:?}", case.source);
+            assert_eq!(
+                recoveries(&records),
+                case.records,
+                "recoveries: {:?}",
+                case.source
+            );
             assert_eq!(
                 root.descendants()
                     .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
@@ -36305,16 +39801,30 @@ mod tests {
                 "one node = one record: {:?}",
                 case.source,
             );
-            let expected_outer_delimiter = case
+            let expected_outer_delimiter = case.outer_parenthesis.then_some(Delimiter::Parenthesis);
+            let expected_outer_stops = case
                 .outer_parenthesis
-                .then_some(Delimiter::Parenthesis);
-            let expected_outer_stops = case.outer_parenthesis.then_some(
-                StopSet::default().with(StopKind::RightParenthesis),
+                .then_some(StopSet::default().with(StopKind::RightParenthesis));
+            assert_eq!(
+                ast_delimiter, expected_outer_delimiter,
+                "AST delimiter: {:?}",
+                case.source
             );
-            assert_eq!(ast_delimiter, expected_outer_delimiter, "AST delimiter: {:?}", case.source);
-            assert_eq!(direct_delimiter, expected_outer_delimiter, "direct delimiter: {:?}", case.source);
-            assert_eq!(ast_stops, expected_outer_stops, "AST stops: {:?}", case.source);
-            assert_eq!(direct_stops, expected_outer_stops, "direct stops: {:?}", case.source);
+            assert_eq!(
+                direct_delimiter, expected_outer_delimiter,
+                "direct delimiter: {:?}",
+                case.source
+            );
+            assert_eq!(
+                ast_stops, expected_outer_stops,
+                "AST stops: {:?}",
+                case.source
+            );
+            assert_eq!(
+                direct_stops, expected_outer_stops,
+                "direct stops: {:?}",
+                case.source
+            );
         }
     }
 
@@ -36439,7 +39949,12 @@ mod tests {
 
         fn commit_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -36462,8 +39977,7 @@ mod tests {
                 intro,
                 &mut committed,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             if !remainder.is_empty() {
                 let trailing = committed.probe(|probe| {
                     let i = probe.input();
@@ -36482,7 +39996,10 @@ mod tests {
             let recoveries = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
             assert_eq!(root.to_string(), source, "lossless: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (range, remainder, root, recoveries)
         }
@@ -36504,7 +40021,10 @@ mod tests {
                     SyntaxKind::CastTarget,
                     SyntaxKind::Semicolon,
                 ],
-                trivia: vec![(SyntaxKind::Whitespace, 7..8), (SyntaxKind::Whitespace, 11..12)],
+                trivia: vec![
+                    (SyntaxKind::Whitespace, 7..8),
+                    (SyntaxKind::Whitespace, 11..12),
+                ],
                 body: 0..0,
                 indented: false,
             },
@@ -36555,7 +40075,12 @@ mod tests {
             let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
             assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
             assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {:?}",
+                case.source
+            );
             assert!(records.is_empty(), "recoveries: {:?}", case.source);
 
             let declaration = root
@@ -36575,7 +40100,10 @@ mod tests {
             assert_eq!(
                 root.descendants_with_tokens()
                     .filter_map(|element| element.into_token())
-                    .filter(|token| matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
+                    .filter(|token| matches!(
+                        token.kind(),
+                        SyntaxKind::Whitespace | SyntaxKind::Newline
+                    ))
                     .map(|token| (token.kind(), syntax_range(token.text_range())))
                     .collect::<Vec<_>>(),
                 case.trivia,
@@ -36583,15 +40111,22 @@ mod tests {
                 case.source,
             );
             assert!(
-                !root.descendants().any(|node| node.kind() == SyntaxKind::BindingBody),
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::BindingBody),
                 "Cast must never emit BindingBody: {:?}",
                 case.source,
             );
 
             if case.body.is_empty() {
-                assert!(matches!(ast.form, Recovered::Complete(CastForm::Bodyless { .. })));
+                assert!(matches!(
+                    ast.form,
+                    Recovered::Complete(CastForm::Bodyless { .. })
+                ));
                 assert!(
-                    !declaration.children().any(|node| node.kind() == SyntaxKind::CastBody),
+                    !declaration
+                        .children()
+                        .any(|node| node.kind() == SyntaxKind::CastBody),
                     "bodyless Cast has no synthetic body wrapper",
                 );
             } else {
@@ -36599,7 +40134,12 @@ mod tests {
                     .children()
                     .find(|node| node.kind() == SyntaxKind::CastBody)
                     .expect("definition emits exactly one CastBody");
-                assert_eq!(syntax_range(body.text_range()), case.body, "body range: {:?}", case.source);
+                assert_eq!(
+                    syntax_range(body.text_range()),
+                    case.body,
+                    "body range: {:?}",
+                    case.source
+                );
                 if case.indented {
                     let block = body
                         .children()
@@ -36674,7 +40214,9 @@ mod tests {
             "the brace is neither a Cast form nor a declaration body opener",
         );
         assert!(
-            !body.children_with_tokens().any(|element| element.kind() == SyntaxKind::LBrace),
+            !body
+                .children_with_tokens()
+                .any(|element| element.kind() == SyntaxKind::LBrace),
             "the CastBody owns no brace opener token",
         );
     }
@@ -36708,7 +40250,12 @@ mod tests {
 
         fn commit_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -36731,8 +40278,7 @@ mod tests {
                 intro,
                 &mut committed,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             if !remainder.is_empty() {
                 let trailing = committed.probe(|probe| {
                     let i = probe.input();
@@ -36751,7 +40297,10 @@ mod tests {
             let records = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
             assert_eq!(root.to_string(), source, "lossless: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (range, remainder, root, records)
         }
@@ -36858,10 +40407,28 @@ mod tests {
         for case in cases {
             let (ast, ast_remainder) = parse_ast(case.source);
             let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
-            assert_eq!(ast_remainder, case.remainder, "AST remainder: {:?}", case.source);
-            assert_eq!(direct_remainder, case.remainder, "direct remainder: {:?}", case.source);
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
-            assert_eq!(recoveries(&records), case.records, "recoveries: {:?}", case.source);
+            assert_eq!(
+                ast_remainder, case.remainder,
+                "AST remainder: {:?}",
+                case.source
+            );
+            assert_eq!(
+                direct_remainder, case.remainder,
+                "direct remainder: {:?}",
+                case.source
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {:?}",
+                case.source
+            );
+            assert_eq!(
+                recoveries(&records),
+                case.records,
+                "recoveries: {:?}",
+                case.source
+            );
             assert_eq!(
                 root.descendants()
                     .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
@@ -36877,12 +40444,16 @@ mod tests {
         let (_range, direct_remainder, root, records) = commit_direct(indented);
         assert_eq!(ast_remainder, "@");
         assert_eq!(direct_remainder, "");
-        assert!(records.iter().any(|record| {
-            record.site.role == cast_role(CastRole::IndentedStatement)
-        }));
-        assert!(!records.iter().any(|record| {
-            record.site.role == cast_role(CastRole::Body)
-        }));
+        assert!(
+            records
+                .iter()
+                .any(|record| { record.site.role == cast_role(CastRole::IndentedStatement) })
+        );
+        assert!(
+            !records
+                .iter()
+                .any(|record| { record.site.role == cast_role(CastRole::Body) })
+        );
         assert_eq!(
             root.descendants()
                 .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
@@ -36940,7 +40511,10 @@ mod tests {
             companion: IfExpressionCompanionId,
         ) {
             assert_eq!(local.stop_set(), Some(incoming));
-            assert_eq!(local.indentation_baseline().map(|frame| frame.column), Some(0));
+            assert_eq!(
+                local.indentation_baseline().map(|frame| frame.column),
+                Some(0)
+            );
             assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
             assert_eq!(
                 local.expression_delimited_owner(),
@@ -37009,11 +40583,13 @@ mod tests {
             let probe = Probe::new(i);
             let mut committed = probe.commit(HeaderOutput::new());
             let parsed = commit_required_impl_type_expression_isolated(slot, &mut committed);
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
             assert_local_restored(&local, incoming, outer_frame, ambient, companion);
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             SlotResult {
                 range: match parsed {
@@ -37024,13 +40600,7 @@ mod tests {
                 recoveries: output
                     .committed_recoveries()
                     .iter()
-                    .map(|record| {
-                        (
-                            record.kind,
-                            record.site.role,
-                            record.site.range.clone(),
-                        )
-                    })
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                     .collect(),
             }
         }
@@ -37043,18 +40613,28 @@ mod tests {
         ) {
             let ast = parse_slot(source, slot);
             let direct = commit_slot(source, slot);
-            assert_eq!(ast.range, Some(expected_range.clone()), "AST range: {source:?}");
-            assert_eq!(direct.range, Some(expected_range), "direct range: {source:?}");
-            assert_eq!(ast.remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct.remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast.range,
+                Some(expected_range.clone()),
+                "AST range: {source:?}"
+            );
+            assert_eq!(
+                direct.range,
+                Some(expected_range),
+                "direct range: {source:?}"
+            );
+            assert_eq!(
+                ast.remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct.remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert!(direct.recoveries.is_empty(), "direct recovery: {source:?}");
         }
 
-        fn assert_missing(
-            source: &str,
-            slot: ImplTypeExpressionSlot,
-            expected_role: ImplRole,
-        ) {
+        fn assert_missing(source: &str, slot: ImplTypeExpressionSlot, expected_role: ImplRole) {
             let ast = parse_slot(source, slot);
             let direct = commit_slot(source, slot);
             assert_eq!(ast.range, None, "AST range: {source:?}");
@@ -37097,7 +40677,10 @@ mod tests {
 
         // Completed outer operands always yield to Impl body punctuation,
         // including an adjacent spelling which would be a fresh variant.
-        for slot in [ImplTypeExpressionSlot::Head, ImplTypeExpressionSlot::Description] {
+        for slot in [
+            ImplTypeExpressionSlot::Head,
+            ImplTypeExpressionSlot::Description,
+        ] {
             assert_complete("Eq:{ A }", slot, 0..2, ":{ A }");
             assert_complete("Eq { x: Int }", slot, 0..2, " { x: Int }");
             assert_complete("Eq;", slot, 0..2, ";");
@@ -37147,7 +40730,9 @@ mod tests {
             recoveries: Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
         }
 
-        fn prepare_local(with_gate_two_state: bool) -> (
+        fn prepare_local(
+            with_gate_two_state: bool,
+        ) -> (
             ParseLocal,
             IndentationBaseline,
             StopSet,
@@ -37171,9 +40756,9 @@ mod tests {
             local.set_inline(with_gate_two_state);
             local.set_ml_arg(with_gate_two_state);
             local.set_type_ml_arg(with_gate_two_state);
-            local.set_type_malformed_caller_boundary(with_gate_two_state.then_some(
-                TypeMalformedCallerBoundaryFence { trivia_start: 1 },
-            ));
+            local.set_type_malformed_caller_boundary(
+                with_gate_two_state.then_some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+            );
             let outer_episode =
                 local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let outer_frame = TypeExpressionScopedStopFrame {
@@ -37271,7 +40856,11 @@ mod tests {
                 );
                 i.rollback(checkpoint);
                 assert_eq!(i.pos(), 0, "AST rollback position: {source:?}");
-                assert_eq!(i.input.remainder(), source, "AST rollback remainder: {source:?}");
+                assert_eq!(
+                    i.input.remainder(),
+                    source,
+                    "AST rollback remainder: {source:?}"
+                );
                 assert_local_restored(
                     i.local,
                     baseline,
@@ -37350,8 +40939,7 @@ mod tests {
             let probe = Probe::new(i);
             let mut committed = probe.commit(HeaderOutput::new());
             let parsed = commit_required_role_head_type_expression_isolated(&mut committed);
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
             assert_local_restored(
                 &local,
@@ -37363,7 +40951,10 @@ mod tests {
                 companion,
                 false,
             );
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             SlotResult {
                 range: match parsed {
@@ -37374,13 +40965,7 @@ mod tests {
                 recoveries: output
                     .committed_recoveries()
                     .iter()
-                    .map(|record| {
-                        (
-                            record.kind,
-                            record.site.role,
-                            record.site.range.clone(),
-                        )
-                    })
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                     .collect(),
             }
         }
@@ -37388,10 +40973,24 @@ mod tests {
         fn assert_complete(source: &str, expected_range: Range<usize>, expected_remainder: &str) {
             let ast = parse_slot_without_rollback(source);
             let direct = commit_slot(source);
-            assert_eq!(ast.range, Some(expected_range.clone()), "AST range: {source:?}");
-            assert_eq!(direct.range, Some(expected_range), "direct range: {source:?}");
-            assert_eq!(ast.remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct.remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast.range,
+                Some(expected_range.clone()),
+                "AST range: {source:?}"
+            );
+            assert_eq!(
+                direct.range,
+                Some(expected_range),
+                "direct range: {source:?}"
+            );
+            assert_eq!(
+                ast.remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct.remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert!(direct.recoveries.is_empty(), "direct recovery: {source:?}");
         }
 
@@ -37485,7 +41084,9 @@ mod tests {
             recoveries: Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
         }
 
-        fn prepare_local(with_gate_two_state: bool) -> (
+        fn prepare_local(
+            with_gate_two_state: bool,
+        ) -> (
             ParseLocal,
             IndentationBaseline,
             StopSet,
@@ -37509,9 +41110,9 @@ mod tests {
             local.set_inline(with_gate_two_state);
             local.set_ml_arg(with_gate_two_state);
             local.set_type_ml_arg(with_gate_two_state);
-            local.set_type_malformed_caller_boundary(with_gate_two_state.then_some(
-                TypeMalformedCallerBoundaryFence { trivia_start: 1 },
-            ));
+            local.set_type_malformed_caller_boundary(
+                with_gate_two_state.then_some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+            );
             let outer_episode =
                 local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let outer_frame = TypeExpressionScopedStopFrame {
@@ -37609,7 +41210,11 @@ mod tests {
                 );
                 i.rollback(checkpoint);
                 assert_eq!(i.pos(), 0, "AST rollback position: {source:?}");
-                assert_eq!(i.input.remainder(), source, "AST rollback remainder: {source:?}");
+                assert_eq!(
+                    i.input.remainder(),
+                    source,
+                    "AST rollback remainder: {source:?}"
+                );
                 assert_local_restored(
                     i.local,
                     baseline,
@@ -37686,8 +41291,7 @@ mod tests {
             let probe = Probe::new(i);
             let mut committed = probe.commit(HeaderOutput::new());
             let parsed = commit_required_act_head_type_expression_isolated(&mut committed);
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
             assert_local_restored(
                 &local,
@@ -37699,7 +41303,10 @@ mod tests {
                 companion,
                 false,
             );
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             SlotResult {
                 range: match parsed {
@@ -37710,13 +41317,7 @@ mod tests {
                 recoveries: output
                     .committed_recoveries()
                     .iter()
-                    .map(|record| {
-                        (
-                            record.kind,
-                            record.site.role,
-                            record.site.range.clone(),
-                        )
-                    })
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                     .collect(),
             }
         }
@@ -37724,10 +41325,24 @@ mod tests {
         fn assert_complete(source: &str, expected_range: Range<usize>, expected_remainder: &str) {
             let ast = parse_slot_without_rollback(source);
             let direct = commit_slot(source);
-            assert_eq!(ast.range, Some(expected_range.clone()), "AST range: {source:?}");
-            assert_eq!(direct.range, Some(expected_range), "direct range: {source:?}");
-            assert_eq!(ast.remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct.remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast.range,
+                Some(expected_range.clone()),
+                "AST range: {source:?}"
+            );
+            assert_eq!(
+                direct.range,
+                Some(expected_range),
+                "direct range: {source:?}"
+            );
+            assert_eq!(
+                ast.remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct.remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert!(direct.recoveries.is_empty(), "direct recovery: {source:?}");
         }
 
@@ -37810,8 +41425,16 @@ mod tests {
         ] {
             let ast = parse_slot_without_rollback(source);
             let direct = commit_slot(source);
-            assert_eq!(ast.range, Some(0..source.len()), "AST nested Equal: {source:?}");
-            assert_eq!(direct.range, Some(0..source.len()), "direct nested Equal: {source:?}");
+            assert_eq!(
+                ast.range,
+                Some(0..source.len()),
+                "AST nested Equal: {source:?}"
+            );
+            assert_eq!(
+                direct.range,
+                Some(0..source.len()),
+                "direct nested Equal: {source:?}"
+            );
             assert_eq!(ast.remainder, "", "AST nested Equal: {source:?}");
             assert_eq!(direct.remainder, "", "direct nested Equal: {source:?}");
         }
@@ -37840,7 +41463,10 @@ mod tests {
             local.push_stop_set(episode.stops);
             local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
             let outer = local.push_type_expression_episode(episode.policy);
-            assert_eq!(outer, episode.scoped_frame.visible_episode_depth, "{nested_owner}");
+            assert_eq!(
+                outer, episode.scoped_frame.visible_episode_depth,
+                "{nested_owner}"
+            );
             let mut source_input = SourceInput::new("");
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
@@ -37919,7 +41545,9 @@ mod tests {
             recoveries: Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
         }
 
-        fn prepare_local(with_gate_two_state: bool) -> (
+        fn prepare_local(
+            with_gate_two_state: bool,
+        ) -> (
             ParseLocal,
             IndentationBaseline,
             StopSet,
@@ -37943,9 +41571,9 @@ mod tests {
             local.set_inline(with_gate_two_state);
             local.set_ml_arg(with_gate_two_state);
             local.set_type_ml_arg(with_gate_two_state);
-            local.set_type_malformed_caller_boundary(with_gate_two_state.then_some(
-                TypeMalformedCallerBoundaryFence { trivia_start: 1 },
-            ));
+            local.set_type_malformed_caller_boundary(
+                with_gate_two_state.then_some(TypeMalformedCallerBoundaryFence { trivia_start: 1 }),
+            );
             let outer_episode =
                 local.push_type_expression_episode(TypeExpressionEpisodePolicy::default());
             let outer_frame = TypeExpressionScopedStopFrame {
@@ -38045,7 +41673,11 @@ mod tests {
                 if rollback {
                     i.rollback(checkpoint);
                     assert_eq!(i.pos(), 0, "AST rollback position: {source:?}");
-                    assert_eq!(i.input.remainder(), source, "AST rollback remainder: {source:?}");
+                    assert_eq!(
+                        i.input.remainder(),
+                        source,
+                        "AST rollback remainder: {source:?}"
+                    );
                     assert_local_restored(
                         i.local,
                         baseline,
@@ -38094,8 +41726,7 @@ mod tests {
             let mut committed = probe.commit(HeaderOutput::new());
             let head = commit_required_act_head_type_expression_isolated(&mut committed);
             let source_clause = commit_act_source_clause_after_head_isolated(0, &mut committed);
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
             assert_local_restored(
                 &local,
@@ -38107,7 +41738,10 @@ mod tests {
                 companion,
                 false,
             );
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             SlotResult {
                 head: match head {
@@ -38125,13 +41759,7 @@ mod tests {
                 recoveries: output
                     .committed_recoveries()
                     .iter()
-                    .map(|record| {
-                        (
-                            record.kind,
-                            record.site.role,
-                            record.site.range.clone(),
-                        )
-                    })
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                     .collect(),
             }
         }
@@ -38141,11 +41769,19 @@ mod tests {
             let direct = commit_direct(source);
             assert_eq!(ast.head, direct.head, "head parity: {source:?}");
             assert_eq!(
-                ast.source.as_ref().map(|(_, source, range)| (source, range)),
-                direct.source.as_ref().map(|(_, source, range)| (source, range)),
+                ast.source
+                    .as_ref()
+                    .map(|(_, source, range)| (source, range)),
+                direct
+                    .source
+                    .as_ref()
+                    .map(|(_, source, range)| (source, range)),
                 "source parity: {source:?}",
             );
-            assert_eq!(ast.remainder, direct.remainder, "remainder parity: {source:?}");
+            assert_eq!(
+                ast.remainder, direct.remainder,
+                "remainder parity: {source:?}"
+            );
             (ast, direct)
         }
 
@@ -38155,8 +41791,15 @@ mod tests {
             assert!(ast.source.is_none(), "AST absent source: {source:?}");
             assert!(direct.source.is_none(), "direct absent source: {source:?}");
             assert_eq!(ast.remainder, &source[1..], "AST absent source: {source:?}");
-            assert_eq!(direct.remainder, &source[1..], "direct absent source: {source:?}");
-            assert!(direct.recoveries.is_empty(), "direct absent source: {source:?}");
+            assert_eq!(
+                direct.remainder,
+                &source[1..],
+                "direct absent source: {source:?}"
+            );
+            assert!(
+                direct.recoveries.is_empty(),
+                "direct absent source: {source:?}"
+            );
         }
 
         // Full and exotic source values stop only at the later Act body
@@ -38169,10 +41812,23 @@ mod tests {
             ("A = var 't", 4..10, ""),
         ] {
             let (ast, direct) = assert_ast_direct(source);
-            assert_eq!(ast.source, Some((2..3, Some(expected_source.clone()), 2..expected_source.end)));
-            assert_eq!(direct.source, Some((2..3, Some(expected_source), 2..source.len() - expected_remainder.len())));
+            assert_eq!(
+                ast.source,
+                Some((2..3, Some(expected_source.clone()), 2..expected_source.end))
+            );
+            assert_eq!(
+                direct.source,
+                Some((
+                    2..3,
+                    Some(expected_source),
+                    2..source.len() - expected_remainder.len()
+                ))
+            );
             assert_eq!(ast.remainder, expected_remainder, "AST source: {source:?}");
-            assert_eq!(direct.remainder, expected_remainder, "direct source: {source:?}");
+            assert_eq!(
+                direct.remainder, expected_remainder,
+                "direct source: {source:?}"
+            );
             assert!(direct.recoveries.is_empty(), "direct source: {source:?}");
         }
 
@@ -38180,10 +41836,21 @@ mod tests {
         // equals end and does not consume its terminal boundary.
         for (source, remainder) in [("A =", ""), ("A =;", ";"), ("A =)", ")")] {
             let (ast, direct) = assert_ast_direct(source);
-            assert_eq!(ast.source, Some((2..3, None, 2..3)), "AST missing source: {source:?}");
-            assert_eq!(direct.source, Some((2..3, None, 2..3)), "direct missing source: {source:?}");
+            assert_eq!(
+                ast.source,
+                Some((2..3, None, 2..3)),
+                "AST missing source: {source:?}"
+            );
+            assert_eq!(
+                direct.source,
+                Some((2..3, None, 2..3)),
+                "direct missing source: {source:?}"
+            );
             assert_eq!(ast.remainder, remainder, "AST missing source: {source:?}");
-            assert_eq!(direct.remainder, remainder, "direct missing source: {source:?}");
+            assert_eq!(
+                direct.remainder, remainder,
+                "direct missing source: {source:?}"
+            );
             assert_eq!(
                 direct.recoveries,
                 vec![(
@@ -38239,8 +41906,19 @@ mod tests {
             "A = (:{ A derives Eq });",
         ] {
             let (ast, direct) = assert_ast_direct(source);
-            assert!(ast.source.as_ref().is_some_and(|(_, source, _)| source.is_some()), "AST nested source: {source:?}");
-            assert!(direct.source.as_ref().is_some_and(|(_, source, _)| source.is_some()), "direct nested source: {source:?}");
+            assert!(
+                ast.source
+                    .as_ref()
+                    .is_some_and(|(_, source, _)| source.is_some()),
+                "AST nested source: {source:?}"
+            );
+            assert!(
+                direct
+                    .source
+                    .as_ref()
+                    .is_some_and(|(_, source, _)| source.is_some()),
+                "direct nested source: {source:?}"
+            );
             assert_eq!(ast.remainder, ";", "AST nested source: {source:?}");
             assert_eq!(direct.remainder, ";", "direct nested source: {source:?}");
         }
@@ -38346,11 +42024,17 @@ mod tests {
 
         for source in ["act A", "act A = B"] {
             let (declaration, remainder) = parse(source);
-            assert!(matches!(declaration.head, Recovered::Complete(_)), "head: {source:?}");
-            assert!(matches!(
-                declaration.body,
-                Recovered::Complete(ActBody::Bodyless { semicolon: None })
-            ), "implicit bodyless: {source:?}");
+            assert!(
+                matches!(declaration.head, Recovered::Complete(_)),
+                "head: {source:?}"
+            );
+            assert!(
+                matches!(
+                    declaration.body,
+                    Recovered::Complete(ActBody::Bodyless { semicolon: None })
+                ),
+                "implicit bodyless: {source:?}"
+            );
             assert_eq!(remainder, "", "remainder: {source:?}");
         }
 
@@ -38378,13 +42062,16 @@ mod tests {
             ("act A:\nnext", "\nnext"),
         ] {
             let (declaration, remainder) = parse(source);
-            assert!(matches!(
-                declaration.body,
-                Recovered::Complete(ActBody::Colon {
-                    body: Recovered::Incomplete,
-                    ..
-                })
-            ), "body: {source:?}");
+            assert!(
+                matches!(
+                    declaration.body,
+                    Recovered::Complete(ActBody::Colon {
+                        body: Recovered::Incomplete,
+                        ..
+                    })
+                ),
+                "body: {source:?}"
+            );
             assert_eq!(declaration.range().end, 6, "range: {source:?}");
             assert_eq!(remainder, expected_remainder, "remainder: {source:?}");
         }
@@ -38416,7 +42103,12 @@ mod tests {
 
         fn commit_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -38439,14 +42131,16 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             committed.finish_node();
             let output = committed.into_output();
             let recoveries = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
             assert_eq!(root.to_string(), source, "lossless: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (range, remainder, root, recoveries)
         }
@@ -38549,7 +42243,12 @@ mod tests {
             let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
             assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
             assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {:?}",
+                case.source
+            );
             assert!(records.is_empty(), "recoveries: {:?}", case.source);
 
             let declaration = root
@@ -38569,7 +42268,10 @@ mod tests {
             assert_eq!(
                 root.descendants_with_tokens()
                     .filter_map(|element| element.into_token())
-                    .filter(|token| matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
+                    .filter(|token| matches!(
+                        token.kind(),
+                        SyntaxKind::Whitespace | SyntaxKind::Newline
+                    ))
                     .map(|token| (token.kind(), syntax_range(token.text_range())))
                     .collect::<Vec<_>>(),
                 case.trivia,
@@ -38605,7 +42307,12 @@ mod tests {
                     );
                 }
                 None => {
-                    assert_eq!(type_expressions.len(), 1, "no source node: {:?}", case.source);
+                    assert_eq!(
+                        type_expressions.len(),
+                        1,
+                        "no source node: {:?}",
+                        case.source
+                    );
                     assert!(ast.source.is_none());
                 }
             }
@@ -38660,7 +42367,11 @@ mod tests {
             assert!(
                 !declaration.descendants().any(|node| matches!(
                     node.kind(),
-                    SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::BindingBody | SyntaxKind::ImplDescription | SyntaxKind::CastBody
+                    SyntaxKind::Missing
+                        | SyntaxKind::Error
+                        | SyntaxKind::BindingBody
+                        | SyntaxKind::ImplDescription
+                        | SyntaxKind::CastBody
                 )),
                 "worked examples have no recovery or borrowed wrapper: {:?}",
                 case.source,
@@ -38716,10 +42427,12 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (
                 range,
@@ -38727,13 +42440,7 @@ mod tests {
                 output
                     .committed_recoveries()
                     .iter()
-                    .map(|record| {
-                        (
-                            record.kind,
-                            record.site.role,
-                            record.site.range.clone(),
-                        )
-                    })
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                     .collect(),
             )
         }
@@ -38762,16 +42469,22 @@ mod tests {
                 intro,
             );
             assert!(
-                committed
-                    .probe(|probe| probe.input().input.remainder().is_empty()),
+                committed.probe(|probe| probe.input().input.remainder().is_empty()),
                 "full direct fixture must be consumed: {source:?}",
             );
             committed.finish_node();
             let output = committed.into_output();
             let records = output.committed_recoveries().len();
             let root = SyntaxNode::new_root(output.finish_complete());
-            assert_eq!(root.to_string(), source, "lossless direct fixture: {source:?}");
-            assert!(expectations.take_merged().is_none(), "tree sink: {source:?}");
+            assert_eq!(
+                root.to_string(),
+                source,
+                "lossless direct fixture: {source:?}"
+            );
+            assert!(
+                expectations.take_merged().is_none(),
+                "tree sink: {source:?}"
+            );
             let _ = is_cut;
             let nodes = root
                 .descendants()
@@ -38820,9 +42533,19 @@ mod tests {
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(records, expected_records, "records: {source:?}");
             assert_eq!(matches!(ast.head, Recovered::Complete(_)), head_complete);
             assert!(
@@ -38883,9 +42606,19 @@ mod tests {
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(records, expected_records, "records: {source:?}");
             assert_eq!(
                 ast.source
@@ -38908,15 +42641,24 @@ mod tests {
         // A non-empty body-introducer run retries at actual punctuation, or
         // preserves the caller comma.  This differs from a clean tail
         // boundary, which Gate 5/6 already establish as implicit Bodyless.
-        for (source, expected_remainder, expected_range, bodyless) in [
-            ("act A @;", "", 6..7, true),
-            ("act A @,", ",", 6..7, false),
-        ] {
+        for (source, expected_remainder, expected_range, bodyless) in
+            [("act A @;", "", 6..7, true), ("act A @,", ",", 6..7, false)]
+        {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(
                 records,
                 vec![(
@@ -38945,9 +42687,19 @@ mod tests {
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(
                 records,
                 vec![(
@@ -39048,7 +42800,11 @@ mod tests {
             let (direct_range, direct_remainder, records) = commit_direct(source);
             assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
             assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(records, expected_records, "inner recovery: {source:?}");
             assert!(
                 records.iter().all(|(_, recovery_role, _)| {
@@ -39064,7 +42820,10 @@ mod tests {
         let (mismatched_direct_range, mismatched_remainder, mismatched_records) =
             commit_direct(mismatched_source);
         assert_eq!(mismatched_ast_remainder, "]");
-        assert!(matches!(mismatched_ast.body, Recovered::Complete(ActBody::Braced { .. })));
+        assert!(matches!(
+            mismatched_ast.body,
+            Recovered::Complete(ActBody::Braced { .. })
+        ));
         assert_eq!(mismatched_direct_range, Recovered::Complete(0..19));
         assert_eq!(mismatched_remainder, "");
         assert_eq!(
@@ -39186,7 +42945,12 @@ mod tests {
 
         fn commit_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -39209,14 +42973,16 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             committed.finish_node();
             let output = committed.into_output();
             let recoveries = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
             assert_eq!(root.to_string(), source, "lossless: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (range, remainder, root, recoveries)
         }
@@ -39230,15 +42996,42 @@ mod tests {
         // Act remains excluded because Gate 10 has not yet promoted its own
         // dispatcher arm; nested Act acceptance belongs to that atomic gate.
         let cases = [
-            Case { item: "our x: Int", expected: ExpectedStatement::Binding },
-            Case { item: "use std::core", expected: ExpectedStatement::Use },
-            Case { item: "mod inner;", expected: ExpectedStatement::Mod },
-            Case { item: "struct S {}", expected: ExpectedStatement::Struct },
-            Case { item: "type Alias = Int", expected: ExpectedStatement::Type },
-            Case { item: "role Inner;", expected: ExpectedStatement::Role },
-            Case { item: "impl Int;", expected: ExpectedStatement::Impl },
-            Case { item: "cast(x: A): B;", expected: ExpectedStatement::Cast },
-            Case { item: "value", expected: ExpectedStatement::Expression },
+            Case {
+                item: "our x: Int",
+                expected: ExpectedStatement::Binding,
+            },
+            Case {
+                item: "use std::core",
+                expected: ExpectedStatement::Use,
+            },
+            Case {
+                item: "mod inner;",
+                expected: ExpectedStatement::Mod,
+            },
+            Case {
+                item: "struct S {}",
+                expected: ExpectedStatement::Struct,
+            },
+            Case {
+                item: "type Alias = Int",
+                expected: ExpectedStatement::Type,
+            },
+            Case {
+                item: "role Inner;",
+                expected: ExpectedStatement::Role,
+            },
+            Case {
+                item: "impl Int;",
+                expected: ExpectedStatement::Impl,
+            },
+            Case {
+                item: "cast(x: A): B;",
+                expected: ExpectedStatement::Cast,
+            },
+            Case {
+                item: "value",
+                expected: ExpectedStatement::Expression,
+            },
         ];
 
         for form in [BodyForm::Braced, BodyForm::Indented, BodyForm::Inline] {
@@ -39248,14 +43041,17 @@ mod tests {
                 let (direct_range, direct_remainder, root, recoveries) = commit_direct(&source);
                 assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
                 assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
-                assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+                assert_eq!(
+                    direct_range,
+                    Recovered::Complete(ast.range()),
+                    "range: {source:?}"
+                );
                 assert!(recoveries.is_empty(), "inner recovery: {source:?}");
 
                 let ast_matches_expected = match (form, &ast.body) {
-                    (
-                        BodyForm::Braced,
-                        Recovered::Complete(ActBody::Braced { block }),
-                    ) => block.range().start < block.range().end,
+                    (BodyForm::Braced, Recovered::Complete(ActBody::Braced { block })) => {
+                        block.range().start < block.range().end
+                    }
                     (
                         BodyForm::Indented,
                         Recovered::Complete(ActBody::Colon {
@@ -39302,7 +43098,9 @@ mod tests {
                 assert!(
                     !declaration.children().any(|node| matches!(
                         node.kind(),
-                        SyntaxKind::BindingBody | SyntaxKind::ImplDescription | SyntaxKind::CastBody
+                        SyntaxKind::BindingBody
+                            | SyntaxKind::ImplDescription
+                            | SyntaxKind::CastBody
                     )),
                     "Act has no borrowed or synthetic body wrapper: {source:?}",
                 );
@@ -39357,7 +43155,10 @@ mod tests {
                 if_depth: local.if_expression_companion_depth(),
                 innermost_if: local.if_expression_companion().map(|frame| frame.id()),
                 type_episode_depth: local.type_expression_episode_depth(),
-                scoped_type_stops: local.type_expression_scoped_stop_frames().copied().collect(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
             }
         }
 
@@ -39443,15 +43244,17 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let range = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 skip_prefix(prefix_len, &mut i);
                 let before = snapshot(i.local);
-                let declaration = parse_act_declaration_isolated(
-                    &crate::operator::OperatorTable::empty(),
-                    i,
-                )
-                .expect("Act matrix candidate");
+                let declaration =
+                    parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                        .expect("Act matrix candidate");
                 assert_eq!(snapshot(&local), before, "AST state: {source:?}");
                 declaration.range()
             };
@@ -39465,7 +43268,12 @@ mod tests {
             prefix_len: usize,
             context: Context,
             stop: StopKind,
-        ) -> (Range<usize>, String, LineState, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Range<usize>,
+            String,
+            LineState,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stop);
@@ -39492,8 +43300,8 @@ mod tests {
                         &mut committed,
                         intro,
                     );
-                    let remainder = committed
-                        .probe(|probe| probe.input().input.remainder().to_owned());
+                    let remainder =
+                        committed.probe(|probe| probe.input().input.remainder().to_owned());
                     let after = committed.probe(|probe| snapshot(probe.input().local));
                     assert_eq!(after, before, "direct state: {source:?}");
                     let records = committed.into_output().committed_recoveries().to_vec();
@@ -39501,7 +43309,10 @@ mod tests {
                 })))
                 .expect("the uncut direct Act matrix adapter is total")
             };
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (
                 match range {
@@ -39525,8 +43336,14 @@ mod tests {
             let (direct_range, direct_remainder, direct_line, records) =
                 parse_direct(source, prefix_len, context, stop);
             assert_eq!(ast_range, direct_range, "range: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert_eq!(ast_line, direct_line, "line state: {source:?}");
             records
         }
@@ -39547,14 +43364,16 @@ mod tests {
         }
 
         let catch_prefix = "value with: ".len();
-        assert!(assert_case(
-            "value with: act A;\n  B -> fallback",
-            catch_prefix,
-            Context::CatchInline,
-            StopKind::RightBracket,
-            "\n  B -> fallback",
-        )
-        .is_empty());
+        assert!(
+            assert_case(
+                "value with: act A;\n  B -> fallback",
+                catch_prefix,
+                Context::CatchInline,
+                StopKind::RightBracket,
+                "\n  B -> fallback",
+            )
+            .is_empty()
+        );
 
         for (stop, punctuation) in [
             (StopKind::Comma, ","),
@@ -39563,14 +43382,16 @@ mod tests {
             (StopKind::RightBrace, "}"),
         ] {
             let source = format!("act A{punctuation} tail");
-            assert!(assert_case(
-                &source,
-                0,
-                Context::Root,
-                stop,
-                &format!("{punctuation} tail"),
-            )
-            .is_empty());
+            assert!(
+                assert_case(
+                    &source,
+                    0,
+                    Context::Root,
+                    stop,
+                    &format!("{punctuation} tail"),
+                )
+                .is_empty()
+            );
         }
 
         for (source, remainder) in [
@@ -39628,18 +43449,22 @@ mod tests {
                     IsCut::new(&mut is_cut),
                 )
                 .set_local(&mut local);
-                let _ = parse_act_declaration_isolated(
-                    &crate::operator::OperatorTable::empty(),
-                    i,
-                )
-                .expect("Act rollback candidate");
+                let _ = parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                    .expect("Act rollback candidate");
             }
             source_input.rollback(input_checkpoint);
             local.rollback(local_checkpoint);
-            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "rollback input: {source:?}"
+            );
             assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
             assert_eq!(local.line(), before_line, "rollback line: {source:?}");
-            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "rollback sink: {source:?}"
+            );
             assert!(!is_cut, "rollback cut: {source:?}");
 
             let mut direct_source = SourceInput::new(source);
@@ -39675,10 +43500,25 @@ mod tests {
             .expect("the uncut direct Act rollback adapter is total");
             direct_source.rollback(direct_input_checkpoint);
             direct_local.rollback(direct_local_checkpoint);
-            assert_eq!(direct_source.remainder(), source, "direct rollback input: {source:?}");
-            assert_eq!(snapshot(&direct_local), direct_before, "direct rollback state: {source:?}");
-            assert_eq!(direct_local.line(), direct_before_line, "direct rollback line: {source:?}");
-            assert!(direct_expectations.take_merged().is_none(), "direct rollback sink: {source:?}");
+            assert_eq!(
+                direct_source.remainder(),
+                source,
+                "direct rollback input: {source:?}"
+            );
+            assert_eq!(
+                snapshot(&direct_local),
+                direct_before,
+                "direct rollback state: {source:?}"
+            );
+            assert_eq!(
+                direct_local.line(),
+                direct_before_line,
+                "direct rollback line: {source:?}"
+            );
+            assert!(
+                direct_expectations.take_merged().is_none(),
+                "direct rollback sink: {source:?}"
+            );
             assert!(!direct_cut, "direct rollback cut: {source:?}");
         }
 
@@ -39715,7 +43555,10 @@ mod tests {
                 record_count,
                 "one record = one recovery node: {source:?}",
             );
-            assert!(expectations.take_merged().is_none(), "full-CST sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "full-CST sink: {source:?}"
+            );
         }
     }
 
@@ -39746,14 +43589,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::ActDeclaration),
                 node_ranges(&direct_root, SyntaxKind::ActDeclaration),
@@ -39790,7 +43638,10 @@ mod tests {
                 panic!("the exact Act intro must win root declaration dispatch")
             };
             assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
-            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "root AST sink: {source:?}"
+            );
             assert!(!is_cut, "root AST cut: {source:?}");
             declaration.range()
         }
@@ -39802,10 +43653,20 @@ mod tests {
             "act a:\n  our r: a -> b",
             "act Eq {\n  our eq: Self -> Self -> Bool\n}",
         ] {
-            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            assert_eq!(
+                parse_root_ast(source),
+                0..source.len(),
+                "root AST: {source:?}"
+            );
             let (public, _, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::ActDeclaration), vec![0..source.len()]);
-            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ActDeclaration),
+                vec![0..source.len()]
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "root recovery: {source:?}"
+            );
         }
 
         // Act reaches canonical Statement dispatch from existing block owners.
@@ -39820,14 +43681,20 @@ mod tests {
                 !node_ranges(&public, SyntaxKind::ActDeclaration).is_empty(),
                 "canonical owner: {source:?}",
             );
-            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "owner recovery: {source:?}"
+            );
         }
 
         // The `my act` lookahead remains a Binding collision exception after
         // Act has joined shared recognition; it must not construct Act CST.
         let (public, direct_root, direct) = parse_public_and_direct("my act = 1");
         assert!(node_ranges(&public, SyntaxKind::ActDeclaration).is_empty());
-        assert_eq!(node_ranges(&public, SyntaxKind::BindingStatement), vec![0..10]);
+        assert_eq!(
+            node_ranges(&public, SyntaxKind::BindingStatement),
+            vec![0..10]
+        );
         assert_eq!(
             node_ranges(&public, SyntaxKind::BindingStatement),
             node_ranges(&direct_root, SyntaxKind::BindingStatement),
@@ -39878,7 +43745,11 @@ mod tests {
                 .filter_map(|element| element.into_token())
                 .filter(|token| token.text() == text)
                 .map(|token| {
-                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    assert_eq!(
+                        token.kind(),
+                        SyntaxKind::Identifier,
+                        "ordinary word: {text:?}"
+                    );
                     syntax_range(token.text_range())
                 })
                 .collect()
@@ -39895,14 +43766,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::ActDeclaration),
                 node_ranges(&direct_root, SyntaxKind::ActDeclaration),
@@ -39924,12 +43800,18 @@ mod tests {
         // head candidate; bare, `our`, and `pub` are unconditional Act cuts.
         for source in ["act A;", "my act A;", "our act A;", "pub act A;"] {
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::ActDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ActDeclaration),
+                vec![0..source.len()]
+            );
             assert_eq!(
                 node_ranges(&direct_root, SyntaxKind::ActDeclaration),
                 vec![0..source.len()],
             );
-            assert!(direct.committed_recoveries().is_empty(), "visibility recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "visibility recovery: {source:?}"
+            );
         }
 
         // `act` remains contextual outside a canonical Statement/root
@@ -40035,21 +43917,36 @@ mod tests {
             ("role:", Some((4..5, "colon"))),
         ] {
             let (declaration, remainder) = parse(source);
-            assert!(matches!(declaration.head, Recovered::Incomplete), "head: {source:?}");
+            assert!(
+                matches!(declaration.head, Recovered::Incomplete),
+                "head: {source:?}"
+            );
             match expected_body {
-                None => assert!(matches!(declaration.body, Recovered::Incomplete), "body: {source:?}"),
-                Some((range, "semicolon")) => assert!(matches!(
-                    declaration.body,
-                    Recovered::Complete(RoleBody::Bodyless { semicolon }) if semicolon == range
-                ), "body: {source:?}"),
-                Some((range, "brace")) => assert!(matches!(
-                    declaration.body,
-                    Recovered::Complete(RoleBody::Braced { ref block }) if block.range().start == range.start
-                ), "body: {source:?}"),
-                Some((range, "colon")) => assert!(matches!(
-                    declaration.body,
-                    Recovered::Complete(RoleBody::Colon { colon, body: Recovered::Incomplete }) if colon == range
-                ), "body: {source:?}"),
+                None => assert!(
+                    matches!(declaration.body, Recovered::Incomplete),
+                    "body: {source:?}"
+                ),
+                Some((range, "semicolon")) => assert!(
+                    matches!(
+                        declaration.body,
+                        Recovered::Complete(RoleBody::Bodyless { semicolon }) if semicolon == range
+                    ),
+                    "body: {source:?}"
+                ),
+                Some((range, "brace")) => assert!(
+                    matches!(
+                        declaration.body,
+                        Recovered::Complete(RoleBody::Braced { ref block }) if block.range().start == range.start
+                    ),
+                    "body: {source:?}"
+                ),
+                Some((range, "colon")) => assert!(
+                    matches!(
+                        declaration.body,
+                        Recovered::Complete(RoleBody::Colon { colon, body: Recovered::Incomplete }) if colon == range
+                    ),
+                    "body: {source:?}"
+                ),
                 Some(_) => unreachable!(),
             }
             assert_eq!(remainder, "", "remainder: {source:?}");
@@ -40059,7 +43956,10 @@ mod tests {
         let (missing_introducer, remainder) = parse(missing_introducer_source);
         assert!(matches!(missing_introducer.head, Recovered::Complete(_)));
         assert!(matches!(missing_introducer.body, Recovered::Incomplete));
-        assert_eq!(missing_introducer.range(), 0..missing_introducer_source.len());
+        assert_eq!(
+            missing_introducer.range(),
+            0..missing_introducer_source.len()
+        );
         assert_eq!(remainder, "");
 
         // One malformed introducer run retries at its real starter; another
@@ -40084,13 +43984,16 @@ mod tests {
             ("role Eq:\nnext", "\nnext"),
         ] {
             let (declaration, remainder) = parse(source);
-            assert!(matches!(
-                declaration.body,
-                Recovered::Complete(RoleBody::Colon {
-                    body: Recovered::Incomplete,
-                    ..
-                })
-            ), "body: {source:?}");
+            assert!(
+                matches!(
+                    declaration.body,
+                    Recovered::Complete(RoleBody::Colon {
+                        body: Recovered::Incomplete,
+                        ..
+                    })
+                ),
+                "body: {source:?}"
+            );
             assert_eq!(declaration.range().end, 8, "range: {source:?}");
             assert_eq!(remainder, expected_remainder, "remainder: {source:?}");
         }
@@ -40122,7 +44025,12 @@ mod tests {
 
         fn commit_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -40145,14 +44053,16 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             committed.finish_node();
             let output = committed.into_output();
             let recoveries = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
             assert_eq!(root.to_string(), source, "lossless: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (range, remainder, root, recoveries)
         }
@@ -40268,7 +44178,12 @@ mod tests {
             let (direct_range, direct_remainder, root, records) = commit_direct(case.source);
             assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
             assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {:?}",
+                case.source
+            );
             assert!(records.is_empty(), "recoveries: {:?}", case.source);
 
             let declaration = root
@@ -40288,7 +44203,10 @@ mod tests {
             assert_eq!(
                 root.descendants_with_tokens()
                     .filter_map(|element| element.into_token())
-                    .filter(|token| matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
+                    .filter(|token| matches!(
+                        token.kind(),
+                        SyntaxKind::Whitespace | SyntaxKind::Newline
+                    ))
                     .map(|token| (token.kind(), syntax_range(token.text_range())))
                     .collect::<Vec<_>>(),
                 case.trivia,
@@ -40300,16 +44218,27 @@ mod tests {
                 .children()
                 .find(|node| node.kind() == SyntaxKind::TypeExpression)
                 .expect("Role head uses the ordinary TypeExpression node");
-            assert_eq!(syntax_range(head.text_range()), case.head, "head range: {:?}", case.source);
+            assert_eq!(
+                syntax_range(head.text_range()),
+                case.head,
+                "head range: {:?}",
+                case.source
+            );
             assert!(matches!(ast.head, Recovered::Complete(ref head) if head.range() == case.head));
 
             let body_node = declaration
                 .children_with_tokens()
                 .find(|element| element.kind() == case.body_kind)
                 .expect("Role form has only its existing CST owner");
-            assert_eq!(syntax_range(body_node.text_range()), case.body, "body range: {:?}", case.source);
+            assert_eq!(
+                syntax_range(body_node.text_range()),
+                case.body,
+                "body range: {:?}",
+                case.source
+            );
             match case.body_kind {
-                SyntaxKind::Semicolon => assert!(matches!(ast.body,
+                SyntaxKind::Semicolon => assert!(matches!(
+                    ast.body,
                     Recovered::Complete(RoleBody::Bodyless { .. })
                 )),
                 SyntaxKind::IndentedStatementBlock => {
@@ -40318,7 +44247,10 @@ mod tests {
                         .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
                         .expect("colon indented body reuses the canonical block");
                     assert_eq!(
-                        block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(),
+                        block
+                            .children()
+                            .filter(|node| node.kind() == SyntaxKind::Statement)
+                            .count(),
                         case.item_count,
                     );
                     assert!(matches!(&ast.body,
@@ -40333,7 +44265,10 @@ mod tests {
                         .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
                         .expect("brace body reuses the canonical block");
                     assert_eq!(
-                        block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(),
+                        block
+                            .children()
+                            .filter(|node| node.kind() == SyntaxKind::Statement)
+                            .count(),
                         case.item_count,
                     );
                     assert!(matches!(&ast.body,
@@ -40405,10 +44340,12 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (
                 range,
@@ -40416,13 +44353,7 @@ mod tests {
                 output
                     .committed_recoveries()
                     .iter()
-                    .map(|record| {
-                        (
-                            record.kind,
-                            record.site.role,
-                            record.site.range.clone(),
-                        )
-                    })
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                     .collect(),
             )
         }
@@ -40451,16 +44382,22 @@ mod tests {
                 intro,
             );
             assert!(
-                committed
-                    .probe(|probe| probe.input().input.remainder().is_empty()),
+                committed.probe(|probe| probe.input().input.remainder().is_empty()),
                 "full direct fixture must be consumed: {source:?}",
             );
             committed.finish_node();
             let output = committed.into_output();
             let records = output.committed_recoveries().len();
             let root = SyntaxNode::new_root(output.finish_complete());
-            assert_eq!(root.to_string(), source, "lossless direct fixture: {source:?}");
-            assert!(expectations.take_merged().is_none(), "tree sink: {source:?}");
+            assert_eq!(
+                root.to_string(),
+                source,
+                "lossless direct fixture: {source:?}"
+            );
+            assert!(
+                expectations.take_merged().is_none(),
+                "tree sink: {source:?}"
+            );
             let _ = is_cut;
             let nodes = root
                 .descendants()
@@ -40537,9 +44474,19 @@ mod tests {
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(records, expected_records, "records: {source:?}");
             assert_eq!(
                 matches!(ast.head, Recovered::Complete(_)),
@@ -40560,9 +44507,19 @@ mod tests {
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(records.len(), 1, "one body-introducer record: {source:?}");
             assert_eq!(
                 records[0],
@@ -40573,9 +44530,11 @@ mod tests {
                 ),
                 "body-introducer identity: {source:?}",
             );
-            assert!(matches!(ast.body,
-                Recovered::Complete(RoleBody::Bodyless { .. }) if source.ends_with(';')
-            ) || matches!(ast.body, Recovered::Incomplete));
+            assert!(
+                matches!(ast.body,
+                    Recovered::Complete(RoleBody::Bodyless { .. }) if source.ends_with(';')
+                ) || matches!(ast.body, Recovered::Incomplete)
+            );
             if !source.ends_with(',') {
                 assert_eq!(direct_recovery_node_count(source), 1);
             }
@@ -40592,9 +44551,19 @@ mod tests {
         ] {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(
                 records,
                 vec![(
@@ -40604,8 +44573,12 @@ mod tests {
                 )],
                 "colon body record: {source:?}",
             );
-            assert!(matches!(ast.body,
-                Recovered::Complete(RoleBody::Colon { body: Recovered::Incomplete, .. })
+            assert!(matches!(
+                ast.body,
+                Recovered::Complete(RoleBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
             ));
             if expected_remainder.is_empty() {
                 assert_eq!(direct_recovery_node_count(source), 1);
@@ -40683,10 +44656,15 @@ mod tests {
             let (direct_range, direct_remainder, records) = commit_direct(source);
             assert_eq!(ast_remainder, "", "AST remainder: {source:?}");
             assert_eq!(direct_remainder, "", "direct remainder: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {source:?}"
+            );
             assert_eq!(records, expected_records, "inner recovery: {source:?}");
             assert!(
-                records.iter().all(|(_, recovery_role, _)| *recovery_role != role(crate::session::RoleDeclarationRole::Body)),
+                records.iter().all(|(_, recovery_role, _)| *recovery_role
+                    != role(crate::session::RoleDeclarationRole::Body)),
                 "inner recovery must not duplicate Role Body: {source:?}",
             );
             assert_eq!(direct_recovery_node_count(source), records.len());
@@ -40698,16 +44676,23 @@ mod tests {
                 && *recovery_role != role(crate::session::RoleDeclarationRole::Body)
         }));
         let (_, _, malformed_annotation_records) = commit_direct("role Eq:\n  our x: @Int");
-        assert!(malformed_annotation_records.iter().any(|(kind, recovery_role, _)| {
-            *kind == RecoveryKind::Error && *recovery_role == type_primary
-        }));
+        assert!(
+            malformed_annotation_records
+                .iter()
+                .any(|(kind, recovery_role, _)| {
+                    *kind == RecoveryKind::Error && *recovery_role == type_primary
+                })
+        );
 
         let mismatched_source = "role Eq { our x: Int]";
         let (mismatched_ast, mismatched_ast_remainder) = parse_ast(mismatched_source);
         let (mismatched_direct_range, mismatched_remainder, mismatched_records) =
             commit_direct(mismatched_source);
         assert_eq!(mismatched_ast_remainder, "]");
-        assert!(matches!(mismatched_ast.body, Recovered::Complete(RoleBody::Braced { .. })));
+        assert!(matches!(
+            mismatched_ast.body,
+            Recovered::Complete(RoleBody::Braced { .. })
+        ));
         assert_eq!(mismatched_direct_range, Recovered::Complete(0..21));
         assert_eq!(mismatched_remainder, "");
         assert_eq!(
@@ -40799,7 +44784,14 @@ mod tests {
             (declaration, source_input.remainder().to_owned())
         }
 
-        fn commit_direct(source: &str) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        fn commit_direct(
+            source: &str,
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -40822,14 +44814,16 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             committed.finish_node();
             let output = committed.into_output();
             let recoveries = output.committed_recoveries().to_vec();
             let root = SyntaxNode::new_root(output.finish_complete());
             assert_eq!(root.to_string(), source, "lossless: {source:?}");
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             let _ = is_cut;
             (range, remainder, root, recoveries)
         }
@@ -40842,44 +44836,92 @@ mod tests {
         for case in [
             // Existing PatternTypeAnnotation composition: signature-only,
             // annotated default, unannotated default, and a Forall RHS.
-            Case { source: "role R:\n  our x: Int", expected: ExpectedStatement::Binding },
-            Case { source: "role R:\n  our x: Int = 0", expected: ExpectedStatement::Binding },
-            Case { source: "role R:\n  our x = 0", expected: ExpectedStatement::Binding },
-            Case { source: "role R:\n  our x: for 'a: 'a -> 'a", expected: ExpectedStatement::Binding },
+            Case {
+                source: "role R:\n  our x: Int",
+                expected: ExpectedStatement::Binding,
+            },
+            Case {
+                source: "role R:\n  our x: Int = 0",
+                expected: ExpectedStatement::Binding,
+            },
+            Case {
+                source: "role R:\n  our x = 0",
+                expected: ExpectedStatement::Binding,
+            },
+            Case {
+                source: "role R:\n  our x: for 'a: 'a -> 'a",
+                expected: ExpectedStatement::Binding,
+            },
             // The remaining current canonical Statement sum, including the
             // equality TypeDeclaration form and isolated Impl/Cast adapters.
-            Case { source: "role R:\n  type Alias = Int", expected: ExpectedStatement::Type },
-            Case { source: "role R:\n  value", expected: ExpectedStatement::Expression },
-            Case { source: "role R:\n  use std::core", expected: ExpectedStatement::Use },
-            Case { source: "role R:\n  mod inner;", expected: ExpectedStatement::Mod },
-            Case { source: "role R:\n  struct S {}", expected: ExpectedStatement::Struct },
-            Case { source: "role R:\n  impl Int;", expected: ExpectedStatement::Impl },
-            Case { source: "role R:\n  cast(x: A): B;", expected: ExpectedStatement::Cast },
+            Case {
+                source: "role R:\n  type Alias = Int",
+                expected: ExpectedStatement::Type,
+            },
+            Case {
+                source: "role R:\n  value",
+                expected: ExpectedStatement::Expression,
+            },
+            Case {
+                source: "role R:\n  use std::core",
+                expected: ExpectedStatement::Use,
+            },
+            Case {
+                source: "role R:\n  mod inner;",
+                expected: ExpectedStatement::Mod,
+            },
+            Case {
+                source: "role R:\n  struct S {}",
+                expected: ExpectedStatement::Struct,
+            },
+            Case {
+                source: "role R:\n  impl Int;",
+                expected: ExpectedStatement::Impl,
+            },
+            Case {
+                source: "role R:\n  cast(x: A): B;",
+                expected: ExpectedStatement::Cast,
+            },
         ] {
             let (ast, ast_remainder) = parse_ast(case.source);
             let (direct_range, direct_remainder, root, recoveries) = commit_direct(case.source);
             assert_eq!(ast_remainder, "", "AST remainder: {:?}", case.source);
             assert_eq!(direct_remainder, "", "direct remainder: {:?}", case.source);
-            assert_eq!(direct_range, Recovered::Complete(ast.range()), "range: {:?}", case.source);
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(ast.range()),
+                "range: {:?}",
+                case.source
+            );
             assert!(recoveries.is_empty(), "inner recovery: {:?}", case.source);
 
             let Recovered::Complete(RoleBody::Colon {
                 body: Recovered::Complete(RoleColonBody::Indented { block }),
                 ..
-            }) = &ast.body else {
+            }) = &ast.body
+            else {
                 panic!("expected complete Role indented body: {:?}", case.source);
             };
             let [Recovered::Complete(statement)] = block.statements() else {
-                panic!("expected exactly one Role body statement: {:?}", case.source);
+                panic!(
+                    "expected exactly one Role body statement: {:?}",
+                    case.source
+                );
             };
-            assert!(case.expected.matches_ast(statement), "AST variant: {:?}", case.source);
+            assert!(
+                case.expected.matches_ast(statement),
+                "AST variant: {:?}",
+                case.source
+            );
 
             let declaration = root
                 .children()
                 .find(|node| node.kind() == SyntaxKind::RoleDeclaration)
                 .expect("one RoleDeclaration");
             assert_eq!(
-                root.descendants().filter(|node| node.kind() == SyntaxKind::RoleDeclaration).count(),
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::RoleDeclaration)
+                    .count(),
                 1,
                 "Role bodies must not introduce a nested Role wrapper: {:?}",
                 case.source,
@@ -40893,7 +44935,9 @@ mod tests {
                 .find(|node| node.kind() == SyntaxKind::Statement)
                 .expect("one direct canonical Statement");
             assert!(
-                statement.children().any(|node| node.kind() == case.expected.direct_kind()),
+                statement
+                    .children()
+                    .any(|node| node.kind() == case.expected.direct_kind()),
                 "direct variant: {:?}",
                 case.source,
             );
@@ -40955,7 +44999,10 @@ mod tests {
                 if_depth: local.if_expression_companion_depth(),
                 innermost_if: local.if_expression_companion().map(|frame| frame.id()),
                 type_episode_depth: local.type_expression_episode_depth(),
-                scoped_type_stops: local.type_expression_scoped_stop_frames().copied().collect(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
             }
         }
 
@@ -41041,15 +45088,17 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let range = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 skip_prefix(prefix_len, &mut i);
                 let before = snapshot(i.local);
-                let declaration = parse_role_declaration_isolated(
-                    &crate::operator::OperatorTable::empty(),
-                    i,
-                )
-                .expect("Role matrix candidate");
+                let declaration =
+                    parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                        .expect("Role matrix candidate");
                 assert_eq!(snapshot(&local), before, "AST state: {source:?}");
                 declaration.range()
             };
@@ -41063,7 +45112,12 @@ mod tests {
             prefix_len: usize,
             context: Context,
             stop: StopKind,
-        ) -> (Range<usize>, String, LineState, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Range<usize>,
+            String,
+            LineState,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stop);
@@ -41090,8 +45144,8 @@ mod tests {
                         &mut committed,
                         intro,
                     );
-                    let remainder = committed
-                        .probe(|probe| probe.input().input.remainder().to_owned());
+                    let remainder =
+                        committed.probe(|probe| probe.input().input.remainder().to_owned());
                     let after = committed.probe(|probe| snapshot(probe.input().local));
                     assert_eq!(after, before, "direct state: {source:?}");
                     let records = committed.into_output().committed_recoveries().to_vec();
@@ -41099,7 +45153,10 @@ mod tests {
                 })))
                 .expect("the uncut direct Role matrix adapter is total")
             };
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (
                 match range {
@@ -41123,8 +45180,14 @@ mod tests {
             let (direct_range, direct_remainder, direct_line, records) =
                 parse_direct(source, prefix_len, context, stop);
             assert_eq!(ast_range, direct_range, "range: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert_eq!(ast_line, direct_line, "line state: {source:?}");
             records
         }
@@ -41149,14 +45212,16 @@ mod tests {
         }
 
         let catch_prefix = "value with: ".len();
-        assert!(assert_case(
-            "value with: role R;\n  B -> fallback",
-            catch_prefix,
-            Context::CatchInline,
-            StopKind::RightBracket,
-            "\n  B -> fallback",
-        )
-        .is_empty());
+        assert!(
+            assert_case(
+                "value with: role R;\n  B -> fallback",
+                catch_prefix,
+                Context::CatchInline,
+                StopKind::RightBracket,
+                "\n  B -> fallback",
+            )
+            .is_empty()
+        );
 
         for (stop, punctuation) in [
             (StopKind::Comma, ","),
@@ -41221,18 +45286,23 @@ mod tests {
                     IsCut::new(&mut is_cut),
                 )
                 .set_local(&mut local);
-                let _ = parse_role_declaration_isolated(
-                    &crate::operator::OperatorTable::empty(),
-                    i,
-                )
-                .expect("Role rollback candidate");
+                let _ =
+                    parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                        .expect("Role rollback candidate");
             }
             source_input.rollback(input_checkpoint);
             local.rollback(local_checkpoint);
-            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "rollback input: {source:?}"
+            );
             assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
             assert_eq!(local.line(), before_line, "rollback line: {source:?}");
-            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "rollback sink: {source:?}"
+            );
             assert!(!is_cut, "rollback cut: {source:?}");
 
             let mut direct_source = SourceInput::new(source);
@@ -41268,10 +45338,25 @@ mod tests {
             .expect("the uncut direct Role rollback adapter is total");
             direct_source.rollback(direct_input_checkpoint);
             direct_local.rollback(direct_local_checkpoint);
-            assert_eq!(direct_source.remainder(), source, "direct rollback input: {source:?}");
-            assert_eq!(snapshot(&direct_local), direct_before, "direct rollback state: {source:?}");
-            assert_eq!(direct_local.line(), direct_before_line, "direct rollback line: {source:?}");
-            assert!(direct_expectations.take_merged().is_none(), "direct rollback sink: {source:?}");
+            assert_eq!(
+                direct_source.remainder(),
+                source,
+                "direct rollback input: {source:?}"
+            );
+            assert_eq!(
+                snapshot(&direct_local),
+                direct_before,
+                "direct rollback state: {source:?}"
+            );
+            assert_eq!(
+                direct_local.line(),
+                direct_before_line,
+                "direct rollback line: {source:?}"
+            );
+            assert!(
+                direct_expectations.take_merged().is_none(),
+                "direct rollback sink: {source:?}"
+            );
             assert!(!direct_cut, "direct rollback cut: {source:?}");
         }
 
@@ -41308,7 +45393,10 @@ mod tests {
                 record_count,
                 "one record = one recovery node: {source:?}",
             );
-            assert!(expectations.take_merged().is_none(), "full-CST sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "full-CST sink: {source:?}"
+            );
         }
     }
 
@@ -41339,14 +45427,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::RoleDeclaration),
                 node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
@@ -41383,7 +45476,10 @@ mod tests {
                 panic!("the exact Role intro must win root declaration dispatch")
             };
             assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
-            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "root AST sink: {source:?}"
+            );
             assert!(!is_cut, "root AST cut: {source:?}");
             declaration.range()
         }
@@ -41395,10 +45491,20 @@ mod tests {
             "role Printable:\n  our print: Self -> ()",
             "role Eq {\n  our eq: Self -> Self -> Bool\n}",
         ] {
-            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            assert_eq!(
+                parse_root_ast(source),
+                0..source.len(),
+                "root AST: {source:?}"
+            );
             let (public, _, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::RoleDeclaration), vec![0..source.len()]);
-            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::RoleDeclaration),
+                vec![0..source.len()]
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "root recovery: {source:?}"
+            );
         }
 
         // Every existing canonical Statement owner now reaches the promoted
@@ -41417,7 +45523,10 @@ mod tests {
                 !node_ranges(&public, SyntaxKind::RoleDeclaration).is_empty(),
                 "owner: {source:?}",
             );
-            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "owner recovery: {source:?}"
+            );
         }
 
         // Role bodies are ordinary canonical Statement sequences. Existing
@@ -41437,7 +45546,10 @@ mod tests {
             "  role NestedRole;",
         );
         let (public, direct_root, direct) = parse_public_and_direct(body_source);
-        assert!(direct.committed_recoveries().is_empty(), "role body recovery");
+        assert!(
+            direct.committed_recoveries().is_empty(),
+            "role body recovery"
+        );
         for (kind, count) in [
             (SyntaxKind::RoleDeclaration, 2),
             (SyntaxKind::BindingStatement, 2),
@@ -41449,7 +45561,11 @@ mod tests {
             (SyntaxKind::CastDeclaration, 1),
         ] {
             assert_eq!(node_ranges(&public, kind).len(), count, "public {kind:?}");
-            assert_eq!(node_ranges(&direct_root, kind).len(), count, "direct {kind:?}");
+            assert_eq!(
+                node_ranges(&direct_root, kind).len(),
+                count,
+                "direct {kind:?}"
+            );
         }
         assert!(!node_ranges(&public, SyntaxKind::OperatorChain).is_empty());
 
@@ -41461,7 +45577,10 @@ mod tests {
             "my result = if condition:\n  role Eq;\nelse: fallback",
         ] {
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert!(direct.committed_recoveries().is_empty(), "boundary recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "boundary recovery: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::RoleDeclaration),
                 node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
@@ -41488,7 +45607,10 @@ mod tests {
             ),
         ] {
             let (public, _, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::RoleDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::RoleDeclaration),
+                vec![0..source.len()]
+            );
             let [record] = direct.committed_recoveries() else {
                 panic!("one promoted Role recovery expected: {source:?}")
             };
@@ -41525,7 +45647,11 @@ mod tests {
                 .filter_map(|element| element.into_token())
                 .filter(|token| token.text() == text)
                 .map(|token| {
-                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    assert_eq!(
+                        token.kind(),
+                        SyntaxKind::Identifier,
+                        "ordinary word: {text:?}"
+                    );
                     syntax_range(token.text_range())
                 })
                 .collect()
@@ -41542,14 +45668,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::RoleDeclaration),
                 node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
@@ -41571,12 +45702,18 @@ mod tests {
         // direct root entrypoints.
         for source in ["role Eq;", "my role Eq;", "our role Eq;", "pub role Eq;"] {
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::RoleDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::RoleDeclaration),
+                vec![0..source.len()]
+            );
             assert_eq!(
                 node_ranges(&direct_root, SyntaxKind::RoleDeclaration),
                 vec![0..source.len()],
             );
-            assert!(direct.committed_recoveries().is_empty(), "visibility recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "visibility recovery: {source:?}"
+            );
         }
 
         // `role` remains contextual: it is an ordinary identifier whenever it
@@ -41663,7 +45800,10 @@ mod tests {
             brace.head,
             Recovered::Complete(ref head) if head.range() == (5..11)
         ));
-        assert!(matches!(brace.body, Recovered::Complete(ImplBody::Braced { .. })));
+        assert!(matches!(
+            brace.body,
+            Recovered::Complete(ImplBody::Braced { .. })
+        ));
         assert_eq!(remainder, "");
 
         let description_free_indented_source = "impl Point:\n  my value = 1";
@@ -41686,7 +45826,10 @@ mod tests {
         let (description_inline, remainder) = parse(description_inline_source);
         assert!(matches!(
             description_inline.description,
-            Some(ImplDescription { value: Recovered::Complete(_), .. })
+            Some(ImplDescription {
+                value: Recovered::Complete(_),
+                ..
+            })
         ));
         assert!(matches!(
             description_inline.body,
@@ -41695,7 +45838,10 @@ mod tests {
                 ..
             }) if matches!(**statement, Statement::Binding(_))
         ));
-        assert_eq!(description_inline.range(), 0..description_inline_source.len());
+        assert_eq!(
+            description_inline.range(),
+            0..description_inline_source.len()
+        );
         assert_eq!(remainder, "");
 
         let description_indented_source = "impl Point: Eq:\n  my value = 1";
@@ -41725,10 +45871,13 @@ mod tests {
 
         let missing_description_source = "impl T: ;";
         let (missing_description, remainder) = parse(missing_description_source);
-        assert!(matches!(
-            missing_description.description,
-            Some(ImplDescription { value: Recovered::Incomplete, ref range, .. }) if *range == (6..8)
-        ), "{missing_description:?}");
+        assert!(
+            matches!(
+                missing_description.description,
+                Some(ImplDescription { value: Recovered::Incomplete, ref range, .. }) if *range == (6..8)
+            ),
+            "{missing_description:?}"
+        );
         assert!(matches!(
             missing_description.body,
             Recovered::Complete(ImplBody::Bodyless { ref semicolon }) if *semicolon == (8..9)
@@ -41785,7 +45934,12 @@ mod tests {
 
         fn commit_direct(
             source: &str,
-        ) -> (Recovered<Range<usize>>, String, SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            SyntaxNode,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -41808,8 +45962,7 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             if !remainder.is_empty() {
                 let outer_trivia = committed
                     .probe(|probe| probe.input().run(scan_trivia))
@@ -41840,9 +45993,19 @@ mod tests {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, root, recoveries) = commit_direct(source);
             assert_eq!(direct_range, Recovered::Complete(ast.range()));
-            assert_eq!(direct_remainder, ast_remainder, "remainder parity: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "remainder: {source:?}");
-            assert_eq!(recoveries.len(), expected_recoveries, "recoveries: {source:?}");
+            assert_eq!(
+                direct_remainder, ast_remainder,
+                "remainder parity: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "remainder: {source:?}"
+            );
+            assert_eq!(
+                recoveries.len(),
+                expected_recoveries,
+                "recoveries: {source:?}"
+            );
             assert_eq!(
                 root.descendants()
                     .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
@@ -41939,7 +46102,13 @@ mod tests {
             (declaration, source_input.remainder().to_owned())
         }
 
-        fn commit_direct(source: &str) -> (Recovered<Range<usize>>, String, Vec<CommittedRecoveryRecord>) {
+        fn commit_direct(
+            source: &str,
+        ) -> (
+            Recovered<Range<usize>>,
+            String,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -41961,8 +46130,7 @@ mod tests {
                 &mut committed,
                 intro,
             );
-            let remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let output = committed.into_output();
             let _ = expectations.take_merged();
             let _ = is_cut;
@@ -41981,11 +46149,13 @@ mod tests {
                 "impl @",
                 0..6,
                 "",
-                vec![((
-                    RecoveryKind::Error,
-                    GrammarRole::Type(crate::session::TypeRole::Primary),
-                    5..6,
-                ))],
+                vec![
+                    ((
+                        RecoveryKind::Error,
+                        GrammarRole::Type(crate::session::TypeRole::Primary),
+                        5..6,
+                    )),
+                ],
             ),
             (
                 "impl T @;",
@@ -42047,7 +46217,11 @@ mod tests {
                         GrammarRole::Type(crate::session::TypeRole::Primary),
                         8..9,
                     ),
-                    (RecoveryKind::Missing, role(ImplRole::BodyIntroducer), 10..10),
+                    (
+                        RecoveryKind::Missing,
+                        role(ImplRole::BodyIntroducer),
+                        10..10,
+                    ),
                 ],
             ),
             (
@@ -42060,9 +46234,19 @@ mod tests {
             let (ast, ast_remainder) = parse_ast(source);
             let (direct_range, direct_remainder, records) = commit_direct(source);
             assert_eq!(ast.range(), expected_range, "AST range: {source:?}");
-            assert_eq!(direct_range, Recovered::Complete(expected_range), "direct range: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                direct_range,
+                Recovered::Complete(expected_range),
+                "direct range: {source:?}"
+            );
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert_eq!(
                 records
                     .iter()
@@ -42121,7 +46305,10 @@ mod tests {
                 if_depth: local.if_expression_companion_depth(),
                 innermost_if: local.if_expression_companion().map(|frame| frame.id()),
                 type_episode_depth: local.type_expression_episode_depth(),
-                scoped_type_stops: local.type_expression_scoped_stop_frames().copied().collect(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
             }
         }
 
@@ -42207,8 +46394,12 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let range = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 skip_prefix(prefix_len, &mut i);
                 let before = snapshot(i.local);
                 let declaration = parse_cast_declaration_form_aware_isolated(
@@ -42229,7 +46420,12 @@ mod tests {
             prefix_len: usize,
             context: Context,
             stop: StopKind,
-        ) -> (Range<usize>, String, LineState, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Range<usize>,
+            String,
+            LineState,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stop);
@@ -42256,8 +46452,8 @@ mod tests {
                         intro,
                         &mut committed,
                     );
-                    let remainder = committed
-                        .probe(|probe| probe.input().input.remainder().to_owned());
+                    let remainder =
+                        committed.probe(|probe| probe.input().input.remainder().to_owned());
                     let after = committed.probe(|probe| snapshot(probe.input().local));
                     assert_eq!(after, before, "direct state: {source:?}");
                     let records = committed.into_output().committed_recoveries().to_vec();
@@ -42265,7 +46461,10 @@ mod tests {
                 })))
                 .expect("the uncut direct Cast matrix adapter is total")
             };
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (
                 match range {
@@ -42289,8 +46488,14 @@ mod tests {
             let (direct_range, direct_remainder, direct_line, records) =
                 parse_direct(source, prefix_len, context, stop);
             assert_eq!(ast_range, direct_range, "range: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert_eq!(ast_line, direct_line, "line state: {source:?}");
             records
         }
@@ -42313,14 +46518,16 @@ mod tests {
         }
 
         let catch_prefix = "value with: ".len();
-        assert!(assert_case(
-            "value with: cast(x): T;\n  B -> fallback",
-            catch_prefix,
-            Context::CatchInline,
-            StopKind::RightBracket,
-            "\n  B -> fallback",
-        )
-        .is_empty());
+        assert!(
+            assert_case(
+                "value with: cast(x): T;\n  B -> fallback",
+                catch_prefix,
+                Context::CatchInline,
+                StopKind::RightBracket,
+                "\n  B -> fallback",
+            )
+            .is_empty()
+        );
 
         for (stop, punctuation) in [
             (StopKind::Comma, ","),
@@ -42362,14 +46569,16 @@ mod tests {
             record.site.role
                 == GrammarRole::Declaration(DeclarationRole::Cast(CastRole::PatternIntroducer))
         }));
-        assert!(assert_case(
-            "cast(x): T;",
-            0,
-            Context::Root,
-            StopKind::RightParenthesis,
-            "",
-        )
-        .is_empty());
+        assert!(
+            assert_case(
+                "cast(x): T;",
+                0,
+                Context::Root,
+                StopKind::RightParenthesis,
+                "",
+            )
+            .is_empty()
+        );
 
         for (source, context) in [
             ("cast(@): T;", Context::Braced),
@@ -42405,10 +46614,17 @@ mod tests {
             }
             source_input.rollback(input_checkpoint);
             local.rollback(local_checkpoint);
-            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(
+                source_input.remainder(),
+                source,
+                "rollback input: {source:?}"
+            );
             assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
             assert_eq!(local.line(), before_line, "rollback line: {source:?}");
-            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "rollback sink: {source:?}"
+            );
             assert!(!is_cut, "rollback cut: {source:?}");
 
             let mut direct_source = SourceInput::new(source);
@@ -42444,10 +46660,25 @@ mod tests {
             .expect("the uncut direct Cast rollback adapter is total");
             direct_source.rollback(direct_input_checkpoint);
             direct_local.rollback(direct_local_checkpoint);
-            assert_eq!(direct_source.remainder(), source, "direct rollback input: {source:?}");
-            assert_eq!(snapshot(&direct_local), direct_before, "direct rollback state: {source:?}");
-            assert_eq!(direct_local.line(), direct_before_line, "direct rollback line: {source:?}");
-            assert!(direct_expectations.take_merged().is_none(), "direct rollback sink: {source:?}");
+            assert_eq!(
+                direct_source.remainder(),
+                source,
+                "direct rollback input: {source:?}"
+            );
+            assert_eq!(
+                snapshot(&direct_local),
+                direct_before,
+                "direct rollback state: {source:?}"
+            );
+            assert_eq!(
+                direct_local.line(),
+                direct_before_line,
+                "direct rollback line: {source:?}"
+            );
+            assert!(
+                direct_expectations.take_merged().is_none(),
+                "direct rollback sink: {source:?}"
+            );
             assert!(!direct_cut, "direct rollback cut: {source:?}");
         }
 
@@ -42484,7 +46715,10 @@ mod tests {
                 record_count,
                 "one record = one recovery node: {source:?}",
             );
-            assert!(expectations.take_merged().is_none(), "full-CST sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "full-CST sink: {source:?}"
+            );
         }
     }
 
@@ -42515,14 +46749,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::CastDeclaration),
                 node_ranges(&direct_root, SyntaxKind::CastDeclaration),
@@ -42559,7 +46798,10 @@ mod tests {
                 panic!("the exact Cast intro must win root declaration dispatch")
             };
             assert_eq!(i.input.remainder(), "", "root AST remainder: {source:?}");
-            assert!(expectations.take_merged().is_none(), "root AST sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "root AST sink: {source:?}"
+            );
             assert!(!is_cut, "root AST cut: {source:?}");
             declaration.range()
         }
@@ -42571,10 +46813,20 @@ mod tests {
             "pub cast(x: A): B = value",
             "cast(x): T =\n  my value = body",
         ] {
-            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            assert_eq!(
+                parse_root_ast(source),
+                0..source.len(),
+                "root AST: {source:?}"
+            );
             let (public, _, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration), vec![0..source.len()]);
-            assert!(direct.committed_recoveries().is_empty(), "root recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                vec![0..source.len()]
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "root recovery: {source:?}"
+            );
         }
 
         // Existing full canonical-Statement owners reach the same promoted
@@ -42589,8 +46841,14 @@ mod tests {
             "my result = if condition:\n  cast(x): T;\nelse: fallback",
         ] {
             let (public, _, direct) = parse_public_and_direct(source);
-            assert!(!node_ranges(&public, SyntaxKind::CastDeclaration).is_empty(), "owner: {source:?}");
-            assert!(direct.committed_recoveries().is_empty(), "owner recovery: {source:?}");
+            assert!(
+                !node_ranges(&public, SyntaxKind::CastDeclaration).is_empty(),
+                "owner: {source:?}"
+            );
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "owner recovery: {source:?}"
+            );
         }
 
         // The Cast indented body is a real canonical Statement sequence, not
@@ -42618,7 +46876,11 @@ mod tests {
             (SyntaxKind::ImplDeclaration, 1),
         ] {
             assert_eq!(node_ranges(&public, kind).len(), count, "public {kind:?}");
-            assert_eq!(node_ranges(&direct_root, kind).len(), count, "direct {kind:?}");
+            assert_eq!(
+                node_ranges(&direct_root, kind).len(),
+                count,
+                "direct {kind:?}"
+            );
         }
 
         // Each fixed outer boundary stays with its caller after a completed
@@ -42630,7 +46892,10 @@ mod tests {
             "my result = if condition:\n  cast(x): T;\nelse: fallback",
         ] {
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert!(direct.committed_recoveries().is_empty(), "boundary recovery: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "boundary recovery: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::CastDeclaration),
                 node_ranges(&direct_root, SyntaxKind::CastDeclaration),
@@ -42653,7 +46918,10 @@ mod tests {
             ),
         ] {
             let (public, _, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration),
+                vec![0..source.len()]
+            );
             let [record] = direct.committed_recoveries() else {
                 panic!("one promoted Cast recovery expected: {source:?}")
             };
@@ -42676,7 +46944,10 @@ mod tests {
             "my result = catch action {\n  A -> value with: cast(x): T @;\n  B -> fallback}",
         ] {
             let (public, _, direct) = parse_public_and_direct(source);
-            assert!(!node_ranges(&public, SyntaxKind::CastDeclaration).is_empty(), "recovery owner: {source:?}");
+            assert!(
+                !node_ranges(&public, SyntaxKind::CastDeclaration).is_empty(),
+                "recovery owner: {source:?}"
+            );
             let records: Vec<_> = direct
                 .committed_recoveries()
                 .iter()
@@ -42690,7 +46961,11 @@ mod tests {
                 .collect();
             assert_eq!(records.len(), 1, "recovery owner: {source:?}");
             let start = source.find('@').expect("fixture has one malformed byte");
-            assert_eq!(records[0].site.range, start..start + 1, "recovery owner: {source:?}");
+            assert_eq!(
+                records[0].site.range,
+                start..start + 1,
+                "recovery owner: {source:?}"
+            );
         }
 
         // Cast is full-only: header discovery stops before both bare and
@@ -42721,9 +46996,25 @@ mod tests {
                 45..70,
                 1,
                 &[
-                    53..54, 54..55, 55..56, 56..57, 57..58, 58..59, 59..60,
-                    60..61, 61..62, 62..63, 63..64, 64..65, 65..66, 66..67,
-                    67..68, 68..69, 69..70, 70..70, 70..70,
+                    53..54,
+                    54..55,
+                    55..56,
+                    56..57,
+                    57..58,
+                    58..59,
+                    59..60,
+                    60..61,
+                    61..62,
+                    62..63,
+                    63..64,
+                    64..65,
+                    65..66,
+                    66..67,
+                    67..68,
+                    68..69,
+                    69..70,
+                    70..70,
+                    70..70,
                 ][..],
             ),
             ("cast({x\nB", 0..9, 0, &[9..9, 9..9][..]),
@@ -42798,7 +47089,11 @@ mod tests {
                 .filter_map(|element| element.into_token())
                 .filter(|token| token.text() == text)
                 .map(|token| {
-                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    assert_eq!(
+                        token.kind(),
+                        SyntaxKind::Identifier,
+                        "ordinary word: {text:?}"
+                    );
                     syntax_range(token.text_range())
                 })
                 .collect()
@@ -42815,14 +47110,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::CastDeclaration),
                 node_ranges(&direct_root, SyntaxKind::CastDeclaration),
@@ -42871,13 +47171,29 @@ mod tests {
             ("my cast(x: A): B = value", 1),
             ("our cast({x = value}): '[A; B] T;", 1),
             ("pub cast([x]): (A -> B) = value", 1),
-            ("cast(x: A): B =\n  value;\n  my nested = value;\n  cast(y): C;", 2),
+            (
+                "cast(x: A): B =\n  value;\n  my nested = value;\n  cast(y): C;",
+                2,
+            ),
         ] {
-            assert_eq!(parse_root_ast(source), 0..source.len(), "root AST: {source:?}");
+            assert_eq!(
+                parse_root_ast(source),
+                0..source.len(),
+                "root AST: {source:?}"
+            );
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert!(direct.committed_recoveries().is_empty(), "success recovery: {source:?}");
-            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration).len(), cast_count);
-            assert_eq!(node_ranges(&direct_root, SyntaxKind::CastDeclaration).len(), cast_count);
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "success recovery: {source:?}"
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration).len(),
+                cast_count
+            );
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::CastDeclaration).len(),
+                cast_count
+            );
         }
 
         // Re-run Gate 8's already-proven public interleaving and ambient
@@ -42891,7 +47207,10 @@ mod tests {
             "my result = if condition:\n  cast(x): T;\nelse: fallback",
         ] {
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert!(direct.committed_recoveries().is_empty(), "outer boundary: {source:?}");
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "outer boundary: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::CastDeclaration),
                 node_ranges(&direct_root, SyntaxKind::CastDeclaration),
@@ -42917,13 +47236,20 @@ mod tests {
             "cast(x: A): B =\n  @",
         ] {
             let (public, direct_root, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::CastDeclaration).len(), 1, "recovery: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::CastDeclaration).len(),
+                1,
+                "recovery: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::CastDeclaration),
                 node_ranges(&direct_root, SyntaxKind::CastDeclaration),
                 "recovery range parity: {source:?}",
             );
-            assert!(!direct.committed_recoveries().is_empty(), "recovery expected: {source:?}");
+            assert!(
+                !direct.committed_recoveries().is_empty(),
+                "recovery expected: {source:?}"
+            );
         }
 
         // `cast` is contextual: only a real declaration intro owns it. These
@@ -42999,12 +47325,17 @@ mod tests {
                 if_depth: local.if_expression_companion_depth(),
                 innermost_if: local.if_expression_companion().map(|frame| frame.id()),
                 type_episode_depth: local.type_expression_episode_depth(),
-                scoped_type_stops: local.type_expression_scoped_stop_frames().copied().collect(),
+                scoped_type_stops: local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
             }
         }
 
         fn install_context(local: &mut ParseLocal, context: Context, stop: StopKind) {
-            let base = matches!(context, Context::Indented | Context::NestedIf).then_some(2).unwrap_or(0);
+            let base = matches!(context, Context::Indented | Context::NestedIf)
+                .then_some(2)
+                .unwrap_or(0);
             local.push_indentation_baseline(IndentationBaseline {
                 column: base,
                 kind: IndentationBaselineKind::Block,
@@ -43031,8 +47362,12 @@ mod tests {
                     );
                 }
                 Context::CatchInline => {
-                    local.push_braced_ambient_owner_barrier(BracedBarrierOrigin::CatchBracedArmSequence);
-                    local.push_inline_canonical_statement_ambient_scope(InlineStatementOwnerKind::WithBodyTail);
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
                 }
                 Context::NestedIf => {
                     local.push_indented_statement_ambient_scope(2);
@@ -43052,7 +47387,10 @@ mod tests {
                 i.input.next().expect("matrix prefix remains available");
             }
             if prefix_len > 0 {
-                i.local.set_line(LineState { at_line_start: false, ..i.local.line() });
+                i.local.set_line(LineState {
+                    at_line_start: false,
+                    ..i.local.line()
+                });
             }
         }
 
@@ -43068,12 +47406,18 @@ mod tests {
             let mut expectations = chasa::LatestSink::new();
             let mut is_cut = false;
             let result = {
-                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                    .set_local(&mut local);
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
                 skip_prefix(prefix_len, &mut i);
                 let before = snapshot(i.local);
                 let declaration = i
-                    .run(from_fn(|i| parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i)))
+                    .run(from_fn(|i| {
+                        parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i)
+                    }))
                     .expect("Impl matrix candidate");
                 assert_eq!(snapshot(&local), before, "AST state: {source:?}");
                 declaration.range()
@@ -43088,7 +47432,12 @@ mod tests {
             prefix_len: usize,
             context: Context,
             stop: StopKind,
-        ) -> (Range<usize>, String, LineState, Vec<CommittedRecoveryRecord>) {
+        ) -> (
+            Range<usize>,
+            String,
+            LineState,
+            Vec<CommittedRecoveryRecord>,
+        ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             install_context(&mut local, context, stop);
@@ -43115,8 +47464,8 @@ mod tests {
                         &mut committed,
                         intro,
                     );
-                    let remainder = committed
-                        .probe(|probe| probe.input().input.remainder().to_owned());
+                    let remainder =
+                        committed.probe(|probe| probe.input().input.remainder().to_owned());
                     let after = committed.probe(|probe| snapshot(probe.input().local));
                     assert_eq!(after, before, "direct state: {source:?}");
                     let records = committed.into_output().committed_recoveries().to_vec();
@@ -43124,7 +47473,10 @@ mod tests {
                 })))
                 .expect("the uncut direct Impl matrix adapter is total")
             };
-            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(
+                expectations.take_merged().is_none(),
+                "direct sink: {source:?}"
+            );
             assert!(!is_cut, "direct cut: {source:?}");
             (
                 match range {
@@ -43148,8 +47500,14 @@ mod tests {
             let (direct_range, direct_remainder, direct_line, records) =
                 parse_direct(source, prefix_len, context, stop);
             assert_eq!(ast_range, direct_range, "range: {source:?}");
-            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
-            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                ast_remainder, expected_remainder,
+                "AST remainder: {source:?}"
+            );
+            assert_eq!(
+                direct_remainder, expected_remainder,
+                "direct remainder: {source:?}"
+            );
             assert_eq!(ast_line, direct_line, "line state: {source:?}");
             records
         }
@@ -43164,18 +47522,23 @@ mod tests {
             assert!(assert_case("impl T;", 0, context, StopKind::RightBracket, "").is_empty());
             let records = assert_case("impl T", 0, context, StopKind::RightBracket, "");
             assert_eq!(records.len(), 1, "recovery: {context:?}");
-            assert_eq!(records[0].site.role, GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer)));
+            assert_eq!(
+                records[0].site.role,
+                GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer))
+            );
         }
 
         let catch_prefix = "value with: ".len();
-        assert!(assert_case(
-            "value with: impl T;\n  B -> fallback",
-            catch_prefix,
-            Context::CatchInline,
-            StopKind::RightBracket,
-            "\n  B -> fallback",
-        )
-        .is_empty());
+        assert!(
+            assert_case(
+                "value with: impl T;\n  B -> fallback",
+                catch_prefix,
+                Context::CatchInline,
+                StopKind::RightBracket,
+                "\n  B -> fallback",
+            )
+            .is_empty()
+        );
 
         for (stop, punctuation) in [
             (StopKind::Comma, ","),
@@ -43184,14 +47547,17 @@ mod tests {
             (StopKind::RightBrace, "}"),
         ] {
             let source = format!("impl T{punctuation} tail");
-            let records = assert_case(&source, 0, Context::Root, stop, &format!("{punctuation} tail"));
+            let records = assert_case(
+                &source,
+                0,
+                Context::Root,
+                stop,
+                &format!("{punctuation} tail"),
+            );
             assert_eq!(records.len(), 1, "boundary recovery: {source:?}");
         }
 
-        for (source, remainder) in [
-            ("impl T\nnext", "\nnext"),
-            ("impl T: Eq\nnext", "\nnext"),
-        ] {
+        for (source, remainder) in [("impl T\nnext", "\nnext"), ("impl T: Eq\nnext", "\nnext")] {
             let _ = assert_case(source, 0, Context::Root, StopKind::RightBracket, remainder);
         }
 
@@ -43207,20 +47573,20 @@ mod tests {
         assert_eq!(
             records[0].site,
             RecoverySiteKey {
-                role: GrammarRole::Declaration(DeclarationRole::Impl(
-                    ImplRole::BodyIntroducer,
-                )),
+                role: GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer,)),
                 range: 6..6,
             },
         );
-        assert!(assert_case(
-            "impl T:\n  my value = 1",
-            0,
-            Context::Root,
-            StopKind::RightBracket,
-            "",
-        )
-        .is_empty());
+        assert!(
+            assert_case(
+                "impl T:\n  my value = 1",
+                0,
+                Context::Root,
+                StopKind::RightBracket,
+                "",
+            )
+            .is_empty()
+        );
     }
 
     #[test]
@@ -43259,14 +47625,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::ImplDeclaration),
                 node_ranges(&direct_root, SyntaxKind::ImplDeclaration),
@@ -43319,11 +47690,7 @@ mod tests {
                 })
                 | Recovered::Incomplete => BodyKind::Incomplete,
             };
-            let summary = (
-                declaration.range(),
-                declaration.description.is_some(),
-                body,
-            );
+            let summary = (declaration.range(), declaration.description.is_some(), body);
             assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
             assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!is_cut, "AST cut: {source:?}");
@@ -43334,7 +47701,11 @@ mod tests {
             ("impl Eq;", false, BodyKind::Bodyless),
             ("pub impl Head: Description;", true, BodyKind::Bodyless),
             ("impl Eq { my value = 1 }", false, BodyKind::Braced),
-            ("impl Eq: Description: my value = 1;", true, BodyKind::ColonInline),
+            (
+                "impl Eq: Description: my value = 1;",
+                true,
+                BodyKind::ColonInline,
+            ),
             ("impl Eq:\n  my value = 1", false, BodyKind::ColonIndented),
         ] {
             assert_eq!(
@@ -43343,7 +47714,10 @@ mod tests {
                 "root AST: {source:?}",
             );
             let (public, _, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration),
+                vec![0..source.len()]
+            );
             assert!(direct.committed_recoveries().is_empty(), "{source:?}");
         }
 
@@ -43362,7 +47736,10 @@ mod tests {
             ),
         ] {
             let (public, _, direct) = parse_public_and_direct(source);
-            assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration), vec![0..source.len()]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration),
+                vec![0..source.len()]
+            );
             let [record] = direct.committed_recoveries() else {
                 panic!("one promoted recovery expected: {source:?}")
             };
@@ -43411,9 +47788,7 @@ mod tests {
                 (record.kind, record.site.role, record.site.range.clone()),
                 (
                     RecoveryKind::Error,
-                    GrammarRole::Declaration(DeclarationRole::Impl(
-                        ImplRole::BodyIntroducer,
-                    )),
+                    GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer,)),
                     error_start..error_start + 1,
                 ),
                 "nested typed recovery: {source:?}",
@@ -43445,7 +47820,11 @@ mod tests {
             (SyntaxKind::TypeDeclaration, 1),
         ] {
             assert_eq!(node_ranges(&public, kind).len(), count, "public {kind:?}");
-            assert_eq!(node_ranges(&direct_root, kind).len(), count, "direct {kind:?}");
+            assert_eq!(
+                node_ranges(&direct_root, kind).len(),
+                count,
+                "direct {kind:?}"
+            );
         }
         assert!(!node_ranges(&public, SyntaxKind::OperatorChain).is_empty());
 
@@ -43491,7 +47870,11 @@ mod tests {
                 .filter_map(|element| element.into_token())
                 .filter(|token| token.text() == text)
                 .map(|token| {
-                    assert_eq!(token.kind(), SyntaxKind::Identifier, "ordinary word: {text:?}");
+                    assert_eq!(
+                        token.kind(),
+                        SyntaxKind::Identifier,
+                        "ordinary word: {text:?}"
+                    );
                     syntax_range(token.text_range())
                 })
                 .collect()
@@ -43508,14 +47891,19 @@ mod tests {
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let public = SyntaxNode::new_root(parsed.green().clone());
-            let direct = parse_direct_root_candidate(
-                source,
-                &crate::operator::OperatorTable::empty(),
-                &[],
-            );
+            let direct =
+                parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
             let direct_root = SyntaxNode::new_root(direct.green().clone());
-            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
-            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                public.to_string(),
+                source,
+                "public losslessness: {source:?}"
+            );
+            assert_eq!(
+                direct_root.to_string(),
+                source,
+                "direct losslessness: {source:?}"
+            );
             assert_eq!(
                 node_ranges(&public, SyntaxKind::ImplDeclaration),
                 node_ranges(&direct_root, SyntaxKind::ImplDeclaration),
@@ -43585,17 +47973,35 @@ mod tests {
             ("our impl Int -> { x: Int };", BodyKind::Bodyless, false),
             ("pub impl Head: { x: Int };", BodyKind::Bodyless, true),
             ("impl (:{ A }) { my value = 1 }", BodyKind::Braced, false),
-            ("impl Head: Description: use std;", BodyKind::ColonInline, true),
-            ("impl Head:\n  struct Nested;", BodyKind::ColonIndented, false),
+            (
+                "impl Head: Description: use std;",
+                BodyKind::ColonInline,
+                true,
+            ),
+            (
+                "impl Head:\n  struct Nested;",
+                BodyKind::ColonIndented,
+                false,
+            ),
         ] {
             let (ast_range, ast_body, description_range) = parse_root_ast(source);
             assert_eq!(ast_range, 0..source.len(), "AST range: {source:?}");
             assert_eq!(ast_body, body, "AST body: {source:?}");
-            assert_eq!(description_range.is_some(), has_description, "AST description: {source:?}");
+            assert_eq!(
+                description_range.is_some(),
+                has_description,
+                "AST description: {source:?}"
+            );
             let (public, direct_root, direct) = parse_public_and_direct(source);
             assert!(direct.committed_recoveries().is_empty(), "{source:?}");
-            assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration), vec![ast_range.clone()]);
-            assert_eq!(node_ranges(&direct_root, SyntaxKind::ImplDeclaration), vec![ast_range]);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration),
+                vec![ast_range.clone()]
+            );
+            assert_eq!(
+                node_ranges(&direct_root, SyntaxKind::ImplDeclaration),
+                vec![ast_range]
+            );
         }
 
         // Bodyless and colon-inline semicolons are Impl-owned; a brace body's
@@ -43636,7 +48042,10 @@ mod tests {
         let (public, direct_root, direct) = parse_public_and_direct(source);
         assert!(direct.committed_recoveries().is_empty());
         assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration).len(), 2);
-        assert_eq!(node_ranges(&direct_root, SyntaxKind::ImplDeclaration).len(), 2);
+        assert_eq!(
+            node_ranges(&direct_root, SyntaxKind::ImplDeclaration).len(),
+            2
+        );
 
         // `impl` remains a word outside an exact Statement introduction. These
         // public-entrypoint cases cover expression, field, type-expression,
@@ -43705,6 +48114,9 @@ mod tests {
         let (public, direct_root, direct) = parse_public_and_direct(source);
         assert!(direct.committed_recoveries().is_empty());
         assert_eq!(node_ranges(&public, SyntaxKind::TypeDeclaration).len(), 2);
-        assert_eq!(node_ranges(&direct_root, SyntaxKind::TypeDeclaration).len(), 2);
+        assert_eq!(
+            node_ranges(&direct_root, SyntaxKind::TypeDeclaration).len(),
+            2
+        );
     }
 }
