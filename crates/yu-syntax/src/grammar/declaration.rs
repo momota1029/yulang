@@ -1,4 +1,6 @@
-//! Shared grammar for source-leading declarations.
+//! Central hub for declaration grammar: shared vocabulary, root dispatch, and plumbing.
+//!
+//! Declaration families live in child modules; this module keeps their common wiring.
 
 use std::{ops::Range, sync::Arc};
 
@@ -203,6 +205,27 @@ pub(crate) enum Recovered<T> {
     Incomplete,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct VisibilityPrefix<'source> {
+    visibility: Visibility,
+    keyword: WordSpan<'source>,
+}
+
+/// A module declaration has the same child shape at root and in a canonical
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum DeclarationTypeParameter<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
+}
+
+/// A braced statement sequence whose physical newline gives a declaration
+/// form or attachment judge terminal authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DeclarationBracedNewlineOwner {
+    BracedStatementSequence,
+    CatchArmSequenceThroughInlineCanonicalStatement,
+}
+
 /// Builds the direct full-parse root candidate without changing `parse_file`.
 ///
 /// The immutable operator table is supplied by the caller's session setup;
@@ -233,6 +256,165 @@ pub(crate) fn parse_direct_root_candidate(
 ) -> DirectRootCandidateOutput {
     let mut local = crate::session::ParseLocal::with_reusable_recoveries(header_recoveries);
     parse_direct_root_candidate_with_local(source, operators, &mut local)
+}
+
+/// Parses one leading `use` declaration from the shared character stream.
+pub(crate) fn parse_declaration<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Declaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    i.choice((
+        parse_struct_declaration.map(Declaration::Struct),
+        from_fn(parse_enum_declaration_isolated).map(Declaration::Enum),
+        from_fn(parse_error_declaration_isolated).map(Declaration::Error),
+        parse_type_declaration.map(Declaration::Type),
+        from_fn(|i| parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::Role),
+        from_fn(|i| parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::Impl),
+        from_fn(|i| {
+            parse_cast_declaration_form_aware_isolated(&crate::operator::OperatorTable::empty(), i)
+        })
+        .map(Declaration::Cast),
+        from_fn(|i| parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::Act),
+        from_fn(|i| parse_for_statement_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::For),
+        parse_use_declaration.map(Declaration::Use),
+        parse_operator_header.map(Declaration::OperatorHeader),
+        parse_binding_declaration.map(Declaration::Binding),
+        from_fn(|i| {
+            parse_mod_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)
+        })
+        .map(Declaration::Mod),
+    ))
+}
+
+pub(crate) fn recognize_statement_intro<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<StatementIntro<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(intro) = i.run(recognize_struct_statement_intro) {
+        return Some(StatementIntro::Struct(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_enum_statement_intro) {
+        return Some(StatementIntro::Enum(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_error_statement_intro) {
+        return Some(StatementIntro::Error(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_mod_statement_intro) {
+        return Some(StatementIntro::Mod(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_type_statement_intro) {
+        return Some(StatementIntro::Type(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_role_statement_intro) {
+        return Some(StatementIntro::Role(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_impl_statement_intro) {
+        return Some(StatementIntro::Impl(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_cast_statement_intro) {
+        return Some(StatementIntro::Cast(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_act_statement_intro) {
+        return Some(StatementIntro::Act(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_for_statement_intro) {
+        return Some(StatementIntro::For(intro));
+    }
+
+    if binding_statement_selected(&mut i) {
+        return i
+            .run(recognize_binding_statement_intro)
+            .map(StatementIntro::Binding);
+    }
+
+    let start = i.pos();
+    let first = i.run(scan_word)?;
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
+    {
+        let trivia = scan_required_inline_trivia(&mut i)?;
+        let keyword = i.run(scan_word)?;
+        (Some(visibility), Some(trivia), keyword)
+    } else {
+        (None, None, first)
+    };
+
+    if keyword.text() == "use" {
+        return Some(StatementIntro::Use(UseStatementIntro {
+            start,
+            visibility,
+            after_visibility,
+            use_keyword: keyword,
+            // The committed continuation owns the mandatory separator and
+            // first target, so a bare `use` is still a selected statement.
+            after_use: scan_maybe_required_inline_trivia(&mut i),
+        }));
+    }
+
+    if keyword.text() == "mod" {
+        return Some(StatementIntro::Mod(ModStatementIntro {
+            start,
+            visibility,
+            after_visibility,
+            mod_keyword: keyword,
+        }));
+    }
+
+    let (lazy_keyword, after_lazy, fixity_keyword) = if keyword.text() == "lazy" {
+        // `lazy` alone is enough to select the committed operator
+        // continuation.  Its required separator and fixity discriminator are
+        // mandatory slots owned by that continuation.
+        let after_lazy = scan_maybe_required_inline_trivia(&mut i);
+        let fixity_keyword = after_lazy.as_ref().and_then(|_| {
+            let checkpoint = i.checkpoint();
+            let fixity_keyword = i
+                .run(scan_word)
+                .filter(|word| parse_operator_fixity(*word).is_some());
+            if fixity_keyword.is_none() {
+                i.rollback(checkpoint);
+            }
+            fixity_keyword
+        });
+        (Some(keyword), after_lazy, fixity_keyword)
+    } else if parse_operator_fixity(keyword).is_some() {
+        (None, None, Some(keyword))
+    } else {
+        return None;
+    };
+
+    let after_fixity = fixity_keyword
+        .as_ref()
+        .and_then(|_| scan_maybe_optional_inline_trivia(&mut i));
+
+    Some(StatementIntro::Operator(OperatorStatementIntro {
+        start,
+        visibility,
+        lazy_keyword,
+        after_visibility,
+        after_lazy,
+        fixity_keyword,
+        after_fixity,
+    }))
 }
 
 fn parse_direct_root_candidate_with_local(
@@ -504,12 +686,6 @@ fn punctuation_evidence(kind: PunctuationKind) -> crate::session::PunctuationEvi
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct VisibilityPrefix<'source> {
-    visibility: Visibility,
-    keyword: WordSpan<'source>,
-}
-
 /// Recognizes one source-leading header declaration and transfers it to a
 /// direct-emission continuation.
 ///
@@ -612,129 +788,6 @@ where
         }
     };
     Some((declaration, committed.into_output()))
-}
-
-pub(crate) fn recognize_statement_intro<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<StatementIntro<'source>>
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    if let Some(intro) = i.run(recognize_struct_statement_intro) {
-        return Some(StatementIntro::Struct(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_enum_statement_intro) {
-        return Some(StatementIntro::Enum(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_error_statement_intro) {
-        return Some(StatementIntro::Error(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_mod_statement_intro) {
-        return Some(StatementIntro::Mod(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_type_statement_intro) {
-        return Some(StatementIntro::Type(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_role_statement_intro) {
-        return Some(StatementIntro::Role(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_impl_statement_intro) {
-        return Some(StatementIntro::Impl(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_cast_statement_intro) {
-        return Some(StatementIntro::Cast(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_act_statement_intro) {
-        return Some(StatementIntro::Act(intro));
-    }
-
-    if let Some(intro) = i.run(recognize_for_statement_intro) {
-        return Some(StatementIntro::For(intro));
-    }
-
-    if binding_statement_selected(&mut i) {
-        return i
-            .run(recognize_binding_statement_intro)
-            .map(StatementIntro::Binding);
-    }
-
-    let start = i.pos();
-    let first = i.run(scan_word)?;
-    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first)
-    {
-        let trivia = scan_required_inline_trivia(&mut i)?;
-        let keyword = i.run(scan_word)?;
-        (Some(visibility), Some(trivia), keyword)
-    } else {
-        (None, None, first)
-    };
-
-    if keyword.text() == "use" {
-        return Some(StatementIntro::Use(UseStatementIntro {
-            start,
-            visibility,
-            after_visibility,
-            use_keyword: keyword,
-            // The committed continuation owns the mandatory separator and
-            // first target, so a bare `use` is still a selected statement.
-            after_use: scan_maybe_required_inline_trivia(&mut i),
-        }));
-    }
-
-    if keyword.text() == "mod" {
-        return Some(StatementIntro::Mod(ModStatementIntro {
-            start,
-            visibility,
-            after_visibility,
-            mod_keyword: keyword,
-        }));
-    }
-
-    let (lazy_keyword, after_lazy, fixity_keyword) = if keyword.text() == "lazy" {
-        // `lazy` alone is enough to select the committed operator
-        // continuation.  Its required separator and fixity discriminator are
-        // mandatory slots owned by that continuation.
-        let after_lazy = scan_maybe_required_inline_trivia(&mut i);
-        let fixity_keyword = after_lazy.as_ref().and_then(|_| {
-            let checkpoint = i.checkpoint();
-            let fixity_keyword = i
-                .run(scan_word)
-                .filter(|word| parse_operator_fixity(*word).is_some());
-            if fixity_keyword.is_none() {
-                i.rollback(checkpoint);
-            }
-            fixity_keyword
-        });
-        (Some(keyword), after_lazy, fixity_keyword)
-    } else if parse_operator_fixity(keyword).is_some() {
-        (None, None, Some(keyword))
-    } else {
-        return None;
-    };
-
-    let after_fixity = fixity_keyword
-        .as_ref()
-        .and_then(|_| scan_maybe_optional_inline_trivia(&mut i));
-
-    Some(StatementIntro::Operator(OperatorStatementIntro {
-        start,
-        visibility,
-        lazy_keyword,
-        after_visibility,
-        after_lazy,
-        fixity_keyword,
-        after_fixity,
-    }))
 }
 
 /// Scans the optional, same-line-only declaration parameter production.
@@ -844,14 +897,6 @@ where
     let pending = i.run(scan_word).is_some_and(|word| word.text() == "impl");
     i.rollback(checkpoint);
     pending
-}
-
-/// A braced statement sequence whose physical newline gives a declaration
-/// form or attachment judge terminal authority.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DeclarationBracedNewlineOwner {
-    BracedStatementSequence,
-    CatchArmSequenceThroughInlineCanonicalStatement,
 }
 
 /// Reads the ambient owner stack without changing it.  A braced statement
@@ -1379,49 +1424,6 @@ where
         }
         Some(result)
     })
-}
-
-/// A module declaration has the same child shape at root and in a canonical
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum DeclarationTypeParameter<'source> {
-    Identifier(WordSpan<'source>),
-    SigilIdentifier(WordSpan<'source>),
-}
-
-/// Parses one leading `use` declaration from the shared character stream.
-pub(crate) fn parse_declaration<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<Declaration<'source>>
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    i.choice((
-        parse_struct_declaration.map(Declaration::Struct),
-        from_fn(parse_enum_declaration_isolated).map(Declaration::Enum),
-        from_fn(parse_error_declaration_isolated).map(Declaration::Error),
-        parse_type_declaration.map(Declaration::Type),
-        from_fn(|i| parse_role_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
-            .map(Declaration::Role),
-        from_fn(|i| parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
-            .map(Declaration::Impl),
-        from_fn(|i| {
-            parse_cast_declaration_form_aware_isolated(&crate::operator::OperatorTable::empty(), i)
-        })
-        .map(Declaration::Cast),
-        from_fn(|i| parse_act_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
-            .map(Declaration::Act),
-        from_fn(|i| parse_for_statement_isolated(&crate::operator::OperatorTable::empty(), i))
-            .map(Declaration::For),
-        parse_use_declaration.map(Declaration::Use),
-        parse_operator_header.map(Declaration::OperatorHeader),
-        parse_binding_declaration.map(Declaration::Binding),
-        from_fn(|i| {
-            parse_mod_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)
-        })
-        .map(Declaration::Mod),
-    ))
 }
 
 fn struct_trivia_has_newline(trivia: &TriviaRun) -> bool {
