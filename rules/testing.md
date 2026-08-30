@@ -14,6 +14,19 @@ cargo check --workspace
 
 These commands do not prove compiler behavior. Behavioral changes require relevant tests; broad checks do not replace focused tests.
 
+## Verification budget
+
+Follow the selected mode in `rules/orchestration-budget.md`.
+
+- M0 record/comment/link changes: inspect the diff and run only checks needed for syntax or references. Do not run a workspace build merely because a progress file changed.
+- M1 local gate: run focused tests/checks for the owning responsibility. A broad workspace check is normally deferred to the coherent phase boundary.
+- M2 cross-layer/contract change: run focused checks plus one appropriate broad check after the repair round closes.
+- M3 critical/final certification: run the full required gate once on the final candidate, not after every intermediate patch.
+
+For a multi-gate Authoritative plan, focused checks run per gate; unchanged expensive workspace suites run once per coherent phase or final boundary unless the gate changes shared infrastructure that makes earlier broad evidence stale.
+
+Do not rerun an unchanged expensive suite after bookkeeping-only, comment-only, or review-record-only changes.
+
 ## Test shape
 
 Prefer:
@@ -62,6 +75,8 @@ Do not run an unscoped or potentially heavy suite until its current resource beh
 
 The old yulang2 `infer` commands and skip patterns in `notes/incidents/yulang2-infer-test-memory.md` are forensic history, not commands for the current workspace.
 
+Performance experiments and repeated timing runs follow `rules/performance.md`; test thoroughness alone does not authorize unbounded repetition.
+
 ## Completion evidence
 
-Report exact commands and results. Do not treat a historical test count as a permanent expected count. A green build verifies only what it ran; explain omitted suites and remaining risk.
+Report exact commands and results. Do not treat a historical test count as a permanent expected count. A green build verifies only what it ran; explain omitted suites and remaining risk. Also report when a broad suite was deliberately deferred to the phase/final boundary.

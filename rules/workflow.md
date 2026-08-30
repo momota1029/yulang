@@ -12,6 +12,17 @@ Before changing the repository, read only the context needed for the task:
 
 Do not reread a giant design document indiscriminately when the index or task identifies the governing section. Do not treat `tasks/current.md` as a design authority.
 
+## Select an operating mode
+
+Before choosing roles, read `rules/orchestration-budget.md` and select M0, M1,
+M2, or M3. State the concrete changed risk domains and the reviewer/round budget.
+The role matrix lists eligible specialists; it is not a command to run every
+listed reviewer.
+
+Use the lightest sufficient mode. An existing Authoritative design normally
+removes the need to reopen architecture. Raise the mode only for a concrete
+contract, cross-layer, soundness, performance, or public-surface risk.
+
 ## Respect handoffs
 
 A handoff may record confirmed facts, root-cause localization, rejected approaches, forbidden actions, and the next gate.
@@ -29,9 +40,10 @@ Classify the task before writing:
 - behavior: none, intended, or uncertain;
 - scope: local or cross-layer;
 - performance: cold, hot, or unknown;
-- surface: internal, public, or documentation.
+- surface: internal, public, or documentation;
+- operating mode and its reviewer/round budget.
 
-Name the intended files, checks, and stop condition. Do not expand a bug fix into unrelated cleanup, rename, formatting, or abstraction work. One coherent change should correspond to one cause or one confirmed gate.
+Name the intended files, checks, record updates, and stop condition. Do not expand a bug fix into unrelated cleanup, rename, formatting, or abstraction work. One coherent change should correspond to one cause or one confirmed gate.
 
 ## Order of work
 
@@ -39,16 +51,18 @@ Prefer this order:
 
 1. locate the public entrypoint and owning responsibility;
 2. identify the governing design and invariant;
-3. establish the smallest coherent scope;
+3. establish the smallest coherent scope and operating mode;
 4. change the central type/function or owner first;
 5. place helpers behind a visible responsibility boundary;
 6. check for new rescans, recomputation, allocation, or hidden coupling;
 7. add or update focused tests when behavior changes;
 8. run the narrow relevant checks;
 9. inspect the diff for scope and responsibility clarity;
-10. obtain the required independent review.
+10. obtain only the independent review assigned by the selected mode;
+11. adjudicate all findings and batch accepted repairs into one pass;
+12. synchronize progress/design records before completion.
 
-For an authoritative multi-gate plan, each gate is normally a coherent slice and commit. Do not combine later gates merely because the current edit is nearby.
+For an authoritative multi-gate plan, each gate is normally a coherent slice and commit. Do not combine later gates merely because the current edit is nearby. Conversely, do not split one gate into several writer/reviewer cycles merely to handle findings one at a time.
 
 ## Decision points
 
@@ -66,6 +80,15 @@ The primary agent resolves ordinary repository ambiguity and presents only genui
 Long or multi-step work reports at meaningful milestones: relevant files found, root cause found, before a write, after a coherent slice, after checks, and on a blocker or scope expansion. Avoid line-by-line narration.
 
 `tasks/current.md` is navigation: current objective, governing design/section, active gate, immediate next action, blockers, and known residuals. Completed gates, long commit histories, test-count chronology, and review detail belong under `notes/progress/`.
+
+The primary agent owns these updates:
+
+- after a coherent implementation gate, update `tasks/current.md` before declaring the gate complete;
+- after a phase or substantial investigation, append or create the appropriate `notes/progress/` record;
+- when implementation status, approval, or supersession changes, update the governing design record or `notes/design/INDEX.md` as appropriate;
+- record explicit deferrals and known residuals at the point they become decisions.
+
+The implementer reports a proposed record delta, but a report is not a repository update. The primary verifies that the files were actually written. Record-only updates are M0: they do not trigger code reviewers, broad test suites, or a new repair round.
 
 For repeated appends to a daily file, use a unique end anchor such as:
 
@@ -85,9 +108,12 @@ Report concisely:
 
 - what changed;
 - why and which invariant/design it implements;
+- selected operating mode and reviewers;
 - checks run and their results;
+- measurement count/budget when performance evidence was collected;
+- progress/design records updated or explicitly deferred;
 - files or checks not covered;
 - remaining risk, blocker, or decision point;
 - commits and branch when applicable.
 
-A green check is not a substitute for explaining the root cause or design fit.
+A green check is not a substitute for explaining the root cause or design fit. A code change with required repository-state records still unsynchronized is not complete unless the deferral is explicit.

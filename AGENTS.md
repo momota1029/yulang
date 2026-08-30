@@ -43,6 +43,11 @@ without concrete contradictory evidence.
 
 ## Task routing
 
+Read `rules/orchestration-budget.md` before the role matrix. It controls the
+default operating mode, reviewer count, repair rounds, delta-review scope,
+measurement budget, and progress-record ownership. Broader reviewer lists in
+older rules describe eligible specialists, not an automatic panel.
+
 Role boundaries and the full matrix are in `rules/agent-orchestration.md`.
 
 - Use built-in `explorer` for read-heavy repository mapping.
@@ -51,8 +56,8 @@ Role boundaries and the full matrix are in `rules/agent-orchestration.md`.
 - Use `compiler_referee` for semantics, root cause, soundness, recovery, and IR invariants.
 - Use `spec_auditor` for exact design/spec/test-contract conformance.
 - Use `regression_auditor` for sibling paths, fixtures, diagnostics, parity, and public surfaces.
-- Use `performance_auditor` for traversals, allocation, caches, worklists, parallelism, and heavy verification.
-- Use `docs_writer` for confirmed public documentation.
+- Use `performance_auditor` for materially uncertain hot-path, asymptotic, resource, or heavy-verification risk.
+- Use `docs_writer` for confirmed public documentation, not internal progress bookkeeping.
 
 Do not select current roles from legacy Level numbers, Fable/Sonnet
 availability, or ad hoc model-tier prose.
@@ -61,11 +66,21 @@ availability, or ad hoc model-tier prose.
 
 The primary agent owns user interaction, task classification, authority
 resolution, reviewer isolation, finding adjudication, staging, commits, PRs,
-pushes, and final reporting.
+pushes, progress-record synchronization, and final reporting.
+
+Before work, choose the lightest sufficient M0–M3 mode and set reviewer,
+round, verification, and measurement budgets. The role catalog is not a
+mandatory panel. Adjudicate all assigned findings before sending one batched
+repair bundle to one implementer.
 
 The primary's own reread does not count as independent review. A producer never
 certifies its own output. Subagents do not stage, commit, push, rewrite history,
 or ask interactive permission questions.
+
+Before declaring a coherent gate complete, update `tasks/current.md` and any
+required `notes/progress/` or design-status record. Record-only updates do not
+trigger a new code-review panel or broad test suite. If synchronization is
+deferred, name the exact path and reason.
 
 When a genuine user decision remains, stop only the affected work and present
 the exact options and consequences. Do not guess. Continue safe independent
@@ -78,21 +93,24 @@ work when possible.
 - Fix the cause at its owning responsibility; do not mask a symptom downstream.
 - Do not alter snapshots, golden files, fixtures, diagnostics expectations, semantic assertions, or test names merely to match current output.
 - Do not mix unrelated cleanup, formatting drift, later gates, or broad refactors into a focused change.
-- Do not add hidden rescans, recomputation, allocations, caches, or hot-path branches without performance review.
+- Account for new work on hot paths; invoke performance review only under the material-risk trigger and measurement budget in `rules/performance.md`.
 - Do not run an unfamiliar broad or heavy test suite before checking its current resource behavior.
+- Do not repeat broad checks after record-only or comment-only updates.
 - Do not blanket-stash, hard-reset, or clean a working tree that may contain valuable concurrent work.
 - Do not run two write-capable agents in the same working tree.
+- Do not call work complete while required task/progress/design records remain silently stale.
 - Do not edit compiler code while performing this repository-policy migration unless a later task explicitly authorizes it.
 
 ## Rule routing
 
 - overall rule index: `rules/INDEX.md`
+- operating modes, reviewer/round limits, delta review, measurement and record budgets: `rules/orchestration-budget.md`
 - workflow and handoffs: `rules/workflow.md`
 - compiler structure and diagnostics: `rules/compiler-engineering.md`
 - chasa parser idioms: `rules/parser-chasa.md`
 - bug fixing: `rules/bug-fixing.md`
-- performance: `rules/performance.md`
-- tests and heavy-suite safety: `rules/testing.md`
+- performance and adaptive measurement budget: `rules/performance.md`
+- tests and broad/heavy-suite budget: `rules/testing.md`
 - public documentation: `rules/documentation.md`
 - git/worktrees/concurrency: `rules/git-concurrency.md`
 - observed agent failure patterns: `rules/codex-quirks.md`
@@ -212,12 +230,16 @@ UI 文言、生成する記事や説明文には適用しない。
 
 ## Verification and final report
 
-Run the smallest safe checks governed by `rules/testing.md`. Builds and tests
-are deterministic evidence, not independent review.
+Run the smallest safe checks governed by `rules/testing.md` and the selected
+mode. Builds and tests are deterministic evidence, not independent review.
+Performance experiments obey `rules/performance.md`; report sample and process
+counts rather than silently expanding a measurement table.
 
 Before integrating, inspect branch, status, explicit staged paths, diff scope,
-and concurrent work. Report what changed, governing authority, exact checks,
-omitted verification, commits/branch, and remaining risks or decisions.
+and concurrent work. Report what changed, governing authority, selected mode
+and reviewers, exact checks, measurement budget consumed, progress/design
+records updated or deferred, omitted verification, commits/branch, and
+remaining risks or decisions.
 
 Before a user-visible response, also verify that direct conversation follows
 the Japanese communication rules above and that generated artifacts did not
