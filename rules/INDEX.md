@@ -5,6 +5,7 @@
 ## Authority and orchestration
 
 - [`design-authority.md`](design-authority.md) — authority order, design status, approval, supersession, and legacy provenance.
+- [`orchestration-budget.md`](orchestration-budget.md) — lightweight operating modes, reviewer/round limits, delta review, measurement/verification budgets, and progress-record ownership. It is authoritative over broader reviewer-count wording elsewhere.
 - [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
 - [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
 - [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
@@ -15,8 +16,8 @@
 - [`compiler-engineering.md`](compiler-engineering.md) — responsibility boundaries, file/module shape, diagnostics, experimental mechanisms, and comments.
 - [`parser-chasa.md`](parser-chasa.md) — repository-specific `chasa` parser-combinator conventions.
 - [`bug-fixing.md`](bug-fixing.md) — root-cause diagnosis, repair placement, temporary workarounds, and scope discipline.
-- [`performance.md`](performance.md) — hot paths, recomputation/allocation policy, measurement, and resource-risk triggers.
-- [`testing.md`](testing.md) — focused verification, regression structure, expected-output protection, and heavy-suite safety.
+- [`performance.md`](performance.md) — hot paths, recomputation/allocation policy, adaptive measurement budgets, and resource-risk triggers.
+- [`testing.md`](testing.md) — focused verification, broad-check budgets, regression structure, expected-output protection, and heavy-suite safety.
 
 ## Prose and model operation
 
