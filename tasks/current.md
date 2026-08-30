@@ -244,6 +244,13 @@ Type-attached `impl` addendumも全6 gate完走）
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
+2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
+`notes/design/2026-08-30-declaration-companion-with-addendum.md`へ、Struct/Type/Enum/Error/Actの
+5 owner、companion-only Derives item、owner/episode handoff、typed recovery、static-specialized
+sequence core、10 gateを記録した。独立compiler/spec/performance査読のblockerを反映し、
+2026-08-30にユーザ承認を受けて`Status: Authoritative`へ移行。現在のactive stepはGate 1
+(vocabulary scaffold、production reachability / behavior changeなし)。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
