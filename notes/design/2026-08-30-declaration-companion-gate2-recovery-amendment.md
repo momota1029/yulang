@@ -14,6 +14,10 @@ Drafted-by: primary agent from the `architect` adjudication
 Reviewed-by: independent `compiler_referee` and `architect`; performance and regression closure
 remain mandatory implementation gates
 
+Implementation-order clarification: `architect` adjudication on 2026-08-30 corrected the
+candidate-before-comment false premise described in §2. This clarification implements the user's
+approved comment-atomic scanner decision; it does not expand the amendment scope.
+
 Supersedes: only the comment-input byte/range-identical recovery requirement in
 `2026-08-30-declaration-companion-with-addendum.md` §§9, 13 Gate 2, and 14. Every other grammar,
 recovery, performance, and rollback decision remains authoritative.
@@ -39,14 +43,16 @@ their own typed recovery roles and emitters.
 
 The scanner order is fixed:
 
-1. after a non-empty malformed prefix, test the shared canonical Statement candidate at the current
-   position;
-2. test EOF or a top-level newline, `)`, `]`, `}`, comma, or semicolon boundary and leave that
+1. if the current bytes begin `//` or `/*`, consume exactly one `scan_comment` lexical unit, update
+   the malformed range end, and continue. A legal `/` prefix or nullfix operator must never claim a
+   comment opener;
+2. otherwise, after a non-empty malformed prefix, test the shared canonical Statement candidate at
+   the current position;
+3. test EOF or a top-level newline, `)`, `]`, `}`, comma, or semicolon boundary and leave that
    boundary unconsumed;
-3. consume `scan_comment` as one atomic lexical unit;
 4. otherwise consume one Unicode scalar, update line state, and repeat.
 
-`scan_trivia` must not replace `scan_comment` in step 3 because it may consume a line comment's
+`scan_trivia` must not replace `scan_comment` in step 1 because it may consume a line comment's
 terminating newline and steal sequence-boundary ownership.
 
 Required examples:
@@ -57,6 +63,8 @@ Required examples:
   separator, and parses `first` as the next item rather than retrying `noise` inside the comment.
 - nested and unterminated block comments remain one lexical unit and never expose internal
   identifiers, separators, or close spellings.
+- when `/` is registered as a prefix or nullfix operator, comment openers remain atomic while a
+  later real `/` candidate and a normal `/` Statement retain ordinary operator behavior.
 
 ## 3. Shared decision ownership
 
@@ -69,6 +77,10 @@ decision tables.
   emitters, indented terminal-boundary judge, matching-brace-close judge, and braced missing-
   separator decision. Declaration code does not construct or own an ordinary
   `StatementSequencePolicy`.
+- Gate 2 uses a sink-free neutral absent-item-slot probe for EOF or any fixed close `)`, `]`, or `}`
+  after trivia. The probe always rolls back trivia and punctuation. It emits no Item recovery and
+  does not classify matching versus mismatched closes; Gate 3 alone owns close consumption and
+  `ClosingDelimiter` recovery.
 - Normal companion items call `parse_canonical_statement` or `commit_canonical_statement`
   directly. The candidate query is recovery-only: malformed retry and missing-separator
   synchronization may use it after normal canonical acceptance has failed.
