@@ -2,9 +2,10 @@
 
 `rules/` contains active, durable repository policy. Root `AGENTS.md` is only the operating map and user-facing communication contract; it must point here instead of copying these rules.
 
-## Authority and workflow
+## Authority and orchestration
 
 - [`design-authority.md`](design-authority.md) — authority order, design status, approval, supersession, and legacy provenance.
+- [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
 - [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
 - [`git-concurrency.md`](git-concurrency.md) — worktree isolation, staging, commits, branch safety, and integration ownership.
 
