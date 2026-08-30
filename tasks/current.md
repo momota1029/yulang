@@ -248,8 +248,12 @@ Type-attached `impl` addendumも全6 gate完走）
 `notes/design/2026-08-30-declaration-companion-with-addendum.md`へ、Struct/Type/Enum/Error/Actの
 5 owner、companion-only Derives item、owner/episode handoff、typed recovery、static-specialized
 sequence core、10 gateを記録した。独立compiler/spec/performance査読のblockerを反映し、
-2026-08-30にユーザ承認を受けて`Status: Authoritative`へ移行。現在のactive stepはGate 1
-(vocabulary scaffold、production reachability / behavior changeなし)。
+2026-08-30にユーザ承認を受けて`Status: Authoritative`へ移行。Gate 1(`77be1bdd`)は、2つの
+SyntaxKind、companion AST/recovery/ConstructRole vocabulary、5 ownerのinert field、unreachable
+`StructBody::CompanionIntroduced`を追加した。recognizer/dispatch/StopKind/production reachabilityは
+変更せず、compiler/spec/regressionの独立査読は全て承認可、568 tests green。現在のactive stepは
+Gate 2(static-specialized sequence core、ordinary Statement pathのbyte-identical維持とperformance
+baseline必須)。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
