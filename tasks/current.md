@@ -212,6 +212,28 @@ Type-attached `impl` addendumも全6 gate完走）
   (`cargo check`/testはclean)。新grammar surfaceを持つため2 gateのACTDRVより大きいが、既存Type/
   Impl machineryを再利用し新しいintro/root-nested dispatchやCST vocabularyを増やさない、
   declaration family未満のmedium-sized addendumとして全6 gate完走。
+- `declaration.rs` module split計画
+  (`notes/design/2026-08-30-declaration-module-split-plan.md`、Status: Authoritative、
+  2026-08-30ユーザ承認済み)は全17 phaseを完走し、完了・close out。P1〜P14のうち
+  P7・P10・P13をそれぞれP7-1/P7-2・P10-1/P10-2・P13-1/P13-2へ分割し、計画外の
+  follow-up 1 commitを含む全18 commitで実施した。開始時の`declaration.rs`は56,500行。
+  commit `dfc213f9`でtest module 33,683行を`declaration/tests.rs`へ抽出した時点で、
+  production-code bodyは22,812行だった。最終的に`declaration.rs`は、module doc comment、
+  mod declarations、private glob imports、consolidated facade re-export block、shared vocabulary
+  types、root dispatch entrypointsを担う1,519行のhubとなり、実装を
+  `crates/yu-syntax/src/grammar/declaration/`以下の16 child module——
+  `binding_style_body.rs`、`derives.rs`、`for_statement.rs`、`use_decl.rs`、
+  `operator_header.rs`、`cast_decl.rs`、`role_decl.rs`、`act_decl.rs`、`impl_decl.rs`、
+  `variant_core.rs`、`enum_decl.rs`、`error_decl.rs`、`type_decl.rs`、`struct_decl.rs`、
+  `mod_decl.rs`、`binding_decl.rs`——へ分割した。これに加えて、先に抽出した
+  `declaration/tests.rs` 33,683行がある。設計はhub-and-spoke + bidirectional glob meshで、
+  各childが`use super::*;`、hubがchildごとのprivate `use child::*;`を持ち、
+  `expression.rs`など`declaration.rs`外から参照されるitemにはnamed facade re-export blockを
+  集約した。P14 cross-checkで見つかったEnum/Error専用のstray helper 6 itemは、計画外の
+  follow-up commit `159c4976`で`variant_core.rs`へ移動。最終P14 commitは`a4b98643`で、
+  `origin/yulang3`へ`159c4976..a4b98643`をpush済み。全phase boundaryと最終時点で568 tests
+  green、全期間を通じてbehavior changeなし。split前の巨大fileで発生していたrustfmtの
+  12.4GB allocation failureは完全に解消し、残るgrammar fileに同規模へ近づくものはない。
 
 ## 既知の未修正バグ
 
