@@ -106,6 +106,11 @@ Before Gate 2 may close:
 - pin exact ordinary before/after fixtures for every non-comment malformed recovery family;
 - add ordinary and companion AST/direct fixtures for line, nested block, unterminated block, and
   comment-contained identifier/separator/all-close-spelling cases;
+- preserve the historical ordinary AST sequence contract: it does not run malformed-item recovery
+  and its existing cardinality/remainder remain unchanged. Ordinary paired fixtures assert that AST
+  result separately from the corrected direct-CST recovery range and shape; they do not require
+  ordinary AST/direct equality. The new declaration-companion AST/direct adapters do require parity
+  because both intentionally use the shared scanner;
 - assert full Statement/separator CST node and token order, exact recovery kind/role/range/
   expectation/source order, AST/direct cardinality, remainder, and losslessness;
 - add cfg(test)-only full `ParseLocal` value snapshots and seed non-default multi-frame state across
