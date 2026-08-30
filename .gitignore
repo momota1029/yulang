@@ -33,13 +33,6 @@ test.yu
 test.ym
 
 # Local editor and agent metadata
-/.claude/
-/.codex
-/.codex-flow/
-/.temp/
-/.zed/
-.rules
-GEMINI.md
 web/dist/
 web/docs/node_modules/
 web/docs/.vitepress/cache/
