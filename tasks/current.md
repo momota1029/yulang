@@ -252,8 +252,14 @@ sequence core、10 gateを記録した。独立compiler/spec/performance査読�
 SyntaxKind、companion AST/recovery/ConstructRole vocabulary、5 ownerのinert field、unreachable
 `StructBody::CompanionIntroduced`を追加した。recognizer/dispatch/StopKind/production reachabilityは
 変更せず、compiler/spec/regressionの独立査読は全て承認可、568 tests green。現在のactive stepは
-Gate 2(static-specialized sequence core、ordinary Statement pathのbyte-identical維持とperformance
-baseline必須)。
+Gate 2。最初のzero-sized static specialization案はsemantic/compiler/spec/regression上は閉じたが、
+CPU-pinned・order-balanced 24-round計測で10k indented AST/directのpeak RSS one-sided 95% lower
+boundがそれぞれ`+8 KiB`/`+10 KiB`となり、§§9/14のzero-effect rollback条件を越えたため、
+uncommitted codeをGate 1 HEADへbyte-identicalにrollbackした。生データと判定は
+`notes/progress/daily/2026-08-30.md`および
+`notes/progress/evidence/2026-08-30-gate2-pinned-measured.tsv`に記録済み。Gate 2は未完了、Gate 3は
+未認可。直近actionは§9が既に許可するequivalent duplicated thin loopのarchitectureへ再入場し、
+ordinary canonical loopを変更しないGate 2代替実装を再開すること。新たなユーザ承認は不要。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
