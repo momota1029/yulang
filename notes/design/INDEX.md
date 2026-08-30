@@ -1,0 +1,16 @@
+# Design authority index
+
+This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
+
+| Document | Status | Authority scope | Approved / state | Useful locator or gate |
+|---|---|---|---|---|
+| `docs/yulang3-architecture.md` | Authoritative | Yulang3 compiler architecture, phases, runtime direction, testing/CI and cache principles | user-approved 2026-08-18 | §4.2.2 parser recovery/header discovery; §6.9 state-slot decision; §8.3 native + Perceus decision |
+| `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` | Authoritative | `yu-syntax` chasa grammar, AST/direct-CST ownership, recovery, dispatch and declaration addenda | user-approved addenda recorded in the document and task history | Navigate by named `FOO-G/J/T/R` and gate headings; do not read 1.7 MB indiscriminately |
+| `notes/design/2026-08-20-phase2-parser-fixture-schema.md` | Authoritative | Phase 2 parser compatibility fixture product and observed parser/recovery contract | Authoritative; population/open questions continue separately | Problem statement and fixture schema sections |
+| `notes/design/2026-08-30-declaration-module-split-plan.md` | Authoritative, completed | Mechanical module topology and visibility for splitting `declaration.rs`; zero behavior change | user-approved 2026-08-30; P1–P14 completed at `a4b98643` | 17-commit plan; no active implementation gate remains |
+| `notes/design/2026-08-30-codex-only-orchestration-migration.md` | Authoritative via approval record | `yulang3` agent orchestration, design authority, durable rules, testing/incident placement | approved 2026-08-30 | §14 four-commit migration plan |
+| `notes/design/2026-08-30-codex-only-orchestration-approval.md` | Authoritative approval record | Status transition for the migration plan above | approved 2026-08-30 | Supersedes the plan's original Proposed header and implementation gate |
+
+## Index maintenance
+
+For a new design, record path, status, authority scope, approval date, supersession, and the smallest useful section/gate locator. Do not copy the full decision into this index. Mark completed implementation gates without deleting the design history.
