@@ -263,9 +263,15 @@ comment内のdelimiter/identifierを誤認するraw-character scannerであり�
 とordinary recovery byte-identical条件が両立しないfalse premiseを発見した。ユーザは2026-08-30に
 option 1——この既存ordinary comment recoveryだけをowning canonical responsibilityで修正し、
 ordinary/companion共通のsink-free scannerへ集約する——を承認。正本は
-`notes/design/2026-08-30-declaration-companion-gate2-recovery-amendment.md`。現在のactive stepは、
-非comment ordinary range/behaviorを完全維持したままこの共有scannerと既存separator/boundary judge
-再利用へGate 2部分実装を修正し、独立査読と固定performance protocolを通すこと。
+`notes/design/2026-08-30-declaration-companion-gate2-recovery-amendment.md`。duplicated thin-loop案は、
+共有scanner・既存separator/boundary judge再利用、full state/CST/recovery matrix、独立
+compiler/spec/regression/performance査読まで閉じ、581 tests greenとなった。しかしCPU-pinned・
+order-balanced 24-round最終計測では、8つのordinary caseすべてでwall/RSSのone-sided 95% lower
+boundがzero-effect閾値を越えた（wall LB `+0.055%`〜`+2.819%`、RSS LB `+12`〜`+140 KiB`）。
+そのため3 code fileを`2bdaeba0`へbyte-identicalにrollbackし、192 accepted pairs、54
+candidate-only samples、統計・除外ログ・driverを`notes/progress/evidence/`へ保存した。Gate 2は
+未完了、Gate 3は未認可。static specializationとduplicated thin loopの両Authoritative形が性能
+gateでrollback済みのため、現在のactive stepは新たな実装ではなくarchitecture re-entry。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

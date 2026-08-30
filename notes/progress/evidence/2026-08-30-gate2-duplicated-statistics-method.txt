@@ -1,0 +1,6 @@
+seed=20260830
+prng=Python random.Random (MT19937)
+resamples=100000
+strata=12 BC odd rounds, 12 CB even rounds
+effect=(median(BC)+median(CB))/2
+lower_bound=sorted bootstrap replicate at zero-based index 5000 (empirical 5th percentile)
