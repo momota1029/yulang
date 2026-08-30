@@ -258,8 +258,14 @@ boundがそれぞれ`+8 KiB`/`+10 KiB`となり、§§9/14のzero-effect rollbac
 uncommitted codeをGate 1 HEADへbyte-identicalにrollbackした。生データと判定は
 `notes/progress/daily/2026-08-30.md`および
 `notes/progress/evidence/2026-08-30-gate2-pinned-measured.tsv`に記録済み。Gate 2は未完了、Gate 3は
-未認可。直近actionは§9が既に許可するequivalent duplicated thin loopのarchitectureへ再入場し、
-ordinary canonical loopを変更しないGate 2代替実装を再開すること。新たなユーザ承認は不要。
+未認可。duplicated thin loop実装査読で、既存ordinary `statement_sequence_error_retry`自体が
+comment内のdelimiter/identifierを誤認するraw-character scannerであり、comment-atomic共有scanner
+とordinary recovery byte-identical条件が両立しないfalse premiseを発見した。ユーザは2026-08-30に
+option 1——この既存ordinary comment recoveryだけをowning canonical responsibilityで修正し、
+ordinary/companion共通のsink-free scannerへ集約する——を承認。正本は
+`notes/design/2026-08-30-declaration-companion-gate2-recovery-amendment.md`。現在のactive stepは、
+非comment ordinary range/behaviorを完全維持したままこの共有scannerと既存separator/boundary judge
+再利用へGate 2部分実装を修正し、独立査読と固定performance protocolを通すこと。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
