@@ -272,6 +272,11 @@ boundがzero-effect閾値を越えた（wall LB `+0.055%`〜`+2.819%`、RSS LB `
 candidate-only samples、統計・除外ログ・driverを`notes/progress/evidence/`へ保存した。Gate 2は
 未完了、Gate 3は未認可。static specializationとduplicated thin loopの両Authoritative形が性能
 gateでrollback済みのため、現在のactive stepは新たな実装ではなくarchitecture re-entry。
+ユーザはwhole-process zero-effectを通常hot pathのzero-added-work proofへ置換し、テスト・計測を
+現行budgetへ収めるoption 1を選択した。Reviewed正本候補は
+`notes/design/2026-08-30-declaration-companion-gate2-performance-amendment.md`。実装・test・benchmarkは
+まだ行わず、performance/specの2査読はfindingなしで完了。現在のactive stepはexact clauseの
+ユーザ承認であり、承認前にGate 2実装へ戻らない。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
