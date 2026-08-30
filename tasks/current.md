@@ -282,8 +282,13 @@ Gate 2完了後のGate 3。Gate 2はduplicated companion-only thin loopをzero-a
 measured pair 3組、計8 process/約349秒で実施し、追加ordinary workなしを再確認。最終
 `cargo test -p yu-syntax`は規定どおり1回だけで570 passed / 1 ignored。証拠は
 `notes/progress/evidence/2026-08-30-gate2-semantic-work-proof.md`と同階層のraw archiveに保存した。
-Gate 2は完了。Gate 3で初めてcompanion form entry、separator/close recovery、owner scopeを
-productionへ接続する。
+Gate 2は完了。現在のactive stepはGate 3 isolated companion formのclosure。初回実装で
+`expression_nud_candidate_input`がinput/ParseLocalだけをrollbackし、companion-owned `}`の
+speculative ErrorSinkを漏らす既存generic defectを発見した。Gate 2のzero-added-work条件と原因修正が
+衝突したためarchitecture re-entryし、ユーザは2026-08-31にoption 1——同helperへexactly one
+ErrorSink checkpoint/rollback pairを追加するowning fix——を承認。Authoritative正本は
+`notes/design/2026-08-31-declaration-companion-gate3-nud-sink-amendment.md`。focused table 1組とfinal
+`cargo test -p yu-syntax` 1回だけで閉じ、workspace suite/既定timingは行わない。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
