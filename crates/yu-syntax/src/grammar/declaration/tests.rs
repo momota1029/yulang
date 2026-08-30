@@ -10005,6 +10005,7 @@ fn type_attached_impl_gate_4_adapters_flat_emit_all_worked_forms_byte_exact() {
                 name: shared.name,
                 parameters: shared.parameters,
                 derives: Vec::new(),
+                companion: None,
                 form: Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)),
                 range: intro.start..i.pos(),
             }
@@ -10754,6 +10755,7 @@ fn type_attached_impl_gate_5_recovery_boundary_and_state_matrix_is_total_before_
             name: shared.name,
             parameters: shared.parameters,
             derives,
+            companion: None,
             form: Recovered::Complete(TypeDeclarationForm::AttachedImpl(attached)),
             range: intro.start..i.pos(),
         }

@@ -762,6 +762,7 @@ where
         name: shared.name,
         parameters: shared.parameters,
         derives,
+        companion: None,
         form,
         range,
     })
@@ -1574,6 +1575,7 @@ pub(crate) struct TypeDeclaration<'source> {
     pub(super) name: Recovered<WordSpan<'source>>,
     pub(super) parameters: Vec<DeclarationTypeParameter<'source>>,
     pub(super) derives: Vec<DerivesAttachment<'source>>,
+    pub(super) companion: Option<DeclarationCompanion<'source>>,
     pub(super) form: Recovered<TypeDeclarationForm<'source>>,
     pub(super) range: Range<usize>,
 }

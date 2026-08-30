@@ -974,6 +974,7 @@ pub(crate) struct StructDeclaration<'source> {
     pub(super) visibility: Visibility,
     pub(super) name: Recovered<WordSpan<'source>>,
     pub(super) derives: Vec<DerivesAttachment<'source>>,
+    pub(super) companion: Option<DeclarationCompanion<'source>>,
     pub(super) body: Recovered<StructBody<'source>>,
     pub(super) range: Range<usize>,
 }
@@ -988,6 +989,7 @@ impl StructDeclaration<'_> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum StructBody<'source> {
     Bodyless { semicolon: Range<usize> },
+    CompanionIntroduced,
     NamedBraced(StructNamedBracedBody<'source>),
     NamedIndented(StructNamedIndentedBody<'source>),
     Tuple(StructTupleBody<'source>),
@@ -1114,6 +1116,9 @@ where
 
     let body_end = match &body {
         Recovered::Complete(StructBody::Bodyless { semicolon }) => semicolon.end,
+        Recovered::Complete(StructBody::CompanionIntroduced) => {
+            unreachable!("Gate 1 does not make Struct companions reachable")
+        }
         Recovered::Complete(StructBody::NamedBraced(body)) => body.range.end,
         Recovered::Complete(StructBody::NamedIndented(body)) => body.range.end,
         Recovered::Complete(StructBody::Tuple(body)) => body.range.end,
@@ -1131,6 +1136,7 @@ where
             .map_or(Visibility::Private, |prefix| prefix.visibility),
         name,
         derives,
+        companion: None,
         body,
         range: intro.start..body_end.max(derives_end),
     })

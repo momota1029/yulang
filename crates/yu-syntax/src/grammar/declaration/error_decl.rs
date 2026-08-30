@@ -478,6 +478,7 @@ where
             name: header.name,
             parameters: header.parameters,
             derives,
+            companion: None,
             body,
             range: intro.start..header_end.max(body_end).max(derives_end),
         })
@@ -980,6 +981,7 @@ pub(crate) struct ErrorDeclaration<'source> {
     pub(super) name: Recovered<WordSpan<'source>>,
     pub(super) parameters: Vec<DeclarationTypeParameter<'source>>,
     pub(super) derives: Vec<DerivesAttachment<'source>>,
+    pub(super) companion: Option<DeclarationCompanion<'source>>,
     pub(super) body: Recovered<EnumBody<'source>>,
     pub(super) range: Range<usize>,
 }

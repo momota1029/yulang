@@ -1108,6 +1108,7 @@ pub(crate) enum DeclarationRole {
     Cast(CastRole),
     Act(ActDeclarationRole),
     Derives(DerivesRole),
+    Companion(DeclarationCompanionRole),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1269,6 +1270,15 @@ pub(crate) enum DerivesRole {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum DeclarationCompanionRole {
+    Introducer,
+    Body,
+    Item,
+    IndentedItem,
+    Separator,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ConstructRole {
     ImportGroup,
     OperatorName,
@@ -1290,6 +1300,7 @@ pub(crate) enum ConstructRole {
     PolymorphicVariantType,
     StructNamedFields,
     StructTupleFields,
+    DeclarationCompanion,
     EnumBracedVariantBody,
     VariantNamedPayload,
     VariantTuplePayload,

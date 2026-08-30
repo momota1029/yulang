@@ -501,6 +501,7 @@ where
             head,
             source,
             derives,
+            companion: None,
             body,
             range: intro.start..end,
         })
@@ -1274,6 +1275,7 @@ pub(crate) struct ActDeclaration<'source> {
     pub(super) head: Recovered<Box<TypeExpression<'source>>>,
     pub(super) source: Option<ActSourceClause<'source>>,
     pub(super) derives: Vec<DerivesAttachment<'source>>,
+    pub(super) companion: Option<DeclarationCompanion<'source>>,
     pub(super) body: Recovered<ActBody<'source>>,
     pub(super) range: Range<usize>,
 }

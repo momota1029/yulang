@@ -39,6 +39,8 @@ pub enum SyntaxKind {
     CastTarget,
     CastBody,
     ActDeclaration,
+    DeclarationCompanion,
+    DeclarationCompanionIndentedBody,
     ForStatement,
     ForLabel,
     ForIterable,
@@ -228,6 +230,12 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::CastTarget as u16 => SyntaxKind::CastTarget,
             value if value == SyntaxKind::CastBody as u16 => SyntaxKind::CastBody,
             value if value == SyntaxKind::ActDeclaration as u16 => SyntaxKind::ActDeclaration,
+            value if value == SyntaxKind::DeclarationCompanion as u16 => {
+                SyntaxKind::DeclarationCompanion
+            }
+            value if value == SyntaxKind::DeclarationCompanionIndentedBody as u16 => {
+                SyntaxKind::DeclarationCompanionIndentedBody
+            }
             value if value == SyntaxKind::ForStatement as u16 => SyntaxKind::ForStatement,
             value if value == SyntaxKind::ForLabel as u16 => SyntaxKind::ForLabel,
             value if value == SyntaxKind::ForIterable as u16 => SyntaxKind::ForIterable,
