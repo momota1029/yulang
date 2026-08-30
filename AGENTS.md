@@ -1,409 +1,117 @@
-# Yulang Agent Notes
+# Yulang3 operating map
 
-この文書は、Yulang リポジトリで作業するエージェント向けの作業規約。
+## Repository purpose and branch boundary
 
-目的は、読みやすく、変更に強く、速い実装を保つこと。
-特に、推論・lowering・簡約のような中核処理では、見た目の簡単さよりも、責務の明確さと再計算の少なさを優先する。
+This branch is the Yulang3 compiler workspace. It contains syntax, HIR, types,
+core IR, VM/native backends, benchmarks, tooling, design records, tests, and
+public documentation.
 
-## 優先順位
+The `yulang3` policy does not authorize changes to frozen `main`. Work only on
+the branch and scope named by the task.
 
-判断に迷ったら、次の順に従う。
+`AGENTS.md` is a map and a set of hard invariants, not the full rulebook.
+Detailed active policy lives under `rules/`.
 
-1. 依頼に書かれた明示的な指示
-2. ユーザー承認済みの署名付き設計文書（`notes/design/` / `spec/` にある、
-   末尾に「著者: Claude」の署名と「ユーザ承認済み」の記載を持つ文書）
-3. この `AGENTS.md`
-4. 既存コードの設計意図・命名・テスト方針
-5. 一般的な実装慣習
+## Authority
 
-依頼が現在の作業範囲についてより具体的な指示を与えている場合は、それを優先する。
+Read `rules/design-authority.md` whenever a task touches a language, API,
+semantic, architecture, performance, test-contract, or durable workflow
+choice. The short order is:
 
-## 作業前に見るもの
+1. the user's current explicit decision;
+2. an in-scope `Authoritative` design/spec;
+3. active repository rules;
+4. confirmed code/test invariants;
+5. general practice or model intuition.
 
-作業を始める前に、必要に応じて次を見る。
+Use `notes/design/INDEX.md` to locate the governing source. The index is not a
+replacement for the source document.
 
-- 現在のタスク: `tasks/current.md`
-- 当日の作業文脈: `notes/progress/daily/<date>.md`（なければ作る）
-- 該当する handoff 指示書: `notes/<date>-*-handoff.md`（あれば）
-- 現在の言語仕様: `spec/`
+## Before work
 
-変更の前に、いま何を直すべきか、どこまでが今回の範囲かを把握する。
-関係ない改善をついでに広げない。
+Inspect only the context needed for the task:
 
-handoff 指示書には、根因の局所化、確定事実、すでに試して外れた案、直し場所、
-やってはいけないことが書かれていることがある。
-これがあるときは、その内容を尊重する。
+- `tasks/current.md`;
+- `notes/design/INDEX.md` and the governing section;
+- relevant `spec/` material;
+- a relevant handoff or daily record;
+- the owning entrypoint, tests, and call sites.
 
-- 「確定事実」「再調査するな」と書かれたことを、もう一度ゼロから調べ直さない
-- 「試して外れた案」に挙がっている方向を、同じ形でもう一度試さない
-- 「やってはいけないこと」を破らない
-- handoff の見立てと違う結論に至った場合は、勝手に上書きせず、なぜ違うと考えたかを残す
+Respect confirmed facts, rejected approaches, forbidden actions, and active
+gates in handoffs. Do not restart an approved design or completed investigation
+without concrete contradictory evidence.
 
-## ドキュメントサイトの本文
+## Task routing
 
-`web/docs/` 以下の本文ページを書いたり編集したりする前に、表記、書式、段落、論証の基礎規範である `notes/style/japanese-writing-guide.md` と、ページ層の割り当て、競合の裁定表、リズム、英語本文、翻訳対の追加規範である `notes/style/writing-rhythm-guide.md` を必ず両方読む。
+Role boundaries and the full matrix are in `rules/agent-orchestration.md`.
 
-この二つの文章規範はサイト本文だけに適用し、commit message とエージェントからユーザーへの会話には適用しない。
+- Use built-in `explorer` for read-heavy repository mapping.
+- Use `architect` for new decisions, uncertain behavior, and cross-layer work.
+- Use `implementer` for confirmed code changes.
+- Use `compiler_referee` for semantics, root cause, soundness, recovery, and IR invariants.
+- Use `spec_auditor` for exact design/spec/test-contract conformance.
+- Use `regression_auditor` for sibling paths, fixtures, diagnostics, parity, and public surfaces.
+- Use `performance_auditor` for traversals, allocation, caches, worklists, parallelism, and heavy verification.
+- Use `docs_writer` for confirmed public documentation.
 
-## 基本方針
+Do not select current roles from legacy Level numbers, Fable/Sonnet
+availability, or ad hoc model-tier prose.
 
-Yulang の実装では、次を大切にする。
+## Primary-agent responsibilities
 
-- 入口が分かること
-- 責務が分かれていること
-- コードが短いことより、読んだ人に構造と意図が伝わること
-- 主役の型・関数・データの流れが説明的であること
-- 同じ情報を何度も計算しないこと
-- ホットパスに余計な分岐や再走査を乗せないこと
-- 読み手が最初の数十行で「このファイルは何のためのものか」を理解できること
-- 実験的な規則や最適化の置き場所が、あとから見ても分かること
-- テストを通すための局所分岐ではなく、言語仕様・中間表現・制約として説明できる一般規則を実装すること
+The primary agent owns user interaction, task classification, authority
+resolution, reviewer isolation, finding adjudication, staging, commits, PRs,
+pushes, and final reporting.
 
-短く書くより、責務が見えることを優先する。
-実装の見た目を小さくするために、意味のある境界、名前、説明的なデータ構造を潰さない。
-ただし、説明のためだけの過剰な抽象化は避ける。
+The primary's own reread does not count as independent review. A producer never
+certifies its own output. Subagents do not stage, commit, push, rewrite history,
+or ask interactive permission questions.
 
-## chasa parser combinator idioms
+When a genuine user decision remains, stop only the affected work and present
+the exact options and consequences. Do not guess. Continue safe independent
+work when possible.
 
-`crates/yu-syntax` は `chasa` を使う。次を守る。
+## Hard invariants
 
-- 既にchasaの`Parser`を返す関数を`from_fn(|i| f(i).map(...))`のようにクロージャで包み直さない。
-  `f`が既に`Parser`なら`f.map(...)`で十分。
-- `i.run(from_fn(some_fn))`のように、ただの関数を`from_fn`で包んでから`.run`で走らせない。
-  `some_fn`が直接`Parser`として呼べる関数なら`some_fn(i)`と書く。
-- chasaの`In<...>`状態を表すパラメータ・束縛名は`input`ではなく`i`にする（chasaの推奨命名）。
-- `In<'_, SourceInput<...>, (), &mut ParseLocal, E>`をそのまま関数シグネチャへ書き下さない。
-  `crates/yu-syntax/src/session.rs`で定義する`SynIn<'a, 'source, 'b, E>`を使う。
-  `'a`（`In`自身のreborrow対象lifetime）と`'b`（`&mut ParseLocal`の借用lifetime）を
-  同じlifetimeへまとめない。chasaの`#[derive(Reborrow)]`が要求するのは、右辺の
-  `In<...>`で`In`自身の最初のslotへ正しく対応させることだけで、`SynIn`側のパラメータの
-  並び順自体は型aliasの単なる名前の付け替えなので自由。
-  戻り値などで特定のlifetimeを名指しする必要がない箇所は`SynIn<E>`（全lifetime省略）
-  で書く。特定のlifetime（例:`'source`）を戻り値へ伝える必要がある箇所だけ
-  `SynIn<'_, 'source, '_, E>`のようにそのslotだけ名前を書く。
+- Do not implement a new durable decision before user approval is recorded.
+- Do not reopen a sufficiently specified Authoritative gate without a concrete contradiction or scope expansion.
+- Fix the cause at its owning responsibility; do not mask a symptom downstream.
+- Do not alter snapshots, golden files, fixtures, diagnostics expectations, semantic assertions, or test names merely to match current output.
+- Do not mix unrelated cleanup, formatting drift, later gates, or broad refactors into a focused change.
+- Do not add hidden rescans, recomputation, allocations, caches, or hot-path branches without performance review.
+- Do not run an unfamiliar broad or heavy test suite before checking its current resource behavior.
+- Do not blanket-stash, hard-reset, or clean a working tree that may contain valuable concurrent work.
+- Do not run two write-capable agents in the same working tree.
+- Do not edit compiler code while performing this repository-policy migration unless a later task explicitly authorizes it.
 
-## ファイル構成
+## Rule routing
 
-ファイルは「一番メインを先に書く」構成を優先する。
+- overall rule index: `rules/INDEX.md`
+- workflow and handoffs: `rules/workflow.md`
+- compiler structure and diagnostics: `rules/compiler-engineering.md`
+- chasa parser idioms: `rules/parser-chasa.md`
+- bug fixing: `rules/bug-fixing.md`
+- performance: `rules/performance.md`
+- tests and heavy-suite safety: `rules/testing.md`
+- public documentation: `rules/documentation.md`
+- git/worktrees/concurrency: `rules/git-concurrency.md`
+- observed agent failure patterns: `rules/codex-quirks.md`
 
-ファイルの先頭には、そのファイルの主役となるものを置く。
+Read the relevant files in full; do not load unrelated rules mechanically.
 
-- `pub struct`
-- `pub enum`
-- `pub fn`
-- public entrypoint
-- その module の中心となる型や処理
+## Communication boundary
 
-補助的な型・関数・内部実装は、その後ろに置く。
+The Japanese conversation rules below apply only to direct, user-visible
+communication from the primary agent.
 
-例:
+Subagent-to-primary reports are internal working communication and use concise
+technical English unless the delegated artifact itself requires another
+language.
 
-- `LowerOutput` を定義するファイルでは、`LowerOutput` 自体を先頭に置く
-- 関連する table、helper、内部変換処理はその後に置く
-- 読み手が先頭から読んだときに、まず「このファイルの主役」を理解できるようにする
-
-避けること:
-
-- helper から始まるファイル
-- 内部 table から始まるファイル
-- public entrypoint が中盤や末尾に埋もれているファイル
-- 実装詳細を読まないと責務が分からないファイル
-
-## module 分割
-
-ファイルは責務ごとに分ける。
-
-1 ファイルが次のような複数の責務を抱え始めたら、見つけやすい名前の module / folder へ分ける。
-
-- orchestration
-- 構文別処理
-- lowering
-- inference
-- normalization / simplification
-- diagnostics
-- formatting
-- fixture / golden test
-- test helper
-
-分割後も入口を迷子にしない。
-
-親 module には、次を残す。
-
-- public entrypoint
-- 全体の流れが分かる wiring
-- 子 module の役割が分かる最小限の re-export
-- 読み手が最初に見るべき導線
-
-細部は、用途名が分かる子 module に置く。
-
-良い名前の例:
-
-- `lower_expr`
-- `lower_item`
-- `diagnostics`
-- `format`
-- `tables`
-- `scope`
-- `resolve`
-- `normalize`
-- `fixtures`
-
-曖昧な名前は避ける。
-
-避ける名前の例:
-
-- `utils`
-- `misc`
-- `common`
-- `helpers`
-
-ただし、既存コードに明確な命名方針がある場合は、それに合わせる。
-
-## 性能方針
-
-性能は後付けではなく、最初から設計対象として扱う。
-
-特に次の処理はホットパスとして扱う。
-
-- inference
-- lowering
-- normalization
-- simplification
-- resolve
-- scope lookup
-- diagnostics の生成前段
-- CST / AST をまたぐ変換
-
-ホットパスでは、次を避ける。
-
-- 同じ情報を複数段で再計算する設計
-- 局所規則を別の局所規則で支える設計
-- CST の再走査を前提にした設計
-- 大きな構造を不要に clone する設計
-- 入口ごとに同じ table や map を作り直す設計
-- 後から cache すればよい、という前提の設計
-
-まず責務を絞り、論文や既知アルゴリズムに沿った最小核を作ってから拡張する。
-最小核が曖昧なまま、局所的な規則を増やさない。
-
-## バグ修正の方針
-
-バグを直すときは、症状の出ている場所だけを塞ぐ修正をしない。
-小手先の fallback、後段での帳尻合わせ、再現ケースだけを通す分岐を最初の解決策にしない。
-
-「テストが通った」「再現ケースが直った」だけを根拠に修正を完了としない。
-それは、同じ原因を持つ別ケースを残したまま、表面の一点だけを覆い隠した状態であることが多い。
-
-修正に入る前に、まず原因を調査する。
-原因が説明できないままコードを書き換えない。
-
-修正に着手する前に、必ず次を順に問う。
-
-1. なぜこの現象が起きるのか（症状ではなく、原因の説明）
-2. その原因は、本来どの責務・どの層で扱うべきものか
-3. 同じ原因から派生しうる別ケースは何か
-4. 直す位置は、原因に最も近い場所か、それとも下流の都合のよい場所か
-5. この修正が、似た構造の入力すべてに対して正しく効くか
-
-修正は、原因に最も近い責務へ入れる。
-症状が見えた場所と、原因がある場所は、しばしば違う。
-症状側に分岐を足す修正は、原因側の規則が崩れていることを覆い隠すので避ける。
-
-禁止する修正の形:
-
-- 失敗する入力だけを `if` で弾く
-- 失敗するケースを早期 return で握りつぶす
-- 期待する出力に合わせるため、計算結果を後段で書き換える
-- 「この呼び出し元から来たときだけ」例外処理を入れる
-- 「このテストだけ通す」ための分岐を、責務の途中に差し込む
-- 似た構造の他の入力に同じ問題が残ったまま、再現ケースだけを直す
-- 原因が上流（parser, lowering, name resolution, symbol table, scope, constraint 生成）にあるのに、下流（inference, normalize, format, diagnostics）で取り繕う
-- 中間表現の不変条件を壊したまま、出力側で帳尻を合わせる
-
-良い修正の形:
-
-- 原因を一行で説明できる
-- 同じ原因を持つ別ケースも、同じ修正で自動的に直る
-- 修正後の規則が、言語仕様・中間表現・制約として説明できる
-- 修正が、責務の境界（lowering / inference / normalize / diagnostics）を踏み越えていない
-- 修正と一緒に追加するテストが、再現ケースそのものではなく、原因の一般化を示している
-
-修正前に「今直そうとしているのは原因か、症状か」を必ず自分に確認する。
-症状側の修正で済ませたくなったときは、ほぼ常に原因側に正しい直し場所がある。
-
-例外として、症状側の暫定対応を入れる場合は、次をすべて満たすときに限る。
-
-- 原因側の正しい修正が、現在の作業範囲を大きく超える
-- 暫定対応であることをコメントで明示する
-- 原因と、本来の修正場所を短く書き残す
-- 暫定対応の影響範囲を限定する（広い分岐や上書きにしない）
-- `tasks/current.md` か該当する notes に、本来の修正として追うべき項目を残す
-
-「とりあえず通った」を完了と呼ばない。
-通ったあとに、原因に最も近い場所で直し直したか、もう一度見る。
-
-## 修正範囲の節度
-
-修正は、原因の説明に必要な範囲だけを変える。
-
-バグ修正のついでに、無関係なリファクタ、命名変更、整形、抽象化を混ぜない。
-原因と関係ない箇所を「ついでに綺麗にする」変更は、レビューを難しくし、
-回帰の原因を曖昧にし、後から差し戻しにくくする。
-
-守ること:
-
-- 一つの修正は、一つの原因に対応させる
-- 修正の diff を見たとき、どれが原因への対応で、どれが副次的整理かが分かるようにする
-- 副次的整理が必要なら、別 commit / 別変更として分ける
-- 「ついでに直した」を理由に、関係ないファイルを触らない
-
-## 実験的な規則・最適化
-
-実験的な規則や最適化を入れる場合は、実装前に次を明確にする。
-
-- どの責務に属するか
-- どの entrypoint から使われるか
-- ホットパスに乗るか
-- 失敗時にどのような影響があるか
-- あとから削除・差し替えできるか
-
-実験的なものを、中心処理の中に無名で混ぜない。
-必要なら、小さな module、明確な関数名、短いコメントで境界を作る。
-
-## diagnostics
-
-診断処理は、主処理と混ぜすぎない。
-
-主処理は、できるだけ次を返す形にする。
-
-- 構造化された結果
-- エラーの原因が分かる中間情報
-- span や source location など、診断に必要な情報
-
-表示文言、format、ユーザー向けの説明は、可能な限り diagnostics 側へ寄せる。
-
-避けること:
-
-- lowering の途中で表示用文字列を組み立てる
-- inference の中に診断文の分岐を大量に置く
-- 同じエラー原因を複数箇所で別々に判定する
-- span 情報を後から CST 再走査で取りに行く
-
-## テスト
-
-挙動を変えた場合は、既存のテスト方針に合わせてテストを追加・更新する。
-
-優先するテスト:
-
-- 今回直したケースを直接示す小さいテスト
-- 既存の fixture / golden test 形式に沿ったテスト
-- regression test として読みやすいテスト
-- diagnostics の文言や span が重要な場合、それを確認するテスト
-
-避けること:
-
-- 大きすぎて失敗理由が分からないテスト
-- 複数の仕様変更を一つに詰めたテスト
-- 実装詳細だけを固定するテスト
-- 既存方針と違う独自形式のテスト
-
-### テスト期待値を、実装の出力に合わせて書き換えない
-
-落ちているテストを見たとき、最初にやってはいけないのは、
-期待値を実装の現在の出力に合わせて書き換えることである。
-
-ここでいう期待値とは、次を含む。
-
-- `assert_eq!` の期待文字列
-- 期待される型・効果行・残差の表記
-- テスト名が表している意図（区別する / しない、deep / shallow など）
-
-期待値を出力に合わせて書き換えると、「グリーン」が嘘になる。
-本当のバグが、書き換えられた期待値の中に埋まって見えなくなる。
-
-落ちたテストは、まず「期待値が正しく、実装が未達」の側を疑う。
-型・効果行・残差の表記は、設計者が意図して書いた principal な形であることが多い。
-特に、`α [undet; β] -> [β] α` のような残差表記の `; β` を消す方向に「簡約」しない。
-残差が surface に出るのは仕様であって、握りつぶす対象ではない。
-
-期待値を更新してよいのは、次をすべて満たすときに限る。
-
-- 実装側が正しい理由を、原因まで説明できる
-- その出力が設計者の意図と一致することを確認できる
-- なぜ期待値が変わるのかを、コミットかコメントに残す
-
-テスト名が表す意図を、出力に合わせて逆の意味へ書き換えない
-（例: `distinguishes_...` を `coalesces_...` に変えて「区別しないのが正しい」ことにしない）。
-
-## 変更の進め方
-
-変更は、できるだけ次の順で進める。
-
-1. 既存の entrypoint と責務分担を見る
-2. 変更範囲を小さく決める
-3. 中心となる型・関数を先に整える
-4. 補助処理を後ろや子 module に分ける
-5. 再計算や再走査が増えていないか見る
-6. 必要なテストを追加・更新する
-7. 最後に、入口の分かりやすさと責務の見え方を見直す
-
-大きな変更では、まず「入口」「中核」「補助」を分けてから細部を直す。
-小さな変更でも、既存の責務境界を崩さない。
-
-進行中の差分には、すでにハングや回帰を直した修正が入っていることがある。
-差分を `git stash` で全部退避してから base HEAD で挙動を比較しない。
-修正が消えた状態になり、テストが本当にハングしたり、別の回帰を base の挙動と誤認したりする。
-base の挙動が知りたいときは、差分の中身を保ったまま、必要な部分だけを切り分ける。
-
-## コードコメント
-
-コメントは、実装を読み替えるためではなく、設計判断を残すために使う。
-
-書くとよいコメント:
-
-- なぜこの責務がここにあるのか
-- なぜ再計算を避けているのか
-- なぜこの順序で処理するのか
-- 既知アルゴリズムや論文に由来する考え方
-- 後から変更すると壊れやすい前提
-
-避けるコメント:
-
-- コードをそのまま説明するだけのコメント
-- 古い実装の名残
-- 根拠のない TODO
-- どの責務にも属していないメモ
-
-TODO を残す場合は、何をすれば完了か分かる形にする。
-
-## 出力・報告
-
-作業結果を報告するときは、簡潔に次を伝える。
-
-- 何を変えたか
-- なぜ変えたか
-- どのテストを確認したか
-- 未確認のものがあれば、それも正直に書く
-
-不要に長い説明は避ける。
-ただし、設計判断を変えた場合は、その理由を省略しない。
-
-## 対話的な承認・権限確認
-
-作業中に、対話的な承認または権限確認の質問を出してはならない。
-質問を出すと、そこで作業が止まる。
-
-依頼が扱っていない判断・権限・範囲の問題が生じた場合は、作業を止め、
-最終報告の `Blockers:` または decision-point に記録する。
-途中で質問を出す代わりに、そこで止まって報告すること。
-
-これは推測して続行してよいという許可ではない。
-依頼が判断を扱っていないとき、黙って決めて続行してはならない。
-報告付きで停止することが必須の挙動である。
-
-判断を要さない範囲は、止まらずに進めてよい。
-sandbox や approval policy で許可されている操作について、
-念のための確認を出す必要はない。
+Generated artifacts do not inherit the conversation style. Documentation,
+README files, specifications, release notes, diagnostics, UI text, code
+comments, and design records use the register required by their audience and
+existing conventions.
 
 ## 口調
 
@@ -502,39 +210,15 @@ UI 文言、生成する記事や説明文には適用しない。
 既存ファイル、タスク文脈、テスト、命名から推測できることは先に調べる。
 それでも判断できない場合だけ、短く確認する。
 
-## セルフチェック
+## Verification and final report
 
-作業の最後に、次を見る。
+Run the smallest safe checks governed by `rules/testing.md`. Builds and tests
+are deterministic evidence, not independent review.
 
-- ファイルの先頭に主役があるか
-- public entrypoint が見つけやすいか
-- 補助処理が前に出すぎていないか
-- module 分割後も入口が迷子になっていないか
-- 同じ情報を複数段で再計算していないか
-- CST 再走査を前提にしていないか
-- ホットパスに不要な処理を乗せていないか
-- diagnostics と主処理が混ざりすぎていないか
-- 型推論に path 文字列ベースの分岐が入っていないか
-- 型推論に module 名・関数名・変数名の文字列一致による特別扱いが入っていないか
-- builtin / intrinsic が inference の中に無名で埋め込まれていないか
-- 名前を変えても同じ意味なら同じ型になるか
-- module path を変えても解決先が同じなら同じ型になるか
-- 特定の fixture / test だけを通す分岐になっていないか
-- 本来 constraint / unification / symbol table で表すべきものを局所分岐で代用していないか
-- 共起分析・極性消去に、論文にない保護機構（守るべき変数集合・rigid・blocked ペア）を足していないか
-- 残差が消えないのを、消去側ではなくその手前（脱糖・制約・freeze）で直しているか
-- 詰まったときに fresh var や個別分岐を増やす逃げをしていないか
-- バグ修正が、症状の出た場所ではなく原因のある場所に入っているか
-- 同じ原因から派生しうる別ケースに、同じ修正が効くか
-- 「このケースだけ通す」局所分岐になっていないか
-- 修正の diff に、原因と無関係な変更が混ざっていないか
-- テストが今回の変更を直接示しているか
-- テスト期待値を、実装の出力に合わせて書き換えていないか
-- 落ちたテストを、期待値ではなく実装側を直して通したか
-- ユーザーとの会話に敬語が混ざっていないか
-- 会話文で `です` / `ます` / `ください` を使っていないか
-- docs / README / 仕様書 / UI 文言などを、会話用の口調で書いていないか
-- `tasks/current.md`、`notes/progress/daily/<date>.md` の文脈に反していないか
+Before integrating, inspect branch, status, explicit staged paths, diff scope,
+and concurrent work. Report what changed, governing authority, exact checks,
+omitted verification, commits/branch, and remaining risks or decisions.
 
-この文書への適合は、Gemini が判定し、次回以降の改善や評価にも使う。
-読みやすさ、責務、性能のどれかを犠牲にした場合は、その理由を報告する。
+Before a user-visible response, also verify that direct conversation follows
+the Japanese communication rules above and that generated artifacts did not
+inherit them.
