@@ -17,6 +17,18 @@ pub(super) struct DerivesAttachmentStart {
     pub(super) owner_base: usize,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct DerivesClauseStart {
+    pub(super) keyword: Range<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum DeclarationCompanionDerivesLayout {
+    Inline,
+    Indented { block_indent: usize },
+    Braced,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum DerivesOwnerTailClassifier {
     StructHeader,
@@ -29,6 +41,19 @@ pub(super) enum DerivesOwnerTailClassifier {
     ActTrailing,
     TypeHeader,
     TypeTrailing,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum DerivesDriverContext {
+    Attachment {
+        owner: DerivesAttachmentOwner,
+        position: DerivesAttachmentPosition,
+        owner_base: usize,
+        owner_tail_classifier: DerivesOwnerTailClassifier,
+    },
+    DeclarationCompanion {
+        layout: DeclarationCompanionDerivesLayout,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -45,10 +70,7 @@ pub(super) enum DerivesOwnerTail {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct DerivesDriverSpec {
-    pub(super) owner: DerivesAttachmentOwner,
-    pub(super) position: DerivesAttachmentPosition,
-    pub(super) owner_base: usize,
-    pub(super) owner_tail_classifier: DerivesOwnerTailClassifier,
+    pub(super) context: DerivesDriverContext,
     pub(super) outer_role: GrammarRole,
 }
 
@@ -91,14 +113,56 @@ impl DerivesDriverSpec {
             }
         };
         Self {
-            owner,
-            position,
-            owner_base,
-            owner_tail_classifier,
+            context: DerivesDriverContext::Attachment {
+                owner,
+                position,
+                owner_base,
+                owner_tail_classifier,
+            },
             outer_role: GrammarRole::Declaration(DeclarationRole::Derives(
                 DerivesRole::RoleReference,
             )),
         }
+    }
+
+    pub(super) fn declaration_companion(layout: DeclarationCompanionDerivesLayout) -> Self {
+        Self {
+            context: DerivesDriverContext::DeclarationCompanion { layout },
+            outer_role: GrammarRole::Declaration(DeclarationRole::Derives(
+                DerivesRole::RoleReference,
+            )),
+        }
+    }
+
+    fn attachment_metadata(
+        self,
+    ) -> Option<(
+        DerivesAttachmentOwner,
+        DerivesAttachmentPosition,
+        usize,
+        DerivesOwnerTailClassifier,
+    )> {
+        match self.context {
+            DerivesDriverContext::Attachment {
+                owner,
+                position,
+                owner_base,
+                owner_tail_classifier,
+            } => Some((owner, position, owner_base, owner_tail_classifier)),
+            DerivesDriverContext::DeclarationCompanion { .. } => None,
+        }
+    }
+
+    pub(super) fn attachment_owner_tail_classifier(self) -> DerivesOwnerTailClassifier {
+        self.attachment_metadata()
+            .map(|(_, _, _, classifier)| classifier)
+            .expect("an attachment classifier is unavailable in declaration-companion context")
+    }
+
+    pub(super) fn attachment_owner_base(self) -> usize {
+        self.attachment_metadata()
+            .map(|(_, _, owner_base, _)| owner_base)
+            .expect("an attachment base is unavailable in declaration-companion context")
     }
 }
 
@@ -115,6 +179,10 @@ pub(super) enum DerivesDriverDecision {
     RepeatedClause {
         leading: Range<usize>,
         start: DerivesAttachmentStart,
+    },
+    DeclarationCompanionRepeatedClause {
+        leading: Range<usize>,
+        start: DerivesClauseStart,
     },
     OwnerTail(DerivesOwnerTail),
     Boundary,
@@ -155,7 +223,10 @@ where
             return None;
         }
         let spec = DerivesDriverSpec::new(owner, position, owner_base);
-        if classify_derives_owner_tail(spec.owner_tail_classifier, i).is_some() {
+        let (_, _, _, owner_tail_classifier) = spec
+            .attachment_metadata()
+            .expect("an attachment spec preserves its owner metadata");
+        if classify_derives_owner_tail(owner_tail_classifier, i).is_some() {
             return None;
         }
         let keyword = i.run(scan_word)?;
@@ -184,6 +255,10 @@ where
     let checkpoint = i.checkpoint();
     let decision = if any_ambient_owner_claims(i) {
         DerivesDriverDecision::Boundary
+    } else if let DerivesDriverContext::DeclarationCompanion { layout } = spec.context
+        && super::companion::declaration_companion_derives_sequence_boundary_pending(layout, i)
+    {
+        DerivesDriverDecision::Boundary
     } else {
         let trivia = i
             .run(scan_trivia)
@@ -191,7 +266,9 @@ where
         let leading = trivia.range();
         let has_physical_newline = struct_trivia_has_newline(&trivia);
         let tail_checkpoint = i.checkpoint();
-        if derives_gap_is_caller_owned(spec.owner_base, has_physical_newline, i) {
+        if let DerivesDriverContext::Attachment { owner_base, .. } = spec.context
+            && derives_gap_is_caller_owned(owner_base, has_physical_newline, i)
+        {
             DerivesDriverDecision::Boundary
         } else if i.input.remainder().is_empty() {
             DerivesDriverDecision::Boundary
@@ -203,24 +280,46 @@ where
                     leading,
                     keyword: word.range(),
                 },
-                "derives" => DerivesDriverDecision::RepeatedClause {
-                    leading,
-                    start: DerivesAttachmentStart {
-                        owner: spec.owner,
-                        position: spec.position,
-                        keyword: word.range(),
-                        owner_base: spec.owner_base,
+                "derives" => match spec.context {
+                    DerivesDriverContext::Attachment {
+                        owner,
+                        position,
+                        owner_base,
+                        ..
+                    } => DerivesDriverDecision::RepeatedClause {
+                        leading,
+                        start: DerivesAttachmentStart {
+                            owner,
+                            position,
+                            keyword: word.range(),
+                            owner_base,
+                        },
                     },
+                    DerivesDriverContext::DeclarationCompanion { .. } => {
+                        DerivesDriverDecision::DeclarationCompanionRepeatedClause {
+                            leading,
+                            start: DerivesClauseStart {
+                                keyword: word.range(),
+                            },
+                        }
+                    }
                 },
                 _ => {
                     i.rollback(tail_checkpoint);
-                    classify_derives_owner_tail(spec.owner_tail_classifier, i).map_or(
-                        DerivesDriverDecision::NoContinuation,
-                        DerivesDriverDecision::OwnerTail,
-                    )
+                    spec.attachment_metadata()
+                        .and_then(|(_, _, _, classifier)| {
+                            classify_derives_owner_tail(classifier, i)
+                        })
+                        .map_or(
+                            DerivesDriverDecision::NoContinuation,
+                            DerivesDriverDecision::OwnerTail,
+                        )
                 }
             }
-        } else if let Some(tail) = classify_derives_owner_tail(spec.owner_tail_classifier, i) {
+        } else if let Some(tail) = spec
+            .attachment_metadata()
+            .and_then(|(_, _, _, classifier)| classify_derives_owner_tail(classifier, i))
+        {
             DerivesDriverDecision::OwnerTail(tail)
         } else {
             DerivesDriverDecision::NoContinuation
@@ -252,7 +351,10 @@ pub(super) fn derives_role_episode_spec(
         scoped_stops = scoped_stops.with(StopKind::Newline);
     }
     let mut policy = TypeExpressionEpisodePolicy::default();
-    if spec.owner_tail_classifier == DerivesOwnerTailClassifier::StructHeader {
+    let attachment_classifier = spec
+        .attachment_metadata()
+        .map(|(_, _, _, classifier)| classifier);
+    if attachment_classifier == Some(DerivesOwnerTailClassifier::StructHeader) {
         for stop in [
             StopKind::LeftBrace,
             StopKind::LeftParenthesis,
@@ -265,10 +367,12 @@ pub(super) fn derives_role_episode_spec(
         policy.fresh_primary_locally_owned_stops =
             StopSet::default().with(StopKind::LeftParenthesis);
     } else if matches!(
-        spec.owner_tail_classifier,
-        DerivesOwnerTailClassifier::EnumHeader
-            | DerivesOwnerTailClassifier::ErrorHeader
-            | DerivesOwnerTailClassifier::ActHeader
+        attachment_classifier,
+        Some(
+            DerivesOwnerTailClassifier::EnumHeader
+                | DerivesOwnerTailClassifier::ErrorHeader
+                | DerivesOwnerTailClassifier::ActHeader
+        )
     ) {
         // Enum, Error, and Act raw headers leave every actual body introducer to the later
         // form judge. The scoped frame makes the four stops visible only to
@@ -283,11 +387,40 @@ pub(super) fn derives_role_episode_spec(
             stops = stops.with(stop);
             scoped_stops = scoped_stops.with(stop);
         }
-    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::TypeHeader {
+    } else if attachment_classifier == Some(DerivesOwnerTailClassifier::TypeHeader) {
         // Equality and attached Impl belong only to the outer Header RoleRef
         // episode. Nested TypeExpression episodes retain both words as local
         // syntax, and fresh-primary `impl` hands back a Missing RoleRef.
         for stop in [StopKind::Equal, StopKind::Impl] {
+            stops = stops.with(stop);
+            scoped_stops = scoped_stops.with(stop);
+        }
+    } else if let DerivesDriverContext::DeclarationCompanion { layout } = spec.context {
+        let layout_stops: &[StopKind] = match layout {
+            DeclarationCompanionDerivesLayout::Inline => &[
+                StopKind::Newline,
+                StopKind::Semicolon,
+                StopKind::Comma,
+                StopKind::RightParenthesis,
+                StopKind::RightBracket,
+                StopKind::RightBrace,
+            ],
+            DeclarationCompanionDerivesLayout::Indented { .. } => &[
+                StopKind::Semicolon,
+                StopKind::RightParenthesis,
+                StopKind::RightBracket,
+                StopKind::RightBrace,
+            ],
+            DeclarationCompanionDerivesLayout::Braced => &[
+                StopKind::Newline,
+                StopKind::Semicolon,
+                StopKind::Comma,
+                StopKind::RightParenthesis,
+                StopKind::RightBracket,
+                StopKind::RightBrace,
+            ],
+        };
+        for &stop in layout_stops {
             stops = stops.with(stop);
             scoped_stops = scoped_stops.with(stop);
         }
@@ -490,9 +623,76 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let leading = i
-        .run(scan_trivia)
-        .expect("the derives attachment gap is total");
+    let (owner, position, owner_base, _) = spec
+        .attachment_metadata()
+        .expect("an attachment clause uses attachment driver metadata");
+    assert_eq!(owner, start.owner);
+    assert_eq!(position, start.position);
+    assert_eq!(owner_base, start.owner_base);
+    let (clause, repeated_start) = parse_derives_clause_core(
+        DerivesClauseStart {
+            keyword: start.keyword,
+        },
+        spec,
+        i,
+    );
+    (
+        DerivesAttachment { position, clause },
+        repeated_start.map(|start| DerivesAttachmentStart {
+            owner,
+            position,
+            keyword: start.keyword,
+            owner_base,
+        }),
+    )
+}
+
+pub(super) fn recognize_declaration_companion_derives_start<E>(
+    i: &mut SynIn<E>,
+) -> Option<DerivesClauseStart>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.run(scan_word).and_then(|word| {
+        (word.text() == "derives").then(|| DerivesClauseStart {
+            keyword: word.range(),
+        })
+    });
+    i.rollback(checkpoint);
+    start
+}
+
+pub(super) fn parse_declaration_companion_derives_clause<'source, E>(
+    start: DerivesClauseStart,
+    spec: DerivesDriverSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (DerivesClause<'source>, Option<DerivesClauseStart>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    assert!(matches!(
+        spec.context,
+        DerivesDriverContext::DeclarationCompanion { .. }
+    ));
+    parse_derives_clause_core(start, spec, i)
+}
+
+fn parse_derives_clause_core<'source, E>(
+    start: DerivesClauseStart,
+    spec: DerivesDriverSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (DerivesClause<'source>, Option<DerivesClauseStart>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = i.run(scan_trivia).expect("the derives clause gap is total");
     debug_assert_eq!(leading.range().end, start.keyword.start);
     let keyword = i
         .run(scan_word)
@@ -502,7 +702,7 @@ where
 
     let mut roles = Vec::new();
     let (via, repeated_start) = loop {
-        consume_derives_role_trivia(start.owner_base, i);
+        consume_derives_role_trivia(spec, i);
         roles.push(parse_required_derives_role(spec, i));
         match drive_derives_clauses(spec, i) {
             DerivesDriverDecision::Comma { leading, comma } => {
@@ -522,6 +722,15 @@ where
                 let repeated_start = match drive_derives_clauses(spec, i) {
                     DerivesDriverDecision::RepeatedClause { leading, start } => {
                         consume_derives_trivia(leading, i);
+                        Some(DerivesClauseStart {
+                            keyword: start.keyword,
+                        })
+                    }
+                    DerivesDriverDecision::DeclarationCompanionRepeatedClause {
+                        leading,
+                        start,
+                    } => {
+                        consume_derives_trivia(leading, i);
                         Some(start)
                     }
                     DerivesDriverDecision::Comma { .. }
@@ -534,6 +743,15 @@ where
             }
             DerivesDriverDecision::RepeatedClause { leading, start } => {
                 consume_derives_trivia(leading, i);
+                break (
+                    None,
+                    Some(DerivesClauseStart {
+                        keyword: start.keyword,
+                    }),
+                );
+            }
+            DerivesDriverDecision::DeclarationCompanionRepeatedClause { leading, start } => {
+                consume_derives_trivia(leading, i);
                 break (None, Some(start));
             }
             DerivesDriverDecision::OwnerTail(_)
@@ -544,14 +762,11 @@ where
     let end = i.pos();
     let clause_start = start.keyword.start;
     (
-        DerivesAttachment {
-            position: start.position,
-            clause: DerivesClause {
-                keyword: start.keyword,
-                roles,
-                via,
-                range: clause_start..end,
-            },
+        DerivesClause {
+            keyword: start.keyword,
+            roles,
+            via,
+            range: clause_start..end,
         },
         repeated_start,
     )
@@ -567,15 +782,32 @@ where
     assert_eq!(trivia.range(), expected);
 }
 
-pub(super) fn consume_derives_role_trivia<E>(owner_base: usize, i: &mut SynIn<E>)
+pub(super) fn consume_derives_role_trivia<E>(spec: DerivesDriverSpec, i: &mut SynIn<E>)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
+    if matches!(
+        spec.context,
+        DerivesDriverContext::DeclarationCompanion { .. }
+    ) && any_ambient_owner_claims(i)
+    {
+        return;
+    }
     let trivia = i.run(scan_trivia).expect("trivia is total");
-    if derives_gap_is_caller_owned(owner_base, struct_trivia_has_newline(&trivia), i) {
+    let caller_owned = match spec.context {
+        DerivesDriverContext::Attachment { owner_base, .. } => {
+            derives_gap_is_caller_owned(owner_base, struct_trivia_has_newline(&trivia), i)
+        }
+        DerivesDriverContext::DeclarationCompanion { layout } => {
+            super::companion::declaration_companion_derives_mandatory_trivia_is_sequence_gap(
+                layout, &trivia, i,
+            )
+        }
+    };
+    if caller_owned {
         i.rollback(checkpoint);
     }
 }
@@ -648,7 +880,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    consume_derives_role_trivia(spec.owner_base, i);
+    consume_derives_role_trivia(spec, i);
     let target = if let Some(target) = i.run(scan_word) {
         Recovered::Complete(target)
     } else if let Some(recovery) = scan_derives_via_invalid_run(spec, i) {
@@ -730,6 +962,62 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let (owner, position, owner_base, _) = spec
+        .attachment_metadata()
+        .expect("an attachment clause uses attachment driver metadata");
+    assert_eq!(owner, start.owner);
+    assert_eq!(position, start.position);
+    assert_eq!(owner_base, start.owner_base);
+    let (clause, repeated_start) = commit_derives_clause_core::<true, _, _>(
+        DerivesClauseStart {
+            keyword: start.keyword,
+        },
+        spec,
+        committed,
+    );
+    (
+        DirectDerivesAttachment {
+            position,
+            clause: clause.expect("the attachment direct clause retains its summary"),
+        },
+        repeated_start.map(|start| DerivesAttachmentStart {
+            owner,
+            position,
+            keyword: start.keyword,
+            owner_base,
+        }),
+    )
+}
+
+pub(super) fn commit_declaration_companion_derives_clause<'parse, 'source, 'local, E, O>(
+    start: DerivesClauseStart,
+    spec: DerivesDriverSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<DerivesClauseStart>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    assert!(matches!(
+        spec.context,
+        DerivesDriverContext::DeclarationCompanion { .. }
+    ));
+    commit_derives_clause_core::<false, _, _>(start, spec, committed).1
+}
+
+fn commit_derives_clause_core<'parse, 'source, 'local, const RETAIN: bool, E, O>(
+    start: DerivesClauseStart,
+    spec: DerivesDriverSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> (Option<DirectDerivesClause>, Option<DerivesClauseStart>)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     committed.start_node(SyntaxKind::DerivesClause);
     let leading = committed
         .probe(|probe| probe.input().run(scan_trivia))
@@ -744,8 +1032,11 @@ where
 
     let mut roles = Vec::new();
     let (via, repeated_start) = loop {
-        commit_derives_role_trivia(start.owner_base, committed);
-        roles.push(commit_required_derives_role(spec, committed));
+        commit_derives_role_trivia(spec, committed);
+        let role = commit_required_derives_role(spec, committed);
+        if RETAIN {
+            roles.push(role);
+        }
         match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
             DerivesDriverDecision::Comma { leading, comma } => {
                 commit_derives_trivia(leading, committed);
@@ -767,6 +1058,15 @@ where
                     match committed.probe(|probe| drive_derives_clauses(spec, probe.input())) {
                         DerivesDriverDecision::RepeatedClause { leading, start } => {
                             commit_derives_trivia(leading, committed);
+                            Some(DerivesClauseStart {
+                                keyword: start.keyword,
+                            })
+                        }
+                        DerivesDriverDecision::DeclarationCompanionRepeatedClause {
+                            leading,
+                            start,
+                        } => {
+                            commit_derives_trivia(leading, committed);
                             Some(start)
                         }
                         DerivesDriverDecision::Comma { .. }
@@ -779,6 +1079,15 @@ where
             }
             DerivesDriverDecision::RepeatedClause { leading, start } => {
                 commit_derives_trivia(leading, committed);
+                break (
+                    None,
+                    Some(DerivesClauseStart {
+                        keyword: start.keyword,
+                    }),
+                );
+            }
+            DerivesDriverDecision::DeclarationCompanionRepeatedClause { leading, start } => {
+                commit_derives_trivia(leading, committed);
                 break (None, Some(start));
             }
             DerivesDriverDecision::OwnerTail(_)
@@ -790,15 +1099,12 @@ where
     let clause_start = start.keyword.start;
     committed.finish_node();
     (
-        DirectDerivesAttachment {
-            position: start.position,
-            clause: DirectDerivesClause {
-                keyword: start.keyword,
-                roles,
-                via,
-                range: clause_start..end,
-            },
-        },
+        RETAIN.then(|| DirectDerivesClause {
+            keyword: start.keyword,
+            roles,
+            via,
+            range: clause_start..end,
+        }),
         repeated_start,
     )
 }
@@ -820,7 +1126,7 @@ pub(super) fn commit_derives_trivia<'parse, 'source, 'local, E, O>(
 }
 
 pub(super) fn commit_derives_role_trivia<'parse, 'source, 'local, E, O>(
-    owner_base: usize,
+    spec: DerivesDriverSpec,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -831,8 +1137,25 @@ pub(super) fn commit_derives_role_trivia<'parse, 'source, 'local, E, O>(
     let trivia = committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
+        if matches!(
+            spec.context,
+            DerivesDriverContext::DeclarationCompanion { .. }
+        ) && any_ambient_owner_claims(i)
+        {
+            return None;
+        }
         let trivia = i.run(scan_trivia).expect("trivia is total");
-        if derives_gap_is_caller_owned(owner_base, struct_trivia_has_newline(&trivia), i) {
+        let caller_owned = match spec.context {
+            DerivesDriverContext::Attachment { owner_base, .. } => {
+                derives_gap_is_caller_owned(owner_base, struct_trivia_has_newline(&trivia), i)
+            }
+            DerivesDriverContext::DeclarationCompanion { layout } => {
+                super::companion::declaration_companion_derives_mandatory_trivia_is_sequence_gap(
+                    layout, &trivia, i,
+                )
+            }
+        };
+        if caller_owned {
             i.rollback(checkpoint);
             None
         } else {
@@ -902,7 +1225,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    commit_derives_role_trivia(spec.owner_base, committed);
+    commit_derives_role_trivia(spec, committed);
     let target = if let Some(target) = commit_word(committed) {
         let range = target.range();
         committed.token(SyntaxKind::Identifier, range.clone());

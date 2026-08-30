@@ -289,9 +289,12 @@ speculative ErrorSinkを漏らす既存generic defectを発見した。Gate 2の
 ErrorSink checkpoint/rollback pairを追加するowning fix——を承認。Authoritative正本は
 `notes/design/2026-08-31-declaration-companion-gate3-nud-sink-amendment.md`。修正はexactly 2 operations/
 existing call、focused table 1組とfinal `cargo test -p yu-syntax` 1回（571 passed / 1 ignored）、独立
-compiler/performance査読で閉じ、workspace suite/既定timingは行わなかった。現在のactive stepは
-Gate 4 companion-only Derives item priority。standalone Statement grammarとowner production wiringは
-まだ変更しない。
+compiler/performance査読で閉じ、workspace suite/既定timingは行わなかった。Gate 4 companion-only
+Derives item priorityも完了した。shared Derives driverをattachment metadataとneutral companion contextへ
+分離し、adjacent DerivesClause runを1 companion itemへまとめ、direct CSTではStatement/attachment wrapper
+なしにDerivesClauseをstreamする。standalone Statement、既存5 owner、owner production wiringは不変。
+focused table 1件（1 passed / 572 filtered）とscoped format/diff check、独立compiler/spec/regression査読で
+閉じ、package/workspace suiteとtimingは行わなかった。現在のactive stepはGate 5 typed episode handoffs。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

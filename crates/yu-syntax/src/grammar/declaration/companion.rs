@@ -37,7 +37,11 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::{DerivesClause, Recovered};
+use super::{
+    DeclarationCompanionDerivesLayout, DerivesClause, DerivesDriverSpec, Recovered,
+    commit_declaration_companion_derives_clause, parse_declaration_companion_derives_clause,
+    recognize_declaration_companion_derives_start,
+};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -396,6 +400,70 @@ where
     assert_eq!(i.local.pop_ambient_owner_scope(), Some(scope));
 }
 
+pub(super) fn declaration_companion_derives_sequence_boundary_pending<E>(
+    layout: DeclarationCompanionDerivesLayout,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let boundary = match layout {
+        DeclarationCompanionDerivesLayout::Inline => {
+            let trivia = i.run(scan_trivia).expect("trivia scanning is total");
+            if i.input.source()[trivia.range()].contains(['\r', '\n']) {
+                true
+            } else {
+                let punctuation_checkpoint = i.checkpoint();
+                let comma = i
+                    .run(scan_punctuation)
+                    .is_some_and(|punctuation| punctuation.kind() == PunctuationKind::Comma);
+                i.rollback(punctuation_checkpoint);
+                !comma && declaration_companion_colon_body_first_slot_absent(i)
+            }
+        }
+        DeclarationCompanionDerivesLayout::Indented { block_indent } => {
+            recognize_declaration_companion_indented_separator(block_indent, i).is_some()
+                || declaration_companion_indented_terminal_boundary(i, block_indent)
+        }
+        DeclarationCompanionDerivesLayout::Braced => {
+            match recognize_declaration_companion_braced_separator(i) {
+                Some(StatementSequenceSeparator::Comma { .. }) => false,
+                Some(_) => true,
+                None => declaration_companion_braced_boundary_pending(i),
+            }
+        }
+    };
+    i.rollback(checkpoint);
+    boundary
+}
+
+pub(super) fn declaration_companion_derives_mandatory_trivia_is_sequence_gap<E>(
+    layout: DeclarationCompanionDerivesLayout,
+    trivia: &TriviaRun,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    if !i.input.source()[trivia.range()].contains(['\r', '\n']) {
+        return false;
+    }
+    match layout {
+        DeclarationCompanionDerivesLayout::Inline | DeclarationCompanionDerivesLayout::Braced => {
+            true
+        }
+        DeclarationCompanionDerivesLayout::Indented { block_indent } => {
+            i.local.line().line_indent <= block_indent
+        }
+    }
+}
+
 fn scan_terminal_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -551,7 +619,11 @@ where
         };
     }
     let scope = push_declaration_companion_inline_scope(i);
-    let item = parse_declaration_companion_statement_item(table, i);
+    let item = parse_declaration_companion_statement_item(
+        table,
+        DeclarationCompanionDerivesLayout::Inline,
+        i,
+    );
     let body = match item {
         Recovered::Complete(item) => {
             let semicolon = scan_terminal_semicolon(i);
@@ -800,6 +872,7 @@ fn commit_declaration_companion_inline_form<'parse, 'source, 'local, E, O>(
     let scope = committed.probe(|probe| push_declaration_companion_inline_scope(probe.input()));
     let complete = commit_declaration_companion_statement_item(
         table,
+        DeclarationCompanionDerivesLayout::Inline,
         declaration_companion_body_role(),
         LeadingTrivia::None,
         committed,
@@ -884,7 +957,8 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let mut items = vec![parse_declaration_companion_statement_item(table, i)];
+    let layout = DeclarationCompanionDerivesLayout::Indented { block_indent };
+    let mut items = vec![parse_declaration_companion_statement_item(table, layout, i)];
     loop {
         let Some(separator) = recognize_declaration_companion_indented_separator(block_indent, i)
         else {
@@ -895,7 +969,7 @@ where
         {
             break;
         }
-        items.push(parse_declaration_companion_statement_item(table, i));
+        items.push(parse_declaration_companion_statement_item(table, layout, i));
     }
     items
 }
@@ -915,7 +989,8 @@ where
     if declaration_companion_braced_boundary_pending(i) {
         return Vec::new();
     }
-    let mut items = vec![parse_declaration_companion_statement_item(table, i)];
+    let layout = DeclarationCompanionDerivesLayout::Braced;
+    let mut items = vec![parse_declaration_companion_statement_item(table, layout, i)];
     loop {
         if declaration_companion_braced_boundary_pending(i) {
             break;
@@ -928,7 +1003,7 @@ where
         {
             break;
         }
-        items.push(parse_declaration_companion_statement_item(table, i));
+        items.push(parse_declaration_companion_statement_item(table, layout, i));
     }
     items
 }
@@ -948,6 +1023,7 @@ pub(super) fn commit_indented_declaration_companion_statement_items<'parse, 'sou
 {
     commit_declaration_companion_statement_item(
         table,
+        DeclarationCompanionDerivesLayout::Indented { block_indent },
         declaration_companion_indented_item_role(),
         LeadingTrivia::None,
         committed,
@@ -967,6 +1043,7 @@ pub(super) fn commit_indented_declaration_companion_statement_items<'parse, 'sou
         }
         commit_declaration_companion_statement_item(
             table,
+            DeclarationCompanionDerivesLayout::Indented { block_indent },
             declaration_companion_indented_item_role(),
             separator.following_leading_trivia(),
             committed,
@@ -991,6 +1068,7 @@ pub(super) fn commit_braced_declaration_companion_statement_items<'parse, 'sourc
     }
     commit_declaration_companion_statement_item(
         table,
+        DeclarationCompanionDerivesLayout::Braced,
         declaration_companion_item_role(),
         LeadingTrivia::None,
         committed,
@@ -1022,6 +1100,7 @@ pub(super) fn commit_braced_declaration_companion_statement_items<'parse, 'sourc
         };
         commit_declaration_companion_statement_item(
             table,
+            DeclarationCompanionDerivesLayout::Braced,
             declaration_companion_item_role(),
             leading,
             committed,
@@ -1057,6 +1136,7 @@ where
 
 fn parse_declaration_companion_statement_item<'source, E>(
     table: &OperatorTable,
+    layout: DeclarationCompanionDerivesLayout,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Recovered<DeclarationCompanionItem<'source>>
 where
@@ -1064,6 +1144,20 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if let Some(mut start) = recognize_declaration_companion_derives_start(i) {
+        let spec = DerivesDriverSpec::declaration_companion(layout);
+        let mut clauses = Vec::new();
+        loop {
+            let (clause, repeated_start) =
+                parse_declaration_companion_derives_clause(start, spec, i);
+            clauses.push(clause);
+            let Some(next) = repeated_start else {
+                break;
+            };
+            start = next;
+        }
+        return Recovered::Complete(DeclarationCompanionItem::Derives(clauses));
+    }
     let errors_checkpoint = i.errors_checkpoint();
     if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
         return Recovered::Complete(DeclarationCompanionItem::Statement(Box::new(statement)));
@@ -1083,6 +1177,7 @@ where
 
 fn commit_declaration_companion_statement_item<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
+    layout: DeclarationCompanionDerivesLayout,
     role: GrammarRole,
     leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -1093,6 +1188,20 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if let Some(mut start) =
+        committed.probe(|probe| recognize_declaration_companion_derives_start(probe.input()))
+    {
+        let spec = DerivesDriverSpec::declaration_companion(layout);
+        loop {
+            let repeated_start =
+                commit_declaration_companion_derives_clause(start, spec, committed);
+            let Some(next) = repeated_start else {
+                break;
+            };
+            start = next;
+        }
+        return true;
+    }
     committed.start_node(SyntaxKind::Statement);
     let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
     let mut complete = commit_canonical_statement(table, leading, committed);
@@ -1359,15 +1468,20 @@ mod tests {
         input::SourceInput,
         operator::{BindingPower, OperatorDeclaration, OperatorFixities},
         session::{
-            CommittedRecoveryRecord, Delimiter, EmbeddedLexicalMode, ExpressionDelimitedOwner,
-            ExpressionRole, FullCstOutput, GrammarRole, IndentationBaseline,
-            IndentationBaselineKind, InlineStatementOwnerKind, LineState, OperatorCandidateProbe,
-            ParseLocal, ParseLocalValueSnapshot, Probe, RecoveryKind, StagedHeaderFact, StopKind,
-            StopSet, TypeDelimitedOwner, TypeExpressionEpisodePolicy,
+            CommittedRecoveryRecord, Delimiter, DerivesRole, EmbeddedLexicalMode,
+            ExpressionDelimitedOwner, ExpressionRole, FullCstOutput, GrammarRole,
+            IndentationBaseline, IndentationBaselineKind, InlineStatementOwnerKind, LineState,
+            OperatorCandidateProbe, ParseLocal, ParseLocalValueSnapshot, Probe, RecoveryKind,
+            StagedHeaderFact, StopKind, StopSet, TypeDelimitedOwner, TypeExpressionEpisodePolicy,
             TypeExpressionScopedStopFrame, TypeMalformedCallerBoundaryFence,
         },
     };
 
+    use super::super::{
+        DerivesAttachmentOwner, DerivesAttachmentPosition, commit_derives_attachments_isolated,
+        commit_derives_role_trivia, consume_derives_role_trivia,
+        parse_derives_attachments_isolated, recognize_derives_attachment_start,
+    };
     use super::*;
 
     #[derive(Debug)]
@@ -1388,6 +1502,7 @@ mod tests {
         emitted: String,
         child_kinds: Vec<SyntaxKind>,
         first_child_kinds: Vec<SyntaxKind>,
+        derives_parent_kinds: Vec<SyntaxKind>,
         node_kinds: Vec<SyntaxKind>,
         tokens: Vec<(SyntaxKind, Range<usize>, String)>,
         before: ParseLocalValueSnapshot,
@@ -1399,7 +1514,9 @@ mod tests {
     fn item_is_complete(item: &Recovered<DeclarationCompanionItem<'_>>) -> bool {
         matches!(
             item,
-            Recovered::Complete(DeclarationCompanionItem::Statement(_))
+            Recovered::Complete(
+                DeclarationCompanionItem::Statement(_) | DeclarationCompanionItem::Derives(_)
+            )
         )
     }
 
@@ -1596,6 +1713,14 @@ mod tests {
             .next()
             .map(|node| node.children().map(|child| child.kind()).collect())
             .unwrap_or_default();
+        let derives_parent_kinds = root
+            .descendants()
+            .filter(|node| {
+                node.children()
+                    .any(|child| child.kind() == SyntaxKind::DerivesClause)
+            })
+            .map(|node| node.kind())
+            .collect();
         let node_kinds = root.descendants().map(|node| node.kind()).collect();
         let tokens = root
             .descendants_with_tokens()
@@ -1619,6 +1744,7 @@ mod tests {
             emitted: root.to_string(),
             child_kinds,
             first_child_kinds,
+            derives_parent_kinds,
             node_kinds,
             tokens,
             before,
@@ -1656,6 +1782,14 @@ mod tests {
             .next()
             .map(|node| node.children().map(|child| child.kind()).collect())
             .unwrap_or_default();
+        let derives_parent_kinds = root
+            .descendants()
+            .filter(|node| {
+                node.children()
+                    .any(|child| child.kind() == SyntaxKind::DerivesClause)
+            })
+            .map(|node| node.kind())
+            .collect();
         let node_kinds = root.descendants().map(|node| node.kind()).collect();
         let tokens = root
             .descendants_with_tokens()
@@ -1679,6 +1813,7 @@ mod tests {
             emitted: root.to_string(),
             child_kinds,
             first_child_kinds,
+            derives_parent_kinds,
             node_kinds,
             tokens,
             before,
@@ -2606,6 +2741,14 @@ mod tests {
             .next()
             .map(|node| node.children().map(|child| child.kind()).collect())
             .unwrap_or_default();
+        let derives_parent_kinds = root
+            .descendants()
+            .filter(|node| {
+                node.children()
+                    .any(|child| child.kind() == SyntaxKind::DerivesClause)
+            })
+            .map(|node| node.kind())
+            .collect();
         let node_kinds = root.descendants().map(|node| node.kind()).collect();
         let tokens = root
             .descendants_with_tokens()
@@ -2631,6 +2774,7 @@ mod tests {
                 emitted: root.to_string(),
                 child_kinds,
                 first_child_kinds,
+                derives_parent_kinds,
                 node_kinds,
                 tokens,
                 before,
@@ -3613,6 +3757,558 @@ mod tests {
             ),
             "with { first }tail",
             "the sink fix does not change direct CST or remainder"
+        );
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum Gate4ItemSummary {
+        Statement,
+        Derives { clauses: usize, roles: Vec<usize> },
+        Incomplete,
+    }
+
+    fn gate4_item_summary(item: &Recovered<DeclarationCompanionItem<'_>>) -> Gate4ItemSummary {
+        match item {
+            Recovered::Complete(DeclarationCompanionItem::Statement(_)) => {
+                Gate4ItemSummary::Statement
+            }
+            Recovered::Complete(DeclarationCompanionItem::Derives(clauses)) => {
+                Gate4ItemSummary::Derives {
+                    clauses: clauses.len(),
+                    roles: clauses.iter().map(|clause| clause.roles.len()).collect(),
+                }
+            }
+            Recovered::Incomplete => Gate4ItemSummary::Incomplete,
+        }
+    }
+
+    fn gate4_companion_items(companion: &DeclarationCompanion<'_>) -> Vec<Gate4ItemSummary> {
+        match &companion.form {
+            DeclarationCompanionForm::Colon {
+                body: Recovered::Complete(DeclarationCompanionColonBody::Inline { item, .. }),
+                ..
+            } => vec![gate4_item_summary(&Recovered::Complete((**item).clone()))],
+            DeclarationCompanionForm::Colon {
+                body: Recovered::Complete(DeclarationCompanionColonBody::Indented(body)),
+                ..
+            } => body.items.iter().map(gate4_item_summary).collect(),
+            DeclarationCompanionForm::Braced { items, .. } => {
+                items.iter().map(gate4_item_summary).collect()
+            }
+            DeclarationCompanionForm::Colon {
+                body: Recovered::Incomplete,
+                ..
+            } => Vec::new(),
+        }
+    }
+
+    fn run_gate4_ast(source: &str, base_indent: usize) -> (Vec<Gate4ItemSummary>, AstOutcome) {
+        let table = OperatorTable::empty();
+        let mut input = SourceInput::new(source);
+        let mut local = seeded_gate3_test_local();
+        let before = local.value_snapshot();
+        let mut sink = chasa::LatestSink::new();
+        let mut cut = false;
+        let mut i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+        let companion = parse_declaration_companion_isolated(&table, base_indent, &mut i)
+            .expect("the focused Gate 4 source starts with an isolated companion");
+        let items = gate4_companion_items(&companion);
+        let remainder = i.input.remainder().to_owned();
+        drop(i);
+        (
+            items,
+            AstOutcome {
+                complete: Vec::new(),
+                remainder,
+                before,
+                after: local.value_snapshot(),
+                sink_clean: sink.take_merged().is_none(),
+                cut,
+            },
+        )
+    }
+
+    #[test]
+    fn gate4_companion_derives_priority_recovery_and_layout_table() {
+        let derives_role =
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference));
+        let via_role = GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget));
+        let type_primary = GrammarRole::Type(crate::session::TypeRole::Primary);
+        for (
+            source,
+            base_indent,
+            expected_items,
+            remainder,
+            statement_count,
+            derives_count,
+            recoveries,
+        ) in [
+            (
+                "with: derives Eq",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "",
+                0,
+                1,
+                vec![],
+            ),
+            (
+                "with: derives Eq derives Ord",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 2,
+                    roles: vec![1, 1],
+                }],
+                "",
+                0,
+                2,
+                vec![],
+            ),
+            (
+                "with: derives Eq via key derives Ord",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 2,
+                    roles: vec![1, 1],
+                }],
+                "",
+                0,
+                2,
+                vec![],
+            ),
+            (
+                "with { derives Eq derives Ord }tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 2,
+                    roles: vec![1, 1],
+                }],
+                "tail",
+                0,
+                2,
+                vec![],
+            ),
+            (
+                "with:\n  derives Eq derives Ord\nouter",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 2,
+                    roles: vec![1, 1],
+                }],
+                "\nouter",
+                0,
+                2,
+                vec![],
+            ),
+            (
+                "with { derives Eq; value }tail",
+                0,
+                vec![
+                    Gate4ItemSummary::Derives {
+                        clauses: 1,
+                        roles: vec![1],
+                    },
+                    Gate4ItemSummary::Statement,
+                ],
+                "tail",
+                1,
+                1,
+                vec![],
+            ),
+            (
+                "with { derives Eq; derives Ord }tail",
+                0,
+                vec![
+                    Gate4ItemSummary::Derives {
+                        clauses: 1,
+                        roles: vec![1],
+                    },
+                    Gate4ItemSummary::Derives {
+                        clauses: 1,
+                        roles: vec![1],
+                    },
+                ],
+                "tail",
+                0,
+                2,
+                vec![],
+            ),
+            (
+                "with { derives Eq\nderives Ord }tail",
+                0,
+                vec![
+                    Gate4ItemSummary::Derives {
+                        clauses: 1,
+                        roles: vec![1],
+                    },
+                    Gate4ItemSummary::Derives {
+                        clauses: 1,
+                        roles: vec![1],
+                    },
+                ],
+                "tail",
+                0,
+                2,
+                vec![],
+            ),
+            (
+                "with:\n  derives Eq\n  derives Ord\nouter",
+                0,
+                vec![
+                    Gate4ItemSummary::Derives {
+                        clauses: 1,
+                        roles: vec![1],
+                    },
+                    Gate4ItemSummary::Derives {
+                        clauses: 1,
+                        roles: vec![1],
+                    },
+                ],
+                "\nouter",
+                0,
+                2,
+                vec![],
+            ),
+            (
+                "with: derives (Eq, Ord), Debug via key",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![2],
+                }],
+                "",
+                0,
+                1,
+                vec![],
+            ),
+            (
+                "with: derivesx",
+                0,
+                vec![Gate4ItemSummary::Statement],
+                "",
+                1,
+                0,
+                vec![],
+            ),
+            (
+                "with: within",
+                0,
+                vec![Gate4ItemSummary::Statement],
+                "",
+                1,
+                0,
+                vec![],
+            ),
+            (
+                "with: derives;tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "tail",
+                0,
+                1,
+                vec![(RecoveryKind::Missing, derives_role, 13..13)],
+            ),
+            (
+                "with: derives @ Eq;tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "tail",
+                0,
+                1,
+                vec![(RecoveryKind::Error, type_primary, 14..16)],
+            ),
+            (
+                "with: derives Eq via ;tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "tail",
+                0,
+                1,
+                vec![(RecoveryKind::Missing, via_role, 21..21)],
+            ),
+            (
+                "with: derives Eq via @ key;tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "tail",
+                0,
+                1,
+                vec![(RecoveryKind::Error, via_role, 21..23)],
+            ),
+            (
+                "with: derives Eq]tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "]tail",
+                0,
+                1,
+                vec![],
+            ),
+            (
+                "with { derives Eq }tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "tail",
+                0,
+                1,
+                vec![],
+            ),
+            (
+                "with { derives Eq, }tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![2],
+                }],
+                "tail",
+                0,
+                1,
+                vec![(RecoveryKind::Missing, derives_role, 19..19)],
+            ),
+            (
+                "with:\n  derives Eq\nelse tail",
+                0,
+                vec![Gate4ItemSummary::Derives {
+                    clauses: 1,
+                    roles: vec![1],
+                }],
+                "\nelse tail",
+                0,
+                1,
+                vec![],
+            ),
+        ] {
+            let (items, ast) = run_gate4_ast(source, base_indent);
+            let (_, direct) = run_gate3_direct(source, base_indent);
+            assert_eq!(items, expected_items, "AST item priority/run: {source:?}");
+            assert_eq!(ast.remainder, remainder, "AST remainder: {source:?}");
+            assert_eq!(direct.remainder, remainder, "direct remainder: {source:?}");
+            assert_eq!(
+                direct.statement_count, statement_count,
+                "Statement wrappers: {source:?}"
+            );
+            assert_eq!(
+                direct
+                    .node_kinds
+                    .iter()
+                    .filter(|&&kind| kind == SyntaxKind::DerivesClause)
+                    .count(),
+                derives_count,
+                "direct DerivesClause count: {source:?}"
+            );
+            assert_eq!(
+                recovery_summary(&direct.recoveries),
+                recoveries,
+                "typed derives recovery: {source:?}"
+            );
+            assert!(
+                direct.recoveries.iter().all(|record| {
+                    !matches!(
+                        record.site.role,
+                        GrammarRole::Declaration(DeclarationRole::Companion(
+                            DeclarationCompanionRole::Item | DeclarationCompanionRole::IndentedItem
+                        ))
+                    )
+                }),
+                "inner Derives recovery suppresses outer Item recovery: {source:?}"
+            );
+            assert_eq!(
+                format!("{}{}", direct.emitted, direct.remainder),
+                source,
+                "lossless prefix plus retained boundary: {source:?}"
+            );
+            assert_full_local_parity_with_semantic_delta(source, &ast, &direct, 0);
+            assert!(!ast.cut && !direct.cut, "Gate 4 does not cut: {source:?}");
+        }
+
+        for (source, expected_parent) in [
+            ("with: derives Eq", SyntaxKind::DeclarationCompanion),
+            (
+                "with:\n  derives Eq\nouter",
+                SyntaxKind::DeclarationCompanionIndentedBody,
+            ),
+            ("with { derives Eq }tail", SyntaxKind::DeclarationCompanion),
+        ] {
+            let (_, direct) = run_gate3_direct(source, 0);
+            assert_eq!(
+                direct.derives_parent_kinds,
+                vec![expected_parent],
+                "DerivesClause has the exact companion/body parent: {source:?}"
+            );
+            assert!(
+                !direct.node_kinds.contains(&SyntaxKind::Statement),
+                "a companion Derives run has no Statement wrapper: {source:?}"
+            );
+        }
+
+        let (_, via_gap) = run_gate3_direct("with: derives Eq via ;tail", 0);
+        assert!(
+            via_gap
+                .tokens
+                .contains(&(SyntaxKind::Whitespace, 20..21, " ".to_owned(),)),
+            "mandatory ViaTarget owns same-line horizontal trivia"
+        );
+        assert!(
+            via_gap
+                .tokens
+                .contains(&(SyntaxKind::Semicolon, 21..22, ";".to_owned())),
+            "the inline companion owns the terminal semicolon after Missing ViaTarget"
+        );
+
+        let (_, comma_close) = run_gate3_direct("with { derives Eq, }tail", 0);
+        assert!(
+            comma_close
+                .tokens
+                .contains(&(SyntaxKind::Whitespace, 18..19, " ".to_owned(),)),
+            "mandatory RoleReference owns same-line horizontal trivia"
+        );
+        assert!(
+            comma_close
+                .tokens
+                .contains(&(SyntaxKind::RBrace, 19..20, "}".to_owned())),
+            "the companion close remains owned by the braced form"
+        );
+
+        let ambient_attachment_source = "  else";
+        let ambient_attachment_spec = DerivesDriverSpec::new(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+        );
+        let mut ambient_attachment_input = SourceInput::new(ambient_attachment_source);
+        let mut ambient_attachment_local = seeded_gate3_test_local();
+        let mut ambient_attachment_sink = chasa::LatestSink::new();
+        let mut ambient_attachment_cut = false;
+        let mut ambient_attachment = In::new(
+            &mut ambient_attachment_input,
+            &mut ambient_attachment_sink,
+            IsCut::new(&mut ambient_attachment_cut),
+        )
+        .set_local(&mut ambient_attachment_local);
+        assert!(any_ambient_owner_claims(&mut ambient_attachment));
+        consume_derives_role_trivia(ambient_attachment_spec, &mut ambient_attachment);
+        assert_eq!(
+            ambient_attachment.input.remainder(),
+            "else",
+            "attachment RoleRef historically consumes horizontal trivia despite ambient evidence"
+        );
+
+        let mut direct_ambient_input = SourceInput::new(ambient_attachment_source);
+        let mut direct_ambient_local = seeded_gate3_test_local();
+        let mut direct_ambient_sink = chasa::LatestSink::new();
+        let mut direct_ambient_cut = false;
+        let direct_ambient_input = In::new(
+            &mut direct_ambient_input,
+            &mut direct_ambient_sink,
+            IsCut::new(&mut direct_ambient_cut),
+        )
+        .set_local(&mut direct_ambient_local);
+        let direct_ambient_probe = Probe::new(direct_ambient_input);
+        let mut direct_ambient =
+            direct_ambient_probe.commit(FullCstOutput::new(ambient_attachment_source));
+        assert!(direct_ambient.probe(|probe| any_ambient_owner_claims(probe.input())));
+        commit_derives_role_trivia(ambient_attachment_spec, &mut direct_ambient);
+        assert_eq!(
+            direct_ambient.probe(|probe| probe.input().input.remainder()),
+            "else",
+            "direct attachment RoleRef preserves the historical horizontal-trivia ownership"
+        );
+
+        let attachment_source = " derives Eq = Tail";
+        let mut attachment_input = SourceInput::new(attachment_source);
+        let mut attachment_local = ParseLocal::new();
+        let mut attachment_sink = chasa::LatestSink::new();
+        let mut attachment_cut = false;
+        let mut attachment = In::new(
+            &mut attachment_input,
+            &mut attachment_sink,
+            IsCut::new(&mut attachment_cut),
+        )
+        .set_local(&mut attachment_local);
+        let start = recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+            &mut attachment,
+        )
+        .expect("the existing Type attachment control recognizes derives");
+        let attachments = parse_derives_attachments_isolated(start, &mut attachment);
+        assert_eq!(attachments.len(), 1);
+        assert_eq!(attachments[0].position, DerivesAttachmentPosition::Header);
+        assert_eq!(attachment.input.remainder(), " = Tail");
+        assert!(attachment_sink.take_merged().is_none());
+
+        let mut direct_attachment_input = SourceInput::new(attachment_source);
+        let mut direct_attachment_local = ParseLocal::new();
+        let mut direct_attachment_sink = chasa::LatestSink::new();
+        let mut direct_attachment_cut = false;
+        let direct_attachment_input = In::new(
+            &mut direct_attachment_input,
+            &mut direct_attachment_sink,
+            IsCut::new(&mut direct_attachment_cut),
+        )
+        .set_local(&mut direct_attachment_local);
+        let direct_attachment_probe = Probe::new(direct_attachment_input);
+        let mut direct_attachment =
+            direct_attachment_probe.commit(FullCstOutput::new(attachment_source));
+        let direct_start = direct_attachment
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    0,
+                    probe.input(),
+                )
+            })
+            .expect("the existing direct Type attachment control recognizes derives");
+        let direct_attachments =
+            commit_derives_attachments_isolated(direct_start, &mut direct_attachment);
+        assert_eq!(direct_attachments.len(), 1);
+        assert_eq!(
+            direct_attachments[0].position,
+            DerivesAttachmentPosition::Header
+        );
+        assert_eq!(
+            direct_attachment.probe(|probe| probe.input().input.remainder()),
+            " = Tail"
+        );
+        drop(direct_attachment);
+        assert!(direct_attachment_sink.take_merged().is_none());
+
+        reset_canonical_statement_candidate_input_calls();
+        let _ = run_gate4_ast("with: derives Eq derives Ord", 0);
+        assert_eq!(
+            canonical_statement_candidate_input_calls(),
+            0,
+            "valid companion Derives never probes canonical Statement recovery"
+        );
+        reset_canonical_statement_candidate_input_calls();
+        let _ = run_gate3_direct("with: derives Eq derives Ord", 0);
+        assert_eq!(
+            canonical_statement_candidate_input_calls(),
+            0,
+            "direct companion Derives never probes canonical Statement recovery"
         );
     }
 

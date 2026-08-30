@@ -5204,7 +5204,7 @@ fn derives_start_and_driver_follow_drv_j_and_restore_every_probe_state() {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         local.push_indentation_baseline(IndentationBaseline {
-            column: spec.owner_base,
+            column: spec.attachment_owner_base(),
             kind: IndentationBaselineKind::Block,
         });
         local.push_stop_set(stops);
@@ -5650,7 +5650,7 @@ fn enum_derives_owner_spec_isolated_ast_direct_and_braced_trailing_only() {
             DerivesAttachmentPosition::Trailing,
             0,
         )
-        .owner_tail_classifier,
+        .attachment_owner_tail_classifier(),
         DerivesOwnerTailClassifier::EnumTrailing,
     );
 }
@@ -6193,7 +6193,7 @@ fn derives_owner_specs_isolated_ast_direct_tail_and_braced_trailing_only() {
             DerivesAttachmentPosition::Trailing,
             0,
         )
-        .owner_tail_classifier,
+        .attachment_owner_tail_classifier(),
         DerivesOwnerTailClassifier::ErrorTrailing,
     );
 
@@ -9515,7 +9515,7 @@ fn type_attached_impl_header_derives_spec_hands_off_only_at_its_outer_episode() 
         0,
     );
     assert_eq!(
-        production.owner_tail_classifier,
+        production.attachment_owner_tail_classifier(),
         DerivesOwnerTailClassifier::TypeHeader,
         "Gate 6 keeps attached-Impl handoff in the production Type Header spec",
     );
