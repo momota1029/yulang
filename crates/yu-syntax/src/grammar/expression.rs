@@ -31,7 +31,7 @@ use crate::{
     scan::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, ScannedOperator, scan_operator},
         punctuation::{PunctuationKind, scan_punctuation},
-        trivia::{TriviaRun, scan_trivia},
+        trivia::{TriviaRun, scan_comment, scan_trivia},
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
@@ -5117,7 +5117,7 @@ where
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum StatementSequenceSeparator {
+pub(crate) enum StatementSequenceSeparator {
     Newline {
         trivia: TriviaRun,
     },
@@ -5134,11 +5134,11 @@ enum StatementSequenceSeparator {
 }
 
 impl StatementSequenceSeparator {
-    fn is_semicolon(&self) -> bool {
+    pub(crate) fn is_semicolon(&self) -> bool {
         matches!(self, Self::Semicolon { .. })
     }
 
-    fn following_leading_trivia(&self) -> LeadingTrivia {
+    pub(crate) fn following_leading_trivia(&self) -> LeadingTrivia {
         match self {
             Self::Newline { trivia } => leading_trivia(trivia),
             Self::Semicolon {
@@ -5221,6 +5221,104 @@ where
         trivia_has_physical_newline(&trivia) && i.local.line().line_indent < block_indent;
     i.rollback(checkpoint);
     terminal
+}
+
+/// Narrow Gate 2 adapter for the ordinary indented Statement separator judge.
+pub(crate) fn recognize_declaration_companion_indented_separator<'source, E>(
+    block_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<StatementSequenceSeparator>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    recognize_statement_sequence_separator(
+        i,
+        StatementSequencePolicy::Indented {
+            block_indent,
+            options: IndentedStatementBlockOptions::default(),
+        },
+    )
+}
+
+/// Narrow Gate 2 adapter for the ordinary braced Statement separator judge.
+pub(crate) fn recognize_declaration_companion_braced_separator<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<StatementSequenceSeparator>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    recognize_braced_statement_separator(i)
+}
+
+/// Commits one already-authoritative ordinary indented separator decision.
+pub(crate) fn commit_declaration_companion_indented_separator<'parse, 'source, 'local, E, O>(
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<StatementSequenceSeparator>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_statement_sequence_separator(
+        StatementSequencePolicy::Indented {
+            block_indent,
+            options: IndentedStatementBlockOptions::default(),
+        },
+        committed,
+    )
+}
+
+/// Commits one already-authoritative ordinary braced separator decision.
+pub(crate) fn commit_declaration_companion_braced_separator<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<StatementSequenceSeparator>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_statement_sequence_separator(StatementSequencePolicy::BracedPrimary, committed)
+}
+
+pub(crate) fn declaration_companion_indented_terminal_boundary<E>(
+    i: &mut SynIn<E>,
+    block_indent: usize,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    indented_block_terminal_boundary(i, block_indent)
+}
+
+/// Gate 2 sequence shells retain every close spelling and its leading trivia.
+/// The future companion form owner classifies and consumes that boundary.
+pub(crate) fn declaration_companion_braced_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    consume_trivia(i).expect("trivia scanning is total");
+    let boundary = i.input.remainder().is_empty()
+        || matches!(
+            i.run(scan_punctuation)
+                .map(|punctuation| punctuation.kind()),
+            Some(PunctuationKind::Close(
+                Delimiter::Parenthesis | Delimiter::Bracket | Delimiter::Brace
+            ))
+        );
+    i.rollback(checkpoint);
+    boundary
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -5754,19 +5852,68 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let _trivia = committed.probe(|probe| {
-        let checkpoint = probe.input().checkpoint();
-        let trivia = consume_trivia(probe.input()).expect("trivia scanning is total");
-        let leading = leading_trivia(&trivia);
-        let candidate = direct_canonical_statement_candidate(table, leading, probe);
-        probe.input().rollback(checkpoint);
-        candidate.then_some(trivia)
-    })?;
-    let consumed = committed
-        .probe(|probe| consume_trivia(probe.input()))
-        .expect("the accepted statement-leading trivia remains available");
-    committed.emit_trivia(&consumed);
-    Some(leading_trivia(&consumed))
+    commit_braced_missing_separator_leading(table, committed)
+}
+
+fn recognize_braced_missing_separator_trivia<E>(
+    table: &OperatorTable,
+    i: &mut SynIn<E>,
+) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i).expect("trivia scanning is total");
+    let leading = leading_trivia(&trivia);
+    if canonical_statement_candidate_input(table, leading, i) {
+        Some(trivia)
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+pub(crate) fn recognize_declaration_companion_braced_missing_separator<E>(
+    table: &OperatorTable,
+    i: &mut SynIn<E>,
+) -> Option<LeadingTrivia>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    recognize_braced_missing_separator_trivia(table, i).map(|trivia| leading_trivia(&trivia))
+}
+
+fn commit_braced_missing_separator_leading<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<LeadingTrivia>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia =
+        committed.probe(|probe| recognize_braced_missing_separator_trivia(table, probe.input()))?;
+    committed.emit_trivia(&trivia);
+    Some(leading_trivia(&trivia))
+}
+
+pub(crate) fn commit_declaration_companion_braced_missing_separator<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<LeadingTrivia>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_braced_missing_separator_leading(table, committed)
 }
 
 fn braced_close_pending<'parse, 'source, 'local, E, O>(
@@ -5986,27 +6133,113 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let i = probe.input();
+    canonical_statement_candidate_input(table, leading, probe.input())
+}
+
+fn canonical_declaration_statement_intro(intro: &StatementIntro<'_>) -> bool {
+    matches!(
+        intro,
+        StatementIntro::Binding(_)
+            | StatementIntro::Use(_)
+            | StatementIntro::Mod(_)
+            | StatementIntro::Struct(_)
+            | StatementIntro::Enum(_)
+            | StatementIntro::Error(_)
+            | StatementIntro::Type(_)
+            | StatementIntro::Role(_)
+            | StatementIntro::Impl(_)
+            | StatementIntro::Cast(_)
+            | StatementIntro::Act(_)
+            | StatementIntro::For(_)
+    )
+}
+
+#[cfg(test)]
+thread_local! {
+    static CANONICAL_STATEMENT_CANDIDATE_INPUT_CALLS: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn reset_canonical_statement_candidate_input_calls() {
+    CANONICAL_STATEMENT_CANDIDATE_INPUT_CALLS.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn canonical_statement_candidate_input_calls() -> usize {
+    CANONICAL_STATEMENT_CANDIDATE_INPUT_CALLS.get()
+}
+
+/// Sink-free canonical Statement start judge for isolated sequence owners.
+///
+/// Unlike the direct adapter above, this form needs only the parser input, so
+/// an AST adapter and a direct-CST adapter can make the same item-boundary
+/// decision without parsing or allocating a speculative Statement.
+pub(crate) fn canonical_statement_candidate_input<E>(
+    table: &OperatorTable,
+    leading: LeadingTrivia,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    #[cfg(test)]
+    CANONICAL_STATEMENT_CANDIDATE_INPUT_CALLS
+        .set(CANONICAL_STATEMENT_CANDIDATE_INPUT_CALLS.get() + 1);
+    let errors_checkpoint = i.errors_checkpoint();
     let checkpoint = i.checkpoint();
-    let declaration = matches!(
-        i.run(recognize_statement_intro),
-        Some(
-            StatementIntro::Binding(_)
-                | StatementIntro::Use(_)
-                | StatementIntro::Mod(_)
-                | StatementIntro::Struct(_)
-                | StatementIntro::Enum(_)
-                | StatementIntro::Error(_)
-                | StatementIntro::Type(_)
-                | StatementIntro::Role(_)
-                | StatementIntro::Impl(_)
-                | StatementIntro::Cast(_)
-                | StatementIntro::Act(_)
-                | StatementIntro::For(_)
-        )
-    );
+    let declaration = i
+        .run(recognize_statement_intro)
+        .as_ref()
+        .is_some_and(canonical_declaration_statement_intro);
     i.rollback(checkpoint);
-    declaration || direct_expression_nud_candidate(table, leading, probe)
+    let checkpoint = i.checkpoint();
+    let candidate = declaration
+        || i.run(from_fn(|i| recognize_nud(table, leading, i)))
+            .is_some();
+    i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
+    candidate
+}
+
+/// Scans one canonical Statement-invalid episode without consuming a caller
+/// boundary. Comments are lexical atoms: their internal words, separators and
+/// close spellings never become recovery candidates or sequence boundaries.
+pub(crate) fn canonical_statement_invalid_run<E>(
+    table: &OperatorTable,
+    i: &mut SynIn<E>,
+) -> Option<(Range<usize>, bool)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if i.input.remainder().starts_with("//") || i.input.remainder().starts_with("/*") {
+            i.run(scan_comment)
+                .expect("a recognized comment opener must scan as one lexical atom");
+            end = i.pos();
+            continue;
+        }
+        if start < end && canonical_statement_candidate_input(table, LeadingTrivia::None, i) {
+            return Some((start..end, true));
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < end).then_some((start..end, false));
+        };
+        if matches!(character, '\r' | '\n' | ')' | ']' | '}' | ';' | ',') {
+            return (start < end).then_some((start..end, false));
+        }
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
 }
 
 /// A statement recovery records one non-empty invalid episode and retries the
@@ -6023,27 +6256,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let recovered = committed.probe(|probe| {
-        let start = probe.input().pos();
-        let mut end = start;
-        loop {
-            let i = probe.input();
-            let Some(character) = i.input.remainder().chars().next() else {
-                return (start < end).then_some((start..end, false));
-            };
-            if matches!(character, '\r' | '\n' | ')' | ']' | '}' | ';' | ',') {
-                return (start < end).then_some((start..end, false));
-            }
-            i.input.next()?;
-            end = i.pos();
-            let mut line = i.local.line();
-            line.at_line_start = false;
-            i.local.set_line(line);
-            if direct_canonical_statement_candidate(table, LeadingTrivia::None, probe) {
-                return Some((start..end, true));
-            }
-        }
-    });
+    let recovered = committed.probe(|probe| canonical_statement_invalid_run(table, probe.input()));
     let Some((range, retry)) = recovered else {
         return None;
     };
@@ -10648,6 +10861,543 @@ mod tests {
         }
     }
 
+    fn canonical_statement_invalid_run_preserves_every_non_comment_boundary() {
+        let table = canonical_operator_table();
+        for (source, expected, remainder) in [
+            ("@ value", Some((0..2, true)), "value"),
+            ("@", Some((0..1, false)), ""),
+            ("@\nvalue", Some((0..1, false)), "\nvalue"),
+            ("@\rvalue", Some((0..1, false)), "\rvalue"),
+            ("@)value", Some((0..1, false)), ")value"),
+            ("@]value", Some((0..1, false)), "]value"),
+            ("@}value", Some((0..1, false)), "}value"),
+            ("@,value", Some((0..1, false)), ",value"),
+            ("@;value", Some((0..1, false)), ";value"),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            assert_eq!(canonical_statement_invalid_run(&table, &mut i), expected);
+            assert_eq!(i.input.remainder(), remainder, "{source:?}");
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+        }
+    }
+
+    fn isolated_ordinary_braced_ast_sequence(
+        source: &str,
+        table: &OperatorTable,
+    ) -> (usize, String, bool, bool) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let scope = push_braced_statement_block_scope(
+            &mut i,
+            BracedBarrierOrigin::BracedStatementBlockExpression,
+        );
+        let statements =
+            parse_statement_sequence(table, StatementSequencePolicy::BracedPrimary, &mut i);
+        let remainder = i.input.remainder().to_owned();
+        pop_braced_statement_block_scope(&mut i, scope);
+        drop(i);
+        (
+            statements.len(),
+            remainder,
+            expectations.take_merged().is_none(),
+            is_cut,
+        )
+    }
+
+    fn isolated_ordinary_braced_direct_sequence(
+        source: &str,
+        table: &OperatorTable,
+    ) -> (SyntaxNode, Vec<CommittedRecoveryRecord>, String, bool, bool) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        let scope = committed.probe(|probe| {
+            push_braced_statement_block_scope(
+                probe.input(),
+                BracedBarrierOrigin::BracedStatementBlockExpression,
+            )
+        });
+        commit_statement_sequence(
+            table,
+            StatementSequencePolicy::BracedPrimary,
+            &mut committed,
+        );
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+        committed.probe(|probe| pop_braced_statement_block_scope(probe.input(), scope));
+        committed.finish_node();
+        let output = committed.into_output();
+        let recoveries = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        (
+            root,
+            recoveries,
+            remainder,
+            expectations.take_merged().is_none(),
+            is_cut,
+        )
+    }
+
+    fn ordinary_non_comment_recovery_keeps_ast_non_recovering_and_direct_cst_exact() {
+        enum DirectTail {
+            Retry,
+            Stop,
+            Separator {
+                token: SyntaxKind,
+                range: Range<usize>,
+            },
+        }
+
+        let table = canonical_operator_table();
+        for (source, error_range, direct_remainder, tail) in [
+            ("@ value}", 0..2, "}", DirectTail::Retry),
+            ("@", 0..1, "", DirectTail::Stop),
+            (
+                "@\nvalue",
+                0..1,
+                "",
+                DirectTail::Separator {
+                    token: SyntaxKind::Newline,
+                    range: 1..2,
+                },
+            ),
+            (
+                "@\rvalue",
+                0..1,
+                "",
+                DirectTail::Separator {
+                    token: SyntaxKind::Newline,
+                    range: 1..2,
+                },
+            ),
+            (
+                "@\r\nvalue",
+                0..1,
+                "",
+                DirectTail::Separator {
+                    token: SyntaxKind::Newline,
+                    range: 1..3,
+                },
+            ),
+            ("@)value", 0..1, ")value", DirectTail::Stop),
+            ("@]value", 0..1, "]value", DirectTail::Stop),
+            ("@}value", 0..1, "}value", DirectTail::Stop),
+            (
+                "@,value",
+                0..1,
+                "",
+                DirectTail::Separator {
+                    token: SyntaxKind::Comma,
+                    range: 1..2,
+                },
+            ),
+            (
+                "@;value",
+                0..1,
+                "",
+                DirectTail::Separator {
+                    token: SyntaxKind::Semicolon,
+                    range: 1..2,
+                },
+            ),
+        ] {
+            let (ast_count, ast_remainder, _, _) =
+                isolated_ordinary_braced_ast_sequence(source, &table);
+            assert_eq!(ast_count, 0, "historical AST cardinality: {source:?}");
+            assert_eq!(
+                ast_remainder, source,
+                "historical AST remainder: {source:?}"
+            );
+
+            let (root, recoveries, remainder, _, _) =
+                isolated_ordinary_braced_direct_sequence(source, &table);
+            assert_eq!(remainder, direct_remainder, "direct remainder: {source:?}");
+            assert_eq!(format!("{}{}", root, remainder), source, "{source:?}");
+            assert_eq!(recoveries.len(), 1, "{source:?}");
+            let recovery = &recoveries[0];
+            let role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
+            assert_eq!(recovery.kind, RecoveryKind::Error, "{source:?}");
+            assert_eq!(recovery.site.role, role, "{source:?}");
+            assert_eq!(recovery.site.range, error_range, "{source:?}");
+            assert_eq!(recovery.id.0, 0, "{source:?}");
+            assert_eq!(
+                recovery.unexpected.as_ref(),
+                [UnexpectedSyntax::Token {
+                    range: error_range.clone(),
+                    category: UnexpectedCategory::OtherCharacter,
+                }],
+                "{source:?}"
+            );
+            assert_eq!(
+                recovery.expectations.as_ref(),
+                [SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Statement,
+                    range: error_range.clone(),
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }],
+                "{source:?}"
+            );
+            assert_eq!(recovery.primary_expectation, 0, "{source:?}");
+
+            let mut expected_nodes =
+                vec![SyntaxKind::Root, SyntaxKind::Statement, SyntaxKind::Error];
+            let mut expected_tokens = vec![(
+                SyntaxKind::Unknown,
+                error_range.clone(),
+                source[error_range.clone()].to_owned(),
+            )];
+            match tail {
+                DirectTail::Retry => {
+                    expected_nodes
+                        .extend([SyntaxKind::OperatorChain, SyntaxKind::IdentifierExpression]);
+                    expected_tokens.push((SyntaxKind::Identifier, 2..7, "value".to_owned()));
+                }
+                DirectTail::Stop => {}
+                DirectTail::Separator { token, range } => {
+                    expected_nodes.extend([
+                        SyntaxKind::BlockStatementSeparator,
+                        SyntaxKind::Statement,
+                        SyntaxKind::OperatorChain,
+                        SyntaxKind::IdentifierExpression,
+                    ]);
+                    expected_tokens.push((token, range.clone(), source[range.clone()].to_owned()));
+                    expected_tokens.push((
+                        SyntaxKind::Identifier,
+                        range.end..source.len(),
+                        "value".to_owned(),
+                    ));
+                }
+            }
+            assert_eq!(
+                root.descendants()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                expected_nodes,
+                "exact direct nodes: {source:?}"
+            );
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .map(|token| {
+                        let range = token.text_range();
+                        (
+                            token.kind(),
+                            usize::from(range.start())..usize::from(range.end()),
+                            token.text().to_owned(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                expected_tokens,
+                "exact direct tokens: {source:?}"
+            );
+        }
+    }
+
+    fn ordinary_slash_operator_keeps_normal_and_non_comment_candidates_but_comments_atomic() {
+        let table = OperatorTable::from_declarations([OperatorDeclaration::new(
+            "/",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(70))
+                .with_nullfix(),
+        )])
+        .expect("the slash regression operator is non-conflicting");
+
+        for source in ["/", "/ value"] {
+            let (ast_count, ast_remainder, _, _) =
+                isolated_ordinary_braced_ast_sequence(source, &table);
+            assert_eq!(ast_count, 1, "{source:?}");
+            assert_eq!(ast_remainder, "", "{source:?}");
+            let (root, recoveries, remainder, _, _) =
+                isolated_ordinary_braced_direct_sequence(source, &table);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(remainder, "", "{source:?}");
+            assert!(recoveries.is_empty(), "{source:?}");
+        }
+
+        for (source, error_end, prefix_operator_expected) in [
+            ("@ / value}", 2, true),
+            (
+                "@ /* / internal value; ) ] } , */ value}",
+                "@ /* / internal value; ) ] } , */ ".len(),
+                false,
+            ),
+            (
+                "@ // / internal value; ) ] } ,\nvalue}",
+                "@ // / internal value; ) ] } ,".len(),
+                false,
+            ),
+        ] {
+            let (ast_count, ast_remainder, _, _) =
+                isolated_ordinary_braced_ast_sequence(source, &table);
+            assert_eq!(ast_count, 0, "historical AST cardinality: {source:?}");
+            assert_eq!(
+                ast_remainder, source,
+                "historical AST remainder: {source:?}"
+            );
+
+            let (root, recoveries, remainder, _, _) =
+                isolated_ordinary_braced_direct_sequence(source, &table);
+            assert_eq!(remainder, "}", "{source:?}");
+            assert_eq!(format!("{}{}", root, remainder), source, "{source:?}");
+            assert_eq!(recoveries.len(), 1, "{source:?}");
+            assert_eq!(recoveries[0].site.range, 0..error_end, "{source:?}");
+            assert_eq!(recoveries[0].kind, RecoveryKind::Error, "{source:?}");
+            assert_eq!(
+                root.descendants()
+                    .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse),
+                prefix_operator_expected,
+                "slash candidate ownership: {source:?}"
+            );
+        }
+    }
+
+    fn ordinary_direct_comment_recovery_is_atomic_while_ast_remains_non_recovering() {
+        let statement_role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
+        for (source, statement_count, error_end, has_close_recovery) in [
+            (
+                "{@ /* } first,;)] inside */ value}",
+                1,
+                1 + "@ /* } first,;)] inside */ ".len(),
+                false,
+            ),
+            (
+                "{@ /* outer /* first,;)]} */ end */ value}",
+                1,
+                1 + "@ /* outer /* first,;)]} */ end */ ".len(),
+                false,
+            ),
+            (
+                "{@ // first,;)]} inside\nvalue}",
+                2,
+                1 + "@ // first,;)]} inside".len(),
+                false,
+            ),
+            (
+                "{@ /* unterminated first,;)]}",
+                1,
+                "{@ /* unterminated first,;)]}".len(),
+                true,
+            ),
+        ] {
+            let table = canonical_operator_table();
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let open = i
+                .run(scan_punctuation)
+                .expect("ordinary AST brace opener")
+                .range();
+            let ast_block = parse_braced_statement_block_expression(&table, open, &mut i);
+            assert!(ast_block.statements.is_empty(), "{source:?}");
+            assert_eq!(i.input.remainder(), &source[1..], "{source:?}");
+
+            let (root, recoveries) = parse_direct_recovered(source, &table);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                recoveries.len(),
+                1 + usize::from(has_close_recovery),
+                "recovery order: {source:?}"
+            );
+            let statement = &recoveries[0];
+            assert_eq!(statement.kind, RecoveryKind::Error, "{source:?}");
+            assert_eq!(statement.site.role, statement_role, "{source:?}");
+            assert_eq!(statement.site.range, 1..error_end, "{source:?}");
+            assert_eq!(
+                statement.unexpected.as_ref(),
+                [UnexpectedSyntax::Token {
+                    range: 1..error_end,
+                    category: UnexpectedCategory::OtherCharacter,
+                }],
+                "{source:?}"
+            );
+            assert_eq!(
+                statement.expectations.as_ref(),
+                [SyntaxExpectation {
+                    role: statement_role,
+                    expected: ExpectedSyntax::Statement,
+                    range: 1..error_end,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }],
+                "{source:?}"
+            );
+            assert_eq!(statement.primary_expectation, 0, "{source:?}");
+            if has_close_recovery {
+                let close = &recoveries[1];
+                assert_eq!(close.kind, RecoveryKind::Missing);
+                assert_eq!(close.site.role, braced_close_role());
+                assert_eq!(close.site.range, source.len()..source.len());
+            }
+
+            let block = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+                .expect("direct block");
+            assert_eq!(
+                block.children().map(|node| node.kind()).collect::<Vec<_>>(),
+                if statement_count == 2 {
+                    vec![
+                        SyntaxKind::Statement,
+                        SyntaxKind::BlockStatementSeparator,
+                        SyntaxKind::Statement,
+                    ]
+                } else if has_close_recovery {
+                    vec![SyntaxKind::Statement, SyntaxKind::Missing]
+                } else {
+                    vec![SyntaxKind::Statement]
+                },
+                "statement/separator CST order: {source:?}"
+            );
+            assert_eq!(
+                block
+                    .descendants()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                if statement_count == 2 {
+                    vec![
+                        SyntaxKind::BracedStatementBlockExpression,
+                        SyntaxKind::Statement,
+                        SyntaxKind::Error,
+                        SyntaxKind::BlockStatementSeparator,
+                        SyntaxKind::Statement,
+                        SyntaxKind::OperatorChain,
+                        SyntaxKind::IdentifierExpression,
+                    ]
+                } else if has_close_recovery {
+                    vec![
+                        SyntaxKind::BracedStatementBlockExpression,
+                        SyntaxKind::Statement,
+                        SyntaxKind::Error,
+                        SyntaxKind::Missing,
+                    ]
+                } else {
+                    vec![
+                        SyntaxKind::BracedStatementBlockExpression,
+                        SyntaxKind::Statement,
+                        SyntaxKind::Error,
+                        SyntaxKind::OperatorChain,
+                        SyntaxKind::IdentifierExpression,
+                    ]
+                },
+                "exact descendant CST order: {source:?}"
+            );
+            let tokens = root
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                tokens.iter().map(|token| token.text()).collect::<String>(),
+                source,
+                "token order: {source:?}"
+            );
+            for pair in tokens.windows(2) {
+                assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+            }
+            let actual_tokens = tokens
+                .iter()
+                .map(|token| {
+                    let range = token.text_range();
+                    (
+                        token.kind(),
+                        usize::from(range.start())..usize::from(range.end()),
+                        token.text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let expected_tokens = if statement_count == 2 {
+                vec![
+                    (SyntaxKind::LBrace, 0..1, "{".to_owned()),
+                    (
+                        SyntaxKind::Unknown,
+                        1..error_end,
+                        source[1..error_end].to_owned(),
+                    ),
+                    (
+                        SyntaxKind::Newline,
+                        error_end..error_end + 1,
+                        "\n".to_owned(),
+                    ),
+                    (
+                        SyntaxKind::Identifier,
+                        error_end + 1..source.len() - 1,
+                        "value".to_owned(),
+                    ),
+                    (
+                        SyntaxKind::RBrace,
+                        source.len() - 1..source.len(),
+                        "}".to_owned(),
+                    ),
+                ]
+            } else if has_close_recovery {
+                vec![
+                    (SyntaxKind::LBrace, 0..1, "{".to_owned()),
+                    (SyntaxKind::Unknown, 1..source.len(), source[1..].to_owned()),
+                ]
+            } else {
+                vec![
+                    (SyntaxKind::LBrace, 0..1, "{".to_owned()),
+                    (
+                        SyntaxKind::Unknown,
+                        1..error_end,
+                        source[1..error_end].to_owned(),
+                    ),
+                    (
+                        SyntaxKind::Identifier,
+                        error_end..source.len() - 1,
+                        "value".to_owned(),
+                    ),
+                    (
+                        SyntaxKind::RBrace,
+                        source.len() - 1..source.len(),
+                        "}".to_owned(),
+                    ),
+                ]
+            };
+            assert_eq!(actual_tokens, expected_tokens, "exact tokens: {source:?}");
+        }
+    }
+
+    #[test]
+    fn gate2_ordinary_recovery_table() {
+        canonical_statement_invalid_run_preserves_every_non_comment_boundary();
+        ordinary_non_comment_recovery_keeps_ast_non_recovering_and_direct_cst_exact();
+        ordinary_slash_operator_keeps_normal_and_non_comment_candidates_but_comments_atomic();
+        ordinary_direct_comment_recovery_is_atomic_while_ast_remains_non_recovering();
+    }
+
     #[test]
     fn indented_block_accepts_a_semicolon_separator() {
         let root = parse_direct("f:\n  x; y", &canonical_operator_table());
@@ -13209,4 +13959,81 @@ mod tests {
             .map(|token| token.kind())
             .collect()
     }
+
+    // GATE2_ORDINARY_PERFORMANCE_HARNESS_BEGIN
+    fn gate2_performance_commit_indented_direct(
+        source: &str,
+        table: &OperatorTable,
+    ) -> (SyntaxNode, usize, usize) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        let opening = committed
+            .probe(|probe| probe.input().run(scan_trivia))
+            .expect("opening trivia");
+        committed.emit_trivia(&opening);
+        let policy = StatementSequencePolicy::Indented {
+            block_indent: 2,
+            options: IndentedStatementBlockOptions::default(),
+        };
+        let scope = committed.probe(|probe| push_indented_statement_block_scope(probe.input(), 2));
+        commit_statement_sequence(table, policy, &mut committed);
+        committed.probe(|probe| pop_indented_statement_block_scope(probe.input(), scope, 2));
+        let consumed = committed.probe(|probe| probe.input().pos());
+        committed.finish_node();
+        let output = committed.into_output();
+        let recovery_count = output.committed_recoveries().len();
+        let root = SyntaxNode::new_root(output.finish_complete());
+        (root, consumed, recovery_count)
+    }
+
+    #[test]
+    #[ignore = "manual Gate 2 sequence performance measurement"]
+    fn gate2_statement_sequence_performance_harness() {
+        use std::hint::black_box;
+
+        let count: usize = std::env::var("YULANG_GATE2_SEQUENCE_ITEMS")
+            .expect("set YULANG_GATE2_SEQUENCE_ITEMS")
+            .parse()
+            .expect("item count is a positive integer");
+        let repeats: usize = std::env::var("YULANG_GATE2_SEQUENCE_REPEATS")
+            .unwrap_or_else(|_| "1".to_owned())
+            .parse()
+            .expect("repeat count is a positive integer");
+        assert!(count > 0);
+        assert!(repeats > 0);
+
+        let mut source = String::with_capacity(count * 8);
+        for _ in 0..count {
+            source.push_str("\n  value");
+        }
+        assert_eq!(source.len(), count * 8);
+        let table = canonical_operator_table();
+
+        let mut retained = None;
+        for _ in 0..repeats {
+            retained = Some(gate2_performance_commit_indented_direct(&source, &table));
+            black_box(retained.as_ref());
+        }
+        let (root, consumed, recovery_count) = retained.expect("at least one timed direct commit");
+        assert_eq!(consumed, source.len());
+        assert_eq!(recovery_count, 0);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            count
+        );
+        assert_eq!(root.to_string(), source);
+    }
+    // GATE2_ORDINARY_PERFORMANCE_HARNESS_END
 }

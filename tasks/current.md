@@ -276,8 +276,14 @@ gateでrollback済みのため、現在のactive stepは新たな実装ではな
 現行budgetへ収めるoption 1を選択した。performance/specの2査読をfindingなしで閉じ、exact clauseも
 2026-08-30にユーザ承認済み。Authoritative正本は
 `notes/design/2026-08-30-declaration-companion-gate2-performance-amendment.md`。現在のactive stepは
-duplicated companion-only thin loop Gate 2をzero-added-work proof付きで再実装すること。verificationは
-focused group、final `cargo test -p yu-syntax` 1回、最大8 benchmark process/10分に限定する。
+Gate 2完了後のGate 3。Gate 2はduplicated companion-only thin loopをzero-added-work proof付きで
+再実装し、protected ordinary body 6件の同一性、accepted-path operation ledger、production edge不在を
+独立performance/spec査読で閉じた。bounded診断は`indented_direct` 10k ×8だけをwarm-up pair 1組+
+measured pair 3組、計8 process/約349秒で実施し、追加ordinary workなしを再確認。最終
+`cargo test -p yu-syntax`は規定どおり1回だけで570 passed / 1 ignored。証拠は
+`notes/progress/evidence/2026-08-30-gate2-semantic-work-proof.md`と同階層のraw archiveに保存した。
+Gate 2は完了。Gate 3で初めてcompanion form entry、separator/close recovery、owner scopeを
+productionへ接続する。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

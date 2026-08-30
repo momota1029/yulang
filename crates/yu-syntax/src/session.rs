@@ -717,6 +717,70 @@ impl ParseLocal {
         self.reused_recovery_indices.push(index);
         Some(self.reusable_recoveries[index].clone())
     }
+
+    /// Test-only value snapshot of every parser-local scalar, stack and
+    /// transaction collection. Rollback bookkeeping is intentionally omitted:
+    /// tests compare grammar-visible state, not the stack's internal journal.
+    #[cfg(test)]
+    pub(crate) fn value_snapshot(&self) -> ParseLocalValueSnapshot {
+        ParseLocalValueSnapshot {
+            line: self.line,
+            indentation_baselines: self.indentation_baselines.values().to_vec(),
+            inline: self.inline,
+            ml_arg: self.ml_arg,
+            type_ml_arg: self.type_ml_arg,
+            type_expression_episode_depth: self.type_expression_episode_depth,
+            type_expression_episode_policies: self
+                .type_expression_episode_policies
+                .values()
+                .to_vec(),
+            type_expression_scoped_stop_frames: self
+                .type_expression_scoped_stop_frames
+                .values()
+                .to_vec(),
+            stop_sets: self.stop_sets.values().to_vec(),
+            delimiters: self.delimiters.values().to_vec(),
+            expression_delimited_owners: self.expression_delimited_owners.values().to_vec(),
+            type_delimited_owners: self.type_delimited_owners.values().to_vec(),
+            lexical_modes: self.lexical_modes.values().to_vec(),
+            ambient_owner_scopes: self.ambient_owner_scopes.values().to_vec(),
+            if_expression_companions: self.if_expression_companions.values().to_vec(),
+            staged_header_facts: self.staged_header_facts.clone(),
+            operator_probes: self.operator_probes.clone(),
+            reusable_recoveries: self.reusable_recoveries.clone(),
+            reused_recovery_indices: self.reused_recovery_indices.clone(),
+            next_diagnostic_id: self.next_diagnostic_id,
+            next_if_expression_companion_id: self.next_if_expression_companion_id,
+            type_malformed_caller_boundary: self.type_malformed_caller_boundary,
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ParseLocalValueSnapshot {
+    pub(crate) line: LineState,
+    pub(crate) indentation_baselines: Vec<IndentationBaseline>,
+    pub(crate) inline: bool,
+    pub(crate) ml_arg: bool,
+    pub(crate) type_ml_arg: bool,
+    pub(crate) type_expression_episode_depth: usize,
+    pub(crate) type_expression_episode_policies: Vec<TypeExpressionEpisodePolicy>,
+    pub(crate) type_expression_scoped_stop_frames: Vec<TypeExpressionScopedStopFrame>,
+    pub(crate) stop_sets: Vec<StopSet>,
+    pub(crate) delimiters: Vec<Delimiter>,
+    pub(crate) expression_delimited_owners: Vec<ExpressionDelimitedOwner>,
+    pub(crate) type_delimited_owners: Vec<TypeDelimitedOwner>,
+    pub(crate) lexical_modes: Vec<EmbeddedLexicalMode>,
+    pub(crate) ambient_owner_scopes: Vec<AmbientOwnerScopeFrame>,
+    pub(crate) if_expression_companions: Vec<IfExpressionCompanionFrame>,
+    pub(crate) staged_header_facts: Vec<StagedHeaderFact>,
+    pub(crate) operator_probes: Vec<OperatorCandidateProbe>,
+    pub(crate) reusable_recoveries: Vec<CommittedRecoveryRecord>,
+    pub(crate) reused_recovery_indices: Vec<usize>,
+    pub(crate) next_diagnostic_id: u32,
+    pub(crate) next_if_expression_companion_id: u32,
+    pub(crate) type_malformed_caller_boundary: Option<TypeMalformedCallerBoundaryFence>,
 }
 
 impl Default for ParseLocal {
@@ -1705,6 +1769,13 @@ impl<'source> FullCstOutput<'source> {
 
     pub(crate) fn finish_complete(self) -> rowan::GreenNode {
         self.sink.finish_complete()
+    }
+
+    /// Test-only completion for an isolated sequence shell whose caller-owned
+    /// remainder is intentionally not emitted by the shell under test.
+    #[cfg(test)]
+    pub(crate) fn finish_prefix(self) -> rowan::GreenNode {
+        self.sink.finish()
     }
 
     pub(crate) fn committed_recoveries(&self) -> &[CommittedRecoveryRecord] {
