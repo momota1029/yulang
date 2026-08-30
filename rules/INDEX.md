@@ -6,6 +6,7 @@
 
 - [`design-authority.md`](design-authority.md) — authority order, design status, approval, supersession, and legacy provenance.
 - [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
+- [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
 - [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
 - [`git-concurrency.md`](git-concurrency.md) — worktree isolation, staging, commits, branch safety, and integration ownership.
 
