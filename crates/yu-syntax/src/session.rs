@@ -225,6 +225,7 @@ pub(crate) enum AmbientOwnerScopeKind {
 pub(crate) enum BracedBarrierOrigin {
     BracedStatementBlockExpression,
     CatchBracedArmSequence,
+    DeclarationCompanion,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -234,6 +235,7 @@ pub(crate) enum InlineStatementOwnerKind {
     ImplColonBody,
     RoleColonBody,
     ActColonBody,
+    DeclarationCompanion,
 }
 
 /// Identity for one complete IfExpression companion lifetime.

@@ -937,7 +937,8 @@ fn declaration_braced_newline_owner_for_physical_newline(
         match frame.kind() {
             AmbientOwnerScopeKind::InlineCanonicalStatement(_) => skipped_inline += 1,
             AmbientOwnerScopeKind::BracedBarrier(
-                BracedBarrierOrigin::BracedStatementBlockExpression,
+                BracedBarrierOrigin::BracedStatementBlockExpression
+                | BracedBarrierOrigin::DeclarationCompanion,
             ) => {
                 return Some(DeclarationBracedNewlineOwner::BracedStatementSequence);
             }

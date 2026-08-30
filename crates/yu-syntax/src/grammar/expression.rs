@@ -2214,10 +2214,12 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
     let candidate = i
         .run(from_fn(|i| recognize_nud(table, LeadingTrivia::None, i)))
         .is_some();
     i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
     candidate
 }
 
