@@ -1,12 +1,16 @@
 # Declaration companion Gate 2 semantic-work performance amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Scope: declaration-companion Gate 2 ordinary-path performance and verification contract after the
 static-specialization and duplicated-loop whole-process rollbacks.
 
-User-direction: on 2026-08-30 the user selected the semantic-work gate and explicitly directed that
-testing and measurement remain bounded. Exact amendment approval follows independent review.
+Approved-by: user
+
+Approved-at: 2026-08-30
+
+User-direction: the user selected the semantic-work gate, explicitly directed that testing and
+measurement remain bounded, and approved the independently reviewed exact clauses on 2026-08-30.
 
 Drafted-by: `architect`
 

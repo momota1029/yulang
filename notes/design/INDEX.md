@@ -13,7 +13,7 @@ This index is a navigation aid. The listed source document remains authoritative
 | `notes/design/2026-08-30-codex-only-orchestration-migration-report.md` | Implementation report | Scope/configuration/legacy audit for the migration | 2026-08-30 | Commit sequence, verification gate, deferred work |
 | `notes/design/2026-08-30-declaration-companion-with-addendum.md` | Authoritative | Shared declaration-owned `with:` grammar/CST/AST/recovery for Struct/Type/Enum/Error/Act | user-approved 2026-08-30 after independent compiler/spec/performance review | DC-G/J/T/R; owner matrix; Gate 1 complete, Gate 2 architecture re-entry after two performance rollbacks |
 | `notes/design/2026-08-30-declaration-companion-gate2-recovery-amendment.md` | Authoritative | Gate 2 shared canonical Statement malformed-run recovery; permits one comment-atomic ordinary recovery correction | user-approved option 1 on 2026-08-30 | Canonical scanner contract and Gate 2 rollback/verification exception |
-| `notes/design/2026-08-30-declaration-companion-gate2-performance-amendment.md` | Reviewed | Gate 2 semantic-work performance gate and bounded verification after two whole-process rollbacks | user selected the semantic-work direction on 2026-08-30; performance/spec review complete; exact clauses pending approval | Supersedes only the enumerated Gate 2 performance/reviewer clauses once Authoritative |
+| `notes/design/2026-08-30-declaration-companion-gate2-performance-amendment.md` | Authoritative | Gate 2 semantic-work performance gate and bounded verification after two whole-process rollbacks | user-approved 2026-08-30 after independent performance/spec review | Supersedes only the enumerated Gate 2 performance/reviewer clauses |
 
 ## Index maintenance
 
