@@ -33874,3 +33874,271 @@ fn gate5_typed_companion_handoffs_are_isolated_and_state_neutral() {
     );
     assert!(!ordinary_variant.stops.contains(StopKind::With));
 }
+
+#[test]
+fn gate6_type_owner_wires_header_and_equality_companions() {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Form {
+        Nominal,
+        Equality,
+        AttachedImpl,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Recovery {
+        None,
+        Rhs,
+        DerivesRoleReference,
+    }
+
+    struct Case {
+        source: &'static str,
+        remainder: &'static str,
+        companion: bool,
+        form: Form,
+        derives: &'static [DerivesAttachmentPosition],
+        recovery: Recovery,
+    }
+
+    const HEADER: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Header];
+    const TRAILING: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Trailing];
+
+    for case in [
+        Case {
+            source: "type T with: item;tail",
+            remainder: "tail",
+            companion: true,
+            form: Form::Nominal,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "type T derives with: item;tail",
+            remainder: "tail",
+            companion: true,
+            form: Form::Nominal,
+            derives: HEADER,
+            recovery: Recovery::DerivesRoleReference,
+        },
+        Case {
+            source: "type T = Int with: item;tail",
+            remainder: "tail",
+            companion: true,
+            form: Form::Equality,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "type T = with: item;tail",
+            remainder: "tail",
+            companion: true,
+            form: Form::Equality,
+            derives: &[],
+            recovery: Recovery::Rhs,
+        },
+        Case {
+            source: "type T = Int derives Eq with: item;tail",
+            remainder: "tail",
+            companion: true,
+            form: Form::Equality,
+            derives: TRAILING,
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "type T = Int derives with: item;tail",
+            remainder: "tail",
+            companion: true,
+            form: Form::Equality,
+            derives: TRAILING,
+            recovery: Recovery::DerivesRoleReference,
+        },
+        Case {
+            source: "type T derives Eq impl Pick; with: item;tail",
+            remainder: " with: item;tail",
+            companion: false,
+            form: Form::AttachedImpl,
+            derives: HEADER,
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "type T = List(with) with: item;tail",
+            remainder: "tail",
+            companion: true,
+            form: Form::Equality,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "type T\nwith: item;tail",
+            remainder: "\nwith: item;tail",
+            companion: false,
+            form: Form::Nominal,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+    ] {
+        let mut ast_source = SourceInput::new(case.source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_expectations = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let ast = parse_type_declaration_with_derives_isolated(
+            &crate::operator::OperatorTable::empty(),
+            In::new(
+                &mut ast_source,
+                &mut ast_expectations,
+                IsCut::new(&mut ast_cut),
+            )
+            .set_local(&mut ast_local),
+        )
+        .expect("the Gate 6 table starts with Type");
+        assert_eq!(
+            ast_source.remainder(),
+            case.remainder,
+            "AST: {:?}",
+            case.source
+        );
+        assert!(ast_expectations.take_merged().is_none());
+        assert!(!ast_cut);
+        assert_eq!(
+            ast.companion.is_some(),
+            case.companion,
+            "AST: {:?}",
+            case.source
+        );
+        assert_eq!(
+            ast.derives
+                .iter()
+                .map(|attachment| attachment.position)
+                .collect::<Vec<_>>(),
+            case.derives,
+            "AST: {:?}",
+            case.source,
+        );
+        assert!(
+            matches!(
+                (&ast.form, case.form),
+                (
+                    Recovered::Complete(TypeDeclarationForm::Nominal),
+                    Form::Nominal
+                ) | (
+                    Recovered::Complete(TypeDeclarationForm::Equality { .. }),
+                    Form::Equality
+                ) | (
+                    Recovered::Complete(TypeDeclarationForm::AttachedImpl(_)),
+                    Form::AttachedImpl
+                )
+            ),
+            "AST form: {:?}",
+            case.source,
+        );
+
+        let mut direct_source = SourceInput::new(case.source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_expectations = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_source,
+            &mut direct_expectations,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut probe = Probe::new(i);
+        let intro = probe
+            .input()
+            .run(recognize_type_statement_intro)
+            .expect("the Gate 6 table starts with Type");
+        let mut committed = probe.commit(FullCstOutput::new(case.source));
+        committed.start_node(SyntaxKind::Root);
+        let (range, direct_derives) = commit_type_declaration_with_derives_isolated(
+            &crate::operator::OperatorTable::empty(),
+            &mut committed,
+            intro,
+        );
+        committed.finish_node();
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            case.remainder,
+            "direct: {:?}",
+            case.source,
+        );
+        let output = committed.into_output();
+        assert_eq!(
+            range,
+            Recovered::Complete(ast.range.clone()),
+            "range: {:?}",
+            case.source
+        );
+        assert_eq!(
+            direct_derives
+                .iter()
+                .map(|attachment| attachment.position)
+                .collect::<Vec<_>>(),
+            case.derives,
+            "direct derives: {:?}",
+            case.source,
+        );
+        match case.recovery {
+            Recovery::None => assert!(output.committed_recoveries().is_empty()),
+            Recovery::Rhs => {
+                assert_eq!(output.committed_recoveries().len(), 1);
+                assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Missing);
+                assert_eq!(
+                    output.committed_recoveries()[0].site.role,
+                    GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs)),
+                );
+            }
+            Recovery::DerivesRoleReference => {
+                assert_eq!(output.committed_recoveries().len(), 1);
+                assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Missing);
+                assert_eq!(
+                    output.committed_recoveries()[0].site.role,
+                    GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference,)),
+                );
+            }
+        }
+        let recovery_count = output.committed_recoveries().len();
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(
+            root.to_string(),
+            case.source.strip_suffix(case.remainder).unwrap(),
+            "lossless committed prefix: {:?}",
+            case.source,
+        );
+        let declaration = root
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+            .expect("one direct TypeDeclaration");
+        let companions = declaration
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            companions.len(),
+            usize::from(case.companion),
+            "CST: {:?}",
+            case.source
+        );
+        if let [companion] = companions.as_slice() {
+            assert_eq!(
+                companion
+                    .children_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| token.kind() == SyntaxKind::WithKw)
+                    .count(),
+                1,
+                "one WithKw: {:?}",
+                case.source,
+            );
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            recovery_count,
+            "one recovery node per record: {:?}",
+            case.source,
+        );
+        assert!(direct_expectations.take_merged().is_none());
+        assert!(!direct_cut);
+    }
+}

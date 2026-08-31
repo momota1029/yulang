@@ -362,9 +362,12 @@ where
         .stop_set()
         .unwrap_or_default()
         .with(StopKind::Semicolon)
-        .with(StopKind::With);
+        .with(StopKind::With)
+        .with(StopKind::Derives);
     let scoped_frame = TypeExpressionScopedStopFrame {
-        stops: StopSet::default().with(StopKind::With),
+        stops: StopSet::default()
+            .with(StopKind::With)
+            .with(StopKind::Derives),
         visible_episode_depth: i.local.type_expression_episode_depth() + 1,
     };
     let policy = TypeExpressionEpisodePolicy {
@@ -479,9 +482,12 @@ where
                 .stop_set()
                 .unwrap_or_default()
                 .with(StopKind::Semicolon)
-                .with(StopKind::With),
+                .with(StopKind::With)
+                .with(StopKind::Derives),
             TypeExpressionScopedStopFrame {
-                stops: StopSet::default().with(StopKind::With),
+                stops: StopSet::default()
+                    .with(StopKind::With)
+                    .with(StopKind::Derives),
                 visible_episode_depth: i.local.type_expression_episode_depth() + 1,
             },
         )
@@ -881,6 +887,40 @@ where
     commit_type_declaration_with_derives_isolated(table, committed, intro).0
 }
 
+fn parse_type_declaration_companion_after_handoff<'source, E>(
+    table: &crate::operator::OperatorTable,
+    type_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DeclarationCompanion<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    mod_trivia(type_base, i).expect("an accepted Type companion handoff preserves its owner gap");
+    parse_declaration_companion_isolated(table, type_base, i)
+        .expect("an accepted Type companion handoff preserves exact `with`")
+}
+
+fn commit_type_declaration_companion_after_handoff<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    type_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Range<usize>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed
+        .probe(|probe| mod_trivia(type_base, probe.input()))
+        .expect("an accepted Type companion handoff preserves its owner gap");
+    committed.emit_trivia(&leading);
+    commit_declaration_companion_isolated(table, type_base, committed)
+        .expect("an accepted Type companion handoff preserves exact `with`")
+}
+
 /// Shared promotion core for Type derives attachments. Header clauses run
 /// after the shared name/parameter phase and before TND form selection;
 /// trailing clauses run only after a selected Equality RHS episode.
@@ -896,25 +936,44 @@ where
     let intro = i.run(recognize_type_statement_intro)?;
     let mut recoveries = Vec::new();
     let shared = parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
-    let mut derives = if matches!(shared.name, Recovered::Complete(_)) {
+    let (mut derives, header_companion_tail) = if matches!(shared.name, Recovered::Complete(_)) {
         recognize_derives_attachment_start(
             DerivesAttachmentOwner::Type,
             DerivesAttachmentPosition::Header,
             intro.type_base,
             &mut i,
         )
-        .map(|start| parse_derives_attachments_isolated(start, &mut i))
-        .unwrap_or_default()
+        .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i))
+        .map_or_else(
+            || (Vec::new(), None),
+            |parsed| (parsed.attachments, parsed.tail),
+        )
     } else {
-        Vec::new()
+        (Vec::new(), None)
     };
 
     let decision = classify_type_declaration_post_header(&shared.name, intro.type_base, &mut i);
+    let mut companion = None;
     let form = match decision {
         TypeDeclarationPostHeaderDecision::AttachedImpl(start) => {
             Recovered::Complete(TypeDeclarationForm::AttachedImpl(
                 parse_type_attached_impl_isolated(table, start, &mut i),
             ))
+        }
+        TypeDeclarationPostHeaderDecision::Existing(_)
+            if header_companion_tail.is_some()
+                || recognize_declaration_companion_handoff(intro.type_base, &mut i).is_some() =>
+        {
+            if let Some(tail) = header_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Type);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+            }
+            companion = Some(parse_type_declaration_companion_after_handoff(
+                table,
+                intro.type_base,
+                &mut i,
+            ));
+            Recovered::Complete(TypeDeclarationForm::Nominal)
         }
         TypeDeclarationPostHeaderDecision::Existing(TypeDeclarationFormDisposition::Nominal {
             owns_trailing_trivia_through,
@@ -942,22 +1001,39 @@ where
                 rhs_retry,
             };
             if header.rhs_retry {
-                let rhs = parse_type_declaration_rhs_with_derives_isolated(
+                let rhs_with_tail = parse_type_declaration_rhs_with_companion_handoff_isolated(
                     &header,
                     intro.type_base,
                     &mut i,
                 );
-                if let Some(start) = recognize_derives_attachment_start(
-                    DerivesAttachmentOwner::Type,
-                    DerivesAttachmentPosition::Trailing,
-                    intro.type_base,
-                    &mut i,
-                ) {
-                    derives.extend(parse_derives_attachments_isolated(start, &mut i));
+                let mut equality_companion_tail = rhs_with_tail.tail.is_some();
+                if !equality_companion_tail
+                    && let Some(start) = recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Type,
+                        DerivesAttachmentPosition::Trailing,
+                        intro.type_base,
+                        &mut i,
+                    )
+                {
+                    let parsed =
+                        parse_derives_attachments_with_companion_handoff_isolated(start, &mut i);
+                    if let Some(tail) = parsed.tail {
+                        debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Type);
+                        debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+                        equality_companion_tail = true;
+                    }
+                    derives.extend(parsed.attachments);
+                }
+                if equality_companion_tail {
+                    companion = Some(parse_type_declaration_companion_after_handoff(
+                        table,
+                        intro.type_base,
+                        &mut i,
+                    ));
                 }
                 Recovered::Complete(TypeDeclarationForm::Equality {
                     equals: header.equals,
-                    rhs,
+                    rhs: rhs_with_tail.rhs,
                 })
             } else {
                 Recovered::Incomplete
@@ -975,7 +1051,7 @@ where
         name: shared.name,
         parameters: shared.parameters,
         derives,
-        companion: None,
+        companion,
         form,
         range,
     })
@@ -1027,7 +1103,7 @@ where
         committed,
     );
 
-    let mut derives = if matches!(shared.name, Recovered::Complete(_)) {
+    let (mut derives, header_companion_tail) = if matches!(shared.name, Recovered::Complete(_)) {
         committed
             .probe(|probe| {
                 recognize_derives_attachment_start(
@@ -1037,10 +1113,15 @@ where
                     probe.input(),
                 )
             })
-            .map(|start| commit_derives_attachments_isolated(start, committed))
-            .unwrap_or_default()
+            .map(|start| {
+                commit_derives_attachments_with_companion_handoff_isolated(start, committed)
+            })
+            .map_or_else(
+                || (Vec::new(), None),
+                |parsed| (parsed.attachments, parsed.tail),
+            )
     } else {
-        Vec::new()
+        (Vec::new(), None)
     };
 
     let decision = committed.probe(|probe| {
@@ -1049,6 +1130,20 @@ where
     match decision {
         TypeDeclarationPostHeaderDecision::AttachedImpl(start) => {
             let _ = commit_type_attached_impl_isolated(table, start, committed);
+        }
+        TypeDeclarationPostHeaderDecision::Existing(_)
+            if header_companion_tail.is_some()
+                || committed.probe(|probe| {
+                    recognize_declaration_companion_handoff(intro.type_base, probe.input())
+                        .is_some()
+                }) =>
+        {
+            if let Some(tail) = header_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Type);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+            }
+            let _ =
+                commit_type_declaration_companion_after_handoff(table, intro.type_base, committed);
         }
         TypeDeclarationPostHeaderDecision::Existing(TypeDeclarationFormDisposition::Nominal {
             owns_trailing_trivia_through,
@@ -1093,20 +1188,38 @@ where
                 committed,
             );
             if header.rhs_retry {
-                let _ = commit_type_declaration_rhs_with_derives_isolated(
+                let rhs_with_tail = commit_type_declaration_rhs_with_companion_handoff_isolated(
                     &header,
                     intro.type_base,
                     committed,
                 );
-                if let Some(start) = committed.probe(|probe| {
-                    recognize_derives_attachment_start(
-                        DerivesAttachmentOwner::Type,
-                        DerivesAttachmentPosition::Trailing,
+                let mut equality_companion_tail = rhs_with_tail.tail.is_some();
+                if !equality_companion_tail
+                    && let Some(start) = committed.probe(|probe| {
+                        recognize_derives_attachment_start(
+                            DerivesAttachmentOwner::Type,
+                            DerivesAttachmentPosition::Trailing,
+                            intro.type_base,
+                            probe.input(),
+                        )
+                    })
+                {
+                    let parsed = commit_derives_attachments_with_companion_handoff_isolated(
+                        start, committed,
+                    );
+                    if let Some(tail) = parsed.tail {
+                        debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Type);
+                        debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+                        equality_companion_tail = true;
+                    }
+                    derives.extend(parsed.attachments);
+                }
+                if equality_companion_tail {
+                    let _ = commit_type_declaration_companion_after_handoff(
+                        table,
                         intro.type_base,
-                        probe.input(),
-                    )
-                }) {
-                    derives.extend(commit_derives_attachments_isolated(start, committed));
+                        committed,
+                    );
                 }
             }
         }

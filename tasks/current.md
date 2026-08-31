@@ -314,8 +314,11 @@ Gate 5は完了。isolated handoffだけでDerives owner tail、Act Head/Source�
 equals-inline yieldをtypedに表現し、既存owner adapterはproduction-unreachableのまま維持した。隣接
 `@with`のrecovered payloadは一variantとして完結し、retained `:`を二つ目のvariant回復へ流さない。
 最終focused tableは1 passed / 573 filtered、`cargo test -p yu-syntax`は573 passed / 1 ignored、scoped
-rustfmtとdiff checkもgreen。workspace suiteとtimingは行わなかった。次のactive stepはGate 6 Type owner
-integrationであり、Header/EqualityだけをwireしてAttachedImpl優先とRHS/Derives handoffを閉じる。
+rustfmtとdiff checkもgreen。workspace suiteとtimingは行わなかった。Gate 6も完了。Type Header/Equality
+だけをproduction ownerへwireし、Header derives→AttachedImpl→companion→EqualityとEquality RHS→trailing
+Derives→companionの順序、前駆Missing recovery、outer-only Withを保った。focused tableは1 passed / 574
+filtered、scoped rustfmt/diff checkと独立compiler delta reviewはgreen、package/workspace suiteとtimingは
+行わなかった。次のactive stepはGate 7 Struct owner integration。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
