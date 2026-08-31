@@ -17,13 +17,13 @@ use crate::{
         commit_binding_declaration, commit_cast_declaration_isolated,
         commit_enum_declaration_isolated, commit_error_declaration_isolated,
         commit_for_statement_isolated, commit_impl_declaration_isolated, commit_mod_declaration,
-        commit_role_declaration_isolated, commit_struct_declaration,
+        commit_role_declaration_isolated, commit_struct_declaration_with_operators,
         commit_type_declaration_with_operators, commit_use_declaration,
         parse_act_declaration_isolated, parse_binding_declaration_with_operators,
         parse_cast_declaration_form_aware_isolated, parse_enum_declaration_isolated,
         parse_error_declaration_isolated, parse_for_statement_isolated,
         parse_impl_declaration_isolated, parse_mod_declaration_with_operators,
-        parse_role_declaration_isolated, parse_struct_declaration,
+        parse_role_declaration_isolated, parse_struct_declaration_with_operators,
         parse_type_declaration_with_operators, parse_use_declaration, recognize_statement_intro,
     },
     grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
@@ -2010,7 +2010,11 @@ where
         Some(StatementIntro::Mod(_)) => i
             .run(from_fn(|i| parse_mod_declaration_with_operators(table, i)))
             .map(Statement::Mod),
-        Some(StatementIntro::Struct(_)) => i.run(parse_struct_declaration).map(Statement::Struct),
+        Some(StatementIntro::Struct(_)) => i
+            .run(from_fn(|i| {
+                parse_struct_declaration_with_operators(table, i)
+            }))
+            .map(Statement::Struct),
         Some(StatementIntro::Enum(_)) => i
             .run(from_fn(parse_enum_declaration_isolated))
             .map(Statement::Enum),
@@ -6084,7 +6088,7 @@ where
             true
         }
         Some(StatementIntro::Struct(intro)) => {
-            let _ = commit_struct_declaration(committed, intro);
+            let _ = commit_struct_declaration_with_operators(table, committed, intro);
             true
         }
         Some(StatementIntro::Enum(intro)) => {

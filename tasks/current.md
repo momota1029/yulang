@@ -318,7 +318,11 @@ rustfmtとdiff checkもgreen。workspace suiteとtimingは行わなかった。G
 だけをproduction ownerへwireし、Header derives→AttachedImpl→companion→EqualityとEquality RHS→trailing
 Derives→companionの順序、前駆Missing recovery、outer-only Withを保った。focused tableは1 passed / 574
 filtered、scoped rustfmt/diff checkと独立compiler delta reviewはgreen、package/workspace suiteとtimingは
-行わなかった。次のactive stepはGate 7 Struct owner integration。
+行わなかった。Gate 7も完了。Struct Headerとactual-complete named-brace/tuple trailingだけをproduction
+ownerへwireし、bare Struct・bodyless semicolon・named-indent・missing/mismatched closeの拒否を保った。
+Struct companion内のCanonical Statementへ既存operator tableを渡すnarrow entrypointを追加し、focused tableは
+1 passed / 575 filtered、scoped rustfmt/diff checkと独立compiler delta reviewはgreen。package/workspace suiteと
+timingは行わなかった。次のactive stepはGate 8 Enum/Error owner integration。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

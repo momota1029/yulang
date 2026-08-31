@@ -34142,3 +34142,285 @@ fn gate6_type_owner_wires_header_and_equality_companions() {
         assert!(!direct_cut);
     }
 }
+
+#[test]
+fn gate7_struct_owner_wires_header_and_actual_close_companions() {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Body {
+        CompanionIntroduced,
+        NamedBraced,
+        Tuple,
+        Bodyless,
+        NamedIndented,
+        Incomplete,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Recovery {
+        None,
+        DerivesRole,
+        BodyIntroducer,
+        MissingClose,
+        MismatchedClose,
+    }
+
+    struct Case {
+        source: &'static str,
+        remainder: &'static str,
+        companion: bool,
+        body: Body,
+        derives: &'static [DerivesAttachmentPosition],
+        recovery: Recovery,
+    }
+
+    const HEADER: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Header];
+    const TRAILING: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Trailing];
+
+    for case in [
+        Case {
+            source: "struct S with: item;tail",
+            remainder: "tail",
+            companion: true,
+            body: Body::CompanionIntroduced,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "struct S derives with: item;tail",
+            remainder: "tail",
+            companion: true,
+            body: Body::CompanionIntroduced,
+            derives: HEADER,
+            recovery: Recovery::DerivesRole,
+        },
+        Case {
+            source: "struct S {} with: item;tail",
+            remainder: "tail",
+            companion: true,
+            body: Body::NamedBraced,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "struct S {} derives with: item;tail",
+            remainder: "tail",
+            companion: true,
+            body: Body::NamedBraced,
+            derives: TRAILING,
+            recovery: Recovery::DerivesRole,
+        },
+        Case {
+            source: "struct S(Int) derives Eq with: item;tail",
+            remainder: "tail",
+            companion: true,
+            body: Body::Tuple,
+            derives: TRAILING,
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "struct S; with: item;tail",
+            remainder: " with: item;tail",
+            companion: false,
+            body: Body::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "struct S:\n  x: Int\nwith: item;tail",
+            remainder: "\nwith: item;tail",
+            companion: false,
+            body: Body::NamedIndented,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            source: "struct S",
+            remainder: "",
+            companion: false,
+            body: Body::Incomplete,
+            derives: &[],
+            recovery: Recovery::BodyIntroducer,
+        },
+        Case {
+            source: "struct S { x: Int with",
+            remainder: "",
+            companion: false,
+            body: Body::NamedBraced,
+            derives: &[],
+            recovery: Recovery::MissingClose,
+        },
+        Case {
+            source: "struct S(Int] with",
+            remainder: "",
+            companion: false,
+            body: Body::Tuple,
+            derives: &[],
+            recovery: Recovery::MismatchedClose,
+        },
+    ] {
+        let table = crate::operator::OperatorTable::empty();
+        let mut ast_source = SourceInput::new(case.source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_expectations = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let ast = parse_struct_declaration_with_operators(
+            &table,
+            In::new(
+                &mut ast_source,
+                &mut ast_expectations,
+                IsCut::new(&mut ast_cut),
+            )
+            .set_local(&mut ast_local),
+        )
+        .expect("the Gate 7 table starts with Struct");
+        assert_eq!(
+            ast_source.remainder(),
+            case.remainder,
+            "AST: {:?}",
+            case.source
+        );
+        assert!(ast_expectations.take_merged().is_none());
+        assert!(!ast_cut);
+        assert_eq!(
+            ast.companion.is_some(),
+            case.companion,
+            "AST: {:?}",
+            case.source
+        );
+        assert_eq!(
+            ast.derives
+                .iter()
+                .map(|attachment| attachment.position)
+                .collect::<Vec<_>>(),
+            case.derives,
+            "AST derives: {:?}",
+            case.source,
+        );
+        assert!(
+            matches!(
+                (&ast.body, case.body),
+                (
+                    Recovered::Complete(StructBody::CompanionIntroduced),
+                    Body::CompanionIntroduced
+                ) | (
+                    Recovered::Complete(StructBody::NamedBraced(_)),
+                    Body::NamedBraced
+                ) | (Recovered::Complete(StructBody::Tuple(_)), Body::Tuple)
+                    | (
+                        Recovered::Complete(StructBody::Bodyless { .. }),
+                        Body::Bodyless
+                    )
+                    | (
+                        Recovered::Complete(StructBody::NamedIndented(_)),
+                        Body::NamedIndented
+                    )
+                    | (Recovered::Incomplete, Body::Incomplete)
+            ),
+            "AST body: {:?}",
+            case.source,
+        );
+
+        let mut direct_source = SourceInput::new(case.source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_expectations = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_source,
+            &mut direct_expectations,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut probe = Probe::new(i);
+        let intro = probe
+            .input()
+            .run(recognize_struct_statement_intro)
+            .expect("the Gate 7 table starts with Struct");
+        let mut committed = probe.commit(FullCstOutput::new(case.source));
+        committed.start_node(SyntaxKind::Root);
+        let _ = commit_struct_declaration_with_operators(&table, &mut committed, intro);
+        committed.finish_node();
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            case.remainder,
+            "direct: {:?}",
+            case.source,
+        );
+        let output = committed.into_output();
+        match case.recovery {
+            Recovery::None => assert!(output.committed_recoveries().is_empty()),
+            Recovery::DerivesRole => {
+                assert_eq!(output.committed_recoveries().len(), 1);
+                assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Missing);
+                assert_eq!(
+                    output.committed_recoveries()[0].site.role,
+                    GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference,)),
+                );
+            }
+            Recovery::BodyIntroducer => {
+                assert_eq!(output.committed_recoveries().len(), 1);
+                assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Missing);
+                assert_eq!(
+                    output.committed_recoveries()[0].site.role,
+                    GrammarRole::Declaration(DeclarationRole::Struct(
+                        crate::session::StructRole::BodyIntroducer,
+                    )),
+                );
+            }
+            Recovery::MissingClose => assert!(
+                output
+                    .committed_recoveries()
+                    .iter()
+                    .any(|record| record.kind == RecoveryKind::Missing
+                        && matches!(record.site.role, GrammarRole::ClosingDelimiter { .. }))
+            ),
+            Recovery::MismatchedClose => assert!(
+                output
+                    .committed_recoveries()
+                    .iter()
+                    .any(|record| record.kind == RecoveryKind::Error
+                        && matches!(record.site.role, GrammarRole::ClosingDelimiter { .. }))
+            ),
+        }
+        let recovery_count = output.committed_recoveries().len();
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(
+            root.to_string(),
+            case.source.strip_suffix(case.remainder).unwrap(),
+            "lossless committed prefix: {:?}",
+            case.source,
+        );
+        let declaration = root
+            .children()
+            .find(|node| node.kind() == SyntaxKind::StructDeclaration)
+            .expect("one direct StructDeclaration");
+        let companions = declaration
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            companions.len(),
+            usize::from(case.companion),
+            "CST: {:?}",
+            case.source
+        );
+        assert_eq!(
+            declaration
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::DerivesClause)
+                .count(),
+            case.derives.len(),
+            "direct derives: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            recovery_count,
+            "one recovery node per record: {:?}",
+            case.source,
+        );
+        assert!(direct_expectations.take_merged().is_none());
+        assert!(!direct_cut);
+    }
+}

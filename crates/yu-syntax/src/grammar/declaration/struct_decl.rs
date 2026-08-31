@@ -65,13 +65,49 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    commit_struct_declaration_with_derives_isolated(committed, intro).0
+    commit_struct_declaration_with_operators(
+        &crate::operator::OperatorTable::empty(),
+        committed,
+        intro,
+    )
+}
+
+pub(crate) fn commit_struct_declaration_with_operators<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: StructStatementIntro<'source>,
+) -> Recovered<()>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_struct_declaration_with_derives_and_companion_isolated(table, committed, intro).0
 }
 
 /// Direct-CST counterpart of
 /// [`parse_struct_declaration_with_derives_isolated`]. The public entry and
 /// the focused harness both use this one attachment-owning core.
 pub(super) fn commit_struct_declaration_with_derives_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: StructStatementIntro<'source>,
+) -> (Recovered<()>, Vec<DirectDerivesAttachment>)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_struct_declaration_with_derives_and_companion_isolated(
+        &crate::operator::OperatorTable::empty(),
+        committed,
+        intro,
+    )
+}
+
+fn commit_struct_declaration_with_derives_and_companion_isolated<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: StructStatementIntro<'source>,
 ) -> (Recovered<()>, Vec<DirectDerivesAttachment>)
@@ -120,7 +156,7 @@ where
         }
     }
 
-    let mut derives = if !name_incomplete {
+    let (mut derives, header_companion_tail) = if !name_incomplete {
         committed
             .probe(|probe| {
                 recognize_derives_attachment_start(
@@ -130,37 +166,97 @@ where
                     probe.input(),
                 )
             })
-            .map(|start| commit_derives_attachments_isolated(start, committed))
-            .unwrap_or_default()
+            .map(|start| {
+                commit_derives_attachments_with_companion_handoff_isolated(start, committed)
+            })
+            .map_or_else(
+                || (Vec::new(), None),
+                |parsed| (parsed.attachments, parsed.tail),
+            )
     } else {
-        Vec::new()
+        (Vec::new(), None)
     };
 
-    let body_starter_pending = committed.probe(|probe| struct_body_starter_pending(probe.input()));
     let mut body_starter = None;
-    if !name_incomplete || body_starter_pending {
-        if let Some(trivia) =
-            committed.probe(|probe| struct_continuation_trivia(intro.struct_base, probe.input()))
-        {
-            committed.emit_trivia(&trivia);
+    let header_companion_pending = !name_incomplete
+        && (header_companion_tail.is_some()
+            || committed.probe(|probe| {
+                recognize_declaration_companion_handoff(intro.struct_base, probe.input()).is_some()
+            }));
+    if header_companion_pending {
+        if let Some(tail) = header_companion_tail {
+            debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Struct);
+            debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
         }
-        body_starter = committed.probe(|probe| struct_body_starter(probe.input()));
-        commit_struct_body_introducer(intro.struct_base, committed);
+        let _ =
+            commit_struct_declaration_companion_after_handoff(table, intro.struct_base, committed);
+    } else {
+        let body_starter_pending =
+            committed.probe(|probe| struct_body_starter_pending(probe.input()));
+        if !name_incomplete || body_starter_pending {
+            if let Some(trivia) = committed
+                .probe(|probe| struct_continuation_trivia(intro.struct_base, probe.input()))
+            {
+                committed.emit_trivia(&trivia);
+            }
+            body_starter = committed.probe(|probe| struct_body_starter(probe.input()));
+            commit_struct_body_introducer(intro.struct_base, committed);
+        }
     }
     if committed_struct_body_has_actual_trailing_close(committed, body_starter) {
-        if let Some(start) = committed.probe(|probe| {
-            recognize_derives_attachment_start(
-                DerivesAttachmentOwner::Struct,
-                DerivesAttachmentPosition::Trailing,
+        let trailing = committed
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Struct,
+                    DerivesAttachmentPosition::Trailing,
+                    intro.struct_base,
+                    probe.input(),
+                )
+            })
+            .map(|start| {
+                commit_derives_attachments_with_companion_handoff_isolated(start, committed)
+            });
+        let trailing_companion_tail = trailing.as_ref().and_then(|parsed| parsed.tail);
+        if let Some(parsed) = trailing {
+            derives.extend(parsed.attachments);
+        }
+        let trailing_companion_pending = trailing_companion_tail.is_some()
+            || committed.probe(|probe| {
+                recognize_declaration_companion_handoff(intro.struct_base, probe.input()).is_some()
+            });
+        if trailing_companion_pending {
+            if let Some(tail) = trailing_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Struct);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+            }
+            let _ = commit_struct_declaration_companion_after_handoff(
+                table,
                 intro.struct_base,
-                probe.input(),
-            )
-        }) {
-            derives.extend(commit_derives_attachments_isolated(start, committed));
+                committed,
+            );
         }
     }
     committed.finish_node();
     (Recovered::Complete(()), derives)
+}
+
+fn commit_struct_declaration_companion_after_handoff<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    struct_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Range<usize>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed
+        .probe(|probe| struct_continuation_trivia(struct_base, probe.input()))
+        .expect("an accepted Struct companion handoff preserves its owner gap");
+    committed.emit_trivia(&leading);
+    commit_declaration_companion_isolated(table, struct_base, committed)
+        .expect("an accepted Struct companion handoff preserves exact `with`")
 }
 
 pub(super) fn committed_struct_body_has_actual_trailing_close<'parse, 'source, 'local, E, O>(
@@ -1051,12 +1147,39 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    parse_struct_declaration_with_derives_isolated(i)
+    parse_struct_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)
+}
+
+pub(crate) fn parse_struct_declaration_with_operators<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<StructDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_struct_declaration_with_derives_and_companion_isolated(table, i)
 }
 
 /// Shared promotion core for Struct derives attachments. Keeping header/body
 /// ownership here gives the public entry and focused harness one code path.
 pub(super) fn parse_struct_declaration_with_derives_isolated<'source, E>(
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<StructDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_struct_declaration_with_derives_and_companion_isolated(
+        &crate::operator::OperatorTable::empty(),
+        i,
+    )
+}
+
+fn parse_struct_declaration_with_derives_and_companion_isolated<'source, E>(
+    table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<StructDeclaration<'source>>
 where
@@ -1082,21 +1205,38 @@ where
         }
     };
 
-    let mut derives = if matches!(name, Recovered::Complete(_)) {
+    let (mut derives, header_companion_tail) = if matches!(name, Recovered::Complete(_)) {
         recognize_derives_attachment_start(
             DerivesAttachmentOwner::Struct,
             DerivesAttachmentPosition::Header,
             intro.struct_base,
             &mut i,
         )
-        .map(|start| parse_derives_attachments_isolated(start, &mut i))
-        .unwrap_or_default()
+        .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i))
+        .map_or_else(
+            || (Vec::new(), None),
+            |parsed| (parsed.attachments, parsed.tail),
+        )
     } else {
-        Vec::new()
+        (Vec::new(), None)
     };
 
-    let body_starter_pending = struct_body_starter_pending(&mut i);
-    let body = if !name_incomplete || body_starter_pending {
+    let mut companion = None;
+    let header_companion_pending = !name_incomplete
+        && (header_companion_tail.is_some()
+            || recognize_declaration_companion_handoff(intro.struct_base, &mut i).is_some());
+    let body = if header_companion_pending {
+        if let Some(tail) = header_companion_tail {
+            debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Struct);
+            debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+        }
+        companion = Some(parse_struct_declaration_companion_after_handoff(
+            table,
+            intro.struct_base,
+            &mut i,
+        ));
+        Recovered::Complete(StructBody::CompanionIntroduced)
+    } else if !name_incomplete || struct_body_starter_pending(&mut i) {
         let _ = struct_continuation_trivia(intro.struct_base, &mut i);
         parse_struct_body_ast(intro.struct_base, &mut i)
             .map_or(Recovered::Incomplete, Recovered::Complete)
@@ -1104,20 +1244,40 @@ where
         Recovered::Incomplete
     };
     if struct_body_has_actual_trailing_close(&body) {
-        if let Some(start) = recognize_derives_attachment_start(
+        let trailing = recognize_derives_attachment_start(
             DerivesAttachmentOwner::Struct,
             DerivesAttachmentPosition::Trailing,
             intro.struct_base,
             &mut i,
-        ) {
-            derives.extend(parse_derives_attachments_isolated(start, &mut i));
+        )
+        .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i));
+        let trailing_companion_tail = trailing.as_ref().and_then(|parsed| parsed.tail);
+        if let Some(parsed) = trailing {
+            derives.extend(parsed.attachments);
+        }
+        let trailing_companion_pending = trailing_companion_tail.is_some()
+            || recognize_declaration_companion_handoff(intro.struct_base, &mut i).is_some();
+        if trailing_companion_pending {
+            if let Some(tail) = trailing_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Struct);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+            }
+            companion = Some(parse_struct_declaration_companion_after_handoff(
+                table,
+                intro.struct_base,
+                &mut i,
+            ));
         }
     }
 
     let body_end = match &body {
         Recovered::Complete(StructBody::Bodyless { semicolon }) => semicolon.end,
         Recovered::Complete(StructBody::CompanionIntroduced) => {
-            unreachable!("Gate 1 does not make Struct companions reachable")
+            companion
+                .as_ref()
+                .expect("CompanionIntroduced is created only with a Struct companion")
+                .range
+                .end
         }
         Recovered::Complete(StructBody::NamedBraced(body)) => body.range.end,
         Recovered::Complete(StructBody::NamedIndented(body)) => body.range.end,
@@ -1130,16 +1290,35 @@ where
     let derives_end = derives
         .last()
         .map_or(0, |attachment| attachment.clause.range.end);
+    let companion_end = companion
+        .as_ref()
+        .map_or(0, |companion| companion.range.end);
     Some(StructDeclaration {
         visibility: intro
             .visibility
             .map_or(Visibility::Private, |prefix| prefix.visibility),
         name,
         derives,
-        companion: None,
+        companion,
         body,
-        range: intro.start..body_end.max(derives_end),
+        range: intro.start..body_end.max(derives_end).max(companion_end),
     })
+}
+
+fn parse_struct_declaration_companion_after_handoff<'source, E>(
+    table: &crate::operator::OperatorTable,
+    struct_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DeclarationCompanion<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    struct_continuation_trivia(struct_base, i)
+        .expect("an accepted Struct companion handoff preserves its owner gap");
+    parse_declaration_companion_isolated(table, struct_base, i)
+        .expect("an accepted Struct companion handoff preserves exact `with`")
 }
 
 pub(super) fn struct_body_has_actual_trailing_close(body: &Recovered<StructBody<'_>>) -> bool {

@@ -135,7 +135,8 @@ pub(crate) use role_decl::{
     RoleDeclaration, commit_role_declaration_isolated, parse_role_declaration_isolated,
 };
 pub(crate) use struct_decl::{
-    StructDeclaration, commit_struct_declaration, parse_struct_declaration,
+    StructDeclaration, commit_struct_declaration, commit_struct_declaration_with_operators,
+    parse_struct_declaration, parse_struct_declaration_with_operators,
 };
 pub(crate) use type_decl::{
     TypeDeclaration, commit_type_declaration_with_operators, parse_type_declaration_with_operators,
@@ -539,7 +540,7 @@ fn parse_direct_root_candidate_with_local(
                 StatementKind::ModDeclaration
             }
             StatementIntro::Struct(intro) => {
-                let _ = commit_struct_declaration(&mut committed, intro);
+                let _ = commit_struct_declaration_with_operators(operators, &mut committed, intro);
                 StatementKind::StructDeclaration
             }
             StatementIntro::Enum(intro) => {
