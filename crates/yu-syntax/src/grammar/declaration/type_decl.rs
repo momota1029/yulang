@@ -312,6 +312,219 @@ pub(super) fn type_declaration_rhs_role() -> GrammarRole {
     ))
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TypeDeclarationEqualityTail {
+    DeclarationCompanion,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct TypeDeclarationRhsWithTail<T> {
+    pub(super) rhs: Recovered<T>,
+    pub(super) tail: Option<TypeDeclarationEqualityTail>,
+}
+
+pub(super) fn parse_type_declaration_rhs_with_companion_handoff_isolated<'source, E>(
+    header: &ParsedTypeDeclarationHeader<'source>,
+    type_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeDeclarationRhsWithTail<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !header.rhs_retry || any_ambient_owner_claims(i) {
+        return TypeDeclarationRhsWithTail {
+            rhs: Recovered::Incomplete,
+            tail: None,
+        };
+    }
+    if recognize_declaration_companion_handoff(type_base, i).is_some() {
+        return TypeDeclarationRhsWithTail {
+            rhs: Recovered::Incomplete,
+            tail: Some(TypeDeclarationEqualityTail::DeclarationCompanion),
+        };
+    }
+    let trivia_checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(type_base, i) else {
+        i.rollback(trivia_checkpoint);
+        return TypeDeclarationRhsWithTail {
+            rhs: Recovered::Incomplete,
+            tail: None,
+        };
+    };
+    let baseline = IndentationBaseline {
+        column: type_base,
+        kind: IndentationBaselineKind::Introducer,
+    };
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
+        .with(StopKind::Semicolon)
+        .with(StopKind::With);
+    let scoped_frame = TypeExpressionScopedStopFrame {
+        stops: StopSet::default().with(StopKind::With),
+        visible_episode_depth: i.local.type_expression_episode_depth() + 1,
+    };
+    let policy = TypeExpressionEpisodePolicy {
+        fresh_primary_locally_owned_stops: StopSet::default().with(StopKind::With),
+        ..TypeExpressionEpisodePolicy::default()
+    };
+    i.local.push_indentation_baseline(baseline);
+    i.local.push_stop_set(stops);
+    i.local.push_type_expression_scoped_stop_frame(scoped_frame);
+    let rhs = i
+        .run(from_fn(|i| {
+            Some(
+                parse_required_type_expression_with_handoff_recovery_isolated(
+                    Some(type_declaration_rhs_role()),
+                    policy,
+                    |i| recognize_declaration_companion_handoff(type_base, i).is_some(),
+                    i,
+                ),
+            )
+        }))
+        .expect("the isolated companion-aware Type RHS entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(scoped_frame)
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_indentation_baseline(), Some(baseline));
+    TypeDeclarationRhsWithTail {
+        rhs: match rhs {
+            Recovered::Complete(rhs) => Recovered::Complete(Box::new(rhs)),
+            Recovered::Incomplete => Recovered::Incomplete,
+        },
+        tail: recognize_declaration_companion_handoff(type_base, i)
+            .is_some()
+            .then_some(TypeDeclarationEqualityTail::DeclarationCompanion),
+    }
+}
+
+pub(super) fn commit_type_declaration_rhs_with_companion_handoff_isolated<
+    'parse,
+    'source,
+    'local,
+    E,
+    O,
+>(
+    header: &ParsedTypeDeclarationHeader<'source>,
+    type_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> TypeDeclarationRhsWithTail<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !header.rhs_retry {
+        return TypeDeclarationRhsWithTail {
+            rhs: Recovered::Incomplete,
+            tail: None,
+        };
+    }
+    if let Some(with) =
+        committed.probe(|probe| recognize_declaration_companion_handoff(type_base, probe.input()))
+    {
+        emit_type_declaration_header_recovery(
+            committed,
+            TypeDeclarationHeaderRecovery::Missing {
+                role: crate::session::TypeDeclarationRole::Rhs,
+                at: with.start,
+            },
+        );
+        return TypeDeclarationRhsWithTail {
+            rhs: Recovered::Incomplete,
+            tail: Some(TypeDeclarationEqualityTail::DeclarationCompanion),
+        };
+    }
+    let trivia = committed.probe(|probe| {
+        let i = probe.input();
+        if any_ambient_owner_claims(i) {
+            return None;
+        }
+        let checkpoint = i.checkpoint();
+        let trivia = mod_trivia(type_base, i);
+        if trivia.is_none() {
+            i.rollback(checkpoint);
+        }
+        trivia
+    });
+    let Some(trivia) = trivia else {
+        let at = committed.probe(|probe| probe.input().pos());
+        emit_type_declaration_header_recovery(
+            committed,
+            TypeDeclarationHeaderRecovery::Missing {
+                role: crate::session::TypeDeclarationRole::Rhs,
+                at,
+            },
+        );
+        return TypeDeclarationRhsWithTail {
+            rhs: Recovered::Incomplete,
+            tail: None,
+        };
+    };
+    committed.emit_trivia(&trivia);
+    let baseline = IndentationBaseline {
+        column: type_base,
+        kind: IndentationBaselineKind::Introducer,
+    };
+    let (stops, scoped_frame) = committed.probe(|probe| {
+        let i = probe.input();
+        (
+            i.local
+                .stop_set()
+                .unwrap_or_default()
+                .with(StopKind::Semicolon)
+                .with(StopKind::With),
+            TypeExpressionScopedStopFrame {
+                stops: StopSet::default().with(StopKind::With),
+                visible_episode_depth: i.local.type_expression_episode_depth() + 1,
+            },
+        )
+    });
+    let policy = TypeExpressionEpisodePolicy {
+        fresh_primary_locally_owned_stops: StopSet::default().with(StopKind::With),
+        ..TypeExpressionEpisodePolicy::default()
+    };
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_indentation_baseline(baseline);
+        i.local.push_stop_set(stops);
+        i.local.push_type_expression_scoped_stop_frame(scoped_frame);
+    });
+    let rhs = commit_direct_type_expression_with_handoff_recovery_isolated(
+        Some(type_declaration_rhs_role()),
+        policy,
+        |i| recognize_declaration_companion_handoff(type_base, i).is_some(),
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(scoped_frame)
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+        assert_eq!(i.local.pop_indentation_baseline(), Some(baseline));
+    });
+    let range = rhs.range();
+    TypeDeclarationRhsWithTail {
+        rhs: if range.is_empty() {
+            Recovered::Incomplete
+        } else {
+            Recovered::Complete(range)
+        },
+        tail: committed
+            .probe(|probe| recognize_declaration_companion_handoff(type_base, probe.input()))
+            .is_some()
+            .then_some(TypeDeclarationEqualityTail::DeclarationCompanion),
+    }
+}
+
 /// Owns the complete Type-declaration RHS episode. No caller can enter the
 /// mandatory TypeExpression without first passing the original-gap ambient
 /// check and installing the declaration baseline and stop scope here.

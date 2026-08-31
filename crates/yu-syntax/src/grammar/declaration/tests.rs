@@ -33471,3 +33471,406 @@ fn impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity() {
         2
     );
 }
+
+#[test]
+fn gate5_typed_companion_handoffs_are_isolated_and_state_neutral() {
+    macro_rules! make_input {
+        ($source_input:expr, $local:expr, $expectations:expr, $is_cut:expr $(,)?) => {
+            In::new($source_input, $expectations, IsCut::new($is_cut)).set_local($local)
+        };
+    }
+
+    for (source, expected) in [
+        (" with:", Some(1..5)),
+        ("\n  with:", Some(3..7)),
+        ("\nwith:", None),
+        (" withx:", None),
+        (" within:", None),
+    ] {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let before = local.value_snapshot();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = make_input!(
+            &mut source_input,
+            &mut local,
+            &mut expectations,
+            &mut is_cut,
+        );
+        assert_eq!(recognize_declaration_companion_handoff(0, &mut i), expected);
+        assert_eq!(i.input.remainder(), source);
+        assert_eq!(i.local.value_snapshot(), before);
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+    }
+
+    for (source, role_complete, has_tail, remainder, recovery_count) in [
+        ("derives with:", false, true, " with:", 1usize),
+        ("derives @ with:", false, true, " with:", 1),
+        ("derives @with:", true, false, ":", 1),
+        ("derives (with) with:", true, true, " with:", 0),
+        ("derives Eq via with:", true, false, ":", 0),
+        ("derives Eq via backend with:", true, true, " with:", 0),
+    ] {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = make_input!(
+            &mut source_input,
+            &mut local,
+            &mut expectations,
+            &mut is_cut,
+        );
+        let start = recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+            &mut i,
+        )
+        .unwrap();
+        let parsed = parse_derives_attachments_with_companion_handoff_isolated(start, &mut i);
+        assert_eq!(parsed.attachments.len(), 1, "AST derives {source:?}");
+        assert_eq!(
+            matches!(
+                parsed.attachments[0].clause.roles[0],
+                Recovered::Complete(_)
+            ),
+            role_complete,
+        );
+        assert_eq!(parsed.tail.is_some(), has_tail);
+        assert_eq!(i.input.remainder(), remainder);
+        if source == "derives Eq via with:" {
+            assert!(matches!(
+                parsed.attachments[0].clause.via.as_ref().unwrap().target,
+                Recovered::Complete(ref target) if target.text() == "with"
+            ));
+        }
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let before_line = local.line();
+        let before = local.value_snapshot();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = make_input!(
+            &mut source_input,
+            &mut local,
+            &mut expectations,
+            &mut is_cut,
+        );
+        let mut committed = Probe::new(i).commit(HeaderOutput::new());
+        let start = committed
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    0,
+                    probe.input(),
+                )
+            })
+            .unwrap();
+        let direct =
+            commit_derives_attachments_with_companion_handoff_isolated(start, &mut committed);
+        assert_eq!(direct.attachments.len(), 1);
+        assert_eq!(direct.tail.is_some(), has_tail);
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            remainder,
+        );
+        let output = committed.into_output();
+        assert_eq!(output.committed_recoveries().len(), recovery_count);
+        if source == "derives @ with:" {
+            assert_eq!(output.committed_recoveries()[0].site.range, 8..9);
+            assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Error);
+        }
+        let after_line = local.line();
+        local.set_line(before_line);
+        let mut expected_after = before;
+        expected_after.next_diagnostic_id += recovery_count as u32;
+        assert_eq!(local.value_snapshot(), expected_after);
+        local.set_line(after_line);
+    }
+
+    for slot in [ActTypeExpressionSlot::Head, ActTypeExpressionSlot::Source] {
+        for (source, complete, has_tail, remainder, recovery_count) in [
+            (" with:", false, true, " with:", 1usize),
+            (" @ with:", false, true, " with:", 1),
+            (" @with:", true, false, ":", 1),
+            (" (with) with:", true, true, " with:", 0),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = make_input!(
+                &mut source_input,
+                &mut local,
+                &mut expectations,
+                &mut is_cut,
+            );
+            let ast =
+                parse_required_act_type_expression_with_companion_handoff_isolated(slot, 0, &mut i);
+            assert_eq!(matches!(ast.value, Recovered::Complete(_)), complete);
+            assert_eq!(ast.tail.is_some(), has_tail);
+            assert_eq!(i.input.remainder(), remainder);
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let before_line = local.line();
+            let before = local.value_snapshot();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = make_input!(
+                &mut source_input,
+                &mut local,
+                &mut expectations,
+                &mut is_cut,
+            );
+            let mut committed = Probe::new(i).commit(HeaderOutput::new());
+            let direct = commit_required_act_type_expression_with_companion_handoff_isolated(
+                slot,
+                0,
+                &mut committed,
+            );
+            assert_eq!(matches!(direct.value, Recovered::Complete(_)), complete);
+            assert_eq!(direct.tail.is_some(), has_tail);
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                remainder,
+            );
+            let output = committed.into_output();
+            assert_eq!(output.committed_recoveries().len(), recovery_count);
+            if source == " @ with:" {
+                assert_eq!(output.committed_recoveries()[0].site.range, 1..2);
+                assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Error);
+            }
+            let after_line = local.line();
+            local.set_line(before_line);
+            let mut expected_after = before;
+            expected_after.next_diagnostic_id += recovery_count as u32;
+            assert_eq!(local.value_snapshot(), expected_after);
+            local.set_line(after_line);
+        }
+    }
+
+    let rhs_header = ParsedTypeDeclarationHeader {
+        name: Recovered::Incomplete,
+        parameters: Vec::new(),
+        equals: Recovered::Complete(0..0),
+        rhs_retry: true,
+    };
+    for (source, complete, has_tail, remainder, recovery_count) in [
+        (" with:", false, true, " with:", 1usize),
+        (" @ with:", false, true, " with:", 1),
+        (" @with:", true, false, ":", 1),
+        (" (with) with:", true, true, " with:", 0),
+    ] {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = make_input!(
+            &mut source_input,
+            &mut local,
+            &mut expectations,
+            &mut is_cut,
+        );
+        let ast =
+            parse_type_declaration_rhs_with_companion_handoff_isolated(&rhs_header, 0, &mut i);
+        assert_eq!(matches!(ast.rhs, Recovered::Complete(_)), complete);
+        assert_eq!(ast.tail.is_some(), has_tail);
+        assert_eq!(i.input.remainder(), remainder);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let before_line = local.line();
+        let before = local.value_snapshot();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = make_input!(
+            &mut source_input,
+            &mut local,
+            &mut expectations,
+            &mut is_cut,
+        );
+        let mut committed = Probe::new(i).commit(HeaderOutput::new());
+        let direct = commit_type_declaration_rhs_with_companion_handoff_isolated(
+            &rhs_header,
+            0,
+            &mut committed,
+        );
+        assert_eq!(matches!(direct.rhs, Recovered::Complete(_)), complete);
+        assert_eq!(direct.tail.is_some(), has_tail);
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            remainder,
+        );
+        let output = committed.into_output();
+        assert_eq!(output.committed_recoveries().len(), recovery_count);
+        if source == " @ with:" {
+            assert_eq!(output.committed_recoveries()[0].site.range, 1..2);
+            assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Error);
+        }
+        let after_line = local.line();
+        local.set_line(before_line);
+        let mut expected_after = before;
+        expected_after.next_diagnostic_id += recovery_count as u32;
+        assert_eq!(local.value_snapshot(), expected_after);
+        local.set_line(after_line);
+    }
+
+    for owner in [
+        enum_variant_declaration_owner_spec(0),
+        error_variant_declaration_owner_spec(0),
+    ] {
+        for (source, variants, has_tail, remainder, recoveries) in [
+            (" with:", 1usize, true, " with:", 1usize),
+            ("A with:", 1, true, " with:", 0),
+            ("A | with:", 2, true, " with:", 1),
+            ("A from with:", 1, true, " with:", 1),
+            ("A @ with:", 1, true, " with:", 1),
+            ("A @with:", 1, false, ":", 1),
+            ("A from @with:", 1, false, ":", 1),
+            ("A List(with) with:", 1, true, " with:", 0),
+        ] {
+            let spec = variant_declaration_sequence_spec(
+                VariantDeclarationSequenceForm::EqualsInline,
+                LayoutDelimitedFrame::inline(0),
+                0,
+            );
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = make_input!(
+                &mut source_input,
+                &mut local,
+                &mut expectations,
+                &mut is_cut,
+            );
+            let ast = parse_variant_declaration_sequence_with_companion_handoff_isolated(
+                spec, owner, &mut i,
+            );
+            assert_eq!(ast.sequence.variants.len(), variants, "AST {source:?}");
+            assert_eq!(ast.tail.is_some(), has_tail, "AST tail {source:?}");
+            assert_eq!(ast.sequence.trailing_pipe, None);
+            assert_eq!(i.input.remainder(), remainder);
+            if source == "A with:" {
+                assert!(matches!(
+                    ast.sequence.variants[0],
+                    Recovered::Complete(EnumVariant {
+                        payload: EnumVariantPayload::Unit,
+                        ..
+                    })
+                ));
+            }
+            if source == "A @with:" {
+                assert_eq!(
+                    ast.sequence.termination,
+                    EnumVariantSequenceTermination::ItemContinuation,
+                );
+                assert!(matches!(
+                    ast.sequence.variants[0],
+                    Recovered::Complete(EnumVariant {
+                        payload: EnumVariantPayload::Positional { ref types, .. },
+                        ..
+                    }) if matches!(types.as_slice(), [Recovered::Complete(type_expr)] if type_expr.range() == (3..7))
+                ));
+            }
+            if source == "A from @with:" {
+                assert_eq!(
+                    ast.sequence.termination,
+                    EnumVariantSequenceTermination::ItemContinuation,
+                );
+                assert!(matches!(
+                    ast.sequence.variants[0],
+                    Recovered::Complete(EnumVariant {
+                        payload: EnumVariantPayload::From {
+                            type_expr: Recovered::Complete(ref type_expr),
+                            ..
+                        },
+                        ..
+                    }) if type_expr.range() == (8..12)
+                ));
+            }
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let before_line = local.line();
+            let before = local.value_snapshot();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = make_input!(
+                &mut source_input,
+                &mut local,
+                &mut expectations,
+                &mut is_cut,
+            );
+            let mut committed = Probe::new(i).commit(HeaderOutput::new());
+            let tail = commit_variant_declaration_sequence_with_companion_handoff_isolated(
+                spec,
+                owner,
+                &mut committed,
+            );
+            assert_eq!(tail.is_some(), has_tail, "direct tail {source:?}");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                remainder,
+            );
+            let output = committed.into_output();
+            assert_eq!(
+                output.committed_recoveries().len(),
+                recoveries,
+                "{source:?}"
+            );
+            if source == "A | with:" {
+                assert_eq!(output.committed_recoveries()[0].site.role, owner.item_role);
+            }
+            if source == "A @ with:" {
+                assert_eq!(output.committed_recoveries()[0].site.range, 2..3);
+                assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Error);
+            }
+            if matches!(source, "A @with:" | "A from @with:") {
+                assert_eq!(
+                    output.committed_recoveries()[0].site.role,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                );
+                assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Error);
+                assert_eq!(
+                    output.committed_recoveries()[0].site.range,
+                    if source == "A @with:" { 2..3 } else { 7..8 },
+                );
+            }
+            let after_line = local.line();
+            local.set_line(before_line);
+            let mut expected_after = before;
+            expected_after.next_diagnostic_id += recoveries as u32;
+            assert_eq!(local.value_snapshot(), expected_after);
+            local.set_line(after_line);
+        }
+    }
+
+    let ordinary_act =
+        act_type_expression_episode_spec(ActTypeExpressionSlot::Head, StopSet::default(), 0);
+    assert!(!ordinary_act.stops.contains(StopKind::With));
+    let ordinary_derives = DerivesDriverSpec::new(
+        DerivesAttachmentOwner::Type,
+        DerivesAttachmentPosition::Header,
+        0,
+    );
+    assert!(
+        !derives_role_episode_spec(ordinary_derives, StopSet::default(), 0, None)
+            .stops
+            .contains(StopKind::With)
+    );
+    let ordinary_variant = variant_declaration_type_expression_episode_spec(
+        enum_variant_declaration_owner_spec(0),
+        EnumVariantTypeExpressionSlot::FromType,
+        VariantDeclarationSequenceForm::EqualsInline,
+        StopSet::default(),
+        0,
+    );
+    assert!(!ordinary_variant.stops.contains(StopKind::With));
+}

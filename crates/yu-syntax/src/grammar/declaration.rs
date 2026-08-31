@@ -12,6 +12,11 @@ use chasa::{
     prelude::{In, from_fn, item},
 };
 
+use crate::grammar::type_expr::{
+    commit_direct_type_expression_with_handoff_recovery_isolated,
+    parse_required_type_expression_with_handoff_recovery_isolated,
+};
+
 use crate::{
     BindingPower as HeaderBindingPower, BindingPowers, HeaderImport, HeaderImportForm,
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
@@ -205,6 +210,43 @@ pub(crate) enum StatementIntro<'source> {
 pub(crate) enum Recovered<T> {
     Complete(T),
     Incomplete,
+}
+
+/// Sink-free evidence that an eligible declaration owner may hand exact
+/// `with` to the isolated declaration-companion adapter. The gap and word
+/// remain owned by the later adapter on every outcome.
+pub(super) fn recognize_declaration_companion_handoff<E>(
+    owner_base: usize,
+    i: &mut SynIn<E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
+    let handoff = (|| {
+        if i.input.remainder().is_empty()
+            || any_ambient_owner_claims(i)
+            || derives_active_fixed_boundary_pending(i)
+        {
+            return None;
+        }
+        let trivia = mod_trivia(owner_base, i)?;
+        if trivia.is_empty()
+            || i.input.remainder().is_empty()
+            || any_ambient_owner_claims(i)
+            || derives_active_fixed_boundary_pending(i)
+        {
+            return None;
+        }
+        let word = i.run(scan_word)?;
+        (word.text() == "with").then(|| word.range())
+    })();
+    i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
+    handoff
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

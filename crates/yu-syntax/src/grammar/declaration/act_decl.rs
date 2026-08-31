@@ -154,6 +154,227 @@ pub(super) fn act_type_expression_episode_spec(
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ActDeclarationCompanionTail {
+    PostHead,
+    PostSource,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct ActTypeExpressionWithTail<T> {
+    pub(super) value: Recovered<T>,
+    pub(super) tail: Option<ActDeclarationCompanionTail>,
+}
+
+fn act_companion_type_expression_episode_spec(
+    slot: ActTypeExpressionSlot,
+    incoming: StopSet,
+    current_episode_depth: usize,
+) -> ActTypeExpressionEpisodeSpec {
+    let ordinary = act_type_expression_episode_spec(slot, incoming, current_episode_depth);
+    ActTypeExpressionEpisodeSpec {
+        stops: ordinary.stops.with(StopKind::With),
+        scoped_frame: TypeExpressionScopedStopFrame {
+            stops: ordinary.scoped_frame.stops.with(StopKind::With),
+            ..ordinary.scoped_frame
+        },
+        policy: TypeExpressionEpisodePolicy {
+            fresh_primary_locally_owned_stops: ordinary
+                .policy
+                .fresh_primary_locally_owned_stops
+                .with(StopKind::With),
+            ..ordinary.policy
+        },
+        outer_role: ordinary.outer_role,
+    }
+}
+
+fn act_companion_tail(slot: ActTypeExpressionSlot) -> ActDeclarationCompanionTail {
+    match slot {
+        ActTypeExpressionSlot::Head => ActDeclarationCompanionTail::PostHead,
+        ActTypeExpressionSlot::Source => ActDeclarationCompanionTail::PostSource,
+    }
+}
+
+pub(super) fn parse_required_act_type_expression_with_companion_handoff_isolated<'source, E>(
+    slot: ActTypeExpressionSlot,
+    act_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ActTypeExpressionWithTail<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if recognize_declaration_companion_handoff(act_base, i).is_some() {
+        return ActTypeExpressionWithTail {
+            value: Recovered::Incomplete,
+            tail: Some(act_companion_tail(slot)),
+        };
+    }
+    let trivia_checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(act_base, i) else {
+        i.rollback(trivia_checkpoint);
+        return ActTypeExpressionWithTail {
+            value: Recovered::Incomplete,
+            tail: None,
+        };
+    };
+    let episode = act_companion_type_expression_episode_spec(
+        slot,
+        i.local.stop_set().unwrap_or_default(),
+        i.local.type_expression_episode_depth(),
+    );
+    i.local.push_stop_set(episode.stops);
+    i.local
+        .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    let parsed = i
+        .run(from_fn(|i| {
+            Some(
+                parse_required_type_expression_with_handoff_recovery_isolated(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    |i| recognize_declaration_companion_handoff(act_base, i).is_some(),
+                    i,
+                ),
+            )
+        }))
+        .expect("the isolated companion-aware Act TypeExpression entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(episode.scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    ActTypeExpressionWithTail {
+        value: match parsed {
+            Recovered::Complete(parsed) => Recovered::Complete(Box::new(parsed)),
+            Recovered::Incomplete => Recovered::Incomplete,
+        },
+        tail: recognize_declaration_companion_handoff(act_base, i)
+            .is_some()
+            .then_some(act_companion_tail(slot)),
+    }
+}
+
+pub(super) fn commit_required_act_type_expression_with_companion_handoff_isolated<
+    'parse,
+    'source,
+    'local,
+    E,
+    O,
+>(
+    slot: ActTypeExpressionSlot,
+    act_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ActTypeExpressionWithTail<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(with) =
+        committed.probe(|probe| recognize_declaration_companion_handoff(act_base, probe.input()))
+    {
+        emit_act_companion_slot_missing(slot, with.start, committed);
+        return ActTypeExpressionWithTail {
+            value: Recovered::Incomplete,
+            tail: Some(act_companion_tail(slot)),
+        };
+    }
+    let trivia = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = mod_trivia(act_base, i);
+        if trivia.is_none() {
+            i.rollback(checkpoint);
+        }
+        trivia
+    });
+    let Some(trivia) = trivia else {
+        return ActTypeExpressionWithTail {
+            value: Recovered::Incomplete,
+            tail: None,
+        };
+    };
+    committed.emit_trivia(&trivia);
+    let episode = committed.probe(|probe| {
+        let i = probe.input();
+        act_companion_type_expression_episode_spec(
+            slot,
+            i.local.stop_set().unwrap_or_default(),
+            i.local.type_expression_episode_depth(),
+        )
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(episode.stops);
+        i.local
+            .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    });
+    let parsed = commit_direct_type_expression_with_handoff_recovery_isolated(
+        Some(episode.outer_role),
+        episode.policy,
+        |i| recognize_declaration_companion_handoff(act_base, i).is_some(),
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(episode.scoped_frame),
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    });
+    let tail = committed
+        .probe(|probe| recognize_declaration_companion_handoff(act_base, probe.input()))
+        .is_some()
+        .then_some(act_companion_tail(slot));
+    let range = parsed.range();
+    ActTypeExpressionWithTail {
+        value: if range.is_empty() {
+            Recovered::Incomplete
+        } else {
+            Recovered::Complete(range)
+        },
+        tail,
+    }
+}
+
+fn emit_act_companion_slot_missing<'parse, 'source, 'local, E, O>(
+    slot: ActTypeExpressionSlot,
+    at: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let act_role = match slot {
+        ActTypeExpressionSlot::Head => crate::session::ActDeclarationRole::Head,
+        ActTypeExpressionSlot::Source => crate::session::ActDeclarationRole::Source,
+    };
+    let role = GrammarRole::Declaration(DeclarationRole::Act(act_role));
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::TypeExpression,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
 pub(super) fn parse_required_act_head_type_expression_isolated<'source, E>(
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Recovered<Box<TypeExpression<'source>>>

@@ -287,6 +287,26 @@ pub(super) enum EnumVariantSequenceTermination {
     ItemContinuation,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct VariantDeclarationCompanionOwnerTail {
+    pub(super) owner: VariantDeclarationOwner,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompanionVariantTypeExit {
+    Normal,
+    ItemContinuation,
+}
+
+struct CompanionVariantTypeResult<T> {
+    value: Recovered<T>,
+    exit: CompanionVariantTypeExit,
+}
+
+trait CompanionVariantSequenceContext<'source>: VariantDeclarationSequenceContext<'source> {
+    fn take_item_continuation(&mut self) -> bool;
+}
+
 /// Item realization is intentionally the only pluggable part of the neutral
 /// stream.  Gate 5's fixture context consumes one raw word; Gate 6 will make
 /// the same callback own `from`, named, tuple, and positional payloads.
@@ -486,6 +506,143 @@ where
 
         finish_enum_variant_sequence(&mut state, spec, context);
         return EnumVariantSequenceTermination::ItemContinuation;
+    }
+}
+
+fn finish_variant_sequence_before_companion<'source, C>(
+    state: &mut EnumVariantSequenceState,
+    spec: VariantDeclarationSequenceSpec,
+    context: &mut C,
+) where
+    C: VariantDeclarationSequenceContext<'source>,
+{
+    if matches!(
+        state.position,
+        EnumVariantSequencePosition::Required {
+            pending_boundary: Some(EnumVariantBoundary::Explicit(EnumVariantSeparator::Pipe(_))),
+        }
+    ) {
+        context.emit_missing_variant();
+    } else {
+        finish_enum_variant_sequence(state, spec, context);
+    }
+}
+
+fn drive_equals_inline_variant_sequence_with_companion_handoff<'source, C>(
+    context: &mut C,
+    spec: VariantDeclarationSequenceSpec,
+) -> (EnumVariantSequenceTermination, bool)
+where
+    C: CompanionVariantSequenceContext<'source>,
+    Unexpected<char>: Into<<C::Error as ErrorSink<usize>>::Error>,
+    UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
+{
+    assert!(matches!(
+        spec.form,
+        VariantDeclarationSequenceForm::EqualsInline
+    ));
+    let mut state = EnumVariantSequenceState::new(spec);
+    let mut origin = EnumVariantJudgeOrigin::FreshSlot;
+    loop {
+        if context.with_input(|i| i.input.remainder().is_empty()) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            return (EnumVariantSequenceTermination::EndOfInput, false);
+        }
+        if let Some(close) = context.with_input(|i| scan_enum_variant_matching_close(spec, i)) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            context.emit_matching_close(close.clone());
+            return (EnumVariantSequenceTermination::MatchingClose(close), false);
+        }
+        if context.with_input(|i| enum_variant_mismatched_close_pending(spec, i)) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            return (EnumVariantSequenceTermination::MismatchedClose, false);
+        }
+        if let Some(cluster) = context.with_input(|i| scan_enum_variant_separator_cluster(spec, i))
+        {
+            apply_enum_variant_separator(&mut state, spec, &cluster.separator, context);
+            if !cluster.trivia.is_empty() {
+                context.emit_trivia(&cluster.trivia);
+            }
+            context.emit_separator(cluster.separator);
+            origin = EnumVariantJudgeOrigin::FreshSlot;
+            continue;
+        }
+        if matches!(origin, EnumVariantJudgeOrigin::Continuation)
+            && context.with_input(any_ambient_owner_claims)
+        {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            return (EnumVariantSequenceTermination::OwnerBoundary, false);
+        }
+        if context.with_input(|i| {
+            recognize_declaration_companion_handoff(spec.declaration_base, i).is_some()
+        }) {
+            finish_variant_sequence_before_companion(&mut state, spec, context);
+            return (EnumVariantSequenceTermination::OwnerBoundary, true);
+        }
+        match context.with_input(|i| classify_enum_variant_gap(spec, i)) {
+            EnumVariantGap::SameLine(trivia) => {
+                let terminal_follows = context
+                    .with_input(|i| enum_variant_same_line_trivia_precedes_terminal(spec, i));
+                if matches!(origin, EnumVariantJudgeOrigin::FreshSlot) || terminal_follows {
+                    let consumed = context.with_input(consume_enum_variant_trivia);
+                    debug_assert_eq!(consumed.range(), trivia.range());
+                    context.emit_trivia(&consumed);
+                    continue;
+                }
+                return (EnumVariantSequenceTermination::ItemContinuation, false);
+            }
+            EnumVariantGap::QualifyingNewline(trivia) => {
+                let consumed = context.with_input(consume_enum_variant_trivia);
+                debug_assert_eq!(consumed.range(), trivia.range());
+                context.emit_trivia(&consumed);
+                state.qualifying_newline();
+                origin = EnumVariantJudgeOrigin::FreshSlot;
+                continue;
+            }
+            EnumVariantGap::Dedent => {
+                finish_enum_variant_sequence(&mut state, spec, context);
+                return (EnumVariantSequenceTermination::Dedent, false);
+            }
+            EnumVariantGap::Owner => {
+                finish_enum_variant_sequence(&mut state, spec, context);
+                return (EnumVariantSequenceTermination::OwnerBoundary, false);
+            }
+            EnumVariantGap::ItemContinuation => {
+                return (EnumVariantSequenceTermination::ItemContinuation, false);
+            }
+            EnumVariantGap::None => {}
+        }
+        if context.with_input(|i| enum_variant_terminal_boundary_pending(spec, i)) {
+            finish_enum_variant_sequence(&mut state, spec, context);
+            let termination = if context.with_input(|i| i.input.remainder().is_empty()) {
+                EnumVariantSequenceTermination::EndOfInput
+            } else {
+                EnumVariantSequenceTermination::OwnerBoundary
+            };
+            return (termination, false);
+        }
+        if context.with_input(enum_variant_raw_name_pending) {
+            if !context.parse_variant_item(None) {
+                return (EnumVariantSequenceTermination::ItemContinuation, false);
+            }
+            state.accepted_variant();
+            if context.take_item_continuation() {
+                return (EnumVariantSequenceTermination::ItemContinuation, false);
+            }
+            origin = EnumVariantJudgeOrigin::Continuation;
+            continue;
+        }
+        if let Some(range) = context.with_input(|i| scan_enum_variant_invalid_run(spec, i)) {
+            let _retried = context.parse_variant_item(Some(range));
+            state.accepted_variant();
+            if context.take_item_continuation() {
+                return (EnumVariantSequenceTermination::ItemContinuation, false);
+            }
+            origin = EnumVariantJudgeOrigin::Continuation;
+            continue;
+        }
+        finish_enum_variant_sequence(&mut state, spec, context);
+        return (EnumVariantSequenceTermination::ItemContinuation, false);
     }
 }
 
@@ -1112,6 +1269,146 @@ where
     }
 }
 
+fn companion_variant_type_expression_episode_spec<E>(
+    owner: VariantDeclarationOwnerSpec,
+    slot: EnumVariantTypeExpressionSlot,
+    i: &SynIn<E>,
+) -> EnumVariantTypeExpressionEpisodeSpec
+where
+    E: ErrorSink<usize>,
+{
+    let ordinary = variant_declaration_type_expression_episode_spec(
+        owner,
+        slot,
+        VariantDeclarationSequenceForm::EqualsInline,
+        i.local.stop_set().unwrap_or_default(),
+        i.local.type_expression_episode_depth(),
+    );
+    EnumVariantTypeExpressionEpisodeSpec {
+        stops: ordinary.stops.with(StopKind::With),
+        scoped_frame: TypeExpressionScopedStopFrame {
+            stops: ordinary.scoped_frame.stops.with(StopKind::With),
+            ..ordinary.scoped_frame
+        },
+        policy: TypeExpressionEpisodePolicy {
+            fresh_primary_locally_owned_stops: ordinary
+                .policy
+                .fresh_primary_locally_owned_stops
+                .with(StopKind::With),
+            ..ordinary.policy
+        },
+        outer_role: ordinary.outer_role,
+        outer_ml_arg: ordinary.outer_ml_arg,
+    }
+}
+
+fn parse_required_companion_variant_type_expression<'source, E>(
+    owner: VariantDeclarationOwnerSpec,
+    slot: EnumVariantTypeExpressionSlot,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CompanionVariantTypeResult<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode = companion_variant_type_expression_episode_spec(owner, slot, i);
+    let recovered_primary_fallback = !enum_variant_type_primary_pending(i);
+    i.local.push_stop_set(episode.stops);
+    i.local
+        .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    let saved_ml_arg = i.local.type_ml_arg();
+    i.local.set_type_ml_arg(episode.outer_ml_arg);
+    let parsed = i
+        .run(from_fn(|i| {
+            Some(
+                parse_required_type_expression_with_handoff_recovery_isolated(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    |i| {
+                        recognize_declaration_companion_handoff(owner.declaration_base, i).is_some()
+                    },
+                    i,
+                ),
+            )
+        }))
+        .expect("the isolated companion-aware variant TypeExpression entry is total");
+    i.local.set_type_ml_arg(saved_ml_arg);
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(episode.scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    let value = match parsed {
+        Recovered::Complete(parsed) => Recovered::Complete(Box::new(parsed)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    };
+    let exit = if recovered_primary_fallback
+        && matches!(&value, Recovered::Complete(_))
+        && i.input.remainder().starts_with(':')
+    {
+        CompanionVariantTypeExit::ItemContinuation
+    } else {
+        CompanionVariantTypeExit::Normal
+    };
+    CompanionVariantTypeResult { value, exit }
+}
+
+fn commit_required_companion_variant_type_expression<'parse, 'source, 'local, E, O>(
+    owner: VariantDeclarationOwnerSpec,
+    slot: EnumVariantTypeExpressionSlot,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> CompanionVariantTypeResult<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered_primary_fallback =
+        committed.probe(|probe| !enum_variant_type_primary_pending(probe.input()));
+    let episode = committed
+        .probe(|probe| companion_variant_type_expression_episode_spec(owner, slot, probe.input()));
+    let saved_ml_arg = committed.probe(|probe| probe.input().local.type_ml_arg());
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(episode.stops);
+        i.local
+            .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+        i.local.set_type_ml_arg(episode.outer_ml_arg);
+    });
+    let parsed = commit_direct_type_expression_with_handoff_recovery_isolated(
+        Some(episode.outer_role),
+        episode.policy,
+        |i| recognize_declaration_companion_handoff(owner.declaration_base, i).is_some(),
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.set_type_ml_arg(saved_ml_arg);
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(episode.scoped_frame),
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    });
+    let range = parsed.range();
+    let value = if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    };
+    let exit = if recovered_primary_fallback
+        && matches!(&value, Recovered::Complete(_))
+        && committed.probe(|probe| probe.input().input.remainder().starts_with(':'))
+    {
+        CompanionVariantTypeExit::ItemContinuation
+    } else {
+        CompanionVariantTypeExit::Normal
+    };
+    CompanionVariantTypeResult { value, exit }
+}
+
 pub(super) fn parse_required_variant_declaration_tuple_field_type_expression<'source, E>(
     field_driver: VariantFieldDriverSpec,
     i: &mut SynIn<'_, 'source, '_, E>,
@@ -1534,6 +1831,176 @@ where
     EnumVariantPayload::Unit
 }
 
+struct CompanionVariantPayloadResult<'source> {
+    payload: EnumVariantPayload<'source>,
+    exit: CompanionVariantTypeExit,
+}
+
+fn companion_variant_payload_normal(
+    payload: EnumVariantPayload<'_>,
+) -> CompanionVariantPayloadResult<'_> {
+    CompanionVariantPayloadResult {
+        payload,
+        exit: CompanionVariantTypeExit::Normal,
+    }
+}
+
+fn parse_companion_variant_payload_ast<'source, E>(
+    owner: VariantDeclarationOwnerSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CompanionVariantPayloadResult<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    if let Some(open) = enum_variant_payload_open(Delimiter::Brace, i) {
+        return companion_variant_payload_normal(parse_variant_declaration_named_payload_ast(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            i,
+        ));
+    }
+    if let Some(open) = enum_variant_payload_open(Delimiter::Parenthesis, i) {
+        return companion_variant_payload_normal(parse_variant_declaration_tuple_payload_ast(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            i,
+        ));
+    }
+    if recognize_declaration_companion_handoff(owner.declaration_base, i).is_some() {
+        return companion_variant_payload_normal(EnumVariantPayload::Unit);
+    }
+    let Some(_) = consume_enum_variant_payload_trivia(i) else {
+        return companion_variant_payload_normal(EnumVariantPayload::Unit);
+    };
+    if let Some(keyword) = enum_variant_exact_from_pending(i) {
+        let type_result =
+            if recognize_declaration_companion_handoff(owner.declaration_base, i).is_some() {
+                CompanionVariantTypeResult {
+                    value: Recovered::Incomplete,
+                    exit: CompanionVariantTypeExit::Normal,
+                }
+            } else {
+                let _ = consume_enum_variant_payload_trivia(i);
+                parse_required_companion_variant_type_expression(
+                    owner,
+                    EnumVariantTypeExpressionSlot::FromType,
+                    i,
+                )
+            };
+        let type_expr = type_result.value;
+        let end = match &type_expr {
+            Recovered::Complete(type_expr) => type_expr.range().end,
+            Recovered::Incomplete => keyword.end,
+        };
+        return CompanionVariantPayloadResult {
+            payload: EnumVariantPayload::From {
+                keyword: keyword.clone(),
+                type_expr,
+                range: keyword.start..end,
+            },
+            exit: type_result.exit,
+        };
+    }
+    if let Some(open) = enum_variant_payload_open(Delimiter::Brace, i) {
+        return companion_variant_payload_normal(parse_variant_declaration_named_payload_ast(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            i,
+        ));
+    }
+    if let Some(open) = enum_variant_payload_open(Delimiter::Parenthesis, i) {
+        return companion_variant_payload_normal(parse_variant_declaration_tuple_payload_ast(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            i,
+        ));
+    }
+    if enum_variant_positional_payload_pending(VariantDeclarationSequenceForm::EqualsInline, i)
+        || companion_variant_malformed_positional_pending(owner, i)
+    {
+        let first = parse_required_companion_variant_type_expression(
+            owner,
+            EnumVariantTypeExpressionSlot::PositionalPayload,
+            i,
+        );
+        let mut exit = first.exit;
+        let start = match &first.value {
+            Recovered::Complete(type_expr) => type_expr.range().start,
+            Recovered::Incomplete => i.pos(),
+        };
+        let mut types = vec![first.value];
+        loop {
+            let position = i.checkpoint();
+            if recognize_declaration_companion_handoff(owner.declaration_base, i).is_some()
+                || consume_enum_variant_payload_trivia(i).is_none()
+                || !enum_variant_positional_payload_pending(
+                    VariantDeclarationSequenceForm::EqualsInline,
+                    i,
+                )
+            {
+                i.rollback(position);
+                break;
+            }
+            let next = parse_required_companion_variant_type_expression(
+                owner,
+                EnumVariantTypeExpressionSlot::PositionalPayload,
+                i,
+            );
+            if matches!(next.exit, CompanionVariantTypeExit::ItemContinuation) {
+                exit = next.exit;
+            }
+            types.push(next.value);
+        }
+        let end = types
+            .iter()
+            .rev()
+            .find_map(|item| match item {
+                Recovered::Complete(type_expr) => Some(type_expr.range().end),
+                Recovered::Incomplete => None,
+            })
+            .unwrap_or(start);
+        return CompanionVariantPayloadResult {
+            payload: EnumVariantPayload::Positional {
+                types,
+                range: start..end,
+            },
+            exit,
+        };
+    }
+    i.rollback(checkpoint);
+    companion_variant_payload_normal(EnumVariantPayload::Unit)
+}
+
+fn companion_variant_malformed_positional_pending<E>(
+    owner: VariantDeclarationOwnerSpec,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() || any_ambient_owner_claims(i) {
+        return false;
+    }
+    let spec = variant_declaration_sequence_spec(
+        VariantDeclarationSequenceForm::EqualsInline,
+        LayoutDelimitedFrame::inline(owner.declaration_base),
+        owner.declaration_base,
+    );
+    let checkpoint = i.checkpoint();
+    let separator = scan_enum_variant_separator_at_cursor(spec, i).is_some();
+    i.rollback(checkpoint);
+    !separator && !enum_variant_terminal_boundary_pending(spec, i)
+}
+
 pub(super) fn parse_variant_declaration_named_payload_ast<'source, E>(
     owner: VariantDeclarationOwnerSpec,
     _form: VariantDeclarationSequenceForm,
@@ -1819,6 +2286,137 @@ where
     }
 }
 
+struct AstCompanionVariantPayloadContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
+    i: &'context mut SynIn<'parse, 'source, 'local, E>,
+    owner: VariantDeclarationOwnerSpec,
+    variants: Vec<Recovered<EnumVariant<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    trailing_pipe: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    item_continuation: bool,
+}
+
+impl<'source, E> VariantDeclarationSequenceContext<'source>
+    for AstCompanionVariantPayloadContext<'_, '_, 'source, '_, E>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    type Error = E;
+
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R) -> R {
+        f(self.i)
+    }
+
+    fn emit_trivia(&mut self, _trivia: &TriviaRun) {}
+
+    fn emit_missing_variant(&mut self) {
+        self.variants.push(Recovered::Incomplete);
+    }
+
+    fn emit_separator(&mut self, _separator: EnumVariantSeparator) {}
+
+    fn set_trailing_separator(&mut self, separator: EnumVariantSeparator) {
+        match separator {
+            EnumVariantSeparator::Comma(range) => self.trailing_comma = Some(range),
+            EnumVariantSeparator::Pipe(range) => self.trailing_pipe = Some(range),
+        }
+    }
+
+    fn emit_matching_close(&mut self, close: Range<usize>) {
+        self.close = Recovered::Complete(close);
+    }
+
+    fn parse_variant_item(&mut self, malformed: Option<Range<usize>>) -> bool {
+        let start = malformed
+            .as_ref()
+            .map_or_else(|| self.i.pos(), |range| range.start);
+        if let Some(range) = malformed {
+            while self.i.pos() < range.end {
+                self.i
+                    .input
+                    .next()
+                    .expect("the selected companion variant error range remains available");
+                let mut line = self.i.local.line();
+                line.at_line_start = false;
+                self.i.local.set_line(line);
+            }
+        }
+        let Some(name) = self.i.run(scan_word) else {
+            self.variants.push(Recovered::Incomplete);
+            return true;
+        };
+        let payload = parse_companion_variant_payload_ast(self.owner, self.i);
+        self.item_continuation = matches!(payload.exit, CompanionVariantTypeExit::ItemContinuation);
+        let end = match &payload.payload {
+            EnumVariantPayload::Unit => name.range().end,
+            EnumVariantPayload::From { range, .. }
+            | EnumVariantPayload::Named { range, .. }
+            | EnumVariantPayload::Tuple { range, .. }
+            | EnumVariantPayload::Positional { range, .. } => range.end,
+        };
+        self.variants.push(Recovered::Complete(EnumVariant {
+            name: Recovered::Complete(name),
+            payload: payload.payload,
+            range: start..end,
+        }));
+        true
+    }
+}
+
+impl<'source, E> CompanionVariantSequenceContext<'source>
+    for AstCompanionVariantPayloadContext<'_, '_, 'source, '_, E>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    fn take_item_continuation(&mut self) -> bool {
+        std::mem::take(&mut self.item_continuation)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct ParsedVariantDeclarationSequenceWithTail<'source> {
+    pub(super) sequence: ParsedEnumVariantSequence<'source>,
+    pub(super) tail: Option<VariantDeclarationCompanionOwnerTail>,
+}
+
+pub(super) fn parse_variant_declaration_sequence_with_companion_handoff_isolated<'source, E>(
+    spec: VariantDeclarationSequenceSpec,
+    owner: VariantDeclarationOwnerSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParsedVariantDeclarationSequenceWithTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    debug_assert_eq!(spec.declaration_base, owner.declaration_base);
+    let mut context = AstCompanionVariantPayloadContext {
+        i,
+        owner,
+        variants: Vec::new(),
+        trailing_comma: None,
+        trailing_pipe: None,
+        close: Recovered::Incomplete,
+        item_continuation: false,
+    };
+    let (termination, handed_off) =
+        drive_equals_inline_variant_sequence_with_companion_handoff(&mut context, spec);
+    ParsedVariantDeclarationSequenceWithTail {
+        sequence: ParsedEnumVariantSequence {
+            variants: context.variants,
+            trailing_comma: context.trailing_comma,
+            trailing_pipe: context.trailing_pipe,
+            close: context.close,
+            termination,
+        },
+        tail: handed_off.then_some(VariantDeclarationCompanionOwnerTail { owner: owner.owner }),
+    }
+}
+
 /// Retains the Enum-only fixture entry point while production body adapters
 /// pass their owner spec explicitly to the neutral core.
 pub(super) fn parse_enum_variant_sequence_with_payload<'source, E>(
@@ -1850,6 +2448,36 @@ pub(super) fn emit_variant_declaration_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         CommittedRecoveryRecord::new(
             i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_variant_declaration_missing_at<'parse, 'source, 'local, E, O>(
+    role: GrammarRole,
+    at: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
             RecoverySiteKey {
                 role,
                 range: at..at,
@@ -2471,6 +3099,149 @@ pub(super) fn commit_variant_declaration_payload<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| probe.input().rollback(checkpoint));
 }
 
+fn commit_companion_variant_payload<'parse, 'source, 'local, E, O>(
+    owner: VariantDeclarationOwnerSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> CompanionVariantTypeExit
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Brace, probe.input()))
+    {
+        commit_variant_declaration_named_payload(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            committed,
+        );
+        return CompanionVariantTypeExit::Normal;
+    }
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Parenthesis, probe.input()))
+    {
+        commit_variant_declaration_tuple_payload(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            committed,
+        );
+        return CompanionVariantTypeExit::Normal;
+    }
+    if committed.probe(|probe| {
+        recognize_declaration_companion_handoff(owner.declaration_base, probe.input()).is_some()
+    }) {
+        return CompanionVariantTypeExit::Normal;
+    }
+    let gap = committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()));
+    let Some(gap) = gap else {
+        return CompanionVariantTypeExit::Normal;
+    };
+    if let Some(keyword) = committed.probe(|probe| enum_variant_exact_from_pending(probe.input())) {
+        committed.emit_trivia(&gap);
+        committed.token(SyntaxKind::FromKw, keyword.clone());
+        if let Some(with) = committed.probe(|probe| {
+            recognize_declaration_companion_handoff(owner.declaration_base, probe.input())
+        }) {
+            emit_variant_declaration_missing_at(
+                owner.from_type_role,
+                with.start,
+                committed,
+                ExpectedSyntax::TypeExpression,
+            );
+            return CompanionVariantTypeExit::Normal;
+        } else {
+            if let Some(trivia) =
+                committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()))
+            {
+                committed.emit_trivia(&trivia);
+            }
+            let type_result = commit_required_companion_variant_type_expression(
+                owner,
+                EnumVariantTypeExpressionSlot::FromType,
+                committed,
+            );
+            return type_result.exit;
+        }
+    }
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Brace, probe.input()))
+    {
+        committed.emit_trivia(&gap);
+        commit_variant_declaration_named_payload(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            committed,
+        );
+        return CompanionVariantTypeExit::Normal;
+    }
+    if let Some(open) =
+        committed.probe(|probe| enum_variant_payload_open(Delimiter::Parenthesis, probe.input()))
+    {
+        committed.emit_trivia(&gap);
+        commit_variant_declaration_tuple_payload(
+            owner,
+            VariantDeclarationSequenceForm::EqualsInline,
+            open,
+            committed,
+        );
+        return CompanionVariantTypeExit::Normal;
+    }
+    if committed.probe(|probe| {
+        let i = probe.input();
+        enum_variant_positional_payload_pending(VariantDeclarationSequenceForm::EqualsInline, i)
+            || companion_variant_malformed_positional_pending(owner, i)
+    }) {
+        committed.emit_trivia(&gap);
+        let first = commit_required_companion_variant_type_expression(
+            owner,
+            EnumVariantTypeExpressionSlot::PositionalPayload,
+            committed,
+        );
+        let mut exit = first.exit;
+        loop {
+            let position = committed.probe(|probe| probe.input().checkpoint());
+            if committed.probe(|probe| {
+                recognize_declaration_companion_handoff(owner.declaration_base, probe.input())
+                    .is_some()
+            }) {
+                break;
+            }
+            let Some(trivia) =
+                committed.probe(|probe| consume_enum_variant_payload_trivia(probe.input()))
+            else {
+                break;
+            };
+            if !committed.probe(|probe| {
+                enum_variant_positional_payload_pending(
+                    VariantDeclarationSequenceForm::EqualsInline,
+                    probe.input(),
+                )
+            }) {
+                committed.probe(|probe| probe.input().rollback(position));
+                break;
+            }
+            committed.emit_trivia(&trivia);
+            let next = commit_required_companion_variant_type_expression(
+                owner,
+                EnumVariantTypeExpressionSlot::PositionalPayload,
+                committed,
+            );
+            if matches!(next.exit, CompanionVariantTypeExit::ItemContinuation) {
+                exit = next.exit;
+            }
+        }
+        return exit;
+    }
+    committed.probe(|probe| probe.input().rollback(checkpoint));
+    CompanionVariantTypeExit::Normal
+}
+
 pub(super) struct DirectEnumVariantPayloadContext<
     'context,
     'parse,
@@ -2580,6 +3351,141 @@ where
         owner,
     };
     drive_variant_declaration_sequence(&mut context, spec)
+}
+
+struct DirectCompanionVariantPayloadContext<
+    'context,
+    'parse,
+    'source,
+    'local,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+> {
+    committed: &'context mut Committed<'parse, 'source, 'local, E, O>,
+    owner: VariantDeclarationOwnerSpec,
+    item_continuation: bool,
+}
+
+impl<'source, E, O> VariantDeclarationSequenceContext<'source>
+    for DirectCompanionVariantPayloadContext<'_, '_, 'source, '_, E, O>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    type Error = E;
+
+    fn with_input<R>(&mut self, f: impl FnOnce(&mut SynIn<'_, 'source, '_, E>) -> R) -> R {
+        self.committed.probe(|probe| f(probe.input()))
+    }
+
+    fn emit_trivia(&mut self, trivia: &TriviaRun) {
+        self.committed.emit_trivia(trivia);
+    }
+
+    fn emit_missing_variant(&mut self) {
+        self.committed.start_node(SyntaxKind::EnumVariant);
+        emit_variant_declaration_missing(
+            self.owner.item_role,
+            self.committed,
+            ExpectedSyntax::Identifier,
+        );
+        self.committed.finish_node();
+    }
+
+    fn emit_separator(&mut self, separator: EnumVariantSeparator) {
+        match separator {
+            EnumVariantSeparator::Comma(range) => self.committed.token(SyntaxKind::Comma, range),
+            EnumVariantSeparator::Pipe(range) => self.committed.token(SyntaxKind::Pipe, range),
+        }
+    }
+
+    fn set_trailing_separator(&mut self, _separator: EnumVariantSeparator) {}
+
+    fn emit_matching_close(&mut self, close: Range<usize>) {
+        self.committed.token(SyntaxKind::RBrace, close);
+    }
+
+    fn parse_variant_item(&mut self, malformed: Option<Range<usize>>) -> bool {
+        self.committed.start_node(SyntaxKind::EnumVariant);
+        if let Some(range) = malformed {
+            let has_raw_name_retry = self
+                .committed
+                .probe(|probe| enum_variant_raw_name_pending(probe.input()));
+            emit_variant_declaration_error(
+                if has_raw_name_retry {
+                    self.owner.variant_role(VariantDeclarationRole::Name)
+                } else {
+                    self.owner.item_role
+                },
+                range,
+                self.committed,
+                ExpectedSyntax::Identifier,
+            );
+            if !has_raw_name_retry {
+                self.committed.finish_node();
+                return true;
+            }
+        }
+        let Some(name) = self.committed.probe(|probe| probe.input().run(scan_word)) else {
+            emit_variant_declaration_missing(
+                self.owner.variant_role(VariantDeclarationRole::Name),
+                self.committed,
+                ExpectedSyntax::Identifier,
+            );
+            self.committed.finish_node();
+            return true;
+        };
+        self.committed.token(SyntaxKind::Identifier, name.range());
+        self.item_continuation = matches!(
+            commit_companion_variant_payload(self.owner, self.committed),
+            CompanionVariantTypeExit::ItemContinuation
+        );
+        self.committed.finish_node();
+        true
+    }
+}
+
+impl<'source, E, O> CompanionVariantSequenceContext<'source>
+    for DirectCompanionVariantPayloadContext<'_, '_, 'source, '_, E, O>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    fn take_item_continuation(&mut self) -> bool {
+        std::mem::take(&mut self.item_continuation)
+    }
+}
+
+pub(super) fn commit_variant_declaration_sequence_with_companion_handoff_isolated<
+    'parse,
+    'source,
+    'local,
+    E,
+    O,
+>(
+    spec: VariantDeclarationSequenceSpec,
+    owner: VariantDeclarationOwnerSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<VariantDeclarationCompanionOwnerTail>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    debug_assert_eq!(spec.declaration_base, owner.declaration_base);
+    let mut context = DirectCompanionVariantPayloadContext {
+        committed,
+        owner,
+        item_continuation: false,
+    };
+    let (_, handed_off) =
+        drive_equals_inline_variant_sequence_with_companion_handoff(&mut context, spec);
+    handed_off.then_some(VariantDeclarationCompanionOwnerTail { owner: owner.owner })
 }
 
 /// Retains Enum's fixture entry point while its declaration adapters call

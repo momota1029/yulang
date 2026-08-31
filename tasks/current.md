@@ -295,6 +295,27 @@ Derives item priorityも完了した。shared Derives driverをattachment metada
 なしにDerivesClauseをstreamする。standalone Statement、既存5 owner、owner production wiringは不変。
 focused table 1件（1 passed / 572 filtered）とscoped format/diff check、独立compiler/spec/regression査読で
 閉じ、package/workspace suiteとtimingは行わなかった。現在のactive stepはGate 5 typed episode handoffs。
+Gate 5はM2の初回実装とbundled repair後、isolated variant payloadの`A @with:`が後続の`:`を二つ目の
+variantとして誤回復する具体的な残存原因をfocused tableで確認した。2026-08-31にユーザは、この一点を
+companion-only continuation factで閉じるための例外的な追加repair roundを明示承認した。これはGate 6以降の
+owner wiringや新たな文法判断を認可せず、AST/directの一variant/no-tail/`:` retained remainderを回復する
+原因修正だけを解決対象とする。再修正後は同じfocused table、scoped format/diff check、既存M2 reviewerの
+delta reviewだけを行い、package suiteはgateが閉じた場合に一回だけとする。
+そのcontinuation修正は二variant回復を閉じたが、同tableに新設した`A @with:`のTypeExpression range期待値が
+`2..7`（malformed `@`を含む）となっていた。`@`のType Primary Error範囲`2..3`とretryされた`with`の
+TypeExpression範囲`3..7`を混同した可能性だけを対象に、2026-08-31にユーザはpre-write spec auditと
+expectation-only修正、同focused table一回の再実行を例外承認した。reviewがrange以外のownership/recovery
+契約の揺れを示すなら修正を止め、ad hoc patchを重ねずarchitecture re-entryへ戻す。
+pre-write spec auditは`A @with:`のretry TypeExpressionを`3..7`と確定し、同一helper・同一契約の
+`A from @with:`にも隠れた誤期待値`7..12`（正しくは`8..12`）を発見した。2026-08-31にユーザは
+このpaired assertionも同じexpectation-only例外へ含めることを明示承認した。parser codeやrecovery/CST
+期待、focused table以外のtestは変更しない。
+Gate 5は完了。isolated handoffだけでDerives owner tail、Act Head/Source、Type Equality、Enum/Error
+equals-inline yieldをtypedに表現し、既存owner adapterはproduction-unreachableのまま維持した。隣接
+`@with`のrecovered payloadは一variantとして完結し、retained `:`を二つ目のvariant回復へ流さない。
+最終focused tableは1 passed / 573 filtered、`cargo test -p yu-syntax`は573 passed / 1 ignored、scoped
+rustfmtとdiff checkもgreen。workspace suiteとtimingは行わなかった。次のactive stepはGate 6 Type owner
+integrationであり、Header/EqualityだけをwireしてAttachedImpl優先とRHS/Derives handoffを閉じる。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

@@ -613,6 +613,355 @@ where
     attachments
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct DerivesDeclarationCompanionTail {
+    pub(super) owner: DerivesAttachmentOwner,
+    pub(super) position: DerivesAttachmentPosition,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct DerivesAttachmentsWithTail<'source> {
+    pub(super) attachments: Vec<DerivesAttachment<'source>>,
+    pub(super) tail: Option<DerivesDeclarationCompanionTail>,
+}
+
+enum CompanionDerivesDecision {
+    Comma {
+        leading: Range<usize>,
+        comma: Range<usize>,
+    },
+    Via {
+        leading: Range<usize>,
+        keyword: Range<usize>,
+    },
+    Repeated {
+        leading: Range<usize>,
+        start: DerivesAttachmentStart,
+    },
+    Companion(DerivesDeclarationCompanionTail),
+    Boundary,
+    NoContinuation,
+}
+
+fn companion_derives_tail(start: &DerivesAttachmentStart) -> DerivesDeclarationCompanionTail {
+    DerivesDeclarationCompanionTail {
+        owner: start.owner,
+        position: start.position,
+    }
+}
+
+fn drive_companion_handoff_derives<E>(
+    start: &DerivesAttachmentStart,
+    i: &mut SynIn<E>,
+) -> CompanionDerivesDecision
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let decision = if any_ambient_owner_claims(i) {
+        CompanionDerivesDecision::Boundary
+    } else if recognize_declaration_companion_handoff(start.owner_base, i).is_some() {
+        CompanionDerivesDecision::Companion(companion_derives_tail(start))
+    } else {
+        let trivia = i
+            .run(scan_trivia)
+            .expect("the isolated derives clause gap scan is total");
+        let leading = trivia.range();
+        let has_physical_newline = struct_trivia_has_newline(&trivia);
+        let tail_checkpoint = i.checkpoint();
+        let ordinary_spec = DerivesDriverSpec::new(start.owner, start.position, start.owner_base);
+        if derives_gap_is_caller_owned(start.owner_base, has_physical_newline, i)
+            || i.input.remainder().is_empty()
+        {
+            CompanionDerivesDecision::Boundary
+        } else if let Some(comma) = scan_derives_comma(i) {
+            CompanionDerivesDecision::Comma { leading, comma }
+        } else if let Some(word) = i.run(scan_word) {
+            match word.text() {
+                "via" => CompanionDerivesDecision::Via {
+                    leading,
+                    keyword: word.range(),
+                },
+                "derives" => CompanionDerivesDecision::Repeated {
+                    leading,
+                    start: DerivesAttachmentStart {
+                        owner: start.owner,
+                        position: start.position,
+                        keyword: word.range(),
+                        owner_base: start.owner_base,
+                    },
+                },
+                _ => {
+                    i.rollback(tail_checkpoint);
+                    classify_derives_owner_tail(ordinary_spec.attachment_owner_tail_classifier(), i)
+                        .map_or(CompanionDerivesDecision::NoContinuation, |_| {
+                            CompanionDerivesDecision::Boundary
+                        })
+                }
+            }
+        } else if classify_derives_owner_tail(ordinary_spec.attachment_owner_tail_classifier(), i)
+            .is_some()
+        {
+            CompanionDerivesDecision::Boundary
+        } else {
+            CompanionDerivesDecision::NoContinuation
+        }
+    };
+    i.rollback(checkpoint);
+    decision
+}
+
+fn companion_derives_role_episode_spec<E>(
+    start: &DerivesAttachmentStart,
+    i: &SynIn<E>,
+) -> DerivesRoleEpisodeSpec
+where
+    E: ErrorSink<usize>,
+{
+    let ordinary = derives_role_episode_spec(
+        DerivesDriverSpec::new(start.owner, start.position, start.owner_base),
+        i.local.stop_set().unwrap_or_default(),
+        i.local.type_expression_episode_depth(),
+        declaration_braced_newline_owner_for_physical_newline(i.local),
+    );
+    DerivesRoleEpisodeSpec {
+        stops: ordinary.stops.with(StopKind::With),
+        scoped_frame: TypeExpressionScopedStopFrame {
+            stops: ordinary.scoped_frame.stops.with(StopKind::With),
+            ..ordinary.scoped_frame
+        },
+        policy: TypeExpressionEpisodePolicy {
+            fresh_primary_locally_owned_stops: ordinary
+                .policy
+                .fresh_primary_locally_owned_stops
+                .with(StopKind::With),
+            ..ordinary.policy
+        },
+        outer_role: ordinary.outer_role,
+    }
+}
+
+fn consume_companion_derives_role_trivia<E>(
+    start: &DerivesAttachmentStart,
+    allow_companion_handoff: bool,
+    i: &mut SynIn<E>,
+) where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    if any_ambient_owner_claims(i)
+        || (allow_companion_handoff
+            && recognize_declaration_companion_handoff(start.owner_base, i).is_some())
+    {
+        return;
+    }
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    if derives_gap_is_caller_owned(start.owner_base, struct_trivia_has_newline(&trivia), i) {
+        i.rollback(checkpoint);
+    }
+}
+
+fn parse_companion_handoff_derives_role<'source, E>(
+    start: &DerivesAttachmentStart,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if recognize_declaration_companion_handoff(start.owner_base, i).is_some() {
+        return Recovered::Incomplete;
+    }
+    let episode = companion_derives_role_episode_spec(start, i);
+    i.local.push_stop_set(episode.stops);
+    i.local
+        .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    let role = i
+        .run(from_fn(|i| {
+            Some(
+                parse_required_type_expression_with_handoff_recovery_isolated(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    |i| recognize_declaration_companion_handoff(start.owner_base, i).is_some(),
+                    i,
+                ),
+            )
+        }))
+        .expect("the isolated companion-aware Derives RoleReference entry is total");
+    assert_eq!(
+        i.local.pop_type_expression_scoped_stop_frame(),
+        Some(episode.scoped_frame),
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    match role {
+        Recovered::Complete(role) => Recovered::Complete(Box::new(role)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    }
+}
+
+fn scan_companion_derives_via_invalid_run<E>(
+    start: &DerivesAttachmentStart,
+    i: &mut SynIn<E>,
+) -> Option<DerivesViaInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let error_start = i.pos();
+    loop {
+        if recognize_declaration_companion_handoff(start.owner_base, i).is_some()
+            || any_ambient_owner_claims(i)
+            || derives_active_fixed_boundary_pending(i)
+        {
+            return (error_start < i.pos()).then_some(DerivesViaInvalidRun {
+                range: error_start..i.pos(),
+                target: DerivesViaInvalidTarget::Boundary,
+            });
+        }
+        if error_start < i.pos() && derives_via_raw_identifier_pending(i) {
+            return Some(DerivesViaInvalidRun {
+                range: error_start..i.pos(),
+                target: DerivesViaInvalidTarget::RawIdentifier,
+            });
+        }
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            return (error_start < i.pos()).then_some(DerivesViaInvalidRun {
+                range: error_start..i.pos(),
+                target: DerivesViaInvalidTarget::Boundary,
+            });
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn parse_companion_handoff_derives_via<'source, E>(
+    start: &DerivesAttachmentStart,
+    keyword: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DerivesVia<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    consume_companion_derives_role_trivia(start, false, i);
+    let target = if let Some(target) = i.run(scan_word) {
+        Recovered::Complete(target)
+    } else if let Some(recovery) = scan_companion_derives_via_invalid_run(start, i) {
+        match recovery.target {
+            DerivesViaInvalidTarget::RawIdentifier => Recovered::Complete(
+                i.run(scan_word)
+                    .expect("the isolated ViaTarget retry leaves a raw word"),
+            ),
+            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+        }
+    } else {
+        Recovered::Incomplete
+    };
+    let end = match &target {
+        Recovered::Complete(target) => target.range().end,
+        Recovered::Incomplete => keyword.end,
+    };
+    let range_start = keyword.start;
+    DerivesVia {
+        keyword,
+        target,
+        range: range_start..end,
+    }
+}
+
+pub(super) fn parse_derives_attachments_with_companion_handoff_isolated<'source, E>(
+    first: DerivesAttachmentStart,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DerivesAttachmentsWithTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut attachments = Vec::new();
+    let mut next_start = Some(first);
+    let mut tail = None;
+    while let Some(start) = next_start.take() {
+        let leading = i
+            .run(scan_trivia)
+            .expect("the derives attachment gap is total");
+        debug_assert_eq!(leading.range().end, start.keyword.start);
+        let keyword = i
+            .run(scan_word)
+            .expect("an accepted derives attachment leaves its keyword");
+        assert_eq!(keyword.range(), start.keyword);
+        let mut roles = Vec::new();
+        let (via, repeated) = loop {
+            consume_companion_derives_role_trivia(&start, true, i);
+            roles.push(parse_companion_handoff_derives_role(&start, i));
+            match drive_companion_handoff_derives(&start, i) {
+                CompanionDerivesDecision::Comma { leading, comma } => {
+                    consume_derives_trivia(leading, i);
+                    assert_eq!(scan_derives_comma(i), Some(comma));
+                }
+                CompanionDerivesDecision::Via { leading, keyword } => {
+                    consume_derives_trivia(leading, i);
+                    let consumed = i
+                        .run(scan_word)
+                        .expect("the isolated derives driver leaves via at the cursor");
+                    assert_eq!(consumed.range(), keyword);
+                    let via = parse_companion_handoff_derives_via(&start, keyword, i);
+                    let repeated = match drive_companion_handoff_derives(&start, i) {
+                        CompanionDerivesDecision::Repeated { leading, start } => {
+                            consume_derives_trivia(leading, i);
+                            Some(start)
+                        }
+                        CompanionDerivesDecision::Companion(found) => {
+                            tail = Some(found);
+                            None
+                        }
+                        _ => None,
+                    };
+                    break (Some(via), repeated);
+                }
+                CompanionDerivesDecision::Repeated { leading, start } => {
+                    consume_derives_trivia(leading, i);
+                    break (None, Some(start));
+                }
+                CompanionDerivesDecision::Companion(found) => {
+                    tail = Some(found);
+                    break (None, None);
+                }
+                CompanionDerivesDecision::Boundary | CompanionDerivesDecision::NoContinuation => {
+                    break (None, None);
+                }
+            }
+        };
+        let end = i.pos();
+        let clause_start = start.keyword.start;
+        attachments.push(DerivesAttachment {
+            position: start.position,
+            clause: DerivesClause {
+                keyword: start.keyword,
+                roles,
+                via,
+                range: clause_start..end,
+            },
+        });
+        next_start = repeated;
+        if tail.is_some() {
+            break;
+        }
+    }
+    DerivesAttachmentsWithTail { attachments, tail }
+}
+
 pub(super) fn parse_derives_clause_isolated<'source, E>(
     start: DerivesAttachmentStart,
     spec: DerivesDriverSpec,
@@ -949,6 +1298,263 @@ where
         next_start = repeated_start;
     }
     attachments
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct DirectDerivesAttachmentsWithTail {
+    pub(super) attachments: Vec<DirectDerivesAttachment>,
+    pub(super) tail: Option<DerivesDeclarationCompanionTail>,
+}
+
+fn commit_companion_derives_role_trivia<'parse, 'source, 'local, E, O>(
+    start: &DerivesAttachmentStart,
+    allow_companion_handoff: bool,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        if any_ambient_owner_claims(i)
+            || (allow_companion_handoff
+                && recognize_declaration_companion_handoff(start.owner_base, i).is_some())
+        {
+            return None;
+        }
+        let trivia = i.run(scan_trivia).expect("trivia is total");
+        if derives_gap_is_caller_owned(start.owner_base, struct_trivia_has_newline(&trivia), i) {
+            i.rollback(checkpoint);
+            None
+        } else {
+            Some(trivia)
+        }
+    });
+    if let Some(trivia) = trivia.as_ref() {
+        committed.emit_trivia(trivia);
+    }
+}
+
+fn emit_companion_derives_role_missing_at<'parse, 'source, 'local, E, O>(
+    role: GrammarRole,
+    at: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        CommittedRecoveryRecord::new(
+            probe.input().local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::TypeExpression,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn commit_companion_handoff_derives_role<'parse, 'source, 'local, E, O>(
+    start: &DerivesAttachmentStart,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let episode =
+        committed.probe(|probe| companion_derives_role_episode_spec(start, probe.input()));
+    if let Some(with) = committed
+        .probe(|probe| recognize_declaration_companion_handoff(start.owner_base, probe.input()))
+    {
+        emit_companion_derives_role_missing_at(episode.outer_role, with.start, committed);
+        return Recovered::Incomplete;
+    }
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(episode.stops);
+        i.local
+            .push_type_expression_scoped_stop_frame(episode.scoped_frame);
+    });
+    let role = commit_direct_type_expression_with_handoff_recovery_isolated(
+        Some(episode.outer_role),
+        episode.policy,
+        |i| recognize_declaration_companion_handoff(start.owner_base, i).is_some(),
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(
+            i.local.pop_type_expression_scoped_stop_frame(),
+            Some(episode.scoped_frame),
+        );
+        assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    });
+    let range = role.range();
+    if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    }
+}
+
+fn commit_companion_handoff_derives_via<'parse, 'source, 'local, E, O>(
+    start: &DerivesAttachmentStart,
+    keyword: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> DirectDerivesVia
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_companion_derives_role_trivia(start, false, committed);
+    let target = if let Some(target) = commit_word(committed) {
+        let range = target.range();
+        committed.token(SyntaxKind::Identifier, range.clone());
+        Recovered::Complete(range)
+    } else if let Some(recovery) =
+        committed.probe(|probe| scan_companion_derives_via_invalid_run(start, probe.input()))
+    {
+        emit_derives_via_recovery(committed, RecoveryKind::Error, recovery.range.clone());
+        match recovery.target {
+            DerivesViaInvalidTarget::RawIdentifier => {
+                let target =
+                    commit_word(committed).expect("the isolated ViaTarget retry leaves a raw word");
+                let range = target.range();
+                committed.token(SyntaxKind::Identifier, range.clone());
+                Recovered::Complete(range)
+            }
+            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+        }
+    } else {
+        let at = committed_position(committed);
+        emit_derives_via_recovery(committed, RecoveryKind::Missing, at..at);
+        Recovered::Incomplete
+    };
+    let end = match &target {
+        Recovered::Complete(target) => target.end,
+        Recovered::Incomplete => keyword.end,
+    };
+    let range_start = keyword.start;
+    DirectDerivesVia {
+        keyword,
+        target,
+        range: range_start..end,
+    }
+}
+
+pub(super) fn commit_derives_attachments_with_companion_handoff_isolated<
+    'parse,
+    'source,
+    'local,
+    E,
+    O,
+>(
+    first: DerivesAttachmentStart,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> DirectDerivesAttachmentsWithTail
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut attachments = Vec::new();
+    let mut next_start = Some(first);
+    let mut tail = None;
+    while let Some(start) = next_start.take() {
+        committed.start_node(SyntaxKind::DerivesClause);
+        let leading = committed
+            .probe(|probe| probe.input().run(scan_trivia))
+            .expect("the derives attachment gap is total");
+        debug_assert_eq!(leading.range().end, start.keyword.start);
+        committed.emit_trivia(&leading);
+        let keyword =
+            commit_word(committed).expect("an accepted derives attachment leaves its keyword");
+        assert_eq!(keyword.range(), start.keyword);
+        committed.token(SyntaxKind::DerivesKw, keyword.range());
+        let mut roles = Vec::new();
+        let (via, repeated) = loop {
+            commit_companion_derives_role_trivia(&start, true, committed);
+            roles.push(commit_companion_handoff_derives_role(&start, committed));
+            match committed.probe(|probe| drive_companion_handoff_derives(&start, probe.input())) {
+                CompanionDerivesDecision::Comma { leading, comma } => {
+                    commit_derives_trivia(leading, committed);
+                    let consumed = committed
+                        .probe(|probe| scan_derives_comma(probe.input()))
+                        .expect("the isolated derives driver leaves its comma");
+                    assert_eq!(consumed, comma);
+                    committed.token(SyntaxKind::Comma, consumed);
+                }
+                CompanionDerivesDecision::Via { leading, keyword } => {
+                    commit_derives_trivia(leading, committed);
+                    let consumed = commit_word(committed)
+                        .expect("the isolated derives driver leaves via at the cursor");
+                    assert_eq!(consumed.range(), keyword);
+                    committed.token(SyntaxKind::ViaKw, consumed.range());
+                    let via = commit_companion_handoff_derives_via(&start, keyword, committed);
+                    let repeated = match committed
+                        .probe(|probe| drive_companion_handoff_derives(&start, probe.input()))
+                    {
+                        CompanionDerivesDecision::Repeated { leading, start } => {
+                            commit_derives_trivia(leading, committed);
+                            Some(start)
+                        }
+                        CompanionDerivesDecision::Companion(found) => {
+                            tail = Some(found);
+                            None
+                        }
+                        _ => None,
+                    };
+                    break (Some(via), repeated);
+                }
+                CompanionDerivesDecision::Repeated { leading, start } => {
+                    commit_derives_trivia(leading, committed);
+                    break (None, Some(start));
+                }
+                CompanionDerivesDecision::Companion(found) => {
+                    tail = Some(found);
+                    break (None, None);
+                }
+                CompanionDerivesDecision::Boundary | CompanionDerivesDecision::NoContinuation => {
+                    break (None, None);
+                }
+            }
+        };
+        let end = committed_position(committed);
+        committed.finish_node();
+        attachments.push(DirectDerivesAttachment {
+            position: start.position,
+            clause: DirectDerivesClause {
+                keyword: start.keyword.clone(),
+                roles,
+                via,
+                range: start.keyword.start..end,
+            },
+        });
+        next_start = repeated;
+        if tail.is_some() {
+            break;
+        }
+    }
+    DirectDerivesAttachmentsWithTail { attachments, tail }
 }
 
 pub(super) fn commit_derives_clause_isolated<'parse, 'source, 'local, E, O>(

@@ -527,6 +527,59 @@ where
     )
 }
 
+/// Gate-isolated mandatory entry whose first malformed outer primary may
+/// yield an owner-recognized gap without changing the canonical scanner used
+/// by existing TypeExpression callers.
+pub(crate) fn parse_required_type_expression_with_handoff_recovery_isolated<'source, E, H>(
+    outer_missing_role: Option<GrammarRole>,
+    policy: TypeExpressionEpisodePolicy,
+    mut handoff_pending: H,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Recovered<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    H: FnMut(&mut SynIn<E>) -> bool,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovery_context = RequiredTypeRecoveryContext::ordinary(outer_missing_role);
+    let episode_depth = i.local.push_type_expression_episode(policy);
+    let malformed_continuation_base = recovery_context.malformed_continuation_base(&i);
+    let parsed = if let Some(type_expr) = parse_type_expression_in_current_episode(true, &mut i) {
+        Recovered::Complete(type_expr)
+    } else {
+        match scan_required_type_item_invalid_run_with_handoff(
+            &mut i,
+            malformed_continuation_base,
+            &mut handoff_pending,
+        ) {
+            Some(TypeInvalidRunRecovery {
+                disposition: TypeInvalidRunDisposition::RetryCurrent,
+                ..
+            }) => parse_type_expression_in_current_episode(true, &mut i)
+                .map_or(Recovered::Incomplete, Recovered::Complete),
+            Some(TypeInvalidRunRecovery {
+                disposition: TypeInvalidRunDisposition::RetryAfterTrivia(trivia),
+                ..
+            }) => {
+                consume_recovery_trivia(&mut i, &trivia);
+                parse_type_expression_in_current_episode(true, &mut i)
+                    .map_or(Recovered::Incomplete, Recovered::Complete)
+            }
+            Some(TypeInvalidRunRecovery {
+                disposition:
+                    TypeInvalidRunDisposition::BoundaryCurrent
+                    | TypeInvalidRunDisposition::BoundaryAfterTrivia(_),
+                ..
+            })
+            | None => Recovered::Incomplete,
+        }
+    };
+    assert_eq!(i.local.pop_type_expression_episode(), Some(policy));
+    debug_assert_eq!(i.local.type_expression_episode_depth() + 1, episode_depth);
+    parsed
+}
+
 /// Mandatory AST entry with the recovery context captured by its owner.  The
 /// optional continuation-base override applies only to this entry's first
 /// malformed outer primary; retries and nested type recovery use their normal
@@ -1114,6 +1167,132 @@ where
         policy,
         committed,
     )
+}
+
+/// Direct counterpart of
+/// [`parse_required_type_expression_with_handoff_recovery_isolated`].
+pub(crate) fn commit_direct_type_expression_with_handoff_recovery_isolated<
+    'parse,
+    'source,
+    'local,
+    E,
+    O,
+    H,
+>(
+    outer_missing_role: Option<GrammarRole>,
+    policy: TypeExpressionEpisodePolicy,
+    mut handoff_pending: H,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedTypeExpression<O::Checkpoint>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    H: FnMut(&mut SynIn<E>) -> bool,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovery_context = RequiredTypeRecoveryContext::ordinary(outer_missing_role);
+    let episode_depth =
+        committed.probe(|probe| probe.input().local.push_type_expression_episode(policy));
+    let parsed = if committed.probe(|probe| direct_type_primary_candidate(probe.input())) {
+        commit_direct_type_expression_in_current_episode(true, committed)
+            .expect("the sink-free type primary probe accepted a primary")
+    } else {
+        let malformed_continuation_base =
+            committed.probe(|probe| recovery_context.malformed_continuation_base(probe.input()));
+        let recovered = committed.probe(|probe| {
+            scan_required_type_item_invalid_run_with_handoff(
+                probe.input(),
+                malformed_continuation_base,
+                &mut handoff_pending,
+            )
+        });
+        let emit_missing = match recovered {
+            Some(TypeInvalidRunRecovery {
+                error_range,
+                disposition: TypeInvalidRunDisposition::RetryCurrent,
+            }) => {
+                emit_type_error(
+                    committed,
+                    TypeRole::Primary,
+                    error_range,
+                    ExpectedSyntax::TypeExpression,
+                );
+                let parsed = commit_direct_type_expression_in_current_episode(true, committed)
+                    .expect("the isolated primary recovery stopped at a valid primary");
+                let popped =
+                    committed.probe(|probe| probe.input().local.pop_type_expression_episode());
+                assert_eq!(popped, Some(policy));
+                debug_assert_eq!(
+                    committed.probe(|probe| probe.input().local.type_expression_episode_depth())
+                        + 1,
+                    episode_depth,
+                );
+                return parsed;
+            }
+            Some(TypeInvalidRunRecovery {
+                error_range,
+                disposition: TypeInvalidRunDisposition::RetryAfterTrivia(trivia),
+            }) => {
+                emit_type_error(
+                    committed,
+                    TypeRole::Primary,
+                    error_range,
+                    ExpectedSyntax::TypeExpression,
+                );
+                consume_direct_recovery_trivia(committed, &trivia);
+                let parsed = commit_direct_type_expression_in_current_episode(true, committed)
+                    .expect("the isolated primary recovery stopped at a valid primary");
+                let popped =
+                    committed.probe(|probe| probe.input().local.pop_type_expression_episode());
+                assert_eq!(popped, Some(policy));
+                debug_assert_eq!(
+                    committed.probe(|probe| probe.input().local.type_expression_episode_depth())
+                        + 1,
+                    episode_depth,
+                );
+                return parsed;
+            }
+            Some(TypeInvalidRunRecovery {
+                error_range,
+                disposition:
+                    TypeInvalidRunDisposition::BoundaryCurrent
+                    | TypeInvalidRunDisposition::BoundaryAfterTrivia(_),
+            }) => {
+                emit_type_error(
+                    committed,
+                    TypeRole::Primary,
+                    error_range,
+                    ExpectedSyntax::TypeExpression,
+                );
+                false
+            }
+            None => true,
+        };
+        let at = committed.probe(|probe| probe.input().pos());
+        committed.start_node(SyntaxKind::TypeExpression);
+        if emit_missing {
+            emit_type_missing(
+                committed,
+                recovery_context
+                    .outer_missing_role
+                    .unwrap_or(GrammarRole::Type(TypeRole::Primary)),
+                ExpectedSyntax::TypeExpression,
+            );
+        }
+        committed.finish_node();
+        ParsedTypeExpression {
+            range: at..at,
+            marker: PhantomData,
+        }
+    };
+    let popped = committed.probe(|probe| probe.input().local.pop_type_expression_episode());
+    assert_eq!(popped, Some(policy));
+    debug_assert_eq!(
+        committed.probe(|probe| probe.input().local.type_expression_episode_depth()) + 1,
+        episode_depth,
+    );
+    parsed
 }
 
 /// Direct counterpart of [`parse_required_type_expression_with_recovery_context`].
@@ -5883,6 +6062,28 @@ where
         false,
         direct_type_primary_candidate,
         type_recovery_boundary_pending,
+    )
+}
+
+fn scan_required_type_item_invalid_run_with_handoff<E, H>(
+    i: &mut SynIn<E>,
+    continuation_base: usize,
+    handoff_pending: &mut H,
+) -> Option<TypeInvalidRunRecovery>
+where
+    E: ErrorSink<usize>,
+    H: FnMut(&mut SynIn<E>) -> bool,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified { continuation_base };
+    scan_type_item_invalid_run_with_disposition(
+        i,
+        newline_policy,
+        false,
+        false,
+        direct_type_primary_candidate,
+        |i| type_recovery_boundary_pending(i) || handoff_pending(i),
     )
 }
 
