@@ -441,6 +441,18 @@ pub(super) fn enum_variant_declaration_owner_spec(
 /// selection, and the variant sequence remain on this one path.
 #[allow(dead_code)]
 pub(crate) fn parse_enum_declaration_isolated<'source, E>(
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<EnumDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_enum_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)
+}
+
+pub(crate) fn parse_enum_declaration_with_operators<'source, E>(
+    table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<EnumDeclaration<'source>>
 where
@@ -453,29 +465,76 @@ where
         let intro = i.run(recognize_enum_statement_intro)?;
         let (header, _recoveries) = parse_required_enum_header_isolated(&intro, &mut i);
         let header_complete = matches!(header.name, Recovered::Complete(_));
-        let mut derives = header_complete
-            .then(|| {
-                recognize_derives_attachment_start(
-                    DerivesAttachmentOwner::Enum,
-                    DerivesAttachmentPosition::Header,
-                    intro.enum_base,
-                    &mut i,
-                )
-                .map(|start| parse_derives_attachments_isolated(start, &mut i))
-                .unwrap_or_default()
-            })
-            .unwrap_or_default();
-        let body = header_complete
-            .then(|| parse_enum_body_ast(intro.enum_base, &mut i))
-            .unwrap_or(Recovered::Incomplete);
+        let (mut derives, header_companion_tail) = if header_complete {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Enum,
+                DerivesAttachmentPosition::Header,
+                intro.enum_base,
+                &mut i,
+            )
+            .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i))
+            .map_or_else(
+                || (Vec::new(), None),
+                |parsed| (parsed.attachments, parsed.tail),
+            )
+        } else {
+            (Vec::new(), None)
+        };
+        let mut companion = None;
+        let header_companion_pending = header_complete
+            && (header_companion_tail.is_some()
+                || recognize_declaration_companion_handoff(intro.enum_base, &mut i).is_some());
+        let (body, equals_inline_tail) = if header_companion_pending {
+            if let Some(tail) = header_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Enum);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+            }
+            companion = Some(parse_enum_declaration_companion_after_handoff(
+                table,
+                intro.enum_base,
+                &mut i,
+            ));
+            (
+                Recovered::Complete(EnumBody::Bodyless { semicolon: None }),
+                None,
+            )
+        } else if header_complete {
+            parse_enum_body_ast(intro.enum_base, &mut i)
+        } else {
+            (Recovered::Incomplete, None)
+        };
+        if let Some(tail) = equals_inline_tail {
+            debug_assert_eq!(tail.owner, VariantDeclarationOwner::Enum);
+            companion = Some(parse_enum_declaration_companion_after_handoff(
+                table,
+                intro.enum_base,
+                &mut i,
+            ));
+        }
         if enum_body_has_actual_trailing_close(&body) {
-            if let Some(start) = recognize_derives_attachment_start(
+            let trailing = recognize_derives_attachment_start(
                 DerivesAttachmentOwner::Enum,
                 DerivesAttachmentPosition::Trailing,
                 intro.enum_base,
                 &mut i,
-            ) {
-                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+            )
+            .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i));
+            let trailing_companion_tail = trailing.as_ref().and_then(|parsed| parsed.tail);
+            if let Some(parsed) = trailing {
+                derives.extend(parsed.attachments);
+            }
+            let trailing_companion_pending = trailing_companion_tail.is_some()
+                || recognize_declaration_companion_handoff(intro.enum_base, &mut i).is_some();
+            if trailing_companion_pending {
+                if let Some(tail) = trailing_companion_tail {
+                    debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Enum);
+                    debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+                }
+                companion = Some(parse_enum_declaration_companion_after_handoff(
+                    table,
+                    intro.enum_base,
+                    &mut i,
+                ));
             }
         }
         let header_end = match &header.name {
@@ -489,6 +548,9 @@ where
         let derives_end = derives
             .last()
             .map_or(0, |attachment| attachment.clause.range.end);
+        let companion_end = companion
+            .as_ref()
+            .map_or(0, |companion| companion.range.end);
         Some(EnumDeclaration {
             visibility: intro
                 .visibility
@@ -496,9 +558,9 @@ where
             name: header.name,
             parameters: header.parameters,
             derives,
-            companion: None,
+            companion,
             body,
-            range: intro.start..header_end.max(body_end).max(derives_end),
+            range: intro.start..header_end.max(body_end).max(derives_end).max(companion_end),
         })
     })();
     i.errors_rollback(errors_checkpoint);
@@ -508,30 +570,43 @@ where
 pub(super) fn parse_enum_body_ast<'source, E>(
     enum_base: usize,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> Recovered<EnumBody<'source>>
+) -> (
+    Recovered<EnumBody<'source>>,
+    Option<VariantDeclarationCompanionOwnerTail>,
+)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if enum_body_implicit_boundary_pending(enum_base, i) {
-        return Recovered::Complete(EnumBody::Bodyless { semicolon: None });
+        return (
+            Recovered::Complete(EnumBody::Bodyless { semicolon: None }),
+            None,
+        );
     }
     let checkpoint = i.checkpoint();
     let Some(_) = mod_trivia(enum_base, i) else {
         i.rollback(checkpoint);
-        return Recovered::Complete(EnumBody::Bodyless { semicolon: None });
+        return (
+            Recovered::Complete(EnumBody::Bodyless { semicolon: None }),
+            None,
+        );
     };
 
     if let Some(equals) = i.run(scan_declaration_exact_equals) {
-        return Recovered::Complete(EnumBody::Equals {
-            equals: equals.clone(),
-            body: parse_enum_equals_body_ast(enum_base, equals, i),
-        });
+        let (body, tail) = parse_enum_equals_body_ast(enum_base, equals.clone(), i);
+        return (
+            Recovered::Complete(EnumBody::Equals {
+                equals: equals.clone(),
+                body,
+            }),
+            tail,
+        );
     }
     let punctuation_checkpoint = i.checkpoint();
     let punctuation = i.run(scan_punctuation);
-    match punctuation.map(|punctuation| (punctuation.kind(), punctuation.range())) {
+    let body = match punctuation.map(|punctuation| (punctuation.kind(), punctuation.range())) {
         Some((PunctuationKind::Semicolon, semicolon)) => Recovered::Complete(EnumBody::Bodyless {
             semicolon: Some(semicolon),
         }),
@@ -546,11 +621,12 @@ where
             i.rollback(punctuation_checkpoint);
             i.rollback(checkpoint);
             match enum_body_introducer_error_retry_ast(enum_base, i) {
-                Some(true) => parse_enum_body_ast(enum_base, i),
+                Some(true) => return parse_enum_body_ast(enum_base, i),
                 Some(false) | None => Recovered::Incomplete,
             }
         }
-    }
+    };
+    (body, None)
 }
 
 pub(super) fn parse_enum_braced_body_ast<'source, E>(
@@ -628,7 +704,10 @@ pub(super) fn parse_enum_equals_body_ast<'source, E>(
     enum_base: usize,
     equals: Range<usize>,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> Recovered<EnumEqualsVariantBody<'source>>
+) -> (
+    Recovered<EnumEqualsVariantBody<'source>>,
+    Option<VariantDeclarationCompanionOwnerTail>,
+)
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -639,7 +718,7 @@ where
     if enum_variant_trivia_has_newline(&trivia) {
         if i.local.line().line_indent <= enum_base {
             i.rollback(checkpoint);
-            return Recovered::Incomplete;
+            return (Recovered::Incomplete, None);
         }
         let block_indent = i.local.line().line_indent;
         let sequence = parse_variant_declaration_sequence_with_payload(
@@ -653,14 +732,18 @@ where
         );
         let end = i.pos();
         let _ = sequence.trailing_pipe;
-        return Recovered::Complete(EnumEqualsVariantBody::Indented(EnumIndentedVariantBody {
-            base_indent: enum_base,
-            block_indent,
-            variants: sequence.variants,
-            range: equals.end..end,
-        }));
+        return (
+            Recovered::Complete(EnumEqualsVariantBody::Indented(EnumIndentedVariantBody {
+                base_indent: enum_base,
+                block_indent,
+                variants: sequence.variants,
+                range: equals.end..end,
+            })),
+            None,
+        );
     }
-    let sequence = parse_variant_declaration_sequence_with_payload(
+    i.rollback(checkpoint);
+    let parsed = parse_variant_declaration_sequence_with_companion_handoff_isolated(
         variant_declaration_sequence_spec(
             VariantDeclarationSequenceForm::EqualsInline,
             LayoutDelimitedFrame::inline(enum_base),
@@ -670,11 +753,29 @@ where
         i,
     );
     let end = i.pos();
-    Recovered::Complete(EnumEqualsVariantBody::Inline {
-        variants: sequence.variants,
-        trailing_pipe: sequence.trailing_pipe,
-        range: equals.end..end,
-    })
+    (
+        Recovered::Complete(EnumEqualsVariantBody::Inline {
+            variants: parsed.sequence.variants,
+            trailing_pipe: parsed.sequence.trailing_pipe,
+            range: equals.end..end,
+        }),
+        parsed.tail,
+    )
+}
+
+fn parse_enum_declaration_companion_after_handoff<'source, E>(
+    table: &crate::operator::OperatorTable,
+    enum_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DeclarationCompanion<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    mod_trivia(enum_base, i).expect("an accepted Enum companion handoff preserves its owner gap");
+    parse_declaration_companion_isolated(table, enum_base, i)
+        .expect("an accepted Enum companion handoff preserves exact `with`")
 }
 
 /// Direct-CST counterpart of [`parse_enum_declaration_isolated`]. It emits
@@ -682,6 +783,24 @@ where
 /// vocabulary; body-form and sequence facts stay as source-order children
 /// after Gate 11 promotes this adapter into public dispatch.
 pub(crate) fn commit_enum_declaration_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: EnumStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_enum_declaration_with_operators(
+        &crate::operator::OperatorTable::empty(),
+        committed,
+        intro,
+    )
+}
+
+pub(crate) fn commit_enum_declaration_with_operators<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: EnumStatementIntro<'source>,
 ) -> Recovered<Range<usize>>
@@ -703,31 +822,65 @@ where
 
     let header = commit_required_enum_header_isolated(&intro, committed);
     let header_complete = matches!(header.name, Recovered::Complete(_));
-    if header_complete {
-        if let Some(start) = committed.probe(|probe| {
-            recognize_derives_attachment_start(
-                DerivesAttachmentOwner::Enum,
-                DerivesAttachmentPosition::Header,
-                intro.enum_base,
-                probe.input(),
-            )
-        }) {
-            let _ = commit_derives_attachments_isolated(start, committed);
+    let header_derives = header_complete
+        .then(|| {
+            committed.probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Enum,
+                    DerivesAttachmentPosition::Header,
+                    intro.enum_base,
+                    probe.input(),
+                )
+            })
+        })
+        .flatten()
+        .map(|start| commit_derives_attachments_with_companion_handoff_isolated(start, committed));
+    let header_companion_tail = header_derives.as_ref().and_then(|parsed| parsed.tail);
+    let header_companion_pending = header_complete
+        && (header_companion_tail.is_some()
+            || committed.probe(|probe| {
+                recognize_declaration_companion_handoff(intro.enum_base, probe.input()).is_some()
+            }));
+    let (has_actual_braced_close, equals_inline_tail) = if header_companion_pending {
+        if let Some(tail) = header_companion_tail {
+            debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Enum);
+            debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
         }
+        let _ = commit_enum_declaration_companion_after_handoff(table, intro.enum_base, committed);
+        (false, None)
+    } else if header_complete {
+        commit_enum_body_isolated(intro.enum_base, committed)
+    } else {
+        (false, None)
+    };
+    if let Some(tail) = equals_inline_tail {
+        debug_assert_eq!(tail.owner, VariantDeclarationOwner::Enum);
+        let _ = commit_enum_declaration_companion_after_handoff(table, intro.enum_base, committed);
     }
-
-    let has_actual_braced_close =
-        header_complete && commit_enum_body_isolated(intro.enum_base, committed);
     if has_actual_braced_close {
-        if let Some(start) = committed.probe(|probe| {
+        let trailing = committed.probe(|probe| {
             recognize_derives_attachment_start(
                 DerivesAttachmentOwner::Enum,
                 DerivesAttachmentPosition::Trailing,
                 intro.enum_base,
                 probe.input(),
             )
-        }) {
-            let _ = commit_derives_attachments_isolated(start, committed);
+        });
+        let trailing = trailing.map(|start| {
+            commit_derives_attachments_with_companion_handoff_isolated(start, committed)
+        });
+        let trailing_companion_tail = trailing.as_ref().and_then(|parsed| parsed.tail);
+        let trailing_companion_pending = trailing_companion_tail.is_some()
+            || committed.probe(|probe| {
+                recognize_declaration_companion_handoff(intro.enum_base, probe.input()).is_some()
+            });
+        if trailing_companion_pending {
+            if let Some(tail) = trailing_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Enum);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+            }
+            let _ =
+                commit_enum_declaration_companion_after_handoff(table, intro.enum_base, committed);
         }
     }
 
@@ -743,7 +896,7 @@ where
 pub(super) fn commit_enum_body_isolated<'parse, 'source, 'local, E, O>(
     enum_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> bool
+) -> (bool, Option<VariantDeclarationCompanionOwnerTail>)
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -751,7 +904,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if committed.probe(|probe| enum_body_implicit_boundary_pending(enum_base, probe.input())) {
-        return false;
+        return (false, None);
     }
     let starter = committed.probe(|probe| enum_direct_body_starter(enum_base, probe.input()));
     let Some((trivia, starter)) = starter else {
@@ -766,7 +919,7 @@ where
             let newline = committed
                 .probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
             if newline {
-                return false;
+                return (false, None);
             }
             let consumed = committed
                 .probe(|probe| mod_trivia(enum_base, probe.input()))
@@ -776,7 +929,7 @@ where
         }
         match enum_body_introducer_error_retry(enum_base, committed) {
             Some(true) => return commit_enum_body_isolated(enum_base, committed),
-            Some(false) | None => return false,
+            Some(false) | None => return (false, None),
         }
     };
     let consumed_trivia = committed
@@ -792,7 +945,7 @@ where
                 .expect("the selected Enum semicolon remains at the cursor");
             assert_eq!(punctuation.range(), range);
             committed.token(SyntaxKind::Semicolon, range);
-            false
+            (false, None)
         }
         DirectEnumBodyStarter::Braced(range) => {
             let punctuation = committed
@@ -800,7 +953,7 @@ where
                 .expect("the selected Enum brace remains at the cursor");
             assert_eq!(punctuation.range(), range);
             committed.token(SyntaxKind::LBrace, range);
-            commit_enum_braced_body_isolated(enum_base, committed)
+            (commit_enum_braced_body_isolated(enum_base, committed), None)
         }
         DirectEnumBodyStarter::Colon(range) => {
             let punctuation = committed
@@ -809,7 +962,7 @@ where
             assert_eq!(punctuation.range(), range);
             committed.token(SyntaxKind::Colon, range);
             commit_enum_colon_body_isolated(enum_base, committed);
-            false
+            (false, None)
         }
         DirectEnumBodyStarter::Equals(range) => {
             let equals = committed
@@ -817,8 +970,10 @@ where
                 .expect("the selected Enum equals remains at the cursor");
             assert_eq!(equals, range);
             committed.token(SyntaxKind::Equals, range);
-            commit_enum_equals_body_isolated(enum_base, committed);
-            false
+            (
+                false,
+                commit_enum_equals_body_isolated(enum_base, committed),
+            )
         }
     }
 }
@@ -918,7 +1073,8 @@ pub(super) fn commit_enum_colon_body_isolated<'parse, 'source, 'local, E, O>(
 pub(super) fn commit_enum_equals_body_isolated<'parse, 'source, 'local, E, O>(
     enum_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where
+) -> Option<VariantDeclarationCompanionOwnerTail>
+where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
@@ -934,7 +1090,7 @@ pub(super) fn commit_enum_equals_body_isolated<'parse, 'source, 'local, E, O>(
         if !valid_indent {
             committed.probe(|probe| probe.input().rollback(checkpoint));
             emit_enum_variant_item_missing(committed);
-            return;
+            return None;
         }
         let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
         committed.emit_trivia(&trivia);
@@ -947,10 +1103,10 @@ pub(super) fn commit_enum_equals_body_isolated<'parse, 'source, 'local, E, O>(
             enum_variant_declaration_owner_spec(enum_base),
             committed,
         );
-        return;
+        return None;
     }
-    committed.emit_trivia(&trivia);
-    let _ = commit_variant_declaration_sequence_with_payload(
+    committed.probe(|probe| probe.input().rollback(checkpoint));
+    commit_variant_declaration_sequence_with_companion_handoff_isolated(
         variant_declaration_sequence_spec(
             VariantDeclarationSequenceForm::EqualsInline,
             LayoutDelimitedFrame::inline(enum_base),
@@ -958,7 +1114,26 @@ pub(super) fn commit_enum_equals_body_isolated<'parse, 'source, 'local, E, O>(
         ),
         enum_variant_declaration_owner_spec(enum_base),
         committed,
-    );
+    )
+}
+
+fn commit_enum_declaration_companion_after_handoff<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    enum_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Range<usize>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed
+        .probe(|probe| mod_trivia(enum_base, probe.input()))
+        .expect("an accepted Enum companion handoff preserves its owner gap");
+    committed.emit_trivia(&leading);
+    commit_declaration_companion_isolated(table, enum_base, committed)
+        .expect("an accepted Enum companion handoff preserves exact `with`")
 }
 
 pub(super) fn enum_body_introducer_error_retry<'parse, 'source, 'local, E, O>(

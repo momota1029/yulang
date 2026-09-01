@@ -423,6 +423,18 @@ pub(super) fn error_variant_declaration_owner_spec(
 /// Gate 9's promoted public statement dispatch. Its declaration identity
 /// remains Error-specific; only the established Enum body vocabulary is shared.
 pub(crate) fn parse_error_declaration_isolated<'source, E>(
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<ErrorDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_error_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)
+}
+
+pub(crate) fn parse_error_declaration_with_operators<'source, E>(
+    table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ErrorDeclaration<'source>>
 where
@@ -435,29 +447,65 @@ where
         let intro = i.run(recognize_error_statement_intro)?;
         let (header, _recoveries) = parse_required_error_header_isolated(&intro, &mut i);
         let header_complete = matches!(header.name, Recovered::Complete(_));
-        let mut derives = header_complete
-            .then(|| {
-                recognize_derives_attachment_start(
-                    DerivesAttachmentOwner::Error,
-                    DerivesAttachmentPosition::Header,
-                    intro.error_base,
-                    &mut i,
-                )
-                .map(|start| parse_derives_attachments_isolated(start, &mut i))
-                .unwrap_or_default()
-            })
-            .unwrap_or_default();
-        let body = header_complete
-            .then(|| parse_error_body_ast(intro.error_base, &mut i))
-            .unwrap_or(Recovered::Incomplete);
+        let (mut derives, header_companion_tail) = if header_complete {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Error,
+                DerivesAttachmentPosition::Header,
+                intro.error_base,
+                &mut i,
+            )
+            .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i))
+            .map_or_else(
+                || (Vec::new(), None),
+                |parsed| (parsed.attachments, parsed.tail),
+            )
+        } else {
+            (Vec::new(), None)
+        };
+        let mut companion = None;
+        let header_companion_pending = header_complete
+            && (header_companion_tail.is_some()
+                || recognize_declaration_companion_handoff(intro.error_base, &mut i).is_some());
+        let body = if header_companion_pending {
+            if let Some(tail) = header_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Error);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+            }
+            companion = Some(parse_error_declaration_companion_after_handoff(
+                table,
+                intro.error_base,
+                &mut i,
+            ));
+            Recovered::Complete(EnumBody::Bodyless { semicolon: None })
+        } else if header_complete {
+            parse_error_body_ast(intro.error_base, &mut i)
+        } else {
+            Recovered::Incomplete
+        };
         if enum_body_has_actual_trailing_close(&body) {
-            if let Some(start) = recognize_derives_attachment_start(
+            let trailing = recognize_derives_attachment_start(
                 DerivesAttachmentOwner::Error,
                 DerivesAttachmentPosition::Trailing,
                 intro.error_base,
                 &mut i,
-            ) {
-                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+            )
+            .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i));
+            let trailing_companion_tail = trailing.as_ref().and_then(|parsed| parsed.tail);
+            if let Some(parsed) = trailing {
+                derives.extend(parsed.attachments);
+            }
+            let trailing_companion_pending = trailing_companion_tail.is_some()
+                || recognize_declaration_companion_handoff(intro.error_base, &mut i).is_some();
+            if trailing_companion_pending {
+                if let Some(tail) = trailing_companion_tail {
+                    debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Error);
+                    debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+                }
+                companion = Some(parse_error_declaration_companion_after_handoff(
+                    table,
+                    intro.error_base,
+                    &mut i,
+                ));
             }
         }
         let header_end = match &header.name {
@@ -471,6 +519,9 @@ where
         let derives_end = derives
             .last()
             .map_or(0, |attachment| attachment.clause.range.end);
+        let companion_end = companion
+            .as_ref()
+            .map_or(0, |companion| companion.range.end);
         Some(ErrorDeclaration {
             visibility: intro
                 .visibility
@@ -478,9 +529,9 @@ where
             name: header.name,
             parameters: header.parameters,
             derives,
-            companion: None,
+            companion,
             body,
-            range: intro.start..header_end.max(body_end).max(derives_end),
+            range: intro.start..header_end.max(body_end).max(derives_end).max(companion_end),
         })
     })();
     i.errors_rollback(errors_checkpoint);
@@ -644,7 +695,8 @@ where
             range: equals.end..end,
         }));
     }
-    let sequence = parse_variant_declaration_sequence_with_payload(
+    i.rollback(checkpoint);
+    let parsed = parse_variant_declaration_sequence_with_companion_handoff_isolated(
         variant_declaration_sequence_spec(
             VariantDeclarationSequenceForm::EqualsInline,
             LayoutDelimitedFrame::inline(error_base),
@@ -653,17 +705,53 @@ where
         error_variant_declaration_owner_spec(error_base),
         i,
     );
+    if let Some(tail) = parsed.tail {
+        debug_assert_eq!(tail.owner, VariantDeclarationOwner::Error);
+    }
     let end = i.pos();
     Recovered::Complete(EnumEqualsVariantBody::Inline {
-        variants: sequence.variants,
-        trailing_pipe: sequence.trailing_pipe,
+        variants: parsed.sequence.variants,
+        trailing_pipe: parsed.sequence.trailing_pipe,
         range: equals.end..end,
     })
+}
+
+fn parse_error_declaration_companion_after_handoff<'source, E>(
+    table: &crate::operator::OperatorTable,
+    error_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DeclarationCompanion<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    mod_trivia(error_base, i).expect("an accepted Error companion handoff preserves its owner gap");
+    parse_declaration_companion_isolated(table, error_base, i)
+        .expect("an accepted Error companion handoff preserves exact `with`")
 }
 
 /// Direct-CST counterpart of [`parse_error_declaration_isolated`]. Gate 9
 /// promotes this exact adapter into shared statement dispatch.
 pub(crate) fn commit_error_declaration_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: ErrorStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_error_declaration_with_operators(
+        &crate::operator::OperatorTable::empty(),
+        committed,
+        intro,
+    )
+}
+
+pub(crate) fn commit_error_declaration_with_operators<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: ErrorStatementIntro<'source>,
 ) -> Recovered<Range<usize>>
@@ -684,30 +772,63 @@ where
     committed.token(SyntaxKind::ErrorKw, intro.error_keyword.range());
     let header = commit_required_error_header_isolated(&intro, committed);
     let header_complete = matches!(header.name, Recovered::Complete(_));
-    if header_complete {
-        if let Some(start) = committed.probe(|probe| {
+    let header_derives = if header_complete {
+        committed.probe(|probe| {
             recognize_derives_attachment_start(
                 DerivesAttachmentOwner::Error,
                 DerivesAttachmentPosition::Header,
                 intro.error_base,
                 probe.input(),
             )
-        }) {
-            let _ = commit_derives_attachments_isolated(start, committed);
-        }
+        })
+    } else {
+        None
     }
-    let has_actual_braced_close =
-        header_complete && commit_error_body_isolated(intro.error_base, committed);
+    .map(|start| commit_derives_attachments_with_companion_handoff_isolated(start, committed));
+    let header_companion_tail = header_derives.as_ref().and_then(|parsed| parsed.tail);
+    let header_companion_pending = header_complete
+        && (header_companion_tail.is_some()
+            || committed.probe(|probe| {
+                recognize_declaration_companion_handoff(intro.error_base, probe.input()).is_some()
+            }));
+    let has_actual_braced_close = if header_companion_pending {
+        if let Some(tail) = header_companion_tail {
+            debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Error);
+            debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+        }
+        let _ =
+            commit_error_declaration_companion_after_handoff(table, intro.error_base, committed);
+        false
+    } else {
+        header_complete && commit_error_body_isolated(intro.error_base, committed)
+    };
     if has_actual_braced_close {
-        if let Some(start) = committed.probe(|probe| {
+        let trailing = committed.probe(|probe| {
             recognize_derives_attachment_start(
                 DerivesAttachmentOwner::Error,
                 DerivesAttachmentPosition::Trailing,
                 intro.error_base,
                 probe.input(),
             )
-        }) {
-            let _ = commit_derives_attachments_isolated(start, committed);
+        });
+        let trailing = trailing.map(|start| {
+            commit_derives_attachments_with_companion_handoff_isolated(start, committed)
+        });
+        let trailing_companion_tail = trailing.as_ref().and_then(|parsed| parsed.tail);
+        let trailing_companion_pending = trailing_companion_tail.is_some()
+            || committed.probe(|probe| {
+                recognize_declaration_companion_handoff(intro.error_base, probe.input()).is_some()
+            });
+        if trailing_companion_pending {
+            if let Some(tail) = trailing_companion_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Error);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Trailing);
+            }
+            let _ = commit_error_declaration_companion_after_handoff(
+                table,
+                intro.error_base,
+                committed,
+            );
         }
     }
     let end = committed_position(committed);
@@ -886,6 +1007,25 @@ pub(super) fn commit_error_colon_body_isolated<'parse, 'source, 'local, E, O>(
     );
 }
 
+fn commit_error_declaration_companion_after_handoff<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    error_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Range<usize>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed
+        .probe(|probe| mod_trivia(error_base, probe.input()))
+        .expect("an accepted Error companion handoff preserves its owner gap");
+    committed.emit_trivia(&leading);
+    commit_declaration_companion_isolated(table, error_base, committed)
+        .expect("an accepted Error companion handoff preserves exact `with`")
+}
+
 pub(super) fn commit_error_equals_body_isolated<'parse, 'source, 'local, E, O>(
     error_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -918,8 +1058,8 @@ pub(super) fn commit_error_equals_body_isolated<'parse, 'source, 'local, E, O>(
         );
         return;
     }
-    committed.emit_trivia(&trivia);
-    let _ = commit_variant_declaration_sequence_with_payload(
+    committed.probe(|probe| probe.input().rollback(checkpoint));
+    let tail = commit_variant_declaration_sequence_with_companion_handoff_isolated(
         variant_declaration_sequence_spec(
             VariantDeclarationSequenceForm::EqualsInline,
             LayoutDelimitedFrame::inline(error_base),
@@ -928,6 +1068,9 @@ pub(super) fn commit_error_equals_body_isolated<'parse, 'source, 'local, E, O>(
         error_variant_declaration_owner_spec(error_base),
         committed,
     );
+    if let Some(tail) = tail {
+        debug_assert_eq!(tail.owner, VariantDeclarationOwner::Error);
+    }
 }
 
 pub(super) fn error_body_introducer_error_retry<'parse, 'source, 'local, E, O>(

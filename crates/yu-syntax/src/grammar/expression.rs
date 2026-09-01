@@ -15,13 +15,13 @@ use crate::{
         ForStatement, ImplDeclaration, ModDeclaration, Recovered, RoleDeclaration, StatementIntro,
         StructDeclaration, TypeDeclaration, UseDeclaration, commit_act_declaration_isolated,
         commit_binding_declaration, commit_cast_declaration_isolated,
-        commit_enum_declaration_isolated, commit_error_declaration_isolated,
+        commit_enum_declaration_with_operators, commit_error_declaration_with_operators,
         commit_for_statement_isolated, commit_impl_declaration_isolated, commit_mod_declaration,
         commit_role_declaration_isolated, commit_struct_declaration_with_operators,
         commit_type_declaration_with_operators, commit_use_declaration,
         parse_act_declaration_isolated, parse_binding_declaration_with_operators,
-        parse_cast_declaration_form_aware_isolated, parse_enum_declaration_isolated,
-        parse_error_declaration_isolated, parse_for_statement_isolated,
+        parse_cast_declaration_form_aware_isolated, parse_enum_declaration_with_operators,
+        parse_error_declaration_with_operators, parse_for_statement_isolated,
         parse_impl_declaration_isolated, parse_mod_declaration_with_operators,
         parse_role_declaration_isolated, parse_struct_declaration_with_operators,
         parse_type_declaration_with_operators, parse_use_declaration, recognize_statement_intro,
@@ -2016,10 +2016,12 @@ where
             }))
             .map(Statement::Struct),
         Some(StatementIntro::Enum(_)) => i
-            .run(from_fn(parse_enum_declaration_isolated))
+            .run(from_fn(|i| parse_enum_declaration_with_operators(table, i)))
             .map(Statement::Enum),
         Some(StatementIntro::Error(_)) => i
-            .run(from_fn(parse_error_declaration_isolated))
+            .run(from_fn(|i| {
+                parse_error_declaration_with_operators(table, i)
+            }))
             .map(Statement::Error),
         Some(StatementIntro::Type(_)) => i
             .run(from_fn(|i| parse_type_declaration_with_operators(table, i)))
@@ -6092,11 +6094,11 @@ where
             true
         }
         Some(StatementIntro::Enum(intro)) => {
-            let _ = commit_enum_declaration_isolated(committed, intro);
+            let _ = commit_enum_declaration_with_operators(table, committed, intro);
             true
         }
         Some(StatementIntro::Error(intro)) => {
-            let _ = commit_error_declaration_isolated(committed, intro);
+            let _ = commit_error_declaration_with_operators(table, committed, intro);
             true
         }
         Some(StatementIntro::Type(intro)) => {

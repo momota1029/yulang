@@ -322,7 +322,12 @@ filtered、scoped rustfmt/diff checkと独立compiler delta reviewはgreen、pac
 ownerへwireし、bare Struct・bodyless semicolon・named-indent・missing/mismatched closeの拒否を保った。
 Struct companion内のCanonical Statementへ既存operator tableを渡すnarrow entrypointを追加し、focused tableは
 1 passed / 575 filtered、scoped rustfmt/diff checkと独立compiler delta reviewはgreen。package/workspace suiteと
-timingは行わなかった。次のactive stepはGate 8 Enum/Error owner integration。
+timingは行わなかった。Gate 8も完了。EnumはHeader・actual-complete brace trailing・equals-inlineのtyped tailを
+singular companionへattachし、ErrorはHeader・actual-complete brace trailingだけをattach、equals-inlineの同じtailは
+outer Statementへyieldする意図的な非対称を保った。Enum/Error companion内のCanonical Statementにも既存operator
+tableをtable-aware wrapper経由で渡し、tableless wrapperは互換のため残した。M2 focused tableは1 passed / 576
+filtered、scoped rustfmt/diff checkとcompiler/spec delta reviewはgreen。package/workspace suiteとtimingは行わなかった。
+次のactive stepはGate 9 Act owner integration。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

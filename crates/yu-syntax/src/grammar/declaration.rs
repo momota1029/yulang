@@ -117,10 +117,12 @@ pub(crate) use cast_decl::{
     CastDeclaration, commit_cast_declaration_isolated, parse_cast_declaration_form_aware_isolated,
 };
 pub(crate) use enum_decl::{
-    EnumDeclaration, commit_enum_declaration_isolated, parse_enum_declaration_isolated,
+    EnumDeclaration, commit_enum_declaration_isolated, commit_enum_declaration_with_operators,
+    parse_enum_declaration_isolated, parse_enum_declaration_with_operators,
 };
 pub(crate) use error_decl::{
-    ErrorDeclaration, commit_error_declaration_isolated, parse_error_declaration_isolated,
+    ErrorDeclaration, commit_error_declaration_isolated, commit_error_declaration_with_operators,
+    parse_error_declaration_isolated, parse_error_declaration_with_operators,
 };
 pub(crate) use for_statement::{
     ForStatement, commit_for_statement_isolated, parse_for_statement_isolated,
@@ -544,11 +546,11 @@ fn parse_direct_root_candidate_with_local(
                 StatementKind::StructDeclaration
             }
             StatementIntro::Enum(intro) => {
-                let _ = commit_enum_declaration_isolated(&mut committed, intro);
+                let _ = commit_enum_declaration_with_operators(operators, &mut committed, intro);
                 StatementKind::EnumDeclaration
             }
             StatementIntro::Error(intro) => {
-                let _ = commit_error_declaration_isolated(&mut committed, intro);
+                let _ = commit_error_declaration_with_operators(operators, &mut committed, intro);
                 StatementKind::ErrorDeclaration
             }
             StatementIntro::Type(intro) => {

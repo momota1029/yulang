@@ -871,6 +871,7 @@ use std::{
 
 use crate::{
     SyntaxDiagnostic, SyntaxDiagnosticCause, SyntaxNode,
+    grammar::expression::OperatorChainItem,
     input::SourceInput,
     session::{
         AmbientOwnerScopeFrame, BracedBarrierOrigin, CommitOutput, CommittedRecoveryRecord,
@@ -34422,5 +34423,703 @@ fn gate7_struct_owner_wires_header_and_actual_close_companions() {
         );
         assert!(direct_expectations.take_merged().is_none());
         assert!(!direct_cut);
+    }
+}
+
+#[test]
+fn gate8_enum_and_error_owners_preserve_equals_inline_distinction() {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Family {
+        Enum,
+        Error,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Body {
+        Bodyless,
+        Braced,
+        Colon,
+        EqualsInline,
+        EqualsIndented,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Recovery {
+        None,
+        DerivesRole,
+        Variant,
+        FromType,
+        MissingClose,
+        MismatchedClose,
+    }
+
+    struct Case {
+        family: Family,
+        source: &'static str,
+        ast_remainder: &'static str,
+        direct_remainder: &'static str,
+        companion: bool,
+        body: Body,
+        derives: &'static [DerivesAttachmentPosition],
+        recovery: Recovery,
+    }
+
+    const HEADER: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Header];
+    const TRAILING: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Trailing];
+
+    let cases = [
+        Case {
+            family: Family::Enum,
+            source: "enum E with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E derives with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Bodyless,
+            derives: HEADER,
+            recovery: Recovery::DerivesRole,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E {A} with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Braced,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E {A} derives with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Braced,
+            derives: TRAILING,
+            recovery: Recovery::DerivesRole,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E = A with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E = with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::Variant,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E = A | with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::Variant,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E = A from with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::FromType,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E derives with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Bodyless,
+            derives: HEADER,
+            recovery: Recovery::DerivesRole,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E {A} with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Braced,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E {A} derives with: item;tail",
+            ast_remainder: "tail",
+            direct_remainder: "tail",
+            companion: true,
+            body: Body::Braced,
+            derives: TRAILING,
+            recovery: Recovery::DerivesRole,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E = A with: item;tail",
+            ast_remainder: " with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E = with: item;tail",
+            ast_remainder: " with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::Variant,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E = A | with: item;tail",
+            ast_remainder: " with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::Variant,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E = A from with: item;tail",
+            ast_remainder: " with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::EqualsInline,
+            derives: &[],
+            recovery: Recovery::FromType,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E; with: item;tail",
+            ast_remainder: " with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E; with: item;tail",
+            ast_remainder: " with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E\nwith: item;tail",
+            ast_remainder: "\nwith: item;tail",
+            direct_remainder: "\nwith: item;tail",
+            companion: false,
+            body: Body::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E\nwith: item;tail",
+            ast_remainder: "\nwith: item;tail",
+            direct_remainder: "\nwith: item;tail",
+            companion: false,
+            body: Body::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E:\n  A\nwith: item;tail",
+            ast_remainder: "\nwith: item;tail",
+            direct_remainder: "\nwith: item;tail",
+            companion: false,
+            body: Body::Colon,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E:\n  A\nwith: item;tail",
+            ast_remainder: "\nwith: item;tail",
+            direct_remainder: "\nwith: item;tail",
+            companion: false,
+            body: Body::Colon,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E =\n  A\nwith: item;tail",
+            ast_remainder: "\nwith: item;tail",
+            direct_remainder: "\nwith: item;tail",
+            companion: false,
+            body: Body::EqualsIndented,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E =\n  A\nwith: item;tail",
+            ast_remainder: "\nwith: item;tail",
+            direct_remainder: "\nwith: item;tail",
+            companion: false,
+            body: Body::EqualsIndented,
+            derives: &[],
+            recovery: Recovery::None,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E {A",
+            ast_remainder: "",
+            direct_remainder: "",
+            companion: false,
+            body: Body::Braced,
+            derives: &[],
+            recovery: Recovery::MissingClose,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E {A",
+            ast_remainder: "",
+            direct_remainder: "",
+            companion: false,
+            body: Body::Braced,
+            derives: &[],
+            recovery: Recovery::MissingClose,
+        },
+        Case {
+            family: Family::Enum,
+            source: "enum E {A] with: item;tail",
+            ast_remainder: "] with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::Braced,
+            derives: &[],
+            recovery: Recovery::MismatchedClose,
+        },
+        Case {
+            family: Family::Error,
+            source: "error E {A] with: item;tail",
+            ast_remainder: "] with: item;tail",
+            direct_remainder: " with: item;tail",
+            companion: false,
+            body: Body::Braced,
+            derives: &[],
+            recovery: Recovery::MismatchedClose,
+        },
+    ];
+
+    fn body_matches(body: &Recovered<EnumBody<'_>>, expected: Body) -> bool {
+        matches!(
+            (body, expected),
+            (
+                Recovered::Complete(EnumBody::Bodyless { .. }),
+                Body::Bodyless
+            ) | (Recovered::Complete(EnumBody::Braced(_)), Body::Braced)
+                | (Recovered::Complete(EnumBody::Colon { .. }), Body::Colon)
+                | (
+                    Recovered::Complete(EnumBody::Equals {
+                        body: Recovered::Complete(EnumEqualsVariantBody::Inline { .. }),
+                        ..
+                    }),
+                    Body::EqualsInline,
+                )
+                | (
+                    Recovered::Complete(EnumBody::Equals {
+                        body: Recovered::Complete(EnumEqualsVariantBody::Indented(_)),
+                        ..
+                    }),
+                    Body::EqualsIndented,
+                )
+        )
+    }
+
+    for case in cases {
+        let table = crate::operator::OperatorTable::empty();
+        let mut ast_source = SourceInput::new(case.source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_expectations = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let ast_input = In::new(
+            &mut ast_source,
+            &mut ast_expectations,
+            IsCut::new(&mut ast_cut),
+        )
+        .set_local(&mut ast_local);
+        let (ast_companion, ast_derives, ast_body) = match case.family {
+            Family::Enum => {
+                let declaration = parse_enum_declaration_with_operators(&table, ast_input)
+                    .expect("the Gate 8 Enum row has an accepted intro");
+                (declaration.companion, declaration.derives, declaration.body)
+            }
+            Family::Error => {
+                let declaration = parse_error_declaration_with_operators(&table, ast_input)
+                    .expect("the Gate 8 Error row has an accepted intro");
+                (declaration.companion, declaration.derives, declaration.body)
+            }
+        };
+        assert_eq!(
+            ast_source.remainder(),
+            case.ast_remainder,
+            "AST remainder: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            ast_companion.is_some(),
+            case.companion,
+            "AST companion: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            ast_derives
+                .iter()
+                .map(|attachment| attachment.position)
+                .collect::<Vec<_>>(),
+            case.derives,
+            "AST derives: {:?}",
+            case.source,
+        );
+        assert!(
+            body_matches(&ast_body, case.body),
+            "AST body: {:?}",
+            case.source,
+        );
+        assert!(ast_expectations.take_merged().is_none());
+        assert!(!ast_cut);
+
+        let mut direct_source = SourceInput::new(case.source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_expectations = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_source,
+            &mut direct_expectations,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut probe = Probe::new(i);
+        let mut committed = match case.family {
+            Family::Enum => {
+                let intro = probe
+                    .input()
+                    .run(recognize_enum_statement_intro)
+                    .expect("the Gate 8 Enum row has an accepted intro");
+                let mut committed = probe.commit(FullCstOutput::new(case.source));
+                committed.start_node(SyntaxKind::Root);
+                let _ = commit_enum_declaration_with_operators(&table, &mut committed, intro);
+                committed
+            }
+            Family::Error => {
+                let intro = probe
+                    .input()
+                    .run(recognize_error_statement_intro)
+                    .expect("the Gate 8 Error row has an accepted intro");
+                let mut committed = probe.commit(FullCstOutput::new(case.source));
+                committed.start_node(SyntaxKind::Root);
+                let _ = commit_error_declaration_with_operators(&table, &mut committed, intro);
+                committed
+            }
+        };
+        committed.finish_node();
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            case.direct_remainder,
+            "direct remainder: {:?}",
+            case.source,
+        );
+        let output = committed.into_output();
+        let records = output.committed_recoveries();
+        let expected_role = match (case.family, case.recovery) {
+            (_, Recovery::DerivesRole) => Some(GrammarRole::Declaration(DeclarationRole::Derives(
+                DerivesRole::RoleReference,
+            ))),
+            (Family::Enum, Recovery::Variant) => Some(GrammarRole::Declaration(
+                DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::Item)),
+            )),
+            (Family::Error, Recovery::Variant) => Some(GrammarRole::Declaration(
+                DeclarationRole::Error(ErrorDeclarationRole::Variant(VariantDeclarationRole::Item)),
+            )),
+            (Family::Enum, Recovery::FromType) => {
+                Some(GrammarRole::Declaration(DeclarationRole::Enum(
+                    EnumDeclarationRole::Variant(VariantDeclarationRole::FromType),
+                )))
+            }
+            (Family::Error, Recovery::FromType) => {
+                Some(GrammarRole::Declaration(DeclarationRole::Error(
+                    ErrorDeclarationRole::Variant(VariantDeclarationRole::FromType),
+                )))
+            }
+            (_, Recovery::None | Recovery::MissingClose | Recovery::MismatchedClose) => None,
+        };
+        match case.recovery {
+            Recovery::None => assert!(records.is_empty(), "recoveries: {:?}", case.source),
+            Recovery::DerivesRole | Recovery::Variant | Recovery::FromType => {
+                assert_eq!(records.len(), 1, "recoveries: {:?}", case.source);
+                assert_eq!(records[0].kind, RecoveryKind::Missing);
+                assert_eq!(records[0].site.role, expected_role.unwrap());
+                let slot_start = match case.recovery {
+                    Recovery::DerivesRole => case
+                        .source
+                        .find("with:")
+                        .expect("the Gate 8 derives row contains exact with"),
+                    Recovery::Variant => case.source.rfind('|').map_or_else(
+                        || {
+                            case.source
+                                .find('=')
+                                .expect("the Gate 8 first Variant row contains equals")
+                                + 1
+                        },
+                        |pipe| pipe + 1,
+                    ),
+                    Recovery::FromType => case
+                        .source
+                        .find("with:")
+                        .expect("the Gate 8 FromType row contains exact with"),
+                    Recovery::None | Recovery::MissingClose | Recovery::MismatchedClose => {
+                        unreachable!("the Gate 8 predecessor row has a predecessor recovery")
+                    }
+                };
+                assert_eq!(
+                    records[0].site.range,
+                    slot_start..slot_start,
+                    "Gate 8 predecessor recovery range: {:?}",
+                    case.source,
+                );
+            }
+            Recovery::MissingClose => {
+                assert_eq!(records.len(), 1, "recoveries: {:?}", case.source);
+                assert_eq!(records[0].kind, RecoveryKind::Missing);
+                assert!(matches!(
+                    records[0].site.role,
+                    GrammarRole::ClosingDelimiter { .. }
+                ));
+            }
+            Recovery::MismatchedClose => {
+                assert_eq!(records.len(), 2, "recoveries: {:?}", case.source);
+                assert_eq!(records[0].kind, RecoveryKind::Error);
+                assert_eq!(records[1].kind, RecoveryKind::Missing);
+                assert!(records.iter().all(|record| matches!(
+                    record.site.role,
+                    GrammarRole::ClosingDelimiter { .. }
+                )));
+            }
+        }
+        let recovery_count = records.len();
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(
+            root.to_string(),
+            case.source.strip_suffix(case.direct_remainder).unwrap(),
+            "lossless direct prefix: {:?}",
+            case.source,
+        );
+        let declaration_kind = match case.family {
+            Family::Enum => SyntaxKind::EnumDeclaration,
+            Family::Error => SyntaxKind::ErrorDeclaration,
+        };
+        let declaration = root
+            .children()
+            .find(|node| node.kind() == declaration_kind)
+            .expect("one direct Enum/Error declaration");
+        assert_eq!(
+            declaration
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                .count(),
+            usize::from(case.companion),
+            "CST companion: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            declaration
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::DerivesClause)
+                .count(),
+            case.derives.len(),
+            "CST derives: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            recovery_count,
+            "one CST recovery node per record: {:?}",
+            case.source,
+        );
+        assert!(direct_expectations.take_merged().is_none());
+        assert!(!direct_cut);
+    }
+
+    fn companion_has_registered_infix(companion: &DeclarationCompanion<'_>) -> bool {
+        matches!(
+            &companion.form,
+            DeclarationCompanionForm::Colon {
+                body: Recovered::Complete(DeclarationCompanionColonBody::Inline { item, .. }),
+                ..
+            } if matches!(
+                item.as_ref(),
+                DeclarationCompanionItem::Statement(statement)
+                    if matches!(statement.as_ref(), Statement::Binding(binding)
+                        if matches!(binding.definition(), Some(definition)
+                            if matches!(definition.body(), Recovered::Complete(BindingBody::Inline { expression })
+                                if matches!(expression.items(), [
+                                    OperatorChainItem::Primary(_),
+                                    OperatorChainItem::InfixUse(operator),
+                                    OperatorChainItem::Primary(_),
+                                ] if operator.text() == "+!"))))
+            )
+        )
+    }
+
+    let operator_table = crate::operator::OperatorTable::from_declarations([
+        crate::operator::OperatorDeclaration::new(
+            "+!",
+            crate::operator::OperatorFixities::new().with_infix(
+                crate::operator::BindingPower::scalar(50),
+                crate::operator::BindingPower::scalar(51),
+            ),
+        ),
+    ])
+    .expect("the Gate 8 companion operator table is valid");
+
+    for (family, source) in [
+        (Family::Enum, "enum E with: my value = left+!right"),
+        (Family::Error, "error E with: my value = left+!right"),
+    ] {
+        let mut ast_source = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_expectations = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let ast_input = In::new(
+            &mut ast_source,
+            &mut ast_expectations,
+            IsCut::new(&mut ast_cut),
+        )
+        .set_local(&mut ast_local);
+        let ast_companion = match family {
+            Family::Enum => {
+                parse_enum_declaration_with_operators(&operator_table, ast_input)
+                    .expect("the operator-aware Gate 8 Enum row has an accepted intro")
+                    .companion
+            }
+            Family::Error => {
+                parse_error_declaration_with_operators(&operator_table, ast_input)
+                    .expect("the operator-aware Gate 8 Error row has an accepted intro")
+                    .companion
+            }
+        }
+        .expect("the operator-aware Gate 8 row has one companion");
+        assert_eq!(ast_source.remainder(), "", "AST remainder: {source:?}");
+        assert!(
+            companion_has_registered_infix(&ast_companion),
+            "AST registered operator: {source:?}",
+        );
+        assert!(ast_expectations.take_merged().is_none());
+        assert!(
+            ast_cut,
+            "the accepted canonical infix commits its established cut: {source:?}",
+        );
+
+        let mut direct_source = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_expectations = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_source,
+            &mut direct_expectations,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut probe = Probe::new(i);
+        let mut committed = match family {
+            Family::Enum => {
+                let intro = probe
+                    .input()
+                    .run(recognize_enum_statement_intro)
+                    .expect("the operator-aware Gate 8 Enum row has an accepted intro");
+                let mut committed = probe.commit(FullCstOutput::new(source));
+                committed.start_node(SyntaxKind::Root);
+                let _ =
+                    commit_enum_declaration_with_operators(&operator_table, &mut committed, intro);
+                committed
+            }
+            Family::Error => {
+                let intro = probe
+                    .input()
+                    .run(recognize_error_statement_intro)
+                    .expect("the operator-aware Gate 8 Error row has an accepted intro");
+                let mut committed = probe.commit(FullCstOutput::new(source));
+                committed.start_node(SyntaxKind::Root);
+                let _ =
+                    commit_error_declaration_with_operators(&operator_table, &mut committed, intro);
+                committed
+            }
+        };
+        committed.finish_node();
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "",
+            "direct remainder: {source:?}",
+        );
+        let output = committed.into_output();
+        assert!(
+            output.committed_recoveries().is_empty(),
+            "direct recoveries: {source:?}",
+        );
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+                .count(),
+            1,
+            "direct registered operator: {source:?}",
+        );
+        assert!(direct_expectations.take_merged().is_none());
+        assert!(
+            direct_cut,
+            "the accepted direct canonical infix commits its established cut: {source:?}",
+        );
     }
 }
