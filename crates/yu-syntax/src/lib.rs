@@ -565,6 +565,71 @@ mod tests {
         );
     }
 
+    // GATE10_PUBLIC_PRODUCTION_COMPANION_PERFORMANCE_HARNESS_BEGIN
+    // Harness identity: gate10-public-production-companion-v1.
+    #[test]
+    #[ignore = "manual Gate 10 public production companion measurement"]
+    fn gate10_public_production_companion_performance_harness() {
+        use std::{hint::black_box, time::Instant};
+
+        const DECLARATION_COUNT: usize = 10_000;
+        const INTERNAL_REPEATS: usize = 8;
+        const DECLARATION: &str = "struct S {} with { my value = value }";
+
+        let mut source = String::with_capacity(
+            DECLARATION_COUNT * DECLARATION.len() + DECLARATION_COUNT.saturating_sub(1),
+        );
+        for index in 0..DECLARATION_COUNT {
+            if index != 0 {
+                source.push('\n');
+            }
+            source.push_str(DECLARATION);
+        }
+        let source: Arc<SourceText> = Arc::from(source);
+        let header = Arc::new(scan_header(Arc::clone(&source)));
+        let syntax = Arc::new(SyntaxEnvironment::empty());
+
+        let mut retained = None;
+        let kernel_start = Instant::now();
+        for _ in 0..INTERNAL_REPEATS {
+            retained = Some(parse_file(
+                Arc::clone(&source),
+                Arc::clone(&header),
+                Arc::clone(&syntax),
+            ));
+            black_box(retained.as_ref());
+        }
+        let kernel_elapsed = kernel_start.elapsed();
+
+        let parsed = retained.expect("the eight-repeat kernel retains its final ParsedFile");
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(root.to_string(), source.as_ref());
+        assert!(parsed.diagnostics().is_empty());
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            0,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructDeclaration)
+                .count(),
+            DECLARATION_COUNT,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                .count(),
+            DECLARATION_COUNT,
+        );
+        println!(
+            "GATE10_PUBLIC_PRODUCTION_COMPANION_KERNEL_SECONDS={:.9}",
+            kernel_elapsed.as_secs_f64(),
+        );
+    }
+    // GATE10_PUBLIC_PRODUCTION_COMPANION_PERFORMANCE_HARNESS_END
+
     fn node_of_kind(root: &SyntaxNode, kind: SyntaxKind) -> SyntaxNode {
         root.descendants()
             .find(|node| node.kind() == kind)

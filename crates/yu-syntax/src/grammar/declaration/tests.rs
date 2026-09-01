@@ -15193,10 +15193,11 @@ fn type_declaration_stops_header_discovery_and_is_absent_from_operator_only_slot
 }
 
 #[test]
-fn type_declaration_scope_gate_keeps_deferred_yulang2_family_surfaces_outside_the_grammar() {
-    // TD scope boundary: this addendum owns only `type Name params = TypeExpression`.
-    // These public-entrypoint fixtures deliberately pin the deferred Yulang2 family
-    // until a signed salvage/semantic addendum assigns each form an owner.
+fn type_declaration_scope_gate_keeps_deferred_role_like_and_semantic_surfaces_outside_the_grammar()
+{
+    // TD scope boundary: these public-entrypoint fixtures pin the remaining
+    // deferred Type role-like and semantic surfaces until an Authoritative
+    // addendum assigns each form an owner.
     let parse_public = |source: &str| {
         let source_text: Arc<crate::SourceText> = Arc::from(source);
         let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
@@ -15252,16 +15253,6 @@ fn type_declaration_scope_gate_keeps_deferred_yulang2_family_surfaces_outside_th
     assert_eq!(i.input.remainder(), "");
     assert!(expectations.take_merged().is_none());
     assert!(!is_cut);
-
-    // `with:` owns neither a companion body nor `struct self` here: TD-T installs the
-    // existing With stop so the entire deferred tail remains outside TypeDeclaration.
-    let source = "type box 'e 'a with:\n  struct self:";
-    let root = parse_public(source);
-    assert_eq!(root.to_string(), source);
-    assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..15);
-    assert_eq!(ranges(&root, SyntaxKind::Missing), vec![15..15, 15..15]);
-    assert_eq!(ranges(&root, SyntaxKind::Error), vec![15..source.len()]);
-    assert!(!has(&root, SyntaxKind::StructDeclaration));
 
     // Colon bodies are not type-declaration bodies.  The colon is introducer recovery,
     // while the indented binding remains trailing root recovery rather than a child body.
@@ -29083,6 +29074,36 @@ fn act_derives_gate_2_fixtures_the_full_actdrv_r_table() {
         }));
     }
 
+    let via_bodyless_source = "act A derives Eq via ;";
+    let via_bodyless = parse_ast(via_bodyless_source);
+    assert!(matches!(
+        via_bodyless.body,
+        Recovered::Complete(ActBody::Bodyless {
+            semicolon: Some(ref semicolon),
+        }) if *semicolon == (21..22)
+    ));
+    assert_eq!(via_bodyless.range(), 0..via_bodyless_source.len());
+    let (root, records) = public_direct(via_bodyless_source);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::ActDeclaration)
+            .map(|node| syntax_range(node.text_range()))
+            .collect::<Vec<_>>(),
+        vec![0..via_bodyless_source.len()],
+    );
+    assert_eq!(
+        records
+            .iter()
+            .filter(|record| {
+                record.site.role
+                    == GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget))
+            })
+            .map(|record| (record.kind, record.site.range.clone()))
+            .collect::<Vec<_>>(),
+        vec![(RecoveryKind::Missing, 21..21)],
+    );
+    assert_eq!(records.len(), 1);
+
     let (root, records) = public_direct("act a = b derives Eq = c;");
     assert_eq!(act_derives_ranges(&root), vec![9..20]);
     assert!(records.iter().any(|record| {
@@ -35595,6 +35616,864 @@ fn gate9_act_owner_wires_terminating_companions() {
             direct_cut, case.registered_infix,
             "direct cut: {:?}",
             case.source,
+        );
+    }
+}
+
+#[test]
+fn gate10_declaration_companion_public_scope_matrix() {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Owner {
+        Type,
+        Struct,
+        Enum,
+        Error,
+        Act,
+    }
+
+    impl Owner {
+        fn syntax_kind(self) -> SyntaxKind {
+            match self {
+                Self::Type => SyntaxKind::TypeDeclaration,
+                Self::Struct => SyntaxKind::StructDeclaration,
+                Self::Enum => SyntaxKind::EnumDeclaration,
+                Self::Error => SyntaxKind::ErrorDeclaration,
+                Self::Act => SyntaxKind::ActDeclaration,
+            }
+        }
+
+        fn owns_recovery_role(self, role: GrammarRole) -> bool {
+            matches!(
+                (self, role),
+                (
+                    Self::Type,
+                    GrammarRole::Declaration(DeclarationRole::Type(_))
+                ) | (
+                    Self::Struct,
+                    GrammarRole::Declaration(DeclarationRole::Struct(_))
+                ) | (
+                    Self::Enum,
+                    GrammarRole::Declaration(DeclarationRole::Enum(_))
+                ) | (
+                    Self::Error,
+                    GrammarRole::Declaration(DeclarationRole::Error(_))
+                ) | (Self::Act, GrammarRole::Declaration(DeclarationRole::Act(_)))
+            )
+        }
+    }
+
+    #[derive(Debug)]
+    struct AstOwnerSummary {
+        owner: Owner,
+        range: Range<usize>,
+        companion_keyword: Option<Range<usize>>,
+        derives_count: usize,
+        remainder: String,
+    }
+
+    struct RootSummary {
+        public: SyntaxNode,
+        direct: SyntaxNode,
+        direct_output: DirectRootCandidateOutput,
+        public_recoveries: Vec<CommittedRecoveryRecord>,
+    }
+
+    fn syntax_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+        root.descendants()
+            .filter(|node| node.kind() == kind)
+            .map(|node| syntax_range(node.text_range()))
+            .collect()
+    }
+
+    fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+        root.descendants()
+            .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            .map(|node| (node.kind(), syntax_range(node.text_range())))
+            .collect()
+    }
+
+    fn token_ranges(root: &SyntaxNode, kind: SyntaxKind, text: &str) -> Vec<Range<usize>> {
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == kind && token.text() == text)
+            .map(|token| syntax_range(token.text_range()))
+            .collect()
+    }
+
+    fn direct_token_ranges(root: &SyntaxNode, kind: SyntaxKind, text: &str) -> Vec<Range<usize>> {
+        root.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == kind && token.text() == text)
+            .map(|token| syntax_range(token.text_range()))
+            .collect()
+    }
+
+    fn expected_line_after_prefix(mut line: LineState, prefix: &str) -> LineState {
+        let bytes = prefix.as_bytes();
+        let mut index = 0;
+        while index < bytes.len() {
+            let start = index;
+            let newline_end = if bytes[index] == b'\r' {
+                index + 1 + usize::from(bytes.get(index + 1) == Some(&b'\n'))
+            } else if bytes[index] == b'\n' {
+                index + 1
+            } else {
+                0
+            };
+            if newline_end != 0 {
+                line = LineState {
+                    last_newline: Some((start, newline_end)),
+                    line_start: newline_end,
+                    line_indent: 0,
+                    at_line_start: true,
+                };
+                index = newline_end;
+                continue;
+            }
+            if matches!(bytes[index], b' ' | b'\t') && line.at_line_start {
+                line.line_indent += 1;
+            } else if !matches!(bytes[index], b' ' | b'\t') {
+                line.at_line_start = false;
+            }
+            index += 1;
+        }
+        line
+    }
+
+    fn parse_root_ast(source: &str) -> AstOwnerSummary {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut cut))
+            .set_local(&mut local);
+        let declaration = i
+            .run(parse_declaration)
+            .expect("the Gate 10 public AST row starts with a declaration");
+        let (owner, range, companion_keyword, derives_count) = match declaration {
+            Declaration::Type(declaration) => (
+                Owner::Type,
+                declaration.range(),
+                declaration
+                    .companion
+                    .as_ref()
+                    .map(|companion| companion.keyword.clone()),
+                declaration.derives.len(),
+            ),
+            Declaration::Struct(declaration) => (
+                Owner::Struct,
+                declaration.range(),
+                declaration
+                    .companion
+                    .as_ref()
+                    .map(|companion| companion.keyword.clone()),
+                declaration.derives.len(),
+            ),
+            Declaration::Enum(declaration) => (
+                Owner::Enum,
+                declaration.range(),
+                declaration
+                    .companion
+                    .as_ref()
+                    .map(|companion| companion.keyword.clone()),
+                declaration.derives.len(),
+            ),
+            Declaration::Error(declaration) => (
+                Owner::Error,
+                declaration.range(),
+                declaration
+                    .companion
+                    .as_ref()
+                    .map(|companion| companion.keyword.clone()),
+                declaration.derives.len(),
+            ),
+            Declaration::Act(declaration) => (
+                Owner::Act,
+                declaration.range(),
+                declaration
+                    .companion
+                    .as_ref()
+                    .map(|companion| companion.keyword.clone()),
+                declaration.derives.len(),
+            ),
+            declaration => panic!("unexpected Gate 10 declaration family: {declaration:#?}"),
+        };
+        let remainder = i.input.remainder().to_owned();
+        drop(i);
+        assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+        assert!(!cut, "AST cut: {source:?}");
+        AstOwnerSummary {
+            owner,
+            range,
+            companion_keyword,
+            derives_count,
+            remainder,
+        }
+    }
+
+    fn parse_public_and_direct(source: &str) -> RootSummary {
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+        let parsed = crate::parse_file(
+            source_text,
+            header,
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        let public_recoveries = parsed
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| {
+                let SyntaxDiagnosticCause::Recovery(recovery) = diagnostic.cause() else {
+                    panic!("the Gate 10 public matrix only expects recovery diagnostics");
+                };
+                recovery.record().clone()
+            })
+            .collect::<Vec<_>>();
+        let public = SyntaxNode::new_root(parsed.green().clone());
+        let direct_output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let direct = SyntaxNode::new_root(direct_output.green().clone());
+        assert_eq!(
+            public.to_string(),
+            source,
+            "public losslessness: {source:?}"
+        );
+        assert_eq!(
+            direct.to_string(),
+            source,
+            "direct losslessness: {source:?}"
+        );
+        assert_eq!(
+            recovery_nodes(&public),
+            recovery_nodes(&direct),
+            "public/direct recovery nodes: {source:?}",
+        );
+        assert_eq!(
+            public_recoveries.len(),
+            direct_output.committed_recoveries().len(),
+            "public diagnostic/direct record parity: {source:?}",
+        );
+        assert_eq!(
+            direct_output.committed_recoveries().len(),
+            recovery_nodes(&direct).len(),
+            "one direct record per recovery node: {source:?}",
+        );
+        for (record, (kind, _range)) in direct_output
+            .committed_recoveries()
+            .iter()
+            .zip(recovery_nodes(&direct))
+        {
+            assert_eq!(
+                kind,
+                match record.kind {
+                    RecoveryKind::Missing => SyntaxKind::Missing,
+                    RecoveryKind::Error => SyntaxKind::Error,
+                },
+                "recovery kind parity: {source:?}",
+            );
+        }
+        RootSummary {
+            public,
+            direct,
+            direct_output,
+            public_recoveries,
+        }
+    }
+
+    fn assert_error_root_trailing_record(
+        record: &CommittedRecoveryRecord,
+        expected_range: Range<usize>,
+    ) {
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site,
+            RecoverySiteKey {
+                role: GrammarRole::Statement(StatementRole::TrailingInput {
+                    owner: StatementKind::ErrorDeclaration,
+                }),
+                range: expected_range.clone(),
+            },
+        );
+        assert_eq!(
+            record.unexpected.as_ref(),
+            &[UnexpectedSyntax::Root(RootUnexpected::TrailingInput {
+                owner: StatementKind::ErrorDeclaration,
+                range: expected_range,
+                head: RootUnexpectedHead::Word,
+            })],
+        );
+    }
+
+    struct Case {
+        source: &'static str,
+        owner: Owner,
+        remainder: &'static str,
+        companion: bool,
+        direct_statement: bool,
+    }
+
+    let cases = [
+        Case {
+            source: "type T derives with: my x = value",
+            owner: Owner::Type,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "type T = Int derives Eq with: my x = value",
+            owner: Owner::Type,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "type box 'e 'a with:\n  struct self:",
+            owner: Owner::Type,
+            remainder: "",
+            companion: true,
+            direct_statement: false,
+        },
+        Case {
+            source: "struct S derives with: my x = value",
+            owner: Owner::Struct,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "struct S {} derives Eq with: my x = value",
+            owner: Owner::Struct,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "struct S {} with { my value = value }",
+            owner: Owner::Struct,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "enum E derives with: my x = value",
+            owner: Owner::Enum,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "enum E {A} derives Eq with: my x = value",
+            owner: Owner::Enum,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "enum E = A with: my x = value",
+            owner: Owner::Enum,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "error E derives with: my x = value",
+            owner: Owner::Error,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "error E {A} derives Eq with: my x = value",
+            owner: Owner::Error,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+        Case {
+            source: "error E = A with: my x = value",
+            owner: Owner::Error,
+            remainder: " with: my x = value",
+            companion: false,
+            direct_statement: false,
+        },
+        Case {
+            source: "act A derives Eq with {} = B with {}",
+            owner: Owner::Act,
+            remainder: " = B with {}",
+            companion: true,
+            direct_statement: false,
+        },
+        Case {
+            source: "act A = B derives Eq with: my x = value",
+            owner: Owner::Act,
+            remainder: "",
+            companion: true,
+            direct_statement: true,
+        },
+    ];
+
+    for case in cases {
+        let ast = parse_root_ast(case.source);
+        let roots = parse_public_and_direct(case.source);
+        let expected_range = 0..(case.source.len() - case.remainder.len());
+        let expected_with = case.source.find("with").expect("every owner row has with");
+        let expected_keyword = expected_with..expected_with + 4;
+        assert_eq!(ast.owner, case.owner, "AST owner: {:?}", case.source);
+        assert_eq!(ast.range, expected_range, "AST range: {:?}", case.source);
+        assert_eq!(
+            ast.remainder, case.remainder,
+            "AST remainder: {:?}",
+            case.source
+        );
+        assert_eq!(
+            format!("{}{}", &case.source[ast.range.clone()], ast.remainder),
+            case.source,
+            "AST prefix losslessness: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            ast.companion_keyword,
+            case.companion.then_some(expected_keyword.clone()),
+            "AST companion keyword: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            ast.derives_count,
+            usize::from(case.source.contains("derives")),
+            "AST derives count: {:?}",
+            case.source,
+        );
+
+        for root in [&roots.public, &roots.direct] {
+            assert_eq!(
+                syntax_ranges(root, case.owner.syntax_kind()),
+                vec![expected_range.clone()],
+                "owner range: {:?}",
+                case.source,
+            );
+            let owner = root
+                .children()
+                .find(|node| node.kind() == case.owner.syntax_kind())
+                .expect("the public root has one declaration owner");
+            assert_eq!(
+                owner
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                    .count(),
+                usize::from(case.companion),
+                "owner companion child: {:?}",
+                case.source,
+            );
+            assert!(
+                owner
+                    .descendants()
+                    .all(|node| node.kind() != SyntaxKind::WithBodyTail),
+                "declaration companion never reuses WithBodyTail: {:?}",
+                case.source,
+            );
+            assert_eq!(
+                token_ranges(root, SyntaxKind::WithKw, "with").len(),
+                usize::from(case.companion),
+                "contextual WithKw count: {:?}",
+                case.source,
+            );
+            if case.companion {
+                let companion = owner
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                    .expect("one declaration companion");
+                assert_eq!(
+                    token_ranges(&companion, SyntaxKind::WithKw, "with"),
+                    vec![expected_keyword.clone()],
+                    "owned WithKw range: {:?}",
+                    case.source,
+                );
+                assert_eq!(
+                    direct_token_ranges(&companion, SyntaxKind::WithKw, "with"),
+                    vec![expected_keyword.clone()],
+                    "WithKw is a direct companion token: {:?}",
+                    case.source,
+                );
+                assert_eq!(
+                    companion
+                        .children()
+                        .filter(|node| node.kind() == SyntaxKind::Statement)
+                        .count(),
+                    usize::from(case.direct_statement),
+                    "canonical binding is a direct companion Statement: {:?}",
+                    case.source,
+                );
+                if case.source == "type box 'e 'a with:\n  struct self:" {
+                    // `struct self:` is canonical Statement spelling here; this
+                    // gate assigns no receiver/member semantics to that spelling.
+                    let indented_bodies = companion
+                        .children()
+                        .filter(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+                        .collect::<Vec<_>>();
+                    let [indented_body] = indented_bodies.as_slice() else {
+                        panic!("the Type Header companion has one indented body");
+                    };
+                    assert_eq!(
+                        indented_body
+                            .descendants()
+                            .filter(|node| node.kind() == SyntaxKind::StructDeclaration)
+                            .count(),
+                        1,
+                        "the indented body contains one canonical Struct declaration",
+                    );
+                }
+                if let Some(derives) = owner
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::DerivesClause)
+                {
+                    assert!(
+                        derives.text_range().end() <= companion.text_range().start(),
+                        "derives precedes companion: {:?}",
+                        case.source,
+                    );
+                }
+            } else {
+                assert_eq!(
+                    token_ranges(root, SyntaxKind::Unknown, &case.source[expected_with..]),
+                    vec![expected_with..case.source.len()],
+                    "the root owner retains the yielded declaration tail: {:?}",
+                    case.source,
+                );
+            }
+        }
+        assert_eq!(
+            syntax_ranges(&roots.public, case.owner.syntax_kind()),
+            syntax_ranges(&roots.direct, case.owner.syntax_kind()),
+            "public/direct owner range parity: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            roots.public_recoveries.len(),
+            roots.direct_output.committed_recoveries().len(),
+        );
+        if case.source == "error E = A with: my x = value" {
+            let trailing_range = expected_with..case.source.len();
+            let [direct_trailing] = roots.direct_output.committed_recoveries() else {
+                panic!("the Error equals-inline yield has one direct root recovery");
+            };
+            let [public_trailing] = roots.public_recoveries.as_slice() else {
+                panic!("the Error equals-inline yield has one public root recovery");
+            };
+            assert_error_root_trailing_record(direct_trailing, trailing_range.clone());
+            assert_error_root_trailing_record(public_trailing, trailing_range.clone());
+            for root in [&roots.public, &roots.direct] {
+                assert_eq!(
+                    recovery_nodes(root),
+                    vec![(SyntaxKind::Error, trailing_range.clone())],
+                    "the yielded Error tail is one root-owned CST Error",
+                );
+            }
+        }
+        if case.source == "act A derives Eq with {} = B with {}" {
+            assert_eq!(ast.range.end, case.source.find(" = B").unwrap());
+            assert_eq!(
+                token_ranges(&roots.direct, SyntaxKind::WithKw, "with"),
+                vec![expected_keyword],
+                "the second with is outside the terminating Act",
+            );
+        }
+    }
+
+    struct RecoveryCase {
+        source: &'static str,
+        owner: Owner,
+        remainder: &'static str,
+        companion: bool,
+        role: GrammarRole,
+        expected_total_recoveries: usize,
+        outer_trailing_input: Option<Range<usize>>,
+    }
+
+    let recovery_cases = [
+        RecoveryCase {
+            source: "type T = with: my x = value",
+            owner: Owner::Type,
+            remainder: "",
+            companion: true,
+            role: GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs)),
+            expected_total_recoveries: 1,
+            outer_trailing_input: None,
+        },
+        RecoveryCase {
+            source: "enum E = A from with: my x = value",
+            owner: Owner::Enum,
+            remainder: "",
+            companion: true,
+            role: GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::FromType,
+            ))),
+            expected_total_recoveries: 1,
+            outer_trailing_input: None,
+        },
+        RecoveryCase {
+            source: "error E = A from with: my x = value",
+            owner: Owner::Error,
+            remainder: " with: my x = value",
+            companion: false,
+            role: GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::FromType,
+            ))),
+            expected_total_recoveries: 2,
+            outer_trailing_input: Some(17.."error E = A from with: my x = value".len()),
+        },
+        RecoveryCase {
+            source: "act with: my x = value",
+            owner: Owner::Act,
+            remainder: "",
+            companion: true,
+            role: GrammarRole::Declaration(DeclarationRole::Act(
+                crate::session::ActDeclarationRole::Head,
+            )),
+            expected_total_recoveries: 1,
+            outer_trailing_input: None,
+        },
+        RecoveryCase {
+            source: "act A = with: my x = value",
+            owner: Owner::Act,
+            remainder: "",
+            companion: true,
+            role: GrammarRole::Declaration(DeclarationRole::Act(
+                crate::session::ActDeclarationRole::Source,
+            )),
+            expected_total_recoveries: 1,
+            outer_trailing_input: None,
+        },
+    ];
+
+    for case in recovery_cases {
+        let ast = parse_root_ast(case.source);
+        let roots = parse_public_and_direct(case.source);
+        let with_start = case
+            .source
+            .find("with:")
+            .expect("fresh recovery has exact with");
+        let expected_range = 0..(case.source.len() - case.remainder.len());
+        assert_eq!(
+            ast.owner, case.owner,
+            "AST recovery owner: {:?}",
+            case.source
+        );
+        assert_eq!(
+            ast.range, expected_range,
+            "AST recovery range: {:?}",
+            case.source
+        );
+        assert_eq!(
+            ast.remainder, case.remainder,
+            "AST recovery remainder: {:?}",
+            case.source
+        );
+        assert_eq!(
+            ast.companion_keyword.is_some(),
+            case.companion,
+            "AST recovery companion: {:?}",
+            case.source,
+        );
+        for (path, recoveries) in [
+            ("direct", roots.direct_output.committed_recoveries()),
+            ("public", roots.public_recoveries.as_slice()),
+        ] {
+            assert_eq!(
+                recoveries.len(),
+                case.expected_total_recoveries,
+                "expected total {path} recoveries: {:?}",
+                case.source,
+            );
+            let predecessor = &recoveries[0];
+            assert_eq!(predecessor.kind, RecoveryKind::Missing);
+            assert_eq!(predecessor.site.role, case.role);
+            assert_eq!(predecessor.site.range, with_start..with_start);
+            if let Some(outer_range) = &case.outer_trailing_input {
+                assert_error_root_trailing_record(&recoveries[1], outer_range.clone());
+            }
+        }
+        assert_eq!(
+            roots
+                .direct_output
+                .committed_recoveries()
+                .iter()
+                .filter(|record| case.owner.owns_recovery_role(record.site.role))
+                .count(),
+            1,
+            "no declaration-owner cascade: {:?}",
+            case.source,
+        );
+        for root in [&roots.public, &roots.direct] {
+            assert_eq!(
+                syntax_ranges(root, case.owner.syntax_kind()),
+                vec![expected_range.clone()],
+            );
+            let owner = root
+                .children()
+                .find(|node| node.kind() == case.owner.syntax_kind())
+                .expect("one recovery declaration owner");
+            assert_eq!(
+                owner
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                    .count(),
+                usize::from(case.companion),
+            );
+            assert!(
+                owner
+                    .descendants()
+                    .all(|node| node.kind() != SyntaxKind::WithBodyTail),
+            );
+            if let Some(outer_range) = &case.outer_trailing_input {
+                assert_eq!(
+                    recovery_nodes(root)
+                        .into_iter()
+                        .filter(|(kind, _)| *kind == SyntaxKind::Error)
+                        .collect::<Vec<_>>(),
+                    vec![(SyntaxKind::Error, outer_range.clone())],
+                    "the yielded recovery tail is one root-owned CST Error: {:?}",
+                    case.source,
+                );
+            }
+        }
+    }
+
+    let generic = "my result = base with: my x = value";
+    let roots = parse_public_and_direct(generic);
+    let generic_with = generic.find("with").unwrap();
+    for root in [&roots.public, &roots.direct] {
+        assert_eq!(
+            syntax_ranges(root, SyntaxKind::DeclarationCompanion),
+            vec![]
+        );
+        assert_eq!(syntax_ranges(root, SyntaxKind::WithBodyTail).len(), 1);
+        assert_eq!(
+            token_ranges(root, SyntaxKind::WithKw, "with"),
+            vec![generic_with..generic_with + 4],
+        );
+    }
+
+    for (source, owner, word, identifier) in [
+        ("struct S; with: my x = value", Owner::Struct, "with", false),
+        (
+            "enum E:\n  A\nwith: my x = value",
+            Owner::Enum,
+            "with",
+            false,
+        ),
+        (
+            "type T impl Pick; with: my x = value",
+            Owner::Type,
+            "with",
+            false,
+        ),
+        ("type T = List(with)", Owner::Type, "with", true),
+        ("type T = Int withx", Owner::Type, "withx", true),
+        ("type T = Int within", Owner::Type, "within", true),
+    ] {
+        let roots = parse_public_and_direct(source);
+        let word_start = source.find(word).expect("negative row contains its word");
+        for root in [&roots.public, &roots.direct] {
+            let owner_node = root
+                .children()
+                .find(|node| node.kind() == owner.syntax_kind())
+                .expect("one negative declaration owner");
+            assert!(
+                owner_node
+                    .children()
+                    .all(|node| node.kind() != SyntaxKind::DeclarationCompanion),
+                "negative owner has no companion: {source:?}",
+            );
+            assert!(
+                owner_node
+                    .descendants()
+                    .all(|node| node.kind() != SyntaxKind::WithBodyTail),
+                "negative owner has no generic tail: {source:?}",
+            );
+            assert!(
+                token_ranges(root, SyntaxKind::WithKw, "with").is_empty(),
+                "negative word is not WithKw: {source:?}",
+            );
+            if identifier {
+                assert_eq!(
+                    syntax_range(owner_node.text_range()),
+                    0..source.len(),
+                    "nested/contextual word stays in its declaration owner: {source:?}",
+                );
+                assert!(
+                    token_ranges(root, SyntaxKind::Identifier, word)
+                        .contains(&(word_start..word_start + word.len())),
+                    "negative word remains Identifier at its exact location: {source:?}",
+                );
+            } else {
+                let owner_end = source[..word_start].trim_end().len();
+                assert_eq!(syntax_range(owner_node.text_range()), 0..owner_end);
+                assert_eq!(
+                    token_ranges(root, SyntaxKind::Unknown, &source[word_start..]),
+                    vec![word_start..source.len()],
+                    "the root retains the rejected attachment at its exact location: {source:?}",
+                );
+            }
+        }
+    }
+
+    for (source, expected_ast_remainder) in [
+        ("type T with: my x = value", ""),
+        ("struct S with:\n  my x = value", ""),
+        ("enum E {A} with { my x = value }", ""),
+        ("error E = A with: my x = value", " with: my x = value"),
+        ("type T = with: my x = value", ""),
+        ("enum E = A from with: my x = value", ""),
+        ("error E = A from with: my x = value", " with: my x = value"),
+        ("act with: my x = value", ""),
+        ("act A = with: my x = value", ""),
+    ] {
+        let mut source_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        let ast_before = ast_local.value_snapshot();
+        let mut expectations = chasa::LatestSink::new();
+        let mut cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut cut))
+            .set_local(&mut ast_local);
+        let _ = i
+            .run(parse_declaration)
+            .expect("the Gate 10 state row has a public AST owner");
+        let ast_remainder = i.input.remainder().to_owned();
+        drop(i);
+        assert_eq!(
+            ast_remainder, expected_ast_remainder,
+            "AST state-row remainder: {source:?}",
+        );
+        let consumed_end = source.len() - ast_remainder.len();
+        let mut ast_expected_after = ast_before.clone();
+        ast_expected_after.line =
+            expected_line_after_prefix(ast_before.line, &source[..consumed_end]);
+        assert_eq!(
+            ast_local.value_snapshot(),
+            ast_expected_after,
+            "full AST ParseLocal restoration: {source:?}",
+        );
+        assert!(expectations.take_merged().is_none());
+
+        let mut direct_local = ParseLocal::new();
+        let direct_before = direct_local.value_snapshot();
+        let direct = parse_direct_root_candidate_with_local(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            &mut direct_local,
+        );
+        let mut expected_after = direct_before.clone();
+        expected_after.line = expected_line_after_prefix(direct_before.line, source);
+        expected_after.next_diagnostic_id += direct.committed_recoveries().len() as u32;
+        assert_eq!(
+            direct_local.value_snapshot(),
+            expected_after,
+            "full direct ParseLocal restoration: {source:?}",
+        );
+        assert_eq!(
+            SyntaxNode::new_root(direct.green().clone()).to_string(),
+            source
         );
     }
 }

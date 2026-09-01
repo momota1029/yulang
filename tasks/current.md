@@ -333,7 +333,24 @@ singular AST/CST fieldとして所有し、以降の`=`以下をouter Statement�
 derivesは意図どおり通常driverのままなので、`act A {} derives Eq with: ...`の`with`はraw RoleReferenceの
 Type ML applicationでありcompanionにはならない。focused tableはAST/directのremainder・recovery・CST topologyと
 owner rangeを固定し、1 passed / 577 filtered、scoped rustfmt/diff checkとcompiler/spec reviewはgreen。package/
-workspace suiteとtimingは行わなかった。次のactive stepはGate 10 atomic public/final scopeである。
+workspace suiteとtimingは行わなかった。Gate 10も完了。public rootの最終matrixでType Header/Equality、Struct
+Header/actual-close trailing、Enum Header/trailing/equals-inline、Error Header/trailing/outer-yield、Act
+post-Head/post-Sourceの12 owner positionをAST・`parse_file`・direct rootで固定した。各rowはrange/remainder、
+direct owner-child/WithKw、derives順序、recovery role/range/source order、public/direct recovery-node parity、
+default ParseLocal stateを検証する。Error equals-inlineの`with`はError companionを作らずroot Statementの
+TrailingInput Errorとして残る。`type box 'e 'a with:\n  struct self:`は正本に従い古いdeferred negativeから
+Type Headerのindented canonical-Statement positiveへ移し、receiver/member semanticsを導入せず
+`DeclarationCompanionIndentedBody`内のStruct declarationだけを固定した。最終packageで発見した
+`act A derives Eq via ;`はGate 5のcompanion-aware Via malformed scannerがordinary owner-tailを見落とす
+原因defectであり、shared `DerivesDriverSpec`へ委譲する一点修正でActのbodyless semicolonをownerへ返した。
+この回復-only修正はaccepted normal path・loop・allocationを変えないため追加timingは不要とし、compiler/spec/
+regression delta reviewで閉じた。focused Act fixtureとGate 10 matrixはいずれも1 passed / 579 filtered、
+scoped rustfmt/diff checkはgreen、最終`cargo test -p yu-syntax`は578 passed / 2 ignored。workspace suiteは
+行わなかった。Gate 10のcandidate-only public production measurementは10k braced Struct companionを8 parse/run、
+fresh warm-up 1 + measured 3で記録し、kernel median 86.740094588 s、whole-process RSS median 24,484 KiBだった。
+invalid 2件を含む6 process/459.18 sは8 process/10-minute budget内であり、baseline非互換のため比較/回帰率は
+主張しない。証拠は`notes/progress/evidence/2026-09-01-gate10-public-companion-{measurement,raw}.md`に保存した。
+shared declaration companion `with:`のGates 1–10は完了した。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
@@ -345,10 +362,8 @@ workspace suiteとtimingは行わなかった。次のactive stepはGate 10 atom
 2. **canonical Statement / root Declarationの残りvariant**:
    declaration-level `where`/doc-comment宣言。`role`/`act`/`enum`/`error`/`for`文は実装完了。
    `type`/`struct`/`mod`/`impl`(shellのみ)/`cast`/演算子定義も完了。
-3. **defer済み2項目の優先順位決定**: shared declaration companion `with:`・Type colon/brace
-   role-like body。正本はどれも
-   「別addendumへ」としか書いておらず、
-   相対的な実装順序は未決定。
+3. **defer済みType colon/brace role-like bodyの優先順位決定**: companion `with:`は完了した。
+   Type colon/brace role-like bodyは引き続き別addendumが必要で、実装順序は未決定。
 4. **Cast known-residualの一般化解消**: 追補が明示的に別addendum送りにした、caller
    boundary hidden behind a missing nested delimiterというcondition-based residual
    family(ASOB追補由来、Castで再確認)。nested Pattern/TypeExpressionへのcaller

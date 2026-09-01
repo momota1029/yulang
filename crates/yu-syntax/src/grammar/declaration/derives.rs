@@ -814,10 +814,10 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let error_start = i.pos();
+    let ordinary_spec = DerivesDriverSpec::new(start.owner, start.position, start.owner_base);
     loop {
         if recognize_declaration_companion_handoff(start.owner_base, i).is_some()
-            || any_ambient_owner_claims(i)
-            || derives_active_fixed_boundary_pending(i)
+            || derives_via_boundary_pending(ordinary_spec, i)
         {
             return (error_start < i.pos()).then_some(DerivesViaInvalidRun {
                 range: error_start..i.pos(),
