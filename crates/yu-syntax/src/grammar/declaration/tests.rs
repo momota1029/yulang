@@ -35123,3 +35123,478 @@ fn gate8_enum_and_error_owners_preserve_equals_inline_distinction() {
         );
     }
 }
+
+#[test]
+fn gate9_act_owner_wires_terminating_companions() {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum SourceState {
+        None,
+        Complete,
+        Incomplete,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum BodyState {
+        Incomplete,
+        Bodyless,
+        Braced,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Recovery {
+        None,
+        Head,
+        Source,
+    }
+
+    struct Case {
+        source: &'static str,
+        remainder: &'static str,
+        companion: bool,
+        source_state: SourceState,
+        body: BodyState,
+        derives: &'static [DerivesAttachmentPosition],
+        recovery: Recovery,
+        registered_infix: bool,
+    }
+
+    const HEADER: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Header];
+    const TRAILING: &[DerivesAttachmentPosition] = &[DerivesAttachmentPosition::Trailing];
+
+    let cases = [
+        Case {
+            source: "act A with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::None,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A derives Eq with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::None,
+            body: BodyState::Incomplete,
+            derives: HEADER,
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::None,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::Head,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A = B with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::Complete,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A = B derives Eq with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::Complete,
+            body: BodyState::Incomplete,
+            derives: HEADER,
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A = with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::Incomplete,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::Source,
+            registered_infix: false,
+        },
+        Case {
+            source: "act List(with) with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::None,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A = List(with) with: item;tail",
+            remainder: "tail",
+            companion: true,
+            source_state: SourceState::Complete,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A with {} = B with {}",
+            remainder: " = B with {}",
+            companion: true,
+            source_state: SourceState::None,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A; with: item;tail",
+            remainder: " with: item;tail",
+            companion: false,
+            source_state: SourceState::None,
+            body: BodyState::Bodyless,
+            derives: &[],
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A {} derives Eq with: item;tail",
+            remainder: ": item;tail",
+            companion: false,
+            source_state: SourceState::None,
+            body: BodyState::Braced,
+            derives: TRAILING,
+            recovery: Recovery::None,
+            registered_infix: false,
+        },
+        Case {
+            source: "act A with: my value = left+!right",
+            remainder: "",
+            companion: true,
+            source_state: SourceState::None,
+            body: BodyState::Incomplete,
+            derives: &[],
+            recovery: Recovery::None,
+            registered_infix: true,
+        },
+    ];
+
+    fn source_matches(source: Option<&ActSourceClause<'_>>, expected: SourceState) -> bool {
+        matches!(
+            (source, expected),
+            (None, SourceState::None)
+                | (
+                    Some(ActSourceClause {
+                        source: Recovered::Complete(_),
+                        ..
+                    }),
+                    SourceState::Complete,
+                )
+                | (
+                    Some(ActSourceClause {
+                        source: Recovered::Incomplete,
+                        ..
+                    }),
+                    SourceState::Incomplete,
+                )
+        )
+    }
+
+    fn body_matches(body: &Recovered<ActBody<'_>>, expected: BodyState) -> bool {
+        matches!(
+            (body, expected),
+            (Recovered::Incomplete, BodyState::Incomplete)
+                | (
+                    Recovered::Complete(ActBody::Bodyless { .. }),
+                    BodyState::Bodyless,
+                )
+                | (
+                    Recovered::Complete(ActBody::Braced { .. }),
+                    BodyState::Braced
+                )
+        )
+    }
+
+    fn companion_has_registered_infix(companion: &DeclarationCompanion<'_>) -> bool {
+        matches!(
+            &companion.form,
+            DeclarationCompanionForm::Colon {
+                body: Recovered::Complete(DeclarationCompanionColonBody::Inline { item, .. }),
+                ..
+            } if matches!(
+                item.as_ref(),
+                DeclarationCompanionItem::Statement(statement)
+                    if matches!(statement.as_ref(), Statement::Binding(binding)
+                        if matches!(binding.definition(), Some(definition)
+                            if matches!(definition.body(), Recovered::Complete(BindingBody::Inline { expression })
+                                if matches!(expression.items(), [
+                                    OperatorChainItem::Primary(_),
+                                    OperatorChainItem::InfixUse(operator),
+                                    OperatorChainItem::Primary(_),
+                                ] if operator.text() == "+!"))))
+            )
+        )
+    }
+
+    let table = crate::operator::OperatorTable::from_declarations([
+        crate::operator::OperatorDeclaration::new(
+            "+!",
+            crate::operator::OperatorFixities::new().with_infix(
+                crate::operator::BindingPower::scalar(50),
+                crate::operator::BindingPower::scalar(51),
+            ),
+        ),
+    ])
+    .expect("the Gate 9 companion operator table is valid");
+
+    for case in cases {
+        let mut ast_source = SourceInput::new(case.source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_expectations = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let ast_input = In::new(
+            &mut ast_source,
+            &mut ast_expectations,
+            IsCut::new(&mut ast_cut),
+        )
+        .set_local(&mut ast_local);
+        let declaration = parse_act_declaration_isolated(&table, ast_input)
+            .expect("the Gate 9 Act row has an accepted intro");
+        let expected_range = 0..(case.source.len() - case.remainder.len());
+        assert_eq!(
+            declaration.range(),
+            expected_range,
+            "AST range: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            ast_source.remainder(),
+            case.remainder,
+            "AST remainder: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            declaration.companion.is_some(),
+            case.companion,
+            "AST companion: {:?}",
+            case.source,
+        );
+        assert!(
+            source_matches(declaration.source.as_ref(), case.source_state),
+            "AST source: {:?}",
+            case.source,
+        );
+        assert!(
+            body_matches(&declaration.body, case.body),
+            "AST body: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            declaration
+                .derives
+                .iter()
+                .map(|attachment| attachment.position)
+                .collect::<Vec<_>>(),
+            case.derives,
+            "AST derives: {:?}",
+            case.source,
+        );
+        if case.source == "act A {} derives Eq with: item;tail" {
+            assert!(matches!(
+                declaration.derives.as_slice(),
+                [DerivesAttachment {
+                    position: DerivesAttachmentPosition::Trailing,
+                    clause: DerivesClause { roles, .. },
+                }] if matches!(
+                    roles.as_slice(),
+                    [Recovered::Complete(role)] if role.range() == (17..24)
+                )
+            ));
+        }
+        assert_eq!(
+            declaration
+                .companion
+                .as_ref()
+                .is_some_and(companion_has_registered_infix),
+            case.registered_infix,
+            "AST registered operator: {:?}",
+            case.source,
+        );
+        assert!(ast_expectations.take_merged().is_none());
+        assert_eq!(ast_cut, case.registered_infix, "AST cut: {:?}", case.source);
+
+        let mut direct_source = SourceInput::new(case.source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_expectations = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_source,
+            &mut direct_expectations,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut probe = Probe::new(i);
+        let intro = probe
+            .input()
+            .run(recognize_act_statement_intro)
+            .expect("the direct Gate 9 Act row has an accepted intro");
+        let mut committed = probe.commit(FullCstOutput::new(case.source));
+        committed.start_node(SyntaxKind::Root);
+        let direct_range = commit_act_declaration_isolated(&table, &mut committed, intro);
+        committed.finish_node();
+        assert_eq!(
+            direct_range,
+            Recovered::Complete(expected_range.clone()),
+            "direct range: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            case.remainder,
+            "direct remainder: {:?}",
+            case.source,
+        );
+        let output = committed.into_output();
+        let records = output.committed_recoveries();
+        match case.recovery {
+            Recovery::None => assert!(records.is_empty(), "recoveries: {:?}", case.source),
+            Recovery::Head | Recovery::Source => {
+                assert_eq!(records.len(), 1, "recoveries: {:?}", case.source);
+                assert_eq!(records[0].kind, RecoveryKind::Missing);
+                let role = match case.recovery {
+                    Recovery::Head => crate::session::ActDeclarationRole::Head,
+                    Recovery::Source => crate::session::ActDeclarationRole::Source,
+                    Recovery::None => unreachable!("the Gate 9 recovery row has a role"),
+                };
+                assert_eq!(
+                    records[0].site.role,
+                    GrammarRole::Declaration(DeclarationRole::Act(role)),
+                );
+                let with_start = case
+                    .source
+                    .find("with:")
+                    .expect("the Gate 9 predecessor recovery row contains exact with");
+                assert_eq!(records[0].site.range, with_start..with_start);
+            }
+        }
+        let recovery_count = records.len();
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(
+            root.to_string(),
+            case.source.strip_suffix(case.remainder).unwrap(),
+            "lossless direct prefix: {:?}",
+            case.source,
+        );
+        let act = root
+            .children()
+            .find(|node| node.kind() == SyntaxKind::ActDeclaration)
+            .expect("one direct Act declaration");
+        assert_eq!(
+            syntax_range(act.text_range()),
+            expected_range,
+            "CST range: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            act.children()
+                .filter(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                .count(),
+            usize::from(case.companion),
+            "CST companion: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            act.children()
+                .filter(|node| node.kind() == SyntaxKind::DerivesClause)
+                .count(),
+            case.derives.len(),
+            "CST derives: {:?}",
+            case.source,
+        );
+        if case.source == "act A {} derives Eq with: item;tail" {
+            let derives = act
+                .children()
+                .find(|node| node.kind() == SyntaxKind::DerivesClause)
+                .expect("the Gate 9 trailing row has one DerivesClause");
+            assert_eq!(
+                derives
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                    .map(|node| syntax_range(node.text_range()))
+                    .collect::<Vec<_>>(),
+                vec![17..24],
+            );
+            let role = derives
+                .children()
+                .find(|node| node.kind() == SyntaxKind::TypeExpression)
+                .expect("the Gate 9 trailing role is one TypeExpression");
+            let argument = role
+                .children()
+                .find(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+                .expect("raw with is the trailing role's apply argument");
+            assert_eq!(syntax_range(argument.text_range()), 19..24);
+            assert_eq!(
+                argument
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                    .map(|node| syntax_range(node.text_range()))
+                    .collect::<Vec<_>>(),
+                vec![20..24],
+            );
+            assert_eq!(
+                derives
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| token.kind() == SyntaxKind::Identifier)
+                    .map(|token| (token.text().to_owned(), syntax_range(token.text_range()),))
+                    .collect::<Vec<_>>(),
+                vec![("Eq".to_owned(), 17..19), ("with".to_owned(), 20..24)],
+            );
+            assert!(
+                derives
+                    .descendants_with_tokens()
+                    .all(|element| element.kind() != SyntaxKind::WithKw),
+            );
+        }
+        if case.companion && !case.derives.is_empty() {
+            let children = act.children().map(|node| node.kind()).collect::<Vec<_>>();
+            assert!(
+                children
+                    .iter()
+                    .position(|kind| *kind == SyntaxKind::DerivesClause)
+                    < children
+                        .iter()
+                        .position(|kind| *kind == SyntaxKind::DeclarationCompanion),
+                "CST derives precede companion: {:?}",
+                case.source,
+            );
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            recovery_count,
+            "one CST recovery node per record: {:?}",
+            case.source,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+                .count(),
+            usize::from(case.registered_infix),
+            "direct registered operator: {:?}",
+            case.source,
+        );
+        assert!(direct_expectations.take_merged().is_none());
+        assert_eq!(
+            direct_cut, case.registered_infix,
+            "direct cut: {:?}",
+            case.source,
+        );
+    }
+}

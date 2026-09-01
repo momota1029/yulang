@@ -327,7 +327,13 @@ singular companionへattachし、ErrorはHeader・actual-complete brace trailing
 outer Statementへyieldする意図的な非対称を保った。Enum/Error companion内のCanonical Statementにも既存operator
 tableをtable-aware wrapper経由で渡し、tableless wrapperは互換のため残した。M2 focused tableは1 passed / 576
 filtered、scoped rustfmt/diff checkとcompiler/spec delta reviewはgreen。package/workspace suiteとtimingは行わなかった。
-次のactive stepはGate 9 Act owner integration。
+Gate 9も完了。Act Head/Sourceだけをcompanion-aware TypeExpression tailへ接続し、Header derivesの後で
+companionを選ぶとSource/body判定を終端する。`act A with {} = B with {}`は最初のcompanionだけをActの
+singular AST/CST fieldとして所有し、以降の`=`以下をouter Statementへ返す。actual braced close後のtrailing
+derivesは意図どおり通常driverのままなので、`act A {} derives Eq with: ...`の`with`はraw RoleReferenceの
+Type ML applicationでありcompanionにはならない。focused tableはAST/directのremainder・recovery・CST topologyと
+owner rangeを固定し、1 passed / 577 filtered、scoped rustfmt/diff checkとcompiler/spec reviewはgreen。package/
+workspace suiteとtimingは行わなかった。次のactive stepはGate 10 atomic public/final scopeである。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

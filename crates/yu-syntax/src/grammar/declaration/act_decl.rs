@@ -646,6 +646,103 @@ where
     })
 }
 
+fn parse_act_source_clause_with_companion_handoff<'source, E>(
+    act_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (
+    Option<ActSourceClause<'source>>,
+    Option<ActDeclarationCompanionTail>,
+)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if any_ambient_owner_claims(i) {
+        return (None, None);
+    }
+    let checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(act_base, i) else {
+        i.rollback(checkpoint);
+        return (None, None);
+    };
+    let Some(equals) = i.run(scan_declaration_exact_equals) else {
+        i.rollback(checkpoint);
+        return (None, None);
+    };
+    let parsed = parse_required_act_type_expression_with_companion_handoff_isolated(
+        ActTypeExpressionSlot::Source,
+        act_base,
+        i,
+    );
+    let end = match &parsed.value {
+        Recovered::Complete(source) => source.range().end,
+        Recovered::Incomplete => equals.end,
+    };
+    (
+        Some(ActSourceClause {
+            equals: equals.clone(),
+            source: parsed.value,
+            range: equals.start..end,
+        }),
+        parsed.tail,
+    )
+}
+
+fn commit_act_source_clause_with_companion_handoff<'parse, 'source, 'local, E, O>(
+    act_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> (
+    Option<CommittedActSourceClause>,
+    Option<ActDeclarationCompanionTail>,
+)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let equals = committed.probe(|probe| {
+        let i = probe.input();
+        if any_ambient_owner_claims(i) {
+            return None;
+        }
+        let checkpoint = i.checkpoint();
+        let equals = mod_trivia(act_base, i).and_then(|_| i.run(scan_declaration_exact_equals));
+        i.rollback(checkpoint);
+        equals
+    });
+    let Some(equals) = equals else {
+        return (None, None);
+    };
+    let head_gap = committed
+        .probe(|probe| mod_trivia(act_base, probe.input()))
+        .expect("the committed Act equals was already classified");
+    committed.emit_trivia(&head_gap);
+    let actual_equals = committed
+        .probe(|probe| probe.input().run(scan_declaration_exact_equals))
+        .expect("the committed Act equals remains at the cursor");
+    debug_assert_eq!(actual_equals, equals);
+    committed.token(SyntaxKind::Equals, actual_equals.clone());
+    let parsed = commit_required_act_type_expression_with_companion_handoff_isolated(
+        ActTypeExpressionSlot::Source,
+        act_base,
+        committed,
+    );
+    let end = match &parsed.value {
+        Recovered::Complete(range) => range.end,
+        Recovered::Incomplete => actual_equals.end,
+    };
+    (
+        Some(CommittedActSourceClause {
+            equals: actual_equals.clone(),
+            source: parsed.value,
+            range: actual_equals.start..end,
+        }),
+        parsed.tail,
+    )
+}
+
 /// Parses one accepted Act continuation without making Act reachable from
 /// the public statement dispatcher. The Head/Source slots and the body-form
 /// judge remain distinct after Gate 10's atomic promotion.
@@ -664,65 +761,116 @@ where
         let visibility = intro
             .visibility
             .map_or(Visibility::Private, |prefix| prefix.visibility);
-        let head = if any_ambient_owner_claims(&mut i) {
-            Recovered::Incomplete
-        } else {
-            let checkpoint = i.checkpoint();
-            if mod_trivia(intro.act_base, &mut i).is_some() {
-                parse_required_act_head_type_expression_isolated(&mut i)
-            } else {
-                i.rollback(checkpoint);
-                Recovered::Incomplete
+        let parsed_head = if any_ambient_owner_claims(&mut i) {
+            ActTypeExpressionWithTail {
+                value: Recovered::Incomplete,
+                tail: None,
             }
+        } else {
+            parse_required_act_type_expression_with_companion_handoff_isolated(
+                ActTypeExpressionSlot::Head,
+                intro.act_base,
+                &mut i,
+            )
         };
-        let mut derives = matches!(head, Recovered::Complete(_))
-            .then(|| {
+        let head = parsed_head.value;
+        let mut derives = Vec::new();
+        let head_derives = if matches!(head, Recovered::Complete(_)) {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Act,
+                DerivesAttachmentPosition::Header,
+                intro.act_base,
+                &mut i,
+            )
+            .map(|start| parse_derives_attachments_with_companion_handoff_isolated(start, &mut i))
+        } else {
+            None
+        };
+        let head_derives_tail = head_derives.as_ref().and_then(|parsed| parsed.tail);
+        if let Some(parsed) = head_derives {
+            derives.extend(parsed.attachments);
+        }
+        let post_head_companion = matches!(
+            parsed_head.tail,
+            Some(ActDeclarationCompanionTail::PostHead)
+        ) || head_derives_tail.is_some();
+        if let Some(tail) = head_derives_tail {
+            debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Act);
+            debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+        }
+
+        let mut companion = None;
+        let (source, body) = if post_head_companion {
+            companion = Some(parse_act_declaration_companion_after_handoff(
+                table,
+                intro.act_base,
+                &mut i,
+            ));
+            (None, Recovered::Incomplete)
+        } else {
+            let (source, source_tail) =
+                parse_act_source_clause_with_companion_handoff(intro.act_base, &mut i);
+            let source_derives = if source
+                .as_ref()
+                .is_some_and(|clause| matches!(clause.source, Recovered::Complete(_)))
+            {
                 recognize_derives_attachment_start(
                     DerivesAttachmentOwner::Act,
                     DerivesAttachmentPosition::Header,
                     intro.act_base,
                     &mut i,
                 )
-                .map(|start| parse_derives_attachments_isolated(start, &mut i))
-                .unwrap_or_default()
-            })
-            .unwrap_or_default();
-        let source = parse_act_source_clause_after_head_isolated(intro.act_base, &mut i);
-        if source
-            .as_ref()
-            .is_some_and(|clause| matches!(clause.source, Recovered::Complete(_)))
-        {
-            if let Some(start) = recognize_derives_attachment_start(
-                DerivesAttachmentOwner::Act,
-                DerivesAttachmentPosition::Header,
-                intro.act_base,
-                &mut i,
-            ) {
-                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+                .map(|start| {
+                    parse_derives_attachments_with_companion_handoff_isolated(start, &mut i)
+                })
+            } else {
+                None
+            };
+            let source_derives_tail = source_derives.as_ref().and_then(|parsed| parsed.tail);
+            if let Some(parsed) = source_derives {
+                derives.extend(parsed.attachments);
             }
-        }
-        let head_and_source_complete = matches!(head, Recovered::Complete(_))
-            && source
-                .as_ref()
-                .is_none_or(|clause| matches!(clause.source, Recovered::Complete(_)));
-        let body = parse_act_body_ast(table, intro.act_base, head_and_source_complete, &mut i);
-        if act_body_has_actual_trailing_close(&body) {
-            if let Some(start) = recognize_derives_attachment_start(
-                DerivesAttachmentOwner::Act,
-                DerivesAttachmentPosition::Trailing,
-                intro.act_base,
-                &mut i,
-            ) {
-                derives.extend(parse_derives_attachments_isolated(start, &mut i));
+            let post_source_companion =
+                matches!(source_tail, Some(ActDeclarationCompanionTail::PostSource))
+                    || source_derives_tail.is_some();
+            if let Some(tail) = source_derives_tail {
+                debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Act);
+                debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
             }
-        }
+            if post_source_companion {
+                companion = Some(parse_act_declaration_companion_after_handoff(
+                    table,
+                    intro.act_base,
+                    &mut i,
+                ));
+                (source, Recovered::Incomplete)
+            } else {
+                let head_and_source_complete = matches!(head, Recovered::Complete(_))
+                    && source
+                        .as_ref()
+                        .is_none_or(|clause| matches!(clause.source, Recovered::Complete(_)));
+                let body =
+                    parse_act_body_ast(table, intro.act_base, head_and_source_complete, &mut i);
+                if act_body_has_actual_trailing_close(&body)
+                    && let Some(start) = recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Act,
+                        DerivesAttachmentPosition::Trailing,
+                        intro.act_base,
+                        &mut i,
+                    )
+                {
+                    derives.extend(parse_derives_attachments_isolated(start, &mut i));
+                }
+                (source, body)
+            }
+        };
         let end = i.pos();
         Some(ActDeclaration {
             visibility,
             head,
             source,
             derives,
-            companion: None,
+            companion,
             body,
             range: intro.start..end,
         })
@@ -1004,73 +1152,136 @@ where
     }
     committed.token(SyntaxKind::ActKw, intro.act_keyword.range());
 
-    let head_terminated_incomplete = if committed
-        .probe(|probe| any_ambient_owner_claims(probe.input()))
-    {
-        true
-    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.act_base, probe.input()))
-    {
-        committed.emit_trivia(&trivia);
-        matches!(
-            commit_required_act_head_type_expression_isolated(committed),
-            Recovered::Incomplete
-        )
+    let parsed_head = if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        ActTypeExpressionWithTail {
+            value: Recovered::Incomplete,
+            tail: None,
+        }
     } else {
-        true
+        commit_required_act_type_expression_with_companion_handoff_isolated(
+            ActTypeExpressionSlot::Head,
+            intro.act_base,
+            committed,
+        )
     };
-    if !head_terminated_incomplete {
-        if let Some(start) = committed.probe(|probe| {
+    let head_terminated_incomplete = matches!(parsed_head.value, Recovered::Incomplete);
+    let head_derives = if !head_terminated_incomplete {
+        committed.probe(|probe| {
             recognize_derives_attachment_start(
                 DerivesAttachmentOwner::Act,
                 DerivesAttachmentPosition::Header,
                 intro.act_base,
                 probe.input(),
             )
-        }) {
-            let _ = commit_derives_attachments_isolated(start, committed);
-        }
+        })
+    } else {
+        None
     }
-    let source = commit_act_source_clause_after_head_isolated(intro.act_base, committed);
-    let source_terminated_incomplete = source
-        .as_ref()
-        .is_some_and(|source| matches!(source.source, Recovered::Incomplete));
-    if source
-        .as_ref()
-        .is_some_and(|source| matches!(source.source, Recovered::Complete(_)))
-    {
-        if let Some(start) = committed.probe(|probe| {
-            recognize_derives_attachment_start(
-                DerivesAttachmentOwner::Act,
-                DerivesAttachmentPosition::Header,
-                intro.act_base,
-                probe.input(),
-            )
-        }) {
-            let _ = commit_derives_attachments_isolated(start, committed);
-        }
+    .map(|start| commit_derives_attachments_with_companion_handoff_isolated(start, committed));
+    let head_derives_tail = head_derives.as_ref().and_then(|parsed| parsed.tail);
+    let post_head_companion = matches!(
+        parsed_head.tail,
+        Some(ActDeclarationCompanionTail::PostHead)
+    ) || head_derives_tail.is_some();
+    if let Some(tail) = head_derives_tail {
+        debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Act);
+        debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
     }
-    let has_actual_braced_close = commit_act_body_isolated(
-        table,
-        intro.act_base,
-        !head_terminated_incomplete && !source_terminated_incomplete,
-        committed,
-    );
-    if has_actual_braced_close {
-        if let Some(start) = committed.probe(|probe| {
-            recognize_derives_attachment_start(
-                DerivesAttachmentOwner::Act,
-                DerivesAttachmentPosition::Trailing,
+
+    if post_head_companion {
+        let _ = commit_act_declaration_companion_after_handoff(table, intro.act_base, committed);
+    } else {
+        let (source, source_tail) =
+            commit_act_source_clause_with_companion_handoff(intro.act_base, committed);
+        let source_terminated_incomplete = source
+            .as_ref()
+            .is_some_and(|source| matches!(source.source, Recovered::Incomplete));
+        let source_derives = if source
+            .as_ref()
+            .is_some_and(|source| matches!(source.source, Recovered::Complete(_)))
+        {
+            committed.probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Act,
+                    DerivesAttachmentPosition::Header,
+                    intro.act_base,
+                    probe.input(),
+                )
+            })
+        } else {
+            None
+        }
+        .map(|start| commit_derives_attachments_with_companion_handoff_isolated(start, committed));
+        let source_derives_tail = source_derives.as_ref().and_then(|parsed| parsed.tail);
+        let post_source_companion =
+            matches!(source_tail, Some(ActDeclarationCompanionTail::PostSource))
+                || source_derives_tail.is_some();
+        if let Some(tail) = source_derives_tail {
+            debug_assert_eq!(tail.owner, DerivesAttachmentOwner::Act);
+            debug_assert_eq!(tail.position, DerivesAttachmentPosition::Header);
+        }
+        if post_source_companion {
+            let _ =
+                commit_act_declaration_companion_after_handoff(table, intro.act_base, committed);
+        } else {
+            let has_actual_braced_close = commit_act_body_isolated(
+                table,
                 intro.act_base,
-                probe.input(),
-            )
-        }) {
-            let _ = commit_derives_attachments_isolated(start, committed);
+                !head_terminated_incomplete && !source_terminated_incomplete,
+                committed,
+            );
+            if has_actual_braced_close
+                && let Some(start) = committed.probe(|probe| {
+                    recognize_derives_attachment_start(
+                        DerivesAttachmentOwner::Act,
+                        DerivesAttachmentPosition::Trailing,
+                        intro.act_base,
+                        probe.input(),
+                    )
+                })
+            {
+                let _ = commit_derives_attachments_isolated(start, committed);
+            }
         }
     }
     let end = committed_position(committed);
     committed.finish_node();
     committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
     Recovered::Complete(intro.start..end)
+}
+
+fn parse_act_declaration_companion_after_handoff<'source, E>(
+    table: &crate::operator::OperatorTable,
+    act_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> DeclarationCompanion<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    mod_trivia(act_base, i).expect("an accepted Act companion handoff preserves its owner gap");
+    parse_declaration_companion_isolated(table, act_base, i)
+        .expect("an accepted Act companion handoff preserves exact `with`")
+}
+
+fn commit_act_declaration_companion_after_handoff<'parse, 'source, 'local, E, O>(
+    table: &crate::operator::OperatorTable,
+    act_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Range<usize>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let leading = committed
+        .probe(|probe| mod_trivia(act_base, probe.input()))
+        .expect("an accepted Act companion handoff preserves its owner gap");
+    committed.emit_trivia(&leading);
+    commit_declaration_companion_isolated(table, act_base, committed)
+        .expect("an accepted Act companion handoff preserves exact `with`")
 }
 
 #[derive(Clone)]
