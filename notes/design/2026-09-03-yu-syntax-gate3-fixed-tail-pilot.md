@@ -5,6 +5,10 @@ Status: Authoritative
 User approval recorded: 2026-09-03。Gate 3 の scope、E2/E3 の境界、direct pilot の
 item-handoff 形を承認した。実装はこの文書と親 rewrite plan の範囲に限る。
 
+実装状態: 2026-09-03 に完了した。pilot は production dispatch、legacy parser、Yumark
+production bridge から隔離されている。Gate 4 の projection、full call sequence、Expression/RB-E
+closure は未着手のまま残る。
+
 Scope: `2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md` の Gate 3 を、既に完了した
 direct expression/tail pilot の次の一段として具体化する。これは新しい表面文法、production dispatch、
 legacy parser の変更を認可しない。

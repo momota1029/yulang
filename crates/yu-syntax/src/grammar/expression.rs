@@ -199,6 +199,28 @@ pub(crate) struct FieldTail<'source> {
     range: Range<usize>,
 }
 
+impl<'source> FieldTail<'source> {
+    pub(crate) fn new(
+        dot: Range<usize>,
+        name: Recovered<WordSpan<'source>>,
+        range: Range<usize>,
+    ) -> Self {
+        Self { dot, name, range }
+    }
+
+    pub(crate) fn dot(&self) -> Range<usize> {
+        self.dot.clone()
+    }
+
+    pub(crate) fn name(&self) -> &Recovered<WordSpan<'source>> {
+        &self.name
+    }
+
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PathTail<'source> {
     separator: Range<usize>,
@@ -206,10 +228,48 @@ pub(crate) struct PathTail<'source> {
     range: Range<usize>,
 }
 
+impl<'source> PathTail<'source> {
+    pub(crate) fn new(
+        separator: Range<usize>,
+        segment: Recovered<PathSegment<'source>>,
+        range: Range<usize>,
+    ) -> Self {
+        Self {
+            separator,
+            segment,
+            range,
+        }
+    }
+
+    pub(crate) fn separator(&self) -> Range<usize> {
+        self.separator.clone()
+    }
+
+    pub(crate) fn segment(&self) -> &Recovered<PathSegment<'source>> {
+        &self.segment
+    }
+
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum PathSegment<'source> {
     Identifier(WordSpan<'source>),
     SigilIdentifier(WordSpan<'source>),
+}
+
+impl<'source> PathSegment<'source> {
+    pub(crate) fn from_word(word: WordSpan<'source>) -> Self {
+        if matches!(word.text().chars().next(), Some('$' | '&' | '\''))
+            || (word.text().starts_with('_') && word.text() != "_")
+        {
+            Self::SigilIdentifier(word)
+        } else {
+            Self::Identifier(word)
+        }
+    }
 }
 
 /// A terminal structural continuation that is associated only after the

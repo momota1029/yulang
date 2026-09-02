@@ -1,15 +1,16 @@
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 use chasa_recover::parser::{choice, item};
 use chasa_recover::{In, ParserOnce, ParserOnceStrExt as _};
 use reborrow_generic::Reborrow as _;
+use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::{
     grammar::{
         declaration::Recovered,
         expression::{
-            CallTail, FixedPostfixTail, OperatorChain, OperatorChainItem, OperatorRole,
-            OperatorUse, PrimaryExpression,
+            CallTail, FieldTail, FixedPostfixTail, OperatorChain, OperatorChainItem, OperatorRole,
+            OperatorUse, PathSegment, PathTail, PrimaryExpression,
         },
     },
     scan::word::WordSpan,
@@ -48,6 +49,34 @@ pub(super) type TailExit<'source> = Result<(), Either<Item<'source>, End<'source
 #[derive(Clone, Copy)]
 pub(super) struct PilotContext<'source> {
     pub(super) root: &'source str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum BorrowedArgsOwner {
+    InlineReference,
+    InlineApply,
+}
+
+impl BorrowedArgsOwner {
+    fn node_kind(self) -> SyntaxKind {
+        match self {
+            Self::InlineReference => SyntaxKind::YmYulangArgs,
+            Self::InlineApply => SyntaxKind::YmInlineApplyArgs,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct BorrowedArgsResult<'source> {
+    pub(super) expression: OperatorChain<'source>,
+    pub(super) close_item: Item<'source>,
+    pub(super) range: Range<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct BorrowedArgsEnd<'source> {
+    pub(super) expression: OperatorChain<'source>,
+    pub(super) end: End<'source>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -112,6 +141,50 @@ struct TailItemParser<'source> {
     frame: PilotFrame,
 }
 
+#[derive(Clone, Copy)]
+enum DirectWordKind {
+    Ordinary,
+    PathSegment,
+}
+
+#[derive(Clone, Copy)]
+struct DirectWordParser<'source> {
+    context: PilotContext<'source>,
+    kind: DirectWordKind,
+}
+
+impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for DirectWordParser<'source>
+{
+    type Output = WordSpan<'source>;
+
+    fn run_once(
+        self,
+        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
+    ) -> Option<Self::Output> {
+        scan_direct_word(i, self.context, self.kind)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct FixedInvalidRunParser<'source> {
+    context: PilotContext<'source>,
+    frame: PilotFrame,
+}
+
+impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for FixedInvalidRunParser<'source>
+{
+    type Output = Range<usize>;
+
+    fn run_once(
+        self,
+        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
+    ) -> Option<Self::Output> {
+        consume_fixed_invalid_run(i, self.context, self.frame)
+    }
+}
+
 impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
     for TailItemParser<'source>
 {
@@ -160,7 +233,7 @@ pub(super) fn expr_body<'source>(
     })
 }
 
-fn nested_expr<'source>(
+pub(super) fn expr_chain<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
     context: PilotContext<'source>,
     level: Level,
@@ -171,6 +244,56 @@ fn nested_expr<'source>(
         emit_trivia(i.state, &nud.leading_trivia);
         nud.leading_trivia = SourceSpan::empty_at(context.root, nud.token.lexeme.range.start);
         nested_expr_from_scanned(i, context, level, mode, frame, nud)
+    })
+}
+
+/// Isolated E3 adapter for a caller that has already accepted an argument
+/// opener and whose present closing parenthesis remains caller-owned.
+pub(super) fn present_borrowed_args<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
+    context: PilotContext<'source>,
+    owner: BorrowedArgsOwner,
+    open: Range<usize>,
+    outer_frame: PilotFrame,
+) -> Result<BorrowedArgsResult<'source>, BorrowedArgsEnd<'source>> {
+    assert_eq!(
+        byte_offset(context.root, i.index()),
+        open.end,
+        "the borrowed-args adapter starts immediately after its owned opener"
+    );
+    assert_eq!(&context.root[open.clone()], "(");
+    i.state.start_node(owner.node_kind());
+    i.state.token_range(SyntaxKind::LParen, open.clone());
+    let inner_frame = PilotFrame {
+        delimiter: Some(Delimiter::Parenthesis),
+        ..outer_frame
+    };
+    let (exit, expression) =
+        expr_chain(i.rb(), context, Level::OUTER, ExprMode::Normal, inner_frame)
+            .expect("the present-close E3 witness has one expression");
+    let Err(Either::Right(end)) = exit else {
+        panic!("the present-close E3 witness must return its caller-owned close")
+    };
+    assert!(matches!(
+        end.item.payload,
+        Payload::Boundary(Boundary::Close(Delimiter::Parenthesis))
+    ));
+    if end.item.leading_trivia.text.is_empty() {
+        i.state.finish_node();
+        return Err(BorrowedArgsEnd { expression, end });
+    }
+    let close_item = borrow_close_for_owner(end.item, inner_frame);
+    assert_eq!(
+        byte_offset(context.root, i.index()),
+        close_item.extent.end,
+        "the adapter must claim the same close item returned by its child"
+    );
+    let close = emit_borrowed_close(i.state, &close_item);
+    i.state.finish_node();
+    Ok(BorrowedArgsResult {
+        expression,
+        close_item,
+        range: open.start..close.end,
     })
 }
 
@@ -265,13 +388,25 @@ fn scan_tail_after_accept<'source>(
         ExprMode::MlArgument {
             stop_before_tail: true
         }
-    ) {
+    ) && !adjacent_fixed_tail_starts(context.root, i.index())
+    {
         return Ok(());
     }
     i.then(TailItemParser { context, frame }, move |item, i| {
         tail(i, context, level, mode, frame, item)
     })
     .expect("accepted tail-item completion is total")
+}
+
+fn adjacent_fixed_tail_starts(root: &str, index: *const u8) -> bool {
+    let remainder = &root[byte_offset(root, index)..];
+    if remainder.starts_with("::") || remainder.starts_with('(') {
+        return true;
+    }
+    let Some(after_dot) = remainder.strip_prefix('.') else {
+        return false;
+    };
+    !matches!(after_dot.chars().next(), Some('(' | '{' | '.'))
 }
 
 pub(super) fn tail<'source>(
@@ -320,6 +455,9 @@ pub(super) fn tail<'source>(
             continue_after_child(i, context, level, mode, frame, child)
         }
         TailKind::CallOpen => parse_call_after_open(i, context, level, mode, frame, item),
+        TailKind::Field => field_after_accept(i, context, level, mode, frame, item),
+        TailKind::Path => path_after_accept(i, context, level, mode, frame, item),
+        TailKind::Deferred => unreachable!("a deferred fixed-tail item is never accepted"),
         TailKind::Malformed(kind) => {
             let role = match kind {
                 MalformedTailKind::Adjacent => GrammarRole::Expression(ExpressionRole::Nud),
@@ -369,6 +507,148 @@ pub(super) fn ml_child_after_accept<'source>(
     let child = nested_expr_from_scanned(i.rb(), context, level, ml_mode, frame, nud);
     i.state.finish_node();
     child
+}
+
+fn field_after_accept<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
+    context: PilotContext<'source>,
+    level: Level,
+    mode: ExprMode,
+    frame: PilotFrame,
+    item: Item<'source>,
+) -> TailExit<'source> {
+    let dot = token_range(&item);
+    emit_trivia(i.state, &item.leading_trivia);
+    i.state.start_node(SyntaxKind::FieldTail);
+    i.state.token_range(SyntaxKind::Dot, dot.clone());
+    let name = i
+        .rb()
+        .then(
+            DirectWordParser {
+                context,
+                kind: DirectWordKind::Ordinary,
+            },
+            |word, i| {
+                i.state.token_range(SyntaxKind::Identifier, word.range());
+                word
+            },
+        )
+        .map(Recovered::Complete)
+        .unwrap_or_else(|| {
+            recover_fixed_tail_slot(i.rb(), context, frame, ExpressionRole::FieldName);
+            Recovered::Incomplete
+        });
+    let end = byte_offset(context.root, i.index());
+    i.state.finish_node();
+    let range = dot.start..end;
+    i.state.push_chain_item(
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(FieldTail::new(
+            dot,
+            name,
+            range.clone(),
+        ))),
+        range,
+    );
+    scan_tail_after_accept(i, context, level, mode, frame)
+}
+
+fn path_after_accept<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
+    context: PilotContext<'source>,
+    level: Level,
+    mode: ExprMode,
+    frame: PilotFrame,
+    item: Item<'source>,
+) -> TailExit<'source> {
+    let separator = token_range(&item);
+    emit_trivia(i.state, &item.leading_trivia);
+    i.state.start_node(SyntaxKind::PathTail);
+    i.state
+        .token_range(SyntaxKind::ColonColon, separator.clone());
+
+    let trivia_start = byte_offset(context.root, i.index());
+    let trivia_end = i
+        .rb()
+        .then(ScanTriviaParser { context }, |_, i| {
+            byte_offset(context.root, i.index())
+        })
+        .expect("path trivia scanning is total");
+    if trivia_start < trivia_end {
+        emit_trivia(
+            i.state,
+            &SourceSpan::checked(context.root, &context.root[trivia_start..trivia_end]),
+        );
+    }
+
+    let segment = i
+        .rb()
+        .then(
+            DirectWordParser {
+                context,
+                kind: DirectWordKind::PathSegment,
+            },
+            |word, i| {
+                let segment = PathSegment::from_word(word);
+                let kind = match segment {
+                    PathSegment::Identifier(_) => SyntaxKind::Identifier,
+                    PathSegment::SigilIdentifier(_) => SyntaxKind::SigilIdentifier,
+                };
+                i.state.token_range(kind, word.range());
+                segment
+            },
+        )
+        .map(Recovered::Complete)
+        .unwrap_or_else(|| {
+            recover_fixed_tail_slot(i.rb(), context, frame, ExpressionRole::PathSegment);
+            Recovered::Incomplete
+        });
+    let end = byte_offset(context.root, i.index());
+    i.state.finish_node();
+    let range = separator.start..end;
+    i.state.push_chain_item(
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(PathTail::new(
+            separator,
+            segment,
+            range.clone(),
+        ))),
+        range,
+    );
+    scan_tail_after_accept(i, context, level, mode, frame)
+}
+
+fn recover_fixed_tail_slot<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
+    context: PilotContext<'source>,
+    frame: PilotFrame,
+    role: ExpressionRole,
+) {
+    let invalid = i
+        .rb()
+        .then(FixedInvalidRunParser { context, frame }, |range, _| range);
+    let (range, kind, continuation) = match invalid {
+        Some(range) => (
+            range,
+            RecoveryKind::Error,
+            CanonicalRecoveryContinuation::RetrySameSlot,
+        ),
+        None => {
+            let at = byte_offset(context.root, i.index());
+            (
+                at..at,
+                RecoveryKind::Missing,
+                CanonicalRecoveryContinuation::StopAtBoundary,
+            )
+        }
+    };
+    publish_recovery(
+        i,
+        GrammarRole::Expression(role),
+        ExpectedSyntax::Identifier,
+        range,
+        kind,
+        continuation,
+        RecoveryChainItem::None,
+    );
 }
 
 fn parse_call_after_open<'source>(
@@ -498,7 +778,7 @@ fn parse_group_contents<'source>(
     TailExit<'source>,
 ) {
     if let Some((child, element)) =
-        nested_expr(i.rb(), context, Level::OUTER, ExprMode::Normal, frame)
+        expr_chain(i.rb(), context, Level::OUTER, ExprMode::Normal, frame)
     {
         let (close, exit) = finish_group_child(i, context, child);
         return (vec![element], close, exit);
@@ -607,7 +887,12 @@ fn continue_after_child<'source>(
 fn tail_reads(level: Level, kind: TailKind) -> bool {
     match kind {
         TailKind::Binary(operator) => level_is_readable(level, operator.left_level()),
-        TailKind::CallOpen | TailKind::MlNud(_) | TailKind::Malformed(_) => true,
+        TailKind::CallOpen
+        | TailKind::Field
+        | TailKind::Path
+        | TailKind::MlNud(_)
+        | TailKind::Malformed(_) => true,
+        TailKind::Deferred => false,
     }
 }
 
@@ -674,6 +959,111 @@ fn scan_open_nud(mut i: In<'_, &str, &mut PilotRecoverState, ()>) -> Option<(Nud
 fn scan_atom_nud(mut i: In<'_, &str, &mut PilotRecoverState, ()>) -> Option<(NudKind, char)> {
     i.check(scan_atom)
         .map(|character| (NudKind::Atom, character))
+}
+
+fn scan_direct_word<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
+    context: PilotContext<'source>,
+    kind: DirectWordKind,
+) -> Option<WordSpan<'source>> {
+    let start = byte_offset(context.root, i.index());
+    let remainder = &context.root[start..];
+    let length = match kind {
+        DirectWordKind::Ordinary => ordinary_word_length(remainder)?,
+        DirectWordKind::PathSegment => {
+            let Some(first) = remainder.chars().next() else {
+                return None;
+            };
+            if matches!(first, '$' | '&' | '\'') {
+                first.len_utf8() + ordinary_word_length(&remainder[first.len_utf8()..])?
+            } else {
+                ordinary_word_length(remainder)?
+            }
+        }
+    };
+    let end = start + length;
+    let text = &context.root[start..end];
+    for expected in text.chars() {
+        assert_eq!(i.next(), Some(expected));
+    }
+    let line = i.recovery();
+    line.line.column += text.chars().count();
+    line.line.at_line_start = false;
+    Some(WordSpan::from_root_range(context.root, start..end))
+}
+
+fn ordinary_word_length(source: &str) -> Option<usize> {
+    let mut characters = source.char_indices();
+    let (_, first) = characters.next()?;
+    if first != '_' && !is_xid_start(first) {
+        return None;
+    }
+    let mut end = first.len_utf8();
+    for (offset, character) in characters {
+        if is_xid_continue(character) {
+            end = offset + character.len_utf8();
+            continue;
+        }
+        if matches!(character, '?' | '!') {
+            end = offset + character.len_utf8();
+        }
+        break;
+    }
+    Some(end)
+}
+
+fn consume_fixed_invalid_run<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
+    context: PilotContext<'source>,
+    frame: PilotFrame,
+) -> Option<Range<usize>> {
+    let start = byte_offset(context.root, i.index());
+    let remainder = &context.root[start..];
+    let first = remainder.chars().next()?;
+    if fixed_invalid_boundary(first, frame) || fixed_retry_head(first) && !first.is_numeric() {
+        return None;
+    }
+
+    let mut end = first.len_utf8();
+    if first.is_numeric() {
+        for (offset, character) in remainder.char_indices().skip(1) {
+            if !character.is_numeric() {
+                break;
+            }
+            end = offset + character.len_utf8();
+        }
+    } else {
+        for (offset, character) in remainder.char_indices().skip(1) {
+            if fixed_invalid_boundary(character, frame) || fixed_retry_head(character) {
+                break;
+            }
+            end = offset + character.len_utf8();
+        }
+    }
+
+    let range = start..start + end;
+    let text = &context.root[range.clone()];
+    for expected in text.chars() {
+        assert_eq!(i.next(), Some(expected));
+    }
+    let line = i.recovery();
+    line.line.column += text.chars().count();
+    line.line.at_line_start = false;
+    Some(range)
+}
+
+fn fixed_invalid_boundary(character: char, frame: PilotFrame) -> bool {
+    character.is_whitespace()
+        || matches!(character, ')' | ']' | '}' | '.' | ':')
+        || character == ',' && frame.stop == Some(StopKind::Comma)
+        || character == ';' && frame.stop == Some(StopKind::Semicolon)
+}
+
+fn fixed_retry_head(character: char) -> bool {
+    matches!(character, '+' | '*' | '(' | '-')
+        || character == '_'
+        || is_xid_start(character)
+        || character.is_numeric()
 }
 
 pub(super) fn tail_item<'source>(
@@ -745,16 +1135,30 @@ fn complete_item_payload<'source>(
         return pending;
     };
     let payload_start = pending.leading_trivia.range.end;
-    let payload_end = byte_offset(context.root, i.index());
+    let mut payload_end = byte_offset(context.root, i.index());
+    if character == ':' && context.root[payload_end..].starts_with(':') {
+        let second = i.next().expect("the inspected second colon exists");
+        assert_eq!(second, ':');
+        payload_end = byte_offset(context.root, i.index());
+    }
     i.recovery().line.column += 1;
+    if character == ':' && payload_end - payload_start == 2 {
+        i.recovery().line.column += 1;
+    }
     i.recovery().line.at_line_start = false;
     let token = Token {
-        kind: token_kind(character),
+        kind: if character == ':' && payload_end - payload_start == 2 {
+            TokenKind::ColonColon
+        } else {
+            token_kind(character)
+        },
         lexeme: SourceSpan::checked(context.root, &context.root[payload_start..payload_end]),
     };
     let spaced = !pending.leading_trivia.text.is_empty();
     pending.extent.end = payload_end;
-    let (payload, lexical_boundary_token) = classify_payload(frame, character, token, spaced);
+    let next_character = context.root[payload_end..].chars().next();
+    let (payload, lexical_boundary_token) =
+        classify_payload(frame, character, next_character, token, spaced);
     pending.payload = payload;
     pending.lexical_boundary_token = lexical_boundary_token;
     pending
@@ -789,6 +1193,7 @@ pub(super) fn resume_trivia_boundary<'source>(
 fn classify_payload<'source>(
     frame: PilotFrame,
     character: char,
+    next_character: Option<char>,
     token: Token<'source>,
     spaced: bool,
 ) -> (Payload<'source>, Option<Token<'source>>) {
@@ -801,7 +1206,12 @@ fn classify_payload<'source>(
         ';' if frame.stop == Some(StopKind::Semicolon) => {
             lexical(Boundary::Stop(StopKind::Semicolon))
         }
+        ':' if token.lexeme.text == "::" => tail_payload(TailKind::Path, token),
         ':' if frame.stop == Some(StopKind::Colon) => lexical(Boundary::Stop(StopKind::Colon)),
+        '.' if matches!(next_character, Some('(' | '{' | '.')) => {
+            tail_payload(TailKind::Deferred, token)
+        }
+        '.' => tail_payload(TailKind::Field, token),
         '+' => tail_payload(TailKind::Binary(BinaryOperator::Add), token),
         '*' => tail_payload(TailKind::Binary(BinaryOperator::Multiply), token),
         '(' if !spaced => tail_payload(TailKind::CallOpen, token),
@@ -1135,6 +1545,23 @@ fn emit_owned_close(output: &mut PilotOutput<'_>, item: Item<'_>) -> std::ops::R
     range
 }
 
+fn emit_borrowed_close(output: &mut PilotOutput<'_>, item: &Item<'_>) -> std::ops::Range<usize> {
+    assert!(matches!(
+        item.payload,
+        Payload::Boundary(Boundary::BorrowedClose(Delimiter::Parenthesis))
+    ));
+    emit_trivia(output, &item.leading_trivia);
+    let token = item
+        .lexical_boundary_token
+        .as_ref()
+        .expect("a borrowed close retains lexical token evidence");
+    assert_eq!(token.kind, TokenKind::RightParenthesis);
+    assert_eq!(token.lexeme.text, ")");
+    let range = token.lexeme.range.clone();
+    output.token_range(SyntaxKind::RParen, range.clone());
+    range
+}
+
 pub(super) fn emit_end(output: &mut PilotOutput<'_>, end: &End<'_>) {
     emit_trivia(output, &end.item.leading_trivia);
     if let Some(token) = &end.item.lexical_boundary_token {
@@ -1184,6 +1611,7 @@ fn token_kind(character: char) -> TokenKind {
         '-' => TokenKind::PrefixOperator,
         '(' => TokenKind::LeftParenthesis,
         ')' => TokenKind::RightParenthesis,
+        '.' => TokenKind::Dot,
         character if character.is_alphabetic() => TokenKind::Identifier,
         _ => TokenKind::Unknown,
     }

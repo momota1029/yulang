@@ -595,6 +595,18 @@ compiler/recovery と specification の二本に限定し、focused rewrite tabl
 `cargo check -p yu-syntax` を実行する。performance measurement と package/workspace suite は、
 新規の replay、非線形 scan、hot-path allocation が生じない限り行わない。
 
+2026-09-03: Gate 3 fixed-tail pilot は完了した。`rewrite/` に atomic `.` Field と `::` Path
+item、direct FieldTail/PathTail AST/CST、owner-local typed Missing/Error と same-slot retry を追加し、
+projection head は `Deferred` item のまま Gate 4 へ返す。spaced ML child の adjacent fixed chain は child
+内に残す一方、dynamic `+` と trivia-separated tail を child が scan しない Gate 2 contract を維持した。
+E3 は `\ref(x. )tail` / `[d]:f(x. )tail` の leading-trivia present `)` だけを isolated args adapter が
+borrow/emit し、empty-trivia close は typed unclaimed outcome へ返す。M3 の compiler/recovery と
+specification review は、two repair rounds と final test-only review 後に approve。focused
+`cargo test -p yu-syntax rewrite:: --no-fail-fast` は 18 passed / 0 failed / 604 filtered、
+`cargo check -p yu-syntax`、scoped rustfmt/diff check は green。package/workspace suite と計測は未実行。
+production dispatch、legacy/Yumark bridge、projection/full E3、Gate 4 の Expression/RB-E closure は
+引き続き未認可・未実装であり、次の active gate は Gate 4 の設計である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

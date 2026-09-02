@@ -105,6 +105,9 @@ pub(super) enum MalformedTailKind {
 pub(super) enum TailKind {
     Binary(BinaryOperator),
     CallOpen,
+    Field,
+    Path,
+    Deferred,
     MlNud(NudKind),
     Malformed(MalformedTailKind),
 }
@@ -117,6 +120,8 @@ pub(super) enum TokenKind {
     InfixOperator(BinaryOperator),
     LeftParenthesis,
     RightParenthesis,
+    Dot,
+    ColonColon,
     Unknown,
 }
 

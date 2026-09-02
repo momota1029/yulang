@@ -30,6 +30,12 @@ pub(super) struct ProvisionalRecovery {
     pub(super) kind: RecoveryKind,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct PersistentRecovery {
+    pub(super) site: RecoverySiteKey,
+    pub(super) kind: RecoveryKind,
+}
+
 #[derive(Default)]
 pub(super) struct PilotRecoverState {
     pub(super) line: PilotLineState,
@@ -38,6 +44,7 @@ pub(super) struct PilotRecoverState {
     expectations: Vec<SyntaxExpectation>,
     next_diagnostic_id: u32,
     provisional_recoveries: Vec<ProvisionalRecovery>,
+    persistent_recoveries: Vec<PersistentRecovery>,
     pub(super) is_cut: bool,
 }
 
@@ -49,6 +56,7 @@ pub(super) struct PilotRecoverMark {
     expectations_len: usize,
     next_diagnostic_id: u32,
     provisional_recoveries_len: usize,
+    persistent_recoveries_len: usize,
     is_cut: bool,
 }
 
@@ -101,6 +109,14 @@ impl PilotRecoverState {
     pub(super) fn provisional_recoveries(&self) -> &[ProvisionalRecovery] {
         &self.provisional_recoveries
     }
+
+    pub(super) fn record_persistent_recovery(&mut self, recovery: PersistentRecovery) {
+        self.persistent_recoveries.push(recovery);
+    }
+
+    pub(super) fn persistent_recoveries(&self) -> &[PersistentRecovery] {
+        &self.persistent_recoveries
+    }
 }
 
 impl Recoverable for PilotRecoverState {
@@ -114,6 +130,7 @@ impl Recoverable for PilotRecoverState {
             expectations_len: self.expectations.len(),
             next_diagnostic_id: self.next_diagnostic_id,
             provisional_recoveries_len: self.provisional_recoveries.len(),
+            persistent_recoveries_len: self.persistent_recoveries.len(),
             is_cut: self.is_cut,
         }
     }
@@ -126,6 +143,8 @@ impl Recoverable for PilotRecoverState {
         self.next_diagnostic_id = mark.next_diagnostic_id;
         self.provisional_recoveries
             .truncate(mark.provisional_recoveries_len);
+        self.persistent_recoveries
+            .truncate(mark.persistent_recoveries_len);
         self.is_cut = mark.is_cut;
     }
 }
@@ -298,6 +317,11 @@ impl<'source> PilotOutput<'source> {
         assert!(self.chains.is_empty());
         self.sink.finish_complete()
     }
+
+    pub(super) fn finish_prefix(self) -> rowan::GreenNode {
+        assert!(self.chains.is_empty());
+        self.sink.finish()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -447,6 +471,8 @@ pub(super) fn syntax_kind_for_token(kind: TokenKind) -> SyntaxKind {
         }
         TokenKind::LeftParenthesis => SyntaxKind::LParen,
         TokenKind::RightParenthesis => SyntaxKind::RParen,
+        TokenKind::Dot => SyntaxKind::Dot,
+        TokenKind::ColonColon => SyntaxKind::ColonColon,
     }
 }
 
