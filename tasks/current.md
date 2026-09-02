@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-28（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
+更新: 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
 2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走→
 standalone `for`文も全10 gate完走→Act-derives attachment addendumも両gate完走→
@@ -502,6 +502,23 @@ compiler/spec M2 delta reviewはapproved。`notes/design/2026-09-02-yumark-gate3
 §5a historical stagingもnon-normativeに明確化し、旧D12a `:` primary記述をactual ordinary producerの`{` primary
 （`:` はauxiliary）へ訂正した。次はmatrixの次の依存なし有限ownerを選定する。D12b–f、D11a、Gate 4 command
 grammar、Gate 5 envelope、Gate 6 dispatchは未完了・未認可である。
+
+2026-09-02: 将来のparser architecture re-entryに備え、ユーザ承認のもとbreakingな
+`chasa-recover 0.2` core prototypeをworkspace member `crates/chasa-recover`へ追加した。
+`ParserOnce<I, R, S> -> Option<Output>`、`None`のinput-nonconsumption契約、`R`の
+passive snapshot rollback、`&str` suffix pointerだけを比較する`Input::Index`、
+unit-state tuple transaction、transactional `choice`を固定した。`In`はchasa 0.5と同じ
+`reborrow_generic`の`#[derive(Reborrow)]` / `R::Target<'a>` / `S::Target<'a>`を使い、
+recoverはstatic `Recover: Rb` capabilityとconcrete state用`Recoverable`の`&mut T` bridgeで
+短いtargetを得る。`In::map(p, f)`はoutput-only、`In::then(p, f)`と`ParserOnce::then`は
+inner grammarを必ず`check`してから`In`を渡すcommitted continuation、通常の
+`map_once`/`map_mut`/`map`はstate-free output transformである。`S = ()` callbackは
+後戻り不能なprocedural escape hatchとして意図的に残す。これはYulang production parserの
+移行・CST/AST/diagnostic authorityの変更を認可しない。M3のcompiler/spec/regression delta
+reviewはapproved、`cargo fmt --check -p chasa-recover`とfocused
+`cargo test -p chasa-recover --no-fail-fast`は9 passedでgreen。production候補に進むには、既存
+`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`の契約を満たす別のAuthoritative
+migration designと、owner-aware boundary/typed diagnostics/ParseLocal・CST transactionの実証が必要である。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
