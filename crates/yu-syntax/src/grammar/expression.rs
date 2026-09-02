@@ -115,6 +115,38 @@ pub(crate) struct CallTail<'source> {
     range: Range<usize>,
 }
 
+impl<'source> CallTail<'source> {
+    pub(crate) fn new(
+        open: Range<usize>,
+        arguments: Vec<OperatorChain<'source>>,
+        close: Recovered<Range<usize>>,
+        range: Range<usize>,
+    ) -> Self {
+        Self {
+            open,
+            arguments,
+            close,
+            range,
+        }
+    }
+
+    pub(crate) fn open(&self) -> Range<usize> {
+        self.open.clone()
+    }
+
+    pub(crate) fn arguments(&self) -> &[OperatorChain<'source>] {
+        &self.arguments
+    }
+
+    pub(crate) fn close(&self) -> &Recovered<Range<usize>> {
+        &self.close
+    }
+
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct IndexTail<'source> {
     open: Range<usize>,
@@ -311,6 +343,21 @@ pub(crate) struct OperatorUse<'source> {
 }
 
 impl<'source> OperatorUse<'source> {
+    pub(crate) fn from_root_range(
+        root: &'source str,
+        range: Range<usize>,
+        role: OperatorRole,
+    ) -> Self {
+        assert!(range.start < range.end);
+        assert!(range.end <= root.len());
+        assert!(root.is_char_boundary(range.start) && root.is_char_boundary(range.end));
+        Self {
+            text: &root[range.clone()],
+            range,
+            role,
+        }
+    }
+
     pub(crate) fn text(&self) -> &'source str {
         self.text
     }
@@ -398,6 +445,19 @@ impl PrimaryExpression<'_> {
             Self::Case(expression) => expression.range.clone(),
             Self::Catch(expression) => expression.range.clone(),
             Self::BracedStatementBlock(block) => block.range.clone(),
+        }
+    }
+}
+
+impl<'source> PrimaryExpression<'source> {
+    pub(crate) fn parenthesized(
+        elements: Vec<OperatorChain<'source>>,
+        range: Range<usize>,
+    ) -> Self {
+        Self::Parenthesized {
+            elements,
+            trailing_comma: None,
+            range,
         }
     }
 }

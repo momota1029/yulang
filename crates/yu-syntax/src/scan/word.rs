@@ -22,6 +22,17 @@ pub(crate) struct WordSpan<'source> {
 }
 
 impl<'source> WordSpan<'source> {
+    pub(crate) fn from_root_range(root: &'source str, range: Range<usize>) -> Self {
+        assert!(range.start < range.end);
+        assert!(range.end <= root.len());
+        assert!(root.is_char_boundary(range.start) && root.is_char_boundary(range.end));
+        Self {
+            text: &root[range.clone()],
+            start: range.start,
+            end: range.end,
+        }
+    }
+
     pub(crate) fn text(self) -> &'source str {
         self.text
     }

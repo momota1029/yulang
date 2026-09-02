@@ -9,6 +9,8 @@ mod input;
 mod operator;
 mod parse;
 #[allow(dead_code)]
+mod rewrite;
+#[allow(dead_code)]
 mod scan;
 #[allow(dead_code)]
 mod session;

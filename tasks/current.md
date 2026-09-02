@@ -575,6 +575,18 @@ cursor/frame/token/owner capability 検証がないことを検出した。ユ�
 addendumへ二規則を追加した。M2の二巡 budgetは使い切ったため、Gate 2 は未完のまま M3一回だけの
 scoped repair/reviewへ昇格する。production dispatch、legacy crossing、Gate 3/4 matrixは引き続きscope外。
 
+2026-09-03: Gate 2 direct pilot は完了した。`rewrite/` の直接 `expr`/`tail` は actual
+`OperatorChain` と Rowan を受理 branch で直接構築し、binary/prefix/ML の三経路、ML/call/parenthesis
+の nested CST/AST、typed recovery、root-pointer range、UTF-8/CRLF/EOF logical position、23-field
+dependency cone、rollback/no-rescan を隔離された pilot として固定した。M3 の一巡目で見つかった
+EOF 時の released dedent payload と recovered ML child ownership の二点も、二巡目 scoped repair と
+compiler/recovery・specification delta review の両 approve で閉じた。focused
+`cargo test -p yu-syntax rewrite::tests -- --test-threads=1` は 11 passed / 0 failed / 604 filtered、
+`cargo fmt --package yu-syntax -- --check`、`cargo check -p yu-syntax`、scoped diff check は green。
+package/workspace suite と計測はこの isolated gate では実行しない。production dispatch、legacy
+crossing、Gate 3 の E2/E3 と Gate 4 の RB-E は未認可のまま残る。次は Gate 3 fixed-tail pilot の
+範囲を authority に沿って切る。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

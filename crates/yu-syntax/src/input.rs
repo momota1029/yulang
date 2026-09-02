@@ -1,6 +1,26 @@
 //! UTF-8 byte-positioned source input for chasa parsers.
 
+use std::ops::Range;
+
 use chasa::{Back, Input, SeqInput};
+
+/// Derives the byte range of a borrowed source slice within its immutable root.
+///
+/// The pointer checks are intentional: equal text from another allocation is
+/// not evidence that the slice belongs to this parse.
+pub(crate) fn checked_root_range(root: &str, slice: &str) -> Option<Range<usize>> {
+    let root_start = root.as_ptr() as usize;
+    let root_end = root_start.checked_add(root.len())?;
+    let slice_start = slice.as_ptr() as usize;
+    let slice_end = slice_start.checked_add(slice.len())?;
+
+    if slice_start < root_start || slice_end > root_end {
+        return None;
+    }
+
+    let range = (slice_start - root_start)..(slice_end - root_start);
+    (root.is_char_boundary(range.start) && root.is_char_boundary(range.end)).then_some(range)
+}
 
 /// A borrowing character input whose public position is a source byte offset.
 pub(crate) struct SourceInput<'source> {
@@ -133,5 +153,21 @@ mod tests {
 
         assert_eq!(SourceInput::seq(start, end), "aあ⊕");
         assert_eq!(input.remainder(), "z");
+    }
+
+    #[test]
+    fn root_range_is_exact_for_utf8_and_crlf_slices() {
+        let root = "α\r\nあz";
+
+        assert_eq!(checked_root_range(root, &root[2..7]), Some(2..7));
+        assert_eq!(checked_root_range(root, &root[root.len()..]), Some(8..8));
+    }
+
+    #[test]
+    fn root_range_rejects_equal_text_from_another_allocation() {
+        let root = String::from("same");
+        let foreign = String::from("same");
+
+        assert_eq!(checked_root_range(&root, &foreign), None);
     }
 }

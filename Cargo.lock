@@ -799,6 +799,8 @@ name = "yu-syntax"
 version = "0.1.0"
 dependencies = [
  "chasa",
+ "chasa-recover",
+ "reborrow-generic",
  "rowan",
  "unicode-ident",
 ]

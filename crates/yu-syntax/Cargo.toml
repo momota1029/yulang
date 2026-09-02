@@ -6,5 +6,7 @@ publish = false
 
 [dependencies]
 chasa = "=0.5.0"
+chasa-recover = { path = "../chasa-recover", version = "0.2.0" }
+reborrow-generic = "0.1.2"
 rowan = "0.15"
 unicode-ident = "1.0"

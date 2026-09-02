@@ -2,6 +2,9 @@
 
 Status: Authoritative
 
+実装状態: Gate 2 direct pilot は 2026-09-03 に完了した。pilot は依然として
+production dispatch から隔離されており、Gate 3 の E2/E3 と Gate 4 の RB-E は後続 gate に残る。
+
 Scope: 提案中の `chasa-recover 0.2` 書き換えにおける、式の `expr` /
 `tail` 手続きを訂正する。この追補が扱うのは実行トポロジーだけである。
 Yulang の表面文法、source order のまま平坦な `OperatorChain`、CST の語彙と階層、
