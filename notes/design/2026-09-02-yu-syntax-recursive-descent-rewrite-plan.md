@@ -1,6 +1,10 @@
-# Reviewed: yu-syntax recursive-descent parser rewrite
+# Authoritative: yu-syntax recursive-descent parser rewrite
 
-Status: Reviewed
+Status: Authoritative
+
+Approved-by: user
+
+Approved-at: 2026-09-02
 
 Scope: Replace the execution architecture of the `yu-syntax` parser with the
 `chasa-recover 0.2` procedure-oriented core and explicit owner-to-owner item
@@ -14,15 +18,15 @@ Drafted-by: primary agent from architect and compiler/recovery investigation
 Reviewed-by: M3 compiler/referee, specification, and regression review; all
 accepted findings closed by scoped delta review on 2026-09-02
 
-User decision already recorded: on 2026-09-02, immediately suspend the
+User decisions recorded: on 2026-09-02, immediately suspend the
 *uncompleted* legacy Yumark Gate 3b owner-adoption implementation and intend
 its Authoritative adoption matrix to become required rewrite acceptance
 evidence, rather than completing soon-to-be-removed legacy adapters first.
-That operational pause is effective now by explicit user decision; it is not
-an assertion that this Draft already supersedes an Authoritative design.
+That operational pause preceded this approval. The same approval selects every
+§6 execution decision and authorizes Gate 1 only; later gates remain subject to
+their stated promotion evidence.
 
-Authority on approval: an eventual Authoritative version of this document will
-narrowly supersede only:
+Authority: this document narrowly supersedes only:
 
 - `2026-08-20-yu-syntax-chasa-architecture.md` §§159–267 and §§398–816, only
   insofar as those sections prescribe chasa parser values, `SourceInput`, or
@@ -34,24 +38,21 @@ narrowly supersede only:
 - for *uncompleted owners only*, Gate 3b amendment §4's requirement to adopt
   the remaining owners through that legacy procedure.
 
-It will not supersede language, CST, AST, diagnostic, recovery-identity,
+It does not supersede language, CST, AST, diagnostic, recovery-identity,
 header/full, flat-`OperatorChain`, or Yumark contracts. In particular, Gate 3b
 amendment §2's owner-local recovery fact and continuation outcome contract,
 §3's identity and transaction semantics, and §§5–7's invariants and evidence
 remain normative. Adoption matrix §§1–7 remain exact rewrite acceptance
-contracts. The eventual successor changes only the implementation route by
+contracts. This successor changes only the implementation route by
 which an uncompleted owner produces those results; every finite owner still
 requires completion evidence or an exact direct-owner-unreachable proof.
 Completed E2, D11b, and D12a work remains a historical control, but those rows
 must be re-executed and reclosed by their assigned rewrite gates rather than
-counted complete solely from that history. The matrix becomes rewrite
-acceptance evidence only if this plan becomes Authoritative, even though the
-remaining legacy implementation work is paused now.
+counted complete solely from that history. The matrix is rewrite acceptance
+evidence under this Authoritative plan.
 
-Until this document is Authoritative, it does not authorize a `yu-syntax`
-production parser change or supersede the cited design authority. No further
-uncompleted legacy owner-adoption slice is started under the user's current
-operational pause.
+No further uncompleted legacy owner-adoption slice is started. This plan does
+not authorize a `yu-syntax` production-dispatch change before Gate 9.
 
 ## 1. Problem and ownership boundary
 
@@ -103,10 +104,9 @@ Every promotion gate preserves all of the following.
    vector, replay, or AST/CST reconstruction path. The target static bound is
    `O(bytes + structural work)`.
 
-The Gate 3b adoption matrix remains a normative recovery and rollback
-register. Its uncompleted legacy owner-adoption implementation is paused now;
-using the matrix as rewrite acceptance evidence is conditional on this plan
-becoming Authoritative.
+The Gate 3b adoption matrix remains a normative recovery and rollback register
+and is exact rewrite acceptance evidence. Its uncompleted legacy
+owner-adoption implementation remains paused.
 
 ## 3. Core model
 
@@ -128,10 +128,11 @@ preserves its input index and rolls `R` back; capture never performs input
 correction.
 
 The immutable root source remains available for byte-range derivation and
-Rowan emission. Gate 1 must prove the selected range representation for every
-accepted input implementation before `SourceInput` is removed. Pointer-derived
-offsets are permitted only with a common immutable source origin and a checked
-range contract; otherwise a small source-origin cursor is required.
+Rowan emission. `I = &str` uses common-root pointer-derived offsets: every
+live remainder and borrowed capture must derive from the parse entry's root
+slice, and offset derivation checks that its start and end lie in that root.
+No origin-cursor wrapper replaces `&str`. Gate 1 proves this contract for
+nested captures before `SourceInput` is removed.
 
 ### 3.2 Recoverable and committed state
 
@@ -150,8 +151,9 @@ short reborrow, and rolls `R` back on `None`. Tuple and choice parsers own their
 own enclosing input checkpoint/rollback. `i.check(parser)?` remains the
 readable invocation spelling and does not add a second transaction.
 
-`S` contains the Rowan sink and committed recovery/diagnostic publication.
-Fallible direct function parsers never receive it. The supplied `then`
+`S` is one composite committed state containing the Rowan sink and committed
+recovery/diagnostic publication. Fallible direct function parsers never
+receive it. The supplied `then`
 continuation is total; a non-unit custom `ParserOnce` must likewise be total
 or leave `S` unchanged on `None`.
 
@@ -166,11 +168,12 @@ one eventual destination in the cumulative ownership map:
 | `S` | direct Rowan emission and committed records only |
 | eliminated | a field with no remaining reader, witnessed by the gate |
 
-No field may move to `S` merely to avoid implementing rollback. Gate 2 maps
+No field may move to `S` merely to avoid implementing rollback. There is no
+`ParseLocal` compatibility adapter. Gate 2 maps
 only the pilot's transitive dependency cone and cannot promote a production
 owner. Before each production owner promotion, the complete transitive
-dependency cone used by that owner, or every field on an approved bridge
-surface, must be mapped. Gate 9's cumulative map covers every old `ParseLocal`
+dependency cone used by that owner must be mapped. Gate 9's cumulative map
+covers every old `ParseLocal`
 field exactly once. An `eliminated` destination requires a no-reader witness.
 
 ### 3.3 Item, boundary, and tail protocol
@@ -185,18 +188,23 @@ Item {
 ```
 
 Every `Boundary` retains the same leading trivia as the item from which it was
-classified. If classification inspected a scanned token, it also retains that
-token and its exact extent, together with the logical source position. EOF
-after trivia is explicit rather than represented by dropping the trivia. A
-trivia-caused dedent and a caller-owned close with leading trivia must be
-returnable and reclassifiable byte-identically without source rewind. The exact
-boundary vocabulary and its creating owner are a §6 decision resolved in Gate
-0 before Gate 2 implements this model.
+classified. Its exact vocabulary is `Close(Delimiter)`,
+`BorrowedClose(Delimiter)`, `Dedent(LayoutEvidence)`, `Stop(StopKind)`, and
+`EofAfterTrivia`. If classification inspected a scanned token, the boundary
+also retains that token and its exact extent, together with the logical source
+position. The scanner creates lexical `Close` and `EofAfterTrivia`; the active
+layout frame alone creates `Dedent`; the active stop-set owner alone creates
+`Stop`; and only the owner transferring a caller-owned close marks it
+`BorrowedClose`. A trivia-caused dedent and a caller-owned close with leading
+trivia must be returnable and reclassifiable byte-identically without source
+rewind.
 
-A block owner may need to read one further token to enrich or classify an item.
-The exact authority and limit for doing so are also a §6 decision. Whatever
-choice is approved, returning the item preserves its logical identity, scanned
-extent, and leading trivia and never rescans their bytes.
+A scanner builder first owns the current item's leading trivia. It either
+classifies that same item as a trivia-caused boundary, or reads exactly its own
+payload token to complete `Item { leading_trivia, payload }`. The latter is
+current-item completion, not lookahead: no second logical item is read, cached,
+or hidden in state. The completed item retains its logical identity, scanned
+extent, and leading trivia; no retained bytes are rescanned.
 
 The Pratt-style protocol is local to a tail driver:
 
@@ -219,44 +227,32 @@ that emits or recovers to completion and returns `Ok(())`. It cannot use
 `Err(item)` to undo an accepted introducer or any committed effect. Returned
 items remain caller-owned.
 
-`level` is an owner/operand/layout/stop context, never dynamic operator
-precedence. Pattern and TypeExpression may retain their own fixed structural
-levels where their existing language contract requires them.
+`level` is exactly `TailPosition::Start | TailPosition::AfterOperand`; it is
+never dynamic operator precedence. Delimiter, stop, and layout context live in
+separate explicit frames. Pattern and TypeExpression may retain their own
+fixed structural contexts where their existing language contract requires them.
 
 ## 4. Coexistence and promotion discipline
 
-Old and new owners may coexist only while an owning entrypoint is migrated.
-Production never executes both parsers over the same owned source region and
-never falls back from the new owner to the old one. Existing frozen fixtures
-and matrices, not a production or test-time replay adapter, supply comparison
-evidence.
+There is no old/new production crossing and no compatibility bridge. A
+production replacement migrates the complete transitive callee closure of its
+entrypoint, with one cursor, state model, and output path. It never executes
+old and new parsers over the same owned source region, falls back from new to
+old, rewinds a pending `Item`, or translates `IsCut`/`ParseLocal` across an
+execution boundary. Existing frozen fixtures and matrices, not a replay
+adapter, supply comparison evidence.
 
-Whether a production migration unit may cross between old and new execution is
-unresolved in §6. The approved choice must be either a complete transitive
-closure with no crossing, or one explicitly specified temporary bridge. This
-Draft does not assume that `&str` and `SourceInput` already share a cursor or
-state model.
-
-Under either choice there is no crossing with a pending `Item`, uncommitted
-output, non-neutral `IsCut`, or unproven transfer of recoverable, allocator,
-frame, expectation, and sink state. A pending item is never converted back
-into source rewind. If the bridge option is selected, its Authoritative
-specification must define common origin/offset, exact current/pending-item
-rules, range and `R`/allocator/sink ownership, cut-neutrality, precise legacy
-and new state transport, and Gate 9 deletion proof. It cannot reparse or replay
-source. A production gate conditional on crossing cannot promote until this
-choice and the concrete bridge are Authoritative.
-
-Each successful owner promotion removes that owner's legacy production
-entrypoint. Previously promoted independent owners remain authoritative if a
-later gate is abandoned.
+Gates 2–8 build and validate isolated new-owner closures only; they alter no
+production dispatch edge. Gate 9 atomically replaces the root/canonical
+production closure and removes all legacy callers. A stopped gate therefore
+leaves the legacy production parser intact.
 
 ## 5. Migration gates
 
-Every production owner promotion uses the same acceptance template. It closes
-the exact Gate 0 coverage-ledger cells assigned to that owner, including their
-ordinary controls, and preserves their existing observations without editing
-expectations:
+Every isolated owner closure and the final production closure use the same
+acceptance template. It closes the exact Gate 0 coverage-ledger cells assigned
+to that owner, including their ordinary controls, and preserves their existing
+observations without editing expectations:
 
 - exact parser-side AST/direct products and full CST hierarchy;
 - lossless byte coverage, exact consumed range, and exact remainder;
@@ -275,12 +271,11 @@ replacement assertion.
 
 Before implementation:
 
-1. review this document under M3;
-2. resolve the decisions in §6;
-3. select the exact `Boundary` vocabulary, creating owner, and item-enrichment
-   authority;
-4. record user approval and exact supersession scope;
-5. update the design index and task routing.
+1. record the approved §6 decisions and exact supersession scope;
+2. update the design index and task routing;
+3. reconcile the coverage ledger below against every finite matrix cell and
+   owner slot; and
+4. implement only Gate 1 after those records are synchronized.
 
 No `yu-syntax` production edge changes in this gate.
 
@@ -318,13 +313,12 @@ Implement `In::with_str` and `ParserOnce::with_str` with the §3.1 semantics.
 Do not add unrelated combinators. Ordinary explicit Rust loops are used until
 the first driver proves that generic repetition removes real duplication.
 
-A generic fold is not implemented in Gate 1. If §6 later selects it after a
-driver proves real duplication, its only approved candidate contract is an
-explicit `ControlFlow` fold. `Continue` must prove cursor advance or
+A generic fold is not implemented in Gate 1 or elsewhere in this plan. A later
+approved plan may adopt an explicit `ControlFlow` fold only after a driver
+proves real duplication. Its `Continue` must prove cursor advance or
 replacement of the pending item; `Break` may retain the current item. A
 zero-progress successful iteration is a contract panic, not an implicit
-termination rule. Its implementation then receives an explicit later gate; it
-is not silently folded into this substrate change.
+termination rule.
 
 Evidence: nested captures, UTF-8, CRLF, rollback after failed capture,
 zero-copy `&str` capture, and preservation of the existing direct-function
@@ -334,7 +328,7 @@ zero-copy `&str` capture, and preservation of the existing direct-function
 
 Introduce, without public dispatch:
 
-- the Gate 0-approved `Item` / `Boundary` model and single-read enrichment;
+- the Gate 0-approved `Item` / `Boundary` model and current-item completion;
 - root-source range derivation;
 - the complete `ParseLocal` field map for the pilot's dependency cone;
 - speculative expectation and diagnostic-allocation state in `R`;
@@ -378,10 +372,11 @@ participates. A special token stash in global state, source rewind, weakened E2
 replacement, or owner-specific exception to the item protocol rejects the
 pilot.
 
-### Gate 4 — atomic expression-owner replacement
+### Gate 4 — isolated expression-owner closure
 
-Migrate the full expression owner under the new tail driver, first isolated
-then atomically at its production entrypoint. Coverage exhausts every existing
+Migrate the full expression owner and every transitive callee it needs under
+the new tail driver in isolation. It changes no production entrypoint. Coverage
+exhausts every existing
 `OperatorChainItem` family: prefix, primary, nullfix, infix, suffix, every
 `FixedPostfix` subfamily, ML argument, every `TerminalOuter` family,
 `MissingOperand`, and `Error`. It also covers every reachable primary
@@ -392,46 +387,52 @@ a separate owner requires an exact boundary and reachability proof rather than
 silent omission. Gate 4 closes every Expression cell and RB-E assignment in
 the Gate 0 coverage ledger through the promotion acceptance template.
 
-Promotion requires flat `OperatorChain` parity, including invariance of CST/AST
-products under an operator environment change that changes only association
-binding powers. The surface product remains BP-neutral and source-ordered; no
-numeric precedence tree is built in this parser.
+Closure evidence requires flat `OperatorChain` parity, including invariance of
+CST/AST products under an operator environment change that changes only
+association binding powers. The surface product remains BP-neutral and
+source-ordered; no numeric precedence tree is built in this parser.
 
 ### Gate 5 — Pattern and TypeExpression owners
 
-Migrate Pattern, then TypeExpression and polymorphic variants, by canonical
-entrypoint. Existing mandatory-slot, delimited-sequence, type-annotation, and
-outer-boundary recovery contracts remain the oracle. No pattern/type family
-flag may leak into the shared item protocol. Each promoted owner closes every
+Build Pattern, then TypeExpression and polymorphic variants, as isolated
+transitive closures. Existing mandatory-slot, delimited-sequence,
+type-annotation, and outer-boundary recovery contracts remain the oracle. No
+pattern/type family flag may leak into the shared item protocol. Each closure
+closes every
 P, T, PV, RB-P, RB-T, and RB-PV assignment in the Gate 0 coverage ledger with
 the common acceptance template and has a complete transitive `ParseLocal`
-ownership map before dispatch changes.
+ownership map before it enters the final root closure.
 
 ### Gate 6 — canonical statements and declaration shared owners
 
-Migrate canonical statement/block sequencing and the shared declaration
-owners before declaration shells: binding-style body, derives, declaration
+Build canonical statement/block sequencing and the shared declaration owners
+before declaration shells: binding-style body, derives, declaration
 companion, variant sequence/payload, then the individual declaration forms.
 The Gate 3b matrix remains the finite recovery inventory. Each shared owner is
-replaced once rather than reimplemented in every declaration adapter. Every S,
+implemented once rather than reimplemented in every declaration adapter. Every S,
 D, V, NV, RB-S, RB-D, RB-DRV, and RB-CMP assignment in the Gate 0 coverage
-ledger closes with the common acceptance template before that owner's
-production edge changes.
+ledger closes with the common acceptance template before that owner enters the
+final root closure.
 
 ### Gate 7 — header/full reconciliation
 
-Migrate shared Use and operator-header grammar, then header discovery. Preserve
-`HeaderInfo`, valid-only header fact commit, opaque-body ownership, immutable
-operator-table construction, header/full range coverage, and `DiagnosticId`
-reuse. Header scan and full parse remain existing separate public phase
-products, each with one forward path. This is not a replay exception: neither
-phase permits fallback, duplicate parsing of an owned region, `HeaderInfo`
-range/source/CST reparse, or a replay adapter.
+Build shared Use and operator-header grammar, then header discovery, in the
+isolated closure. `HeaderInfo` carries
+`HeaderSourceIdentity { SourceRevision, root_start, root_len }` plus frozen
+header recovery records and their diagnostic IDs. `parse_file` rejects an
+identity mismatch before reconciliation. Header allocation begins at zero;
+full parsing starts after the highest frozen header ID and reuses a header ID
+only for the same exact-site key. Any key mismatch is a failure; duplicate
+publication and fuzzy diagnostic deduplication are forbidden. This preserves
+valid-only header fact commit, opaque-body ownership, immutable operator-table
+construction, header/full range coverage, exact expectation union/primary, and
+`DiagnosticId` reuse.
 
-Before promotion, the §6 header/full transport and source-identity decision is
-Authoritative. Its specification fixes mismatch rejection, allocator start and
-source order, key mismatch behavior, duplicate prevention, exact-site key /
-`SourceRevision`, and diagnostic union/primary behavior with no fuzzy dedupe.
+Header scan and full parse remain existing separate public phase products, each
+with one forward path. This is not a replay exception: neither phase permits
+fallback, duplicate parsing of an owned region, `HeaderInfo` range/source/CST
+reparse, or a replay adapter.
+
 Public `scan_header` → `parse_file` witnesses include
 `header-full-diagnostic-identity`,
 `malformed-header-followed-by-valid-header`, and an unrelated-source/revision
@@ -440,8 +441,8 @@ reconciliation.
 
 ### Gate 8 — Yumark convergence
 
-Move embedded-Yulang adapters and remaining canonical recovery evidence onto
-the new owners, retaining the Yumark frame stack, one-forward streaming, raw
+Build embedded-Yulang adapters and remaining canonical recovery evidence onto
+the isolated new-owner closure, retaining the Yumark frame stack, one-forward streaming, raw
 fences, nested quote behavior, and frame-pop cleanup. “Multi-language
 streaming” here means streaming only raw code-fence info and body bytes. Every
 fence, including one whose info text is `yulang`, remains raw; this gate has no
@@ -475,27 +476,22 @@ direct-owner-unreachable proof naming the matrix source location. No old parser
 caller, old/new crossing, temporary bridge, fallback, or duplicated production
 owner remains.
 
-## 6. Decisions required before Authoritative approval
+## 6. Decisions resolved on approval
 
-Repository evidence does not resolve these choices.
+The user approved the following choices on 2026-09-02.
 
-| decision | options to resolve |
+| decision | approved contract |
 | --- | --- |
-| source range representation | common-root pointer-derived ranges, or a minimal origin cursor carrying the same capture API |
-| `Boundary` vocabulary and owner | exact token/close/borrowed-close/layout/stop/EOF-after-trivia variants, retained scanned evidence, and the owner allowed to create or reclassify each; resolved in Gate 0 and implemented in Gate 2 |
-| `level` representation | exact non-numeric fields and whether delimiter/stop/layout live there or in a separate frame |
-| final AST/direct structure | retain internal AST adapters permanently, or name a later removal plan after parity is proven |
-| `ParseLocal` bridge | no compatibility adapter, or a narrowly time-bounded field-mapped adapter with deletion gate |
-| committed `S` shape | one composite state, or separately reborrowed Rowan and committed-diagnostic capabilities |
-| item enrichment | exact authority and limit for reading the next token while retaining a pending item |
-| generic fold | defer permanently, or approve the stated `ControlFlow` / progress contract for an explicit post-driver gate; neither option adds it to Gate 1 |
-| old/new crossing | (1) migrate a complete transitive closure for each production unit with no crossing, or (2) approve one temporary cursor-clean bridge specifying common origin/offset, exact current and pending-item rule, range and `R`/allocator/sink ownership, cut-neutrality, precise legacy/new state transport, no source reparse/replay, and Gate 9 deletion proof |
-| header/full identity and transport | select the exact source/revision/common-origin identity (`SourceRevision`, exact-site key, or an explicitly equivalent representation) carried by `HeaderInfo`, and the frozen header recovery records/ids carried for reconciliation; specify unrelated-source/revision and key-mismatch rejection, allocator start/order, duplicate prevention, diagnostic union/primary preservation with no fuzzy dedupe, and exact public witness results before Gate 7 |
-
-The old/new crossing and header/full rows are not implementation details. Any
-Gate 3–9 topology that depends on a crossing, and Gate 7 respectively, remain
-blocked until the selected contract is independently reviewed, user-approved,
-and recorded as Authoritative.
+| source range representation | retain `I = &str`; use checked common-root pointer-derived byte ranges, never an origin-cursor wrapper |
+| `Boundary` vocabulary and owner | `Close`, `BorrowedClose`, `Dedent`, `Stop`, and `EofAfterTrivia`, with the scanner/frame/owner classification boundaries in §3.3 |
+| `level` representation | `TailPosition::Start | TailPosition::AfterOperand`; delimiter/stop/layout remain separate frames |
+| final AST/direct structure | retain internal AST/direct adapters through Gate 9; any later removal needs a new approved plan after parity is proven |
+| `ParseLocal` bridge | no compatibility adapter |
+| committed `S` shape | one composite committed state for Rowan plus recovery/diagnostic publication |
+| item completion | the scanner builder may read exactly the current item's payload token after leading trivia; this is not lookahead, and no second logical item is cached or rescanned |
+| generic fold | excluded from Gate 1 and this plan; a future explicitly approved gate may adopt the stated `ControlFlow` / progress contract only after a driver proves real duplication |
+| old/new crossing | no crossing: each production replacement is a complete transitive closure, and only Gate 9 changes production dispatch |
+| header/full identity and transport | `HeaderInfo` carries `HeaderSourceIdentity { SourceRevision, root_start, root_len }` and frozen header recovery records/IDs; §5 Gate 7 defines mismatch, allocation, ordering, and reconciliation rules |
 
 ## 7. Stop and rollback conditions
 
@@ -519,11 +515,11 @@ authorize a partial cutover or a change to the existing compatibility fixture.
 
 ## 8. Review and verification budget
 
-This plan and Gate 0 are M3. The final Draft requires independent
-compiler/referee, specification, and regression review before user approval.
-Each implementation gate selects the lighter M1/M2 reviewer set from its
-actual risk; performance review is required only when static resource bounds
-are uncertain or a gate adds material allocation/rescan risk.
+This plan and Gate 0 were M3. Independent compiler/referee, specification, and
+regression review plus scoped delta review closed before user approval. Each
+implementation gate selects the lighter M1/M2 reviewer set from its actual
+risk; performance review is required only when static resource bounds are
+uncertain or a gate adds material allocation/rescan risk.
 
 Focused checks run per coherent gate. Broad package/workspace checks and timing
 run only at the named phase boundary, not after record-only work or every

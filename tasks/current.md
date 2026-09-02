@@ -535,14 +535,14 @@ M2 compiler delta reviewは最終approved、`cargo fmt --check -p chasa-recover`
 認可範囲は従来どおり拡張していない。
 
 2026-09-02: ユーザは全面 parser rewrite の移行順として、remaining legacy Yumark Gate 3b
-owner adoptionをここで停止し、Authoritative adoption matrixをfinal approval後の新 parser の
-必須acceptance evidenceへ引き継ぐ方を選択した。`notes/design/2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md`は
-そのM3 successorを起票し、M3 compiler/spec/regression reviewとdelta reviewを閉じて
-`Reviewed`にした。current-chasa mechanism、`SourceInput`/`ParseLocal`の
-field ownership、direct Rowan/typed diagnostic、leading-trivia `Item`/`Boundary`、flat
-`OperatorChain`、old/new atomic promotionを対象とするが、まだproduction `yu-syntax`の変更を
-認可しない。次はReviewed plan §6の未決定点を閉じ、ユーザ承認を得てGate 1 (`with_str`)へ
-進む。Gate 3bのmatrix・Yumark surface/frame contracts・既存完了sliceは
+owner adoptionをここで停止し、Authoritative adoption matrixを新 parser の必須acceptance
+evidenceへ引き継ぐ方を選択した。`notes/design/2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md`は
+M3 compiler/spec/regression reviewとdelta reviewを閉じ、ユーザ承認で`Authoritative`にした。
+`I = &str`のchecked root-pointer range、current-item completion（lookaheadは禁止）、explicit
+`Boundary`、non-numeric `TailPosition`、composite committed `S`、AST/direct adapter保持、
+`ParseLocal` bridgeなし、old/new crossingなし、HeaderInfo identity/record transportを確定した。
+Gate 4–8はisolated closureのみで、production dispatchはGate 9まで不変である。Gate 1
+(`with_str`)だけが次に認可された。Gate 3bのmatrix・Yumark surface/frame contracts・既存完了sliceは
 そのままnormative controlである。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
