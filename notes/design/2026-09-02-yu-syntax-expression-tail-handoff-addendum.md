@@ -17,6 +17,12 @@ Approved-at: 2026-09-02
 Review: M3 compiler/recovery・specification review。初回の blocking 指摘を修正し、
 2026-09-02 に scoped delta review で両方の closure を確認済み
 
+User decision added: 2026-09-03。受理済み RHS の recovery は子に渡した `level` と
+ML mode を保持し、trivia boundary の再開・close/stop 変換は payload cursor、active frame、
+実際の token と owner capability を検証する。この追加は Gate 2 の二巡目 review が検出した
+所有権 gap を閉じるものであり、M2 の repair budget を使い切ったため M3 の一回だけの
+scoped repair/review を認可する。
+
 この追補は expression pilot とその後の移行 closure に限って、
 次を置き換える。
 
@@ -87,6 +93,18 @@ speculative/recoverable state を引き続き持ち、`ParserOnce::None` は非�
 守る。以下の Pratt handoff は別の局所 control flow であり、ここでの `Err` に一般の
 parser/recovery としての意味はない。
 
+### 2.1 受理済み operand recovery の control 継承
+
+binary、prefix、ML application が operand を受理するために子の `expr` を呼ぶとき、子の
+`level` と `ExprMode` はその child owner の control context である。子が `None` になった後に
+owner-specific typed recovery を emit して total continuation へ移る場合も、この context を
+捨てて `Level::OUTER`/normal mode へ戻してはならない。
+
+recovery 後の child は、通常の child と同じ三経路を返す。すなわち次を自分で scan する
+`Ok(())`、読めない scan 済み item の `Err(Left(item))`、boundary の `Err(Right(end))` である。
+特に child level で読めない下位演算子 item は、recovery path でも同一 identity のまま外側 tail
+へ handoff されなければならない。
+
 ## 3. Item と boundary 入力
 
 既存の「一論理 item」規則は変えない。
@@ -120,6 +138,20 @@ expression 手続きにおける `End` は、そのような item から得た c
 boundary である。boundary の正確な語彙と所有権は、元の rewrite plan §3.3 を維持する。
 返す `Item` は identity、payload、leading trivia、source extent を正確に保つ。受け取った
 tail は scanner を呼び直さず、そのまま使わなければならない。
+
+### 3.1 再開と boundary classifier の capability
+
+trivia-caused boundary を再開して payload を完成させる owner は、retained item の payload
+cursor と live `&str` cursor が同じ位置であることを cheap index/pointer identity で検証する。
+次の layout frame は、現在の baseline で再度 dedent predicate を判定する。まだ dedent なら
+payload を消費せず同じ boundary を返す。そうでなければ、identity、leading trivia、extent、
+logical position を保つ同じ current item を完成できる。
+
+`BorrowedClose`、`Stop`、およびその release/reclassification は `Item` の public conversion
+ではない。期待 delimiter または stop token と active owner/frame capability を持つ手続きだけが、
+item 内の実際の lexical evidence を検証して行える。異なる cursor、まだ dedent の frame、
+異なる delimiter/stop token、owner を持たない呼び出しは fail-fast し、item を再分類も消費も
+してはならない。
 
 ## 4. `expr` と `tail` の handoff
 
@@ -289,6 +321,11 @@ pilot が次の gate へ進む前に、focused evidence は少なくとも次を
    acceptance template どおり一致する。
 9. pilot が emit する CST と source-order `OperatorChain` が、選んだ frozen observation と
    一致する。
+10. malformed binary/prefix/ML operand の recovery が child `level`/mode を保持し、直後の
+    lower-level item を同一 identity の `Err(Left(item))` として outer tail へ戻す。
+11. trivia boundary の resume は wrong cursor、still-dedent frame、wrong close/stop token、
+    owner capability 欠如を拒否し、正しい再開だけが同じ item identity/trivia/extent/logical
+    position で payload を完成する。
 
 止めた未コミット `rewrite/` files は、却下されたトポロジーの証拠であり、修理対象の土台では
 ない。この Draft のレビュー中は触らない。承認後の Gate 2 実装だけが、その内容を置換できる。

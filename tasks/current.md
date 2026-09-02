@@ -568,6 +568,13 @@ opener 前に boundary として返す。Gate 2 は generic action/materializer 
 expression closure を pilot として実装する。ただし既存 Gate 2 の state/range/recovery/rollback acceptance
 template と Gate 3 の E2/E3、Gate 4 の RB-E 割当は全て維持し、production dispatch は引き続き未認可である。
 
+2026-09-03: Gate 2 direct pilot の M2二巡目 review は、CST/actual `OperatorChain`、owner-specific
+recovery、resumable item、23-field cone、三経路 witness の初回 blockers を閉じた一方、accepted
+malformed RHS が child `level`/ML mode を捨てることと、boundary resume/close/stop classifier の
+cursor/frame/token/owner capability 検証がないことを検出した。ユーザー承認により handoff
+addendumへ二規則を追加した。M2の二巡 budgetは使い切ったため、Gate 2 は未完のまま M3一回だけの
+scoped repair/reviewへ昇格する。production dispatch、legacy crossing、Gate 3/4 matrixは引き続きscope外。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
