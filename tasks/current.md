@@ -587,6 +587,14 @@ package/workspace suite と計測はこの isolated gate では実行しない�
 crossing、Gate 3 の E2/E3 と Gate 4 の RB-E は未認可のまま残る。次は Gate 3 fixed-tail pilot の
 範囲を authority に沿って切る。
 
+2026-09-03: ユーザー承認により `2026-09-03-yu-syntax-gate3-fixed-tail-pilot.md` を
+Authoritative とした。active gate は Gate 3 の E2 Field/Path direct tail と E3 の
+borrowed outer-close witness である。call item/separator/missing-close、projection、production
+Yumark bridge、legacy crossing、Gate 4/RB-E は scope 外に固定する。M3 の実装後 review は
+compiler/recovery と specification の二本に限定し、focused rewrite table、scoped format/diff check、
+`cargo check -p yu-syntax` を実行する。performance measurement と package/workspace suite は、
+新規の replay、非線形 scan、hot-path allocation が生じない限り行わない。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
