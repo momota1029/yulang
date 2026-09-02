@@ -22,8 +22,8 @@ trait ParserOnce<I, R, S> {
 }
 ```
 
-`I` is input, `R` is recoverable parser-local state, and `S` is an output-only
-state. `R` and `S` implement `reborrow_generic::short::Rb`; `In<'a, I, R, S>`
+`I` is input, `R` is recoverable parser-local state, and `S` is non-recoverable
+simple state. `R` and `S` implement `reborrow_generic::short::Rb`; `In<'a, I, R, S>`
 stores `R::Target<'a>` and `S::Target<'a>` and derives `Reborrow`. Its
 constructor accepts those targets directly, and `In::rb()` creates short
 parser calls. `S` is intended for a sink such as a Rowan builder. The ordinary
@@ -85,24 +85,30 @@ resource, nested marks remain valid, and success commits by dropping the mark.
 ## `None` contract and `check`
 
 Arbitrary Rust procedures can still consume input and return `None`, so the
-type system cannot prove the contract. `In<I, R, ()>::check(parser)` is the
-runtime boundary used by tuple parsers and procedural grammar code:
+type system cannot prove the contract. A `FnOnce(In<I, R, ()>) -> Option<O>`
+is itself a `ParserOnce`; that direct unit-state function implementation is the
+runtime boundary for the input contract. It is intentionally unavailable for a
+non-unit `S`, because `S` is not rollbackable and must not be mutated by a
+fallible parser:
 
-1. it records the input's current `Index` and an `R` marker;
-2. it runs `parser` through a short `In::rb()`;
-3. `Some(output)` commits both;
-4. on `None`, it rolls `R` back, then, if `Input::Index` changed, restores the
-   immediate input mark and panics.
+1. it records the input's current `Index`;
+2. it records an `R` marker, then runs the function through a short `In::rb()`;
+3. `Some(output)` commits normally;
+4. on `None`, it rolls `R` back, compares `Input::Index`, and panics if it
+   changed.
 
-`check` compares only `Input::Index`. It never compares input contents and it
-never compares `R`. `R` rollback is semantic, not a debug equality check; an
-`R` implementation is expected to use an inexpensive marker such as a log
-length when it needs transactional effects.
+`In<I, R, ()>::check(parser)` preserves the readable procedural grammar
+spelling. It delegates to the parser; direct unit-state functions and
+structural combinators own their transactions. `check` neither marks nor
+compares input and never corrects input after a contract violation. `R`
+rollback is semantic, not a debug equality check; an `R` implementation is
+expected to use an inexpensive marker such as a log length when it needs
+transactional effects.
 
-A caught contract panic still poisons the wider parser invocation. `check`
-restores only its immediate scope; it does not promise tuple-wide unwind
-restoration for successful work performed before that scope. Parsing must not
-resume from the wider invocation after catching such a panic.
+A caught contract panic poisons the wider parser invocation. It leaves the
+violating cursor advanced and does not promise tuple-wide unwind restoration
+for successful work performed before that scope. Parsing must not resume from
+the wider invocation after catching such a panic.
 
 For `&str`, `Index` is the current suffix pointer (`*const u8`). This is an
 O(1) cursor identity, not a text comparison or a source-offset API. A caller
@@ -136,13 +142,14 @@ use case.
 - a successful tuple consumes normally;
 - a non-matching tuple restores both input and `R`;
 - a choice rolls back each failed alternative and its all-`None` outer scope;
-- `check` panics for a buggy consume-then-`None` procedure using only pointer
-  identity for `&str`;
+- a direct unit-state function parser rolls `R` back and panics for a buggy
+  consume-then-`None` procedure using only pointer identity for `&str`,
+  without correcting the cursor;
 - `In::map` maps only successful grammar output and does not expose `In`;
 - `In::then` runs its total continuation only after grammar success and can
   write an output sink;
 - parser `then` delegates to `In::then`, so a consume-then-`None` grammar procedure
-  rolls back `R`, restores the immediate input mark, and panics;
+  rolls back `R`, leaves its cursor advanced, and panics;
 - ordinary `map_once`, `map_mut`, and `map` transform parser output without
   becoming state-lifting or monadic composition;
 - `In::rb()` witnesses short repeated access to reborrowed `R` and `S`;

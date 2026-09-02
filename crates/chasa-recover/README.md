@@ -6,7 +6,7 @@
 
 - `None` は非一致であり、入力位置を保存します。
 - `Some(output)` は通常の結果です。回復済み構文も `output` に含めます。
-- `R` は非一致時に rollback する状態、`S` は Rowan builder などの出力状態です。
+- `R` は非一致時に rollback する状態、`S` は Rowan builder などの非 rollback stateです。
 - `R` と `S` は `reborrow-generic` の `Rb` target として `In` に格納されます。
 - tuple parser は `S = ()` にだけ実装され、非一致時に tuple 全体を戻します。
 - `In::map` は `S = ()` の文法を `check` し、成功時だけ parser output を
@@ -17,9 +17,11 @@
 - `map_once` / `map_mut` / `map` は parser の通常出力だけを写します。
 - `choice` は `S = ()` の候補を左から順に transactional に試します。
 
-`check` は手続きパーサの `None` 契約を検査します。比較するのは入力の安価な
-opaque cursor identity だけです。`&str` では現在の suffix pointer を使い、
-入力内容や `R` の等値比較は行いません。`R` 自体は marker へ rollback します。
+`FnOnce(In<I, R, ()>) -> Option<_>` はそのまま grammar parser であり、`None` を返した
+ときに入力を消費していれば安価な opaque cursor identity だけを比較して panic します。
+`None` なら `R` も marker へ rollback します。`&str` では現在の suffix pointer を使い、
+入力内容や `R` の等値比較は行いません。`check` は読みやすい実行入口であり、input を
+矯正しません。`S` を持つ stateful work は `then` の total callback で行います。
 
 ```rust
 use chasa_recover::parser::item;

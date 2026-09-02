@@ -520,6 +520,20 @@ reviewはapproved、`cargo fmt --check -p chasa-recover`とfocused
 `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`の契約を満たす別のAuthoritative
 migration designと、owner-aware boundary/typed diagnostics/ParseLocal・CST transactionの実証が必要である。
 
+2026-09-02: ユーザ承認のfollow-upとして、`FnOnce(In<I, R, ()>) -> Option<T>`を
+factoryなしで直接`ParserOnce`にした。function parser自身が`R` markerを取り、`None`時は
+`R`をrollbackしてから`Input::Index`（`&str`ではsuffix pointer）だけを比較し、inputを
+矯正せずpanicする。`In::check`は読みやすい`i.check(parser)?`入口としてparserへ委譲するだけで、
+input/Rのmark・比較・rollbackを行わない。tuple/choiceの全体transactionは不変であり、これは
+合成parser自身が返す`None`の正当なrollbackである。Rowanのようなnon-recoverable `S`を
+fallible closureから汚さないため、直接function parserは`S = ()`に限定し、`S`を使う既存の
+`then` callbackはtotalのまま維持した。custom non-unit `ParserOnce`はtotal、または`None`時に
+`S`不変を守る契約とした。`check`がtransactionを隠れて作らないcounter witness、function
+parserの`R` rollback、consume-then-`None` panic後にcursorを戻さない`then` witnessを追加。
+M2 compiler delta reviewは最終approved、`cargo fmt --check -p chasa-recover`と
+`cargo test -p chasa-recover --no-fail-fast`は10 passedでgreen。Yulang production migrationの
+認可範囲は従来どおり拡張していない。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

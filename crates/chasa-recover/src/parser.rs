@@ -4,8 +4,10 @@ use reborrow_generic::short::Rb;
 
 use crate::input::{In, Input, Recover};
 
-/// A parser that either non-matches without consumption or returns a normal
-/// value (including a value representing recovered syntax).
+/// A parser that either non-matches without changing input or recoverable
+/// state, or returns a normal value (including a value representing recovered
+/// syntax). `S` is non-recoverable: a non-unit-state implementation must be
+/// total, or leave `S` unchanged when it returns `None`.
 pub trait ParserOnce<I: Input, R: Recover, S: Rb> {
     type Output;
 
@@ -38,7 +40,7 @@ pub trait ParserOnce<I: Input, R: Recover, S: Rb> {
         Map { parser: self, map }
     }
 
-    /// Lift a successful unit-state grammar parser into an output-only state.
+    /// Lift a successful unit-state grammar parser into non-recoverable state.
     ///
     /// The callback has the exact shape `FnOnce(O1, In<I, R, S2>) -> O2` and
     /// is intentionally total. Grammar methods are absent for `S2 != ()`.
@@ -55,14 +57,27 @@ pub trait ParserOnce<I: Input, R: Recover, S: Rb> {
     }
 }
 
-impl<I: Input, R: Recover, S: Rb, F, O> ParserOnce<I, R, S> for F
+impl<I: Input, R: Recover, F, O> ParserOnce<I, R, ()> for F
 where
-    F: for<'a> FnOnce(In<'a, I, R, S>) -> Option<O>,
+    F: for<'a> FnOnce(In<'a, I, R, ()>) -> Option<O>,
 {
     type Output = O;
 
-    fn run_once(self, input: In<'_, I, R, S>) -> Option<Self::Output> {
-        self(input)
+    fn run_once(self, mut input: In<'_, I, R, ()>) -> Option<Self::Output> {
+        let index = input.index();
+        let recovery_mark = R::mark(R::shorten_mut(&mut input.recovery));
+        let output = self(input.rb());
+
+        if output.is_none() {
+            R::rollback(R::shorten_mut(&mut input.recovery), recovery_mark);
+            if input.index() != index {
+                panic!(
+                    "ParserOnce function returned None after consuming input; None must preserve Input::Index"
+                );
+            }
+        }
+
+        output
     }
 }
 
@@ -324,6 +339,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+
     use reborrow_generic::Reborrow as _;
 
     use super::{ParserOnce, choice, item};
@@ -341,6 +358,66 @@ mod tests {
 
         fn rollback(&mut self, mark: Self::Mark) {
             self.0.truncate(mark);
+        }
+    }
+
+    #[derive(Default)]
+    struct CountingInput {
+        mark_calls: Cell<usize>,
+        index_calls: Cell<usize>,
+        rollback_calls: usize,
+    }
+
+    impl crate::input::Input for CountingInput {
+        type Item = ();
+        type Mark = ();
+        type Index = ();
+
+        fn next(&mut self) -> Option<Self::Item> {
+            None
+        }
+
+        fn mark(&self) -> Self::Mark {
+            self.mark_calls.set(self.mark_calls.get() + 1);
+        }
+
+        fn rollback(&mut self, _: Self::Mark) {
+            self.rollback_calls += 1;
+        }
+
+        fn index(&self) -> Self::Index {
+            self.index_calls.set(self.index_calls.get() + 1);
+        }
+    }
+
+    #[derive(Default)]
+    struct CountingRecovery {
+        mark_calls: Cell<usize>,
+        rollback_calls: usize,
+    }
+
+    impl Recoverable for CountingRecovery {
+        type Mark = ();
+
+        fn mark(&self) -> Self::Mark {
+            self.mark_calls.set(self.mark_calls.get() + 1);
+        }
+
+        fn rollback(&mut self, _: Self::Mark) {
+            self.rollback_calls += 1;
+        }
+    }
+
+    struct TrustedNonMatch;
+
+    impl ParserOnce<CountingInput, &mut CountingRecovery, ()> for TrustedNonMatch {
+        type Output = ();
+
+        fn run_once(
+            self,
+            _: In<'_, CountingInput, &mut CountingRecovery, ()>,
+        ) -> Option<Self::Output> {
+            None
         }
     }
 
@@ -417,19 +494,19 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "None after consuming input")]
-    fn check_rejects_a_consume_then_none_procedure_by_cursor_identity() {
+    fn function_parser_rejects_a_consume_then_none_procedure_by_cursor_identity() {
         let mut source = "a";
         let recovery = ();
-        let mut input = In::<_, (), ()>::new(&mut source, recovery, ());
 
-        let _ = input.check(|mut nested: In<&str, (), ()>| {
+        let _ = (|mut nested: In<&str, (), ()>| {
             nested.next();
             None::<()>
-        });
+        })
+        .run_once(In::<_, (), ()>::new(&mut source, recovery, ()));
     }
 
     #[test]
-    fn then_checks_grammar_and_restores_its_failed_scope_before_panicking() {
+    fn then_rolls_back_recovery_but_does_not_correct_a_contract_violation() {
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
         let mut source = "a";
@@ -452,25 +529,42 @@ mod tests {
         }));
 
         assert!(result.is_err());
-        assert_eq!(source, "a");
+        assert_eq!(source, "");
         assert!(log.0.is_empty());
         assert!(sink.is_empty());
     }
 
     #[test]
-    fn check_rolls_back_recoverable_state_without_comparing_it() {
+    fn function_parser_rolls_back_recoverable_state_without_comparing_it() {
         let mut source = "a";
         let mut log = Log::default();
-        let mut input = In::<_, &mut Log, ()>::new(&mut source, &mut log, ());
 
-        let output = input.check(|mut nested: In<&str, &mut Log, ()>| {
+        let output = (|mut nested: In<&str, &mut Log, ()>| {
             nested.recovery().0.push('x');
             None::<()>
-        });
+        })
+        .run_once(In::<_, &mut Log, ()>::new(&mut source, &mut log, ()));
 
         assert_eq!(output, None);
         assert_eq!(source, "a");
         assert!(log.0.is_empty());
+    }
+
+    #[test]
+    fn check_delegates_without_its_own_input_or_recovery_transaction() {
+        let mut source = CountingInput::default();
+        let mut recovery = CountingRecovery::default();
+
+        {
+            let mut input = In::<_, &mut CountingRecovery, ()>::new(&mut source, &mut recovery, ());
+            assert_eq!(input.check(TrustedNonMatch), None);
+        }
+
+        assert_eq!(source.mark_calls.get(), 0);
+        assert_eq!(source.index_calls.get(), 0);
+        assert_eq!(source.rollback_calls, 0);
+        assert_eq!(recovery.mark_calls.get(), 0);
+        assert_eq!(recovery.rollback_calls, 0);
     }
 
     #[test]

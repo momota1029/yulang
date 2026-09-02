@@ -6,10 +6,11 @@ use crate::parser::ParserOnce;
 
 /// A cursor-based input stream.
 ///
-/// `Index` is an opaque, cheap cursor identity used solely to verify the
-/// `None` contract. Equality must mean that two indices identify the same
-/// reachable cursor position during one transaction. It is not a source
-/// range, a comparison of input text, or a comparison of recoverable state.
+/// `Index` is an opaque, cheap cursor identity used by the direct function
+/// parser implementation to verify the `None` contract. Equality must mean
+/// that two indices identify the same reachable cursor position during one
+/// transaction. It is not a source range, a comparison of input text, or a
+/// comparison of recoverable state.
 pub trait Input {
     type Item;
     type Mark;
@@ -60,8 +61,9 @@ pub trait Recoverable {
 /// A reborrowable recover-state capability.
 ///
 /// This static form lets [`In`] store `R::Target<'a>` and create short parser
-/// calls without retaining a long `&mut R`. `check` rolls it back on `None`
-/// but never compares it for equality.
+/// calls without retaining a long `&mut R`. The direct unit-state function
+/// [`ParserOnce`] implementation rolls it back on `None` but never compares it
+/// for equality.
 pub trait Recover: Rb {
     type Mark;
 
@@ -100,12 +102,12 @@ impl Recover for () {
 pub struct In<'a, I: Input, R: Recover + 'a = (), S: Rb + 'a = ()> {
     pub(crate) input: &'a mut I,
     pub(crate) recovery: R::Target<'a>,
-    /// Output-only state supplied to [`In::then`] or `ParserOnce::then`.
+    /// Non-recoverable state supplied to [`In::then`] or `ParserOnce::then`.
     pub state: S::Target<'a>,
 }
 
 impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
-    /// Construct an input from the targets of the recover and output states.
+    /// Construct an input from the targets of the recover and simple states.
     pub fn new(input: &'a mut I, recovery: R::Target<'a>, state: S::Target<'a>) -> Self {
         Self {
             input,
@@ -122,8 +124,8 @@ impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
     /// Run a unit-state parser and map its successful output.
     ///
     /// The mapping receives only the parser output. Parsing still goes through
-    /// [`In::check`], so `None` rolls recoverable state back and must preserve
-    /// `Input::Index`.
+    /// [`In::check`]. A direct unit-state function parser rolls recoverable
+    /// state back on `None` and verifies its own input-nonconsumption contract.
     pub fn map<P, F, O2>(self, parser: P, map: F) -> Option<O2>
     where
         P: ParserOnce<I, R, ()>,
@@ -136,8 +138,7 @@ impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
     /// total procedural continuation.
     ///
     /// This is the central state-lifting primitive. The parser is run through
-    /// [`In::check`], so `None` rolls recoverable state back and must preserve
-    /// `Input::Index`. The continuation runs only after success and returns an
+    /// [`In::check`]. The continuation runs only after success and returns an
     /// ordinary output directly; it cannot make this method backtrack.
     pub fn then<P, F, O2>(mut self, parser: P, then: F) -> Option<O2>
     where
@@ -155,7 +156,8 @@ impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
 
 impl<I: Input, R: Recover> In<'_, I, R, ()> {
     /// Consume one item. A procedure that later returns `None` must restore
-    /// this consumption itself; [`check`](Self::check) diagnoses violations.
+    /// this consumption itself; the direct unit-state function [`ParserOnce`]
+    /// impl diagnoses violations.
     pub fn next(&mut self) -> Option<I::Item> {
         self.input.next()
     }
@@ -165,35 +167,19 @@ impl<I: Input, R: Recover> In<'_, I, R, ()> {
         R::shorten_mut(&mut self.recovery)
     }
 
-    /// Run a grammar parser and enforce the `None` no-consumption contract.
+    /// Run a unit-state grammar parser.
     ///
-    /// Recoverable state is rolled back on `None`, but intentionally not
-    /// compared. Input validation is only the cheap `Index` equality test.
-    /// If that contract is violated, this immediate check scope restores its
-    /// input mark before panicking. Parsing must not resume from the wider
-    /// invocation after catching that panic.
+    /// This preserves the readable `i.check(parser)?` grammar spelling. The
+    /// parser itself owns its transaction: the direct unit-state function
+    /// [`ParserOnce`] implementation rolls recoverable state back on `None`
+    /// and checks [`Input::Index`], while tuple and choice parsers restore
+    /// their own composite transactions. No input mark or input correction
+    /// occurs here.
     pub fn check<P>(&mut self, parser: P) -> Option<P::Output>
     where
         P: ParserOnce<I, R, ()>,
     {
-        let input_mark = self.input.mark();
-        let index = self.input.index();
-        let recovery_mark = R::mark(R::shorten_mut(&mut self.recovery));
-        let output = parser.run_once(self.rb());
-
-        match output {
-            Some(output) => Some(output),
-            None => {
-                R::rollback(R::shorten_mut(&mut self.recovery), recovery_mark);
-                if self.input.index() != index {
-                    self.input.rollback(input_mark);
-                    panic!(
-                        "ParserOnce returned None after consuming input; None must preserve Input::Index"
-                    );
-                }
-                None
-            }
-        }
+        parser.run_once(self.rb())
     }
 
     pub(crate) fn checkpoint(&mut self) -> Checkpoint<I::Mark, R::Mark> {
