@@ -352,6 +352,142 @@ invalid 2件を含む6 process/459.18 sは8 process/10-minute budget内であり
 主張しない。証拠は`notes/progress/evidence/2026-09-01-gate10-public-companion-{measurement,raw}.md`に保存した。
 shared declaration companion `with:`のGates 1–10は完了した。
 
+2026-09-01: 次sliceとしてstandalone doc-comment declarationを選定した。ユーザはtemporary opaque bodyを
+却下し、written Yumark文書仕様をsurface authorityとしてfull structured Yumark（documented commandを含む）を
+採ること、block close `---`はstrictにして`---x`を本文として扱うこと、深い入れ子は人工上限なしのexplicit
+Yumark frame stackで扱うことを選択した。fenceは文書仕様どおりraw textのままとし、Yulangはcommand/applyの
+argument位置だけで扱う。`do`はcommandのlocal `:`/`{}` bodyと別に、そのcommand段落より後のsibling blockを
+captureする。Yumark文書に未記載だったblock opener/list middle indent/link-image destination/quote-fence close/
+heading/if-chainのcompletion rowsもユーザが選択した。`do`はexact sole `(do)`だけで通常Yulang argumentとのmixを
+rejectするが、local Doc bodyは併用できる。`\use UseTree;`はparenthesized written formと共存し、bare
+`\my f x`はYumark-local binding headとして受理する。`\my f x = expr;`と`=\n` indented expressionは式、
+`\my f x:\n` indented documentはbraced Doc bodyの略記である。written oracleは
+`notes/design/oracles/2026-09-01-yumark-draft.md`へfrozen copy済み。Draft正本は
+`notes/design/2026-09-01-doc-comment-yumark-addendum.md`。M3設計reviewはYumark AST/CST vocabulary、typed
+recovery、frame/terminator owner、Yulang boundary bridge、performance no-rescan条件を閉じ、2026-09-01にユーザ承認で
+`Authoritative`化した。active gateはGate 1（inert syntax/AST/recovery vocabularyとtest-only full-state snapshot）であり、
+root/canonical dispatchはGate 6まで未認可。
+
+Gate 1の実装査読で、Authoritative §4のundo-log watermark表現がcommit後のframe mutationを文書長ぶん保持し、
+同じ正本のO(structural nesting)制約と矛盾するfalse premiseを発見した。ユーザは2026-09-01に狭い
+`notes/design/2026-09-01-yumark-frame-transaction-storage-addendum.md`を承認した。Yumarkだけをpersistent `Arc`
+frame chain/root-swap checkpoint/iterative releaseへ替え、generic `RollbackStack`とordinary parser hot pathは不変に
+保った。nested/cloned checkpoint rollback・superseded branchの解放・full snapshot、`YumarkUse`の`Recovered<UseTree>`
+型をfocused testで確認し、compiler/performance delta reviewもgreen。Gate 1は完了。次はGate 2のisolated
+marker/strict-close/line-doc/chunk/frame-stack judgesであり、root/canonical dispatchはGate 6まで未認可。
+
+Gate 2も完了。`grammar/yumark/`だけにsink-free marker/strict-close/line-doc/chunk judgesを置き、`---`の
+strict failureが`--`へfallbackしないこと、LF/CRLFだけのphysical newline、close suffix非消費、raw fenceの
+arbitrary info、explicit quoteのbase column、canonical XID identifier start、frame transactionを一つのfocused
+tableで固定した。AST/CST adapter・scanner・Declaration/Statement/root/canonical dispatchは未接続のままである。
+focused test 1件、scoped rustfmt/diff check、compiler/spec delta reviewはgreen。package/workspace suite・timingは
+行わなかった。次はGate 3のisolated inline/paragraph/section/list/quote/raw-fence grammarとlocal recovery/state/CST table。
+
+Gate 3の着手前に、§5.4が選択済みとする`\ident(args)`/`[doc]:ident(args)`のouter delimiter bridgeを
+Gate 3へ置くか、Gate 4へ後回しにするかというgate allocation矛盾を発見した。compiler/spec reviewは、inline
+surfaceを完結させてsecond parserを作らないため、shared bridgeと二つのinline adapterをGate 3へ置き、Gate 4は
+command/`my`/`use`/`if`のpayload policyとして再利用する案を支持した。同時に、Gate 3がYumark-owned consumed bytesの
+`LineState`を一度だけ更新する責務を持つ。Draft
+`notes/design/2026-09-01-yumark-gate3-embedded-yulang-allocation-amendment.md`はこの狭いallocationだけを変更し、
+承認待ちである。承認まではGate 3 implementationへ進まない。
+
+ユーザは2026-09-01にこのallocation追補を承認した。Gate 3はshared embedded-Yulang bridgeとinline
+reference/apply adapter、committed Yumark `LineState` advanceを含むisolated structural grammarとして着手可能である。
+Gate 4はcommand/`my`/`use`/`if`用のpayload policyとlayout/recoveryを同bridgeへ追加する。root/canonical dispatchは
+引き続きGate 6まで未認可。
+
+Gate 3は実装・M3 review/repairを開始したが、未完了のままarchitecture re-entryで停止している。isolated
+`grammar/yumark/` driver、typed delimiter-floor bridge、canonical CallArgument interior/borrowed-close settlement、
+direct NUD candidateのErrorSink rollbackを実装し、ordinary `CallTail`のcontrolとYumark AST/direct recovery・state
+tableを追加した。reviewで、raw-fence/paragraphの二重走査、深いframe走査、active-ownerを見ないbridge boundary、
+ordinary CallTailのtrivia順序、close evidence、word extent、inactive closerのcanonical close-slot recoveryを発見し、
+single-forward `DocumentDriverState`/streaming consumerとshared canonical settlementへ原因修正した。直近の
+`cargo test -p yu-syntax yumark_gate3_ --no-fail-fast`は、4096-byte plain paragraphのtest-only
+`paragraph_bytes` counterが未配線で`0`になり失敗した。architecture auditはproductionのpre-scan/replayを否定し、
+raw-inline consumerでのみbyte lengthを数える`cfg(test)` hookの欠落と判定した。M3 repair上限に達したため、
+counter hookの狭い修復とfocused再検証は次の承認済みrepair枠まで保留する。Gate 3は未完了、Gate 4以降と
+Declaration/Statement/root dispatchは未認可である。package/workspace suite・timing・stage/commit/pushは行わなかった。
+
+ユーザは2026-09-02にこのcounter hookだけのexceptional repairを承認した。hookはASCII/multibyte paragraph、
+fixed-end zero、raw fenceのcounterを正しく通したが、同じfocused tableで`a\r\n  b`のraw-inline consumerが
+CRLFを`\r`/`\n`へ分割してadvanceし、`LineState::last_newline`を`1..3`ではなく`2..3`と記録する既存production
+defectを発見した。Yumark-local source-unit classifier（CRLF=2、それ以外はUTF-8 scalar、lone CR=scalar）と
+shared committed advance primitiveへの収束で、CRLF/LF/lone-CR/line-doc/raw-fence rowはgreenになった。最終delta
+reviewはさらに、range validationが全rangeを二度decodeするP0、release hot loopに残るtest counter call、canonical
+inner call recovery factをASTが捨ててdirectと不一致になること、borrowed-close malformed scannerがYumark hard
+boundaryを跨いでcanonical byteのLineStateを壊すこと、hard-boundary/quote suffix evidence不足を発見した。
+architectureはこれを単一のM2 exceptional repair——O(1) endpoint validation+完全`cfg(test)` counter elision、
+shared canonical recovery-fact observer、boundary-aware borrowed malformed step、compact boundary table——として定義した。
+これはcounter/CRLFだけの前許可を越えるため、追加の明示workflow許可待ちである。Gate 3は未完了、Gate 4以降と
+Declaration/Statement/root dispatchは未認可である。package/workspace suite・timing・stage/commit/pushは行わなかった。
+
+2026-09-02: exceptional repairのfocused Gate 3 tableを進める過程で、embedded canonical payloadのAST/direct
+recovery parityに関するGate 3 allocationのfalse premiseを発見した。persistent embedded recovery logそのもの、
+QuoteForm、nested quote、raw fence、single-forward LineState修正は局所的に成立したが、`parse_operator_chain`
+はbraced/indented Statementを経てPattern/TypeExpressionと全declaration/For recovery ownerへ到達する。AST内で
+direct parserを`HeaderOutput`で影走行してrecordを集める試作はone-forward/no-replayとdiagnostic transactionを
+破るため破棄し、compiler baselineへ戻した。ユーザはfull canonical payload parityを延期せず、owner-local
+shared recovery episodeを導入する方針を選択した。承認済み追補は
+`notes/design/2026-09-02-yumark-gate3b-canonical-recovery-episode-amendment.md`である。Gate 3bは
+`LegacyAst | EmbeddedObservedAst | Direct`のconceptual modeで各recovery ownerが一度だけ判断し、active
+EmbeddedYulang時だけpersistent logへprimary recovery factをpublishする。ordinary AST/directの既存contract、
+root/public dispatch、shadow parse、CST/AST walk、source replayは不変/禁止である。次はGate 3bのtransitive
+owner adoptionとfocused matrixであり、Gate 3は引き続き未完了。package/workspace suite・timing・stage/commit/pushは
+行わなかった。
+
+Gate 3b追補のspec auditは「transitive owner」を動的な語のままにせず、有限のowner/witness/rollback matrixへ
+固定することを要求した。`notes/design/2026-09-02-yumark-gate3b-recovery-adoption-matrix.md`はExpression、Pattern、
+TypeExpression/polymorphic variant、canonical StatementとBinding/Use/Mod/Struct/Enum/Error/Type/Role/Impl/Cast/Act/
+For/Derives/companion、Enum/Error shared variant cross-productを列挙し、既存ordinary malformed witness、primary
+role/expected/range/kind/order、rollback layerを対応付ける。また、recovery済みfirst adapterがframe pop後にclean
+reference/applyへfactを漏らさない連続sourceを必須証拠にした。このmatrixはGate 3b追補§4/§6のAuthoritative appendixである。
+
+2026-09-02: Gate 3bのordinary-primary preparationで既存owner contractを実測し、Case/Catchのfresh missing
+Patternを`CaseLike(Pattern/Handler)`へ正しくrouteした。non-empty malformed Patternは引き続きinner
+`Pattern(Primary)`である。さらに`ENUM-T`の未完extractを発見・修正した。Struct、Enum、Errorのbrace named
+field payloadは`variant_core`のone owner-parameterized post-opener sequence driverを共有し、Struct baseまたは
+Enum/Error declaration base、field recovery role、neutral close ownerだけをspecで渡す。従ってsame-line
+`a: A b: B`はfirst TypeExpressionが`b:`の前でyieldし、one Missing FieldSeparatorの後に同positionからsecond
+fieldをretryする。comma、implicit newline、semicolon、local/outer mismatched close、trailing comma、layout stateも
+single driverが一度だけ裁定する。`A B`はvariant separator missingではなくPositional payloadでzero recoveryなので、
+matrixの矛盾したV5はV1–V4 cross productから削除し、NV1 no-recovery exclusionへ訂正した。P7g record nested
+Patternのnon-empty `@` Error後にsame-slot Missingを重ねる既存cascadeも修正した。
+
+focused evidenceは`cargo test -p yu-syntax gate3b_ --no-fail-fast`で6 passed、0 failed、591 filtered（既存warning
+33件）。compiler/spec/regression独立reviewはapproved。tableはStruct indented/tuple/TypeApply non-split、Enum/Error
+V3 exact field/recovery/topology、NV1、outer `]` non-consumeとprefix CST、P7gのone Error nodeまで固定する。format、
+diff check、package/workspace suite、timing、stage/commit/pushはこのfocused bundleでは行わなかった。Gate 3bの全
+transitive canonical recovery episode adoption、Gate 4 command grammar、Gate 5 envelope、Gate 6 dispatchは未完了・未認可である。
+
+2026-09-02: Gate 3bの最初の有限 adoption sliceとしてE2 fixed `.` / `::` tailを完了した。
+`fixed_tail_recovery_episode`がFieldName/PathSegmentのmaximal invalid runまたはzero-width Missingを一度だけ
+裁定し、ordinary ASTは従来どおりfactを外へ出さず、active EmbeddedYulang ASTだけpersistent recovery logへ
+publishし、directは同じneutral factからone CommittedRecoveryRecordとone generic Missing/Error nodeをemitする。
+`::`後のmaximal triviaはepisodeより前にPathTailが所有する。ordinary controlは`x.`、`x.@`、`x::`、`x::123`の
+selected primaryをIdentifierとして固定し、`x:: $name`でPathTailの`ColonColon`・Whitespace・SigilIdentifier childと
+zero recoveryを確認した。embedded controlsは`\\ref(x.)`、`\\ref(x::123)`、`\\ref(x:: 123)`の
+role/range/kind/primary/order、node topology、range/remainder、frame popとdirect diagnostic-id deltaを確認した。
+actual owner RB-E probeはpreseeded sink/persistent factを含むinput/local/output/cut rollbackを確認する。
+`cargo test -p yu-syntax yumark_gate3_ --no-fail-fast`は1 passed、596 filtered、
+`cargo test -p yu-syntax fixed_tail_recovery --no-fail-fast`は1 passed、596 filtered（いずれも既存warning 33件）。
+compiler/spec M2 reviewはapproved、`git diff --check`はgreen。scoped rustfmt checkはsession/expression/yumark testsの
+並行・既存領域を含むformat deltaで失敗したため、format editは行わなかった。package/workspace suite、timing、
+stage/commit/pushは未実施で、Gate 3bの残る有限owner inventoryは引き続き未完了である。
+
+2026-09-02: 次の有限 slice D11b `Declaration(Derives(ViaTarget))`を完了した。ordinary derives-viaと
+companion-handoff derives-viaのAST/direct四adapterは、boundary-parameterizedなsingle
+`derives_via_target_episode`を共有する。episodeはIdentifier primaryのMissing/Error factと
+RetrySameSlot/StopAtBoundaryを返し、`with:` handoff、CR/LF、close、EOFは未消費のまま親ownerへ残す。malformed
+runの後にraw identifierがあるときだけtargetをretryする。embedded ASTのみpersistent logへpublishし、directは
+generic Missing/Error nodeをDerivesClause直下にemitする。D11a RoleReferenceは未変更である。
+focused evidenceはMissing/Error+retry/clean embedded row、companion `with:` retention、one node topology、
+outer brace/paren ownershipとreal candidate RB-DRVを含む。RB-DRVはsynthetic episode helperではなく
+`recognize_derives_attachment_start -> parse_derives_attachments_isolated`をactual transaction下で走らせ、
+ViaTarget Error `15..17`と`key` retryを観測してからinput/local/error sink/output/cutをrollbackする。
+`cargo test -p yu-syntax --no-fail-fast gate3b_derives_via_target_episode`は2 passed、597 filtered
+（既存warning 33件）。compiler/spec M2 reviewはapproved。Gate 3bの残る有限inventory、Gate 4 command grammar、
+Gate 5 envelope、Gate 6 dispatchは未完了である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

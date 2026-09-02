@@ -41,6 +41,60 @@ pub enum SyntaxKind {
     ActDeclaration,
     DeclarationCompanion,
     DeclarationCompanionIndentedBody,
+    DocCommentDeclaration,
+    DocLinePrefix,
+    DocBlockOpen,
+    DocBlockClose,
+    YmDoc,
+    YmSection,
+    YmImplicitSection,
+    YmExplicitSection,
+    YmHeading,
+    YmSectionClose,
+    YmText,
+    YmHeadingMarker,
+    YmListMarker,
+    YmQuoteFenceMarker,
+    YmQuotePrefix,
+    YmFenceMarker,
+    YmBlankLine,
+    YmList,
+    YmListItem,
+    YmListItemBody,
+    YmQuoteBlock,
+    YmCodeFence,
+    YmCodeFenceInfo,
+    YmCodeFenceText,
+    YmParagraph,
+    YmCommand,
+    YmCommandArgs,
+    YmCommandBody,
+    YmDoCapture,
+    YmMy,
+    YmMyBindingHead,
+    YmMyExpressionBody,
+    YmUse,
+    YmIfChain,
+    YmIf,
+    YmIfCondition,
+    YmElsif,
+    YmElsifCondition,
+    YmElse,
+    YmBackslash,
+    YmBangLBracket,
+    YmStrongMarker,
+    YmEmphasisMarker,
+    YmInlineRef,
+    YmInlineGroup,
+    YmInlineLink,
+    YmInlineImage,
+    YmInlineApply,
+    YmInlineApplyHead,
+    YmInlineApplyArgs,
+    YmYulangArgs,
+    YmDocArg,
+    YmEmphasis,
+    YmStrong,
     ForStatement,
     ForLabel,
     ForIterable,
@@ -236,6 +290,66 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::DeclarationCompanionIndentedBody as u16 => {
                 SyntaxKind::DeclarationCompanionIndentedBody
             }
+            value if value == SyntaxKind::DocCommentDeclaration as u16 => {
+                SyntaxKind::DocCommentDeclaration
+            }
+            value if value == SyntaxKind::DocLinePrefix as u16 => SyntaxKind::DocLinePrefix,
+            value if value == SyntaxKind::DocBlockOpen as u16 => SyntaxKind::DocBlockOpen,
+            value if value == SyntaxKind::DocBlockClose as u16 => SyntaxKind::DocBlockClose,
+            value if value == SyntaxKind::YmDoc as u16 => SyntaxKind::YmDoc,
+            value if value == SyntaxKind::YmSection as u16 => SyntaxKind::YmSection,
+            value if value == SyntaxKind::YmImplicitSection as u16 => SyntaxKind::YmImplicitSection,
+            value if value == SyntaxKind::YmExplicitSection as u16 => SyntaxKind::YmExplicitSection,
+            value if value == SyntaxKind::YmHeading as u16 => SyntaxKind::YmHeading,
+            value if value == SyntaxKind::YmSectionClose as u16 => SyntaxKind::YmSectionClose,
+            value if value == SyntaxKind::YmText as u16 => SyntaxKind::YmText,
+            value if value == SyntaxKind::YmHeadingMarker as u16 => SyntaxKind::YmHeadingMarker,
+            value if value == SyntaxKind::YmListMarker as u16 => SyntaxKind::YmListMarker,
+            value if value == SyntaxKind::YmQuoteFenceMarker as u16 => {
+                SyntaxKind::YmQuoteFenceMarker
+            }
+            value if value == SyntaxKind::YmQuotePrefix as u16 => SyntaxKind::YmQuotePrefix,
+            value if value == SyntaxKind::YmFenceMarker as u16 => SyntaxKind::YmFenceMarker,
+            value if value == SyntaxKind::YmBlankLine as u16 => SyntaxKind::YmBlankLine,
+            value if value == SyntaxKind::YmList as u16 => SyntaxKind::YmList,
+            value if value == SyntaxKind::YmListItem as u16 => SyntaxKind::YmListItem,
+            value if value == SyntaxKind::YmListItemBody as u16 => SyntaxKind::YmListItemBody,
+            value if value == SyntaxKind::YmQuoteBlock as u16 => SyntaxKind::YmQuoteBlock,
+            value if value == SyntaxKind::YmCodeFence as u16 => SyntaxKind::YmCodeFence,
+            value if value == SyntaxKind::YmCodeFenceInfo as u16 => SyntaxKind::YmCodeFenceInfo,
+            value if value == SyntaxKind::YmCodeFenceText as u16 => SyntaxKind::YmCodeFenceText,
+            value if value == SyntaxKind::YmParagraph as u16 => SyntaxKind::YmParagraph,
+            value if value == SyntaxKind::YmCommand as u16 => SyntaxKind::YmCommand,
+            value if value == SyntaxKind::YmCommandArgs as u16 => SyntaxKind::YmCommandArgs,
+            value if value == SyntaxKind::YmCommandBody as u16 => SyntaxKind::YmCommandBody,
+            value if value == SyntaxKind::YmDoCapture as u16 => SyntaxKind::YmDoCapture,
+            value if value == SyntaxKind::YmMy as u16 => SyntaxKind::YmMy,
+            value if value == SyntaxKind::YmMyBindingHead as u16 => SyntaxKind::YmMyBindingHead,
+            value if value == SyntaxKind::YmMyExpressionBody as u16 => {
+                SyntaxKind::YmMyExpressionBody
+            }
+            value if value == SyntaxKind::YmUse as u16 => SyntaxKind::YmUse,
+            value if value == SyntaxKind::YmIfChain as u16 => SyntaxKind::YmIfChain,
+            value if value == SyntaxKind::YmIf as u16 => SyntaxKind::YmIf,
+            value if value == SyntaxKind::YmIfCondition as u16 => SyntaxKind::YmIfCondition,
+            value if value == SyntaxKind::YmElsif as u16 => SyntaxKind::YmElsif,
+            value if value == SyntaxKind::YmElsifCondition as u16 => SyntaxKind::YmElsifCondition,
+            value if value == SyntaxKind::YmElse as u16 => SyntaxKind::YmElse,
+            value if value == SyntaxKind::YmBackslash as u16 => SyntaxKind::YmBackslash,
+            value if value == SyntaxKind::YmBangLBracket as u16 => SyntaxKind::YmBangLBracket,
+            value if value == SyntaxKind::YmStrongMarker as u16 => SyntaxKind::YmStrongMarker,
+            value if value == SyntaxKind::YmEmphasisMarker as u16 => SyntaxKind::YmEmphasisMarker,
+            value if value == SyntaxKind::YmInlineRef as u16 => SyntaxKind::YmInlineRef,
+            value if value == SyntaxKind::YmInlineGroup as u16 => SyntaxKind::YmInlineGroup,
+            value if value == SyntaxKind::YmInlineLink as u16 => SyntaxKind::YmInlineLink,
+            value if value == SyntaxKind::YmInlineImage as u16 => SyntaxKind::YmInlineImage,
+            value if value == SyntaxKind::YmInlineApply as u16 => SyntaxKind::YmInlineApply,
+            value if value == SyntaxKind::YmInlineApplyHead as u16 => SyntaxKind::YmInlineApplyHead,
+            value if value == SyntaxKind::YmInlineApplyArgs as u16 => SyntaxKind::YmInlineApplyArgs,
+            value if value == SyntaxKind::YmYulangArgs as u16 => SyntaxKind::YmYulangArgs,
+            value if value == SyntaxKind::YmDocArg as u16 => SyntaxKind::YmDocArg,
+            value if value == SyntaxKind::YmEmphasis as u16 => SyntaxKind::YmEmphasis,
+            value if value == SyntaxKind::YmStrong as u16 => SyntaxKind::YmStrong,
             value if value == SyntaxKind::ForStatement as u16 => SyntaxKind::ForStatement,
             value if value == SyntaxKind::ForLabel as u16 => SyntaxKind::ForLabel,
             value if value == SyntaxKind::ForIterable as u16 => SyntaxKind::ForIterable,
@@ -425,3 +539,22 @@ impl Language for YulangLanguage {
 
 pub type SyntaxNode = rowan::SyntaxNode<YulangLanguage>;
 pub type SyntaxToken = rowan::SyntaxToken<YulangLanguage>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn yumark_syntax_kinds_round_trip_through_rowan() {
+        for kind in [
+            SyntaxKind::DocCommentDeclaration,
+            SyntaxKind::YmDoc,
+            SyntaxKind::YmCommandBody,
+            SyntaxKind::YmInlineApplyArgs,
+            SyntaxKind::YmStrong,
+        ] {
+            let raw = <YulangLanguage as Language>::kind_to_raw(kind);
+            assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
+        }
+    }
+}

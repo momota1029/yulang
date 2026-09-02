@@ -252,6 +252,338 @@ pub(crate) struct IfExpressionCompanionFrame {
     exact_words: &'static [&'static str],
 }
 
+/// One explicit work item in the iterative Yumark grammar.
+///
+/// The stack is inert until the isolated grammar gates begin. Keeping every
+/// structural nesting form explicit here prevents later parser recursion from
+/// becoming the accidental depth policy.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum YumarkFrame {
+    Document {
+        base: usize,
+        envelope_stop: YumarkEnvelopeStop,
+    },
+    Inline {
+        owner: YumarkOwner,
+        close: YumarkInlineClose,
+    },
+    ImplicitSection {
+        level: usize,
+    },
+    ExplicitSection {
+        level: usize,
+        parent_indent: usize,
+        body_indent: usize,
+    },
+    List {
+        indent: usize,
+    },
+    ListItem {
+        marker: Range<usize>,
+        indent: usize,
+        content_column: usize,
+    },
+    ExplicitQuote {
+        depth: usize,
+        marker: Range<usize>,
+    },
+    PrefixQuote {
+        depth: usize,
+    },
+    RawFence {
+        marker: Range<usize>,
+        indent: usize,
+    },
+    BracedBody {
+        owner: YumarkOwner,
+    },
+    IndentedBody {
+        owner: YumarkOwner,
+        parent_indent: usize,
+        body_indent: usize,
+    },
+    DoCapture {
+        command_start: usize,
+        indent: usize,
+    },
+    IfChain {
+        indent: usize,
+        seen_else: bool,
+    },
+    EmbeddedYulang {
+        owner: YumarkOwner,
+        outer_kind: YumarkEmbeddedOuterKind,
+        delimiter_floor: YumarkDelimiterFloor,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum YumarkEnvelopeStop {
+    LineDocument,
+    BlockDocument,
+    ParentFrame,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum YumarkInlineClose {
+    RightBracket,
+    Emphasis,
+    Strong,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum YumarkEmbeddedOuterKind {
+    Paired(Delimiter),
+    RequiredSemicolon,
+}
+
+/// The exact canonical delimiter depth borrowed by one Yumark wrapper.
+///
+/// The value stays opaque outside session ownership: Yumark can test and pop
+/// only the floor returned by its matching push operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct YumarkDelimiterFloor(usize);
+
+/// One canonical recovery committed while a Yumark-owned embedded episode is
+/// active. The enclosing AST adapter drains these facts before deciding the
+/// borrowed outer close; direct parsing emits the same fact immediately.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct YumarkEmbeddedRecoveryFact {
+    pub(crate) spec: RecoverySiteSpec,
+    pub(crate) range: Range<usize>,
+    pub(crate) kind: RecoveryKind,
+    pub(crate) unexpected: Option<UnexpectedCategory>,
+}
+
+/// One sink-neutral canonical recovery decision and its owner continuation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CanonicalRecoveryEpisode {
+    pub(crate) fact: YumarkEmbeddedRecoveryFact,
+    pub(crate) continuation: CanonicalRecoveryContinuation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CanonicalRecoveryContinuation {
+    RetrySameSlot,
+    StopAtBoundary,
+}
+
+/// Sink-neutral identity shared by an AST recovery owner and its direct-CST
+/// emission helper.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct RecoverySiteSpec {
+    pub(crate) role: GrammarRole,
+    pub(crate) expected: ExpectedSyntax,
+}
+
+/// Persistent structural state for the iterative Yumark grammar.
+///
+/// A checkpoint retains only the current head. Published nodes are immutable,
+/// so rollback is a root swap and committed mutations leave no undo journal.
+struct YumarkFrameStack {
+    head: Option<Arc<YumarkFrameNode>>,
+}
+
+struct YumarkFrameNode {
+    frame: YumarkFrame,
+    parent: Option<Arc<YumarkFrameNode>>,
+    depth: usize,
+    embedded_recoveries: YumarkEmbeddedRecoveryLog,
+}
+
+#[derive(Clone, Default)]
+struct YumarkEmbeddedRecoveryLog {
+    head: Option<Arc<YumarkEmbeddedRecoveryNode>>,
+    len: usize,
+}
+
+struct YumarkEmbeddedRecoveryNode {
+    fact: YumarkEmbeddedRecoveryFact,
+    parent: Option<Arc<YumarkEmbeddedRecoveryNode>>,
+}
+
+#[derive(Clone)]
+struct YumarkFrameCheckpoint {
+    head: Option<Arc<YumarkFrameNode>>,
+}
+
+impl YumarkFrameStack {
+    fn new() -> Self {
+        Self { head: None }
+    }
+
+    fn checkpoint(&self) -> YumarkFrameCheckpoint {
+        YumarkFrameCheckpoint {
+            head: self.head.clone(),
+        }
+    }
+
+    fn rollback(&mut self, checkpoint: YumarkFrameCheckpoint) {
+        self.replace_head(checkpoint.into_head());
+    }
+
+    fn push(&mut self, frame: YumarkFrame) {
+        let parent = self.head.take();
+        let depth = parent.as_ref().map_or(1, |node| node.depth + 1);
+        self.head = Some(Arc::new(YumarkFrameNode {
+            frame,
+            parent,
+            depth,
+            embedded_recoveries: YumarkEmbeddedRecoveryLog::default(),
+        }));
+    }
+
+    fn replace_last(&mut self, frame: YumarkFrame) {
+        let parent = self
+            .head
+            .as_ref()
+            .expect("cannot replace the top of an empty Yumark frame stack")
+            .parent
+            .clone();
+        let depth = parent.as_ref().map_or(1, |node| node.depth + 1);
+        let embedded_recoveries = self
+            .head
+            .as_ref()
+            .expect("cannot replace the top of an empty Yumark frame stack")
+            .embedded_recoveries
+            .clone();
+        self.replace_head(Some(Arc::new(YumarkFrameNode {
+            frame,
+            parent,
+            depth,
+            embedded_recoveries,
+        })));
+    }
+
+    fn record_embedded_recovery(&mut self, fact: YumarkEmbeddedRecoveryFact) {
+        let Some(head) = self.head.as_ref() else {
+            return;
+        };
+        if !matches!(head.frame, YumarkFrame::EmbeddedYulang { .. }) {
+            return;
+        }
+        let parent = head.parent.clone();
+        let depth = head.depth;
+        let embedded_recoveries = YumarkEmbeddedRecoveryLog {
+            head: Some(Arc::new(YumarkEmbeddedRecoveryNode {
+                fact,
+                parent: head.embedded_recoveries.head.clone(),
+            })),
+            len: head.embedded_recoveries.len + 1,
+        };
+        self.replace_head(Some(Arc::new(YumarkFrameNode {
+            frame: head.frame.clone(),
+            parent,
+            depth,
+            embedded_recoveries,
+        })));
+    }
+
+    fn drain_embedded_recoveries(&mut self) -> Vec<YumarkEmbeddedRecoveryFact> {
+        let Some(head) = self.head.as_ref() else {
+            return Vec::new();
+        };
+        assert!(matches!(head.frame, YumarkFrame::EmbeddedYulang { .. }));
+        let mut facts = Vec::with_capacity(head.embedded_recoveries.len);
+        let mut recovery = head.embedded_recoveries.head.as_deref();
+        while let Some(current) = recovery {
+            facts.push(current.fact.clone());
+            recovery = current.parent.as_deref();
+        }
+        facts.reverse();
+        if facts.is_empty() {
+            return facts;
+        }
+        self.replace_head(Some(Arc::new(YumarkFrameNode {
+            frame: head.frame.clone(),
+            parent: head.parent.clone(),
+            depth: head.depth,
+            embedded_recoveries: YumarkEmbeddedRecoveryLog::default(),
+        })));
+        facts
+    }
+
+    fn pop(&mut self) -> Option<YumarkFrame> {
+        let head = self.head.as_ref()?;
+        let frame = head.frame.clone();
+        let parent = head.parent.clone();
+        self.replace_head(parent);
+        Some(frame)
+    }
+
+    fn last(&self) -> Option<&YumarkFrame> {
+        self.head.as_deref().map(|node| &node.frame)
+    }
+
+    fn len(&self) -> usize {
+        self.head.as_ref().map_or(0, |node| node.depth)
+    }
+
+    #[cfg(test)]
+    fn values(&self) -> Vec<YumarkFrame> {
+        let mut values = Vec::with_capacity(self.len());
+        let mut node = self.head.as_deref();
+        while let Some(current) = node {
+            values.push(current.frame.clone());
+            node = current.parent.as_deref();
+        }
+        values.reverse();
+        values
+    }
+
+    fn replace_head(&mut self, head: Option<Arc<YumarkFrameNode>>) {
+        let old = std::mem::replace(&mut self.head, head);
+        release_yumark_frame_chain(old);
+    }
+}
+
+impl Drop for YumarkFrameStack {
+    fn drop(&mut self) {
+        release_yumark_frame_chain(self.head.take());
+    }
+}
+
+impl YumarkFrameCheckpoint {
+    fn into_head(mut self) -> Option<Arc<YumarkFrameNode>> {
+        self.head.take()
+    }
+}
+
+impl Drop for YumarkFrameCheckpoint {
+    fn drop(&mut self) {
+        release_yumark_frame_chain(self.head.take());
+    }
+}
+
+/// Release uniquely-owned persistent tails iteratively so document nesting
+/// cannot become Rust call-stack depth during rollback or destruction.
+fn release_yumark_frame_chain(mut head: Option<Arc<YumarkFrameNode>>) {
+    while let Some(node) = head {
+        match Arc::try_unwrap(node) {
+            Ok(mut node) => head = node.parent.take(),
+            Err(shared) => {
+                drop(shared);
+                break;
+            }
+        }
+    }
+}
+
+impl Drop for YumarkEmbeddedRecoveryLog {
+    fn drop(&mut self) {
+        let mut head = self.head.take();
+        while let Some(node) = head {
+            match Arc::try_unwrap(node) {
+                Ok(mut node) => head = node.parent.take(),
+                Err(shared) => {
+                    drop(shared);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 impl IfExpressionCompanionFrame {
     pub(crate) fn id(self) -> IfExpressionCompanionId {
         self.id
@@ -283,6 +615,7 @@ pub(crate) struct ParseLocal {
     lexical_modes: RollbackStack<EmbeddedLexicalMode>,
     ambient_owner_scopes: RollbackStack<AmbientOwnerScopeFrame>,
     if_expression_companions: RollbackStack<IfExpressionCompanionFrame>,
+    yumark_frames: YumarkFrameStack,
     staged_header_facts: Vec<StagedHeaderFact>,
     operator_probes: Vec<OperatorCandidateProbe>,
     reusable_recoveries: Vec<CommittedRecoveryRecord>,
@@ -310,6 +643,7 @@ impl ParseLocal {
             lexical_modes: RollbackStack::new(),
             ambient_owner_scopes: RollbackStack::new(),
             if_expression_companions: RollbackStack::new(),
+            yumark_frames: YumarkFrameStack::new(),
             staged_header_facts: Vec::new(),
             operator_probes: Vec::new(),
             reusable_recoveries: Vec::new(),
@@ -352,6 +686,7 @@ impl ParseLocal {
             lexical_modes: self.lexical_modes.checkpoint(),
             ambient_owner_scopes: self.ambient_owner_scopes.checkpoint(),
             if_expression_companions: self.if_expression_companions.checkpoint(),
+            yumark_frames: self.yumark_frames.checkpoint(),
             staged_header_facts_len: self.staged_header_facts.len(),
             operator_probes_len: self.operator_probes.len(),
             reused_recovery_indices_len: self.reused_recovery_indices.len(),
@@ -362,6 +697,9 @@ impl ParseLocal {
     }
 
     pub(crate) fn rollback(&mut self, checkpoint: ParseLocalCheckpoint) {
+        // Restore the persistent Yumark head before scanner/layout state
+        // visible to its frame judges.
+        self.yumark_frames.rollback(checkpoint.yumark_frames);
         self.line = checkpoint.line;
         self.indentation_baselines
             .rollback(checkpoint.indentation_baselines);
@@ -520,6 +858,28 @@ impl ParseLocal {
         self.delimiters.push(delimiter);
     }
 
+    pub(crate) fn push_yumark_delimiter(&mut self, delimiter: Delimiter) -> YumarkDelimiterFloor {
+        self.delimiters.push(delimiter);
+        YumarkDelimiterFloor(self.delimiters.len())
+    }
+
+    pub(crate) fn yumark_at_delimiter_floor(&self, floor: YumarkDelimiterFloor) -> bool {
+        self.delimiters.len() == floor.0
+    }
+
+    pub(crate) fn pop_yumark_delimiter(
+        &mut self,
+        floor: YumarkDelimiterFloor,
+        expected: Delimiter,
+    ) {
+        assert_eq!(
+            self.delimiters.len(),
+            floor.0,
+            "Yumark may pop only its exact borrowed delimiter floor"
+        );
+        assert_eq!(self.delimiters.pop(), Some(expected));
+    }
+
     pub(crate) fn pop_delimiter(&mut self) -> Option<Delimiter> {
         self.delimiters.pop()
     }
@@ -653,6 +1013,58 @@ impl ParseLocal {
         self.if_expression_companions.len()
     }
 
+    pub(crate) fn push_yumark_frame(&mut self, frame: YumarkFrame) {
+        self.yumark_frames.push(frame);
+    }
+
+    pub(crate) fn replace_yumark_frame(&mut self, frame: YumarkFrame) {
+        self.yumark_frames.replace_last(frame);
+    }
+
+    pub(crate) fn pop_yumark_frame(&mut self) -> Option<YumarkFrame> {
+        self.yumark_frames.pop()
+    }
+
+    pub(crate) fn yumark_frame(&self) -> Option<&YumarkFrame> {
+        self.yumark_frames.last()
+    }
+
+    pub(crate) fn yumark_frame_depth(&self) -> usize {
+        self.yumark_frames.len()
+    }
+
+    pub(crate) fn yumark_embedded_recovery_active(&self) -> bool {
+        matches!(self.yumark_frames.last(), Some(YumarkFrame::EmbeddedYulang { .. }))
+    }
+
+    pub(crate) fn record_yumark_embedded_recovery(
+        &mut self,
+        fact: YumarkEmbeddedRecoveryFact,
+    ) {
+        self.yumark_frames.record_embedded_recovery(fact);
+    }
+
+    pub(crate) fn drain_yumark_embedded_recoveries(
+        &mut self,
+    ) -> Vec<YumarkEmbeddedRecoveryFact> {
+        self.yumark_frames.drain_embedded_recoveries()
+    }
+
+    pub(crate) fn publish_yumark_embedded_recovery(
+        &mut self,
+        spec: RecoverySiteSpec,
+        range: Range<usize>,
+        kind: RecoveryKind,
+        unexpected: Option<UnexpectedCategory>,
+    ) {
+        self.record_yumark_embedded_recovery(YumarkEmbeddedRecoveryFact {
+            spec,
+            range,
+            kind,
+            unexpected,
+        });
+    }
+
     fn nearest_visible_statement_baseline(&self) -> Option<usize> {
         for frame in self.ambient_owner_scopes.values().iter().rev() {
             match frame.kind {
@@ -747,6 +1159,7 @@ impl ParseLocal {
             lexical_modes: self.lexical_modes.values().to_vec(),
             ambient_owner_scopes: self.ambient_owner_scopes.values().to_vec(),
             if_expression_companions: self.if_expression_companions.values().to_vec(),
+            yumark_frames: self.yumark_frames.values(),
             staged_header_facts: self.staged_header_facts.clone(),
             operator_probes: self.operator_probes.clone(),
             reusable_recoveries: self.reusable_recoveries.clone(),
@@ -776,6 +1189,7 @@ pub(crate) struct ParseLocalValueSnapshot {
     pub(crate) lexical_modes: Vec<EmbeddedLexicalMode>,
     pub(crate) ambient_owner_scopes: Vec<AmbientOwnerScopeFrame>,
     pub(crate) if_expression_companions: Vec<IfExpressionCompanionFrame>,
+    pub(crate) yumark_frames: Vec<YumarkFrame>,
     pub(crate) staged_header_facts: Vec<StagedHeaderFact>,
     pub(crate) operator_probes: Vec<OperatorCandidateProbe>,
     pub(crate) reusable_recoveries: Vec<CommittedRecoveryRecord>,
@@ -893,6 +1307,7 @@ pub(crate) struct ParseLocalCheckpoint {
     lexical_modes: StackCheckpoint,
     ambient_owner_scopes: StackCheckpoint,
     if_expression_companions: StackCheckpoint,
+    yumark_frames: YumarkFrameCheckpoint,
     staged_header_facts_len: usize,
     operator_probes_len: usize,
     reused_recovery_indices_len: usize,
@@ -1156,7 +1571,106 @@ pub(crate) enum GrammarRole {
     Type(TypeRole),
     Layout(LayoutRole),
     Embedded(EmbeddedRole),
+    Yumark(YumarkRole),
     Token(TokenRole),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct YumarkRole {
+    pub(crate) owner: YumarkOwner,
+    pub(crate) slot: YumarkSlot,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum YumarkOwner {
+    DocComment,
+    Section,
+    List,
+    ListItem,
+    Quote,
+    CodeFence,
+    InlineGroup,
+    InlineLink,
+    InlineImage,
+    InlineApply,
+    InlineReference,
+    Emphasis,
+    Strong,
+    Command,
+    My,
+    Use,
+    DocArgument,
+    DoCapture,
+    IfChain,
+    IfBranch,
+    ElsifBranch,
+    ElseBranch,
+}
+
+impl YumarkOwner {
+    pub(crate) const ALL: &'static [Self] = &[
+        Self::DocComment,
+        Self::Section,
+        Self::List,
+        Self::ListItem,
+        Self::Quote,
+        Self::CodeFence,
+        Self::InlineGroup,
+        Self::InlineLink,
+        Self::InlineImage,
+        Self::InlineApply,
+        Self::InlineReference,
+        Self::Emphasis,
+        Self::Strong,
+        Self::Command,
+        Self::My,
+        Self::Use,
+        Self::DocArgument,
+        Self::DoCapture,
+        Self::IfChain,
+        Self::IfBranch,
+        Self::ElsifBranch,
+        Self::ElseBranch,
+    ];
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum YumarkSlot {
+    Starter,
+    Name,
+    Head,
+    Arguments,
+    Condition,
+    BodyIntroducer,
+    Body,
+    Destination,
+    BranchPredecessor,
+    ClosingDelimiter,
+    SectionClose,
+    QuoteForm,
+    ExpressionBody,
+    Route,
+    Terminator,
+}
+
+impl YumarkSlot {
+    pub(crate) const ALL: &'static [Self] = &[
+        Self::Starter,
+        Self::Name,
+        Self::Head,
+        Self::Arguments,
+        Self::Condition,
+        Self::BodyIntroducer,
+        Self::Body,
+        Self::Destination,
+        Self::BranchPredecessor,
+        Self::ClosingDelimiter,
+        Self::SectionClose,
+        Self::QuoteForm,
+        Self::ExpressionBody,
+        Self::Route,
+        Self::Terminator,
+    ];
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1584,6 +2098,16 @@ pub(crate) enum ExpectedSyntax {
     DelimitedSequenceSeparator,
     Keyword(KeywordEvidence),
     Punctuation(PunctuationEvidence),
+    Yumark(YumarkSyntaxEvidence),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum YumarkSyntaxEvidence {
+    EmphasisMarker,
+    StrongMarker,
+    FenceMarker,
+    QuoteFenceMarker,
+    SectionCloseMarker,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1937,6 +2461,41 @@ impl<'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>>
         self.output.emit_error(record);
     }
 
+    pub(crate) fn emit_canonical_recovery_fact(&mut self, fact: YumarkEmbeddedRecoveryFact) {
+        let kind = fact.kind;
+        let unexpected = match kind {
+            RecoveryKind::Missing => Arc::from([]),
+            RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
+                range: fact.range.clone(),
+                category: fact
+                    .unexpected
+                    .unwrap_or(UnexpectedCategory::OtherCharacter),
+            }]),
+        };
+        let record = self.probe(|probe| {
+            CommittedRecoveryRecord::new(
+                probe.input().local,
+                RecoverySiteKey {
+                    role: fact.spec.role,
+                    range: fact.range.clone(),
+                },
+                kind,
+                unexpected,
+                Arc::from([SyntaxExpectation {
+                    role: fact.spec.role,
+                    expected: fact.spec.expected,
+                    range: fact.range,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                0,
+            )
+        });
+        match kind {
+            RecoveryKind::Missing => self.emit_missing(record),
+            RecoveryKind::Error => self.emit_error(record),
+        }
+    }
+
     pub(crate) fn into_output(self) -> O {
         self.output
     }
@@ -2179,6 +2738,157 @@ mod tests {
                 .with(StopKind::Impl)
                 .with(StopKind::LeftParenthesis)
         );
+    }
+
+    #[test]
+    fn yumark_recovery_vocabulary_is_closed_and_source_ordered() {
+        assert_eq!(
+            YumarkOwner::ALL,
+            [
+                YumarkOwner::DocComment,
+                YumarkOwner::Section,
+                YumarkOwner::List,
+                YumarkOwner::ListItem,
+                YumarkOwner::Quote,
+                YumarkOwner::CodeFence,
+                YumarkOwner::InlineGroup,
+                YumarkOwner::InlineLink,
+                YumarkOwner::InlineImage,
+                YumarkOwner::InlineApply,
+                YumarkOwner::InlineReference,
+                YumarkOwner::Emphasis,
+                YumarkOwner::Strong,
+                YumarkOwner::Command,
+                YumarkOwner::My,
+                YumarkOwner::Use,
+                YumarkOwner::DocArgument,
+                YumarkOwner::DoCapture,
+                YumarkOwner::IfChain,
+                YumarkOwner::IfBranch,
+                YumarkOwner::ElsifBranch,
+                YumarkOwner::ElseBranch,
+            ]
+        );
+        assert_eq!(
+            YumarkSlot::ALL,
+            [
+                YumarkSlot::Starter,
+                YumarkSlot::Name,
+                YumarkSlot::Head,
+                YumarkSlot::Arguments,
+                YumarkSlot::Condition,
+                YumarkSlot::BodyIntroducer,
+                YumarkSlot::Body,
+                YumarkSlot::Destination,
+                YumarkSlot::BranchPredecessor,
+                YumarkSlot::ClosingDelimiter,
+                YumarkSlot::SectionClose,
+                YumarkSlot::QuoteForm,
+                YumarkSlot::ExpressionBody,
+                YumarkSlot::Route,
+                YumarkSlot::Terminator,
+            ]
+        );
+        assert_eq!(
+            GrammarRole::Yumark(YumarkRole {
+                owner: YumarkOwner::My,
+                slot: YumarkSlot::ExpressionBody,
+            }),
+            GrammarRole::Yumark(YumarkRole {
+                owner: YumarkOwner::My,
+                slot: YumarkSlot::ExpressionBody,
+            })
+        );
+    }
+
+    #[test]
+    fn yumark_frame_push_mutate_and_pop_roll_back_in_full_snapshot() {
+        let mut local = ParseLocal::new();
+        local.push_yumark_frame(YumarkFrame::Document {
+            base: 0,
+            envelope_stop: YumarkEnvelopeStop::BlockDocument,
+        });
+        let before = local.value_snapshot();
+        let checkpoint = local.checkpoint();
+
+        local.replace_yumark_frame(YumarkFrame::IfChain {
+            indent: 2,
+            seen_else: true,
+        });
+        local.push_yumark_frame(YumarkFrame::ListItem {
+            marker: 8..10,
+            indent: 2,
+            content_column: 4,
+        });
+        assert_eq!(
+            local.pop_yumark_frame(),
+            Some(YumarkFrame::ListItem {
+                marker: 8..10,
+                indent: 2,
+                content_column: 4,
+            })
+        );
+        let delimiter_floor = local.push_yumark_delimiter(Delimiter::Parenthesis);
+        local.push_yumark_frame(YumarkFrame::EmbeddedYulang {
+            owner: YumarkOwner::Use,
+            outer_kind: YumarkEmbeddedOuterKind::RequiredSemicolon,
+            delimiter_floor,
+        });
+
+        local.rollback(checkpoint);
+
+        assert_eq!(local.value_snapshot(), before);
+        assert_eq!(local.yumark_frame_depth(), 1);
+        assert_eq!(
+            local.yumark_frame(),
+            Some(&YumarkFrame::Document {
+                base: 0,
+                envelope_stop: YumarkEnvelopeStop::BlockDocument,
+            })
+        );
+    }
+
+    #[test]
+    fn yumark_nested_checkpoints_restore_and_release_superseded_heads() {
+        let mut local = ParseLocal::new();
+        local.push_yumark_frame(YumarkFrame::Document {
+            base: 0,
+            envelope_stop: YumarkEnvelopeStop::BlockDocument,
+        });
+        let outer_snapshot = local.value_snapshot();
+        let outer = local.checkpoint();
+
+        local.push_yumark_frame(YumarkFrame::ImplicitSection { level: 1 });
+        let nested_snapshot = local.value_snapshot();
+        let nested = local.checkpoint();
+        local.replace_yumark_frame(YumarkFrame::IfChain {
+            indent: 2,
+            seen_else: false,
+        });
+        local.push_yumark_frame(YumarkFrame::List { indent: 2 });
+        local.rollback(nested);
+        assert_eq!(local.value_snapshot(), nested_snapshot);
+
+        let retained = local.checkpoint();
+        let retained_clone = retained.clone();
+        let superseded = Arc::downgrade(
+            local
+                .yumark_frames
+                .head
+                .as_ref()
+                .expect("the section frame is present"),
+        );
+        local.replace_yumark_frame(YumarkFrame::RawFence {
+            marker: 12..15,
+            indent: 0,
+        });
+        drop(retained);
+        assert!(superseded.upgrade().is_some());
+        drop(retained_clone);
+        assert!(superseded.upgrade().is_none());
+
+        local.rollback(outer);
+        assert_eq!(local.value_snapshot(), outer_snapshot);
     }
 
     #[test]

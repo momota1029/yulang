@@ -1040,6 +1040,652 @@ impl VariantFieldDriverSpec {
     }
 }
 
+/// Shared post-field handoff for declaration-owned named-field sequences.
+///
+/// A same-line `name:` after a completed field is a missing separator, not a
+/// type-application tail. The enclosing sequence keeps all higher-priority
+/// close, explicit-separator, layout, mismatch, and ambient-owner decisions.
+pub(super) fn variant_named_field_missing_separator_pending<E>(
+    spec: VariantFieldDriverSpec,
+    i: &mut SynIn<E>,
+    leading: &TriviaRun,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    debug_assert!(matches!(
+        spec,
+        VariantFieldDriverSpec::Struct
+            | VariantFieldDriverSpec::EnumNamed
+            | VariantFieldDriverSpec::ErrorNamed
+    ));
+    if leading.is_empty() || struct_trivia_has_newline(leading) {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(scan_word).is_some_and(|_| {
+        let gap = i.run(scan_trivia).expect("trivia is total");
+        !struct_trivia_has_newline(&gap) && scan_struct_colon(i).is_some()
+    });
+    i.rollback(checkpoint);
+    candidate
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct VariantNamedFieldSequenceSpec {
+    pub(super) field_owner: VariantFieldDriverSpec,
+    pub(super) incoming_base: usize,
+    pub(super) close_owner: ConstructRole,
+}
+
+pub(super) struct ParsedVariantNamedFieldSequence<'source> {
+    pub(super) fields: Vec<Recovered<StructNamedField<'source>>>,
+    pub(super) trailing_comma: Option<Range<usize>>,
+    pub(super) close: Recovered<Range<usize>>,
+    pub(super) end: usize,
+}
+
+#[derive(Clone, Copy)]
+enum VariantNamedFieldMissingItemSite {
+    EmptySlot,
+    Terminal,
+}
+
+trait VariantNamedFieldSequenceContext {
+    fn begin(&mut self, spec: VariantNamedFieldSequenceSpec) -> LayoutDelimitedFrame;
+    fn finish(&mut self, layout: LayoutDelimitedFrame);
+    fn matching_close(&mut self) -> Option<Range<usize>>;
+    fn outer_mismatched_close_pending(&mut self) -> bool;
+    fn local_mismatched_close(&mut self) -> Option<(Range<usize>, Delimiter)>;
+    fn record_local_mismatched_close(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        range: Range<usize>,
+        actual: Delimiter,
+    );
+    fn eof(&mut self) -> bool;
+    fn comma(&mut self) -> Option<Range<usize>>;
+    fn record_comma(&mut self, range: Range<usize>);
+    fn semicolon(&mut self) -> Option<Range<usize>>;
+    fn record_separator_error(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        range: Range<usize>,
+    );
+    fn record_missing_separator(&mut self, spec: VariantNamedFieldSequenceSpec);
+    fn record_missing_item(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        site: VariantNamedFieldMissingItemSite,
+    );
+    fn parse_field(&mut self, spec: VariantNamedFieldSequenceSpec) -> bool;
+    fn recover_malformed_field(&mut self, spec: VariantNamedFieldSequenceSpec) -> bool;
+    fn ambient_owner_claims(&mut self) -> bool;
+    fn consume_trivia(&mut self) -> TriviaRun;
+    fn emit_trivia(&mut self, trivia: &TriviaRun);
+    fn line_indent(&mut self) -> usize;
+    fn same_line_next_field(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        trivia: &TriviaRun,
+    ) -> bool;
+    fn record_complete_close(&mut self, range: Range<usize>);
+    fn record_missing_close(&mut self, spec: VariantNamedFieldSequenceSpec);
+    fn record_trailing_comma(&mut self, range: Range<usize>);
+}
+
+/// The sole post-opener brace-owned named-field sequence driver shared by
+/// Struct, Enum, and Error. Wrappers own only their opener and AST/CST shell.
+fn drive_variant_named_field_sequence<C>(
+    spec: VariantNamedFieldSequenceSpec,
+    context: &mut C,
+) where
+    C: VariantNamedFieldSequenceContext,
+{
+    let layout = context.begin(spec);
+    loop {
+        if let Some(close) = context.matching_close() {
+            context.record_complete_close(close);
+            break;
+        }
+        if context.outer_mismatched_close_pending() {
+            context.record_missing_close(spec);
+            break;
+        }
+        if let Some((range, actual)) = context.local_mismatched_close() {
+            context.record_local_mismatched_close(spec, range, actual);
+            if context.ambient_owner_claims() {
+                context.record_missing_close(spec);
+                break;
+            }
+            let trivia = context.consume_trivia();
+            context.emit_trivia(&trivia);
+            continue;
+        }
+        if context.eof() {
+            context.record_missing_close(spec);
+            break;
+        }
+        if let Some(comma) = context.comma() {
+            context.record_missing_item(spec, VariantNamedFieldMissingItemSite::EmptySlot);
+            context.record_comma(comma);
+            let trivia = context.consume_trivia();
+            context.emit_trivia(&trivia);
+            continue;
+        }
+        if let Some(semicolon) = context.semicolon() {
+            context.record_separator_error(spec, semicolon);
+            if context.ambient_owner_claims() {
+                context.record_missing_close(spec);
+                break;
+            }
+            let trivia = context.consume_trivia();
+            context.emit_trivia(&trivia);
+            continue;
+        }
+        if !context.parse_field(spec) {
+            if context.recover_malformed_field(spec) {
+                if context.ambient_owner_claims() {
+                    context.record_missing_close(spec);
+                    break;
+                }
+                let trivia = context.consume_trivia();
+                context.emit_trivia(&trivia);
+                continue;
+            }
+            context.record_missing_item(spec, VariantNamedFieldMissingItemSite::Terminal);
+            context.record_missing_close(spec);
+            break;
+        }
+
+        if context.ambient_owner_claims() {
+            context.record_missing_close(spec);
+            break;
+        }
+        let trivia = context.consume_trivia();
+        context.emit_trivia(&trivia);
+        if let Some(comma) = context.comma() {
+            context.record_comma(comma.clone());
+            let post = context.consume_trivia();
+            context.emit_trivia(&post);
+            if let Some(close) = context.matching_close() {
+                context.record_trailing_comma(comma);
+                context.record_complete_close(close);
+                break;
+            }
+            if context.eof() || context.outer_mismatched_close_pending() {
+                context.record_missing_item(spec, VariantNamedFieldMissingItemSite::Terminal);
+                context.record_missing_close(spec);
+                break;
+            }
+            continue;
+        }
+        if let Some(close) = context.matching_close() {
+            context.record_complete_close(close);
+            break;
+        }
+        if layout.boundary_after_trivia(&trivia, context.line_indent())
+            == LayoutDelimitedBoundary::ImplicitNewline
+        {
+            if context.eof() || context.outer_mismatched_close_pending() {
+                context.record_missing_item(spec, VariantNamedFieldMissingItemSite::Terminal);
+                context.record_missing_close(spec);
+                break;
+            }
+            continue;
+        }
+        if context.same_line_next_field(spec, &trivia) {
+            context.record_missing_separator(spec);
+            continue;
+        }
+        if context.outer_mismatched_close_pending() {
+            context.record_missing_close(spec);
+            break;
+        }
+        if let Some((range, actual)) = context.local_mismatched_close() {
+            context.record_local_mismatched_close(spec, range, actual);
+            if context.ambient_owner_claims() {
+                context.record_missing_close(spec);
+                break;
+            }
+            let retry_trivia = context.consume_trivia();
+            context.emit_trivia(&retry_trivia);
+            continue;
+        }
+        if let Some(semicolon) = context.semicolon() {
+            context.record_separator_error(spec, semicolon);
+            if context.ambient_owner_claims() {
+                context.record_missing_close(spec);
+                break;
+            }
+            let retry_trivia = context.consume_trivia();
+            context.emit_trivia(&retry_trivia);
+            continue;
+        }
+        context.record_missing_close(spec);
+        break;
+    }
+    context.finish(layout);
+}
+
+struct AstVariantNamedFieldSequenceContext<
+    'a,
+    'input,
+    'source,
+    'local,
+    E: ErrorSink<usize>,
+> {
+    i: &'a mut SynIn<'input, 'source, 'local, E>,
+    fields: Vec<Recovered<StructNamedField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+}
+
+impl<'source, E> VariantNamedFieldSequenceContext
+    for AstVariantNamedFieldSequenceContext<'_, '_, 'source, '_, E>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    fn begin(&mut self, spec: VariantNamedFieldSequenceSpec) -> LayoutDelimitedFrame {
+        let stops = self
+            .i
+            .local
+            .stop_set()
+            .unwrap_or_default()
+            .without(StopKind::Newline)
+            .with(StopKind::Comma)
+            .with(StopKind::RightBrace);
+        self.i.local.push_delimiter(Delimiter::Brace);
+        self.i.local.push_stop_set(stops);
+        let opening = self.i.run(scan_trivia).expect("trivia is total");
+        let layout = LayoutDelimitedFrame::after_opening_trivia(
+            spec.incoming_base,
+            &opening,
+            self.i.local.line().line_indent,
+        );
+        push_struct_layout(layout, self.i);
+        layout
+    }
+
+    fn finish(&mut self, layout: LayoutDelimitedFrame) {
+        pop_struct_layout(layout, self.i);
+        self.i.local.pop_stop_set().expect("named-field stop frame");
+        assert_eq!(self.i.local.pop_delimiter(), Some(Delimiter::Brace));
+    }
+
+    fn matching_close(&mut self) -> Option<Range<usize>> {
+        scan_struct_close_brace(self.i)
+    }
+
+    fn outer_mismatched_close_pending(&mut self) -> bool {
+        struct_outer_owned_mismatched_close_pending(self.i)
+    }
+
+    fn local_mismatched_close(&mut self) -> Option<(Range<usize>, Delimiter)> {
+        scan_struct_mismatched_close(self.i)
+    }
+
+    fn record_local_mismatched_close(
+        &mut self,
+        _spec: VariantNamedFieldSequenceSpec,
+        _range: Range<usize>,
+        _actual: Delimiter,
+    ) {
+    }
+
+    fn eof(&mut self) -> bool {
+        self.i.input.remainder().is_empty()
+    }
+
+    fn comma(&mut self) -> Option<Range<usize>> {
+        scan_struct_comma(self.i)
+    }
+
+    fn record_comma(&mut self, _range: Range<usize>) {}
+
+    fn semicolon(&mut self) -> Option<Range<usize>> {
+        scan_struct_semicolon(self.i)
+    }
+
+    fn record_separator_error(
+        &mut self,
+        _spec: VariantNamedFieldSequenceSpec,
+        _range: Range<usize>,
+    ) {
+    }
+
+    fn record_missing_separator(&mut self, _spec: VariantNamedFieldSequenceSpec) {}
+
+    fn record_missing_item(
+        &mut self,
+        _spec: VariantNamedFieldSequenceSpec,
+        _site: VariantNamedFieldMissingItemSite,
+    ) {
+        self.fields.push(Recovered::Incomplete);
+    }
+
+    fn parse_field(&mut self, spec: VariantNamedFieldSequenceSpec) -> bool {
+        let Some(field) = parse_variant_named_field_ast(spec.field_owner, true, self.i) else {
+            return false;
+        };
+        self.fields.push(Recovered::Complete(field));
+        true
+    }
+
+    fn recover_malformed_field(&mut self, _spec: VariantNamedFieldSequenceSpec) -> bool {
+        if scan_struct_field_invalid_run(false, self.i).is_none() {
+            return false;
+        }
+        self.fields.push(Recovered::Incomplete);
+        true
+    }
+
+    fn ambient_owner_claims(&mut self) -> bool {
+        any_ambient_owner_claims(self.i)
+    }
+
+    fn consume_trivia(&mut self) -> TriviaRun {
+        self.i.run(scan_trivia).expect("trivia is total")
+    }
+
+    fn emit_trivia(&mut self, _trivia: &TriviaRun) {}
+
+    fn line_indent(&mut self) -> usize {
+        self.i.local.line().line_indent
+    }
+
+    fn same_line_next_field(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        trivia: &TriviaRun,
+    ) -> bool {
+        variant_named_field_missing_separator_pending(spec.field_owner, self.i, trivia)
+    }
+
+    fn record_complete_close(&mut self, range: Range<usize>) {
+        self.close = Recovered::Complete(range);
+    }
+
+    fn record_missing_close(&mut self, _spec: VariantNamedFieldSequenceSpec) {
+        self.close = Recovered::Incomplete;
+    }
+
+    fn record_trailing_comma(&mut self, range: Range<usize>) {
+        self.trailing_comma = Some(range);
+    }
+}
+
+pub(super) fn parse_variant_named_field_sequence_ast<'source, E>(
+    spec: VariantNamedFieldSequenceSpec,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ParsedVariantNamedFieldSequence<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut context = AstVariantNamedFieldSequenceContext {
+        i,
+        fields: Vec::new(),
+        trailing_comma: None,
+        close: Recovered::Incomplete,
+    };
+    drive_variant_named_field_sequence(spec, &mut context);
+    let end = context.i.pos();
+    ParsedVariantNamedFieldSequence {
+        fields: context.fields,
+        trailing_comma: context.trailing_comma,
+        close: context.close,
+        end,
+    }
+}
+
+struct DirectVariantNamedFieldSequenceContext<
+    'a,
+    'parse,
+    'source,
+    'local,
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+> {
+    committed: &'a mut Committed<'parse, 'source, 'local, E, O>,
+}
+
+impl<'source, E, O> VariantNamedFieldSequenceContext
+    for DirectVariantNamedFieldSequenceContext<'_, '_, 'source, '_, E, O>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    fn begin(&mut self, spec: VariantNamedFieldSequenceSpec) -> LayoutDelimitedFrame {
+        let stops = self.committed.probe(|probe| {
+            probe
+                .input()
+                .local
+                .stop_set()
+                .unwrap_or_default()
+                .without(StopKind::Newline)
+                .with(StopKind::Comma)
+                .with(StopKind::RightBrace)
+        });
+        self.committed.probe(|probe| {
+            let i = probe.input();
+            i.local.push_delimiter(Delimiter::Brace);
+            i.local.push_stop_set(stops);
+        });
+        let opening = self
+            .committed
+            .probe(|probe| probe.input().run(scan_trivia))
+            .expect("trivia is total");
+        self.committed.emit_trivia(&opening);
+        let layout = self.committed.probe(|probe| {
+            LayoutDelimitedFrame::after_opening_trivia(
+                spec.incoming_base,
+                &opening,
+                probe.input().local.line().line_indent,
+            )
+        });
+        self.committed
+            .probe(|probe| push_struct_layout(layout, probe.input()));
+        layout
+    }
+
+    fn finish(&mut self, layout: LayoutDelimitedFrame) {
+        self.committed.probe(|probe| {
+            let i = probe.input();
+            pop_struct_layout(layout, i);
+            i.local.pop_stop_set().expect("named-field stop frame");
+            assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
+        });
+    }
+
+    fn matching_close(&mut self) -> Option<Range<usize>> {
+        self.committed
+            .probe(|probe| scan_struct_close_brace(probe.input()))
+    }
+
+    fn outer_mismatched_close_pending(&mut self) -> bool {
+        self.committed
+            .probe(|probe| struct_outer_owned_mismatched_close_pending(probe.input()))
+    }
+
+    fn local_mismatched_close(&mut self) -> Option<(Range<usize>, Delimiter)> {
+        self.committed
+            .probe(|probe| scan_struct_mismatched_close(probe.input()))
+    }
+
+    fn record_local_mismatched_close(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        range: Range<usize>,
+        actual: Delimiter,
+    ) {
+        emit_struct_mismatched_close_for(
+            self.committed,
+            spec.close_owner,
+            Delimiter::Brace,
+            range,
+            actual,
+        );
+    }
+
+    fn eof(&mut self) -> bool {
+        self.committed
+            .probe(|probe| probe.input().input.remainder().is_empty())
+    }
+
+    fn comma(&mut self) -> Option<Range<usize>> {
+        self.committed
+            .probe(|probe| scan_struct_comma(probe.input()))
+    }
+
+    fn record_comma(&mut self, range: Range<usize>) {
+        self.committed.token(SyntaxKind::Comma, range);
+    }
+
+    fn semicolon(&mut self) -> Option<Range<usize>> {
+        self.committed
+            .probe(|probe| scan_struct_semicolon(probe.input()))
+    }
+
+    fn record_separator_error(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        range: Range<usize>,
+    ) {
+        emit_variant_field_error(
+            spec.field_owner,
+            VariantFieldRecoverySlot::Separator,
+            self.committed,
+            range,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        );
+    }
+
+    fn record_missing_separator(&mut self, spec: VariantNamedFieldSequenceSpec) {
+        emit_variant_field_missing(
+            spec.field_owner,
+            VariantFieldRecoverySlot::Separator,
+            self.committed,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        );
+    }
+
+    fn record_missing_item(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        site: VariantNamedFieldMissingItemSite,
+    ) {
+        let field_node = matches!(site, VariantNamedFieldMissingItemSite::EmptySlot)
+            || spec.field_owner != VariantFieldDriverSpec::Struct;
+        if field_node {
+            self.committed.start_node(SyntaxKind::StructField);
+        }
+        emit_variant_field_missing(
+            spec.field_owner,
+            VariantFieldRecoverySlot::Item,
+            self.committed,
+            ExpectedSyntax::Identifier,
+        );
+        if field_node {
+            self.committed.finish_node();
+        }
+    }
+
+    fn parse_field(&mut self, spec: VariantNamedFieldSequenceSpec) -> bool {
+        commit_variant_named_field(spec.field_owner, true, self.committed)
+    }
+
+    fn recover_malformed_field(&mut self, spec: VariantNamedFieldSequenceSpec) -> bool {
+        let Some(run) = self
+            .committed
+            .probe(|probe| scan_struct_field_invalid_run(false, probe.input()))
+        else {
+            return false;
+        };
+        let field_node = spec.field_owner != VariantFieldDriverSpec::Struct;
+        if field_node {
+            self.committed.start_node(SyntaxKind::StructField);
+        }
+        emit_variant_field_error(
+            spec.field_owner,
+            VariantFieldRecoverySlot::Item,
+            self.committed,
+            run.range,
+            ExpectedSyntax::Identifier,
+        );
+        if field_node {
+            self.committed.finish_node();
+        }
+        true
+    }
+
+    fn ambient_owner_claims(&mut self) -> bool {
+        self.committed
+            .probe(|probe| any_ambient_owner_claims(probe.input()))
+    }
+
+    fn consume_trivia(&mut self) -> TriviaRun {
+        self.committed
+            .probe(|probe| probe.input().run(scan_trivia))
+            .expect("trivia is total")
+    }
+
+    fn emit_trivia(&mut self, trivia: &TriviaRun) {
+        self.committed.emit_trivia(trivia);
+    }
+
+    fn line_indent(&mut self) -> usize {
+        self.committed
+            .probe(|probe| probe.input().local.line().line_indent)
+    }
+
+    fn same_line_next_field(
+        &mut self,
+        spec: VariantNamedFieldSequenceSpec,
+        trivia: &TriviaRun,
+    ) -> bool {
+        self.committed.probe(|probe| {
+            variant_named_field_missing_separator_pending(
+                spec.field_owner,
+                probe.input(),
+                trivia,
+            )
+        })
+    }
+
+    fn record_complete_close(&mut self, range: Range<usize>) {
+        self.committed.token(SyntaxKind::RBrace, range);
+    }
+
+    fn record_missing_close(&mut self, spec: VariantNamedFieldSequenceSpec) {
+        emit_variant_payload_missing_close(spec.close_owner, Delimiter::Brace, self.committed);
+    }
+
+    fn record_trailing_comma(&mut self, _range: Range<usize>) {}
+}
+
+pub(super) fn commit_variant_named_field_sequence<'parse, 'source, 'local, E, O>(
+    spec: VariantNamedFieldSequenceSpec,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    drive_variant_named_field_sequence(
+        spec,
+        &mut DirectVariantNamedFieldSequenceContext { committed },
+    );
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum VariantDeclarationOwner {
     Enum,
@@ -2012,73 +2658,20 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let stops = i
-        .local
-        .stop_set()
-        .unwrap_or_default()
-        .without(StopKind::Newline)
-        .with(StopKind::Comma)
-        .with(StopKind::RightBrace);
-    i.local.push_delimiter(Delimiter::Brace);
-    i.local.push_stop_set(stops);
-    let opening = i.run(scan_trivia).expect("trivia is total");
-    let layout =
-        LayoutDelimitedFrame::after_opening_trivia(0, &opening, i.local.line().line_indent);
-    push_struct_layout(layout, i);
-    let mut fields = Vec::new();
-    let mut trailing_comma = None;
-    let close = loop {
-        if let Some(close) = scan_struct_close_brace(i) {
-            break Recovered::Complete(close);
-        }
-        if i.input.remainder().is_empty() || struct_outer_owned_mismatched_close_pending(i) {
-            break Recovered::Incomplete;
-        }
-        if scan_struct_comma(i).is_some() {
-            fields.push(Recovered::Incomplete);
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            continue;
-        }
-        let field = parse_variant_named_field_ast(owner.field_driver, true, i)
-            .map(Recovered::Complete)
-            .unwrap_or(Recovered::Incomplete);
-        let incomplete = matches!(field, Recovered::Incomplete);
-        fields.push(field);
-        if incomplete || any_ambient_owner_claims(i) {
-            break Recovered::Incomplete;
-        }
-        let trivia = i.run(scan_trivia).expect("trivia is total");
-        if let Some(comma) = scan_struct_comma(i) {
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            if let Some(close) = scan_struct_close_brace(i) {
-                trailing_comma = Some(comma);
-                break Recovered::Complete(close);
-            }
-            continue;
-        }
-        if let Some(close) = scan_struct_close_brace(i) {
-            break Recovered::Complete(close);
-        }
-        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
-            == LayoutDelimitedBoundary::ImplicitNewline
-        {
-            continue;
-        }
-        break Recovered::Incomplete;
-    };
-    pop_struct_layout(layout, i);
-    assert_eq!(i.local.pop_stop_set(), Some(stops));
-    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
-    let end = match &close {
-        Recovered::Complete(close) => close.end,
-        Recovered::Incomplete => i.pos(),
-    };
+    let sequence = parse_variant_named_field_sequence_ast(
+        VariantNamedFieldSequenceSpec {
+            field_owner: owner.field_driver,
+            incoming_base: owner.declaration_base,
+            close_owner: ConstructRole::VariantNamedPayload,
+        },
+        i,
+    );
     EnumVariantPayload::Named {
         open: open.clone(),
-        fields,
-        trailing_comma,
-        close,
-        range: open.start..end,
+        fields: sequence.fields,
+        trailing_comma: sequence.trailing_comma,
+        close: sequence.close,
+        range: open.start..sequence.end,
     }
 }
 
@@ -2788,131 +3381,14 @@ pub(super) fn commit_variant_declaration_named_payload<'parse, 'source, 'local, 
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.token(SyntaxKind::LBrace, open);
-    let stops = committed.probe(|probe| {
-        probe
-            .input()
-            .local
-            .stop_set()
-            .unwrap_or_default()
-            .without(StopKind::Newline)
-            .with(StopKind::Comma)
-            .with(StopKind::RightBrace)
-    });
-    committed.probe(|probe| {
-        let i = probe.input();
-        i.local.push_delimiter(Delimiter::Brace);
-        i.local.push_stop_set(stops);
-    });
-    let opening = committed
-        .probe(|probe| probe.input().run(scan_trivia))
-        .expect("trivia is total");
-    committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| {
-        LayoutDelimitedFrame::after_opening_trivia(
-            0,
-            &opening,
-            probe.input().local.line().line_indent,
-        )
-    });
-    committed.probe(|probe| push_struct_layout(layout, probe.input()));
-    loop {
-        if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
-            committed.token(SyntaxKind::RBrace, close);
-            break;
-        }
-        if committed.probe(|probe| {
-            probe.input().input.remainder().is_empty()
-                || struct_outer_owned_mismatched_close_pending(probe.input())
-        }) {
-            emit_variant_payload_missing_close(
-                ConstructRole::VariantNamedPayload,
-                Delimiter::Brace,
-                committed,
-            );
-            break;
-        }
-        if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
-            committed.start_node(SyntaxKind::StructField);
-            emit_variant_field_missing(
-                owner.field_driver,
-                VariantFieldRecoverySlot::Item,
-                committed,
-                ExpectedSyntax::Identifier,
-            );
-            committed.finish_node();
-            committed.token(SyntaxKind::Comma, comma);
-            let trivia = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&trivia);
-            continue;
-        }
-        if !commit_variant_named_field(owner.field_driver, true, committed) {
-            if let Some(run) =
-                committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input()))
-            {
-                committed.start_node(SyntaxKind::StructField);
-                emit_variant_field_error(
-                    owner.field_driver,
-                    VariantFieldRecoverySlot::Item,
-                    committed,
-                    run.range.clone(),
-                    ExpectedSyntax::Identifier,
-                );
-                committed.probe(|probe| consume_source_range(run.range, probe.input()));
-                committed.finish_node();
-            } else {
-                committed.start_node(SyntaxKind::StructField);
-                emit_variant_field_missing(
-                    owner.field_driver,
-                    VariantFieldRecoverySlot::Item,
-                    committed,
-                    ExpectedSyntax::Identifier,
-                );
-                committed.finish_node();
-                emit_variant_payload_missing_close(
-                    ConstructRole::VariantNamedPayload,
-                    Delimiter::Brace,
-                    committed,
-                );
-                break;
-            }
-        }
-        let trivia = committed
-            .probe(|probe| probe.input().run(scan_trivia))
-            .expect("trivia is total");
-        committed.emit_trivia(&trivia);
-        if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
-            committed.token(SyntaxKind::Comma, comma);
-            let post = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&post);
-            continue;
-        }
-        if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
-            committed.token(SyntaxKind::RBrace, close);
-            break;
-        }
-        if committed.probe(|probe| {
-            layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
-                == LayoutDelimitedBoundary::ImplicitNewline
-        }) {
-            continue;
-        }
-        emit_variant_payload_missing_close(
-            ConstructRole::VariantNamedPayload,
-            Delimiter::Brace,
-            committed,
-        );
-        break;
-    }
-    committed.probe(|probe| {
-        let i = probe.input();
-        pop_struct_layout(layout, i);
-        assert_eq!(i.local.pop_stop_set(), Some(stops));
-        assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
-    });
+    commit_variant_named_field_sequence(
+        VariantNamedFieldSequenceSpec {
+            field_owner: owner.field_driver,
+            incoming_base: owner.declaration_base,
+            close_owner: ConstructRole::VariantNamedPayload,
+        },
+        committed,
+    );
 }
 
 pub(super) fn commit_variant_declaration_tuple_payload<'parse, 'source, 'local, E, O>(

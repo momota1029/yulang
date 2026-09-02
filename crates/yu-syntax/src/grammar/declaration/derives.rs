@@ -1,4 +1,8 @@
 use super::*;
+use crate::session::{
+    CanonicalRecoveryContinuation, CanonicalRecoveryEpisode, RecoverySiteSpec,
+    UnexpectedCategory, YumarkEmbeddedRecoveryFact,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum DerivesAttachmentOwner {
@@ -804,46 +808,6 @@ where
     }
 }
 
-fn scan_companion_derives_via_invalid_run<E>(
-    start: &DerivesAttachmentStart,
-    i: &mut SynIn<E>,
-) -> Option<DerivesViaInvalidRun>
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    let error_start = i.pos();
-    let ordinary_spec = DerivesDriverSpec::new(start.owner, start.position, start.owner_base);
-    loop {
-        if recognize_declaration_companion_handoff(start.owner_base, i).is_some()
-            || derives_via_boundary_pending(ordinary_spec, i)
-        {
-            return (error_start < i.pos()).then_some(DerivesViaInvalidRun {
-                range: error_start..i.pos(),
-                target: DerivesViaInvalidTarget::Boundary,
-            });
-        }
-        if error_start < i.pos() && derives_via_raw_identifier_pending(i) {
-            return Some(DerivesViaInvalidRun {
-                range: error_start..i.pos(),
-                target: DerivesViaInvalidTarget::RawIdentifier,
-            });
-        }
-        let character = i.input.remainder().chars().next()?;
-        if matches!(character, '\r' | '\n') {
-            return (error_start < i.pos()).then_some(DerivesViaInvalidRun {
-                range: error_start..i.pos(),
-                target: DerivesViaInvalidTarget::Boundary,
-            });
-        }
-        i.input.next()?;
-        let mut line = i.local.line();
-        line.at_line_start = false;
-        i.local.set_line(line);
-    }
-}
-
 fn parse_companion_handoff_derives_via<'source, E>(
     start: &DerivesAttachmentStart,
     keyword: Range<usize>,
@@ -854,19 +818,20 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    consume_companion_derives_role_trivia(start, false, i);
+    consume_companion_derives_role_trivia(start, true, i);
     let target = if let Some(target) = i.run(scan_word) {
         Recovered::Complete(target)
-    } else if let Some(recovery) = scan_companion_derives_via_invalid_run(start, i) {
-        match recovery.target {
-            DerivesViaInvalidTarget::RawIdentifier => Recovered::Complete(
+    } else {
+        let episode = derives_via_target_episode(DerivesViaBoundary::companion(start), i);
+        i.local
+            .record_yumark_embedded_recovery(episode.fact);
+        match episode.continuation {
+            CanonicalRecoveryContinuation::RetrySameSlot => Recovered::Complete(
                 i.run(scan_word)
                     .expect("the isolated ViaTarget retry leaves a raw word"),
             ),
-            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+            CanonicalRecoveryContinuation::StopAtBoundary => Recovered::Incomplete,
         }
-    } else {
-        Recovered::Incomplete
     };
     let end = match &target {
         Recovered::Complete(target) => target.range().end,
@@ -1203,18 +1168,6 @@ where
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum DerivesViaInvalidTarget {
-    RawIdentifier,
-    Boundary,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct DerivesViaInvalidRun {
-    pub(super) range: Range<usize>,
-    pub(super) target: DerivesViaInvalidTarget,
-}
-
 /// `scan_word` is the existing declaration-name convention for a mandatory
 /// raw lexical identifier: it intentionally performs no contextual keyword
 /// reclassification.  Its malformed-run recovery stops at the same clause
@@ -1232,16 +1185,17 @@ where
     consume_derives_role_trivia(spec, i);
     let target = if let Some(target) = i.run(scan_word) {
         Recovered::Complete(target)
-    } else if let Some(recovery) = scan_derives_via_invalid_run(spec, i) {
-        match recovery.target {
-            DerivesViaInvalidTarget::RawIdentifier => Recovered::Complete(
+    } else {
+        let episode = derives_via_target_episode(DerivesViaBoundary::ordinary(spec), i);
+        i.local
+            .record_yumark_embedded_recovery(episode.fact);
+        match episode.continuation {
+            CanonicalRecoveryContinuation::RetrySameSlot => Recovered::Complete(
                 i.run(scan_word)
                     .expect("ViaTarget retry leaves its raw word at the cursor"),
             ),
-            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+            CanonicalRecoveryContinuation::StopAtBoundary => Recovered::Incomplete,
         }
-    } else {
-        Recovered::Incomplete
     };
     let end = match &target {
         Recovered::Complete(target) => target.range().end,
@@ -1424,29 +1378,27 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    commit_companion_derives_role_trivia(start, false, committed);
+    commit_companion_derives_role_trivia(start, true, committed);
     let target = if let Some(target) = commit_word(committed) {
         let range = target.range();
         committed.token(SyntaxKind::Identifier, range.clone());
         Recovered::Complete(range)
-    } else if let Some(recovery) =
-        committed.probe(|probe| scan_companion_derives_via_invalid_run(start, probe.input()))
-    {
-        emit_derives_via_recovery(committed, RecoveryKind::Error, recovery.range.clone());
-        match recovery.target {
-            DerivesViaInvalidTarget::RawIdentifier => {
+    } else {
+        let episode = committed.probe(|probe| {
+            derives_via_target_episode(DerivesViaBoundary::companion(start), probe.input())
+        });
+        let continuation = episode.continuation;
+        committed.emit_canonical_recovery_fact(episode.fact);
+        match continuation {
+            CanonicalRecoveryContinuation::RetrySameSlot => {
                 let target =
                     commit_word(committed).expect("the isolated ViaTarget retry leaves a raw word");
                 let range = target.range();
                 committed.token(SyntaxKind::Identifier, range.clone());
                 Recovered::Complete(range)
             }
-            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+            CanonicalRecoveryContinuation::StopAtBoundary => Recovered::Incomplete,
         }
-    } else {
-        let at = committed_position(committed);
-        emit_derives_via_recovery(committed, RecoveryKind::Missing, at..at);
-        Recovered::Incomplete
     };
     let end = match &target {
         Recovered::Complete(target) => target.end,
@@ -1836,24 +1788,22 @@ where
         let range = target.range();
         committed.token(SyntaxKind::Identifier, range.clone());
         Recovered::Complete(range)
-    } else if let Some(recovery) =
-        committed.probe(|probe| scan_derives_via_invalid_run(spec, probe.input()))
-    {
-        emit_derives_via_recovery(committed, RecoveryKind::Error, recovery.range.clone());
-        match recovery.target {
-            DerivesViaInvalidTarget::RawIdentifier => {
+    } else {
+        let episode = committed.probe(|probe| {
+            derives_via_target_episode(DerivesViaBoundary::ordinary(spec), probe.input())
+        });
+        let continuation = episode.continuation;
+        committed.emit_canonical_recovery_fact(episode.fact);
+        match continuation {
+            CanonicalRecoveryContinuation::RetrySameSlot => {
                 let target = commit_word(committed)
                     .expect("ViaTarget retry leaves its raw word at the cursor");
                 let range = target.range();
                 committed.token(SyntaxKind::Identifier, range.clone());
                 Recovered::Complete(range)
             }
-            DerivesViaInvalidTarget::Boundary => Recovered::Incomplete,
+            CanonicalRecoveryContinuation::StopAtBoundary => Recovered::Incomplete,
         }
-    } else {
-        let at = committed_position(committed);
-        emit_derives_via_recovery(committed, RecoveryKind::Missing, at..at);
-        Recovered::Incomplete
     };
     let end = match &target {
         Recovered::Complete(target) => target.end,
@@ -1867,10 +1817,64 @@ where
     }
 }
 
-pub(super) fn scan_derives_via_invalid_run<E>(
-    spec: DerivesDriverSpec,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DerivesViaBoundary {
+    Ordinary {
+        spec: DerivesDriverSpec,
+    },
+    Companion {
+        spec: DerivesDriverSpec,
+        owner_base: usize,
+    },
+}
+
+impl DerivesViaBoundary {
+    fn ordinary(spec: DerivesDriverSpec) -> Self {
+        Self::Ordinary { spec }
+    }
+
+    fn companion(start: &DerivesAttachmentStart) -> Self {
+        Self::Companion {
+            spec: DerivesDriverSpec::new(start.owner, start.position, start.owner_base),
+            owner_base: start.owner_base,
+        }
+    }
+
+    fn pending<E>(self, i: &mut SynIn<E>) -> bool
+    where
+        E: ErrorSink<usize>,
+        Unexpected<char>: Into<E::Error>,
+        UnexpectedEndOfInput: Into<E::Error>,
+    {
+        match self {
+            Self::Ordinary { spec } => derives_via_boundary_pending(spec, i),
+            Self::Companion { spec, owner_base } => {
+                recognize_declaration_companion_handoff(owner_base, i).is_some()
+                    || derives_via_boundary_pending(spec, i)
+            }
+        }
+    }
+}
+
+fn derives_via_target_recovery_fact(
+    range: Range<usize>,
+    kind: RecoveryKind,
+) -> YumarkEmbeddedRecoveryFact {
+    YumarkEmbeddedRecoveryFact {
+        spec: RecoverySiteSpec {
+            role: GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget)),
+            expected: ExpectedSyntax::Identifier,
+        },
+        range,
+        kind,
+        unexpected: (kind == RecoveryKind::Error).then_some(UnexpectedCategory::OtherCharacter),
+    }
+}
+
+fn derives_via_target_episode<E>(
+    boundary: DerivesViaBoundary,
     i: &mut SynIn<E>,
-) -> Option<DerivesViaInvalidRun>
+) -> CanonicalRecoveryEpisode
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1878,26 +1882,51 @@ where
 {
     let start = i.pos();
     loop {
-        if derives_via_boundary_pending(spec, i) {
-            return (start < i.pos()).then_some(DerivesViaInvalidRun {
-                range: start..i.pos(),
-                target: DerivesViaInvalidTarget::Boundary,
-            });
+        if boundary.pending(i) {
+            let kind = if start < i.pos() {
+                RecoveryKind::Error
+            } else {
+                RecoveryKind::Missing
+            };
+            return CanonicalRecoveryEpisode {
+                fact: derives_via_target_recovery_fact(start..i.pos(), kind),
+                continuation: CanonicalRecoveryContinuation::StopAtBoundary,
+            };
         }
         if start < i.pos() && derives_via_raw_identifier_pending(i) {
-            return Some(DerivesViaInvalidRun {
-                range: start..i.pos(),
-                target: DerivesViaInvalidTarget::RawIdentifier,
-            });
+            return CanonicalRecoveryEpisode {
+                fact: derives_via_target_recovery_fact(
+                    start..i.pos(),
+                    RecoveryKind::Error,
+                ),
+                continuation: CanonicalRecoveryContinuation::RetrySameSlot,
+            };
         }
-        let character = i.input.remainder().chars().next()?;
+        let Some(character) = i.input.remainder().chars().next() else {
+            let kind = if start < i.pos() {
+                RecoveryKind::Error
+            } else {
+                RecoveryKind::Missing
+            };
+            return CanonicalRecoveryEpisode {
+                fact: derives_via_target_recovery_fact(start..i.pos(), kind),
+                continuation: CanonicalRecoveryContinuation::StopAtBoundary,
+            };
+        };
         if matches!(character, '\r' | '\n') {
-            return (start < i.pos()).then_some(DerivesViaInvalidRun {
-                range: start..i.pos(),
-                target: DerivesViaInvalidTarget::Boundary,
-            });
+            let kind = if start < i.pos() {
+                RecoveryKind::Error
+            } else {
+                RecoveryKind::Missing
+            };
+            return CanonicalRecoveryEpisode {
+                fact: derives_via_target_recovery_fact(start..i.pos(), kind),
+                continuation: CanonicalRecoveryContinuation::StopAtBoundary,
+            };
         }
-        i.input.next()?;
+        i.input
+            .next()
+            .expect("the ViaTarget recovery unit remains available");
         let mut line = i.local.line();
         line.at_line_start = false;
         i.local.set_line(line);
@@ -1926,46 +1955,6 @@ where
     let pending = i.run(scan_word).is_some();
     i.rollback(checkpoint);
     pending
-}
-
-pub(super) fn emit_derives_via_recovery<'parse, 'source, 'local, E, O>(
-    committed: &mut Committed<'parse, 'source, 'local, E, O>,
-    kind: RecoveryKind,
-    range: Range<usize>,
-) where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-{
-    let record = committed.probe(|probe| {
-        let i = probe.input();
-        let role = GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget));
-        CommittedRecoveryRecord::new(
-            i.local,
-            RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            kind,
-            match kind {
-                RecoveryKind::Missing => Arc::from([]),
-                RecoveryKind::Error => Arc::from([crate::session::UnexpectedSyntax::Token {
-                    range: range.clone(),
-                    category: crate::session::UnexpectedCategory::OtherCharacter,
-                }]),
-            },
-            Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Identifier,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
-    });
-    match kind {
-        RecoveryKind::Missing => committed.emit_missing(record),
-        RecoveryKind::Error => committed.emit_error(record),
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

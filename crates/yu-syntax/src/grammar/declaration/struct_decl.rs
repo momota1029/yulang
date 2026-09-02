@@ -481,10 +481,17 @@ pub(super) fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
         {
             break;
         }
-        if committed.probe(|probe| struct_next_named_field_candidate(probe.input(), &trivia)) {
-            emit_struct_missing(
+        if committed.probe(|probe| {
+            variant_named_field_missing_separator_pending(
+                VariantFieldDriverSpec::Struct,
+                probe.input(),
+                &trivia,
+            )
+        }) {
+            emit_variant_field_missing(
+                VariantFieldDriverSpec::Struct,
+                VariantFieldRecoverySlot::Separator,
                 committed,
-                crate::session::StructRole::FieldSeparator,
                 ExpectedSyntax::DelimitedSequenceSeparator,
             );
             continue;
@@ -1489,7 +1496,11 @@ where
         if struct_indented_terminal_boundary_pending(block_indent, i) {
             break;
         }
-        if struct_next_named_field_candidate(i, &trivia) {
+        if variant_named_field_missing_separator_pending(
+            VariantFieldDriverSpec::Struct,
+            i,
+            &trivia,
+        ) {
             continue;
         }
         break;
@@ -1653,143 +1664,22 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming = struct_base;
-    let stops = i
-        .local
-        .stop_set()
-        .unwrap_or_default()
-        .without(StopKind::Newline)
-        .with(StopKind::Comma)
-        .with(StopKind::RightBrace);
-    i.local.push_delimiter(Delimiter::Brace);
-    i.local.push_stop_set(stops);
-    let opening = i.run(scan_trivia).expect("trivia is total");
-    let layout =
-        LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent);
-    push_struct_layout(layout, i);
-
-    let mut fields = Vec::new();
-    let mut trailing_comma = None;
-    let close = loop {
-        if let Some(close) = scan_struct_close_brace(i) {
-            break Recovered::Complete(close);
-        }
-        if struct_outer_owned_mismatched_close_pending(i) {
-            break Recovered::Incomplete;
-        }
-        if scan_struct_mismatched_close(i).is_some() {
-            // A local mismatched closer belongs to this close slot.  Its
-            // following trivia must not manufacture an empty field before
-            // the retry reaches this frame's matching close.
-            if any_ambient_owner_claims(i) {
-                break Recovered::Incomplete;
-            }
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            continue;
-        }
-        if i.input.remainder().is_empty() {
-            break Recovered::Incomplete;
-        }
-        if let Some(_comma) = scan_struct_comma(i) {
-            fields.push(Recovered::Incomplete);
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            continue;
-        }
-        if scan_struct_semicolon(i).is_some() {
-            if any_ambient_owner_claims(i) {
-                break Recovered::Incomplete;
-            }
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            continue;
-        }
-        let field = if let Some(field) = parse_struct_named_field_ast(true, i) {
-            Recovered::Complete(field)
-        } else if scan_struct_field_invalid_run(false, i).is_some() {
-            if any_ambient_owner_claims(i) {
-                break Recovered::Incomplete;
-            }
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            Recovered::Incomplete
-        } else {
-            break Recovered::Incomplete;
-        };
-        fields.push(field);
-
-        if matches!(fields.last(), Some(Recovered::Incomplete)) {
-            if any_ambient_owner_claims(i) {
-                break Recovered::Incomplete;
-            }
-            continue;
-        }
-
-        if any_ambient_owner_claims(i) {
-            break Recovered::Incomplete;
-        }
-        let trivia = i.run(scan_trivia).expect("trivia is total");
-        if let Some(comma) = scan_struct_comma(i) {
-            let post = i.run(scan_trivia).expect("trivia is total");
-            if let Some(close) = scan_struct_close_brace(i) {
-                trailing_comma = Some(comma);
-                break Recovered::Complete(close);
-            }
-            if i.input.remainder().is_empty() || struct_outer_owned_mismatched_close_pending(i) {
-                fields.push(Recovered::Incomplete);
-                break Recovered::Incomplete;
-            }
-            let _ = post;
-            continue;
-        }
-        if let Some(close) = scan_struct_close_brace(i) {
-            break Recovered::Complete(close);
-        }
-        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
-            == LayoutDelimitedBoundary::ImplicitNewline
-        {
-            if i.input.remainder().is_empty() || struct_outer_owned_mismatched_close_pending(i) {
-                fields.push(Recovered::Incomplete);
-                break Recovered::Incomplete;
-            }
-            continue;
-        }
-        if struct_next_named_field_candidate(i, &trivia) {
-            continue;
-        }
-        if struct_outer_owned_mismatched_close_pending(i) {
-            break Recovered::Incomplete;
-        }
-        if scan_struct_mismatched_close(i).is_some() {
-            if any_ambient_owner_claims(i) {
-                break Recovered::Incomplete;
-            }
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            continue;
-        }
-        if scan_struct_semicolon(i).is_some() {
-            if any_ambient_owner_claims(i) {
-                break Recovered::Incomplete;
-            }
-            let _ = i.run(scan_trivia).expect("trivia is total");
-            continue;
-        }
-        break Recovered::Incomplete;
-    };
-
-    pop_struct_layout(layout, i);
-    assert_eq!(i.local.pop_stop_set(), Some(stops));
-    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
-    let end = match &close {
-        Recovered::Complete(close) => close.end,
-        Recovered::Incomplete => i.pos(),
-    };
+    let sequence = parse_variant_named_field_sequence_ast(
+        VariantNamedFieldSequenceSpec {
+            field_owner: VariantFieldDriverSpec::Struct,
+            incoming_base: struct_base,
+            close_owner: ConstructRole::StructNamedFields,
+        },
+        i,
+    );
     StructNamedBracedBody {
         open: open.clone(),
-        fields,
-        trailing_comma,
-        close,
-        range: open.start..end,
+        fields: sequence.fields,
+        trailing_comma: sequence.trailing_comma,
+        close: sequence.close,
+        range: open.start..sequence.end,
     }
 }
-
 pub(super) fn parse_struct_named_field_ast<'source, E>(
     ambient_sensitive: bool,
     i: &mut SynIn<'_, 'source, '_, E>,
@@ -1812,229 +1702,14 @@ pub(super) fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming = struct_base;
-    let stops = committed.probe(|probe| {
-        probe
-            .input()
-            .local
-            .stop_set()
-            .unwrap_or_default()
-            .without(StopKind::Newline)
-            .with(StopKind::Comma)
-            .with(StopKind::RightBrace)
-    });
-    committed.probe(|probe| {
-        let i = probe.input();
-        i.local.push_delimiter(Delimiter::Brace);
-        i.local.push_stop_set(stops);
-    });
-    let opening = committed
-        .probe(|probe| probe.input().run(scan_trivia))
-        .expect("trivia is total");
-    committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| {
-        LayoutDelimitedFrame::after_opening_trivia(
-            incoming,
-            &opening,
-            probe.input().local.line().line_indent,
-        )
-    });
-    committed.probe(|probe| push_struct_layout(layout, probe.input()));
-
-    loop {
-        if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
-            committed.token(SyntaxKind::RBrace, close);
-            break;
-        }
-        if committed.probe(|probe| struct_outer_owned_mismatched_close_pending(probe.input())) {
-            emit_struct_missing_close(committed);
-            break;
-        }
-        if let Some((range, actual)) =
-            committed.probe(|probe| scan_struct_mismatched_close(probe.input()))
-        {
-            emit_struct_mismatched_close(committed, range, actual);
-            // Keep recovery at the close slot: trivia after a consumed local
-            // mismatch precedes the next close retry, not a field slot.
-            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                emit_struct_missing_close(committed);
-                break;
-            }
-            let trivia = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&trivia);
-            continue;
-        }
-        if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
-            emit_struct_missing_close(committed);
-            break;
-        }
-        if committed.probe(|probe| scan_struct_comma_pending(probe.input())) {
-            commit_empty_struct_named_field(committed);
-            let comma = committed
-                .probe(|probe| scan_struct_comma(probe.input()))
-                .expect("the empty Struct field slot is followed by its comma");
-            committed.token(SyntaxKind::Comma, comma);
-            let trivia = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&trivia);
-            continue;
-        }
-        if let Some(semicolon) = committed.probe(|probe| scan_struct_semicolon(probe.input())) {
-            emit_struct_error(
-                committed,
-                crate::session::StructRole::FieldSeparator,
-                semicolon,
-                ExpectedSyntax::DelimitedSequenceSeparator,
-            );
-            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                emit_struct_missing_close(committed);
-                break;
-            }
-            let trivia = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&trivia);
-            continue;
-        }
-        if !commit_struct_named_field(true, committed) {
-            if let Some(run) =
-                committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input()))
-            {
-                emit_struct_error(
-                    committed,
-                    crate::session::StructRole::Field,
-                    run.range,
-                    ExpectedSyntax::Identifier,
-                );
-                if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                    emit_struct_missing_close(committed);
-                    break;
-                }
-                let trivia = committed
-                    .probe(|probe| probe.input().run(scan_trivia))
-                    .expect("trivia is total");
-                committed.emit_trivia(&trivia);
-                continue;
-            } else {
-                emit_struct_missing(
-                    committed,
-                    crate::session::StructRole::Field,
-                    ExpectedSyntax::Identifier,
-                );
-                break;
-            }
-        }
-
-        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-            emit_struct_missing_close(committed);
-            break;
-        }
-        let trivia = committed
-            .probe(|probe| probe.input().run(scan_trivia))
-            .expect("trivia is total");
-        committed.emit_trivia(&trivia);
-        if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
-            committed.token(SyntaxKind::Comma, comma);
-            let post = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&post);
-            if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
-                committed.token(SyntaxKind::RBrace, close);
-                break;
-            }
-            if committed.probe(|probe| {
-                probe.input().input.remainder().is_empty()
-                    || struct_outer_owned_mismatched_close_pending(probe.input())
-            }) {
-                emit_struct_missing(
-                    committed,
-                    crate::session::StructRole::Field,
-                    ExpectedSyntax::Identifier,
-                );
-                emit_struct_missing_close(committed);
-                break;
-            }
-            continue;
-        }
-        if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
-            committed.token(SyntaxKind::RBrace, close);
-            break;
-        }
-        if committed.probe(|probe| {
-            layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
-                == LayoutDelimitedBoundary::ImplicitNewline
-        }) {
-            if committed.probe(|probe| {
-                probe.input().input.remainder().is_empty()
-                    || struct_outer_owned_mismatched_close_pending(probe.input())
-            }) {
-                emit_struct_missing(
-                    committed,
-                    crate::session::StructRole::Field,
-                    ExpectedSyntax::Identifier,
-                );
-                emit_struct_missing_close(committed);
-                break;
-            }
-            continue;
-        }
-        if committed.probe(|probe| struct_next_named_field_candidate(probe.input(), &trivia)) {
-            emit_struct_missing(
-                committed,
-                crate::session::StructRole::FieldSeparator,
-                ExpectedSyntax::DelimitedSequenceSeparator,
-            );
-            continue;
-        }
-        if committed.probe(|probe| struct_outer_owned_mismatched_close_pending(probe.input())) {
-            emit_struct_missing_close(committed);
-            break;
-        }
-        if let Some((range, actual)) =
-            committed.probe(|probe| scan_struct_mismatched_close(probe.input()))
-        {
-            emit_struct_mismatched_close(committed, range, actual);
-            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                emit_struct_missing_close(committed);
-                break;
-            }
-            let trivia = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&trivia);
-            continue;
-        }
-        if let Some(semicolon) = committed.probe(|probe| scan_struct_semicolon(probe.input())) {
-            emit_struct_error(
-                committed,
-                crate::session::StructRole::FieldSeparator,
-                semicolon,
-                ExpectedSyntax::DelimitedSequenceSeparator,
-            );
-            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                emit_struct_missing_close(committed);
-                break;
-            }
-            let trivia = committed
-                .probe(|probe| probe.input().run(scan_trivia))
-                .expect("trivia is total");
-            committed.emit_trivia(&trivia);
-            continue;
-        }
-        emit_struct_missing_close(committed);
-        break;
-    }
-
-    committed.probe(|probe| {
-        let i = probe.input();
-        pop_struct_layout(layout, i);
-        assert_eq!(i.local.pop_stop_set(), Some(stops));
-        assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
-    });
+    commit_variant_named_field_sequence(
+        VariantNamedFieldSequenceSpec {
+            field_owner: VariantFieldDriverSpec::Struct,
+            incoming_base: struct_base,
+            close_owner: ConstructRole::StructNamedFields,
+        },
+        committed,
+    );
     let _ = open;
 }
 
@@ -2202,24 +1877,6 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     scan_struct_mismatched_close_for(Delimiter::Brace, i)
-}
-
-pub(super) fn struct_next_named_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    if leading.is_empty() || struct_trivia_has_newline(leading) {
-        return false;
-    }
-    let checkpoint = i.checkpoint();
-    let candidate = i.run(scan_word).is_some_and(|_| {
-        let gap = i.run(scan_trivia).expect("trivia is total");
-        !struct_trivia_has_newline(&gap) && scan_struct_colon(i).is_some()
-    });
-    i.rollback(checkpoint);
-    candidate
 }
 
 pub(super) fn emit_struct_missing_close<'parse, 'source, 'local, E, O>(

@@ -10737,6 +10737,198 @@ mod tests {
     }
 
     #[test]
+    fn gate3b_ordinary_primary_control_type_delimited_record_and_leading_effect() {
+        fn assert_record(
+            source: &str,
+            index: usize,
+            kind: RecoveryKind,
+            role: GrammarRole,
+            range: Range<usize>,
+            expected: ExpectedSyntax,
+        ) {
+            let records = parse_direct_recovered(source);
+            let record = &records[index];
+            assert_eq!(record.kind, kind, "kind: {source:?} record {index}");
+            assert_eq!(record.site.role, role, "role: {source:?} record {index}");
+            assert_eq!(record.site.range, range, "range: {source:?} record {index}");
+            assert_eq!(
+                record.expectations[record.primary_expectation].expected,
+                expected,
+                "primary expectation: {source:?} record {index}",
+            );
+        }
+
+        for (source, kind, role, range, expected) in [
+            (
+                "(@)",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::ParenthesizedItem),
+                1..2,
+                ExpectedSyntax::TypeExpression,
+            ),
+            (
+                "G (F A)",
+                RecoveryKind::Missing,
+                GrammarRole::Type(TypeRole::ParenthesizedSeparator),
+                5..5,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            ),
+            (
+                "(])",
+                RecoveryKind::Error,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ParenthesizedTypeGroup,
+                    delimiter: Delimiter::Parenthesis,
+                },
+                1..2,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            ),
+            (
+                "'[@]",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::EffectRowItem),
+                2..3,
+                ExpectedSyntax::TypeExpression,
+            ),
+            (
+                "G '[F\n  A]",
+                RecoveryKind::Missing,
+                GrammarRole::Type(TypeRole::EffectRowSeparator),
+                8..8,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            ),
+            (
+                "'[)]",
+                RecoveryKind::Error,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::EffectRowType,
+                    delimiter: Delimiter::Bracket,
+                },
+                2..3,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            ),
+            (
+                "T [:] -> U",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::BracketRowItem),
+                3..4,
+                ExpectedSyntax::TypeExpression,
+            ),
+            (
+                "T [A{}] -> U",
+                RecoveryKind::Missing,
+                GrammarRole::Type(TypeRole::BracketRowSeparator),
+                4..4,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            ),
+            (
+                "T [A)] -> U",
+                RecoveryKind::Error,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                },
+                4..5,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            ),
+            (
+                "F [e] @",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::BracketRowArrow),
+                6..7,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+            ),
+            (
+                "{@ a: A}",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::RecordField),
+                1..2,
+                ExpectedSyntax::Identifier,
+            ),
+            (
+                "{@: A}",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::RecordFieldName),
+                1..2,
+                ExpectedSyntax::Identifier,
+            ),
+            (
+                "{a A}",
+                RecoveryKind::Missing,
+                GrammarRole::Type(TypeRole::RecordFieldColon),
+                3..3,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            ),
+            (
+                "{name: @A}",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::RecordFieldType),
+                7..8,
+                ExpectedSyntax::TypeExpression,
+            ),
+            (
+                "{a: A; b: B}",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::RecordFieldSeparator),
+                5..6,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            ),
+            (
+                "{a: A,",
+                RecoveryKind::Missing,
+                GrammarRole::Type(TypeRole::RecordField),
+                6..6,
+                ExpectedSyntax::Identifier,
+            ),
+            (
+                "{a: A]",
+                RecoveryKind::Error,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::NamedRecordType,
+                    delimiter: Delimiter::Brace,
+                },
+                5..6,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+            ),
+            (
+                "[e]",
+                RecoveryKind::Missing,
+                GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+                3..3,
+                ExpectedSyntax::TypeExpression,
+            ),
+            (
+                "[e][f]T",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+                3..6,
+                ExpectedSyntax::TypeExpression,
+            ),
+            (
+                "[e]@",
+                RecoveryKind::Error,
+                GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+                3..4,
+                ExpectedSyntax::TypeExpression,
+            ),
+        ] {
+            assert_record(source, 0, kind, role, range, expected);
+        }
+
+        assert_record(
+            "{a: A]",
+            1,
+            RecoveryKind::Missing,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::NamedRecordType,
+                delimiter: Delimiter::Brace,
+            },
+            6..6,
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+        );
+    }
+
+    #[test]
     fn leading_bracket_row_preserves_terminal_recovered_head_dispositions() {
         let bare_forall = parse("for 'a: T");
         let forall_source = "[e] for 'a: T";

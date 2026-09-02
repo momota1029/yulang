@@ -38,7 +38,7 @@ use crate::{
         CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
         ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline,
         IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PatternRole, Probe,
-        RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation,
         UnexpectedCategory, UnexpectedSyntax, any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
@@ -2467,14 +2467,18 @@ fn commit_direct_record_item<'parse, 'source, 'local, E, O>(
                 let stops =
                     committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Equal));
                 committed.probe(|probe| probe.input().local.push_stop_set(stops));
-                parse_direct_pattern_bp(
+                parse_direct_pattern_bp_with_fresh_primary_policy(
                     table,
                     PatternPrecedence::Lowest,
                     PatternRole::RecordNestedPattern,
                     pattern_role(PatternRole::RecordNestedPattern),
+                    PatternMandatorySlotPolicy {
+                        fresh_primary_recovery_stops: stops,
+                        ..PatternMandatorySlotPolicy::default()
+                    },
                     committed,
                 )
-                .expect("a committed record colon owns a total nested pattern");
+                .expect("a committed record field owns a total nested pattern");
                 committed
                     .probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
                 commit_direct_record_default(table, committed);
@@ -4399,6 +4403,109 @@ mod tests {
                 if site.role == GrammarRole::Pattern(PatternRole::RecordSeparator)
                     && site.range == (3..3)
         ));
+    }
+
+    #[test]
+    fn gate3b_ordinary_primary_control_record_pattern() {
+        fn assert_record(
+            source: &str,
+            index: usize,
+            kind: RecoveryKind,
+            role: GrammarRole,
+            range: Range<usize>,
+            expected: ExpectedSyntax,
+        ) {
+            let (_, records) = parse_direct_recovered(source);
+            assert_eq!(records.len(), 1, "record count: {source:?}");
+            let record = &records[index];
+            assert_eq!(record.kind, kind, "kind: {source:?} record {index}");
+            assert_eq!(record.site.role, role, "role: {source:?} record {index}");
+            assert_eq!(record.site.range, range, "range: {source:?} record {index}");
+            assert_eq!(
+                record.expectations[record.primary_expectation].expected,
+                expected,
+                "primary expectation: {source:?} record {index}",
+            );
+        }
+
+        for (source, kind, role, range, expected) in [
+            (
+                "{,a}",
+                RecoveryKind::Missing,
+                GrammarRole::Pattern(PatternRole::RecordItem),
+                1..1,
+                ExpectedSyntax::Identifier,
+            ),
+            (
+                "{a:}",
+                RecoveryKind::Missing,
+                GrammarRole::Pattern(PatternRole::RecordNestedPattern),
+                3..3,
+                ExpectedSyntax::Pattern,
+            ),
+            (
+                "{a =}",
+                RecoveryKind::Missing,
+                GrammarRole::Pattern(PatternRole::RecordDefaultExpression),
+                4..4,
+                ExpectedSyntax::Expression,
+            ),
+            (
+                "{..}",
+                RecoveryKind::Missing,
+                GrammarRole::Pattern(PatternRole::RecordSpreadRhs),
+                3..3,
+                ExpectedSyntax::Pattern,
+            ),
+            (
+                "{a b}",
+                RecoveryKind::Missing,
+                GrammarRole::Pattern(PatternRole::RecordSeparator),
+                3..3,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            ),
+            (
+                "{a; b}",
+                RecoveryKind::Error,
+                GrammarRole::Pattern(PatternRole::RecordSeparator),
+                2..4,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            ),
+            (
+                "{a",
+                RecoveryKind::Missing,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::RecordPattern,
+                    delimiter: Delimiter::Brace,
+                },
+                2..2,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+            ),
+            (
+                "{a: @}",
+                RecoveryKind::Error,
+                GrammarRole::Pattern(PatternRole::RecordNestedPattern),
+                4..5,
+                ExpectedSyntax::Pattern,
+            ),
+        ] {
+            assert_record(source, 0, kind, role, range, expected);
+        }
+
+        let (root, records) = parse_direct_recovered("{a: @}");
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            0,
+        );
     }
 
     #[test]

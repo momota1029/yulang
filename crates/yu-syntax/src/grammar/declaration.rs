@@ -143,7 +143,7 @@ pub(crate) use struct_decl::{
 pub(crate) use type_decl::{
     TypeDeclaration, commit_type_declaration_with_operators, parse_type_declaration_with_operators,
 };
-pub(crate) use use_decl::{UseDeclaration, commit_use_declaration, parse_use_declaration};
+pub(crate) use use_decl::{UseDeclaration, UseTree, commit_use_declaration, parse_use_declaration};
 
 /// One parsed source-leading declaration.
 #[derive(Clone, Debug, Eq, PartialEq)]

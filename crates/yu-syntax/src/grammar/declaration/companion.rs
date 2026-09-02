@@ -4421,4 +4421,76 @@ mod tests {
         gate2_every_canonical_statement_candidate_family_has_ast_direct_parity();
         gate2_valid_large_sequences_never_call_the_recovery_candidate_helper();
     }
+
+    #[test]
+    fn gate3b_ordinary_primary_control_declaration_companion() {
+        let introducer = declaration_companion_introducer_role();
+        let body = declaration_companion_body_role();
+        let separator = declaration_companion_separator_role();
+        let close = declaration_companion_close_role();
+
+        for (source, kind, role, range, expected) in [
+            (
+                "with",
+                RecoveryKind::Missing,
+                introducer,
+                4..4,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+            ),
+            (
+                "with:",
+                RecoveryKind::Missing,
+                body,
+                5..5,
+                ExpectedSyntax::Statement,
+            ),
+            (
+                "with: @",
+                RecoveryKind::Error,
+                body,
+                6..7,
+                ExpectedSyntax::Statement,
+            ),
+            (
+                "with:\n  ",
+                RecoveryKind::Missing,
+                body,
+                5..5,
+                ExpectedSyntax::Statement,
+            ),
+            (
+                "with { enum E {} type T = Int }",
+                RecoveryKind::Missing,
+                separator,
+                17..17,
+                ExpectedSyntax::StatementSeparator,
+            ),
+            (
+                "with { a",
+                RecoveryKind::Missing,
+                close,
+                8..8,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+            ),
+        ] {
+            let (_, direct) = run_gate3_direct(source, 0);
+            let record = direct
+                .recoveries
+                .iter()
+                .find(|record| {
+                    record.kind == kind && record.site.role == role && record.site.range == range
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing ordinary recovery tuple for {source:?}: {:#?}",
+                        direct.recoveries
+                    )
+                });
+            assert_eq!(
+                record.expectations[record.primary_expectation].expected,
+                expected,
+                "primary expectation: {source:?}",
+            );
+        }
+    }
 }

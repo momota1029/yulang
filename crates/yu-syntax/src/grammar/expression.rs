@@ -26,7 +26,11 @@ use crate::{
         parse_role_declaration_isolated, parse_struct_declaration_with_operators,
         parse_type_declaration_with_operators, parse_use_declaration, recognize_statement_intro,
     },
-    grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
+    grammar::pattern::{
+        Pattern, PatternMandatorySlotPolicy,
+        commit_direct_pattern_with_outer_missing_role_and_policy,
+        parse_required_pattern_with_outer_missing_role_and_policy, pattern_nud_candidate_input,
+    },
     operator::OperatorTable,
     scan::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, ScannedOperator, scan_operator},
@@ -36,14 +40,16 @@ use crate::{
     },
     session::{
         ActDeclarationRole, AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin,
-        BracedStatementBlockRole, CaseLikeRole, CastRole, ColonApplicationRole, CommitOutput,
-        Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
-        ExpectationSources, ExpectedSyntax, ExpressionDelimitedOwner, ExpressionRole,
-        ForStatementRole, GrammarRole, IfExpressionCompanionId, IfExpressionRole,
-        IndentationBaseline, IndentationBaselineKind, InlineStatementOwnerKind,
-        LayoutDelimitedBoundary, LayoutDelimitedFrame, Probe, RecoveryKind, RecoverySiteKey,
+        BracedStatementBlockRole, CanonicalRecoveryContinuation, CanonicalRecoveryEpisode,
+        CaseLikeRole, CastRole, ColonApplicationRole, CommitOutput, Committed,
+        CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter, ExpectationSources,
+        ExpectedSyntax, ExpressionDelimitedOwner, ExpressionRole, ForStatementRole, GrammarRole,
+        IfExpressionCompanionId, IfExpressionRole, IndentationBaseline,
+        IndentationBaselineKind, InlineStatementOwnerKind, LayoutDelimitedBoundary,
+        LayoutDelimitedFrame, LineState, Probe, RecoveryKind, RecoverySiteKey, RecoverySiteSpec,
         RoleDeclarationRole, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax, WithBodyRole, any_ambient_owner_claims, if_continuation_owner,
+        UnexpectedSyntax, WithBodyRole, YumarkEmbeddedRecoveryFact,
+        any_ambient_owner_claims, if_continuation_owner,
     },
     syntax_kind::SyntaxKind,
 };
@@ -1188,7 +1194,13 @@ where
             let name = if let Some(name) = i.run(scan_word) {
                 Recovered::Complete(name)
             } else {
-                let _ = consume_fixed_tail_invalid_run(table, i);
+                let episode = fixed_tail_recovery_episode(table, ExpressionRole::FieldName, i);
+                i.local
+                    .record_yumark_embedded_recovery(episode.fact);
+                match episode.continuation {
+                    CanonicalRecoveryContinuation::RetrySameSlot
+                    | CanonicalRecoveryContinuation::StopAtBoundary => {}
+                }
                 Recovered::Incomplete
             };
             FixedPostfixTail::Field(FieldTail {
@@ -1202,7 +1214,13 @@ where
             let segment = if let Some(segment) = i.run(scan_path_segment) {
                 Recovered::Complete(path_segment(segment))
             } else {
-                let _ = consume_fixed_tail_invalid_run(table, i);
+                let episode = fixed_tail_recovery_episode(table, ExpressionRole::PathSegment, i);
+                i.local
+                    .record_yumark_embedded_recovery(episode.fact);
+                match episode.continuation {
+                    CanonicalRecoveryContinuation::RetrySameSlot
+                    | CanonicalRecoveryContinuation::StopAtBoundary => {}
+                }
                 Recovered::Incomplete
             };
             FixedPostfixTail::Path(PathTail {
@@ -1224,87 +1242,26 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming_base = i
-        .local
-        .indentation_baseline()
-        .map_or(0, |baseline| baseline.column);
     i.local.push_delimiter(Delimiter::Parenthesis);
-    let stops = active_stop_set(i)
-        .with(StopKind::Comma)
-        .with(StopKind::Semicolon)
-        .with(StopKind::RightParenthesis);
-    i.local.push_stop_set(stops);
-    i.local
-        .push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
-    let opening = consume_trivia(i).expect("trivia scanning is total");
-    let layout = LayoutDelimitedFrame::after_opening_trivia(
-        incoming_base,
-        &opening,
-        i.local.line().line_indent,
-    );
-    push_layout_delimited_baseline(layout, i);
-    let mut arguments = Vec::new();
+    let episode = parse_call_arguments_loop(table, i, LegacyCallArgumentBoundary);
     let close = if let Some(close) = i.run(recognize_parenthesized_close) {
         Recovered::Complete(close)
     } else {
-        loop {
-            if let Some(argument) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
-                arguments.push(argument);
-            } else {
-                if let Some(range) = call_argument_error_retry_ast(table, i) {
-                    arguments.push(OperatorChain::new(
-                        vec![OperatorChainItem::Error {
-                            range: range.clone(),
-                        }],
-                        range,
-                    ));
-                    if any_ambient_owner_claims(i) {
-                        break Recovered::Incomplete;
-                    }
-                    continue;
-                }
-                let at = i.pos();
-                if let Some(_) = i.run(recognize_call_separator) {
-                    arguments.push(OperatorChain::new(
-                        vec![OperatorChainItem::MissingOperand { range: at..at }],
-                        at..at,
-                    ));
-                    consume_trivia(i).expect("trivia scanning is total");
-                    if let Some(close) = i.run(recognize_parenthesized_close) {
-                        break Recovered::Complete(close);
-                    }
-                    continue;
-                }
-                break Recovered::Incomplete;
-            }
-            if any_ambient_owner_claims(i) {
-                break Recovered::Incomplete;
-            }
-            let trivia = consume_trivia(i).expect("trivia scanning is total");
-            if let Some(_) = i.run(recognize_call_separator) {
-                consume_trivia(i).expect("trivia scanning is total");
-                if let Some(close) = i.run(recognize_parenthesized_close) {
-                    break Recovered::Complete(close);
-                }
-                continue;
-            }
-            if let Some(close) = i.run(recognize_parenthesized_close) {
-                break Recovered::Complete(close);
-            }
-            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
-                == LayoutDelimitedBoundary::ImplicitNewline
-            {
-                continue;
-            }
-            break Recovered::Incomplete;
-        }
+        let at = i.pos();
+        i.local.record_yumark_embedded_recovery(
+            call_interior_recovery_fact(
+                call_close_role(),
+                at..at,
+                RecoveryKind::Missing,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                )),
+                None,
+            ),
+        );
+        Recovered::Incomplete
     };
-    pop_layout_delimited_baseline(layout, i);
-    assert_eq!(
-        i.local.pop_expression_delimited_owner(),
-        Some(ExpressionDelimitedOwner::Call)
-    );
-    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let arguments = finish_call_arguments_interior(i, episode);
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
     CallTail {
         open: open.clone(),
@@ -1312,6 +1269,407 @@ where
         close,
         range: open.start..i.pos(),
     }
+}
+
+/// Canonical AST call-argument episode without its caller-owned outer tokens.
+///
+/// The episode remains live until the caller has made its outer-close decision;
+/// finishing it restores layout, expression-owner, and stop state in that order.
+pub(crate) struct AstCallArgumentsEpisode<'source> {
+    arguments: Vec<OperatorChain<'source>>,
+    layout: LayoutDelimitedFrame,
+    stops: StopSet,
+}
+
+trait CallArgumentBoundary<'source, E: ErrorSink<usize>> {
+    const BORROWED: bool;
+
+    fn applies(&mut self, i: &mut SynIn<'_, 'source, '_, E>) -> bool;
+}
+
+struct LegacyCallArgumentBoundary;
+
+impl<'source, E> CallArgumentBoundary<'source, E> for LegacyCallArgumentBoundary
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    const BORROWED: bool = false;
+
+    fn applies(&mut self, i: &mut SynIn<'_, 'source, '_, E>) -> bool {
+        any_ambient_owner_claims(i)
+    }
+}
+
+struct BorrowedCallArgumentBoundary<B>(B);
+
+impl<'source, E, B> CallArgumentBoundary<'source, E> for BorrowedCallArgumentBoundary<B>
+where
+    E: ErrorSink<usize>,
+    B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
+{
+    const BORROWED: bool = true;
+
+    fn applies(&mut self, i: &mut SynIn<'_, 'source, '_, E>) -> bool {
+        (self.0)(i)
+    }
+}
+
+pub(crate) fn parse_call_arguments_interior<'source, E, B>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+    parent_boundary: B,
+) -> AstCallArgumentsEpisode<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
+{
+    parse_call_arguments_loop(
+        table,
+        i,
+        BorrowedCallArgumentBoundary(parent_boundary),
+    )
+}
+
+fn parse_call_arguments_loop<'source, E, P>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+    mut boundary: P,
+) -> AstCallArgumentsEpisode<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    P: CallArgumentBoundary<'source, E>,
+{
+    let incoming_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    let stops = active_stop_set(i)
+        .with(StopKind::Comma)
+        .with(StopKind::Semicolon)
+        .with(StopKind::RightParenthesis);
+    i.local.push_stop_set(stops);
+    i.local
+        .push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+    let opening = if P::BORROWED && boundary.applies(i) {
+        TriviaRun::empty_at(i.pos())
+    } else {
+        consume_trivia(i).expect("trivia scanning is total")
+    };
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        incoming_base,
+        &opening,
+        i.local.line().line_indent,
+    );
+    push_layout_delimited_baseline(layout, i);
+    let mut arguments = Vec::new();
+    while !parenthesized_close_pending_ast(i) && !(P::BORROWED && boundary.applies(i)) {
+        let errors_checkpoint = i.errors_checkpoint();
+        if let Some(argument) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+            arguments.push(argument);
+        } else {
+            i.errors_rollback(errors_checkpoint);
+            if let Some(range) = call_argument_error_retry_ast_with_policy(table, i, &mut boundary)
+            {
+                i.local.record_yumark_embedded_recovery(
+                    call_interior_recovery_fact(
+                        GrammarRole::Expression(ExpressionRole::CallArgument),
+                        range.clone(),
+                        RecoveryKind::Error,
+                        ExpectedSyntax::Expression,
+                        None,
+                    ),
+                );
+                arguments.push(OperatorChain::new(
+                    vec![OperatorChainItem::Error {
+                        range: range.clone(),
+                    }],
+                    range,
+                ));
+                if boundary.applies(i) {
+                    break;
+                }
+                continue;
+            } else {
+                let at = i.pos();
+                if i.run(recognize_call_separator).is_some() {
+                    i.local.record_yumark_embedded_recovery(
+                        call_interior_recovery_fact(
+                            GrammarRole::Expression(ExpressionRole::CallArgument),
+                            at..at,
+                            RecoveryKind::Missing,
+                            ExpectedSyntax::Expression,
+                            None,
+                        ),
+                    );
+                    arguments.push(OperatorChain::new(
+                        vec![OperatorChainItem::MissingOperand { range: at..at }],
+                        at..at,
+                    ));
+                    if !P::BORROWED || !boundary.applies(i) {
+                        consume_trivia(i).expect("trivia scanning is total");
+                    }
+                    continue;
+                }
+                break;
+            }
+        }
+        if boundary.applies(i) {
+            break;
+        }
+        let trivia = consume_trivia(i).expect("trivia scanning is total");
+        if i.run(recognize_call_separator).is_some() {
+            if !P::BORROWED || !boundary.applies(i) {
+                consume_trivia(i).expect("trivia scanning is total");
+            }
+            continue;
+        }
+        if parenthesized_close_pending_ast(i) || (P::BORROWED && boundary.applies(i)) {
+            break;
+        }
+        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+            == LayoutDelimitedBoundary::ImplicitNewline
+        {
+            continue;
+        }
+        if P::BORROWED && expression_nud_candidate_input(table, i) {
+            let at = i.pos();
+            i.local.record_yumark_embedded_recovery(call_interior_recovery_fact(
+                GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
+                at..at,
+                RecoveryKind::Missing,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+                None,
+            ));
+            continue;
+        }
+        break;
+    }
+
+    AstCallArgumentsEpisode {
+        arguments,
+        layout,
+        stops,
+    }
+}
+
+pub(crate) fn finish_call_arguments_interior<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    episode: AstCallArgumentsEpisode<'source>,
+) -> Vec<OperatorChain<'source>>
+where
+    E: ErrorSink<usize>,
+{
+    pop_layout_delimited_baseline(episode.layout, i);
+    assert_eq!(
+        i.local.pop_expression_delimited_owner(),
+        Some(ExpressionDelimitedOwner::Call)
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(episode.stops));
+    episode.arguments
+}
+
+fn call_interior_recovery_fact(
+    role: GrammarRole,
+    range: Range<usize>,
+    kind: RecoveryKind,
+    expected: ExpectedSyntax,
+    unexpected_close: Option<Delimiter>,
+) -> YumarkEmbeddedRecoveryFact {
+    YumarkEmbeddedRecoveryFact {
+        spec: RecoverySiteSpec { role, expected },
+        range,
+        kind,
+        unexpected: unexpected_close.map(|delimiter| {
+            UnexpectedCategory::Punctuation(crate::session::PunctuationEvidence::Close(delimiter))
+        }),
+    }
+}
+
+fn publish_embedded_recovery<E>(
+    i: &mut SynIn<E>,
+    spec: RecoverySiteSpec,
+    range: Range<usize>,
+    kind: RecoveryKind,
+    unexpected: Option<UnexpectedCategory>,
+) where
+    E: ErrorSink<usize>,
+{
+    i.local
+        .publish_yumark_embedded_recovery(spec, range, kind, unexpected);
+}
+
+fn fixed_tail_recovery_spec(role: ExpressionRole) -> RecoverySiteSpec {
+    RecoverySiteSpec {
+        role: GrammarRole::Expression(role),
+        expected: ExpectedSyntax::Identifier,
+    }
+}
+
+fn index_recovery_spec(role: ExpressionRole, expected: ExpectedSyntax) -> RecoverySiteSpec {
+    RecoverySiteSpec {
+        role: GrammarRole::Expression(role),
+        expected,
+    }
+}
+
+fn index_close_recovery_spec() -> RecoverySiteSpec {
+    RecoverySiteSpec {
+        role: GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::IndexTail,
+            delimiter: Delimiter::Bracket,
+        },
+        expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+            Delimiter::Bracket,
+        )),
+    }
+}
+
+fn if_recovery_spec(role: IfExpressionRole, expected: ExpectedSyntax) -> RecoverySiteSpec {
+    RecoverySiteSpec {
+        role: GrammarRole::IfExpression(role),
+        expected,
+    }
+}
+
+fn braced_statement_recovery_spec() -> RecoverySiteSpec {
+    statement_sequence_recovery_spec(StatementSequencePolicy::BracedPrimary)
+}
+
+pub(crate) fn settle_ast_call_arguments_borrowed_close<'source, E, B>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    _episode: &mut AstCallArgumentsEpisode<'source>,
+    mut parent_boundary: B,
+) where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
+{
+    loop {
+        match consume_argument_list_malformed_close_step(i, &mut parent_boundary) {
+            BorrowedCloseStep::Boundary => return,
+            BorrowedCloseStep::Recovery(fact) => {
+                i.local.record_yumark_embedded_recovery(fact);
+            }
+        }
+    }
+}
+
+enum BorrowedCloseStep {
+    Boundary,
+    Recovery(YumarkEmbeddedRecoveryFact),
+}
+
+fn consume_argument_list_malformed_close_step<'source, E, B>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    parent_boundary: &mut B,
+) -> BorrowedCloseStep
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
+{
+    let start = i.pos();
+    loop {
+        if parenthesized_close_pending_ast(i) || parent_boundary(i) {
+            return if start < i.pos() {
+                BorrowedCloseStep::Recovery(call_interior_recovery_fact(
+                    call_close_role(),
+                    start..i.pos(),
+                    RecoveryKind::Error,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                        Delimiter::Parenthesis,
+                    )),
+                    None,
+                ))
+            } else {
+                BorrowedCloseStep::Boundary
+            };
+        }
+
+        let checkpoint = i.checkpoint();
+        let errors_checkpoint = i.errors_checkpoint();
+        if let Some(punctuation) = i.run(scan_punctuation) {
+            let unexpected_close = match punctuation.kind() {
+                PunctuationKind::Close(actual @ (Delimiter::Bracket | Delimiter::Brace)) => {
+                    Some(actual)
+                }
+                _ => None,
+            };
+            return BorrowedCloseStep::Recovery(call_interior_recovery_fact(
+                call_close_role(),
+                punctuation.range(),
+                RecoveryKind::Error,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                )),
+                unexpected_close,
+            ));
+        }
+        i.rollback(checkpoint);
+        i.errors_rollback(errors_checkpoint);
+        consume_expression_recovery_source_unit(i);
+    }
+}
+
+fn consume_expression_recovery_source_unit<E>(i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    let start = i.pos();
+    if i.input.remainder().starts_with("\r\n") {
+        i.input.next();
+        i.input.next();
+        i.local.set_line(LineState {
+            last_newline: Some((start, start + 2)),
+            line_start: start + 2,
+            line_indent: 0,
+            at_line_start: true,
+        });
+        return;
+    }
+    let character = i
+        .input
+        .next()
+        .expect("a borrowed malformed close unit exists");
+    let end = i.pos();
+    if character == '\n' {
+        i.local.set_line(LineState {
+            last_newline: Some((start, end)),
+            line_start: end,
+            line_indent: 0,
+            at_line_start: true,
+        });
+    } else {
+        let mut line = i.local.line();
+        if matches!(character, ' ' | '\t') && line.at_line_start {
+            line.line_indent += 1;
+        } else if !matches!(character, ' ' | '\t') {
+            line.at_line_start = false;
+        }
+        i.local.set_line(line);
+    }
+}
+
+fn parenthesized_close_pending_ast<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
+    let pending = i.run(recognize_parenthesized_close).is_some();
+    i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
+    pending
 }
 
 fn parse_index_tail<'source, E>(
@@ -1348,10 +1706,19 @@ where
         Recovered::Complete(close)
     } else {
         loop {
+            let errors_checkpoint = i.errors_checkpoint();
             if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
                 items.push(item);
             } else {
+                i.errors_rollback(errors_checkpoint);
                 if let Some(range) = call_argument_error_retry_ast(table, i) {
+                    publish_embedded_recovery(
+                        i,
+                        index_recovery_spec(ExpressionRole::IndexItem, ExpectedSyntax::Expression),
+                        range.clone(),
+                        RecoveryKind::Error,
+                        Some(UnexpectedCategory::OtherCharacter),
+                    );
                     items.push(OperatorChain::new(
                         vec![OperatorChainItem::Error {
                             range: range.clone(),
@@ -1365,6 +1732,13 @@ where
                 }
                 let at = i.pos();
                 if i.run(recognize_call_separator).is_some() {
+                    publish_embedded_recovery(
+                        i,
+                        index_recovery_spec(ExpressionRole::IndexItem, ExpectedSyntax::Expression),
+                        at..at,
+                        RecoveryKind::Missing,
+                        None,
+                    );
                     items.push(OperatorChain::new(
                         vec![OperatorChainItem::MissingOperand { range: at..at }],
                         at..at,
@@ -1396,8 +1770,31 @@ where
             {
                 continue;
             }
+            if i.local.yumark_embedded_recovery_active()
+                && expression_nud_candidate_input(table, i)
+            {
+                let at = i.pos();
+                publish_embedded_recovery(
+                    i,
+                    index_recovery_spec(
+                        ExpressionRole::IndexSeparator,
+                        ExpectedSyntax::DelimitedSequenceSeparator,
+                    ),
+                    at..at,
+                    RecoveryKind::Missing,
+                    None,
+                );
+                continue;
+            }
             break Recovered::Incomplete;
         }
+    };
+    let close = if matches!(close, Recovered::Incomplete)
+        && i.local.yumark_embedded_recovery_active()
+    {
+        settle_embedded_index_close(i)
+    } else {
+        close
     };
     pop_layout_delimited_baseline(layout, i);
     assert_eq!(
@@ -1468,6 +1865,70 @@ where
         items,
         close,
         range: dot.start..i.pos(),
+    }
+}
+
+fn settle_embedded_index_close<E>(i: &mut SynIn<E>) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        if any_ambient_owner_claims(i)
+            || i.input.remainder().is_empty()
+            || matches!(i.input.remainder().chars().next(), Some(';'))
+        {
+            let at = i.pos();
+            publish_embedded_recovery(
+                i,
+                index_close_recovery_spec(),
+                at..at,
+                RecoveryKind::Missing,
+                None,
+            );
+            return Recovered::Incomplete;
+        }
+        if let Some(punctuation) = i.run(scan_punctuation) {
+            if punctuation.kind() == PunctuationKind::Close(Delimiter::Bracket) {
+                return Recovered::Complete(punctuation.range());
+            }
+            let category = match punctuation.kind() {
+                PunctuationKind::Close(actual @ (Delimiter::Parenthesis | Delimiter::Brace)) => {
+                    UnexpectedCategory::Punctuation(
+                        crate::session::PunctuationEvidence::Close(actual),
+                    )
+                }
+                _ => UnexpectedCategory::Punctuation(
+                    crate::session::PunctuationEvidence::Close(Delimiter::Bracket),
+                ),
+            };
+            publish_embedded_recovery(
+                i,
+                index_close_recovery_spec(),
+                punctuation.range(),
+                RecoveryKind::Error,
+                Some(category),
+            );
+            continue;
+        }
+        let start = i.pos();
+        while let Some(character) = i.input.remainder().chars().next() {
+            if matches!(character, ')' | ']' | '}' | ';') {
+                break;
+            }
+            consume_expression_recovery_source_unit(i);
+        }
+        if start == i.pos() {
+            continue;
+        }
+        publish_embedded_recovery(
+            i,
+            index_close_recovery_spec(),
+            start..i.pos(),
+            RecoveryKind::Error,
+            Some(UnexpectedCategory::OtherCharacter),
+        );
     }
 }
 
@@ -1734,9 +2195,41 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    call_argument_error_retry_ast_with_boundary(table, i, &mut any_ambient_owner_claims)
+}
+
+fn call_argument_error_retry_ast_with_boundary<'source, E, B>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+    parent_boundary: &mut B,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
+{
+    call_argument_error_retry_ast_with_policy(
+        table,
+        i,
+        &mut BorrowedCallArgumentBoundary(parent_boundary),
+    )
+}
+
+fn call_argument_error_retry_ast_with_policy<'source, E, P>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+    boundary: &mut P,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    P: CallArgumentBoundary<'source, E>,
+{
     let start = i.pos();
     loop {
-        if any_ambient_owner_claims(i) {
+        if boundary.applies(i) {
             return (start < i.pos()).then_some(start..i.pos());
         }
         let Some(character) = i.input.remainder().chars().next() else {
@@ -1745,11 +2238,15 @@ where
         if matches!(character, ')' | ']' | '}' | ',' | ';') {
             return None;
         }
-        i.input.next()?;
+        if P::BORROWED {
+            consume_expression_recovery_source_unit(i);
+        } else {
+            i.input.next()?;
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
         let end = i.pos();
-        let mut line = i.local.line();
-        line.at_line_start = false;
-        i.local.set_line(line);
         if expression_nud_candidate_input(table, i) {
             return Some(start..end);
         }
@@ -1783,6 +2280,65 @@ fn path_segment(word: WordSpan<'_>) -> PathSegment<'_> {
     } else {
         PathSegment::Identifier(word)
     }
+}
+
+fn fixed_tail_recovery_episode<E>(
+    table: &OperatorTable,
+    role: ExpressionRole,
+    i: &mut SynIn<E>,
+) -> CanonicalRecoveryEpisode
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let range = consume_fixed_tail_invalid_run(table, i);
+    let (range, kind, unexpected, continuation) = match range {
+        Some(range) => (
+            range,
+            RecoveryKind::Error,
+            Some(UnexpectedCategory::OtherCharacter),
+            CanonicalRecoveryContinuation::RetrySameSlot,
+        ),
+        None => {
+            let at = i.pos();
+            (
+                at..at,
+                RecoveryKind::Missing,
+                None,
+                CanonicalRecoveryContinuation::StopAtBoundary,
+            )
+        }
+    };
+    CanonicalRecoveryEpisode {
+        fact: YumarkEmbeddedRecoveryFact {
+            spec: fixed_tail_recovery_spec(role),
+            range,
+            kind,
+            unexpected,
+        },
+        continuation,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn probe_rejected_fixed_tail_recovery_episode_for_test<E>(
+    table: &OperatorTable,
+    role: ExpressionRole,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
+    let episode = fixed_tail_recovery_episode(table, role, i);
+    i.local.record_yumark_embedded_recovery(episode.fact);
+    i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
+    false
 }
 
 /// Consume one maximal malformed fixed-tail RHS, leaving an owner boundary or
@@ -1998,8 +2554,10 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
     let intro = i.run(recognize_statement_intro);
     i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
     match intro {
         Some(StatementIntro::Binding(_)) => i
             .run(from_fn(|i| {
@@ -2803,8 +3361,22 @@ where
         .with(StopKind::ArmGuardWhere);
     i.local.push_stop_set(stops);
     let pattern = i
-        .run(from_fn(|i| parse_pattern(table, i)))
-        .map_or(Recovered::Incomplete, Recovered::Complete);
+        .run(from_fn(|i| {
+            Some(parse_required_pattern_with_outer_missing_role_and_policy(
+                table,
+                Some(GrammarRole::CaseLike(CaseLikeRole::Pattern)),
+                PatternMandatorySlotPolicy {
+                    fresh_primary_recovery_stops: stops,
+                    ..PatternMandatorySlotPolicy::default()
+                },
+                i,
+            ))
+        }))
+        .expect("the required case-arm Pattern entry is total");
+    let pattern = match pattern {
+        Recovered::Complete(pattern) => Recovered::Complete(*pattern),
+        Recovered::Incomplete => Recovered::Incomplete,
+    };
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let guard = parse_case_guard_ast(table, i);
     let arrow = parse_arm_arrow(i).map_or(Recovered::Incomplete, Recovered::Complete);
@@ -2839,8 +3411,22 @@ where
         .with(StopKind::Comma);
     i.local.push_stop_set(stops);
     let pattern = i
-        .run(from_fn(|i| parse_pattern(table, i)))
-        .map_or(Recovered::Incomplete, Recovered::Complete);
+        .run(from_fn(|i| {
+            Some(parse_required_pattern_with_outer_missing_role_and_policy(
+                table,
+                Some(GrammarRole::CaseLike(CaseLikeRole::Pattern)),
+                PatternMandatorySlotPolicy {
+                    fresh_primary_recovery_stops: stops,
+                    ..PatternMandatorySlotPolicy::default()
+                },
+                i,
+            ))
+        }))
+        .expect("the required catch-arm Pattern entry is total");
+    let pattern = match pattern {
+        Recovered::Complete(pattern) => Recovered::Complete(*pattern),
+        Recovered::Incomplete => Recovered::Incomplete,
+    };
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let handler = if let Some(_) = i.run(recognize_parenthesized_comma) {
         consume_trivia(i).expect("trivia scanning is total");
@@ -2850,8 +3436,22 @@ where
             .with(StopKind::ArmGuardWhere);
         i.local.push_stop_set(stops);
         let handler = i
-            .run(from_fn(|i| parse_pattern(table, i)))
-            .map_or(Recovered::Incomplete, Recovered::Complete);
+            .run(from_fn(|i| {
+                Some(parse_required_pattern_with_outer_missing_role_and_policy(
+                    table,
+                    Some(GrammarRole::CaseLike(CaseLikeRole::Handler)),
+                    PatternMandatorySlotPolicy {
+                        fresh_primary_recovery_stops: stops,
+                        ..PatternMandatorySlotPolicy::default()
+                    },
+                    i,
+                ))
+            }))
+            .expect("the required catch-handler Pattern entry is total");
+        let handler = match handler {
+            Recovered::Complete(handler) => Recovered::Complete(*handler),
+            Recovered::Incomplete => Recovered::Incomplete,
+        };
         assert_eq!(i.local.pop_stop_set(), Some(stops));
         Some(handler)
     } else {
@@ -3053,11 +3653,35 @@ where
         .with(StopKind::Elsif)
         .with(StopKind::Else);
     i.local.push_stop_set(condition_stop);
-    let condition = i
-        .run(from_fn(|i| parse_operator_chain(table, i)))
-        .map_or(Recovered::Incomplete, Recovered::Complete);
+    let condition_errors = i.errors_checkpoint();
+    let condition = if let Some(condition) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+        Recovered::Complete(condition)
+    } else {
+        i.errors_rollback(condition_errors);
+        Recovered::Incomplete
+    };
+    if matches!(condition, Recovered::Incomplete) {
+        let at = i.pos();
+        publish_embedded_recovery(
+            i,
+            if_recovery_spec(IfExpressionRole::Condition, ExpectedSyntax::Expression),
+            at..at,
+            RecoveryKind::Missing,
+            None,
+        );
+    }
     assert_eq!(i.local.pop_stop_set(), Some(condition_stop));
     let colon = recognize_arm_colon(i);
+    if colon.is_none() && matches!(condition, Recovered::Complete(_)) {
+        let at = i.pos();
+        publish_embedded_recovery(
+            i,
+            if_recovery_spec(IfExpressionRole::Body, ExpectedSyntax::Expression),
+            at..at,
+            RecoveryKind::Missing,
+            None,
+        );
+    }
     let body = colon.map_or(Recovered::Incomplete, |colon| {
         Recovered::Complete(parse_colon_introduced_arm_body(
             table,
@@ -3102,9 +3726,13 @@ where
             .with(StopKind::Elsif)
             .with(StopKind::Else);
         i.local.push_stop_set(stop_set);
-        let body = i
-            .run(from_fn(|i| parse_operator_chain(table, i)))
-            .map(|chain| ElseArmBody::Bare(Box::new(chain)));
+        let body_errors = i.errors_checkpoint();
+        let body = if let Some(chain) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+            Some(ElseArmBody::Bare(Box::new(chain)))
+        } else {
+            i.errors_rollback(body_errors);
+            None
+        };
         assert_eq!(i.local.pop_stop_set(), Some(stop_set));
         body.map_or(Recovered::Incomplete, Recovered::Complete)
     };
@@ -3166,7 +3794,11 @@ where
                 .with(StopKind::Elsif)
                 .with(StopKind::Else);
             i.local.push_stop_set(stop_set);
+            let body_errors = i.errors_checkpoint();
             let chain = i.run(from_fn(|i| parse_operator_chain(table, i)));
+            if chain.is_none() {
+                i.errors_rollback(body_errors);
+            }
             assert_eq!(i.local.pop_stop_set(), Some(stop_set));
             chain
                 .map(|chain| ArmBodyRhs::Inline(Box::new(chain)))
@@ -3534,12 +4166,15 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::Dot, dot);
             if let Some(name) = committed.probe(|probe| probe.input().run(scan_word)) {
                 committed.token(SyntaxKind::Identifier, name.range());
-            } else if let Some(range) =
-                committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input()))
-            {
-                emit_fixed_tail_error(committed, ExpressionRole::FieldName, range);
             } else {
-                emit_fixed_tail_missing(committed, ExpressionRole::FieldName);
+                let episode = committed.probe(|probe| {
+                    fixed_tail_recovery_episode(table, ExpressionRole::FieldName, probe.input())
+                });
+                committed.emit_canonical_recovery_fact(episode.fact);
+                match episode.continuation {
+                    CanonicalRecoveryContinuation::RetrySameSlot
+                    | CanonicalRecoveryContinuation::StopAtBoundary => {}
+                }
             }
             committed.finish_node();
         }
@@ -3551,12 +4186,15 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
             committed.emit_trivia(&trivia);
             if let Some(segment) = committed.probe(|probe| probe.input().run(scan_path_segment)) {
                 committed.token(path_segment_kind(segment), segment.range());
-            } else if let Some(range) =
-                committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input()))
-            {
-                emit_fixed_tail_error(committed, ExpressionRole::PathSegment, range);
             } else {
-                emit_fixed_tail_missing(committed, ExpressionRole::PathSegment);
+                let episode = committed.probe(|probe| {
+                    fixed_tail_recovery_episode(table, ExpressionRole::PathSegment, probe.input())
+                });
+                committed.emit_canonical_recovery_fact(episode.fact);
+                match episode.continuation {
+                    CanonicalRecoveryContinuation::RetrySameSlot
+                    | CanonicalRecoveryContinuation::StopAtBoundary => {}
+                }
             }
             committed.finish_node();
         }
@@ -3575,6 +4213,59 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
 {
     committed.start_node(SyntaxKind::CallTail);
     committed.token(SyntaxKind::LParen, open);
+    committed.probe(|probe| probe.input().local.push_delimiter(Delimiter::Parenthesis));
+    let episode = commit_call_arguments_loop(table, committed, LegacyCallArgumentBoundary);
+    match commit_call_close(committed) {
+        ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
+        ParenthesizedClose::Missing { .. } => emit_call_close_missing(committed),
+    }
+    finish_direct_call_arguments_interior(committed, episode);
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_delimiter(),
+            Some(Delimiter::Parenthesis)
+        );
+    });
+    committed.finish_node();
+}
+
+/// Canonical direct-CST call-argument episode without caller-owned outer CST.
+pub(crate) struct DirectCallArgumentsEpisode {
+    layout: LayoutDelimitedFrame,
+    stops: StopSet,
+}
+
+pub(crate) fn commit_call_arguments_interior<'parse, 'source, 'local, E, O, B>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    parent_boundary: B,
+) -> DirectCallArgumentsEpisode
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
+{
+    commit_call_arguments_loop(
+        table,
+        committed,
+        BorrowedCallArgumentBoundary(parent_boundary),
+    )
+}
+
+fn commit_call_arguments_loop<'parse, 'source, 'local, E, O, P>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    mut boundary: P,
+) -> DirectCallArgumentsEpisode
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    P: CallArgumentBoundary<'source, E>,
+{
     let incoming_base = committed.probe(|probe| {
         probe
             .input()
@@ -3589,14 +4280,17 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
             .with(StopKind::RightParenthesis)
     });
     committed.probe(|probe| {
-        probe.input().local.push_delimiter(Delimiter::Parenthesis);
         probe.input().local.push_stop_set(stops);
         probe
             .input()
             .local
             .push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
     });
-    let opening = consume_direct_trivia(committed);
+    let opening = if P::BORROWED && committed.probe(|probe| boundary.applies(probe.input())) {
+        TriviaRun::empty_at(committed.probe(|probe| probe.input().pos()))
+    } else {
+        consume_direct_trivia(committed)
+    };
     committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| {
         LayoutDelimitedFrame::after_opening_trivia(
@@ -3606,16 +4300,43 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
         )
     });
     committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
-
-    if !parenthesized_close_pending(committed) {
-        loop {
-            if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
-                if call_argument_error_retry(table, committed) {
-                    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                        break;
-                    }
-                    parse_direct_operator_chain(table, LeadingTrivia::None, committed)
-                        .expect("a retried call argument must commit its shared NUD candidate");
+    while !parenthesized_close_pending(committed)
+        && !(P::BORROWED && committed.probe(|probe| boundary.applies(probe.input())))
+    {
+        let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
+        if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+            committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
+            if let Some(range) =
+                call_argument_error_retry_with_policy(table, committed, &mut boundary)
+            {
+                if P::BORROWED {
+                    let fact = call_interior_recovery_fact(
+                        GrammarRole::Expression(ExpressionRole::CallArgument),
+                        range.clone(),
+                        RecoveryKind::Error,
+                        ExpectedSyntax::Expression,
+                        None,
+                    );
+                    committed.emit_canonical_recovery_fact(fact);
+                } else {
+                    emit_call_error(committed, ExpressionRole::CallArgument, range);
+                }
+                if committed.probe(|probe| boundary.applies(probe.input())) {
+                    break;
+                }
+                parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                    .expect("a retried call argument must commit its shared NUD candidate");
+            } else {
+                if P::BORROWED {
+                    let at = committed.probe(|probe| probe.input().pos());
+                    let fact = call_interior_recovery_fact(
+                        GrammarRole::Expression(ExpressionRole::CallArgument),
+                        at..at,
+                        RecoveryKind::Missing,
+                        ExpectedSyntax::Expression,
+                        None,
+                    );
+                    committed.emit_canonical_recovery_fact(fact);
                 } else {
                     emit_call_missing(
                         committed,
@@ -3624,66 +4345,105 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
                     );
                 }
             }
-            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-                break;
-            }
-            let trivia = consume_direct_trivia(committed);
-            committed.emit_trivia(&trivia);
-            if let Some(separator) = commit_call_separator(committed) {
-                committed.token(
-                    if separator.0 {
-                        SyntaxKind::Semicolon
-                    } else {
-                        SyntaxKind::Comma
-                    },
-                    separator.1,
-                );
+        }
+        if committed.probe(|probe| boundary.applies(probe.input())) {
+            break;
+        }
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        if let Some(separator) = commit_call_separator(committed) {
+            committed.token(
+                if separator.0 {
+                    SyntaxKind::Semicolon
+                } else {
+                    SyntaxKind::Comma
+                },
+                separator.1,
+            );
+            if !P::BORROWED || !committed.probe(|probe| boundary.applies(probe.input())) {
                 let trailing = consume_direct_trivia(committed);
                 committed.emit_trivia(&trailing);
-                if parenthesized_close_pending(committed) {
-                    break;
-                }
-                continue;
             }
-            if parenthesized_close_pending(committed) {
-                break;
-            }
-            let boundary = committed.probe(|probe| {
-                layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
-            });
-            if boundary == LayoutDelimitedBoundary::ImplicitNewline {
-                continue;
-            }
-            if boundary == LayoutDelimitedBoundary::None
-                && parenthesized_element_pending(table, committed)
-            {
+            continue;
+        }
+        if parenthesized_close_pending(committed)
+            || (P::BORROWED && committed.probe(|probe| boundary.applies(probe.input())))
+        {
+            break;
+        }
+        let boundary = committed.probe(|probe| {
+            layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+        });
+        if boundary == LayoutDelimitedBoundary::ImplicitNewline {
+            continue;
+        }
+        if boundary == LayoutDelimitedBoundary::None
+            && parenthesized_element_pending(table, committed)
+        {
+            if P::BORROWED {
+                let at = committed.probe(|probe| probe.input().pos());
+                let fact = call_interior_recovery_fact(
+                    GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
+                    at..at,
+                    RecoveryKind::Missing,
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                    None,
+                );
+                committed.emit_canonical_recovery_fact(fact);
+            } else {
                 emit_call_missing(
                     committed,
                     ExpressionRole::CallArgumentSeparator,
                     ExpectedSyntax::DelimitedSequenceSeparator,
                 );
-                continue;
             }
-            break;
+            continue;
         }
+        break;
     }
-    match commit_call_close(committed) {
-        ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
-        ParenthesizedClose::Missing { .. } => emit_call_close_missing(committed),
-    }
+
+    DirectCallArgumentsEpisode { layout, stops }
+}
+
+pub(crate) fn finish_direct_call_arguments_interior<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    episode: DirectCallArgumentsEpisode,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
     committed.probe(|probe| {
-        pop_layout_delimited_baseline(layout, probe.input());
+        pop_layout_delimited_baseline(episode.layout, probe.input());
         assert_eq!(
             probe.input().local.pop_expression_delimited_owner(),
             Some(ExpressionDelimitedOwner::Call)
         );
-        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
-        assert_eq!(
-            probe.input().local.pop_delimiter(),
-            Some(Delimiter::Parenthesis)
-        );
+        assert_eq!(probe.input().local.pop_stop_set(), Some(episode.stops));
     });
-    committed.finish_node();
+}
+
+pub(crate) fn settle_direct_call_arguments_borrowed_close<'parse, 'source, 'local, E, O, B>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    _episode: &mut DirectCallArgumentsEpisode,
+    mut parent_boundary: B,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+    B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
+{
+    loop {
+        let step = committed.probe(|probe| {
+            consume_argument_list_malformed_close_step(probe.input(), &mut parent_boundary)
+        });
+        match step {
+            BorrowedCloseStep::Boundary => return,
+            BorrowedCloseStep::Recovery(fact) => {
+                committed.emit_canonical_recovery_fact(fact);
+            }
+        }
+    }
 }
 
 fn commit_projection_tuple_tail<'parse, 'source, 'local, E, O>(
@@ -4098,7 +4858,10 @@ fn commit_index_tail<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     if !index_close_pending(committed) {
         loop {
+            let errors_checkpoint =
+                committed.probe(|probe| probe.input().errors_checkpoint());
             if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+                committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
                 if index_item_error_retry(table, committed) {
                     if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
                         break;
@@ -4216,21 +4979,23 @@ where
     true
 }
 
-fn call_argument_error_retry<'parse, 'source, 'local, E, O>(
+fn call_argument_error_retry_with_policy<'parse, 'source, 'local, E, O, P>(
     table: &OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> bool
+    boundary: &mut P,
+) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
+    P: CallArgumentBoundary<'source, E>,
 {
     let recovered = committed.probe(|probe| {
         let start = probe.input().pos();
         let mut end = start;
         loop {
-            if any_ambient_owner_claims(probe.input()) {
+            if boundary.applies(probe.input()) {
                 return (start < probe.input().pos()).then_some(start..probe.input().pos());
             }
             let i = probe.input();
@@ -4240,21 +5005,21 @@ where
             if matches!(character, ')' | ']' | '}' | ',' | ';') {
                 return None;
             }
-            i.input.next()?;
+            if P::BORROWED {
+                consume_expression_recovery_source_unit(i);
+            } else {
+                i.input.next()?;
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
             end = i.pos();
-            let mut line = i.local.line();
-            line.at_line_start = false;
-            i.local.set_line(line);
             if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
                 return Some(start..end);
             }
         }
     });
-    let Some(range) = recovered else {
-        return false;
-    };
-    emit_call_error(committed, ExpressionRole::CallArgument, range);
-    true
+    recovered
 }
 
 fn commit_call_separator<'parse, 'source, 'local, E, O>(
@@ -5048,7 +5813,7 @@ where
         return Vec::new();
     }
     let mut statements = Vec::new();
-    let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) else {
+    let Some(statement) = parse_embedded_braced_statement(table, i) else {
         return statements;
     };
     statements.push(Recovered::Complete(statement));
@@ -5064,13 +5829,53 @@ where
         if braced_statement_block_close_pending(i) {
             break;
         }
-        let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) else {
+        let Some(statement) = parse_embedded_braced_statement(table, i) else {
             statements.push(Recovered::Incomplete);
             break;
         };
         statements.push(Recovered::Complete(statement));
     }
     statements
+}
+
+fn parse_embedded_braced_statement<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Statement<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let errors_checkpoint = i.errors_checkpoint();
+    if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+        return Some(statement);
+    }
+    i.errors_rollback(errors_checkpoint);
+    if !i.local.yumark_embedded_recovery_active() {
+        return None;
+    }
+    let Some((range, retry)) = canonical_statement_invalid_run(table, i) else {
+        let at = i.pos();
+        publish_embedded_recovery(
+            i,
+            braced_statement_recovery_spec(),
+            at..at,
+            RecoveryKind::Missing,
+            None,
+        );
+        return None;
+    };
+    publish_embedded_recovery(
+        i,
+        braced_statement_recovery_spec(),
+        range,
+        RecoveryKind::Error,
+        Some(UnexpectedCategory::OtherCharacter),
+    );
+    retry
+        .then(|| i.run(from_fn(|i| parse_canonical_statement(table, i))))
+        .flatten()
 }
 
 fn braced_statement_block_close_pending<E>(i: &mut SynIn<E>) -> bool
@@ -6021,7 +6826,9 @@ fn commit_statement_sequence_statement<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::Statement);
+    let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
     if !commit_canonical_statement(table, leading, committed) {
+        committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
         match statement_sequence_error_retry(table, policy, committed) {
             Some(true) => {
                 commit_canonical_statement(table, LeadingTrivia::None, committed)
@@ -6053,6 +6860,7 @@ where
     let intro = committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
+        let errors_checkpoint = i.errors_checkpoint();
         let intro = i.run(recognize_statement_intro);
         if !matches!(
             intro,
@@ -6072,6 +6880,7 @@ where
             )
         ) {
             i.rollback(checkpoint);
+            i.errors_rollback(errors_checkpoint);
             return None;
         }
         intro
@@ -6405,10 +7214,12 @@ where
 {
     let i = probe.input();
     let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
     let candidate = i
         .run(from_fn(|i| recognize_nud(table, leading, i)))
         .is_some();
     i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
     candidate
 }
 
@@ -6716,9 +7527,16 @@ fn commit_one_arm<'parse, 'source, 'local, E, O>(
         stops
     });
     committed.probe(|probe| probe.input().local.push_stop_set(stops));
-    if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() {
-        emit_case_like_missing(committed, CaseLikeRole::Pattern, ExpectedSyntax::Pattern);
-    }
+    let _ = commit_direct_pattern_with_outer_missing_role_and_policy(
+        table,
+        LeadingTrivia::None,
+        Some(GrammarRole::CaseLike(CaseLikeRole::Pattern)),
+        PatternMandatorySlotPolicy {
+            fresh_primary_recovery_stops: stops,
+            ..PatternMandatorySlotPolicy::default()
+        },
+        committed,
+    );
     committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
     if family == CaseLikeFamily::Catch
         && let Some(comma) =
@@ -6734,9 +7552,16 @@ fn commit_one_arm<'parse, 'source, 'local, E, O>(
                 .with(StopKind::ArmGuardWhere)
         });
         committed.probe(|probe| probe.input().local.push_stop_set(stops));
-        if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() {
-            emit_case_like_missing(committed, CaseLikeRole::Handler, ExpectedSyntax::Pattern);
-        }
+        let _ = commit_direct_pattern_with_outer_missing_role_and_policy(
+            table,
+            LeadingTrivia::None,
+            Some(GrammarRole::CaseLike(CaseLikeRole::Handler)),
+            PatternMandatorySlotPolicy {
+                fresh_primary_recovery_stops: stops,
+                ..PatternMandatorySlotPolicy::default()
+            },
+            committed,
+        );
         committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
     }
     commit_arm_guard(table, family, committed);
@@ -7103,9 +7928,11 @@ fn commit_if_arm<'parse, 'source, 'local, E, O>(
     });
     committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
     committed.start_node(SyntaxKind::Condition);
+    let condition_errors = committed.probe(|probe| probe.input().errors_checkpoint());
     let has_condition =
         parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_some();
     if !has_condition {
+        committed.probe(|probe| probe.input().errors_rollback(condition_errors));
         emit_if_missing(
             committed,
             IfExpressionRole::Condition,
@@ -7160,7 +7987,9 @@ fn commit_else_arm<'parse, 'source, 'local, E, O>(
                 .with(StopKind::Else)
         });
         committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
+        let body_errors = committed.probe(|probe| probe.input().errors_checkpoint());
         if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+            committed.probe(|probe| probe.input().errors_rollback(body_errors));
             emit_if_missing(
                 committed,
                 IfExpressionRole::ElseBody,
@@ -7194,7 +8023,9 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
                     .with(StopKind::Else)
             });
             committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
+            let body_errors = committed.probe(|probe| probe.input().errors_checkpoint());
             if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+                committed.probe(|probe| probe.input().errors_rollback(body_errors));
                 if if_body_error_retry(table, role, committed) {
                     parse_direct_operator_chain(table, LeadingTrivia::None, committed)
                         .expect("a retried if body must commit its shared NUD candidate");
@@ -7640,8 +8471,10 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
+        let errors_checkpoint = i.errors_checkpoint();
         let pending = i.run(recognize_parenthesized_close).is_some();
         i.rollback(checkpoint);
+        i.errors_rollback(errors_checkpoint);
         pending
     })
 }
@@ -7794,71 +8627,6 @@ fn emit_expression_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-fn emit_fixed_tail_missing<'parse, 'source, 'local, E, O>(
-    committed: &mut Committed<'parse, 'source, 'local, E, O>,
-    expression_role: ExpressionRole,
-) where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-{
-    let record = committed.probe(|probe| {
-        let i = probe.input();
-        let at = i.pos();
-        let role = GrammarRole::Expression(expression_role);
-        CommittedRecoveryRecord::new(
-            i.local,
-            RecoverySiteKey {
-                role,
-                range: at..at,
-            },
-            RecoveryKind::Missing,
-            Arc::from([]),
-            Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Identifier,
-                range: at..at,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
-    });
-    committed.emit_missing(record);
-}
-
-fn emit_fixed_tail_error<'parse, 'source, 'local, E, O>(
-    committed: &mut Committed<'parse, 'source, 'local, E, O>,
-    expression_role: ExpressionRole,
-    range: Range<usize>,
-) where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-{
-    let role = GrammarRole::Expression(expression_role);
-    let record = committed.probe(|probe| {
-        let i = probe.input();
-        CommittedRecoveryRecord::new(
-            i.local,
-            RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            RecoveryKind::Error,
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }]),
-            Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Identifier,
-                range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
-    });
-    committed.emit_error(record);
-}
-
 fn emit_call_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     expression_role: ExpressionRole,
@@ -7964,21 +8732,21 @@ fn emit_index_missing<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
+    let spec = index_recovery_spec(expression_role, expected);
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = GrammarRole::Expression(expression_role);
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: at..at,
             },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected,
+                role: spec.role,
+                expected: spec.expected,
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8131,26 +8899,21 @@ fn emit_index_close_missing<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
+    let spec = index_close_recovery_spec();
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::IndexTail,
-            delimiter: Delimiter::Bracket,
-        };
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: at..at,
             },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
-                    Delimiter::Bracket,
-                )),
+                role: spec.role,
+                expected: spec.expected,
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8168,15 +8931,12 @@ fn emit_index_close_error<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::IndexTail,
-        delimiter: Delimiter::Bracket,
-    };
+    let spec = index_close_recovery_spec();
     let record = committed.probe(|probe| {
         CommittedRecoveryRecord::new(
             probe.input().local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: range.clone(),
             },
             RecoveryKind::Error,
@@ -8187,10 +8947,8 @@ fn emit_index_close_error<'parse, 'source, 'local, E, O>(
                 ),
             }]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
-                    Delimiter::Bracket,
-                )),
+                role: spec.role,
+                expected: spec.expected,
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8208,12 +8966,12 @@ fn emit_index_error<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = GrammarRole::Expression(expression_role);
+    let spec = index_recovery_spec(expression_role, ExpectedSyntax::Expression);
     let record = committed.probe(|probe| {
         CommittedRecoveryRecord::new(
             probe.input().local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: range.clone(),
             },
             RecoveryKind::Error,
@@ -8222,8 +8980,8 @@ fn emit_index_error<'parse, 'source, 'local, E, O>(
                 category: UnexpectedCategory::OtherCharacter,
             }]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Expression,
+                role: spec.role,
+                expected: spec.expected,
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8355,21 +9113,21 @@ fn emit_if_missing<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
+    let spec = if_recovery_spec(if_role, expected);
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = GrammarRole::IfExpression(if_role);
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: at..at,
             },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected,
+                role: spec.role,
+                expected: spec.expected,
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8426,13 +9184,13 @@ fn emit_if_error<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = GrammarRole::IfExpression(if_role);
+    let spec = if_recovery_spec(if_role, ExpectedSyntax::Expression);
     let record = committed.probe(|probe| {
         let i = probe.input();
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: range.clone(),
             },
             RecoveryKind::Error,
@@ -8441,8 +9199,8 @@ fn emit_if_error<'parse, 'source, 'local, E, O>(
                 category: UnexpectedCategory::OtherCharacter,
             }]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Expression,
+                role: spec.role,
+                expected: spec.expected,
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8588,21 +9346,21 @@ fn emit_statement_sequence_missing<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
+    let spec = statement_sequence_recovery_spec(policy);
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = statement_sequence_statement_role(policy);
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: at..at,
             },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Statement,
+                role: spec.role,
+                expected: spec.expected,
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8620,13 +9378,13 @@ fn emit_statement_sequence_error<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = statement_sequence_statement_role(policy);
+    let spec = statement_sequence_recovery_spec(policy);
     let record = committed.probe(|probe| {
         let i = probe.input();
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
-                role,
+                role: spec.role,
                 range: range.clone(),
             },
             RecoveryKind::Error,
@@ -8635,8 +9393,8 @@ fn emit_statement_sequence_error<'parse, 'source, 'local, E, O>(
                 category: UnexpectedCategory::OtherCharacter,
             }]),
             Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Statement,
+                role: spec.role,
+                expected: spec.expected,
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -8658,6 +9416,13 @@ fn statement_sequence_statement_role(policy: StatementSequencePolicy) -> Grammar
         StatementSequencePolicy::BracedPrimary => {
             GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement)
         }
+    }
+}
+
+fn statement_sequence_recovery_spec(policy: StatementSequencePolicy) -> RecoverySiteSpec {
+    RecoverySiteSpec {
+        role: statement_sequence_statement_role(policy),
+        expected: ExpectedSyntax::Statement,
     }
 }
 
@@ -9074,7 +9839,11 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use super::*;
-    use chasa::{input::IsCut, prelude::In};
+    use chasa::{
+        error::std::{Expected, StdErr, StdSummary},
+        input::IsCut,
+        prelude::In,
+    };
 
     use crate::{
         SyntaxKind, SyntaxNode,
@@ -9082,7 +9851,8 @@ mod tests {
         operator::{BindingPower, OperatorDeclaration, OperatorFixities},
         session::{
             AmbientOwnerScopeKind, BracedBarrierOrigin, CommittedRecoveryRecord, FullCstOutput,
-            ModRole, ParseLocal, Probe, any_ambient_owner_claims, if_continuation_owner,
+            ModRole, ParseLocal, Probe, PunctuationEvidence, any_ambient_owner_claims,
+            if_continuation_owner,
         },
     };
 
@@ -9849,7 +10619,56 @@ mod tests {
                 ),
                 "{source:?}: {recoveries:?}"
             );
+            let [record] = recoveries.as_slice() else {
+                unreachable!("the exact recovery cardinality is asserted above")
+            };
+            assert_eq!(
+                record.expectations[record.primary_expectation].expected,
+                ExpectedSyntax::Identifier,
+                "primary expectation: {source:?}",
+            );
         }
+
+        let source = "x:: $name";
+        let chain = parse(source, &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(PathTail {
+                    separator,
+                    segment: Recovered::Complete(PathSegment::SigilIdentifier(name)),
+                    range,
+                })),
+            ] if *separator == (1..3) && name.range() == (4..9) && *range == (1..9)
+        ));
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert!(recoveries.is_empty());
+        assert_eq!(root.to_string(), source);
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PathTail)
+            .expect("one complete PathTail");
+        assert_eq!(
+            usize::from(tail.text_range().start())..usize::from(tail.text_range().end()),
+            1..9,
+        );
+        assert_eq!(
+            tail.children_with_tokens()
+                .map(|element| {
+                    (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::ColonColon, 1..3),
+                (SyntaxKind::Whitespace, 3..4),
+                (SyntaxKind::SigilIdentifier, 4..9),
+            ],
+        );
 
         for source in ["x..", "x..."] {
             assert!(fixed_tail_after_identifier(source).is_none(), "{source:?}");
@@ -9945,6 +10764,415 @@ mod tests {
                 "{source:?}"
             );
         }
+    }
+
+    #[test]
+    fn call_argument_interior_extraction_preserves_ordinary_wrappers() {
+        for source in ["f()", "f(,a)", "f(@ a)", "f(a", "f((a),b)"] {
+            let chain = parse(source, &canonical_operator_table());
+            assert!(
+                chain.items().iter().any(|item| matches!(
+                    item,
+                    OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(_))
+                )),
+                "AST CallTail: {source:?}"
+            );
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(
+                root.to_string(),
+                source,
+                "lossless direct CallTail: {source:?}"
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::CallTail)
+                    .count(),
+                1,
+                "single ordinary wrapper: {source:?}"
+            );
+            assert!(
+                recoveries
+                    .iter()
+                    .all(|record| !matches!(record.site.role, GrammarRole::Yumark(_))),
+                "ordinary calls cannot acquire Yumark recovery: {source:?}"
+            );
+        }
+
+        for (source, recovery, children) in [
+            (
+                "f(,a)",
+                Some((RecoveryKind::Missing, 2..2)),
+                vec![
+                    SyntaxKind::LParen,
+                    SyntaxKind::Missing,
+                    SyntaxKind::Comma,
+                    SyntaxKind::OperatorChain,
+                    SyntaxKind::RParen,
+                ],
+            ),
+            (
+                "f(@ a)",
+                Some((RecoveryKind::Error, 2..4)),
+                vec![
+                    SyntaxKind::LParen,
+                    SyntaxKind::Error,
+                    SyntaxKind::OperatorChain,
+                    SyntaxKind::RParen,
+                ],
+            ),
+            (
+                "f(a)",
+                None,
+                vec![
+                    SyntaxKind::LParen,
+                    SyntaxKind::OperatorChain,
+                    SyntaxKind::RParen,
+                ],
+            ),
+        ] {
+            let table = canonical_operator_table();
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let local_before = local.value_snapshot();
+            let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+            <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+                &mut expectations,
+                2..2,
+                StdErr::Expected(Expected::new(71, "preseeded-call-argument", ())),
+            );
+            let sink_before = format!("{expectations:?}");
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let chain = i
+                .run(from_fn(|i| parse_expression_with_operators(&table, i)))
+                .expect("ordinary AST call");
+            assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+            assert_eq!(
+                i.local.value_snapshot(),
+                local_before,
+                "AST local: {source:?}"
+            );
+            let call = chain.items().iter().find_map(|item| match item {
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(call)) => Some(call),
+                _ => None,
+            });
+            let call = call.expect("ordinary AST CallTail");
+            match recovery {
+                Some((RecoveryKind::Missing, ref range)) => assert!(matches!(
+                    call.arguments.as_slice(),
+                    [OperatorChain { items, .. }, _]
+                        if matches!(items.as_slice(), [OperatorChainItem::MissingOperand { range: actual }] if actual == range)
+                )),
+                Some((RecoveryKind::Error, ref range)) => assert!(matches!(
+                    call.arguments.as_slice(),
+                    [OperatorChain { items, .. }, _]
+                        if matches!(items.as_slice(), [OperatorChainItem::Error { range: actual }] if actual == range)
+                )),
+                None => assert_eq!(call.arguments.len(), 1),
+                Some(_) => unreachable!(),
+            }
+            drop(i);
+            assert_eq!(
+                format!("{expectations:?}"),
+                sink_before,
+                "AST sink: {source:?}"
+            );
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let local_before = local.value_snapshot();
+            let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+            <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+                &mut expectations,
+                2..2,
+                StdErr::Expected(Expected::new(71, "preseeded-call-argument", ())),
+            );
+            let sink_before = format!("{expectations:?}");
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+                .expect("ordinary direct call");
+            let (remainder, local_after) = committed.probe(|probe| {
+                (
+                    probe.input().input.remainder().to_owned(),
+                    probe.input().local.value_snapshot(),
+                )
+            });
+            committed.finish_node();
+            let output = committed.into_output();
+            assert_eq!(remainder, "", "direct remainder: {source:?}");
+            let recoveries = output.committed_recoveries();
+            match recovery {
+                Some((kind, ref range)) => {
+                    assert_eq!(recoveries.len(), 1, "direct recovery count: {source:?}");
+                    assert_eq!(recoveries[0].kind, kind, "direct kind: {source:?}");
+                    assert_eq!(recoveries[0].site.range, *range, "direct range: {source:?}");
+                    assert_eq!(
+                        recoveries[0].site.role,
+                        GrammarRole::Expression(ExpressionRole::CallArgument),
+                        "direct role: {source:?}",
+                    );
+                }
+                None => assert!(recoveries.is_empty(), "direct recovery: {source:?}"),
+            }
+            let mut expected_local = local_before;
+            expected_local.next_diagnostic_id += recoveries.len() as u32;
+            assert_eq!(local_after, expected_local, "direct local: {source:?}");
+            let root = SyntaxNode::new_root(output.finish_prefix());
+            assert_eq!(root.to_string(), source, "direct lossless: {source:?}");
+            let call = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::CallTail)
+                .expect("ordinary direct CallTail");
+            assert_eq!(
+                call.children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                children,
+                "direct CallTail topology: {source:?}",
+            );
+            assert_eq!(
+                format!("{expectations:?}"),
+                sink_before,
+                "direct sink: {source:?}"
+            );
+        }
+
+        for source in [
+            "if condition: f(x else: 0",
+            "if f(x else: 0",
+            "if x:\n  f(1\nelse: 0",
+        ] {
+            let chain = parse(source, &canonical_operator_table());
+            assert!(matches!(
+                chain.items(),
+                [OperatorChainItem::Primary(PrimaryExpression::If(_))]
+            ));
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "ambient preservation: {source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::CallTail)
+                    .count(),
+                1,
+                "ambient CallTail: {source:?}",
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                    .count(),
+                1,
+                "ambient else owner: {source:?}",
+            );
+            assert!(
+                recoveries
+                    .iter()
+                    .all(|record| { !matches!(record.site.role, GrammarRole::Yumark(_)) })
+            );
+        }
+    }
+
+    #[test]
+    fn index_mandatory_operand_rejection_restores_error_sink() {
+        let source = "x[,a]";
+        let table = canonical_operator_table();
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let local_before = local.value_snapshot();
+        let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+        <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+            &mut expectations,
+            2..2,
+            StdErr::Expected(Expected::new(73, "preseeded-index-item", ())),
+        );
+        let sink_before = format!("{expectations:?}");
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let chain = i
+            .run(from_fn(|i| parse_expression_with_operators(&table, i)))
+            .expect("ordinary AST index");
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.value_snapshot(), local_before);
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(IndexTail { items, close: Recovered::Complete(close), .. })),
+            ] if matches!(items.as_slice(), [OperatorChain { items: missing, .. }, _]
+                if matches!(missing.as_slice(), [OperatorChainItem::MissingOperand { range }] if *range == (2..2)))
+                && *close == (4..5)
+        ));
+        drop(i);
+        assert_eq!(format!("{expectations:?}"), sink_before);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+        <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+            &mut expectations,
+            2..2,
+            StdErr::Expected(Expected::new(73, "preseeded-index-item", ())),
+        );
+        let sink_before = format!("{expectations:?}");
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+            .expect("ordinary direct index");
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(matches!(
+            output.committed_recoveries(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                if site.role == GrammarRole::Expression(ExpressionRole::IndexItem)
+                    && site.range == (2..2)
+        ));
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(root.to_string(), source);
+        let index = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndexTail)
+            .expect("ordinary direct IndexTail");
+        assert_eq!(
+            index
+                .children_with_tokens()
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::LBracket,
+                SyntaxKind::Missing,
+                SyntaxKind::Comma,
+                SyntaxKind::OperatorChain,
+                SyntaxKind::RBracket,
+            ],
+        );
+        assert_eq!(format!("{expectations:?}"), sink_before);
+    }
+
+    #[test]
+    fn if_and_braced_mandatory_rejections_restore_error_sink() {
+        let table = canonical_operator_table();
+        let source = "if : x";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let local_before = local.value_snapshot();
+        let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+        <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+            &mut expectations,
+            3..3,
+            StdErr::Expected(Expected::new(79, "preseeded-if-condition", ())),
+        );
+        let sink_before = format!("{expectations:?}");
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let chain = i
+            .run(from_fn(|i| parse_expression_with_operators(&table, i)))
+            .expect("ordinary AST if expression");
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.value_snapshot(), local_before);
+        assert!(matches!(
+            chain.items(),
+            [OperatorChainItem::Primary(PrimaryExpression::If(IfExpression { arms, .. }))]
+                if matches!(arms.as_slice(), [IfArm {
+                    condition: Recovered::Incomplete,
+                    body: Recovered::Complete(_),
+                    ..
+                }])
+        ));
+        drop(i);
+        assert_eq!(format!("{expectations:?}"), sink_before);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+        <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+            &mut expectations,
+            3..3,
+            StdErr::Expected(Expected::new(79, "preseeded-if-condition", ())),
+        );
+        let sink_before = format!("{expectations:?}");
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+            .expect("ordinary direct if expression");
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(matches!(
+            output.committed_recoveries(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                if site.role == GrammarRole::IfExpression(IfExpressionRole::Condition)
+                    && site.range == (3..3)
+        ));
+        assert_eq!(SyntaxNode::new_root(output.finish_prefix()).to_string(), source);
+        assert_eq!(format!("{expectations:?}"), sink_before);
+
+        let source = "{@ value}";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+        <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+            &mut expectations,
+            1..1,
+            StdErr::Expected(Expected::new(83, "preseeded-braced-statement", ())),
+        );
+        let sink_before = format!("{expectations:?}");
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+            .expect("ordinary direct braced expression");
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(matches!(
+            output.committed_recoveries(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+                if site.role
+                    == GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement)
+                    && site.range == (1..3)
+        ));
+        assert_eq!(SyntaxNode::new_root(output.finish_prefix()).to_string(), source);
+        assert_eq!(format!("{expectations:?}"), sink_before);
     }
 
     #[test]
@@ -11758,6 +12986,82 @@ mod tests {
         assert_eq!(tokens, source);
         assert_eq!(root.to_string(), source);
         assert_eq!(root.kind(), SyntaxKind::Root);
+    }
+
+    #[test]
+    fn direct_expression_nud_candidate_rejection_restores_full_transaction() {
+        let table = canonical_operator_table();
+        let mut source_input = SourceInput::new("]");
+        let mut local = ParseLocal::new();
+        let local_before = local.value_snapshot();
+        let mut expectations: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+        <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+            &mut expectations,
+            8..9,
+            StdErr::Expected(Expected::new(41, "preseeded-direct-candidate", ())),
+        );
+        let sink_before = format!("{expectations:?}");
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut probe = Probe::new(i);
+
+        assert!(!direct_expression_nud_candidate(
+            &table,
+            LeadingTrivia::None,
+            &mut probe,
+        ));
+        assert_eq!(probe.input().pos(), 0);
+        assert_eq!(probe.input().input.remainder(), "]");
+        assert_eq!(probe.input().local.value_snapshot(), local_before);
+        drop(probe);
+        assert_eq!(format!("{expectations:?}"), sink_before);
+        assert_eq!(
+            expectations.take_merged(),
+            Some(StdSummary {
+                unexpected: None,
+                expected: vec![Expected::new(41, "preseeded-direct-candidate", ())],
+            })
+        );
+        assert!(!is_cut);
+
+        let source = "f(1 ] 2)";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+            .expect("ordinary call remains a direct expression");
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+        committed.finish_node();
+        let output = committed.into_output();
+        let recoveries = output
+            .committed_recoveries()
+            .iter()
+            .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(remainder, "");
+        assert_eq!(output.finish_prefix().to_string(), source);
+        assert_eq!(
+            recoveries,
+            vec![
+                (RecoveryKind::Error, call_close_role(), 4..5,),
+                (RecoveryKind::Error, call_close_role(), 5..7,),
+            ]
+        );
+        assert!(expectations.take_merged().is_none());
     }
 
     #[test]
@@ -13959,6 +15263,253 @@ mod tests {
             };
             assert_eq!(arms.arms.len(), 2, "{source:?}");
         }
+    }
+
+    #[test]
+    fn gate3b_ordinary_primary_control_expression_projection_and_case() {
+        fn assert_record(
+            source: &str,
+            records: &[CommittedRecoveryRecord],
+            index: usize,
+            kind: RecoveryKind,
+            role: GrammarRole,
+            range: Range<usize>,
+            expected: ExpectedSyntax,
+        ) {
+            let record = &records[index];
+            assert_eq!(record.kind, kind, "kind: {source:?} record {index}");
+            assert_eq!(record.site.role, role, "role: {source:?} record {index}");
+            assert_eq!(record.site.range, range, "range: {source:?} record {index}");
+            assert_eq!(
+                record.expectations[record.primary_expectation].expected,
+                expected,
+                "primary expectation: {source:?} record {index}",
+            );
+        }
+
+        for (source, role, kind, range) in [
+            (
+                "a.(,x)",
+                ExpressionRole::ProjectionTupleItem,
+                RecoveryKind::Missing,
+                3..3,
+            ),
+            (
+                "a.(@x)",
+                ExpressionRole::ProjectionTupleItem,
+                RecoveryKind::Error,
+                3..4,
+            ),
+            (
+                "a.{,x}",
+                ExpressionRole::ProjectionRecordItem,
+                RecoveryKind::Missing,
+                3..3,
+            ),
+            (
+                "a.{..}",
+                ExpressionRole::ProjectionRecordSpreadRhs,
+                RecoveryKind::Missing,
+                5..5,
+            ),
+        ] {
+            let (_, records) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(records.len(), 1, "record count: {source:?}");
+            assert_record(
+                source,
+                &records,
+                0,
+                kind,
+                GrammarRole::Expression(role),
+                range,
+                ExpectedSyntax::Expression,
+            );
+        }
+
+        for (source, owner, delimiter, error_range, missing_range) in [
+            (
+                "a.(x]",
+                ConstructRole::ProjectionTupleTail,
+                Delimiter::Parenthesis,
+                4..5,
+                5..5,
+            ),
+            (
+                "a.{x)",
+                ConstructRole::ProjectionRecordTail,
+                Delimiter::Brace,
+                4..5,
+                5..5,
+            ),
+        ] {
+            let (_, records) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(records.len(), 2, "record count: {source:?}");
+            let role = GrammarRole::ClosingDelimiter { owner, delimiter };
+            let expected = ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter));
+            assert_record(
+                source,
+                &records,
+                0,
+                RecoveryKind::Error,
+                role,
+                error_range,
+                expected,
+            );
+            assert_record(
+                source,
+                &records,
+                1,
+                RecoveryKind::Missing,
+                role,
+                missing_range,
+                expected,
+            );
+        }
+
+        for (source, role, range, expected) in [
+            (
+                "case : 1 -> a",
+                CaseLikeRole::Scrutinee,
+                5..5,
+                ExpectedSyntax::Expression,
+            ),
+            (
+                "case x",
+                CaseLikeRole::Block,
+                6..6,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            ),
+            (
+                "case x: -> a",
+                CaseLikeRole::Pattern,
+                8..8,
+                ExpectedSyntax::Pattern,
+            ),
+            (
+                "catch action: err, -> recover",
+                CaseLikeRole::Handler,
+                19..19,
+                ExpectedSyntax::Pattern,
+            ),
+            (
+                "case x: n if -> yes",
+                CaseLikeRole::Guard,
+                13..13,
+                ExpectedSyntax::Expression,
+            ),
+            (
+                "case x: n",
+                CaseLikeRole::Arrow,
+                9..9,
+                ExpectedSyntax::Expression,
+            ),
+            (
+                "case x: n ->",
+                CaseLikeRole::Body,
+                12..12,
+                ExpectedSyntax::Expression,
+            ),
+        ] {
+            let (_, records) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(records.len(), 1, "record count: {source:?}");
+            assert_record(
+                source,
+                &records,
+                0,
+                RecoveryKind::Missing,
+                GrammarRole::CaseLike(role),
+                range,
+                expected,
+            );
+        }
+
+        for (source, range) in [
+            ("case x: @ -> a", 8..10),
+            ("catch action: err, @ -> recover", 19..21),
+        ] {
+            let (_, records) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(records.len(), 1, "record count: {source:?}");
+            assert_record(
+                source,
+                &records,
+                0,
+                RecoveryKind::Error,
+                GrammarRole::Pattern(crate::session::PatternRole::Primary),
+                range,
+                ExpectedSyntax::Pattern,
+            );
+        }
+
+        let source = "catch action { err -> recover";
+        let (_, records) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(records.len(), 1, "record count: {source:?}");
+        assert_record(
+            source,
+            &records,
+            0,
+            RecoveryKind::Missing,
+            GrammarRole::CaseLike(CaseLikeRole::Block),
+            29..29,
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+        );
+
+        let source = "case x: n @, _ -> b";
+        let (_, records) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(records.len(), 2, "record count: {source:?}");
+        for (index, kind, range) in [
+            (0, RecoveryKind::Missing, 10..10),
+            (1, RecoveryKind::Error, 10..11),
+        ] {
+            assert_record(
+                source,
+                &records,
+                index,
+                kind,
+                GrammarRole::CaseLike(CaseLikeRole::Arrow),
+                range,
+                ExpectedSyntax::Expression,
+            );
+        }
+
+        let source = "case x: 1 -> a 2 -> b";
+        let (_, records) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(records.len(), 1, "record count: {source:?}");
+        assert_record(
+            source,
+            &records,
+            0,
+            RecoveryKind::Missing,
+            GrammarRole::CaseLike(CaseLikeRole::Separator),
+            15..15,
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Comma),
+        );
+
+        let source = "my value = case x:\nnext";
+        let output = crate::grammar::declaration::parse_direct_root_candidate(
+            source,
+            &canonical_operator_table(),
+            &[],
+        );
+        let records = output.committed_recoveries();
+        assert_eq!(records.len(), 2, "record count: {source:?}");
+        assert_record(
+            source,
+            records,
+            0,
+            RecoveryKind::Missing,
+            GrammarRole::CaseLike(CaseLikeRole::Arm),
+            18..18,
+            ExpectedSyntax::Pattern,
+        );
+        assert_record(
+            source,
+            records,
+            1,
+            RecoveryKind::Error,
+            GrammarRole::Statement(crate::session::StatementRole::Starter),
+            19..23,
+            ExpectedSyntax::Keyword(crate::session::KeywordEvidence::Use),
+        );
     }
 
     fn direct_token_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {

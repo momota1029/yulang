@@ -140,6 +140,229 @@ fn error_gate_6_worked_examples_are_lossless_and_ast_direct_parity() {
 }
 
 #[test]
+fn gate3b_derives_via_target_episode_companion_handoff_and_rollback() {
+    let source = "derives Eq via @ with:";
+    let mut ast_input = SourceInput::new(source);
+    let mut ast_local = ParseLocal::new();
+    let mut ast_sink = chasa::LatestSink::new();
+    let mut ast_cut = false;
+    let (ast, ast_remainder) = {
+        let mut i = In::new(
+            &mut ast_input,
+            &mut ast_sink,
+            IsCut::new(&mut ast_cut),
+        )
+        .set_local(&mut ast_local);
+        let start = recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+            &mut i,
+        )
+        .expect("companion-aware derives start");
+        let parsed = parse_derives_attachments_with_companion_handoff_isolated(start, &mut i);
+        (parsed, i.input.remainder().to_owned())
+    };
+    assert_eq!(ast_remainder, " with:");
+    assert!(ast.tail.is_some());
+    assert!(matches!(
+        ast.attachments[0].clause.via.as_ref().map(|via| &via.target),
+        Some(Recovered::Incomplete)
+    ));
+    let ast_snapshot = ast_local.value_snapshot();
+    assert!(ast_sink.take_merged().is_none());
+    assert!(!ast_cut);
+
+    let mut direct_input = SourceInput::new(source);
+    let mut direct_local = ParseLocal::new();
+    let mut direct_sink = chasa::LatestSink::new();
+    let mut direct_cut = false;
+    let i = In::new(
+        &mut direct_input,
+        &mut direct_sink,
+        IsCut::new(&mut direct_cut),
+    )
+    .set_local(&mut direct_local);
+    let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+    committed.start_node(SyntaxKind::Root);
+    let start = committed
+        .probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Type,
+                DerivesAttachmentPosition::Header,
+                0,
+                probe.input(),
+            )
+        })
+        .expect("companion-aware direct derives start");
+    let direct =
+        commit_derives_attachments_with_companion_handoff_isolated(start, &mut committed);
+    let direct_remainder = committed
+        .probe(|probe| probe.input().input.remainder().to_owned());
+    committed.finish_node();
+    let output = committed.into_output();
+    assert_eq!(direct_remainder, " with:");
+    assert!(direct.tail.is_some());
+    assert!(matches!(
+        direct.attachments[0]
+            .clause
+            .via
+            .as_ref()
+            .map(|via| &via.target),
+        Some(Recovered::Incomplete)
+    ));
+    let [record] = output.committed_recoveries() else {
+        panic!("one companion ViaTarget recovery");
+    };
+    assert_eq!(
+        (
+            record.site.role,
+            record.site.range.clone(),
+            record.kind,
+            record.expectations[record.primary_expectation].expected,
+        ),
+        (
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget)),
+            15..16,
+            RecoveryKind::Error,
+            ExpectedSyntax::Identifier,
+        ),
+    );
+    let mut expected_direct_snapshot = ast_snapshot;
+    expected_direct_snapshot.next_diagnostic_id += 1;
+    assert_eq!(direct_local.value_snapshot(), expected_direct_snapshot);
+    assert!(direct_sink.take_merged().is_none());
+    assert!(!direct_cut);
+    let root = SyntaxNode::new_root(output.finish_prefix());
+    assert_eq!(root.to_string(), "derives Eq via @");
+    let recovery = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("companion ViaTarget Error node");
+    assert_eq!(recovery.parent().map(|parent| parent.kind()), Some(SyntaxKind::DerivesClause));
+
+    let source = "derives Eq via @ key";
+    let mut input = SourceInput::new(source);
+    let mut local = ParseLocal::new();
+    let floor = local.push_yumark_delimiter(Delimiter::Parenthesis);
+    local.push_yumark_frame(crate::session::YumarkFrame::EmbeddedYulang {
+        owner: crate::session::YumarkOwner::InlineReference,
+        outer_kind: crate::session::YumarkEmbeddedOuterKind::Paired(Delimiter::Parenthesis),
+        delimiter_floor: floor,
+    });
+    let retained_fact = crate::session::YumarkEmbeddedRecoveryFact {
+        spec: crate::session::RecoverySiteSpec {
+            role: GrammarRole::Declaration(DeclarationRole::Derives(
+                DerivesRole::RoleReference,
+            )),
+            expected: ExpectedSyntax::TypeExpression,
+        },
+        range: 0..0,
+        kind: RecoveryKind::Missing,
+        unexpected: None,
+    };
+    local.record_yumark_embedded_recovery(retained_fact.clone());
+    let local_before = local.value_snapshot();
+    let mut sink: chasa::LatestSink<usize, chasa::error::std::StdErr<char>> =
+        chasa::LatestSink::new();
+    <chasa::LatestSink<usize, chasa::error::std::StdErr<char>> as ErrorSink<usize>>::push(
+        &mut sink,
+        4..5,
+        chasa::error::std::StdErr::Expected(chasa::error::std::Expected::new(
+            81,
+            "preseeded-derives-via",
+            (),
+        )),
+    );
+    let sink_before = format!("{sink:?}");
+    let mut cut = false;
+    let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+    let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+    committed.start_node(SyntaxKind::Root);
+    let (attachments, facts) = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let errors_checkpoint = i.errors_checkpoint();
+        let attachments = recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+            i,
+        )
+        .map(|start| parse_derives_attachments_isolated(start, i));
+        let facts = i.local.drain_yumark_embedded_recoveries();
+        i.rollback(checkpoint);
+        i.errors_rollback(errors_checkpoint);
+        (attachments, facts)
+    });
+    let attachments = attachments.expect("accepted derives attachment candidate");
+    let [attachment] = attachments.as_slice() else {
+        panic!("one actual derives attachment clause");
+    };
+    let via = attachment.clause.via.as_ref().expect("one actual via clause");
+    assert!(
+        matches!(&via.target, Recovered::Complete(target)
+            if target.text() == "key" && target.range() == (17..20)),
+        "ViaTarget recovery retries the real AST slot",
+    );
+    let [retained_before_rollback, actual] = facts.as_slice() else {
+        panic!("preseeded and actual ViaTarget facts");
+    };
+    assert_eq!(retained_before_rollback, &retained_fact);
+    assert_eq!(
+        (
+            actual.spec.role,
+            actual.spec.expected,
+            actual.range.clone(),
+            actual.kind,
+            actual.unexpected,
+        ),
+        (
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget)),
+            ExpectedSyntax::Identifier,
+            15..17,
+            RecoveryKind::Error,
+            Some(crate::session::UnexpectedCategory::OtherCharacter),
+        ),
+    );
+    let (position, remainder, local_after, retained) = committed.probe(|probe| {
+        let i = probe.input();
+        (
+            i.pos(),
+            i.input.remainder().to_owned(),
+            i.local.value_snapshot(),
+            i.local.drain_yumark_embedded_recoveries(),
+        )
+    });
+    committed.finish_node();
+    let output = committed.into_output();
+    assert_eq!(position, 0);
+    assert_eq!(remainder, source);
+    assert_eq!(local_after, local_before);
+    assert_eq!(retained, vec![retained_fact]);
+    assert!(output.committed_recoveries().is_empty());
+    assert_eq!(SyntaxNode::new_root(output.finish_prefix()).to_string(), "");
+    assert_eq!(format!("{sink:?}"), sink_before);
+    assert_eq!(
+        sink.take_merged(),
+        Some(chasa::error::std::StdSummary {
+            unexpected: None,
+            expected: vec![chasa::error::std::Expected::new(
+                81,
+                "preseeded-derives-via",
+                (),
+            )],
+        }),
+    );
+    assert!(!cut);
+    assert!(matches!(
+        local.pop_yumark_frame(),
+        Some(crate::session::YumarkFrame::EmbeddedYulang { .. })
+    ));
+    local.pop_yumark_delimiter(floor, Delimiter::Parenthesis);
+}
+
+#[test]
 fn error_gate_7_recovery_matrix_uses_error_outer_roles() {
     type Recovery = (RecoveryKind, GrammarRole, Range<usize>);
 
@@ -33532,7 +33755,7 @@ fn gate5_typed_companion_handoffs_are_isolated_and_state_neutral() {
         ("derives @ with:", false, true, " with:", 1),
         ("derives @with:", true, false, ":", 1),
         ("derives (with) with:", true, true, " with:", 0),
-        ("derives Eq via with:", true, false, ":", 0),
+        ("derives Eq via with:", true, true, " with:", 1),
         ("derives Eq via backend with:", true, true, " with:", 0),
     ] {
         let mut source_input = SourceInput::new(source);
@@ -33566,7 +33789,7 @@ fn gate5_typed_companion_handoffs_are_isolated_and_state_neutral() {
         if source == "derives Eq via with:" {
             assert!(matches!(
                 parsed.attachments[0].clause.via.as_ref().unwrap().target,
-                Recovered::Complete(ref target) if target.text() == "with"
+                Recovered::Incomplete
             ));
         }
 
@@ -36474,6 +36697,1041 @@ fn gate10_declaration_companion_public_scope_matrix() {
         assert_eq!(
             SyntaxNode::new_root(direct.green().clone()).to_string(),
             source
+        );
+    }
+}
+#[test]
+fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
+    fn assert_record(
+        source: &str,
+        kind: RecoveryKind,
+        role: GrammarRole,
+        range: Range<usize>,
+        expected: ExpectedSyntax,
+    ) {
+        let output = parse_direct_root_candidate(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        let record = output
+            .committed_recoveries()
+            .iter()
+            .find(|record| {
+                record.kind == kind && record.site.role == role && record.site.range == range
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing ordinary recovery tuple for {source:?}: {:#?}",
+                    output.committed_recoveries()
+                )
+            });
+        assert_eq!(
+            record.expectations[record.primary_expectation].expected,
+            expected,
+            "primary expectation: {source:?} {role:?}",
+        );
+    }
+
+    let close = |owner, delimiter| GrammarRole::ClosingDelimiter { owner, delimiter };
+    let mod_role = |role| GrammarRole::Declaration(DeclarationRole::Mod(role));
+    let struct_role = |role| GrammarRole::Declaration(DeclarationRole::Struct(role));
+    let type_role = |role| GrammarRole::Declaration(DeclarationRole::Type(role));
+    let role_role = |role| GrammarRole::Declaration(DeclarationRole::Role(role));
+    let impl_role = |role| GrammarRole::Declaration(DeclarationRole::Impl(role));
+    let cast_role = |role| GrammarRole::Declaration(DeclarationRole::Cast(role));
+    let act_role = |role| GrammarRole::Declaration(DeclarationRole::Act(role));
+
+    for (source, kind, role, range, expected) in [
+        ("mod", RecoveryKind::Missing, mod_role(ModRole::Name), 3..3, ExpectedSyntax::Identifier),
+        ("mod test", RecoveryKind::Missing, mod_role(ModRole::TestName), 8..8, ExpectedSyntax::Identifier),
+        (
+            "mod outer",
+            RecoveryKind::Missing,
+            mod_role(ModRole::BodyIntroducer),
+            9..9,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        ),
+        ("mod outer:", RecoveryKind::Missing, mod_role(ModRole::Body), 10..10, ExpectedSyntax::Statement),
+        (
+            "mod outer:\n  ",
+            RecoveryKind::Missing,
+            mod_role(ModRole::IndentedStatement),
+            13..13,
+            ExpectedSyntax::Statement,
+        ),
+        ("struct", RecoveryKind::Missing, struct_role(crate::session::StructRole::Name), 6..6, ExpectedSyntax::Identifier),
+        (
+            "struct S",
+            RecoveryKind::Missing,
+            struct_role(crate::session::StructRole::BodyIntroducer),
+            8..8,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        ),
+        (
+            "struct S { x: Int,",
+            RecoveryKind::Missing,
+            struct_role(crate::session::StructRole::Field),
+            18..18,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "struct S { @: Int }",
+            RecoveryKind::Error,
+            struct_role(crate::session::StructRole::FieldName),
+            11..12,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "struct S { x Int, y: Bool }",
+            RecoveryKind::Missing,
+            struct_role(crate::session::StructRole::FieldColon),
+            13..13,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "struct S:\n  x:\n  y: Bool",
+            RecoveryKind::Missing,
+            struct_role(crate::session::StructRole::FieldType),
+            14..14,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "struct S { x: Int; y: Bool }",
+            RecoveryKind::Error,
+            struct_role(crate::session::StructRole::FieldSeparator),
+            17..18,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        ),
+        (
+            "struct S { x: F y: Y }",
+            RecoveryKind::Missing,
+            struct_role(crate::session::StructRole::FieldSeparator),
+            16..16,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        ),
+        (
+            "struct S { x: Int,",
+            RecoveryKind::Missing,
+            close(ConstructRole::StructNamedFields, Delimiter::Brace),
+            18..18,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)),
+        ),
+        (
+            "struct Pair(Int,",
+            RecoveryKind::Missing,
+            close(ConstructRole::StructTupleFields, Delimiter::Parenthesis),
+            16..16,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis)),
+        ),
+    ] {
+        assert_record(source, kind, role, range, expected);
+    }
+
+    fn assert_exact_variant_stream(
+        source: &str,
+        expected: &[(RecoveryKind, GrammarRole, Range<usize>, ExpectedSyntax)],
+    ) -> SyntaxNode {
+        let output = parse_direct_root_candidate(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        let records = output.committed_recoveries();
+        assert_eq!(records.len(), expected.len(), "record count: {source:?}");
+        for (record, (kind, role, range, primary)) in records.iter().zip(expected) {
+            assert_eq!(record.kind, *kind, "kind: {source:?}");
+            assert_eq!(record.site.role, *role, "role: {source:?}");
+            assert_eq!(record.site.range, *range, "range: {source:?}");
+            assert_eq!(
+                record.expectations[record.primary_expectation].expected,
+                *primary,
+                "primary: {source:?}",
+            );
+        }
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source, "lossless direct CST: {source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .count(),
+            expected.len(),
+            "generic recovery topology: {source:?}",
+        );
+        root
+    }
+
+    for (source, kind, role, range, expected) in [
+        ("enum E { Named { : Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldName), 18..18, ExpectedSyntax::Identifier),
+        ("enum E { Named { field Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldColon), 23..23, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
+        ("enum E { Named { field: }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldType), 24..24, ExpectedSyntax::TypeExpression),
+        ("enum E { Named { a: A b: B }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldSeparator), 22..22, ExpectedSyntax::DelimitedSequenceSeparator),
+        ("error E { Named { : Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldName), 19..19, ExpectedSyntax::Identifier),
+        ("error E { Named { field Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldColon), 24..24, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
+        ("error E { Named { field: }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldType), 25..25, ExpectedSyntax::TypeExpression),
+        ("error E { Named { a: A b: B }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldSeparator), 23..23, ExpectedSyntax::DelimitedSequenceSeparator),
+    ] {
+        let root = assert_exact_variant_stream(
+            source,
+            &[(kind, role, range, expected)],
+        );
+        if matches!(
+            role,
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldSeparator,
+            ))) | GrammarRole::Declaration(DeclarationRole::Error(
+                ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator),
+            ))
+        ) {
+            let named_payload = root
+                .descendants()
+                .find(|node| {
+                    node.kind() == SyntaxKind::EnumVariant
+                        && node
+                            .children()
+                            .any(|child| child.kind() == SyntaxKind::StructField)
+                })
+                .expect("named payload CST");
+            assert_eq!(
+                named_payload
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::StructField)
+                    .count(),
+                2,
+                "two direct named fields: {source:?}",
+            );
+            let offset = usize::from(source.starts_with("error"));
+            assert_eq!(
+                named_payload
+                    .children()
+                    .filter(|node| {
+                        matches!(node.kind(), SyntaxKind::StructField | SyntaxKind::Missing)
+                    })
+                    .map(|node| (node.kind(), syntax_range(node.text_range())))
+                    .collect::<Vec<_>>(),
+                vec![
+                    (SyntaxKind::StructField, 17 + offset..21 + offset),
+                    (SyntaxKind::Missing, 22 + offset..22 + offset),
+                    (SyntaxKind::StructField, 22 + offset..26 + offset),
+                ],
+                "ordered V3 named-payload topology: {source:?}",
+            );
+            assert!(
+                named_payload
+                    .children_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| {
+                        token.kind() == SyntaxKind::Whitespace
+                            && token.text() == " "
+                            && syntax_range(token.text_range())
+                                == (21 + offset..22 + offset)
+                    }),
+                "the original inter-field trivia remains between V3 fields: {source:?}",
+            );
+            assert!(named_payload.children_with_tokens().any(
+                |element| element.kind() == SyntaxKind::RBrace
+            ));
+        }
+    }
+
+    fn assert_two_complete_named_fields(source: &str, body: &Recovered<EnumBody<'_>>) {
+        let Recovered::Complete(EnumBody::Braced(body)) = body else {
+            panic!("complete braced variant body: {source:?}");
+        };
+        let Some(Recovered::Complete(variant)) = body.variants.first() else {
+            panic!("complete named variant: {source:?}");
+        };
+        let EnumVariantPayload::Named { fields, close, .. } = &variant.payload else {
+            panic!("named variant payload: {source:?}");
+        };
+        assert_eq!(fields.len(), 2, "AST field count: {source:?}");
+        assert!(
+            fields
+                .iter()
+                .all(|field| matches!(field, Recovered::Complete(_))),
+            "AST complete fields: {source:?}",
+        );
+        assert!(matches!(close, Recovered::Complete(_)), "AST close: {source:?}");
+    }
+
+    for (source, enum_owner) in [
+        ("enum E { Named { a: A b: B }, Next }", true),
+        ("error E { Named { a: A b: B }, Next }", false),
+    ] {
+        let mut input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut sink = chasa::LatestSink::new();
+        let mut cut = false;
+        if enum_owner {
+            let declaration = parse_enum_declaration_isolated(
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("V3 Enum candidate");
+            assert_two_complete_named_fields(source, &declaration.body);
+        } else {
+            let declaration = parse_error_declaration_isolated(
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("V3 Error candidate");
+            assert_two_complete_named_fields(source, &declaration.body);
+        }
+        assert_eq!(input.remainder(), "", "AST remainder: {source:?}");
+        assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+        assert!(!cut, "AST cut: {source:?}");
+    }
+
+    for (source, declaration_role, at) in [
+        (
+            "enum",
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Name)),
+            4,
+        ),
+        (
+            "error",
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Name)),
+            5,
+        ),
+    ] {
+        assert_record(
+            source,
+            RecoveryKind::Missing,
+            declaration_role,
+            at..at,
+            ExpectedSyntax::Identifier,
+        );
+    }
+    for (source, declaration_role, range) in [
+        (
+            "enum E @;",
+            GrammarRole::Declaration(DeclarationRole::Enum(
+                EnumDeclarationRole::BodyIntroducer,
+            )),
+            7..8,
+        ),
+        (
+            "error E @;",
+            GrammarRole::Declaration(DeclarationRole::Error(
+                ErrorDeclarationRole::BodyIntroducer,
+            )),
+            8..9,
+        ),
+    ] {
+        assert_record(
+            source,
+            RecoveryKind::Error,
+            declaration_role,
+            range,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        );
+    }
+
+    fn enum_variant(role: VariantDeclarationRole) -> GrammarRole {
+        GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(role)))
+    }
+    fn error_variant(role: VariantDeclarationRole) -> GrammarRole {
+        GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(role)))
+    }
+    for (source, kind, role, range, expected) in [
+        ("enum E {,A}", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::Item), 9..9, ExpectedSyntax::Identifier),
+        ("enum E { @ A, B }", RecoveryKind::Error, enum_variant(VariantDeclarationRole::Name), 9..11, ExpectedSyntax::Identifier),
+        ("enum E { From from, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::FromType), 18..18, ExpectedSyntax::TypeExpression),
+        ("enum E { Rect @, Next }", RecoveryKind::Error, GrammarRole::Type(crate::session::TypeRole::Primary), 14..15, ExpectedSyntax::TypeExpression),
+        ("enum E { Named { : Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldName), 18..18, ExpectedSyntax::Identifier),
+        ("enum E { Named { field Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldColon), 23..23, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
+        ("enum E { Named { field: }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldType), 24..24, ExpectedSyntax::TypeExpression),
+        ("enum E { Named { a: A b: B }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldSeparator), 22..22, ExpectedSyntax::DelimitedSequenceSeparator),
+        ("enum E { Tuple (, Int)}", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::TupleFieldType), 16..16, ExpectedSyntax::TypeExpression),
+        ("enum E { Named { field: Int", RecoveryKind::Missing, close(ConstructRole::VariantNamedPayload, Delimiter::Brace), 27..27, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace))),
+        ("enum E { Tuple (Int", RecoveryKind::Missing, close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis), 19..19, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis))),
+        ("error E {,A}", RecoveryKind::Missing, error_variant(VariantDeclarationRole::Item), 10..10, ExpectedSyntax::Identifier),
+        ("error E { @ A, B }", RecoveryKind::Error, error_variant(VariantDeclarationRole::Name), 10..12, ExpectedSyntax::Identifier),
+        ("error E { From from, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::FromType), 19..19, ExpectedSyntax::TypeExpression),
+        ("error E { Rect @, Next }", RecoveryKind::Error, GrammarRole::Type(crate::session::TypeRole::Primary), 15..16, ExpectedSyntax::TypeExpression),
+        ("error E { Named { : Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldName), 19..19, ExpectedSyntax::Identifier),
+        ("error E { Named { field Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldColon), 24..24, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
+        ("error E { Named { field: }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldType), 25..25, ExpectedSyntax::TypeExpression),
+        ("error E { Named { a: A b: B }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldSeparator), 23..23, ExpectedSyntax::DelimitedSequenceSeparator),
+        ("error E { Tuple (, Int)}", RecoveryKind::Missing, error_variant(VariantDeclarationRole::TupleFieldType), 17..17, ExpectedSyntax::TypeExpression),
+        ("error E { Named { field: Int", RecoveryKind::Missing, close(ConstructRole::VariantNamedPayload, Delimiter::Brace), 28..28, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace))),
+        ("error E { Tuple (Int", RecoveryKind::Missing, close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis), 20..20, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis))),
+    ] {
+        assert_record(source, kind, role, range, expected);
+    }
+
+    fn assert_nv1_body(
+        source: &str,
+        body: &Recovered<EnumBody<'_>>,
+        type_range: Range<usize>,
+        close_range: Range<usize>,
+    ) {
+        let Recovered::Complete(EnumBody::Braced(body)) = body else {
+            panic!("NV1 must retain a complete braced body: {source:?}");
+        };
+        assert!(
+            matches!(&body.close, Recovered::Complete(close) if *close == close_range),
+            "matching close: {source:?}",
+        );
+        let [Recovered::Complete(variant)] = body.variants.as_slice() else {
+            panic!("NV1 must retain one complete variant: {source:?}");
+        };
+        let EnumVariantPayload::Positional { types, .. } = &variant.payload else {
+            panic!("NV1 must retain the positional payload: {source:?}");
+        };
+        assert!(
+            matches!(types.as_slice(), [Recovered::Complete(type_expr)] if type_expr.range() == type_range),
+            "one positional payload type: {source:?}",
+        );
+    }
+
+    for (source, type_range, close_range, enum_owner) in [
+        ("enum E { A B}", 11..12, 12..13, true),
+        ("error E { A B}", 12..13, 13..14, false),
+    ] {
+        if enum_owner {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let declaration = parse_enum_declaration_isolated(
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("NV1 Enum candidate");
+            assert_eq!(input.remainder(), "", "AST remainder: {source:?}");
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!cut, "AST cut: {source:?}");
+            assert_nv1_body(source, &declaration.body, type_range.clone(), close_range.clone());
+        } else {
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut sink = chasa::LatestSink::new();
+            let mut cut = false;
+            let declaration = parse_error_declaration_isolated(
+                In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local),
+            )
+            .expect("NV1 Error candidate");
+            assert_eq!(input.remainder(), "", "AST remainder: {source:?}");
+            assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!cut, "AST cut: {source:?}");
+            assert_nv1_body(source, &declaration.body, type_range.clone(), close_range.clone());
+        }
+
+        let output = parse_direct_root_candidate(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        assert!(
+            output.committed_recoveries().is_empty(),
+            "NV1 has no separator recovery: {source:?}",
+        );
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source, "direct lossless: {source:?}");
+        assert!(
+            root.descendants()
+                .all(|node| !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            "NV1 has no recovery node: {source:?}",
+        );
+        assert!(root.descendants_with_tokens().filter_map(|element| element.into_token()).any(
+            |token| token.kind() == SyntaxKind::RBrace
+                && syntax_range(token.text_range()) == close_range
+        ));
+        assert!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .all(|token| !matches!(token.kind(), SyntaxKind::Comma | SyntaxKind::Pipe)),
+            "NV1 has no separator token: {source:?}",
+        );
+    }
+
+    for (source, kind, role, range, expected) in [
+        ("type", RecoveryKind::Missing, type_role(TypeDeclarationRole::Name), 4..4, ExpectedSyntax::Identifier),
+        ("type Id ('a)", RecoveryKind::Missing, type_role(TypeDeclarationRole::DefinitionIntroducer), 8..8, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals)),
+        ("type T =", RecoveryKind::Missing, type_role(TypeDeclarationRole::Rhs), 8..8, ExpectedSyntax::TypeExpression),
+        ("type Box impl", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Head)), 13..13, ExpectedSyntax::TypeExpression),
+        ("type Box 't impl Pick Int:", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Description)), 26..26, ExpectedSyntax::TypeExpression),
+        ("type Box impl T", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::BodyIntroducer)), 15..15, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
+        ("type Box impl T: D:", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Body)), 19..19, ExpectedSyntax::Statement),
+        ("type Box impl T: D:\n  ", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::IndentedStatement)), 22..22, ExpectedSyntax::Statement),
+        ("role", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::Head), 4..4, ExpectedSyntax::TypeExpression),
+        ("role Eq", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::BodyIntroducer), 7..7, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
+        ("role Eq:", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::Body), 8..8, ExpectedSyntax::Statement),
+        ("role Eq:\n  ", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::IndentedStatement), 11..11, ExpectedSyntax::Statement),
+        ("impl", RecoveryKind::Missing, impl_role(ImplRole::Head), 4..4, ExpectedSyntax::TypeExpression),
+        ("impl T:", RecoveryKind::Missing, impl_role(ImplRole::Description), 7..7, ExpectedSyntax::TypeExpression),
+        ("impl T: D", RecoveryKind::Missing, impl_role(ImplRole::BodyIntroducer), 9..9, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
+        ("impl T: D:", RecoveryKind::Missing, impl_role(ImplRole::Body), 10..10, ExpectedSyntax::Statement),
+        ("impl T: D:\n  ", RecoveryKind::Missing, impl_role(ImplRole::IndentedStatement), 13..13, ExpectedSyntax::Statement),
+        ("cast x): B;", RecoveryKind::Missing, cast_role(CastRole::PatternIntroducer), 5..5, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis))),
+        ("cast(@): B;", RecoveryKind::Error, GrammarRole::Pattern(crate::session::PatternRole::Primary), 5..6, ExpectedSyntax::Pattern),
+        ("cast(x) B;", RecoveryKind::Missing, cast_role(CastRole::TargetIntroducer), 8..8, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
+        ("cast(x): @;", RecoveryKind::Error, GrammarRole::Type(crate::session::TypeRole::Primary), 9..10, ExpectedSyntax::TypeExpression),
+        ("cast(x: A): B", RecoveryKind::Missing, cast_role(CastRole::BodyIntroducer), 13..13, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
+        ("cast(x: A): B =", RecoveryKind::Missing, cast_role(CastRole::Body), 15..15, ExpectedSyntax::Expression),
+        ("cast(x: A): B =\n  @", RecoveryKind::Error, cast_role(CastRole::IndentedStatement), 18..19, ExpectedSyntax::Statement),
+        ("act", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::Head), 3..3, ExpectedSyntax::TypeExpression),
+        ("act A =", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::Source), 7..7, ExpectedSyntax::TypeExpression),
+        ("act A @;", RecoveryKind::Error, act_role(crate::session::ActDeclarationRole::BodyIntroducer), 6..7, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
+        ("act A:", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::Body), 6..6, ExpectedSyntax::Statement),
+        ("act A:\n  ", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::IndentedStatement), 9..9, ExpectedSyntax::Statement),
+        ("for", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::Pattern), 3..3, ExpectedSyntax::Pattern),
+        ("for x xs: body", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::InKeyword), 6..6, ExpectedSyntax::Expression),
+        ("for x in", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::Iterable), 8..8, ExpectedSyntax::Expression),
+        ("for x in xs", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::BodyIntroducer), 11..11, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
+        ("for x in xs:", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::Body), 12..12, ExpectedSyntax::Expression),
+        ("for x in xs:\n  ", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::IndentedStatement), 15..15, ExpectedSyntax::Statement),
+        ("type T = Int derives", RecoveryKind::Missing, GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)), 20..20, ExpectedSyntax::TypeExpression),
+        ("type T = Int derives Eq via", RecoveryKind::Missing, GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget)), 27..27, ExpectedSyntax::Identifier),
+    ] {
+        assert_record(source, kind, role, range, expected);
+    }
+
+}
+
+#[test]
+fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
+    #[derive(Clone, Copy)]
+    enum Owner {
+        Struct,
+        Enum,
+        Error,
+    }
+
+    fn assert_ast_fields(source: &str, owner: Owner, expected: usize) {
+        match owner {
+            Owner::Struct => {
+                let (declaration, remainder) = parse_struct_for_test(source);
+                assert_eq!(remainder, "", "Struct remainder: {source:?}");
+                let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
+                    panic!("Struct named body: {source:?}");
+                };
+                assert_eq!(body.fields.len(), expected, "Struct fields: {source:?}");
+                assert!(matches!(body.close, Recovered::Complete(_)), "Struct close: {source:?}");
+            }
+            Owner::Enum | Owner::Error => {
+                let mut input = SourceInput::new(source);
+                let mut local = ParseLocal::new();
+                let mut sink = chasa::LatestSink::new();
+                let mut cut = false;
+                let body = match owner {
+                    Owner::Enum => parse_enum_declaration_isolated(
+                        In::new(&mut input, &mut sink, IsCut::new(&mut cut))
+                            .set_local(&mut local),
+                    )
+                    .expect("Enum candidate")
+                    .body,
+                    Owner::Error => parse_error_declaration_isolated(
+                        In::new(&mut input, &mut sink, IsCut::new(&mut cut))
+                            .set_local(&mut local),
+                    )
+                    .expect("Error candidate")
+                    .body,
+                    Owner::Struct => unreachable!(),
+                };
+                assert_eq!(input.remainder(), "", "variant remainder: {source:?}");
+                assert!(sink.take_merged().is_none(), "variant sink: {source:?}");
+                assert!(!cut, "variant cut: {source:?}");
+                let Recovered::Complete(EnumBody::Braced(body)) = body else {
+                    panic!("variant braced body: {source:?}");
+                };
+                let Some(Recovered::Complete(variant)) = body.variants.first() else {
+                    panic!("complete named variant: {source:?}");
+                };
+                let EnumVariantPayload::Named { fields, close, .. } = &variant.payload else {
+                    panic!("named payload: {source:?}");
+                };
+                assert_eq!(fields.len(), expected, "variant fields: {source:?}");
+                assert!(matches!(close, Recovered::Complete(_)), "payload close: {source:?}");
+            }
+        }
+    }
+
+    fn assert_direct(
+        source: &str,
+        expected: &[(RecoveryKind, GrammarRole, Range<usize>, ExpectedSyntax)],
+    ) -> SyntaxNode {
+        let output = parse_direct_root_candidate(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        assert_eq!(output.committed_recoveries().len(), expected.len(), "{source:?}");
+        for (record, (kind, role, range, primary)) in
+            output.committed_recoveries().iter().zip(expected)
+        {
+            assert_eq!(record.kind, *kind, "kind: {source:?}");
+            assert_eq!(record.site.role, *role, "role: {source:?}");
+            assert_eq!(record.site.range, *range, "range: {source:?}");
+            assert_eq!(
+                record.expectations[record.primary_expectation].expected,
+                *primary,
+                "primary: {source:?}",
+            );
+        }
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(
+            root.to_string(),
+            source,
+            "lossless: {source:?}",
+        );
+        root
+    }
+
+    let struct_separator = GrammarRole::Declaration(DeclarationRole::Struct(
+        crate::session::StructRole::FieldSeparator,
+    ));
+    let enum_separator = GrammarRole::Declaration(DeclarationRole::Enum(
+        EnumDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator),
+    ));
+    let error_separator = GrammarRole::Declaration(DeclarationRole::Error(
+        ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator),
+    ));
+    for (source, owner, role, range) in [
+        ("struct S { x: Int; y: Bool }", Owner::Struct, struct_separator, 17..18),
+        ("enum E { Named { a: A; b: B }, Next }", Owner::Enum, enum_separator, 21..22),
+        ("error E { Named { a: A; b: B }, Next }", Owner::Error, error_separator, 22..23),
+    ] {
+        assert_ast_fields(source, owner, 2);
+        assert_direct(
+            source,
+            &[(RecoveryKind::Error, role, range, ExpectedSyntax::DelimitedSequenceSeparator)],
+        );
+    }
+
+    let source = "struct S:\n  a: A b: B";
+    let (declaration, remainder) = parse_struct_for_test(source);
+    assert_eq!(remainder, "");
+    let Recovered::Complete(StructBody::NamedIndented(body)) = declaration.body else {
+        panic!("Struct indented named body: {source:?}");
+    };
+    assert!(matches!(
+        body.fields.as_slice(),
+        [Recovered::Complete(first), Recovered::Complete(second)]
+            if first.range == (12..16) && second.range == (17..21)
+    ));
+    let root = assert_direct(
+        source,
+        &[ (
+            RecoveryKind::Missing,
+            struct_separator,
+            17..17,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        ) ],
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructField)
+            .map(|node| syntax_range(node.text_range()))
+            .collect::<Vec<_>>(),
+        vec![12..16, 17..21],
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .map(|node| syntax_range(node.text_range()))
+            .collect::<Vec<_>>(),
+        vec![17..17],
+    );
+
+    let source = "struct Pair(Int,";
+    let (declaration, remainder) = parse_struct_for_test(source);
+    assert_eq!(remainder, "");
+    assert!(matches!(
+        declaration.body,
+        Recovered::Complete(StructBody::Tuple(ref body))
+            if matches!(body.fields.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])
+                && matches!(body.close, Recovered::Incomplete)
+    ));
+    let root = assert_direct(
+        source,
+        &[
+            (
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Struct(
+                    crate::session::StructRole::FieldType,
+                )),
+                16..16,
+                ExpectedSyntax::TypeExpression,
+            ),
+            (
+                RecoveryKind::Missing,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::StructTupleFields,
+                    delimiter: Delimiter::Parenthesis,
+                },
+                16..16,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                )),
+            ),
+        ],
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructField)
+            .count(),
+        2,
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        2,
+    );
+    assert!(root
+        .descendants()
+        .all(|node| node.kind() != SyntaxKind::Error));
+
+    let source = "struct S { x: F B }";
+    let (declaration, remainder) = parse_struct_for_test(source);
+    assert_eq!(remainder, "");
+    let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
+        panic!("Struct TypeApply named body: {source:?}");
+    };
+    assert!(matches!(
+        body.fields.as_slice(),
+        [Recovered::Complete(field)]
+            if matches!(field.type_expr, Recovered::Complete(ref type_expr)
+                if type_expr.range() == (14..17))
+    ));
+    let root = assert_direct(source, &[]);
+    let field = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::StructField)
+        .expect("Struct TypeApply field CST");
+    let apply = field
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+        .expect("Struct field TypeApply argument");
+    assert_eq!(syntax_range(apply.text_range()), 15..17);
+    assert_eq!(
+        apply
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+            .map(|node| syntax_range(node.text_range()))
+            .collect::<Vec<_>>(),
+        vec![16..17],
+    );
+
+    for (source, owner, close_owner, range) in [
+        ("struct S { a: A] }", Owner::Struct, ConstructRole::StructNamedFields, 15..16),
+        ("enum E { Named { a: A] }, Next }", Owner::Enum, ConstructRole::VariantNamedPayload, 21..22),
+        ("error E { Named { a: A] }, Next }", Owner::Error, ConstructRole::VariantNamedPayload, 22..23),
+    ] {
+        assert_ast_fields(source, owner, 1);
+        let role = GrammarRole::ClosingDelimiter {
+            owner: close_owner,
+            delimiter: Delimiter::Brace,
+        };
+        assert_direct(
+            source,
+            &[ (
+                RecoveryKind::Error,
+                role,
+                range,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Brace,
+                )),
+            ) ],
+        );
+    }
+
+    for (source, owner) in [
+        ("struct S { a: F B }", Owner::Struct),
+        ("enum E { Named { a: F B }, Next }", Owner::Enum),
+        ("error E { Named { a: F B }, Next }", Owner::Error),
+    ] {
+        assert_ast_fields(source, owner, 1);
+        assert_direct(source, &[]);
+    }
+
+    fn assert_incomplete_named_equals_payload(source: &str, body: &Recovered<EnumBody<'_>>) {
+        let Recovered::Complete(EnumBody::Equals {
+            body: Recovered::Complete(EnumEqualsVariantBody::Inline { variants, .. }),
+            ..
+        }) = body
+        else {
+            panic!("inline equals variant body: {source:?}");
+        };
+        let [Recovered::Complete(variant)] = variants.as_slice() else {
+            panic!("one complete named variant: {source:?}");
+        };
+        let EnumVariantPayload::Named { fields, close, .. } = &variant.payload else {
+            panic!("named variant payload: {source:?}");
+        };
+        assert!(matches!(fields.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(close, Recovered::Incomplete));
+    }
+
+    for (source, owner, close_at) in [
+        ("enum E = Named { a: A]", Owner::Enum, 21),
+        ("error E = Named { a: A]", Owner::Error, 22),
+    ] {
+        let outer = StopSet::default().with(StopKind::RightBracket);
+        let mut ast_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        ast_local.push_stop_set(outer);
+        let mut ast_sink = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let (ast_range, ast_body) = match owner {
+            Owner::Enum => {
+                let declaration = parse_enum_declaration_isolated(
+                    In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+                        .set_local(&mut ast_local),
+                )
+                .expect("borrowed-close Enum candidate");
+                (declaration.range(), declaration.body)
+            }
+            Owner::Error => {
+                let declaration = parse_error_declaration_isolated(
+                    In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+                        .set_local(&mut ast_local),
+                )
+                .expect("borrowed-close Error candidate");
+                (declaration.range(), declaration.body)
+            }
+            Owner::Struct => unreachable!(),
+        };
+        assert_eq!(ast_input.remainder(), "]", "AST remainder: {source:?}");
+        assert_eq!(ast_range, 0..close_at, "AST range: {source:?}");
+        assert_incomplete_named_equals_payload(source, &ast_body);
+        assert_eq!(ast_local.pop_stop_set(), Some(outer));
+        let ast_snapshot = ast_local.value_snapshot();
+        assert!(ast_sink.take_merged().is_none(), "AST sink: {source:?}");
+        assert!(!ast_cut, "AST cut: {source:?}");
+
+        let mut direct_input = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        direct_local.push_stop_set(outer);
+        let mut direct_sink = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_input,
+            &mut direct_sink,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut probe = Probe::new(i);
+        let (direct_range, direct_remainder, output) = match owner {
+            Owner::Enum => {
+                let intro = probe
+                    .input()
+                    .run(recognize_enum_statement_intro)
+                    .expect("borrowed-close Enum intro");
+                let mut committed = probe.commit(FullCstOutput::new(source));
+                committed.start_node(SyntaxKind::Root);
+                let range = commit_enum_declaration_isolated(&mut committed, intro);
+                let remainder = committed
+                    .probe(|probe| probe.input().input.remainder().to_owned());
+                committed.finish_node();
+                (range, remainder, committed.into_output())
+            }
+            Owner::Error => {
+                let intro = probe
+                    .input()
+                    .run(recognize_error_statement_intro)
+                    .expect("borrowed-close Error intro");
+                let mut committed = probe.commit(FullCstOutput::new(source));
+                committed.start_node(SyntaxKind::Root);
+                let range = commit_error_declaration_isolated(&mut committed, intro);
+                let remainder = committed
+                    .probe(|probe| probe.input().input.remainder().to_owned());
+                committed.finish_node();
+                (range, remainder, committed.into_output())
+            }
+            Owner::Struct => unreachable!(),
+        };
+        assert_eq!(direct_remainder, "]", "direct remainder: {source:?}");
+        assert!(matches!(
+            direct_range,
+            Recovered::Complete(ref range) if *range == ast_range
+        ));
+        assert_eq!(direct_local.pop_stop_set(), Some(outer));
+        let mut expected_snapshot = ast_snapshot;
+        expected_snapshot.next_diagnostic_id += 1;
+        assert_eq!(direct_local.value_snapshot(), expected_snapshot);
+        assert!(direct_sink.take_merged().is_none(), "direct sink: {source:?}");
+        assert!(!direct_cut, "direct cut: {source:?}");
+        let [record] = output.committed_recoveries() else {
+            panic!("one borrowed named-payload close recovery: {source:?}");
+        };
+        assert_eq!(record.kind, RecoveryKind::Missing, "{source:?}");
+        assert_eq!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::VariantNamedPayload,
+                delimiter: Delimiter::Brace,
+            },
+            "{source:?}",
+        );
+        assert_eq!(record.site.range, close_at..close_at, "{source:?}");
+        assert_eq!(
+            record.expectations[record.primary_expectation].expected,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Brace,
+            )),
+            "{source:?}",
+        );
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(root.to_string(), &source[..close_at], "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>(),
+            vec![close_at..close_at],
+            "{source:?}",
+        );
+        assert!(root
+            .descendants()
+            .all(|node| node.kind() != SyntaxKind::Error));
+    }
+
+    for field_owner in [
+        VariantFieldDriverSpec::Struct,
+        VariantFieldDriverSpec::EnumNamed,
+        VariantFieldDriverSpec::ErrorNamed,
+    ] {
+        let close_owner = if field_owner == VariantFieldDriverSpec::Struct {
+            ConstructRole::StructNamedFields
+        } else {
+            ConstructRole::VariantNamedPayload
+        };
+        let spec = VariantNamedFieldSequenceSpec {
+            field_owner,
+            incoming_base: 0,
+            close_owner,
+        };
+        let source = " a: A]";
+        let outer = StopSet::default().with(StopKind::RightBracket);
+
+        let mut ast_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        ast_local.push_stop_set(outer);
+        let mut ast_sink = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let (ast, ast_remainder) = {
+            let mut i = In::new(
+                &mut ast_input,
+                &mut ast_sink,
+                IsCut::new(&mut ast_cut),
+            )
+            .set_local(&mut ast_local);
+            let parsed = parse_variant_named_field_sequence_ast(spec, &mut i);
+            (parsed, i.input.remainder().to_owned())
+        };
+        assert_eq!(ast_remainder, "]");
+        assert_eq!(ast.fields.len(), 1);
+        assert!(matches!(ast.close, Recovered::Incomplete));
+        assert_eq!(ast_local.pop_stop_set(), Some(outer));
+        let ast_snapshot = ast_local.value_snapshot();
+        assert!(ast_sink.take_merged().is_none());
+        assert!(!ast_cut);
+
+        let mut direct_input = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        direct_local.push_stop_set(outer);
+        let mut direct_sink = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_input,
+            &mut direct_sink,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_variant_named_field_sequence(spec, &mut committed);
+        let direct_remainder = committed
+            .probe(|probe| probe.input().input.remainder().to_owned());
+        committed.finish_node();
+        let output = committed.into_output();
+        assert_eq!(direct_remainder, "]");
+        assert_eq!(direct_local.pop_stop_set(), Some(outer));
+        let mut expected_snapshot = ast_snapshot;
+        expected_snapshot.next_diagnostic_id += 1;
+        assert_eq!(direct_local.value_snapshot(), expected_snapshot);
+        assert!(direct_sink.take_merged().is_none());
+        assert!(!direct_cut);
+        assert_eq!(output.committed_recoveries().len(), 1);
+        assert_eq!(output.committed_recoveries()[0].kind, RecoveryKind::Missing);
+        assert_eq!(output.committed_recoveries()[0].site.range, 5..5);
+        assert_eq!(
+            output.committed_recoveries()[0].site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: close_owner,
+                delimiter: Delimiter::Brace,
+            },
+        );
+        assert_eq!(
+            output.committed_recoveries()[0].expectations
+                [output.committed_recoveries()[0].primary_expectation]
+                .expected,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Brace,
+            )),
+        );
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(root.to_string(), " a: A");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>(),
+            vec![5..5],
+        );
+        assert!(root
+            .descendants()
+            .all(|node| node.kind() != SyntaxKind::Error));
+
+        let source = "\n    a: A\n    b: B\n  }tail";
+        let spec = VariantNamedFieldSequenceSpec {
+            incoming_base: 2,
+            ..spec
+        };
+        let mut ast_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_sink = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let (ast, ast_remainder) = {
+            let mut i = In::new(
+                &mut ast_input,
+                &mut ast_sink,
+                IsCut::new(&mut ast_cut),
+            )
+            .set_local(&mut ast_local);
+            let parsed = parse_variant_named_field_sequence_ast(spec, &mut i);
+            (parsed, i.input.remainder().to_owned())
+        };
+        assert_eq!(ast_remainder, "tail");
+        assert_eq!(ast.fields.len(), 2);
+        assert!(matches!(ast.close, Recovered::Complete(ref close) if *close == (21..22)));
+        let ast_snapshot = ast_local.value_snapshot();
+
+        let mut direct_input = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_sink = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_input,
+            &mut direct_sink,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_variant_named_field_sequence(spec, &mut committed);
+        let remainder = committed
+            .probe(|probe| probe.input().input.remainder().to_owned());
+        committed.finish_node();
+        let output = committed.into_output();
+        assert_eq!(remainder, "tail");
+        assert!(output.committed_recoveries().is_empty());
+        assert_eq!(direct_local.value_snapshot(), ast_snapshot);
+        assert!(direct_sink.take_merged().is_none());
+        assert!(!direct_cut);
+        assert_eq!(
+            SyntaxNode::new_root(output.finish_prefix()).to_string(),
+            &source[..22],
         );
     }
 }
