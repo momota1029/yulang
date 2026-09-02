@@ -27,12 +27,13 @@ use crate::{
         word::{WordSpan, scan_word},
     },
     session::{
-        AmbientOwnerScopeFrame, BracedBarrierOrigin, CommitOutput, Committed,
-        CommittedRecoveryRecord, ConstructRole, DeclarationCompanionRole, DeclarationRole,
-        Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline,
-        IndentationBaselineKind, InlineStatementOwnerKind, PunctuationEvidence, RecoveryKind,
-        RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax, any_ambient_owner_claims,
+        AmbientOwnerScopeFrame, BracedBarrierOrigin, CanonicalRecoveryContinuation,
+        CanonicalRecoveryEpisode, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
+        DeclarationCompanionRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax,
+        GrammarRole, IndentationBaseline, IndentationBaselineKind, InlineStatementOwnerKind,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, RecoverySiteSpec, StopKind, StopSet,
+        SynIn, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+        YumarkEmbeddedRecoveryFact, any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
 };
@@ -107,6 +108,30 @@ enum DeclarationCompanionIntroducerRetry {
     Starter(DeclarationCompanionFormStarter),
     InlineItem,
     Boundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DeclarationCompanionIntroducerEpisode {
+    recovery: CanonicalRecoveryEpisode,
+    retry: DeclarationCompanionIntroducerRetry,
+}
+
+impl DeclarationCompanionIntroducerEpisode {
+    fn into_fact_and_retry(
+        self,
+    ) -> (YumarkEmbeddedRecoveryFact, DeclarationCompanionIntroducerRetry) {
+        let expected_continuation = match self.retry {
+            DeclarationCompanionIntroducerRetry::Starter(_)
+            | DeclarationCompanionIntroducerRetry::InlineItem => {
+                CanonicalRecoveryContinuation::RetrySameSlot
+            }
+            DeclarationCompanionIntroducerRetry::Boundary => {
+                CanonicalRecoveryContinuation::StopAtBoundary
+            }
+        };
+        assert_eq!(self.recovery.continuation, expected_continuation);
+        (self.recovery.fact, self.retry)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -240,6 +265,52 @@ where
         let mut line = i.local.line();
         line.at_line_start = false;
         i.local.set_line(line);
+    }
+}
+
+fn declaration_companion_introducer_episode<E>(
+    table: &OperatorTable,
+    i: &mut SynIn<E>,
+) -> DeclarationCompanionIntroducerEpisode
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let (range, retry) = scan_declaration_companion_introducer_retry(table, i);
+    let (kind, unexpected) = if range.is_empty() {
+        (RecoveryKind::Missing, None)
+    } else {
+        (
+            RecoveryKind::Error,
+            Some(UnexpectedCategory::OtherCharacter),
+        )
+    };
+    let continuation = match retry {
+        DeclarationCompanionIntroducerRetry::Starter(_)
+        | DeclarationCompanionIntroducerRetry::InlineItem => {
+            CanonicalRecoveryContinuation::RetrySameSlot
+        }
+        DeclarationCompanionIntroducerRetry::Boundary => {
+            CanonicalRecoveryContinuation::StopAtBoundary
+        }
+    };
+    DeclarationCompanionIntroducerEpisode {
+        recovery: CanonicalRecoveryEpisode {
+            fact: YumarkEmbeddedRecoveryFact {
+                spec: RecoverySiteSpec {
+                    role: declaration_companion_introducer_role(),
+                    expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
+                        Delimiter::Brace,
+                    )),
+                },
+                range,
+                kind,
+                unexpected,
+            },
+            continuation,
+        },
+        retry,
     }
 }
 
@@ -499,7 +570,9 @@ where
     let form = if let Some((starter, range)) = scan_declaration_companion_form_starter(i) {
         parse_declaration_companion_form_after_starter(table, base_indent, starter, range, i)
     } else {
-        let (_invalid, retry) = scan_declaration_companion_introducer_retry(table, i);
+        let (fact, retry) =
+            declaration_companion_introducer_episode(table, i).into_fact_and_retry();
+        i.local.record_yumark_embedded_recovery(fact);
         match retry {
             DeclarationCompanionIntroducerRetry::Starter(starter) => {
                 let (accepted, range) = scan_declaration_companion_form_starter(i)
@@ -528,6 +601,53 @@ where
         form,
         range: start.keyword.range().start..end,
     })
+}
+
+#[cfg(test)]
+pub(crate) fn probe_rejected_declaration_companion_introducer_episode_for_test<'source, E>(
+    table: &OperatorTable,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let errors_checkpoint = i.errors_checkpoint();
+    let candidate = parse_declaration_companion_isolated(table, base_indent, i)
+        .expect("the rejected D12a candidate starts with `with`");
+    assert!(matches!(
+        candidate.form,
+        DeclarationCompanionForm::Colon {
+            body: Recovered::Complete(DeclarationCompanionColonBody::Inline { .. }),
+            ..
+        }
+    ));
+    let facts = i.local.drain_yumark_embedded_recoveries();
+    let observed = facts
+        .last()
+        .expect("the rejected D12a candidate observes its introducer episode");
+    assert_eq!(
+        (
+            observed.spec.role,
+            observed.spec.expected,
+            observed.range.clone(),
+            observed.kind,
+            observed.unexpected,
+        ),
+        (
+            declaration_companion_introducer_role(),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+            5..6,
+            RecoveryKind::Error,
+            Some(UnexpectedCategory::OtherCharacter),
+        )
+    );
+    i.rollback(checkpoint);
+    i.errors_rollback(errors_checkpoint);
+    false
 }
 
 fn parse_declaration_companion_form_after_starter<'source, E>(
@@ -746,9 +866,10 @@ where
             committed,
         );
     } else {
-        let (invalid, retry) = committed
-            .probe(|probe| scan_declaration_companion_introducer_retry(table, probe.input()));
-        emit_declaration_companion_introducer_recovery(invalid, committed);
+        let (fact, retry) = committed.probe(|probe| {
+            declaration_companion_introducer_episode(table, probe.input()).into_fact_and_retry()
+        });
+        emit_declaration_companion_introducer_recovery(fact, committed);
         match retry {
             DeclarationCompanionIntroducerRetry::Starter(starter) => {
                 let (accepted, range) = committed
@@ -1314,20 +1435,17 @@ fn emit_declaration_companion_error<'parse, 'source, 'local, E, O>(
 }
 
 fn emit_declaration_companion_introducer_recovery<'parse, 'source, 'local, E, O>(
-    range: Range<usize>,
+    fact: YumarkEmbeddedRecoveryFact,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = declaration_companion_introducer_role();
+    let role = fact.spec.role;
+    let range = fact.range;
+    let kind = fact.kind;
     let record = committed.probe(|probe| {
         let i = probe.input();
-        let kind = if range.is_empty() {
-            RecoveryKind::Missing
-        } else {
-            RecoveryKind::Error
-        };
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -1335,20 +1453,19 @@ fn emit_declaration_companion_introducer_recovery<'parse, 'source, 'local, E, O>
                 range: range.clone(),
             },
             kind,
-            if range.is_empty() {
-                Arc::from([])
-            } else {
-                Arc::from([UnexpectedSyntax::Token {
+            match kind {
+                RecoveryKind::Missing => Arc::from([]),
+                RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
                     range: range.clone(),
-                    category: UnexpectedCategory::OtherCharacter,
-                }])
+                    category: fact
+                        .unexpected
+                        .unwrap_or(UnexpectedCategory::OtherCharacter),
+                }]),
             },
             Arc::from([
                 SyntaxExpectation {
                     role,
-                    expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
-                        Delimiter::Brace,
-                    )),
+                    expected: fact.spec.expected,
                     range: range.clone(),
                     sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
                 },
@@ -1362,10 +1479,9 @@ fn emit_declaration_companion_introducer_recovery<'parse, 'source, 'local, E, O>
             0,
         )
     });
-    if range.is_empty() {
-        committed.emit_missing(record);
-    } else {
-        committed.emit_error(record);
+    match kind {
+        RecoveryKind::Missing => committed.emit_missing(record),
+        RecoveryKind::Error => committed.emit_error(record),
     }
 }
 
@@ -1472,8 +1588,10 @@ mod tests {
             ExpressionDelimitedOwner, ExpressionRole, FullCstOutput, GrammarRole,
             IndentationBaseline, IndentationBaselineKind, InlineStatementOwnerKind, LineState,
             OperatorCandidateProbe, ParseLocal, ParseLocalValueSnapshot, Probe, RecoveryKind,
-            StagedHeaderFact, StopKind, StopSet, TypeDelimitedOwner, TypeExpressionEpisodePolicy,
-            TypeExpressionScopedStopFrame, TypeMalformedCallerBoundaryFence,
+            RecoverySiteSpec, StagedHeaderFact, StopKind, StopSet, TypeDelimitedOwner,
+            TypeExpressionEpisodePolicy, TypeExpressionScopedStopFrame,
+            TypeMalformedCallerBoundaryFence, YumarkEmbeddedOuterKind,
+            YumarkEmbeddedRecoveryFact, YumarkFrame, YumarkOwner,
         },
     };
 
@@ -3320,6 +3438,11 @@ mod tests {
                 }
                 if record.site.role == introducer {
                     assert_eq!(
+                        record.expectations[record.primary_expectation].expected,
+                        ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+                        "introducer primary expectation: {source:?}",
+                    );
+                    assert_eq!(
                         record
                             .expectations
                             .iter()
@@ -4420,6 +4543,267 @@ mod tests {
         gate2_if_retry_allocates_one_identity_only_after_candidate_probe();
         gate2_every_canonical_statement_candidate_family_has_ast_direct_parity();
         gate2_valid_large_sequences_never_call_the_recovery_candidate_helper();
+    }
+
+    #[test]
+    fn gate3b_declaration_companion_introducer_episode_rollback() {
+        let source = "with :: item";
+        let mut input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let floor = local.push_yumark_delimiter(Delimiter::Parenthesis);
+        local.push_yumark_frame(YumarkFrame::EmbeddedYulang {
+            owner: YumarkOwner::InlineReference,
+            outer_kind: YumarkEmbeddedOuterKind::Paired(Delimiter::Parenthesis),
+            delimiter_floor: floor,
+        });
+        let retained_fact = YumarkEmbeddedRecoveryFact {
+            spec: RecoverySiteSpec {
+                role: GrammarRole::Expression(ExpressionRole::CallArgument),
+                expected: ExpectedSyntax::Expression,
+            },
+            range: 0..0,
+            kind: RecoveryKind::Missing,
+            unexpected: None,
+        };
+        local.record_yumark_embedded_recovery(retained_fact.clone());
+        let local_before = local.value_snapshot();
+        let mut sink: chasa::LatestSink<usize, StdErr<char>> = chasa::LatestSink::new();
+        <chasa::LatestSink<usize, StdErr<char>> as ErrorSink<usize>>::push(
+            &mut sink,
+            11..12,
+            StdErr::Expected(Expected::new(98, "preseeded-companion", ())),
+        );
+        let sink_before = format!("{sink:?}");
+        let mut cut = false;
+        let i = In::new(&mut input, &mut sink, IsCut::new(&mut cut)).set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        assert!(!committed.probe(|probe| {
+            probe_rejected_declaration_companion_introducer_episode_for_test(
+                &OperatorTable::empty(),
+                0,
+                probe.input(),
+            )
+        }));
+        let (position, remainder, local_after, retained) = committed.probe(|probe| {
+            let i = probe.input();
+            (
+                i.pos(),
+                i.input.remainder().to_owned(),
+                i.local.value_snapshot(),
+                i.local.drain_yumark_embedded_recoveries(),
+            )
+        });
+        committed.finish_node();
+        let output = committed.into_output();
+        assert_eq!(position, 0);
+        assert_eq!(remainder, source);
+        assert_eq!(local_after, local_before);
+        assert_eq!(retained, vec![retained_fact]);
+        assert!(output.committed_recoveries().is_empty());
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(root.to_string(), "");
+        assert!(root.children().next().is_none());
+        assert_eq!(format!("{sink:?}"), sink_before);
+        assert_eq!(
+            sink.take_merged(),
+            Some(StdSummary {
+                unexpected: None,
+                expected: vec![Expected::new(98, "preseeded-companion", ())],
+            }),
+        );
+        assert!(!cut);
+        assert!(matches!(
+            local.pop_yumark_frame(),
+            Some(YumarkFrame::EmbeddedYulang { .. })
+        ));
+        local.pop_yumark_delimiter(floor, Delimiter::Parenthesis);
+    }
+
+    #[test]
+    fn gate3b_declaration_companion_introducer_episode_boundaries() {
+        let role = declaration_companion_introducer_role();
+        let primary = ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace));
+        let auxiliary = ExpectedSyntax::Punctuation(PunctuationEvidence::Colon);
+        let entry_line = LineState {
+            last_newline: Some((40, 42)),
+            line_start: 42,
+            line_indent: 3,
+            at_line_start: false,
+        };
+
+        for (source, range, remainder, inline) in [
+            ("with]tail", 4..4, "]tail", false),
+            ("with\nnext", 4..4, "\nnext", false),
+            ("with item", 5..5, "", true),
+        ] {
+            let mut ast_input = SourceInput::new(source);
+            let mut ast_local = ParseLocal::new();
+            ast_local.set_line(entry_line);
+            let ast_floor = ast_local.push_yumark_delimiter(Delimiter::Parenthesis);
+            ast_local.push_yumark_frame(YumarkFrame::EmbeddedYulang {
+                owner: YumarkOwner::InlineReference,
+                outer_kind: YumarkEmbeddedOuterKind::Paired(Delimiter::Parenthesis),
+                delimiter_floor: ast_floor,
+            });
+            let mut ast_sink = chasa::LatestSink::new();
+            let mut ast_cut = false;
+            let mut i = In::new(
+                &mut ast_input,
+                &mut ast_sink,
+                IsCut::new(&mut ast_cut),
+            )
+            .set_local(&mut ast_local);
+            let companion = parse_declaration_companion_isolated(
+                &OperatorTable::empty(),
+                entry_line.line_indent,
+                &mut i,
+            )
+            .expect("the D12a private source starts with a companion");
+            let ast_range = companion.range.clone();
+            assert_eq!(ast_range, 0..source.len() - remainder.len());
+            assert_eq!(i.input.remainder(), remainder);
+            assert_eq!(i.local.line(), entry_line, "AST line: {source:?}");
+            if inline {
+                assert!(matches!(
+                    companion.form,
+                    DeclarationCompanionForm::Colon {
+                        body: Recovered::Complete(DeclarationCompanionColonBody::Inline {
+                            item,
+                            ..
+                        }),
+                        ..
+                    } if matches!(*item, DeclarationCompanionItem::Statement(_))
+                ));
+            } else {
+                assert!(matches!(
+                    companion.form,
+                    DeclarationCompanionForm::Colon {
+                        colon: Recovered::Incomplete,
+                        body: Recovered::Incomplete,
+                    }
+                ));
+            }
+            let facts = i.local.drain_yumark_embedded_recoveries();
+            assert_eq!(
+                facts,
+                vec![YumarkEmbeddedRecoveryFact {
+                    spec: RecoverySiteSpec {
+                        role,
+                        expected: primary,
+                    },
+                    range: range.clone(),
+                    kind: RecoveryKind::Missing,
+                    unexpected: None,
+                }],
+                "AST D12a fact: {source:?}",
+            );
+            assert_eq!(i.local.yumark_frame_depth(), 1);
+            drop(i);
+            assert!(ast_sink.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(matches!(
+                ast_local.pop_yumark_frame(),
+                Some(YumarkFrame::EmbeddedYulang { .. })
+            ));
+            ast_local.pop_yumark_delimiter(ast_floor, Delimiter::Parenthesis);
+
+            let mut direct_input = SourceInput::new(source);
+            let mut direct_local = ParseLocal::new();
+            direct_local.set_line(entry_line);
+            let direct_floor = direct_local.push_yumark_delimiter(Delimiter::Parenthesis);
+            direct_local.push_yumark_frame(YumarkFrame::EmbeddedYulang {
+                owner: YumarkOwner::InlineReference,
+                outer_kind: YumarkEmbeddedOuterKind::Paired(Delimiter::Parenthesis),
+                delimiter_floor: direct_floor,
+            });
+            let before_id = direct_local.value_snapshot().next_diagnostic_id;
+            let mut direct_sink = chasa::LatestSink::new();
+            let mut direct_cut = false;
+            let i = In::new(
+                &mut direct_input,
+                &mut direct_sink,
+                IsCut::new(&mut direct_cut),
+            )
+            .set_local(&mut direct_local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let direct_range = commit_declaration_companion_isolated(
+                &OperatorTable::empty(),
+                entry_line.line_indent,
+                &mut committed,
+            )
+            .expect("the direct D12a private source starts with a companion");
+            let direct_remainder = committed
+                .probe(|probe| probe.input().input.remainder().to_owned());
+            let direct_line = committed.probe(|probe| probe.input().local.line());
+            let direct_frames =
+                committed.probe(|probe| probe.input().local.yumark_frame_depth());
+            committed.finish_node();
+            let output = committed.into_output();
+            assert_eq!(direct_range, ast_range);
+            assert_eq!(direct_remainder, remainder);
+            assert_eq!(direct_line, entry_line, "direct line: {source:?}");
+            assert_eq!(direct_frames, 1);
+            let [record] = output.committed_recoveries() else {
+                panic!("one private D12a direct record: {source:?}");
+            };
+            assert_eq!(record.id.0, before_id);
+            assert_eq!(record.site.role, role);
+            assert_eq!(record.site.range, range.clone());
+            assert_eq!(record.kind, RecoveryKind::Missing);
+            assert!(record.unexpected.is_empty());
+            assert_eq!(record.primary_expectation, 0);
+            assert_eq!(
+                record
+                    .expectations
+                    .iter()
+                    .map(|expectation| expectation.expected)
+                    .collect::<Vec<_>>(),
+                vec![primary, auxiliary],
+            );
+            let root = SyntaxNode::new_root(output.finish_prefix());
+            assert_eq!(
+                format!("{}{}", root, direct_remainder),
+                source,
+                "direct lossless: {source:?}",
+            );
+            let generic = root
+                .descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .collect::<Vec<_>>();
+            let [node] = generic.as_slice() else {
+                panic!("one private D12a generic node: {source:?}");
+            };
+            assert_eq!(node.kind(), SyntaxKind::Missing);
+            assert_eq!(
+                usize::from(node.text_range().start())..usize::from(node.text_range().end()),
+                range,
+            );
+            assert_eq!(
+                node.parent().map(|parent| parent.kind()),
+                Some(SyntaxKind::DeclarationCompanion),
+            );
+            if inline {
+                let companion = root
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                    .expect("private direct companion node");
+                assert!(companion.descendants_with_tokens().any(|element| {
+                    element.into_token().is_some_and(|token| {
+                        token.kind() == SyntaxKind::Identifier && token.text() == "item"
+                    })
+                }));
+            }
+            assert!(
+                direct_sink.take_merged().is_none(),
+                "direct sink: {source:?}",
+            );
+            assert!(matches!(
+                direct_local.pop_yumark_frame(),
+                Some(YumarkFrame::EmbeddedYulang { .. })
+            ));
+            direct_local.pop_yumark_delimiter(direct_floor, Delimiter::Parenthesis);
+        }
     }
 
     #[test]

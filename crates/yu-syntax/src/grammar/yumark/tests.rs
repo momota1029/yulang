@@ -19,9 +19,9 @@ use crate::{
     input::SourceInput,
     operator::{BindingPower, OperatorDeclaration, OperatorFixities, OperatorTable},
     session::{
-        BracedStatementBlockRole, ConstructRole, DeclarationRole, Delimiter, DerivesRole,
-        ExpectedSyntax, ExpressionRole, FullCstOutput, GrammarRole, IfExpressionRole, LineState,
-        ParseLocal,
+        BracedStatementBlockRole, ConstructRole, DeclarationCompanionRole, DeclarationRole,
+        Delimiter, DerivesRole, ExpectedSyntax, ExpressionRole, FullCstOutput, GrammarRole,
+        IfExpressionRole, LineState, ParseLocal,
         ParseLocalValueSnapshot, Probe, PunctuationEvidence, RecoveryKind, RecoverySiteSpec,
         YumarkEnvelopeStop, YumarkEmbeddedOuterKind, YumarkEmbeddedRecoveryFact, YumarkFrame,
         YumarkInlineClose, YumarkOwner, YumarkSlot, YumarkSyntaxEvidence,
@@ -3297,4 +3297,253 @@ fn gate3b_derives_via_target_episode() {
             }));
         }
     }
+}
+
+#[test]
+fn gate3b_declaration_companion_introducer_episode() {
+    let role = GrammarRole::Declaration(DeclarationRole::Companion(
+        DeclarationCompanionRole::Introducer,
+    ));
+    let primary = ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace));
+    let auxiliary = ExpectedSyntax::Punctuation(PunctuationEvidence::Colon);
+    for (source, expected) in [
+        (
+            "\\ref({type T = Int with})",
+            Some((
+                23..23,
+                RecoveryKind::Missing,
+                None,
+                SyntaxKind::Missing,
+            )),
+        ),
+        (
+            "\\ref({type T = Int with :: item})",
+            Some((
+                24..25,
+                RecoveryKind::Error,
+                Some(crate::session::UnexpectedCategory::OtherCharacter),
+                SyntaxKind::Error,
+            )),
+        ),
+        (
+            "\\ref({type T = Int with item})",
+            Some((
+                24..24,
+                RecoveryKind::Missing,
+                None,
+                SyntaxKind::Missing,
+            )),
+        ),
+        (
+            "\\ref({type T = Int with\n})",
+            Some((
+                23..23,
+                RecoveryKind::Missing,
+                None,
+                SyntaxKind::Missing,
+            )),
+        ),
+        ("\\ref({type T = Int with: item})", None),
+    ] {
+        let mut ast_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        ast_local.set_line(LineState {
+            at_line_start: true,
+            ..LineState::default()
+        });
+        let mut ast_sink = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let mut i = In::new(
+            &mut ast_input,
+            &mut ast_sink,
+            IsCut::new(&mut ast_cut),
+        )
+        .set_local(&mut ast_local);
+        let ast = parse_gate3_ast(
+            &OperatorTable::empty(),
+            Gate3Envelope {
+                base_column: 0,
+                stop: YumarkEnvelopeStop::BlockDocument,
+            },
+            &mut i,
+        );
+        assert_eq!(ast.document.range, 0..source.len(), "AST range: {source:?}");
+        assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+        assert_eq!(i.local.yumark_frame_depth(), 0, "AST frames: {source:?}");
+        assert_eq!(
+            ast.recoveries
+                .iter()
+                .map(|fact| {
+                    (
+                        fact.role,
+                        fact.range.clone(),
+                        fact.kind,
+                        fact.expected,
+                        fact.unexpected,
+                        fact.order,
+                    )
+                })
+                .collect::<Vec<_>>(),
+            expected
+                .as_ref()
+                .map(|(range, kind, unexpected, _)| {
+                    vec![(
+                        role,
+                        range.clone(),
+                        *kind,
+                        primary,
+                        *unexpected,
+                        0usize,
+                    )]
+                })
+                .unwrap_or_default(),
+            "AST D12a fact: {source:?}",
+        );
+        let ast_snapshot = i.local.value_snapshot();
+        drop(i);
+        assert!(ast_sink.take_merged().is_none(), "AST sink: {source:?}");
+
+        let mut direct_input = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        direct_local.set_line(LineState {
+            at_line_start: true,
+            ..LineState::default()
+        });
+        let mut direct_sink = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_input,
+            &mut direct_sink,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let direct = commit_gate3_direct(
+            source,
+            &OperatorTable::empty(),
+            Gate3Envelope {
+                base_column: 0,
+                stop: YumarkEnvelopeStop::BlockDocument,
+            },
+            i,
+        );
+        assert_eq!(direct.range, 0..source.len(), "direct range: {source:?}");
+        assert_eq!(direct.remainder, "", "direct remainder: {source:?}");
+        assert_eq!(direct.frame_depth, 0, "direct frames: {source:?}");
+        let records = direct.output.committed_recoveries();
+        match expected.as_ref() {
+            Some((range, kind, unexpected, _)) => {
+                let [record] = records else {
+                    panic!("one D12a direct record: {source:?}");
+                };
+                assert_eq!(record.id.0, ast_snapshot.next_diagnostic_id);
+                assert_eq!(record.site.role, role);
+                assert_eq!(record.site.range, *range);
+                assert_eq!(record.kind, *kind);
+                assert_eq!(
+                    match record.unexpected.as_ref() {
+                        [] => None,
+                        [crate::session::UnexpectedSyntax::Token { category, .. }] => {
+                            Some(*category)
+                        }
+                        unexpected => panic!(
+                            "one D12a direct unexpected token: {source:?}: {unexpected:?}"
+                        ),
+                    },
+                    *unexpected,
+                    "D12a direct unexpected: {source:?}",
+                );
+                assert_eq!(record.primary_expectation, 0);
+                assert_eq!(
+                    record
+                        .expectations
+                        .iter()
+                        .map(|expectation| expectation.expected)
+                        .collect::<Vec<_>>(),
+                    vec![primary, auxiliary],
+                    "D12a primary/auxiliary order: {source:?}",
+                );
+                assert!(record.expectations.iter().all(|expectation| {
+                    expectation.role == role && expectation.range == *range
+                }));
+            }
+            None => assert!(records.is_empty(), "clean D12a direct records: {source:?}"),
+        }
+        let mut expected_direct_snapshot = ast_snapshot;
+        expected_direct_snapshot.next_diagnostic_id += usize::from(expected.is_some()) as u32;
+        assert_eq!(
+            direct_local.value_snapshot(),
+            expected_direct_snapshot,
+            "D12a AST/direct state: {source:?}",
+        );
+        assert!(
+            direct_sink.take_merged().is_none(),
+            "direct sink: {source:?}",
+        );
+        let root = SyntaxNode::new_root(direct.output.finish_prefix());
+        assert_eq!(root.to_string(), source, "lossless: {source:?}");
+        let generic = root
+            .descendants()
+            .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            .collect::<Vec<_>>();
+        match expected {
+            Some((range, _, _, node_kind)) => {
+                let [node] = generic.as_slice() else {
+                    panic!("one D12a generic recovery node: {source:?}");
+                };
+                assert_eq!(node.kind(), node_kind);
+                assert_eq!(
+                    usize::from(node.text_range().start())..usize::from(node.text_range().end()),
+                    range,
+                );
+                assert_eq!(
+                    node.parent().map(|parent| parent.kind()),
+                    Some(SyntaxKind::DeclarationCompanion),
+                );
+            }
+            None => assert!(generic.is_empty(), "clean D12a topology: {source:?}"),
+        }
+        if source.contains("item") {
+            let companion = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+                .expect("embedded declaration companion");
+            assert!(
+                companion.descendants_with_tokens().any(|element| {
+                    element.into_token().is_some_and(|token| {
+                        token.kind() == SyntaxKind::Identifier && token.text() == "item"
+                    })
+                }),
+                "D12a retries the valid body: {source:?}",
+            );
+        }
+        let close_brace = source.rfind('}').expect("braced statement close");
+        let brace = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| {
+                token.kind() == SyntaxKind::RBrace
+                    && usize::from(token.text_range().start()) == close_brace
+            })
+            .expect("outer braced-statement close token");
+        assert_eq!(
+            brace.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::BracedStatementBlockExpression),
+            "D12a outer brace owner: {source:?}",
+        );
+        let close_paren = source.rfind(')').expect("borrowed Yumark close");
+        let paren = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| {
+                token.kind() == SyntaxKind::RParen
+                    && usize::from(token.text_range().start()) == close_paren
+            })
+            .expect("Yumark-owned borrowed close token");
+        assert_eq!(
+            paren.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::YmYulangArgs),
+            "D12a borrowed close owner: {source:?}",
+        );
+    }
+
 }

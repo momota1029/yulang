@@ -488,6 +488,21 @@ ViaTarget Error `15..17`と`key` retryを観測してからinput/local/error sin
 （既存warning 33件）。compiler/spec M2 reviewはapproved。Gate 3bの残る有限inventory、Gate 4 command grammar、
 Gate 5 envelope、Gate 6 dispatchは未完了である。
 
+2026-09-02: 次の有限 slice D12a `Declaration(Companion(Introducer))`を完了した。
+`scan_declaration_companion_introducer_retry`の既存one-pass scannerを
+`DeclarationCompanionIntroducerEpisode`へ収束し、AST/directが同じ`Open(Brace)` primary factから
+Missing/ErrorとRetrySameSlot/StopAtBoundaryを決める。directの既存`Colon` auxiliary expectationと
+primary index 0は保持した。embedded AST outcomeがfactの`unexpected`を落としていた局所transport gapも
+同時に修正し、Yumark自身のrecoveryは`None`、embedded canonical factは値をそのまま保つ。
+`with]tail`、`with\nnext`、`with item`のactive-frame controlでboundary非消費、LineState、inline retryを、
+full Yumark shellでouter braceとborrowed parenthesisのownerを固定した。actual RB-CMPはpreseeded fact/sinkを
+含むinput/local/output/cut rollbackを確認する。`cargo test -p yu-syntax
+gate3b_declaration_companion_introducer_episode --no-fail-fast`は3 passed、599 filtered（既存warning 33件）。
+compiler/spec M2 delta reviewはapproved。`notes/design/2026-09-02-yumark-gate3b-recovery-adoption-matrix.md`の
+§5a historical stagingもnon-normativeに明確化し、旧D12a `:` primary記述をactual ordinary producerの`{` primary
+（`:` はauxiliary）へ訂正した。次はmatrixの次の依存なし有限ownerを選定する。D12b–f、D11a、Gate 4 command
+grammar、Gate 5 envelope、Gate 6 dispatchは未完了・未認可である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

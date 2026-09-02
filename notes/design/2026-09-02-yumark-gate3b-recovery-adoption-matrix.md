@@ -149,12 +149,13 @@ from this staging material.
 
 ### Historical staging text
 
-This register is the normative expansion of the aggregate cells above.  A
-cell's named ordinary test is the fixture identity; Gate 3b embeds the exact
-same source after the stated `R` or `A` shell.  `before`/`span` use §1's exact
-locators.  When a literal ends at `eof`, the enclosing `R` closing delimiter
-is intentionally omitted: the listed inner-close fact precedes the distinct
-Yumark wrapper-close result.
+This historical register records the early expansion attempt.  Its values may
+be stale and do not supplement §5b.  A cell's named ordinary test was used as
+the fixture identity; Gate 3b would embed the exact same source after the
+stated `R` or `A` shell.  `before`/`span` use §1's exact locators.  When a
+literal ends at `eof`, the enclosing `R` closing delimiter is intentionally
+omitted: the listed inner-close fact precedes the distinct Yumark wrapper-close
+result.
 
 ### Expression aggregate cells
 
@@ -260,7 +261,7 @@ the test continues to pin any auxiliary union expectations directly.
 | D10f | same indented row: `for x in xs:\n  ` | `ForStatement(IndentedStatement)`, `eof`, Missing, Statement |
 | D11a | `isolated_derives_direct_cst_adapter_is_byte_exact_lossless_and_ast_parity_checked`: `R({type T = Int derives})` | `D(Derives(RoleReference))`, `before("}")`, Missing, TypeExpression |
 | D11b | same: `R({type T = Int derives Eq via})` | `D(Derives(ViaTarget))`, `before("}")`, Missing, Identifier |
-| D12a | `gate3_isolated_companion_form_recovery_and_state_table`: `with` form without `:` | `D(Companion(Introducer))`, `eof`, Missing, punctuation `:` |
+| D12a | `gate3_isolated_companion_form_recovery_and_state_table`: `with` form without `:` | `D(Companion(Introducer))`, `eof`, Missing, punctuation `{` (with `:` retained as a direct auxiliary expectation) |
 | D12b | same inline form: `with:` | `D(Companion(Body))`, `eof`, Missing, Statement |
 | D12c | same inline sequence: `with: @` | `D(Companion(Body))`, `span("@")`, Error, Statement |
 | D12d | same colon form with no entered indented sequence: `with:\n  ` | `D(Companion(Body))`, `before("\\n")`, Missing, Statement |

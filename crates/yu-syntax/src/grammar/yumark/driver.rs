@@ -65,6 +65,7 @@ pub(super) struct AstGate3Recovery {
     pub(super) range: Range<usize>,
     pub(super) kind: RecoveryKind,
     pub(super) expected: ExpectedSyntax,
+    pub(super) unexpected: Option<UnexpectedCategory>,
     pub(super) order: usize,
 }
 
@@ -310,6 +311,7 @@ where
             range,
             kind,
             expected,
+            unexpected: None,
             order,
         });
     }
@@ -377,6 +379,7 @@ where
                 range: recovery.range,
                 kind: recovery.kind,
                 expected: recovery.spec.expected,
+                unexpected: recovery.unexpected,
                 order,
             });
         }
