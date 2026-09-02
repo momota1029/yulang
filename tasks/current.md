@@ -556,6 +556,18 @@ focused witnessにした。`cargo fmt --check -p chasa-recover`、`cargo test -p
 は15 passed、M2 compiler/refereeとregression reviewはapproved。broad workspace check/timingはGate 1の
 scope外で未実施。次はGate 2 isolated execution shellであり、production dispatchは未認可のままである。
 
+2026-09-02: expression の `expr`/`tail` item-handoff 追補
+(`notes/design/2026-09-02-yu-syntax-expression-tail-handoff-addendum.md`)を、M3 compiler/recovery・
+specification review と scoped delta review 後にユーザー承認で `Authoritative` とした。追補は
+expression pilot に限り、二状態 `TailPosition`、non-numeric level 制限、fallible direct function の
+`S = ()` 制限を置換する。`TailExit = Result<(), Either<Item, End>>` は通常完了・同一 item handoff・
+boundary propagation の三経路を持ち、binary/ML application/prefix は全てこれに従う。`S` は直接 Rowan
+出力能力だが、emit 後に `None` を返さず total な typed-recovery/handoff continuation に入る。`tail_item`
+は ML argument と `(` を含む一論理 tail item を分類するが、layout が継続を許さない newline/dedent は
+opener 前に boundary として返す。Gate 2 は generic action/materializer shell ではなく、この直接
+expression closure を pilot として実装する。ただし既存 Gate 2 の state/range/recovery/rollback acceptance
+template と Gate 3 の E2/E3、Gate 4 の RB-E 割当は全て維持し、production dispatch は引き続き未認可である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
