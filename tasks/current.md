@@ -545,6 +545,17 @@ Gate 4–8はisolated closureのみで、production dispatchはGate 9まで不�
 (`with_str`)だけが次に認可された。Gate 3bのmatrix・Yumark surface/frame contracts・既存完了sliceは
 そのままnormative controlである。
 
+2026-09-02: Authoritative Gate 1 `with_str` substrateを完了した。`In<&str, R, S>::with_str`
+はowned `In` のshort reborrowから、nested operationがcurrent cursorで実際に消費したborrowed sliceを
+`(output, &str)`として返す。outer handleを残すnested caseは`i.rb().with_str(...)`であり、
+actual lookahead、next-item cache、allocation、source rewind、cursor correctionは導入しない。
+`ParserOnceStrExt::with_str()`はinput-independent blanket extensionとしてconstruction時の`I/R/S`
+inferenceを遅延させ、run時の`&str` parser successだけを`(output, consumed_str)`に写す。nested、UTF-8、
+CRLF、zero consumption/zero-copy、parser success、tuple nonmatchのinput/`R` rollback、`S` successを
+focused witnessにした。`cargo fmt --check -p chasa-recover`、`cargo test -p chasa-recover --no-fail-fast`
+は15 passed、M2 compiler/refereeとregression reviewはapproved。broad workspace check/timingはGate 1の
+scope外で未実施。次はGate 2 isolated execution shellであり、production dispatchは未認可のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

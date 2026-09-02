@@ -57,6 +57,44 @@ pub trait ParserOnce<I: Input, R: Recover, S: Rb> {
     }
 }
 
+/// Construction methods whose input type is fixed by the returned parser.
+///
+/// This separate extension trait keeps `.with_str()` inferable: the generic
+/// `I`, `R`, and `S` parameters of [`ParserOnce`] are not known until the
+/// returned parser is run.
+pub trait ParserOnceStrExt: Sized {
+    /// Capture the exact `&str` source interval consumed on success.
+    ///
+    /// Capture does not read ahead or add a transaction. On non-match, the
+    /// wrapped parser remains solely responsible for preserving input and
+    /// recoverable state according to its existing contract.
+    fn with_str(self) -> WithStr<Self> {
+        WithStr { parser: self }
+    }
+}
+
+impl<P> ParserOnceStrExt for P {}
+
+/// A parser paired with the exact borrowed `&str` interval it consumes.
+#[must_use]
+pub struct WithStr<P> {
+    parser: P,
+}
+
+impl<'source, R, S, P, O> ParserOnce<&'source str, R, S> for WithStr<P>
+where
+    R: Recover,
+    S: Rb,
+    P: ParserOnce<&'source str, R, S, Output = O>,
+{
+    type Output = (O, &'source str);
+
+    fn run_once(self, input: In<'_, &'source str, R, S>) -> Option<Self::Output> {
+        let (output, consumed) = input.with_str(|input| self.parser.run_once(input));
+        output.map(|output| (output, consumed))
+    }
+}
+
 impl<I: Input, R: Recover, F, O> ParserOnce<I, R, ()> for F
 where
     F: for<'a> FnOnce(In<'a, I, R, ()>) -> Option<O>,
@@ -343,7 +381,7 @@ mod tests {
 
     use reborrow_generic::Reborrow as _;
 
-    use super::{ParserOnce, choice, item};
+    use super::{ParserOnce, ParserOnceStrExt, choice, item};
     use crate::input::{In, Recoverable};
 
     #[derive(Default)]
@@ -634,5 +672,95 @@ mod tests {
         );
         assert_eq!(source, "bc");
         assert_eq!(calls, 1);
+    }
+
+    #[test]
+    fn in_with_str_supports_nested_current_cursor_capture() {
+        let mut source = "aβ!";
+        let input = In::<_, (), ()>::new(&mut source, (), ());
+
+        let ((first, second, inner), outer) = input.with_str(|mut outer| {
+            let first = outer.next().unwrap();
+            let (second, inner) = outer.rb().with_str(|mut inner| inner.next().unwrap());
+            (first, second, inner)
+        });
+
+        assert_eq!((first, second), ('a', 'β'));
+        assert_eq!(inner, "β");
+        assert_eq!(outer, "aβ");
+        assert_eq!(source, "!");
+    }
+
+    #[test]
+    fn in_with_str_captures_utf8_crlf_and_zero_consumption_without_copying() {
+        let original = "界\r\nrest";
+        let mut source = original;
+        let mut input = In::<_, (), ()>::new(&mut source, (), ());
+
+        let ((), empty) = input.rb().with_str(|_| ());
+        let (items, consumed) = input.with_str(|mut nested| {
+            [
+                nested.next().unwrap(),
+                nested.next().unwrap(),
+                nested.next().unwrap(),
+            ]
+        });
+
+        assert_eq!(empty, "");
+        assert_eq!(empty.as_ptr(), original.as_ptr());
+        assert_eq!(items, ['界', '\r', '\n']);
+        assert_eq!(consumed, "界\r\n");
+        assert_eq!(consumed.as_ptr(), original.as_ptr());
+        assert_eq!(source, "rest");
+    }
+
+    #[test]
+    fn parser_with_str_returns_successful_output_and_exact_source() {
+        let mut source = "aβ!";
+        let parser = (item('a'), item('β')).with_str();
+
+        assert_eq!(
+            parser.run_once(In::<_, (), ()>::new(&mut source, (), ())),
+            Some((('a', 'β'), "aβ"))
+        );
+        assert_eq!(source, "!");
+    }
+
+    #[test]
+    fn parser_with_str_preserves_non_match_input_and_recovery_rollback() {
+        let mut source = "ab";
+        let mut log = Log::default();
+        let parser = (
+            |mut input: In<&str, &mut Log, ()>| {
+                input.recovery().0.push('x');
+                input.next();
+                Some(())
+            },
+            item('z'),
+        )
+            .with_str();
+
+        assert_eq!(
+            parser.run_once(In::<_, &mut Log, ()>::new(&mut source, &mut log, ())),
+            None
+        );
+        assert_eq!(source, "ab");
+        assert!(log.0.is_empty());
+    }
+
+    #[test]
+    fn parser_with_str_preserves_non_recoverable_state_capability() {
+        let mut source = "a!";
+        let mut sink = String::new();
+        let parser = item('a')
+            .then(|item, input: In<&str, (), &mut String>| input.state.push(item))
+            .with_str();
+
+        assert_eq!(
+            parser.run_once(In::<_, (), &mut String>::new(&mut source, (), &mut sink,)),
+            Some(((), "a"))
+        );
+        assert_eq!(source, "!");
+        assert_eq!(sink, "a");
     }
 }

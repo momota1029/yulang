@@ -154,6 +154,38 @@ impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
     }
 }
 
+impl<'a, 'source, R: Recover + 'a, S: Rb + 'a> In<'a, &'source str, R, S> {
+    /// Run an operation through a short reborrow and return the exact source
+    /// prefix it consumed from the current cursor.
+    ///
+    /// This is source capture, not lookahead: it neither reads input itself nor
+    /// stores a future item. The nested operation owns its ordinary success,
+    /// non-match, and rollback behavior. In particular, this method never
+    /// corrects the input cursor. The `In` handle is consumed as a one-shot
+    /// continuation boundary; call `i.rb().with_str(...)` when the caller must
+    /// retain and reuse its outer handle.
+    pub fn with_str<O, F>(mut self, operation: F) -> (O, &'source str)
+    where
+        F: for<'short> FnOnce(In<'short, &'source str, R, S>) -> O,
+    {
+        let start = *self.input;
+        let output = operation(self.rb());
+        let end = *self.input;
+
+        let consumed_len = start
+            .len()
+            .checked_sub(end.len())
+            .expect("with_str operation replaced the input with a longer suffix");
+        assert_eq!(
+            start.as_ptr().wrapping_add(consumed_len),
+            end.as_ptr(),
+            "with_str operation replaced the input with an unrelated slice"
+        );
+
+        (output, &start[..consumed_len])
+    }
+}
+
 impl<I: Input, R: Recover> In<'_, I, R, ()> {
     /// Consume one item. A procedure that later returns `None` must restore
     /// this consumption itself; the direct unit-state function [`ParserOnce`]

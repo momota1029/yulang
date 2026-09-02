@@ -8,4 +8,4 @@ pub mod input;
 pub mod parser;
 
 pub use input::{In, Input, Recover, Recoverable};
-pub use parser::ParserOnce;
+pub use parser::{ParserOnce, ParserOnceStrExt};

@@ -50,6 +50,32 @@ backtracking. There is intentionally no `bind`, `flat_map`, or `and_then`.
 operations using `FnOnce`, `FnMut`, and `Fn`, respectively. They preserve the
 parser state type and do not receive `In`.
 
+For `I = &str`, `In::with_str` runs a nested operation through a short
+reborrow and returns `(output, consumed_str)`. `ParserOnceStrExt::with_str`
+applies the same capture to `run_once`, producing
+`Some((output, consumed_str))` on success and `None` on non-match. The small
+input-independent extension trait is separate because `ParserOnce<I, R, S>`'s
+generic parameters are not inferable when constructing the wrapper; the
+wrapper's implementation itself remains constrained to `I = &str`. Both forms
+capture the exact dynamic prefix consumed from the current cursor. They are
+source capture, not remainder inspection, lookahead, peeking, or token storage.
+The implementation allocates nothing and derives the borrowed slice only from
+the starting and finishing suffix lengths and pointers. It validates that the
+finish is a suffix of the start.
+
+`In::with_str` consumes its `In` handle as a one-shot continuation boundary,
+like other owned procedural operations. A caller that continues using an outer
+handle passes a short reborrow explicitly as `i.rb().with_str(...)`; nested
+capture tests witness this ownership shape. Importing the blanket
+`ParserOnceStrExt` does not interfere with the owned inherent `In::with_str`
+spelling.
+
+Capture adds no transaction of its own. A nested parser still owns its
+ordinary `None`, input-preservation, and `R` rollback behavior; `with_str`
+never corrects the cursor. The parser wrapper preserves the wrapped parser's
+`S` capability and does not weaken the rule that a non-unit-state parser must
+be total or leave `S` unchanged on `None`.
+
 Tuple parsers are implemented only for `S = ()`. A tuple is transactional: if
 any member non-matches, the whole tuple restores its initial input and
 recoverable-state marks before returning `None`. A grammar parser that has
@@ -152,6 +178,10 @@ use case.
   rolls back `R`, leaves its cursor advanced, and panics;
 - ordinary `map_once`, `map_mut`, and `map` transform parser output without
   becoming state-lifting or monadic composition;
+- nested `In::with_str` capture is exact for UTF-8, CRLF, and zero consumption,
+  and the returned `&str` is borrowed directly from the input source;
+- parser `with_str` captures successful consumption while preserving the
+  wrapped parser's non-match rollback and non-recoverable-state capability;
 - `In::rb()` witnesses short repeated access to reborrowed `R` and `S`;
 - no `bind`, `flat_map`, or `and_then` API is exposed.
 

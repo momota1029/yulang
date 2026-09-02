@@ -16,12 +16,34 @@
 - parser の `then` は `In::then` へ委譲する state-lift wrapper です。
 - `map_once` / `map_mut` / `map` は parser の通常出力だけを写します。
 - `choice` は `S = ()` の候補を左から順に transactional に試します。
+- `In::with_str` と parser の `with_str` は、nested operation が現在の
+  `&str` cursor から実際に消費した範囲を allocation なしで添えます。
 
 `FnOnce(In<I, R, ()>) -> Option<_>` はそのまま grammar parser であり、`None` を返した
 ときに入力を消費していれば安価な opaque cursor identity だけを比較して panic します。
 `None` なら `R` も marker へ rollback します。`&str` では現在の suffix pointer を使い、
 入力内容や `R` の等値比較は行いません。`check` は読みやすい実行入口であり、input を
 矯正しません。`S` を持つ stateful work は `then` の total callback で行います。
+
+`with_str` は現在の cursor の source capture であり、remainder inspection や
+lookahead ではありません。次の item を読んだり保存したりせず、nested operation の
+前後の suffix pointer と length だけから borrowed slice を得ます。nested parser が
+`None` を返す場合も、rollback と input-preservation はその parser 自身の既存契約です。
+`In::with_str` は one-shot continuation として `In` を受け取ります。外側の handle を
+続けて使う nested capture では `i.rb().with_str(...)` と書きます。
+
+```rust
+use chasa_recover::parser::item;
+use chasa_recover::{In, ParserOnce, ParserOnceStrExt as _};
+
+let mut source = "aβ!";
+let output = (item('a'), item('β'))
+    .with_str()
+    .run_once(In::<_, (), ()>::new(&mut source, (), ()));
+
+assert_eq!(output, Some((('a', 'β'), "aβ")));
+assert_eq!(source, "!");
+```
 
 ```rust
 use chasa_recover::parser::item;
