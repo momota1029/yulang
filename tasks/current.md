@@ -534,6 +534,17 @@ M2 compiler delta reviewは最終approved、`cargo fmt --check -p chasa-recover`
 `cargo test -p chasa-recover --no-fail-fast`は10 passedでgreen。Yulang production migrationの
 認可範囲は従来どおり拡張していない。
 
+2026-09-02: ユーザは全面 parser rewrite の移行順として、remaining legacy Yumark Gate 3b
+owner adoptionをここで停止し、Authoritative adoption matrixをfinal approval後の新 parser の
+必須acceptance evidenceへ引き継ぐ方を選択した。`notes/design/2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md`は
+そのM3 successorを起票し、M3 compiler/spec/regression reviewとdelta reviewを閉じて
+`Reviewed`にした。current-chasa mechanism、`SourceInput`/`ParseLocal`の
+field ownership、direct Rowan/typed diagnostic、leading-trivia `Item`/`Boundary`、flat
+`OperatorChain`、old/new atomic promotionを対象とするが、まだproduction `yu-syntax`の変更を
+認可しない。次はReviewed plan §6の未決定点を閉じ、ユーザ承認を得てGate 1 (`with_str`)へ
+進む。Gate 3bのmatrix・Yumark surface/frame contracts・既存完了sliceは
+そのままnormative controlである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
