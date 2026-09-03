@@ -7,7 +7,8 @@ evidence needed to implement the Authoritative recursive-descent rewrite plan's
 Gates 4–6. It preserves the plan's parser-language, AST, CST, diagnostic,
 recovery, streaming, and no-production-cutover contracts. It introduces no
 production dispatch, legacy/new crossing, Yumark production bridge, replay,
-token vector, or public syntax change.
+token vector, or public syntax change. It makes the single scoped
+dynamic-operator resource-accounting exception stated in §4.3.
 
 Requested-by: user on 2026-09-03. The user requested preparation and review of
 this Draft. It is not implementation authority until independent review and a
@@ -16,15 +17,25 @@ subsequent explicit user approval are recorded.
 Decision recorded while drafting: on 2026-09-03 the user selected a greedy,
 capability-filtered trie for the operator branch of successor value-start
 evidence. That decision eliminates successor-run partitioning and the proposed
-root-local raw-run memo from this amendment. It does not settle the separate
-aggregate-work problem of the ordinary scanner's required candidate fallback;
-§4 records that remaining design gate exactly.
+root-local raw-run memo from this amendment. The user then explicitly rejected
+retained scanner state for the ordinary scanner's overlap fallback and selected
+the Yulang2-compatible, source-only scanner with the parametric accounting in
+§4.3: a pathological overlapping operator definition may be slow and is a
+definition-quality concern, not a reason to introduce retained parser state.
 
 Narrowly amends on approval:
 
 - `2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md` only in the
-  construction ordering of Gates 4–6; their ledger ownership and certification
-  requirements remain unchanged;
+  construction ordering of Gates 4–6 and, for dynamic operator scanning only,
+  §2(7)'s static resource target and §7's corresponding non-linear-rescan stop
+  condition; their ledger ownership and other certification requirements remain
+  unchanged;
+- `2026-08-20-yu-syntax-chasa-architecture.md` only its performance-constraint
+  sentence requiring operator lookup to avoid re-walking an operator run, and
+  only for the pre-Item all-spelling candidate fallback and filtered value-start
+  traversal accounted in §4.3. Its immutable-table, no-token-vector,
+  same-run-rollback, sink-free speculation, and all non-operator constraints
+  remain unchanged;
 - `2026-09-02-yumark-gate3b-recovery-adoption-matrix.md` only to correct the
   incomplete E12 finite register from `E12a–E12i` to `E12a–E12k`; and
 - the expression-tail handoff addendum only where its one-current-Item rule
@@ -66,17 +77,17 @@ layer. `R(p)` has the matrix's existing `+5` payload-range shift.
 
 | cell | embedded literal and exact locator | recovery tuple | ordinary control | rollback |
 | --- | --- | --- | --- | --- |
-| E12a | `R(case : 1 -> a)`, `before(":")` | `CaseLike(Scrutinee)`, Missing, Expression | `case_like_recovery_marks_missing_mandatory_slots_once` and `gate3b_ordinary_primary_control_expression_projection_and_case` | RB-E |
-| E12b | `R(case x)`, `before(")")` | `CaseLike(Block)`, Missing, punctuation `:` | same | RB-E |
-| E12c | `R(case x: -> a)`, `before("->")` | `CaseLike(Pattern)`, Missing, Pattern | same | RB-E, RB-P |
-| E12d | `R(catch action: err, -> recover)`, `before("->")` | `CaseLike(Handler)`, Missing, Pattern | same | RB-E, RB-P |
-| E12e | `R(case x: n if -> yes)`, `before("->")` | `CaseLike(Guard)`, Missing, Expression | same | RB-E |
-| E12f | `R(case x: n yes)`, `before("yes")` | `CaseLike(Arrow)`, Missing, Expression | `case_like_missing_arrow_retries_the_body_from_the_same_position` and the primary control | RB-E |
-| E12g | `R(case x: n ->)`, `before(")")` | `CaseLike(Body)`, Missing, Expression | `case_like_recovery_marks_missing_mandatory_slots_once` and the primary control | RB-E |
-| E12h | `R(catch action { err -> recover`), `eof` | `CaseLike(Block)`, Missing, punctuation `}` | same and the primary control | RB-E |
-| E12i | `R(case x: 1 -> a 2 -> b)`, `before(second arm "2")` | `CaseLike(Separator)`, Missing, punctuation `,` | `case_like_missing_arm_comma_retries_the_next_pattern` and the primary control | RB-E, RB-P |
-| E12j | `R(case x: n @, _ -> b)`, `.1 before("@")`, `.2 span("@")` | `.1` `CaseLike(Arrow)`, Missing, Expression; `.2` `CaseLike(Arrow)`, Error, Expression | `case_like_invalid_arrow_run_recovers_to_the_next_comma_arm` and the primary control | RB-E, RB-P |
-| E12k | direct-only: `my value = case x:\\nnext`, `before("\\n")` | `CaseLike(Arm)`, Missing, Pattern at `18..18` | `case_like_same_indent_boundaries_stay_with_the_outer_owner` and the primary control | RB-E; following RB-S remains Gate 6 |
+| E12a | `R(case : 1 -> a)`, `before(":")` | `CaseLike(Scrutinee)`, Missing, Expression | `expression::tests::{case_like_recovery_marks_missing_mandatory_slots_once, gate3b_ordinary_primary_control_expression_projection_and_case}["case : 1 -> a"]` | RB-E |
+| E12b | `R(case x)`, `before(")")` | `CaseLike(Block)`, Missing, punctuation `:` | `expression::tests::{case_like_recovery_marks_missing_mandatory_slots_once, gate3b_ordinary_primary_control_expression_projection_and_case}["case x"]` | RB-E |
+| E12c | `R(case x: -> a)`, `before("->")` | `CaseLike(Pattern)`, Missing, Pattern | `expression::tests::{case_like_recovery_marks_missing_mandatory_slots_once, gate3b_ordinary_primary_control_expression_projection_and_case}["case x: -> a"]` | RB-E, RB-P |
+| E12d | `R(catch action: err, -> recover)`, `before("->")` | `CaseLike(Handler)`, Missing, Pattern | `expression::tests::{case_like_recovery_marks_missing_mandatory_slots_once, gate3b_ordinary_primary_control_expression_projection_and_case}["catch action: err, -> recover"]` | RB-E, RB-P |
+| E12e | `R(case x: n if -> yes)`, `before("->")` | `CaseLike(Guard)`, Missing, Expression | `expression::tests::{case_like_recovery_marks_missing_mandatory_slots_once, gate3b_ordinary_primary_control_expression_projection_and_case}["case x: n if -> yes"]` | RB-E |
+| E12f | `R(case x: n yes)`, `before("yes")` | `CaseLike(Arrow)`, Missing, Expression | `expression::tests::{case_like_missing_arrow_retries_the_body_from_the_same_position, gate3b_ordinary_primary_control_expression_projection_and_case}["case x: n yes"]` | RB-E |
+| E12g | `R(case x: n ->)`, `before(")")` | `CaseLike(Body)`, Missing, Expression | `expression::tests::{case_like_recovery_marks_missing_mandatory_slots_once, gate3b_ordinary_primary_control_expression_projection_and_case}["case x: n ->"]` | RB-E |
+| E12h | `R(catch action { err -> recover`), `eof` | `CaseLike(Block)`, Missing, punctuation `}` | `expression::tests::{case_like_recovery_marks_missing_mandatory_slots_once, gate3b_ordinary_primary_control_expression_projection_and_case}["catch action { err -> recover"]` | RB-E |
+| E12i | `R(case x: 1 -> a 2 -> b)`, `before(second arm "2")` | `CaseLike(Separator)`, Missing, punctuation `,` | `expression::tests::{case_like_missing_arm_comma_retries_the_next_pattern, gate3b_ordinary_primary_control_expression_projection_and_case}["case x: 1 -> a 2 -> b"]` | RB-E, RB-P |
+| E12j | `R(case x: n @, _ -> b)`, `.1 before("@")`, `.2 span("@")` | `.1` `CaseLike(Arrow)`, Missing, Expression; `.2` `CaseLike(Arrow)`, Error, Expression | `expression::tests::{case_like_invalid_arrow_run_recovers_to_the_next_comma_arm, gate3b_ordinary_primary_control_expression_projection_and_case}["case x: n @, _ -> b"]` | RB-E, RB-P |
+| E12k | direct-only: `my value = case x:\\nnext`, `before("\\n")` | `CaseLike(Arm)`, Missing, Pattern at `18..18` | `expression::tests::{case_like_same_indent_boundaries_stay_with_the_outer_owner, gate3b_ordinary_primary_control_expression_projection_and_case}["my value = case x:\\nnext"]` | RB-E; following RB-S remains Gate 6 |
 
 E12j's embedded ranges are therefore `15..15` and `15..16`; its Error has
 `UnexpectedCategory::OperatorLike`. Its ordinary ranges remain `10..10` and
@@ -123,10 +134,11 @@ The construction and certification checkpoints are:
    recognition; prefix, nullfix, infix, suffix, ML handoff; and base
    MissingOperand/Error recovery. The private operational binding threshold
    comes from the immutable OperatorTable and controls handoff only. It never
-   constructs an association tree. It cannot begin until §4's aggregate-work
-   proof has passed its performance audit. It then closes E8 and
-   operator-related RB-E probes, including a binding-power-only table variation
-   that leaves flat, source-order AST/CST products unchanged.
+   constructs an association tree. It applies §4's explicit parametric work
+   accounting rather than claiming an aggregate-linear dynamic-operator bound.
+   It then closes E8 and operator-related RB-E probes, including a
+   binding-power-only table variation that leaves flat, source-order AST/CST
+   products unchanged.
 2. **G4b — expression-local delimited and fixed owners.** Add one private,
    owner-parameterized Item/Separator/Close loop for parenthesized groups,
    call arguments, index, tuple projection, and record projection. It directly
@@ -173,7 +185,7 @@ frame, then returns only the following finite raw evidence:
 ```text
 Trailing = None | Space | Newline { indentation }
 AfterTrivia = Eof | ActiveStop | CallOrColonWithoutTrivia | ValueStart(kind) | Other
-ValueStart(kind) = QuoteOrOpen | Sigil | Xid | Decimal | Dot
+ValueStart(kind) = QuoteOpenOrBackslash | Sigil | Xid | Decimal | Dot
                  | OperatorWithPrefixAndNullfix
 ```
 
@@ -213,8 +225,9 @@ unterminated block-comment remainder are all classified from raw source with
 the same resulting newline/indentation facts. `ActiveStop` covers only the
 current frame's comma, semicolon, and matching close stop. Newline
 `ValueStart` is true only when the explicit baseline is strictly less than its
-indentation. `OperatorWithPrefixAndNullfix` requires the exact existing
-OperatorKindSet predicate containing both Prefix and Nullfix, not either one.
+indentation. `QuoteOpenOrBackslash` is exactly `"`, `(`, `[`, `{`, `$`, or
+`\\`. `OperatorWithPrefixAndNullfix` requires the exact existing OperatorKindSet
+predicate containing both Prefix and Nullfix, not either one.
 
 The procedure borrows raw bytes only while it observes them. It allocates no
 Item, advances no live cursor, mutates neither R nor S, records no
@@ -226,11 +239,11 @@ by, or re-scanned through this procedure.
 
 The judge applies the existing finite `judge_nud`/`judge_led` table extensionally:
 `post_whitespace` is true exactly for nonempty Trailing, Eof, or ActiveStop;
-CallOrColonWithoutTrivia rejects the current prefix/nullfix-sensitive candidate;
-and `ValueStart` supplies the existing value-start boolean. Thus for identical
-site, spelling boundary, fixities, leading trivia, and frame, the new evidence
-selects the same accepted/rejected fixity as the existing scanner, without
-calling that scanner as a bridge.
+CallOrColonWithoutTrivia rejects only the §4.2 call-or-path-sensitive
+candidate; and `ValueStart` supplies the existing value-start boolean. Thus for
+identical site, spelling boundary, fixities, leading trivia, and frame, the new
+evidence selects the same accepted/rejected fixity as the existing scanner,
+without calling that scanner as a bridge.
 
 ### 4.2 The ordinary scanner remains site-aware
 
@@ -248,6 +261,14 @@ LED `a+!b` accepts long infix `+!`. A site-filtered NUD or LED trie may be an
 implementation-local pruning index, but it cannot replace this fallback:
 candidate acceptance can still depend on successor evidence and whitespace.
 
+The call-or-colon exclusion is exactly the current
+`is_call_or_path_sensitive` predicate, not a general prefix/nullfix rule: the
+candidate capability set contains both Prefix and Nullfix and contains neither
+Infix nor Suffix; its trailing evidence is None; and the immediately following
+raw character is `(` or `:`. Only that conjunction rejects the candidate before
+the judge. A spelling with Infix or Suffix capability remains eligible under
+the normal judge path.
+
 Focused controls cover each ValueStart family; line/nested/unterminated-comment
 trivia; CRLF and baseline-allowed/refused newline; EOF and each active stop;
 no-trivia `(` and `:`; a successor operator that has both Prefix and Nullfix;
@@ -256,52 +277,87 @@ qualifying spelling under a longer ineligible spelling; and identifier-like
 boundary fallback, including a multibyte spelling. They pin the selected
 fixity, current Item non-creation, pointer/frame equality, and unchanged R/S.
 
-### 4.3 Aggregate-work gate remains open
+### 4.3 Selected parametric resource accounting
 
-The filtered trie makes one dynamic successor probe non-recursive and bounded
-by the qualifying matched spelling path (with the current BTreeMap transition
-representation, `O(q log D)` for `q` matched characters and maximum branching
-degree `D`). It removes the earlier rationale for a root-local memo in
-successor evidence. It does not prove the rewrite plan's required
-`O(bytes + structural work)` whole-parse bound: the ordinary all-spelling trie
-may fall back through several endpoints, and each rejected endpoint can issue a
-different filtered-trie query over an overlapping successor suffix.
+The user explicitly selects the Yulang2-compatible source-only scanner and
+rejects `OperatorRunEvidence`, every other retained raw-run summary, a spelling
+or overlap cap, and a new retained/stateful cross-Item matcher or failure
+automaton. Arbitrarily overlapping operator definitions remain legal. Their
+pathological worst case is accepted as a definition-quality/readability cost,
+not a parser-state design trigger.
 
-For example, a chain of Prefix candidates with a qualifying
-Prefix-and-Nullfix spelling only farther into the source can make a single
-ordinary scan query decreasing suffixes at every candidate endpoint. Per-site
-derived tries do not remove candidates whose acceptability depends on the
-successor boolean. A per-endpoint result memo also cannot share those distinct
-endpoints. This is non-linear source reinspection unless it is charged to an
-explicitly accepted structural table-size term; the parent plan's present bound
-does not authorize that relaxation.
+The parent plan's dynamic-operator-only resource contract is therefore:
 
-Accordingly G4a cannot begin until a later design decision supplies one of the
-following and an independent performance audit verifies its static proof:
+```text
+O(bytes + structural work
+  + (T_all + T_value) * log(max(2, D))
+  + C + H)
+```
 
-1. a scanner-owned, parse-invocation-local `OperatorRunEvidence`, or a
-   specifically proven compact equivalent. It is retained across successive
-   Item scans of one maximal scanner-observed overlapping-candidate span, then
-   releases facts strictly before the committed cursor and disappears at the
-   span exit. It is bound to the root source identity and immutable
-   OperatorTable and contains only span start/end, source-position matcher
-   facts, Prefix-and-Nullfix-start booleans, accepted/fallback spelling facts,
-   and a release cursor. It contains no Item/token/CST/recovery output, no R/S
-   state, and no cross-parse cache. Its construction and retained frontier must
-   charge each examined source position and matcher transition once, and
-   rollback may only revisit retained facts;
-2. a user-approved language/header restriction that finitely bounds the
-   relevant spelling/overlap relation; or
-3. a user-approved amendment to the parent static resource bound, with an
-   exact parametric accounting term.
+Here `T_all` is the total all-spelling-trie child-map `step` attempts by
+ordinary NUD/LED candidate traversal, including the final unsuccessful probe;
+`T_value` is the corresponding total for `value_start_trie`; `D` is the maximum
+child-map degree of either trie; `C` is the number of terminal candidate
+callbacks; and `H` is the total decoded raw-trivia characters observed by those
+callbacks. `H` includes the transient `TriviaRun` parts and allocation churn:
+that work is `O(H + C)` and creates no retained state. The BTreeMap transition
+representation supplies the `log(max(2, D))` term. Boundary, stop, and judge
+work are constant per callback. The unchanged `bytes + structural work` terms
+include accepted Item work, BindingPower clones, committed trivia, output, and
+all non-operator owners.
 
-A plain table-derived reverse/failure trie is insufficient: it does not retain
-which source-specific outer candidate endpoints remain pending. A reverse pass
-that re-reads the raw run would violate the parent plan's one-forward/no-rescan
-contract. Timing alone cannot establish this asymptotic property. Pure
-pre/post-whitespace judging, completing a second Item, global token storage,
-reusing the legacy scanner through a bridge, and reviving the rejected
-root-local successor memo remain rejected.
+Let `K_all` and `K_value` be the maximum matching spelling depths reached by
+the two recursive trie traversals during one scanner call. Their additional
+peak auxiliary stack is `O(K_all + K_value)`; it is deliberately parametric
+under this decision and has no retained cross-Item component. The cold
+`value_start_trie` build runs after final spelling-level merge, costs
+`O(L_value * log(max(2, D)))` for `L_value` qualifying spelling characters, and
+adds `O(N_value + E_value)` persistent nodes/edges plus terminal entry indices.
+It reuses existing entry, fixity, and diagnostic-site storage. This cold table
+cost is charged to the existing header/table construction phase, not to full
+parse scanner work.
+
+On approval this replaces only the final target-bound sentence of rewrite-plan
+§2(7) for dynamic operator scanning. It also narrows only the final rewrite-plan
+§7 stop bullet: non-linear rescanning remains a stop condition except for the
+source-only all-spelling candidate fallback and filtered value-start traversal
+accounted above. Whole-file tokenization, retained checkpoints, all other
+non-linear rescanning, and every other stop condition remain forbidden.
+
+This accounting intentionally permits a raw byte observed by pre-Item
+candidate/successor judgment to contribute to `T_all`, `T_value`, or `H` more
+than once. It includes raw trailing trivia after an eventually accepted
+operator: that observation assigns no Item or trivia identity, extent, or
+logical position, and the next Item scanner later owns and consumes it. A
+completed logical Item, its assigned leading trivia, a CST token, or a recovery
+record remains non-retainable and non-rescannable.
+
+There is no global token storage, replay, shadow parse, table mutation,
+retained source slice, or source-specific raw-run summary/cache after one
+`scan_operator` invocation returns or across Item boundaries. Within one
+longer-to-shorter candidate traversal, the trie recursion state, callback
+stack, live cursor, R checkpoint, and rollback-owned layout/expectation state
+remain required. Every rejected callback restores input, R, frame, expectation
+sink, diagnostic allocator, persistent recovery state, and IsCut to its
+candidate checkpoint, leaves S and committed output unchanged, and then permits
+the shorter candidate. The filtered value-start trie removes recursive
+*ordinary-scanner* invocation, but the outer candidate fallback remains
+source-only.
+
+Yulang2 is the required reference for trie traversal and longer-to-shorter
+candidate-fallback topology. The current approved Yulang3 capability judge,
+including its exact call-or-colon predicate in §4.2, is the semantic
+compatibility oracle; Yulang2 spelling-specific loop-control branches are not
+silently imported. The frozen Yulang3 `+!a` NUD / `a+!b` LED controls and the
+current scanner-control suite pin that distinction.
+
+A benchmark cannot decide this declared trade-off and is not a G4a
+precondition. G4a statically accounts for the named terms in any focused
+dynamic-operator test added by its gate; it adds no runtime counter or retained
+scanner state and does not claim a stronger aggregate bound. A later request to
+add a retained/stateful cross-Item matcher or failure automaton, restrict
+operator definitions, or restore the unqualified linear target is a new
+architecture decision.
 
 ## 5. Acceptance, rollback, and stop conditions
 
@@ -337,7 +393,13 @@ This is an M3 architecture amendment. Before Authority status:
   identities, public-dispatch isolation, and the Gate 4–6 boundary.
 
 One initial review round and at most two scoped repair/review rounds are
-budgeted. The initial review found aggregate operator work uncertain, so a
-scoped performance audit is mandatory before the successor-evidence decision
-can become implementation authority. This Draft changes documentation only, so
-no compiler test suite is run before a later implementation gate.
+budgeted. The initial review and scoped architecture/performance investigation
+established that a filtered value-start trie removes successor partitioning but
+not ordinary candidate-fallback reinspection. The user selected §4.3's
+parametric resource accounting instead of retained scanner state or a language
+restriction. Compiler, specification, and performance delta reviews then
+checked that exact exception; their direct authority, value-start vocabulary,
+rollback-lifetime, and accounting repairs are incorporated above. The M3 review
+budget is now consumed. This Draft remains Draft until explicit user approval;
+it changes documentation only, so no compiler test suite is run before a later
+implementation gate.
