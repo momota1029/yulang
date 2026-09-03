@@ -880,6 +880,14 @@ record tailにせずhandoffする。state/source reread/buffer/recovery record�
 field/close/separator recoveryとsame-line field-head boundary queryは未実装。M1 specification reviewはclean、focused
 rewrite testsは56 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: standalone `TypeExpression`へnormal-only contextual `ForallType` primaryを追加した。exact maximal
+`for`はcanonical type-NUDだけで`ForKw`になり、TypeApply LEDではordinary Identifierのままにする。apostrophe-prefixed
+SigilIdentifierだけをnon-empty bounded trivia付きbinderとして各`ForallTypeBinder`へemitし、colon/body gapはForall owner、
+recursive canonical bodyはnested TypeExpressionが所有する。raw forallはbody exitを直接returnしてouter tailへ戻らず、
+groupを通したときだけouter pathなどを付けられる。state/source reread/buffer/recovery recordの追加なし。これはvalid
+surfaceだけで、binder/colon/body recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは58 passed、
+package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

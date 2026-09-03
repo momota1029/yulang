@@ -401,3 +401,97 @@ fn named_record_type_accepts_layout_and_type_tails() {
             .any(|node| node.kind() == SyntaxKind::NamedRecordType)
     );
 }
+
+#[test]
+fn forall_type_is_contextual_terminal_primary() {
+    let source = "for 'a: A -> A";
+    let (green, exit) = run_type(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let top = top_type_expression(&green);
+    assert_eq!(
+        top.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::ForallType]
+    );
+    let forall = top
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ForallType)
+        .expect("forall type");
+    assert_eq!(
+        forall
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+            .count(),
+        1
+    );
+    assert!(
+        forall
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::TypeArrowTail)
+    );
+
+    let layout = "for\n  'a\n  'b:\n    Pair('a, 'b)";
+    let (green, exit) = run_type(layout);
+    assert_eq!(green.to_string(), layout);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+            .count(),
+        2
+    );
+
+    for source in ["(for 'a: T)", "F(for 'a: T)", "A -> for 'a: T"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::ForallType)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let grouped = run_type("(for 'a: T)::Result").0;
+    let top = top_type_expression(&grouped);
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+    );
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypePathTail)
+    );
+}
+
+#[test]
+fn forall_type_does_not_reclassify_type_apply_for() {
+    for source in ["forx 'a", "forall 'a", "for_ 'a"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::ForallType),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("F for 'a: T");
+    assert_eq!(green.to_string(), "F for 'a");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
+    ));
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::ForallType)
+    );
+}

@@ -33,6 +33,7 @@ pub(super) enum TokenKind {
     DotDot,
     Arrow,
     Colon,
+    Forall,
     PathSeparator,
     Unknown,
 }

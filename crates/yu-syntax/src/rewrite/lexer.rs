@@ -113,6 +113,7 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<
 
 pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
     let token = i.check(choice((
+        token(scan_type_forall),
         token(scan_path_segment),
         token(scan_integer),
         token(scan_lparen),
@@ -122,6 +123,16 @@ pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
         leading: LeadingTrivia::default(),
         payload: Payload::Token(token),
     })
+}
+
+pub(super) fn type_nud_item_after_trivia(mut i: RewriteIn, leading: LeadingTrivia) -> Item {
+    if let Some(token) = i.token(scan_type_forall) {
+        return Item {
+            leading,
+            payload: Payload::Token(token),
+        };
+    }
+    type_item_after_trivia(i, leading)
 }
 
 pub(super) fn type_item_after_trivia(i: RewriteIn, leading: LeadingTrivia) -> Item {
@@ -374,6 +385,27 @@ fn scan_type_arrow(i: LexIn) -> Option<Token> {
     accepted?;
     Some(Token {
         kind: TokenKind::Arrow,
+        text: text.into(),
+    })
+}
+
+fn scan_type_forall(i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.with_str(|mut keyword| {
+        (keyword.next()? == 'f').then_some(())?;
+        (keyword.next()? == 'o').then_some(())?;
+        (keyword.next()? == 'r').then_some(())?;
+        keyword
+            .token(scan_identifier_continue)
+            .is_none()
+            .then_some(())?;
+        keyword
+            .token(scan_identifier_suffix)
+            .is_none()
+            .then_some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Forall,
         text: text.into(),
     })
 }

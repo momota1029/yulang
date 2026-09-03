@@ -9,7 +9,7 @@ use super::{
     driver::{Either, TailExit, handoff, token_kind},
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
-    lexer::{scan_trivia, scan_type_nud_item, type_item_after_trivia},
+    lexer::{scan_trivia, scan_type_nud_item, type_item_after_trivia, type_nud_item_after_trivia},
 };
 
 pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
@@ -31,6 +31,7 @@ fn type_expr_from_primary(
         }
         Some(TokenKind::LParen) => type_group(i.rb(), primary, baseline, type_ml),
         Some(TokenKind::LBrace) => type_record(i.rb(), primary, baseline, type_ml),
+        Some(TokenKind::Forall) => type_forall(i.rb(), primary, baseline),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     };
     i.state.finish_node();
@@ -124,7 +125,7 @@ fn type_record_field(mut i: RewriteIn, name: Item, baseline: usize) -> TailExit 
     }
     emit_token_item(&mut i, colon);
     let leading = scan_trivia(i.rb());
-    let mut rhs = type_item_after_trivia(i.rb(), leading);
+    let mut rhs = type_nud_item_after_trivia(i.rb(), leading);
     if !type_chain_trivia(&rhs.leading, baseline) || !is_type_primary(&rhs) {
         i.state.finish_node();
         return handoff(rhs);
@@ -174,11 +175,62 @@ fn type_record_successor(
     }
 }
 
+fn type_forall(mut i: RewriteIn, keyword: Item, baseline: usize) -> TailExit {
+    i.state.start_node(SyntaxKind::ForallType.into());
+    emit_token_item(&mut i, keyword);
+    let leading = scan_trivia(i.rb());
+    let mut binder = type_item_after_trivia(i.rb(), leading);
+    if binder.leading.0.is_empty()
+        || !type_chain_trivia(&binder.leading, baseline)
+        || !is_forall_binder(&binder)
+    {
+        i.state.finish_node();
+        return handoff(binder);
+    }
+    loop {
+        type_forall_binder(i.rb(), binder);
+        let leading = scan_trivia(i.rb());
+        let next = type_item_after_trivia(i.rb(), leading);
+        if token_kind(&next) == Some(TokenKind::Colon) && type_chain_trivia(&next.leading, baseline)
+        {
+            emit_token_item(&mut i, next);
+            let leading = scan_trivia(i.rb());
+            let mut body = type_nud_item_after_trivia(i.rb(), leading);
+            if !type_chain_trivia(&body.leading, baseline) || !is_type_primary(&body) {
+                i.state.finish_node();
+                return handoff(body);
+            }
+            let leading = std::mem::take(&mut body.leading);
+            emit_leading_trivia(&mut i, &leading);
+            let exit = type_expr_from_primary(i.rb(), body, baseline, false);
+            i.state.finish_node();
+            return exit;
+        }
+        if !next.leading.0.is_empty()
+            && type_chain_trivia(&next.leading, baseline)
+            && is_forall_binder(&next)
+        {
+            binder = next;
+            continue;
+        }
+        i.state.finish_node();
+        return handoff(next);
+    }
+}
+
+fn type_forall_binder(mut i: RewriteIn, mut binder: Item) {
+    i.state.start_node(SyntaxKind::ForallTypeBinder.into());
+    let leading = std::mem::take(&mut binder.leading);
+    emit_leading_trivia(&mut i, &leading);
+    emit_token_item(&mut i, binder);
+    i.state.finish_node();
+}
+
 fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
     let opening = scan_trivia(i.rb());
     let baseline = type_delimited_baseline(incoming_baseline, &opening);
     emit_leading_trivia(&mut i, &opening);
-    let mut item = type_item_after_trivia(i.rb(), LeadingTrivia::default());
+    let mut item = type_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
     loop {
         if token_kind(&item) == Some(TokenKind::RParen) {
             emit_token_item(&mut i, item);
@@ -201,7 +253,7 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
         }
         let exit = type_expr_from_primary(i.rb(), item, baseline, false);
         item = match exit {
-            Ok(()) => type_item_after_trivia(i.rb(), LeadingTrivia::default()),
+            Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
             Err(Either::Left(next)) if is_type_separator(&next) => {
                 emit_token_item(&mut i, next);
                 match type_after_separator(i.rb()) {
@@ -226,7 +278,7 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
 
 fn type_after_separator(mut i: RewriteIn) -> Result<Item, TailExit> {
     let leading = scan_trivia(i.rb());
-    let mut next = type_item_after_trivia(i.rb(), leading);
+    let mut next = type_nud_item_after_trivia(i.rb(), leading);
     if token_kind(&next) == Some(TokenKind::RParen) {
         let leading = std::mem::take(&mut next.leading);
         emit_leading_trivia(&mut i, &leading);
@@ -308,7 +360,7 @@ fn type_arrow_tail(mut i: RewriteIn, arrow: Item, baseline: usize) -> TailExit {
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
     emit_token_item(&mut i, arrow);
     let trivia = scan_trivia(i.rb());
-    let mut rhs = type_item_after_trivia(i.rb(), trivia);
+    let mut rhs = type_nud_item_after_trivia(i.rb(), trivia);
     if !type_chain_trivia(&rhs.leading, baseline) || is_type_rhs_boundary(&rhs) {
         let leading = std::mem::take(&mut rhs.leading);
         emit_missing(&mut i, leading);
@@ -332,7 +384,7 @@ fn retry_type_rhs(mut i: RewriteIn, mut item: Item, baseline: usize) -> Item {
     loop {
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
-        item = type_item_after_trivia(i.rb(), leading);
+        item = type_nud_item_after_trivia(i.rb(), leading);
         if is_type_primary(&item)
             || !type_chain_trivia(&item.leading, baseline)
             || is_type_rhs_boundary(&item)
@@ -360,12 +412,21 @@ fn is_type_primary(item: &Item) -> bool {
                 | TokenKind::Integer
                 | TokenKind::LParen
                 | TokenKind::LBrace
+                | TokenKind::Forall
         )
     )
 }
 
 fn is_type_record_field_name(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Identifier)
+}
+
+fn is_forall_binder(item: &Item) -> bool {
+    matches!(
+        &item.payload,
+        Payload::Token(token)
+            if token.kind == TokenKind::SigilIdentifier && token.text.starts_with('\'')
+    )
 }
 
 fn is_type_path_segment(item: &Item) -> bool {
