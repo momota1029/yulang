@@ -607,6 +607,15 @@ specification review は、two repair rounds と final test-only review 後に a
 production dispatch、legacy/Yumark bridge、projection/full E3、Gate 4 の Expression/RB-E closure は
 引き続き未認可・未実装であり、次の active gate は Gate 4 の設計である。
 
+2026-09-03: ユーザー承認により
+`notes/design/2026-09-03-yu-syntax-gate4-6-scc-amendment.md` を Authoritative とした。
+これは Gate 4–6 を TypeExpression/PV の acyclic prerequisite と、Expression/Pattern/canonical
+Statement/declaration/body の共同 SCC construction として確定し、E12 register を E12a–E12k へ
+訂正する。dynamic operator の戻り読みは、Item を生成・所有しない raw lexical token probe
+だけに限る。grammar owner、completed Item、assigned trivia、CST、diagnostic、recovery の reread
+は禁止である。次の active gate は isolated G4a dynamic item/operator kernel であり、production
+dispatch、legacy/new crossing、Yumark production bridge は引き続き scope 外である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

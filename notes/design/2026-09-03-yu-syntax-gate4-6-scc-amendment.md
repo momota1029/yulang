@@ -1,6 +1,6 @@
-# Draft: yu-syntax Gate 4–6 dependency-SCC and operator-evidence amendment
+# yu-syntax Gate 4–6 dependency-SCC and operator-evidence amendment
 
-Status: Draft
+Status: Authoritative
 
 Scope: This amendment resolves only the execution ordering and acceptance
 evidence needed to implement the Authoritative recursive-descent rewrite plan's
@@ -10,9 +10,14 @@ production dispatch, legacy/new crossing, Yumark production bridge, replay,
 token vector, or public syntax change. It makes the single scoped
 dynamic-operator resource-accounting exception stated in §4.3.
 
-Requested-by: user on 2026-09-03. The user requested preparation and review of
-this Draft. It is not implementation authority until independent review and a
-subsequent explicit user approval are recorded.
+Approved-by: user
+
+Approved-at: 2026-09-03
+
+Drafted-by: primary agent
+
+Reviewed-by: independent compiler/referee, specification, regression, and
+scoped compiler/specification/performance delta review
 
 Decision recorded while drafting: on 2026-09-03 the user selected a greedy,
 capability-filtered trie for the operator branch of successor value-start
@@ -61,7 +66,9 @@ impossible to implement without violating an existing hard constraint.
    protocol assigns the trivia to the following Item and may not complete,
    retain, or re-scan that Item merely to choose operator fixity. The needed
    operator-start observation is a greedy query of the already-merged
-   Prefix-and-Nullfix capability trie, not an operator-run partition.
+   Prefix-and-Nullfix capability trie, not an operator-run partition. The
+   sole permitted re-observation is the source-only token probe defined in
+   §4.3; it neither completes nor re-scans an Item.
 
 Calling a legacy Pattern, TypeExpression, Statement, or declaration parser
 would be an old/new crossing. A private expression-only copy of any of those
@@ -324,13 +331,17 @@ source-only all-spelling candidate fallback and filtered value-start traversal
 accounted above. Whole-file tokenization, retained checkpoints, all other
 non-linear rescanning, and every other stop condition remain forbidden.
 
-This accounting intentionally permits a raw byte observed by pre-Item
-candidate/successor judgment to contribute to `T_all`, `T_value`, or `H` more
-than once. It includes raw trailing trivia after an eventually accepted
-operator: that observation assigns no Item or trivia identity, extent, or
-logical position, and the next Item scanner later owns and consumes it. A
-completed logical Item, its assigned leading trivia, a CST token, or a recovery
-record remains non-retainable and non-rescannable.
+The sole permitted re-observation is a source-only **token probe**. It observes
+only a candidate token spelling or prospective following leading-trivia/
+boundary bytes before an Item exists, produces no Item identity or extent, and
+does not assign trivia, logical position, CST, diagnostic, or recovery
+ownership. A token probe may be repeated by pre-Item candidate/successor
+judgment, so a raw byte may contribute to `T_all`, `T_value`, or `H` more than
+once. This includes raw trailing trivia after an eventually accepted operator:
+the probe assigns it nothing, and the next Item scanner later owns and consumes
+it. No other reread is allowed: a grammar owner, completed logical Item,
+assigned leading trivia, CST token, diagnostic, or recovery record remains
+non-retainable and non-rescannable.
 
 There is no global token storage, replay, shadow parse, table mutation,
 retained source slice, or source-specific raw-run summary/cache after one
@@ -381,9 +392,9 @@ ordinary control above, successor evidence completes another Item, an accepted
 loop repeats the same `(cursor, Item identity, owner phase)`, or a proposed
 expression-only Statement subset omits reachable declaration behavior.
 
-## 6. Review and verification plan
+## 6. Review and verification record
 
-This is an M3 architecture amendment. Before Authority status:
+This was an M3 architecture amendment. Before Authority status:
 
 - independent compiler/referee review checks SCC ownership, handoff, rollback,
   E12 tuples, and successor-evidence safety;
@@ -400,6 +411,7 @@ parametric resource accounting instead of retained scanner state or a language
 restriction. Compiler, specification, and performance delta reviews then
 checked that exact exception; their direct authority, value-start vocabulary,
 rollback-lifetime, and accounting repairs are incorporated above. The M3 review
-budget is now consumed. This Draft remains Draft until explicit user approval;
-it changes documentation only, so no compiler test suite is run before a later
-implementation gate.
+budget is consumed. The user approved this scope and its token-probe-only
+reread rule on 2026-09-03, making this document Authoritative. This status
+transition changes documentation only, so no compiler test suite is run before
+the later implementation gate.
