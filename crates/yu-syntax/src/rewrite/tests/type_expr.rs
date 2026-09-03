@@ -926,3 +926,128 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
         1
     );
 }
+
+#[test]
+fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
+    for (source, error_text, missing) in [
+        ("T [:] -> U", ":", 0),
+        ("T [@\nA] -> U", "@", 0),
+        ("T [@\n  A] -> U", "@\n  ", 0),
+        ("T [A\n  )] -> U", ")", 0),
+        ("T [@/* comment */A] -> U", "@/* comment */", 0),
+        ("T [@/*\n*/A] -> U", "@/*\n*/", 0),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let errors = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1, "{source:?}");
+        assert_eq!(errors[0].text().to_string(), error_text, "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("T [A\n  ] -> U");
+    assert_eq!(green.to_string(), "T [A\n  ] -> U");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+    );
+
+    let (green, exit) = run_type("T [");
+    assert_eq!(green.to_string(), "T [");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        3
+    );
+
+    for (source, errors, missing) in [
+        ("T [e,)] -> U", 1, 1),
+        ("T [@,)] -> U", 2, 1),
+        ("T [e))] -> U", 2, 0),
+        ("T [e))", 2, 2),
+        ("T [)", 1, 3),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+
+    for (source, parsed) in [("T [e) U]", "T [e)"), ("T [e)\nU]", "T [e)")] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), parsed, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Left(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("T [e)\n");
+    assert_eq!(green.to_string(), "T [e)\n");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let newline = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Newline)
+        .expect("caller newline");
+    assert_ne!(
+        newline.parent().expect("newline parent").kind(),
+        SyntaxKind::BracketRow
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        2
+    );
+}

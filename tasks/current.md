@@ -960,6 +960,15 @@ mandatory head、tail rowではmandatory arrowのMissingを各owner内に置く�
 state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはclean、focused rewrite testsは68 passed、package
 check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: `BracketRow` BR-R の残るzero-length / close-slot収束を完了した。open直後のEOFはitem / close /
+tail arrowの3 distinct Missing、separator直後のlocal mismatched closeはnew item Missing後のclose Error、complete item後の
+local mismatched closeはfurther mismatchまたはactual `]`だけをretryする。後者がcaller-owned equal-or-shallower newline、
+outer follower、EOFへ達したときはitem loopへ戻らずclose Missingを置いてhandoffするため、newlineはrow外に残る。malformed
+itemのsame-line / newline / comment run、repeated wrong close、actual closeへのupgrade、terminal Missingの全traceをdirect
+CST fixtureで固定した。Generic (EffectRow / call / group) close behaviorは不変。state/source reread/buffer/recovery record
+の追加なし。M1 specification reviewはnewline ownership修正を含め2巡clean、focused rewrite testsは69 passed、package check、
+format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
