@@ -930,6 +930,13 @@ head recoveryへ残す。state/source reread/buffer/recovery recordの追加な�
 row item / close recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは65 passed、package check、
 format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct leading `BracketRow`のdisabled second-row BR-H recoveryを追加した。matching `]`がsink-free
+balanced probeで確定した`[e][f]T`だけをone `Error`へまとめ、second `BracketRow`を作らず同じhead slotから`T`へ
+retryする。probeはnested `[`とtrivia/commentをopaqueに扱い、matching closeのないsecond `[`はErrorを作らずhandoffする。
+state/source reread/buffer/recovery recordの追加なし。malformed head / row item / close recoveryは未実装。M1 specification
+reviewはclean、focused rewrite testsは66 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b
+ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

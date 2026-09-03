@@ -785,3 +785,36 @@ fn leading_bracket_row_head_is_mandatory_at_normal_boundaries() {
             .any(|node| node.kind() == SyntaxKind::Missing)
     );
 }
+
+#[test]
+fn leading_bracket_row_retries_a_balanced_second_row_as_one_error() {
+    for source in ["[e][f]T", "[e][/*]*/f]T"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let top = top_type_expression(&green);
+        assert_eq!(
+            top.descendants()
+                .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            top.children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("[e][f");
+    assert_eq!(green.to_string(), "[e]");
+    assert!(matches!(exit, Some(Err(Either::Left(_)))));
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+}

@@ -482,6 +482,35 @@ pub(super) fn scan_lbracket(i: LexIn) -> Option<Token> {
     (token.kind == TokenKind::LBracket).then_some(token)
 }
 
+/// Captures the remainder of a bracketed malformed head only after its
+/// matching close is known.  Trivia stays opaque so a bracket in a comment
+/// cannot terminate the balanced range.
+pub(super) fn scan_balanced_bracket_suffix(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut suffix| {
+        let mut depth = 1usize;
+        loop {
+            if suffix.token(scan_trivia_part).is_some() {
+                continue;
+            }
+            match suffix.next()? {
+                '[' => depth += 1,
+                ']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(());
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Unknown,
+        text: text.into(),
+    })
+}
+
 fn scan_dot(mut i: LexIn) -> Option<()> {
     (i.next()? == '.').then_some(())
 }

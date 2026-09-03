@@ -10,8 +10,8 @@ use super::{
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
     lexer::{
-        scan_lbrace, scan_lbracket, scan_trivia, scan_type_nud_item, type_item_after_trivia,
-        type_nud_item_after_trivia,
+        scan_balanced_bracket_suffix, scan_lbrace, scan_lbracket, scan_trivia, scan_type_nud_item,
+        type_item_after_trivia, type_nud_item_after_trivia,
     },
 };
 
@@ -106,20 +106,47 @@ fn type_leading_bracket_row(
     };
     let leading = scan_trivia(i.rb());
     let mut head = type_nud_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&head.leading, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(head);
-    }
-    if !is_type_primary(&head) {
+    loop {
+        if !type_chain_trivia(&head.leading, baseline) {
+            emit_missing(&mut i, LeadingTrivia::default());
+            return handoff(head);
+        }
+        if is_type_primary(&head) {
+            let leading = std::mem::take(&mut head.leading);
+            emit_leading_trivia(&mut i, &leading);
+            return type_expr_from_primary_started(i, head, baseline, type_ml);
+        }
+        if token_kind(&head) == Some(TokenKind::LBracket) {
+            head = match retry_leading_bracket_row_head(i.rb(), head) {
+                Ok(next) => next,
+                Err(head) => return handoff(head),
+            };
+            continue;
+        }
         if is_type_rhs_boundary(&head) {
             let leading = std::mem::take(&mut head.leading);
             emit_missing(&mut i, leading);
         }
         return handoff(head);
     }
-    let leading = std::mem::take(&mut head.leading);
-    emit_leading_trivia(&mut i, &leading);
-    type_expr_from_primary_started(i, head, baseline, type_ml)
+}
+
+fn retry_leading_bracket_row_head(mut i: RewriteIn, head: Item) -> Result<Item, Item> {
+    let Some(suffix) = i.token(scan_balanced_bracket_suffix) else {
+        return Err(head);
+    };
+    i.state.start_node(SyntaxKind::Error.into());
+    emit_token_item(&mut i, head);
+    emit_token_item(
+        &mut i,
+        Item {
+            leading: LeadingTrivia::default(),
+            payload: Payload::Token(suffix),
+        },
+    );
+    i.state.finish_node();
+    let leading = scan_trivia(i.rb());
+    Ok(type_nud_item_after_trivia(i, leading))
 }
 
 fn type_bracket_arrow_tail(mut i: RewriteIn, mut open: Item, baseline: usize) -> TailExit {
