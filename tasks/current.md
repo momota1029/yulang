@@ -798,6 +798,15 @@ buffer/recovery record は追加していない。M1 specification review は cl
 passed、package check、format/diff check は green。typed recovery record、other invalid run、Gate 4/G4b
 ledger は未完である。
 
+2026-09-04: G4b E2 の direct FieldTail/PathTail mandatory identifier slot を追加した。accepted `.` / `::`
+は EOF、fixed continuation、separator、close に対して tail 内の zero-width `Missing` を置き、invalid
+run は next fixed/dynamic/owner boundary まで一つの local `Error` として consume する。field の whitespace
+RHS は dot 直後の Missing 後に outer tail へ intact handoff し、path の trivia は PathTail 自身が所有する。
+`x::::name` は first PathTail の Missing 後に second `::` を unconsumed で common tail loop へ返し、second
+PathTail を正常に構築する。source reread/state/rollback/event buffer/recovery record の追加なし。M1
+specification review は clean、focused rewrite tests は 39 passed、package check、format/diff check は
+green。typed recovery record、other invalid run、Gate 4/G4b ledger は未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

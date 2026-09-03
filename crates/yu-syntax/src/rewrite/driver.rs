@@ -454,7 +454,7 @@ fn dot_tail(
 fn field_tail(
     mut i: RewriteIn,
     dot: Item,
-    name: Item,
+    mut name: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: u8,
@@ -462,13 +462,18 @@ fn field_tail(
 ) -> TailExit {
     i.state.start_node(SyntaxKind::FieldTail.into());
     emit_token_item(&mut i, dot);
-    if token_kind(&name) != Some(TokenKind::Identifier) || !name.leading.0.is_empty() {
+    if token_kind(&name) == Some(TokenKind::Identifier) && name.leading.0.is_empty() {
+        emit_token_item(&mut i, name);
         i.state.finish_node();
-        return handoff(name);
+        return scan_tail_after_accept(i, threshold, baseline, stops, ml_mode);
     }
-    emit_token_item(&mut i, name);
+    if !name.leading.0.is_empty() || is_fixed_tail_boundary(&name) {
+        emit_missing(&mut i, LeadingTrivia::default());
+    } else {
+        name = retry_fixed_tail_item(i.rb(), name, baseline, stops);
+    }
     i.state.finish_node();
-    scan_tail_after_accept(i, threshold, baseline, stops, ml_mode)
+    tail(i, name, threshold, baseline, stops, ml_mode)
 }
 
 fn projection_tuple_tail(
@@ -516,14 +521,46 @@ fn path_tail(
     i.state.start_node(SyntaxKind::PathTail.into());
     emit_token_item(&mut i, separator);
     let leading = scan_trivia(i.rb());
-    let segment = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
-    if token_kind(&segment) != Some(TokenKind::Identifier) {
+    let mut segment = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
+    if token_kind(&segment) == Some(TokenKind::Identifier) {
+        emit_token_item(&mut i, segment);
         i.state.finish_node();
-        return handoff(segment);
+        return scan_tail_after_accept(i, threshold, baseline, stops, ml_mode);
     }
-    emit_token_item(&mut i, segment);
+    if is_fixed_tail_boundary(&segment) {
+        let leading = std::mem::take(&mut segment.leading);
+        emit_missing(&mut i, leading);
+    } else {
+        segment = retry_fixed_tail_item(i.rb(), segment, baseline, stops);
+    }
     i.state.finish_node();
-    scan_tail_after_accept(i, threshold, baseline, stops, ml_mode)
+    tail(i, segment, threshold, baseline, stops, ml_mode)
+}
+
+fn retry_fixed_tail_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: u8) -> Item {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
+        if !item.leading.0.is_empty() || is_fixed_tail_boundary(&item) {
+            i.state.finish_node();
+            return item;
+        }
+    }
+}
+
+fn is_fixed_tail_boundary(item: &Item) -> bool {
+    matches!(&item.payload, Payload::Eof)
+        || is_separator(item)
+        || is_close(item)
+        || is_led_operator(item)
+        || matches!(
+            token_kind(item),
+            Some(
+                TokenKind::LParen | TokenKind::LBracket | TokenKind::Dot | TokenKind::PathSeparator
+            )
+        )
 }
 
 fn is_separator(item: &Item) -> bool {

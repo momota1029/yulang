@@ -545,6 +545,50 @@ fn fixed_field_and_path_tails_keep_their_own_tokens() {
 }
 
 #[test]
+fn fixed_tails_keep_missing_and_invalid_identifier_slots_local() {
+    for (source, tail_kind, recovery_kind) in [
+        ("x.", SyntaxKind::FieldTail, SyntaxKind::Missing),
+        ("x.@", SyntaxKind::FieldTail, SyntaxKind::Error),
+        ("x::", SyntaxKind::PathTail, SyntaxKind::Missing),
+        ("x::123", SyntaxKind::PathTail, SyntaxKind::Error),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == tail_kind)
+            .expect("fixed tail");
+        assert_eq!(
+            tail.children()
+                .filter(|node| node.kind() == recovery_kind)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run("x::::name");
+    assert_eq!(green.to_string(), "x::::name");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::PathTail)
+            .count(),
+        2
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn double_dot_is_not_a_field_tail() {
     for source in ["a..", "a..."] {
         let (green, exit) = run(source);
