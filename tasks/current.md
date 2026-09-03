@@ -807,6 +807,18 @@ PathTail を正常に構築する。source reread/state/rollback/event buffer/re
 specification review は clean、focused rewrite tests は 39 passed、package check、format/diff check は
 green。typed recovery record、other invalid run、Gate 4/G4b ledger は未完である。
 
+2026-09-04: G4b E7e/E7f として direct `ProjectionRecordSpreadItem` を追加した。record projection の
+item-required position だけで exact maximal `..` をまず spread marker として受理し、`a.{..}` / `a.{..,
+next}` は spread node 内に RHS Missing を一件置いて `}` / separator をそのまま owner loop へ返す。
+`a.{..@rest}` は `@` を同じ RHS slot の一つの Error にして `rest` から再開する。ordinary item または
+spread RHS の後に rejected marker が来る場合は owner が Missing separator を一件置いて同じ Item を retry
+し、invalid run も exact marker を消費しない。record owner の copied stop scalar は NUD item position では
+fixed marker を先に、LED と spread-RHS の prefix probe では declared dynamic operator を先に判定するため、
+`a.{left .. right}` の accepted infix と `...` / `..+` の longer dynamic spelling を spread に分割しない。
+source reread、retained state、buffer は追加していない。M1 specification review は initial 2件とその後の
+隣接 recovery 2件を修正後 clean。focused rewrite tests は 46 passed、package check、format/diff check は green。typed
+recovery record、other invalid run、production/AST/Yumark bridge、Gate 4/G4b ledger は未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

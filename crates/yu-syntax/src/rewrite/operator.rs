@@ -17,6 +17,8 @@ const STOP_SEMICOLON: u8 = 1 << 1;
 const STOP_RPAREN: u8 = 1 << 2;
 const STOP_RBRACKET: u8 = 1 << 3;
 const STOP_RBRACE: u8 = 1 << 4;
+pub(super) const STOP_RECORD_SPREAD: u8 = 1 << 5;
+pub(super) const STOP_RECORD_SPREAD_AFTER_OPERATOR: u8 = 1 << 6;
 
 pub(super) fn stops_for(close: super::item::TokenKind) -> u8 {
     let close = match close {

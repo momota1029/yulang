@@ -62,6 +62,7 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
                 TokenKind::Comma => SyntaxKind::Comma,
                 TokenKind::Semicolon => SyntaxKind::Semicolon,
                 TokenKind::Dot => SyntaxKind::Dot,
+                TokenKind::DotDot => SyntaxKind::DotDot,
                 TokenKind::PathSeparator => SyntaxKind::ColonColon,
                 TokenKind::Unknown => SyntaxKind::Unknown,
             };

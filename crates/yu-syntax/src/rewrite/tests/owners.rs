@@ -612,6 +612,255 @@ fn double_dot_is_not_a_field_tail() {
 }
 
 #[test]
+fn record_projection_spread_owns_exact_marker_and_rhs() {
+    let source = "a.{left, ..rest, right}";
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "..",
+        OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+    )])
+    .expect("a direct rewrite operator table");
+    let (green, exit) = run_with(source, &operators);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let record = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+        .expect("record projection tail");
+    let spreads = record
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .collect::<Vec<_>>();
+    assert_eq!(spreads.len(), 1);
+    assert_eq!(
+        spreads[0]
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| token.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::Whitespace,
+            SyntaxKind::DotDot,
+            SyntaxKind::Identifier,
+        ]
+    );
+    assert_eq!(
+        spreads[0]
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        1
+    );
+    assert!(
+        !record
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}
+
+#[test]
+fn record_projection_spread_recovers_its_mandatory_rhs() {
+    for source in ["a.{..}", "a.{.., next}"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+            .expect("record projection tail");
+        let spread = record
+            .children()
+            .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+            .expect("record spread item");
+        assert_eq!(
+            spread.children().last().map(|node| node.kind()),
+            Some(SyntaxKind::Missing),
+            "{source:?}"
+        );
+        assert!(
+            !record
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn record_projection_spread_retries_one_invalid_rhs_run() {
+    let source = "a.{..@rest}";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let spread = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .expect("record spread item");
+    assert_eq!(
+        spread
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+    assert_eq!(
+        spread
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        1
+    );
+    assert!(
+        !spread
+            .children()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+}
+
+#[test]
+fn record_projection_spread_is_a_delimited_item_boundary() {
+    for (source, expected_spreads, expected_missing, expected_error) in [
+        ("a.{x ..rest}", 1, 1, 0),
+        ("a.{..x ..rest}", 2, 1, 0),
+        ("a.{@ ..rest}", 1, 0, 1),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+            .expect("record projection tail");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+                .count(),
+            expected_spreads,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            expected_missing,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            expected_error,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn record_projection_spread_yields_to_an_accepted_dynamic_led() {
+    let source = "a.{left .. right}";
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "..",
+        OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::new(40, [1])),
+    )])
+    .expect("a direct rewrite operator table");
+    let (green, exit) = run_with(source, &operators);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let record = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+        .expect("record projection tail");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        1
+    );
+    assert!(!record.descendants().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::ProjectionRecordSpreadItem | SyntaxKind::Missing | SyntaxKind::Error
+    )));
+}
+
+#[test]
+fn record_projection_spread_rhs_keeps_a_rejected_marker_for_the_owner() {
+    for (source, expected_error) in [("a.{.. ..rest}", 0), ("a.{..@ ..rest}", 1)] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+            .expect("record projection tail");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+                .count(),
+            2,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            2,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            expected_error,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn record_projection_spread_does_not_split_longer_operator_spellings() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "...",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+        OperatorDeclaration::new(
+            "..+",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+    ])
+    .expect("a direct rewrite operator table");
+    for source in ["a.{...rest}", "a.{..+rest}"] {
+        let (green, exit) = run_with(source, &operators);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn dot_projections_precede_field_dispatch_and_own_their_closes() {
     let source = "a.(x,y).{left,right}";
     let (green, exit) = run(source);

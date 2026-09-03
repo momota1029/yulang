@@ -9,7 +9,7 @@ use crate::scan::operator::OperatorSite;
 use super::{
     LexIn, RewriteIn,
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
-    operator::scan_operator,
+    operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, scan_operator},
 };
 
 pub(super) fn tail_item_after_trivia(
@@ -20,23 +20,61 @@ pub(super) fn tail_item_after_trivia(
     stops: u8,
 ) -> Item {
     let has_leading_trivia = !leading.0.is_empty();
-    let payload = if let Some(operator) =
+    let record_spread = stops & STOP_RECORD_SPREAD != 0;
+    let marker_after_operator = stops & STOP_RECORD_SPREAD_AFTER_OPERATOR != 0;
+    let payload = if record_spread && matches!(site, OperatorSite::Nud) {
+        if let Some(marker) = i.token(scan_record_spread_marker) {
+            Payload::Token(marker)
+        } else {
+            scan_tail_payload(i, site, has_leading_trivia, baseline, stops, false)
+        }
+    } else {
+        scan_tail_payload(
+            i,
+            site,
+            has_leading_trivia,
+            baseline,
+            stops,
+            marker_after_operator || (record_spread && matches!(site, OperatorSite::Led)),
+        )
+    };
+    Item { leading, payload }
+}
+
+fn scan_tail_payload(
+    mut i: RewriteIn,
+    site: OperatorSite,
+    has_leading_trivia: bool,
+    baseline: usize,
+    stops: u8,
+    marker_after_operator: bool,
+) -> Payload {
+    if let Some(operator) =
         i.token(|lex| scan_operator(lex, site, has_leading_trivia, baseline, stops))
     {
         Payload::Operator(operator)
+    } else if marker_after_operator {
+        if let Some(marker) = i.token(scan_record_spread_marker) {
+            Payload::Token(marker)
+        } else {
+            scan_token_payload(i)
+        }
     } else {
-        i.map(
-            choice((
-                token(scan_identifier),
-                token(scan_integer),
-                token(scan_punctuation),
-                token(scan_unknown),
-            )),
-            Payload::Token,
-        )
-        .unwrap_or(Payload::Eof)
-    };
-    Item { leading, payload }
+        scan_token_payload(i)
+    }
+}
+
+fn scan_token_payload(mut i: RewriteIn) -> Payload {
+    i.map(
+        choice((
+            token(scan_identifier),
+            token(scan_integer),
+            token(scan_punctuation),
+            token(scan_unknown),
+        )),
+        Payload::Token,
+    )
+    .unwrap_or(Payload::Eof)
 }
 
 pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<Item> {
@@ -54,6 +92,29 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<
         Payload::Token(i.token(scan_integer)?)
     };
     Some(Item { leading, payload })
+}
+
+pub(super) fn scan_operator_shaped_unknown(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut operator| {
+        scan_operator_shaped_character(operator.rb())?;
+        while operator.token(scan_operator_shaped_character).is_some() {}
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Unknown,
+        text: text.into(),
+    })
+}
+
+pub(super) fn is_operator_shaped_unknown(item: &Item) -> bool {
+    matches!(
+        &item.payload,
+        Payload::Token(Token {
+            kind: TokenKind::Unknown,
+            text,
+        }) if text.chars().all(is_operator_shaped_character)
+    )
 }
 
 pub(super) fn scan_trivia(mut i: RewriteIn) -> LeadingTrivia {
@@ -241,6 +302,21 @@ fn scan_punctuation(i: LexIn) -> Option<Token> {
     })
 }
 
+fn scan_record_spread_marker(i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.with_str(|mut marker| {
+        scan_pair(marker.rb(), '.', '.')?;
+        marker
+            .token(scan_operator_shaped_character)
+            .is_none()
+            .then_some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::DotDot,
+        text: text.into(),
+    })
+}
+
 fn scan_lparen(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LParen).then_some(token)
@@ -248,6 +324,21 @@ fn scan_lparen(i: LexIn) -> Option<Token> {
 
 fn scan_dot(mut i: LexIn) -> Option<()> {
     (i.next()? == '.').then_some(())
+}
+
+fn scan_operator_shaped_character(mut i: LexIn) -> Option<()> {
+    is_operator_shaped_character(i.next()?).then_some(())
+}
+
+fn is_operator_shaped_character(character: char) -> bool {
+    !character.is_whitespace()
+        && !character.is_ascii_digit()
+        && character != '_'
+        && !is_xid_continue(character)
+        && !matches!(
+            character,
+            '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@'
+        )
 }
 
 fn scan_unknown(i: LexIn) -> Option<Token> {

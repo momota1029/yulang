@@ -11,8 +11,11 @@ use super::{
         emit_token_item,
     },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
-    lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia},
-    operator::stops_for,
+    lexer::{
+        is_operator_shaped_unknown, scan_nud_item, scan_operator_shaped_unknown, scan_trivia,
+        tail_item_after_trivia,
+    },
+    operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, stops_for},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -98,7 +101,13 @@ fn expr_after_accept(
     ml_mode: MlMode,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
-    let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+    let item = tail_item_after_trivia(
+        i.rb(),
+        leading,
+        OperatorSite::Nud,
+        baseline,
+        stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
+    );
     if is_nud_item(&item) {
         append_nud(i, item, threshold, baseline, stops, ml_mode)
     } else {
@@ -269,6 +278,7 @@ fn parenthesized_nud(
         i.rb(),
         TokenKind::RParen,
         None,
+        false,
         baseline,
         MlMode::LayoutOnly,
     );
@@ -280,10 +290,14 @@ fn delimited_items(
     mut i: RewriteIn,
     close: TokenKind,
     item_node: Option<SyntaxKind>,
+    record_spread: bool,
     incoming_baseline: usize,
     item_ml_mode: MlMode,
 ) -> TailExit {
-    let stops = stops_for(close);
+    let mut stops = stops_for(close);
+    if record_spread {
+        stops |= STOP_RECORD_SPREAD;
+    }
     let leading = scan_trivia(i.rb());
     let baseline = delimited_baseline(incoming_baseline, &leading);
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
@@ -306,6 +320,14 @@ fn delimited_items(
             item = wrong_close_item(i.rb(), item, baseline, stops);
             continue;
         }
+        if is_record_spread_item(&item) {
+            let exit = record_spread_item(i.rb(), item, baseline, stops);
+            item = match delimited_successor(i.rb(), exit, close, baseline, stops, item_ml_mode) {
+                Ok(item) => item,
+                Err(exit) => return exit,
+            };
+            continue;
+        }
         if !is_nud_item(&item) {
             item = retry_nud_item(i.rb(), item, baseline, stops);
             continue;
@@ -317,33 +339,86 @@ fn delimited_items(
         if item_node.is_some() {
             i.state.finish_node();
         }
-        item = match exit {
-            Err(Either::Left(next)) if is_separator(&next) => {
-                emit_token_item(&mut i, next);
-                let leading = scan_trivia(i.rb());
-                tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
-            }
-            Err(Either::Left(next)) if token_kind(&next) == Some(close) => {
-                emit_token_item(&mut i, next);
-                return Ok(());
-            }
-            Err(Either::Left(next)) if is_close(&next) => {
-                wrong_close_item(i.rb(), next, baseline, stops)
-            }
-            Err(Either::Left(next))
-                if is_nud_item(&next) && implicit_delimited_newline(baseline, &next.leading) =>
-            {
-                next
-            }
-            Err(Either::Left(next))
-                if matches!(item_ml_mode, MlMode::LayoutOnly) && is_nud_item(&next) =>
-            {
-                missing_item(i.rb(), next)
-            }
-            Err(Either::Right(end)) => return missing_close(i, end.item),
-            exit => return exit,
+        item = match delimited_successor(i.rb(), exit, close, baseline, stops, item_ml_mode) {
+            Ok(item) => item,
+            Err(exit) => return exit,
         };
     }
+}
+
+fn delimited_successor(
+    mut i: RewriteIn,
+    exit: TailExit,
+    close: TokenKind,
+    baseline: usize,
+    stops: u8,
+    item_ml_mode: MlMode,
+) -> Result<Item, TailExit> {
+    match exit {
+        Err(Either::Left(next)) if is_separator(&next) => {
+            emit_token_item(&mut i, next);
+            let leading = scan_trivia(i.rb());
+            Ok(tail_item_after_trivia(
+                i.rb(),
+                leading,
+                OperatorSite::Nud,
+                baseline,
+                stops,
+            ))
+        }
+        Err(Either::Left(next)) if token_kind(&next) == Some(close) => {
+            emit_token_item(&mut i, next);
+            Err(Ok(()))
+        }
+        Err(Either::Left(next)) if is_close(&next) => {
+            Ok(wrong_close_item(i.rb(), next, baseline, stops))
+        }
+        Err(Either::Left(next))
+            if stops & STOP_RECORD_SPREAD != 0 && is_record_spread_item(&next) =>
+        {
+            Ok(missing_item(i.rb(), next))
+        }
+        Err(Either::Left(next))
+            if is_nud_item(&next) && implicit_delimited_newline(baseline, &next.leading) =>
+        {
+            Ok(next)
+        }
+        Err(Either::Left(next))
+            if matches!(item_ml_mode, MlMode::LayoutOnly) && is_nud_item(&next) =>
+        {
+            Ok(missing_item(i.rb(), next))
+        }
+        Err(Either::Right(end)) => Err(missing_close(i, end.item)),
+        exit => Err(exit),
+    }
+}
+
+fn record_spread_item(mut i: RewriteIn, marker: Item, baseline: usize, stops: u8) -> TailExit {
+    i.state
+        .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
+    emit_token_item(&mut i, marker);
+    let leading = scan_trivia(i.rb());
+    let rhs_stops = (stops & !STOP_RECORD_SPREAD) | STOP_RECORD_SPREAD_AFTER_OPERATOR;
+    let mut rhs = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, rhs_stops);
+    if !is_nud_item(&rhs) && !is_spread_boundary(&rhs) {
+        rhs = retry_nud_item(i.rb(), rhs, baseline, rhs_stops);
+    }
+    let exit = if is_nud_item(&rhs) {
+        expr_from_nud(i.rb(), rhs, None, baseline, stops, MlMode::All)
+    } else {
+        let leading = std::mem::take(&mut rhs.leading);
+        emit_missing(&mut i, leading);
+        handoff(rhs)
+    };
+    i.state.finish_node();
+    exit
+}
+
+fn is_spread_boundary(item: &Item) -> bool {
+    matches!(&item.payload, Payload::Eof)
+        || is_separator(item)
+        || is_close(item)
+        || is_record_spread_item(item)
 }
 
 fn missing_close(mut i: RewriteIn, mut end: Item) -> TailExit {
@@ -367,12 +442,27 @@ fn wrong_close_item(mut i: RewriteIn, item: Item, baseline: usize, stops: u8) ->
 fn retry_nud_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: u8) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        let continues_operator_spelling =
+            stops & (STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR) != 0
+                && is_operator_shaped_unknown(&item);
         emit_token_item(&mut i, item);
+        if continues_operator_spelling {
+            while let Some(token) = i.token(scan_operator_shaped_unknown) {
+                emit_token_item(
+                    &mut i,
+                    Item {
+                        leading: LeadingTrivia::default(),
+                        payload: Payload::Token(token),
+                    },
+                );
+            }
+        }
         let leading = scan_trivia(i.rb());
         item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
         if is_nud_item(&item)
             || is_separator(&item)
             || is_close(&item)
+            || is_record_spread_item(&item)
             || matches!(&item.payload, Payload::Eof)
         {
             i.state.finish_node();
@@ -391,6 +481,10 @@ fn is_nud_item(item: &Item) -> bool {
     )
 }
 
+fn is_record_spread_item(item: &Item) -> bool {
+    token_kind(item) == Some(TokenKind::DotDot)
+}
+
 fn call_tail(
     mut i: RewriteIn,
     open: Item,
@@ -401,7 +495,14 @@ fn call_tail(
 ) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, MlMode::All);
+    let exit = delimited_items(
+        i.rb(),
+        TokenKind::RParen,
+        None,
+        false,
+        baseline,
+        MlMode::All,
+    );
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
 }
@@ -420,6 +521,7 @@ fn index_tail(
         i.rb(),
         TokenKind::RBracket,
         Some(SyntaxKind::IndexItem),
+        false,
         baseline,
         MlMode::All,
     );
@@ -488,7 +590,14 @@ fn projection_tuple_tail(
     i.state.start_node(SyntaxKind::ProjectionTupleTail.into());
     emit_token_item(&mut i, dot);
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, MlMode::All);
+    let exit = delimited_items(
+        i.rb(),
+        TokenKind::RParen,
+        None,
+        false,
+        baseline,
+        MlMode::All,
+    );
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
 }
@@ -505,7 +614,7 @@ fn projection_record_tail(
     i.state.start_node(SyntaxKind::ProjectionRecordTail.into());
     emit_token_item(&mut i, dot);
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, baseline, MlMode::All);
+    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, true, baseline, MlMode::All);
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
 }
