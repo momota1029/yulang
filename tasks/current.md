@@ -777,6 +777,18 @@ newline と other invalid run は close phase の別 slice、typed recovery reco
 未完である。M1 specification review は clean、focused rewrite tests は 33 passed、package check、
 format/diff check は green。
 
+2026-09-04: authoritative `MlArgumentSeparator` / `LayoutDelimitedFrame` に合わせ、direct rewrite の
+ML policy を caller-owned scalar `MlMode::{All, LayoutOnly, None}` に明確化した。All は physical
+newline のない non-empty typed trivia（opaque block comment を含む）または baseline より深い physical
+newline を ML とし、parenthesized item の LayoutOnly は同じ deep newline だけを ML とするため、
+`(a b)` の Missing separator と `(a\n  b)` の一 item chain を両立する。nested `MlArgument` は None
+で二段目を外側へ handoff する。layout baseline と implicit separator も typed `Newline` とその直後の
+Whitespace だけから求め、block comment 内の byte は layout に参加しない。deeper newline を close
+phase に誤って送る試案は authority conflict として撤回済み。source reread/state/rollback/event buffer/
+recovery record の追加なし。M1 specification review は repair 後 clean、focused rewrite tests は 37
+passed、package check、format/diff check は green。typed recovery record、other invalid run、Gate 4/G4b
+ledger は未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

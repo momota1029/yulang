@@ -296,6 +296,39 @@ fn parenthesized_items_recover_a_same_line_missing_separator_without_ml() {
 }
 
 #[test]
+fn block_comment_internal_newlines_are_not_parenthesized_layout() {
+    let source = "(a /* outer\n inner */ b)";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let group = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+        .expect("parenthesized expression");
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        2
+    );
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert!(
+        !group
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::MlArgument)
+    );
+}
+
+#[test]
 fn delimited_items_accept_baseline_newlines_without_rescanning_the_handoff() {
     for (source, owner, item_kind) in [
         (
@@ -337,6 +370,61 @@ fn delimited_items_accept_baseline_newlines_without_rescanning_the_handoff() {
             !owner
                 .descendants()
                 .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn deeper_newlines_continue_the_current_delimited_item_chain() {
+    for (source, owner, item_kind) in [
+        (
+            "(a\n  b)",
+            SyntaxKind::ParenthesizedExpression,
+            SyntaxKind::OperatorChain,
+        ),
+        ("f(a\n  b)", SyntaxKind::CallTail, SyntaxKind::OperatorChain),
+        ("x[a\n  b]", SyntaxKind::IndexTail, SyntaxKind::IndexItem),
+        (
+            "a.(x\n  y)",
+            SyntaxKind::ProjectionTupleTail,
+            SyntaxKind::OperatorChain,
+        ),
+        (
+            "a.{x\n  y}",
+            SyntaxKind::ProjectionRecordTail,
+            SyntaxKind::OperatorChain,
+        ),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("delimited owner");
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == item_kind)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            owner
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::MlArgument)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !owner
+                .descendants()
+                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
             "{source:?}"
         );
     }

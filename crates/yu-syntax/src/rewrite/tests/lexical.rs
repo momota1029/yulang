@@ -51,9 +51,9 @@ fn post_core_newline_identifier_is_owned_unemitted_handoff() {
 #[test]
 fn handoff_owns_maximal_comment_trivia_without_source_borrow() {
     for (source, comment) in [
-        ("a /*c*/β", "/*c*/"),
+        ("a /*c*/]", "/*c*/"),
         (
-            "a /* outer /* inner */ outer */β",
+            "a /* outer /* inner */ outer */]",
             "/* outer /* inner */ outer */",
         ),
     ] {
@@ -76,9 +76,43 @@ fn handoff_owns_maximal_comment_trivia_without_source_borrow() {
         let Payload::Token(token) = item.payload else {
             panic!("the handed item is lexical")
         };
-        assert_eq!(token.kind, TokenKind::Identifier);
-        assert_eq!(&*token.text, "β");
+        assert_eq!(token.kind, TokenKind::RBracket);
+        assert_eq!(&*token.text, "]");
     }
+}
+
+#[test]
+fn comment_trivia_separates_ml_arguments() {
+    for source in ["a /*c*/β", "a /* outer /* inner */ outer */β"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::MlArgument)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn block_comment_internal_newlines_do_not_form_layout_boundaries() {
+    let source = "a /* outer\n inner */b";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::MlArgument)
+            .count(),
+        1
+    );
 }
 
 #[test]
