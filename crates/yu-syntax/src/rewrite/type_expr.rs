@@ -7,7 +7,7 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     RewriteIn,
     driver::{Either, TailExit, handoff, token_kind},
-    emit::{emit_leading_trivia, emit_token_item},
+    emit::{emit_error_item, emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
     lexer::{scan_trivia, scan_type_nud_item, type_item_after_trivia},
 };
@@ -125,26 +125,39 @@ fn type_path_tail(mut i: RewriteIn, separator: Item, baseline: usize, type_ml: b
     i.state.start_node(SyntaxKind::TypePathTail.into());
     emit_token_item(&mut i, separator);
     let trivia = scan_trivia(i.rb());
-    if !type_chain_trivia(&trivia, baseline) {
+    let mut segment = type_item_after_trivia(i.rb(), trivia);
+    if !type_chain_trivia(&segment.leading, baseline) || is_type_path_boundary(&segment) {
+        let leading = std::mem::take(&mut segment.leading);
+        emit_missing(&mut i, leading);
         i.state.finish_node();
-        return handoff(type_item_after_trivia(i, trivia));
+        return type_tail(i, segment, baseline, type_ml);
     }
-    emit_leading_trivia(&mut i, &trivia);
-    let Some(segment) = i.token(scan_type_path_segment_item) else {
+    if !is_type_path_segment(&segment) {
+        segment = retry_type_path_segment(i.rb(), segment, baseline);
+    }
+    if !is_type_path_segment(&segment) {
         i.state.finish_node();
-        return handoff(type_item_after_trivia(i, LeadingTrivia::default()));
-    };
+        return type_tail(i, segment, baseline, type_ml);
+    }
     emit_token_item(&mut i, segment);
     i.state.finish_node();
     scan_type_tail(i, baseline, type_ml)
 }
 
-fn scan_type_path_segment_item(mut i: super::LexIn) -> Option<Item> {
-    let token = i.token(super::lexer::scan_path_segment)?;
-    Some(Item {
-        leading: LeadingTrivia::default(),
-        payload: Payload::Token(token),
-    })
+fn retry_type_path_segment(mut i: RewriteIn, mut item: Item, baseline: usize) -> Item {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_item_after_trivia(i.rb(), leading);
+        if is_type_path_segment(&item)
+            || !type_chain_trivia(&item.leading, baseline)
+            || is_type_path_boundary(&item)
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
 }
 
 fn type_apply_argument(mut i: RewriteIn, mut argument: Item, baseline: usize) -> TailExit {
@@ -192,6 +205,29 @@ fn is_type_primary(item: &Item) -> bool {
                 | TokenKind::LParen
         )
     )
+}
+
+fn is_type_path_segment(item: &Item) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::Identifier | TokenKind::SigilIdentifier)
+    )
+}
+
+fn is_type_path_boundary(item: &Item) -> bool {
+    matches!(&item.payload, Payload::Eof)
+        || is_type_separator(item)
+        || matches!(
+            token_kind(item),
+            Some(
+                TokenKind::Arrow
+                    | TokenKind::LParen
+                    | TokenKind::RParen
+                    | TokenKind::PathSeparator
+                    | TokenKind::RBracket
+                    | TokenKind::RBrace
+            )
+        )
 }
 
 fn is_type_separator(item: &Item) -> bool {

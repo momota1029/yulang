@@ -157,3 +157,64 @@ fn type_call_and_group_keep_explicit_and_implicit_boundaries() {
             .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
     );
 }
+
+#[test]
+fn type_path_tail_recovers_its_mandatory_segment() {
+    for (source, recovery) in [
+        ("A::", SyntaxKind::Missing),
+        ("A::123", SyntaxKind::Error),
+        ("A::@Name", SyntaxKind::Error),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let path = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("type path tail");
+        assert_eq!(
+            path.children()
+                .filter(|node| node.kind() == recovery)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("A::::Name");
+    assert_eq!(green.to_string(), "A::::Name");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypePathTail)
+            .count(),
+        2
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_type("A:: ");
+    assert_eq!(green.to_string(), "A:: ");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypePathTail)
+        .expect("type path tail");
+    assert_eq!(
+        path.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::ColonColon, "::".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+        ]
+    );
+}

@@ -847,6 +847,14 @@ construction-only slice であり、mandatory-slot/invalid/close recovery と pr
 Gate 4/G4b ledger は不変である。M1 specification review は clean、focused rewrite tests は 51 passed、package
 check、format/diff check は green。
 
+2026-09-04: standalone `TypeExpression` の `TypePathTail` mandatory segment に direct CST recovery を追加した。
+accepted `::`後のEOF、separator、arrow、next `::`、call、all close tokenはtail内のzero-width `Missing`一件で
+止めてboundary Itemを同位置のtail judgeへ返し、`A::::Name`はfirst Missing後にsecond path tailを構築する。non-name
+runはone maximal non-empty `Error`にしてvalid name segmentまたはsafe boundaryまでretryし、`A::123`をpath segmentに
+しない。post-`::` triviaはMissing/Errorが置かれるaccepted PathTailに一度だけ保持する。state/source reread/buffer/
+recovery recordの追加なし。M1 specification review はclean、focused rewrite testsは52 passed、package check、format/
+diff checkはgreen。call/group/arrow/primaryのremaining recoveryとproduction wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
