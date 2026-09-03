@@ -742,6 +742,15 @@ record、wrong close、missing item/separator、layout、Gate 4/G4b ledger は�
 specification review は clean、focused rewrite tests は 29 passed、package check、format/diff check
 は green。
 
+2026-09-04: 同じ G4b loop に separator-before-item の CST-only control を追加した。pending
+comma/semicolon Item は leading trivia を一度だけ owner 内の zero-width `Missing` へ移してから、
+同じ empty-leading separator Item を emit/consume し、exactly one replacement Item を scan する。
+これは `(,a)`/`f(,a)`/`f(a,,b)`/`x[,a]`/tuple・record projection の direct owner control であり、
+index の Missing は `IndexItem` wrapper を持たない。source reread、state/rollback、event buffer、
+recovery record の追加なし。wrong close、missing separator、layout、typed recovery record、Gate
+4/G4b ledger は未完。M1 specification review は clean、focused rewrite tests は 30 passed、package
+check、format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

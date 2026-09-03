@@ -7,8 +7,7 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 use super::{
     RewriteIn,
     emit::{
-        emit_identifier_core, emit_integer_core, emit_missing_close, emit_operator_use,
-        emit_token_item,
+        emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
     },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
     lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia},
@@ -284,6 +283,13 @@ fn delimited_items(
         if matches!(&item.payload, Payload::Eof) {
             return missing_close(i, item);
         }
+        if is_separator(&item) {
+            item = missing_item(i.rb(), item);
+            emit_token_item(&mut i, item);
+            let leading = scan_trivia(i.rb());
+            item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+            continue;
+        }
         if !is_nud_item(&item) {
             return handoff(item);
         }
@@ -312,8 +318,14 @@ fn delimited_items(
 
 fn missing_close(mut i: RewriteIn, mut end: Item) -> TailExit {
     let leading = std::mem::take(&mut end.leading);
-    emit_missing_close(&mut i, leading);
+    emit_missing(&mut i, leading);
     handoff(end)
+}
+
+fn missing_item(mut i: RewriteIn, mut item: Item) -> Item {
+    let leading = std::mem::take(&mut item.leading);
+    emit_missing(&mut i, leading);
+    item
 }
 
 fn is_nud_item(item: &Item) -> bool {

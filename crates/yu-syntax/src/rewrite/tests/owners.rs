@@ -174,6 +174,42 @@ fn delimited_owner_emits_missing_close_before_handing_eof_outward() {
 }
 
 #[test]
+fn delimited_owner_recovers_missing_items_before_separators() {
+    for (source, owner) in [
+        ("(,a)", SyntaxKind::ParenthesizedExpression),
+        ("f(,a)", SyntaxKind::CallTail),
+        ("f(a,,b)", SyntaxKind::CallTail),
+        ("x[,a]", SyntaxKind::IndexTail),
+        ("a.(,x)", SyntaxKind::ProjectionTupleTail),
+        ("a.{,x}", SyntaxKind::ProjectionRecordTail),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("delimited owner");
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn fixed_field_and_path_tails_keep_their_own_tokens() {
     let source = "a .field:: name b";
     let (green, exit) = run(source);
