@@ -836,6 +836,17 @@ existing contract を変更していない。state/source reread/event buffer/�
 passed、package check、format/diff check は green。typed recovery record、other invalid run、production/AST/
 Yumark bridge、Gate 4/G4b ledger は未完である。
 
+2026-09-04: Gate 4–6 SCC amendment の acyclic prerequisite として、source-free direct
+`TypeExpression` の normal core を追加した。identifier/sigil identifier/integer atom、parenthesized group、
+call、`::` path、one-argument TypeApply、right-associative `->` を既存 type/expression parser や dynamic
+operator table に依存せず、owned Item handoff と direct Rowan emission だけで構築する。type-ML boundary と
+tail priority は `boundary → empty-trivia arrow/call/path → nonempty type-ML stop → nonempty arrow/path →
+TypeApply` とし、`F A::B` は apply 内 path、`F A ::B` は outer path、`F A -> B` は outer arrow として
+区別する。source reread、retained state、buffer、recovery record は増やしていない。これは valid input の
+construction-only slice であり、mandatory-slot/invalid/close recovery と production use-site wiring は未実装、
+Gate 4/G4b ledger は不変である。M1 specification review は clean、focused rewrite tests は 51 passed、package
+check、format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

@@ -31,6 +31,7 @@ pub(super) enum TokenKind {
     Semicolon,
     Dot,
     DotDot,
+    Arrow,
     PathSeparator,
     Unknown,
 }

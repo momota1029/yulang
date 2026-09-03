@@ -111,6 +111,34 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<
     Some(Item { leading, payload })
 }
 
+pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
+    let token = i.check(choice((
+        token(scan_path_segment),
+        token(scan_integer),
+        token(scan_lparen),
+    )))?;
+    Some(Item {
+        leading: LeadingTrivia::default(),
+        payload: Payload::Token(token),
+    })
+}
+
+pub(super) fn type_item_after_trivia(i: RewriteIn, leading: LeadingTrivia) -> Item {
+    let payload = i
+        .map(
+            choice((
+                token(scan_path_segment),
+                token(scan_integer),
+                token(scan_type_arrow),
+                token(scan_punctuation),
+                token(scan_unknown),
+            )),
+            Payload::Token,
+        )
+        .unwrap_or(Payload::Eof);
+    Item { leading, payload }
+}
+
 pub(super) fn scan_operator_shaped_unknown(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut operator| {
         scan_operator_shaped_character(operator.rb())?;
@@ -271,7 +299,7 @@ fn scan_identifier(mut i: LexIn) -> Option<Token> {
     })
 }
 
-fn scan_path_segment(mut i: LexIn) -> Option<Token> {
+pub(super) fn scan_path_segment(mut i: LexIn) -> Option<Token> {
     if let Some(mut word) = i.token(scan_identifier) {
         if word.text.starts_with('_') && &*word.text != "_" {
             word.kind = TokenKind::SigilIdentifier;
@@ -299,7 +327,7 @@ fn scan_identifier_suffix(mut i: LexIn) -> Option<()> {
     matches!(i.next()?, '?' | '!').then_some(())
 }
 
-fn scan_integer(mut i: LexIn) -> Option<Token> {
+pub(super) fn scan_integer(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut number| {
         scan_integer_digit(number.rb())?;
         while number.token(scan_integer_digit).is_some() {}
@@ -316,7 +344,7 @@ fn scan_integer_digit(mut i: LexIn) -> Option<()> {
     i.next()?.is_ascii_digit().then_some(())
 }
 
-fn scan_punctuation(i: LexIn) -> Option<Token> {
+pub(super) fn scan_punctuation(i: LexIn) -> Option<Token> {
     let (kind, text) = i.with_str(|mut punctuation| match punctuation.next()? {
         '(' => Some(TokenKind::LParen),
         ')' => Some(TokenKind::RParen),
@@ -335,6 +363,15 @@ fn scan_punctuation(i: LexIn) -> Option<Token> {
     });
     Some(Token {
         kind: kind?,
+        text: text.into(),
+    })
+}
+
+fn scan_type_arrow(i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.with_str(|mut arrow| scan_pair(arrow.rb(), '-', '>'));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Arrow,
         text: text.into(),
     })
 }

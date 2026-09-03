@@ -64,6 +64,7 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
                 TokenKind::Semicolon => SyntaxKind::Semicolon,
                 TokenKind::Dot => SyntaxKind::Dot,
                 TokenKind::DotDot => SyntaxKind::DotDot,
+                TokenKind::Arrow => SyntaxKind::Arrow,
                 TokenKind::PathSeparator => SyntaxKind::ColonColon,
                 TokenKind::Unknown => SyntaxKind::Unknown,
             };
@@ -79,6 +80,10 @@ pub(super) fn emit_missing(i: &mut RewriteIn, leading: LeadingTrivia) {
     emit_trivia(i, &leading);
     i.state.start_node(SyntaxKind::Missing.into());
     i.state.finish_node();
+}
+
+pub(super) fn emit_leading_trivia(i: &mut RewriteIn, trivia: &LeadingTrivia) {
+    emit_trivia(i, trivia);
 }
 
 pub(super) fn emit_error_item(i: &mut RewriteIn, item: Item) {

@@ -14,12 +14,14 @@ use super::{
     item::{OperatorUse, Payload, TokenKind, TriviaKind},
     operator::scan_operator,
     state::Recover,
+    type_expr::type_expr,
 };
 
 mod lexical;
 mod operators;
 mod owners;
 mod tails;
+mod type_expr;
 
 fn run(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();
@@ -32,6 +34,20 @@ fn run_with(source: &str, operators: &OperatorTable) -> (GreenNode, Option<TailE
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = expr(In::new(&mut input, &mut recover, &mut builder));
+    if let Some(Err(Either::Right(end))) = &exit {
+        emit_end(&mut builder, end);
+    }
+    builder.finish_node();
+    (builder.finish(), exit)
+}
+
+fn run_type(source: &str) -> (GreenNode, Option<TailExit>) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = type_expr(In::new(&mut input, &mut recover, &mut builder));
     if let Some(Err(Either::Right(end))) = &exit {
         emit_end(&mut builder, end);
     }

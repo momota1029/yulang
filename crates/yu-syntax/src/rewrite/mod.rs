@@ -14,6 +14,7 @@ mod lexer;
 mod operator;
 mod state;
 mod tails;
+mod type_expr;
 
 #[cfg(test)]
 mod tests;
