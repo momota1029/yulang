@@ -707,6 +707,14 @@ owner を固定し、`a..`/`a...` は field にしない。field/path RHS recove
 segment、newline/layout、production/AST/Yumark bridge、G4b/Gate 4 ledger は未実装のままである。
 focused rewrite tests は 16 passed、package check、scoped format/diff check は green。
 
+2026-09-04: direct dot dispatch は field より先に projection opener を取るよう拡張した。`.` の
+次が adjacent `(` なら `ProjectionTupleTail`、adjacent `{` なら `ProjectionRecordTail` を直接
+emit し、既存 `delimited_items` が comma/semicolon item sequence とそれぞれの close を所有する。
+`a.(x,y).{left,right}` は outer `OperatorChain` に tuple/record tail を平坦に置き、`)`/`}` は
+各 projection node が所有する。spread・record colon item・missing/separator/close recovery、wrong
+close、layout、production/AST/Yumark bridge、G4b/Gate 4 ledger は未実装のままである。focused rewrite
+tests は 17 passed、package check、scoped format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

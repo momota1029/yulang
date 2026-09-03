@@ -83,7 +83,7 @@ pub(super) fn tail(mut i: RewriteIn, item: Item, accepts_ml: bool) -> TailExit {
         }
     }
     match token_kind(&item) {
-        Some(TokenKind::Dot) => return field_tail(i.rb(), item, accepts_ml),
+        Some(TokenKind::Dot) => return dot_tail(i.rb(), item, accepts_ml),
         Some(TokenKind::PathSeparator) => return path_tail(i.rb(), item, accepts_ml),
         _ => {}
     }
@@ -192,16 +192,46 @@ fn index_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
     continue_completed_tail(i, accepts_ml, exit)
 }
 
-fn field_tail(mut i: RewriteIn, dot: Item, accepts_ml: bool) -> TailExit {
+fn dot_tail(mut i: RewriteIn, dot: Item, accepts_ml: bool) -> TailExit {
+    let next = tail_item(i.rb());
+    if next.leading.0.is_empty() {
+        match token_kind(&next) {
+            Some(TokenKind::LParen) => return projection_tuple_tail(i, dot, next, accepts_ml),
+            Some(TokenKind::LBrace) => return projection_record_tail(i, dot, next, accepts_ml),
+            _ => {}
+        }
+    }
+    field_tail(i, dot, next, accepts_ml)
+}
+
+fn field_tail(mut i: RewriteIn, dot: Item, name: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::FieldTail.into());
     emit_token_item(&mut i, dot);
-    let Some(name) = i.token(scan_identifier) else {
+    if token_kind(&name) != Some(TokenKind::Identifier) || !name.leading.0.is_empty() {
         i.state.finish_node();
-        return handoff(tail_item(i.rb()));
-    };
-    i.state.token(SyntaxKind::Identifier.into(), &name.text);
+        return handoff(name);
+    }
+    emit_token_item(&mut i, name);
     i.state.finish_node();
     scan_tail_after_accept(i, accepts_ml)
+}
+
+fn projection_tuple_tail(mut i: RewriteIn, dot: Item, open: Item, accepts_ml: bool) -> TailExit {
+    i.state.start_node(SyntaxKind::ProjectionTupleTail.into());
+    emit_token_item(&mut i, dot);
+    emit_token_item(&mut i, open);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, accepts_ml);
+    i.state.finish_node();
+    continue_completed_tail(i, accepts_ml, exit)
+}
+
+fn projection_record_tail(mut i: RewriteIn, dot: Item, open: Item, accepts_ml: bool) -> TailExit {
+    i.state.start_node(SyntaxKind::ProjectionRecordTail.into());
+    emit_token_item(&mut i, dot);
+    emit_token_item(&mut i, open);
+    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, accepts_ml);
+    i.state.finish_node();
+    continue_completed_tail(i, accepts_ml, exit)
 }
 
 fn path_tail(mut i: RewriteIn, separator: Item, accepts_ml: bool) -> TailExit {
@@ -413,6 +443,8 @@ fn scan_punctuation(i: LexIn) -> Option<Token> {
         ')' => Some(TokenKind::RParen),
         '[' => Some(TokenKind::LBracket),
         ']' => Some(TokenKind::RBracket),
+        '{' => Some(TokenKind::LBrace),
+        '}' => Some(TokenKind::RBrace),
         ',' => Some(TokenKind::Comma),
         ';' => Some(TokenKind::Semicolon),
         '.' => punctuation
@@ -468,6 +500,8 @@ fn emit_token_item(i: &mut RewriteIn, item: Item) {
         TokenKind::RParen => SyntaxKind::RParen,
         TokenKind::LBracket => SyntaxKind::LBracket,
         TokenKind::RBracket => SyntaxKind::RBracket,
+        TokenKind::LBrace => SyntaxKind::LBrace,
+        TokenKind::RBrace => SyntaxKind::RBrace,
         TokenKind::Comma => SyntaxKind::Comma,
         TokenKind::Semicolon => SyntaxKind::Semicolon,
         TokenKind::Dot => SyntaxKind::Dot,

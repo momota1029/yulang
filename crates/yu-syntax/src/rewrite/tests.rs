@@ -396,6 +396,55 @@ fn double_dot_is_not_a_field_tail() {
 }
 
 #[test]
+fn dot_projections_precede_field_dispatch_and_own_their_closes() {
+    let source = "a.(x,y).{left,right}";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    assert_eq!(
+        outer.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::ProjectionTupleTail,
+            SyntaxKind::ProjectionRecordTail,
+        ]
+    );
+    for (kind, close, expected_items) in [
+        (SyntaxKind::ProjectionTupleTail, SyntaxKind::RParen, 2),
+        (SyntaxKind::ProjectionRecordTail, SyntaxKind::RBrace, 2),
+    ] {
+        let projection = outer
+            .children()
+            .find(|node| node.kind() == kind)
+            .expect("projection tail");
+        assert_eq!(
+            projection
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            expected_items
+        );
+        let close = projection
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == close)
+            .expect("projection close");
+        assert_eq!(close.parent().expect("close owner").kind(), kind);
+    }
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}
+
+#[test]
 fn index_item_accepts_ml_argument_without_separator_recovery() {
     let (green, exit) = run("x[a b]");
     assert_eq!(green.to_string(), "x[a b]");
