@@ -1,6 +1,9 @@
 //! Source-free direct recursive-descent foundation for the isolated rewrite.
 
-use chasa_recover::In;
+use chasa_recover::{
+    In,
+    parser::{choice, token},
+};
 use reborrow_generic::Reborrow as _;
 use rowan::GreenNodeBuilder;
 use unicode_ident::{is_xid_continue, is_xid_start};
@@ -36,13 +39,13 @@ pub(super) struct End {
 pub(super) type TailExit = Result<(), Either<Item, End>>;
 
 /// `None` occurs only before the lexical transaction has accepted a core.
-pub(super) fn expr(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Option<TailExit> {
+pub(super) fn expr(mut i: RewriteIn) -> Option<TailExit> {
     let core = i.token(scan_core_item)?;
     Some(expr_from_core(i, core, true))
 }
 
 /// Parses an already-accepted identifier core without scanning it again.
-fn expr_from_core(mut i: RewriteIn<'_, '_, '_, '_, '_>, core: Item, accepts_ml: bool) -> TailExit {
+fn expr_from_core(mut i: RewriteIn, core: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
     emit_core(&mut i, core);
     let next = tail_item(i.rb());
@@ -52,7 +55,7 @@ fn expr_from_core(mut i: RewriteIn<'_, '_, '_, '_, '_>, core: Item, accepts_ml: 
 }
 
 /// Unaccepted items are returned unchanged and receive no builder effect.
-pub(super) fn tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, item: Item, accepts_ml: bool) -> TailExit {
+pub(super) fn tail(mut i: RewriteIn, item: Item, accepts_ml: bool) -> TailExit {
     if item.leading.0.is_empty() {
         match token_kind(&item) {
             Some(TokenKind::LParen) => return call_tail(i.rb(), item, accepts_ml),
@@ -76,7 +79,7 @@ fn is_ml_argument(item: &Item) -> bool {
             .all(|part| part.kind == TriviaKind::Whitespace)
 }
 
-fn ml_argument(mut i: RewriteIn<'_, '_, '_, '_, '_>, argument: Item) -> TailExit {
+fn ml_argument(mut i: RewriteIn, argument: Item) -> TailExit {
     i.state.start_node(SyntaxKind::MlArgument.into());
     let exit = expr_from_core(i.rb(), argument, false);
     i.state.finish_node();
@@ -86,7 +89,7 @@ fn ml_argument(mut i: RewriteIn<'_, '_, '_, '_, '_>, argument: Item) -> TailExit
     }
 }
 
-fn call_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item, accepts_ml: bool) -> TailExit {
+fn call_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
 
@@ -105,7 +108,7 @@ fn call_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item, accepts_ml: bool)
     exit
 }
 
-fn index_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item, accepts_ml: bool) -> TailExit {
+fn index_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
     emit_token_item(&mut i, open);
     i.state.start_node(SyntaxKind::IndexItem.into());
@@ -140,33 +143,22 @@ fn token_kind(item: &Item) -> Option<TokenKind> {
     }
 }
 
-fn tail_item(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Item {
+fn tail_item(mut i: RewriteIn) -> Item {
     let leading = scan_trivia(i.rb());
-    if let Some(token) = i.token(scan_identifier) {
-        return Item {
-            leading,
-            payload: Payload::Token(token),
-        };
-    }
-    if let Some(token) = i.token(scan_punctuation) {
-        return Item {
-            leading,
-            payload: Payload::Token(token),
-        };
-    }
-    if let Some(token) = i.token(scan_unknown) {
-        return Item {
-            leading,
-            payload: Payload::Token(token),
-        };
-    }
-    Item {
-        leading,
-        payload: Payload::Eof,
-    }
+    let payload = i
+        .map(
+            choice((
+                token(scan_identifier),
+                token(scan_punctuation),
+                token(scan_unknown),
+            )),
+            Payload::Token,
+        )
+        .unwrap_or(Payload::Eof);
+    Item { leading, payload }
 }
 
-fn scan_core_item(mut i: LexIn<'_, '_, '_, '_>) -> Option<Item> {
+fn scan_core_item(mut i: LexIn) -> Option<Item> {
     let leading = scan_trivia_lex(i.rb());
     let token = scan_identifier(i.rb())?;
     Some(Item {
@@ -175,7 +167,7 @@ fn scan_core_item(mut i: LexIn<'_, '_, '_, '_>) -> Option<Item> {
     })
 }
 
-fn scan_trivia(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> LeadingTrivia {
+fn scan_trivia(mut i: RewriteIn) -> LeadingTrivia {
     let mut parts = Vec::new();
     while let Some(part) = i.token(scan_trivia_part) {
         parts.push(part);
@@ -183,7 +175,7 @@ fn scan_trivia(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> LeadingTrivia {
     LeadingTrivia(parts.into_boxed_slice())
 }
 
-fn scan_trivia_lex(mut i: LexIn<'_, '_, '_, '_>) -> LeadingTrivia {
+fn scan_trivia_lex(mut i: LexIn) -> LeadingTrivia {
     let mut parts = Vec::new();
     while let Some(part) = i.token(scan_trivia_part) {
         parts.push(part);
@@ -191,20 +183,16 @@ fn scan_trivia_lex(mut i: LexIn<'_, '_, '_, '_>) -> LeadingTrivia {
     LeadingTrivia(parts.into_boxed_slice())
 }
 
-fn scan_trivia_part(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
-    if let Some(part) = i.token(scan_horizontal_whitespace) {
-        return Some(part);
-    }
-    if let Some(part) = i.token(scan_newline) {
-        return Some(part);
-    }
-    if let Some(part) = i.token(scan_line_comment) {
-        return Some(part);
-    }
-    i.token(scan_block_comment)
+fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
+    i.check(choice((
+        token(scan_horizontal_whitespace),
+        token(scan_newline),
+        token(scan_line_comment),
+        token(scan_block_comment),
+    )))
 }
 
-fn scan_horizontal_whitespace(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+fn scan_horizontal_whitespace(mut i: LexIn) -> Option<Trivia> {
     let (accepted, text) = i.rb().with_str(|mut whitespace| {
         scan_horizontal_whitespace_unit(whitespace.rb())?;
         while whitespace.token(scan_horizontal_whitespace_unit).is_some() {}
@@ -217,11 +205,11 @@ fn scan_horizontal_whitespace(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
     })
 }
 
-fn scan_horizontal_whitespace_unit(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+fn scan_horizontal_whitespace_unit(mut i: LexIn) -> Option<()> {
     matches!(i.next()?, ' ' | '\t').then_some(())
 }
 
-fn scan_newline(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+fn scan_newline(mut i: LexIn) -> Option<Trivia> {
     let (accepted, text) = i.rb().with_str(|mut newline| match newline.next()? {
         '\r' => {
             let _ = newline.token(scan_line_feed);
@@ -237,11 +225,11 @@ fn scan_newline(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
     })
 }
 
-fn scan_line_feed(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+fn scan_line_feed(mut i: LexIn) -> Option<()> {
     (i.next()? == '\n').then_some(())
 }
 
-fn scan_line_comment(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+fn scan_line_comment(mut i: LexIn) -> Option<Trivia> {
     let (accepted, text) = i.rb().with_str(|mut comment| {
         scan_pair(comment.rb(), '/', '/')?;
         while comment.token(scan_line_comment_character).is_some() {}
@@ -254,11 +242,11 @@ fn scan_line_comment(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
     })
 }
 
-fn scan_line_comment_character(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+fn scan_line_comment_character(mut i: LexIn) -> Option<()> {
     (!matches!(i.next()?, '\r' | '\n')).then_some(())
 }
 
-fn scan_block_comment(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+fn scan_block_comment(mut i: LexIn) -> Option<Trivia> {
     let (accepted, text) = i.rb().with_str(|mut comment| {
         scan_pair(comment.rb(), '/', '*')?;
         let mut depth = 1usize;
@@ -286,20 +274,20 @@ fn scan_block_comment(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
     })
 }
 
-fn scan_block_open(i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+fn scan_block_open(i: LexIn) -> Option<()> {
     scan_pair(i, '/', '*')
 }
 
-fn scan_block_close(i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+fn scan_block_close(i: LexIn) -> Option<()> {
     scan_pair(i, '*', '/')
 }
 
-fn scan_pair(mut i: LexIn<'_, '_, '_, '_>, first: char, second: char) -> Option<()> {
+fn scan_pair(mut i: LexIn, first: char, second: char) -> Option<()> {
     (i.next()? == first).then_some(())?;
     (i.next()? == second).then_some(())
 }
 
-fn scan_identifier(mut i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
+fn scan_identifier(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut word| {
         let first = word.next()?;
         if first != '_' && !is_xid_start(first) {
@@ -316,15 +304,15 @@ fn scan_identifier(mut i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
     })
 }
 
-fn scan_identifier_continue(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+fn scan_identifier_continue(mut i: LexIn) -> Option<()> {
     is_xid_continue(i.next()?).then_some(())
 }
 
-fn scan_identifier_suffix(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+fn scan_identifier_suffix(mut i: LexIn) -> Option<()> {
     matches!(i.next()?, '?' | '!').then_some(())
 }
 
-fn scan_punctuation(i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
+fn scan_punctuation(i: LexIn) -> Option<Token> {
     let (kind, text) = i.with_str(|mut punctuation| match punctuation.next()? {
         '(' => Some(TokenKind::LParen),
         ')' => Some(TokenKind::RParen),
@@ -338,7 +326,7 @@ fn scan_punctuation(i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
     })
 }
 
-fn scan_unknown(i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
+fn scan_unknown(i: LexIn) -> Option<Token> {
     let (character, text) = i.with_str(|mut one| one.next());
     character?;
     Some(Token {
@@ -347,7 +335,7 @@ fn scan_unknown(i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
     })
 }
 
-fn emit_core(i: &mut RewriteIn<'_, '_, '_, '_, '_>, item: Item) {
+fn emit_core(i: &mut RewriteIn, item: Item) {
     let Payload::Token(token) = item.payload else {
         unreachable!("a core scanner always returns a token")
     };
@@ -358,7 +346,7 @@ fn emit_core(i: &mut RewriteIn<'_, '_, '_, '_, '_>, item: Item) {
     i.state.finish_node();
 }
 
-fn emit_token_item(i: &mut RewriteIn<'_, '_, '_, '_, '_>, item: Item) {
+fn emit_token_item(i: &mut RewriteIn, item: Item) {
     let Payload::Token(token) = item.payload else {
         unreachable!("only a lexical item can be accepted")
     };
@@ -379,7 +367,7 @@ pub(super) fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &End) {
     emit_trivia_builder(builder, &end.item.leading);
 }
 
-fn emit_trivia(i: &mut RewriteIn<'_, '_, '_, '_, '_>, trivia: &LeadingTrivia) {
+fn emit_trivia(i: &mut RewriteIn, trivia: &LeadingTrivia) {
     emit_trivia_builder(&mut *i.state, trivia);
 }
 
