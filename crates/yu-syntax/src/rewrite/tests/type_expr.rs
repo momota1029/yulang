@@ -761,3 +761,27 @@ fn bracket_row_arrow_is_mandatory_at_normal_boundaries() {
             .any(|node| node.kind() == SyntaxKind::Missing)
     );
 }
+
+#[test]
+fn leading_bracket_row_head_is_mandatory_at_normal_boundaries() {
+    for source in ["[e]", "F([e])"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("[e]\nT");
+    assert_eq!(green.to_string(), "[e]");
+    assert!(matches!(exit, Some(Err(Either::Left(_)))));
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+}

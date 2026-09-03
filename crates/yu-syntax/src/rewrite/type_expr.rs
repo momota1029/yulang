@@ -106,7 +106,15 @@ fn type_leading_bracket_row(
     };
     let leading = scan_trivia(i.rb());
     let mut head = type_nud_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&head.leading, baseline) || !is_type_primary(&head) {
+    if !type_chain_trivia(&head.leading, baseline) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return handoff(head);
+    }
+    if !is_type_primary(&head) {
+        if is_type_rhs_boundary(&head) {
+            let leading = std::mem::take(&mut head.leading);
+            emit_missing(&mut i, leading);
+        }
         return handoff(head);
     }
     let leading = std::mem::take(&mut head.leading);

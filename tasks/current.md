@@ -923,6 +923,13 @@ newlineもzero-width Missing後にunconsumedで返す。state/source reread/buff
 run、missing head、row item / close recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは64 passed、
 package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct leading `BracketRow`へBR-Hのnormal-boundary mandatory-head recoveryを追加した。row後のvalid
+non-bracket TypePrimaryはexisting outer TypeExpression内でそのまま読む一方、EOF / outer closeはone Missing headを置き、
+equal-or-shallower newlineはzero-width Missing後にunconsumedでcallerへ返す。second `[`はleading-row recursionにせず
+head recoveryへ残す。state/source reread/buffer/recovery recordの追加なし。disabled second row / malformed head recoveryと
+row item / close recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは65 passed、package check、
+format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
