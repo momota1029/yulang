@@ -67,6 +67,7 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
                 TokenKind::Arrow => SyntaxKind::Arrow,
                 TokenKind::Colon => SyntaxKind::Colon,
                 TokenKind::Forall => SyntaxKind::ForKw,
+                TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
                 TokenKind::PathSeparator => SyntaxKind::ColonColon,
                 TokenKind::Unknown => SyntaxKind::Unknown,
             };

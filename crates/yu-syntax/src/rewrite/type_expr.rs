@@ -9,7 +9,10 @@ use super::{
     driver::{Either, TailExit, handoff, token_kind},
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
-    lexer::{scan_trivia, scan_type_nud_item, type_item_after_trivia, type_nud_item_after_trivia},
+    lexer::{
+        scan_lbracket, scan_trivia, scan_type_nud_item, type_item_after_trivia,
+        type_nud_item_after_trivia,
+    },
 };
 
 pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
@@ -32,6 +35,7 @@ fn type_expr_from_primary(
         Some(TokenKind::LParen) => type_group(i.rb(), primary, baseline, type_ml),
         Some(TokenKind::LBrace) => type_record(i.rb(), primary, baseline, type_ml),
         Some(TokenKind::Forall) => type_forall(i.rb(), primary, baseline),
+        Some(TokenKind::EffectRowApostrophe) => type_effect_row(i.rb(), primary, baseline, type_ml),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     };
     i.state.finish_node();
@@ -71,7 +75,7 @@ fn type_group(mut i: RewriteIn, open: Item, baseline: usize, type_ml: bool) -> T
     i.state
         .start_node(SyntaxKind::ParenthesizedTypeGroup.into());
     emit_token_item(&mut i, open);
-    let exit = type_delimited(i.rb(), baseline);
+    let exit = type_delimited(i.rb(), TokenKind::RParen, baseline);
     i.state.finish_node();
     continue_type_tail(i, baseline, type_ml, exit)
 }
@@ -79,7 +83,7 @@ fn type_group(mut i: RewriteIn, open: Item, baseline: usize, type_ml: bool) -> T
 fn type_call_tail(mut i: RewriteIn, open: Item, baseline: usize, type_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::TypeCallTail.into());
     emit_token_item(&mut i, open);
-    let exit = type_delimited(i.rb(), baseline);
+    let exit = type_delimited(i.rb(), TokenKind::RParen, baseline);
     i.state.finish_node();
     continue_type_tail(i, baseline, type_ml, exit)
 }
@@ -226,13 +230,31 @@ fn type_forall_binder(mut i: RewriteIn, mut binder: Item) {
     i.state.finish_node();
 }
 
-fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
+fn type_effect_row(mut i: RewriteIn, apostrophe: Item, baseline: usize, type_ml: bool) -> TailExit {
+    i.state.start_node(SyntaxKind::EffectRowType.into());
+    emit_token_item(&mut i, apostrophe);
+    let open = i
+        .token(scan_lbracket)
+        .expect("the effect-row compound probe accepted an adjacent bracket");
+    emit_token_item(
+        &mut i,
+        Item {
+            leading: LeadingTrivia::default(),
+            payload: Payload::Token(open),
+        },
+    );
+    let exit = type_delimited(i.rb(), TokenKind::RBracket, baseline);
+    i.state.finish_node();
+    continue_type_tail(i, baseline, type_ml, exit)
+}
+
+fn type_delimited(mut i: RewriteIn, close: TokenKind, incoming_baseline: usize) -> TailExit {
     let opening = scan_trivia(i.rb());
     let baseline = type_delimited_baseline(incoming_baseline, &opening);
     emit_leading_trivia(&mut i, &opening);
     let mut item = type_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
     loop {
-        if token_kind(&item) == Some(TokenKind::RParen) {
+        if token_kind(&item) == Some(close) {
             emit_token_item(&mut i, item);
             return Ok(());
         }
@@ -242,7 +264,7 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
         if is_type_separator(&item) {
             item = missing_type_item(i.rb(), item);
             emit_token_item(&mut i, item);
-            item = match type_after_separator(i.rb()) {
+            item = match type_after_separator(i.rb(), close) {
                 Ok(next) => next,
                 Err(exit) => return exit,
             };
@@ -256,12 +278,12 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
             Err(Either::Left(next)) if is_type_separator(&next) => {
                 emit_token_item(&mut i, next);
-                match type_after_separator(i.rb()) {
+                match type_after_separator(i.rb(), close) {
                     Ok(next) => next,
                     Err(exit) => return exit,
                 }
             }
-            Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::RParen) => {
+            Err(Either::Left(next)) if token_kind(&next) == Some(close) => {
                 emit_token_item(&mut i, next);
                 return Ok(());
             }
@@ -276,10 +298,10 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
     }
 }
 
-fn type_after_separator(mut i: RewriteIn) -> Result<Item, TailExit> {
+fn type_after_separator(mut i: RewriteIn, close: TokenKind) -> Result<Item, TailExit> {
     let leading = scan_trivia(i.rb());
     let mut next = type_nud_item_after_trivia(i.rb(), leading);
-    if token_kind(&next) == Some(TokenKind::RParen) {
+    if token_kind(&next) == Some(close) {
         let leading = std::mem::take(&mut next.leading);
         emit_leading_trivia(&mut i, &leading);
         emit_token_item(&mut i, next);
@@ -413,6 +435,7 @@ fn is_type_primary(item: &Item) -> bool {
                 | TokenKind::LParen
                 | TokenKind::LBrace
                 | TokenKind::Forall
+                | TokenKind::EffectRowApostrophe
         )
     )
 }

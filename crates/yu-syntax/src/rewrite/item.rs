@@ -34,6 +34,7 @@ pub(super) enum TokenKind {
     Arrow,
     Colon,
     Forall,
+    EffectRowApostrophe,
     PathSeparator,
     Unknown,
 }

@@ -114,6 +114,7 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<
 pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
     let token = i.check(choice((
         token(scan_type_forall),
+        token(scan_type_effect_row_apostrophe),
         token(scan_path_segment),
         token(scan_integer),
         token(scan_lparen),
@@ -139,6 +140,7 @@ pub(super) fn type_item_after_trivia(i: RewriteIn, leading: LeadingTrivia) -> It
     let payload = i
         .map(
             choice((
+                token(scan_type_effect_row_apostrophe),
                 token(scan_path_segment),
                 token(scan_integer),
                 token(scan_type_arrow),
@@ -389,19 +391,19 @@ fn scan_type_arrow(i: LexIn) -> Option<Token> {
     })
 }
 
-fn scan_type_forall(i: LexIn) -> Option<Token> {
-    let (accepted, text) = i.with_str(|mut keyword| {
+fn scan_type_forall(mut i: LexIn) -> Option<Token> {
+    let suffix = i.remainder().strip_prefix("for")?;
+    if suffix
+        .chars()
+        .next()
+        .is_some_and(|character| is_xid_continue(character) || matches!(character, '?' | '!'))
+    {
+        return None;
+    }
+    let (accepted, text) = i.rb().with_str(|mut keyword| {
         (keyword.next()? == 'f').then_some(())?;
         (keyword.next()? == 'o').then_some(())?;
-        (keyword.next()? == 'r').then_some(())?;
-        keyword
-            .token(scan_identifier_continue)
-            .is_none()
-            .then_some(())?;
-        keyword
-            .token(scan_identifier_suffix)
-            .is_none()
-            .then_some(())
+        (keyword.next()? == 'r').then_some(())
     });
     accepted?;
     Some(Token {
@@ -410,11 +412,24 @@ fn scan_type_forall(i: LexIn) -> Option<Token> {
     })
 }
 
-fn scan_type_colon(i: LexIn) -> Option<Token> {
-    let (accepted, text) = i.with_str(|mut colon| {
-        (colon.next()? == ':').then_some(())?;
-        colon.token(scan_colon).is_none().then_some(())
-    });
+fn scan_type_effect_row_apostrophe(mut i: LexIn) -> Option<Token> {
+    i.remainder().starts_with("'[").then_some(())?;
+    let (accepted, text) = i
+        .rb()
+        .with_str(|mut apostrophe| (apostrophe.next()? == '\'').then_some(()));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::EffectRowApostrophe,
+        text: text.into(),
+    })
+}
+
+fn scan_type_colon(mut i: LexIn) -> Option<Token> {
+    let remainder = i.remainder();
+    (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())?;
+    let (accepted, text) = i
+        .rb()
+        .with_str(|mut colon| (colon.next()? == ':').then_some(()));
     accepted?;
     Some(Token {
         kind: TokenKind::Colon,
@@ -447,8 +462,9 @@ fn scan_lbrace(i: LexIn) -> Option<Token> {
     (token.kind == TokenKind::LBrace).then_some(token)
 }
 
-fn scan_colon(mut i: LexIn) -> Option<()> {
-    (i.next()? == ':').then_some(())
+pub(super) fn scan_lbracket(i: LexIn) -> Option<Token> {
+    let token = scan_punctuation(i)?;
+    (token.kind == TokenKind::LBracket).then_some(token)
 }
 
 fn scan_dot(mut i: LexIn) -> Option<()> {

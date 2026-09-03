@@ -495,3 +495,98 @@ fn forall_type_does_not_reclassify_type_apply_for() {
             .any(|node| node.kind() == SyntaxKind::ForallType)
     );
 }
+
+#[test]
+fn effect_row_type_keeps_its_compound_opener_and_items() {
+    for (source, item_kind) in [
+        ("'[]", None),
+        ("'[e]", Some(SyntaxKind::Identifier)),
+        ("'['e]", Some(SyntaxKind::SigilIdentifier)),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let row = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::EffectRowType)
+            .expect("effect row type");
+        assert_eq!(
+            row.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| {
+                    matches!(
+                        token.kind(),
+                        SyntaxKind::Apostrophe | SyntaxKind::LBracket | SyntaxKind::RBracket
+                    )
+                })
+                .map(|token| (token.kind(), token.text().to_owned()))
+                .collect::<Vec<_>>(),
+            [
+                (SyntaxKind::Apostrophe, "'".to_owned()),
+                (SyntaxKind::LBracket, "[".to_owned()),
+                (SyntaxKind::RBracket, "]".to_owned()),
+            ],
+            "{source:?}"
+        );
+        assert_eq!(
+            row.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| {
+                    matches!(
+                        token.kind(),
+                        SyntaxKind::Identifier | SyntaxKind::SigilIdentifier
+                    )
+                })
+                .map(|token| token.kind())
+                .collect::<Vec<_>>(),
+            item_kind.into_iter().collect::<Vec<_>>(),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn effect_row_type_composes_with_layout_and_tails() {
+    let layout = "'[\n  A, B;\n  C\n  D\n]";
+    let (green, exit) = run_type(layout);
+    assert_eq!(green.to_string(), layout);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let row = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::EffectRowType)
+        .expect("effect row type");
+    assert_eq!(
+        row.children()
+            .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+            .count(),
+        4
+    );
+
+    let (green, exit) = run_type("Foo '['e] -> Out");
+    assert_eq!(green.to_string(), "Foo '['e] -> Out");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let top = top_type_expression(&green);
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+    );
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeArrowTail)
+    );
+
+    let path = run_type("'[e]::Result").0;
+    assert!(
+        top_type_expression(&path)
+            .children()
+            .any(|node| node.kind() == SyntaxKind::TypePathTail)
+    );
+
+    for source in ["'", "' [e]", "'/*c*/[e]"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), "", "{source:?}");
+        assert!(exit.is_none(), "{source:?}");
+    }
+}

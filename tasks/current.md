@@ -888,6 +888,15 @@ groupを通したときだけouter pathなどを付けられる。state/source r
 surfaceだけで、binder/colon/body recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは58 passed、
 package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: standalone `TypeExpression`へnormal-only `EffectRowType` primaryを追加した。type-local exact adjacent
+`"'["` probeはfailureでinputを動かさずapostropheだけをItemにし、ownerがadjacent `[`をdirectにconsumeする。rowは
+parameterized direct type-delimited ownerでcomma/semicolon/captured-base implicit newline/actual matching `]` trailing
+boundaryを共有し、full canonical TypeExpression itemをflat source orderで保持する。effect rowはnonterminal primaryなので
+ordinary TypeApply/path/arrowへ戻る。exact `for`/lone `:` probeもraw suffix check + `rb().with_str`へ直し、ParserOnce
+non-match契約を満たす。state/source reread/buffer/recovery recordの追加なし。これはvalid surfaceだけで、effect-row
+recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは60 passed、package check、format/diff checkは
+green。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
