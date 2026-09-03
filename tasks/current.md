@@ -661,6 +661,17 @@ follow-up で driver 内に残っていた test-wrapper `parse`/`ParseResult`（
 finish する witness を持つ。M2 compiler/recovery review と closure review は clean、focused 7 tests は
 green。
 
+2026-09-03: isolated G4b E5 valid witness を完了した。`x[a(b)]` は outer `IndexTail` の exactly one
+`IndexItem` に direct `OperatorChain(a)` を置き、その nested `CallTail` が `OperatorChain(b)` と同じ
+handoff `)` を所有し、outer IndexTail が続く同じ handoff `]` を所有する。`IndexItem` は E5 正本が
+要求済みの CST node として追加した。source/item の再scan、source lifetime/range/root/cursor、delimiter
+stack、old parser bridge、outer builder生成、Missing/Error/`IndexSeparator` はない。mismatched close/EOF は
+owned Item/End のまま上位 owner へ伝播する。M3 compiler/recovery/specification review は clean、focused
+`cargo test -p yu-syntax rewrite::tests -- --test-threads=1` は 8 passed / 0 failed / 606 filtered、
+`cargo check -p yu-syntax`、scoped format/diff check は green。package/workspace suite と measurement は
+未実行。これは E5 の valid construction control だけで、G4b owner loop、leading-item/missing-bracket/
+separator recovery、production、AST parity、Yumark bridge、Gate 4/G4b coverage ledger は未完了である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

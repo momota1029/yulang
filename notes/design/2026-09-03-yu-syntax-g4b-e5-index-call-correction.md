@@ -28,7 +28,17 @@ stack, cache, or legacy-parser bridge.
 
 ## Verification boundary
 
-Focused G4b evidence asserts one `IndexTail` containing one direct
-`OperatorChain` item with an inner `CallTail`, lossless CST, no
+Focused G4b evidence asserts one `IndexTail` containing one `IndexItem` with
+its direct `OperatorChain` item and an inner `CallTail`, lossless CST, no
 `IndexSeparator` recovery, and exact `]` ownership.  Existing E5 leading-item
 and missing-bracket controls remain separate.
+
+## Implementation status
+
+The isolated valid E5 witness completed on 2026-09-03. It adds the required
+`IndexItem` CST node and directly parses `x[a(b)]` as one `IndexTail` with one
+`IndexItem`, an ordinary nested `CallTail`, direct `)` and `]` owner tokens,
+and no Missing/Error/`IndexSeparator` node. M3 compiler/recovery and
+specification review were clean. Focused rewrite tests passed 8 cases, while
+all missing-bracket, leading-item, separator, broader G4b owner-loop,
+production, AST-parity, and Yumark controls remain open.

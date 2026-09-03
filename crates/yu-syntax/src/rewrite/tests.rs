@@ -171,3 +171,77 @@ fn words_match_the_oracle_start_and_suffix_rules() {
         assert!(matches!(exit, Some(Err(Either::Right(_)))));
     }
 }
+
+#[test]
+fn index_item_contains_nested_call_without_separator_recovery() {
+    let (green, exit) = run("x[a(b)]");
+    assert_eq!(green.to_string(), "x[a(b)]");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer_chain = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    let index = outer_chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::IndexTail)
+        .expect("outer index tail");
+    let items = index
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::IndexItem)
+        .collect::<Vec<_>>();
+    assert_eq!(items.len(), 1);
+    let item_chain = items[0]
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("the index item owns its expression chain");
+    let call = item_chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::CallTail)
+        .expect("the index expression owns its nested call tail");
+    assert_eq!(
+        call.children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| token.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::Identifier,
+            SyntaxKind::LBracket,
+            SyntaxKind::Identifier,
+            SyntaxKind::LParen,
+            SyntaxKind::Identifier,
+            SyntaxKind::RParen,
+            SyntaxKind::RBracket,
+        ]
+    );
+    let rparen = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::RParen)
+        .expect("call close");
+    assert_eq!(
+        rparen.parent().expect("call close owner").kind(),
+        SyntaxKind::CallTail
+    );
+    let rbracket = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::RBracket)
+        .expect("index close");
+    assert_eq!(
+        rbracket.parent().expect("index close owner").kind(),
+        SyntaxKind::IndexTail
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}

@@ -46,17 +46,81 @@ pub(super) fn expr(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Option<TailExit> {
     Some(exit)
 }
 
-/// Non-boundary items are returned unchanged and receive no builder effect.
-pub(super) fn tail(_: RewriteIn<'_, '_, '_, '_, '_>, item: Item) -> TailExit {
+/// Unaccepted items are returned unchanged and receive no builder effect.
+pub(super) fn tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, item: Item) -> TailExit {
+    if item.leading.0.is_empty() {
+        match token_kind(&item) {
+            Some(TokenKind::LParen) => return call_tail(i.rb(), item),
+            Some(TokenKind::LBracket) => return index_tail(i.rb(), item),
+            _ => {}
+        }
+    }
+    handoff(item)
+}
+
+fn call_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item) -> TailExit {
+    i.state.start_node(SyntaxKind::CallTail.into());
+    emit_token_item(&mut i, open);
+
+    let inner = expr(i.rb());
+    let exit = match inner {
+        Some(Err(Either::Left(close))) if token_kind(&close) == Some(TokenKind::RParen) => {
+            emit_token_item(&mut i, close);
+            i.state.finish_node();
+            let next = tail_item(i.rb());
+            return tail(i, next);
+        }
+        Some(exit) => exit,
+        None => handoff(tail_item(i.rb())),
+    };
+    i.state.finish_node();
+    exit
+}
+
+fn index_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item) -> TailExit {
+    i.state.start_node(SyntaxKind::IndexTail.into());
+    emit_token_item(&mut i, open);
+    i.state.start_node(SyntaxKind::IndexItem.into());
+
+    let inner = expr(i.rb());
+    i.state.finish_node();
+    let exit = match inner {
+        Some(Err(Either::Left(close))) if token_kind(&close) == Some(TokenKind::RBracket) => {
+            emit_token_item(&mut i, close);
+            i.state.finish_node();
+            let next = tail_item(i.rb());
+            return tail(i, next);
+        }
+        Some(exit) => exit,
+        None => handoff(tail_item(i.rb())),
+    };
+    i.state.finish_node();
+    exit
+}
+
+fn handoff(item: Item) -> TailExit {
     match item.payload {
         Payload::Eof => Err(Either::Right(End { item })),
         Payload::Token(_) => Err(Either::Left(item)),
     }
 }
 
+fn token_kind(item: &Item) -> Option<TokenKind> {
+    match &item.payload {
+        Payload::Token(token) => Some(token.kind),
+        Payload::Eof => None,
+    }
+}
+
 fn tail_item(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Item {
     let leading = scan_trivia(i.rb());
     if let Some(token) = i.token(scan_identifier) {
+        return Item {
+            leading,
+            payload: Payload::Token(token),
+        };
+    }
+    if let Some(token) = i.token(scan_punctuation) {
         return Item {
             leading,
             payload: Payload::Token(token),
@@ -232,6 +296,20 @@ fn scan_identifier_suffix(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
     matches!(i.next()?, '?' | '!').then_some(())
 }
 
+fn scan_punctuation(i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
+    let (kind, text) = i.with_str(|mut punctuation| match punctuation.next()? {
+        '(' => Some(TokenKind::LParen),
+        ')' => Some(TokenKind::RParen),
+        '[' => Some(TokenKind::LBracket),
+        ']' => Some(TokenKind::RBracket),
+        _ => None,
+    });
+    Some(Token {
+        kind: kind?,
+        text: text.into(),
+    })
+}
+
 fn scan_unknown(i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
     let (character, text) = i.with_str(|mut one| one.next());
     character?;
@@ -250,6 +328,22 @@ fn emit_core(i: &mut RewriteIn<'_, '_, '_, '_, '_>, item: Item) {
     emit_trivia(i, &item.leading);
     i.state.token(SyntaxKind::Identifier.into(), &token.text);
     i.state.finish_node();
+}
+
+fn emit_token_item(i: &mut RewriteIn<'_, '_, '_, '_, '_>, item: Item) {
+    let Payload::Token(token) = item.payload else {
+        unreachable!("only a lexical item can be accepted")
+    };
+    emit_trivia(i, &item.leading);
+    let kind = match token.kind {
+        TokenKind::Identifier => SyntaxKind::Identifier,
+        TokenKind::LParen => SyntaxKind::LParen,
+        TokenKind::RParen => SyntaxKind::RParen,
+        TokenKind::LBracket => SyntaxKind::LBracket,
+        TokenKind::RBracket => SyntaxKind::RBracket,
+        TokenKind::Unknown => SyntaxKind::Unknown,
+    };
+    i.state.token(kind.into(), &token.text);
 }
 
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.

@@ -156,6 +156,7 @@ pub enum SyntaxKind {
     WithBodyTail,
     CallTail,
     IndexTail,
+    IndexItem,
     ProjectionTupleTail,
     ProjectionRecordTail,
     ProjectionRecordSpreadItem,
@@ -440,6 +441,7 @@ impl Language for YulangLanguage {
             }
             value if value == SyntaxKind::CallTail as u16 => SyntaxKind::CallTail,
             value if value == SyntaxKind::IndexTail as u16 => SyntaxKind::IndexTail,
+            value if value == SyntaxKind::IndexItem as u16 => SyntaxKind::IndexItem,
             value if value == SyntaxKind::ProjectionTupleTail as u16 => {
                 SyntaxKind::ProjectionTupleTail
             }

@@ -155,11 +155,13 @@ Gate 4 and G4b remain open: slices 1–2 close no coverage-ledger cell. Slice 3
 is only a new isolated CST foundation until its assigned controls are reviewed.
 When it reaches E5, it observes exactly one `IndexTail` with one `IndexItem`,
 an ordinary nested `CallTail`, no `IndexSeparator` recovery, and direct outer
-`]` ownership. No Gate 4b completion, production promotion, AST parity, or
-Yumark streaming claim follows from any earlier slice. The existing G4a commit
-remains history, but its old certification is not evidence for this new
-CST-only topology. A later authoritative gate must decide how an owned
-successor CST is consumed by any public AST or production interface.
+`]` ownership. The isolated E5 valid witness completed on 2026-09-03. It does
+not complete Gate 4b or claim any other delimiter/item, separator, missing-close,
+or recovery control; it has no production promotion, AST parity, or Yumark
+streaming claim. The existing G4a commit remains history, but its old
+certification is not evidence for this new CST-only topology. A later
+authoritative gate must decide how an owned successor CST is consumed by any
+public AST or production interface.
 
 ## 4. Focused evidence
 
@@ -213,10 +215,11 @@ delta; its final closure review was clean. Focused
 and `cargo check -p yu-syntax` plus scoped `git diff --check` passed. No
 package/workspace suite or performance measurement was run.
 
-This foundation does not close a Gate 4/G4b cell. It has no dynamic operator,
-delimiter, index, call, recovery-diagnostic, production, AST-parity, or Yumark
-bridge claim; in particular the E5 `x[a(b)]` CST control remains for its
-assigned owner slice.
+The foundation and E5 witness do not close a Gate 4/G4b cell. They claim only
+the source-free identifier closure and E5's valid adjacent index/call path;
+they have no dynamic-operator, general delimiter/sequence, recovery-diagnostic,
+production, AST-parity, or Yumark bridge claim. In particular, missing-close,
+separator, and other E5 controls remain for their assigned owner slices.
 
 A follow-up corrected an accidental test-wrapper entrypoint that had created,
 rooted, and finished a builder inside `driver.rs`. The production-facing
@@ -225,3 +228,12 @@ procedure and its owned `TailExit`; test-only outer-owner setup constructs and
 finishes a tree. A focused witness drops its `String` before the outer owner
 emits the owned `End` trivia and finishes the builder. M2 compiler/recovery
 review and its closure review were clean.
+
+The E5 implementation adds the authorized `IndexItem` CST node and direct
+`expr`/`tail` owner path for `x[a(b)]`: `IndexTail → IndexItem →
+OperatorChain(a) → CallTail → OperatorChain(b)`. The `CallTail` owns the
+already-scanned `)` and the `IndexTail` then owns the already-scanned `]`;
+both close tokens and all retained trivia/text remain owned Items. The path has
+no `IndexSeparator`, Missing, Error, parser-local delimiter state, source
+rescan, or outer-builder construction. M3 compiler/recovery and specification
+reviews were clean; the focused rewrite set passed 8 tests.
