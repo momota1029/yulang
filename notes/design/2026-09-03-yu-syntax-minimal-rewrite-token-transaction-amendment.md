@@ -191,5 +191,25 @@ implementation review found an over-broad outer-state `check`; the repair
 restored unit-state-only `check` and received a clean scoped closure review.
 `cargo test -p chasa-recover` passed 19 tests after that repair.
 
-This completion implements step 1 only. It neither changes the rewrite shell
-nor closes a Gate 4/G4b cell.
+The source-free CST foundation then completed steps 2 and the deliberately
+narrow first closure of step 3. The old rewrite shell was replaced by direct
+`expr`/`tail` procedures over the local `In` aliases. `Recover` contains only
+the operator-table reference and `Mark = ()`; `S` is a direct
+`GreenNodeBuilder`; `Item`, trivia, `End`, and `ParseResult` retain only owned
+text or a `GreenNode`. The first closure accepts an identifier core and returns
+the next logical item or EOF as the existing tail handoff. Its owned trivia
+scanner preserves exact horizontal whitespace, CRLF/CR/LF, line comments, and
+arbitrarily nested block comments; its word scanner accepts `_` starts and one
+trailing `?` or `!`, matching the current lexical authority.
+
+The M3 specification review was clean. The compiler/recovery review found
+and closed the initial trivia/word omissions and the CRLF/NBSP typed-trivia
+delta; its final closure review was clean. Focused
+`cargo test -p yu-syntax rewrite::tests -- --test-threads=1` passed 7 tests,
+and `cargo check -p yu-syntax` plus scoped `git diff --check` passed. No
+package/workspace suite or performance measurement was run.
+
+This foundation does not close a Gate 4/G4b cell. It has no dynamic operator,
+delimiter, index, call, recovery-diagnostic, production, AST-parity, or Yumark
+bridge claim; in particular the E5 `x[a(b)]` CST control remains for its
+assigned owner slice.

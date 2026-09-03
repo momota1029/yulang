@@ -1,39 +1,26 @@
-use std::{ops::Range, sync::Arc};
+//! Source-free direct recursive-descent foundation for the isolated rewrite.
 
-use chasa_recover::{In, ParserOnce};
+use chasa_recover::In;
 use reborrow_generic::Reborrow as _;
+use rowan::GreenNodeBuilder;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::{
-    grammar::{
-        declaration::Recovered,
-        expression::{
-            CallTail, FieldTail, FixedPostfixTail, IntegerLiteral, OperatorChain,
-            OperatorChainItem, OperatorRole, OperatorUse, PathSegment, PathTail, PrimaryExpression,
-        },
-    },
-    operator::{BindingPower, OperatorEntry, OperatorFixity, OperatorTable},
-    scan::operator::{OperatorSite, is_call_or_path_sensitive, judge_operator},
-    scan::word::WordSpan,
-    session::{
-        CanonicalRecoveryContinuation, ConstructRole, Delimiter as SessionDelimiter,
-        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, PunctuationEvidence,
-        RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::{operator::OperatorTable, syntax_kind::SyntaxKind};
 
 use super::{
-    item::{
-        Boundary, Delimiter, Item, LayoutEvidence, LeadingTrivia, Level, LogicalPosition,
-        MalformedTailKind, NudKind, Payload, SourceSpan, StopKind, TailKind, Token, TokenKind,
-        TriviaPart, TriviaPartKind,
-    },
-    state::{
-        PilotFrame, PilotLineState, PilotOutput, PilotRecoverState, RecoveryChainItem,
-        RecoveryDraft, syntax_kind_for_token,
-    },
+    item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
+    state::Recover,
 };
+
+pub(super) type RewriteIn<'a, 'source, 'recover, 'operators, 'builder> = In<
+    'a,
+    &'source str,
+    &'recover mut Recover<'operators>,
+    &'builder mut GreenNodeBuilder<'static>,
+>;
+
+type LexIn<'a, 'source, 'recover, 'operators> =
+    In<'a, &'source str, &'recover mut Recover<'operators>, ()>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum Either<L, R> {
@@ -42,2068 +29,267 @@ pub(super) enum Either<L, R> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct End<'source> {
-    pub(super) item: Item<'source>,
+pub(super) struct End {
+    pub(super) item: Item,
 }
 
-pub(super) type TailExit<'source> = Result<(), Either<Item<'source>, End<'source>>>;
+pub(super) type TailExit = Result<(), Either<Item, End>>;
 
-#[derive(Clone, Copy)]
-pub(super) struct PilotContext<'source, 'operators> {
-    pub(super) root: &'source str,
-    pub(super) operators: &'operators OperatorTable,
+/// No field of this result borrows the input source.
+pub(super) struct ParseResult {
+    pub(super) green: rowan::GreenNode,
+    pub(super) exit: Option<TailExit>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum BorrowedArgsOwner {
-    InlineReference,
-    InlineApply,
-}
-
-impl BorrowedArgsOwner {
-    fn node_kind(self) -> SyntaxKind {
-        match self {
-            Self::InlineReference => SyntaxKind::YmYulangArgs,
-            Self::InlineApply => SyntaxKind::YmInlineApplyArgs,
-        }
+pub(super) fn parse(source: &str, operators: &OperatorTable) -> ParseResult {
+    let mut input = source;
+    let mut recover = Recover::new(operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = expr(In::new(&mut input, &mut recover, &mut builder));
+    if let Some(Err(Either::Right(end))) = &exit {
+        emit_end(&mut builder, end);
+    }
+    builder.finish_node();
+    ParseResult {
+        green: builder.finish(),
+        exit,
     }
 }
 
-#[derive(Clone, Debug)]
-pub(super) struct BorrowedArgsResult<'source> {
-    pub(super) expression: OperatorChain<'source>,
-    pub(super) close_item: Item<'source>,
-    pub(super) range: Range<usize>,
-}
-
-#[derive(Clone, Debug)]
-pub(super) struct BorrowedArgsEnd<'source> {
-    pub(super) expression: OperatorChain<'source>,
-    pub(super) end: End<'source>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ExprMode {
-    Normal,
-    MlArgument { stop_before_tail: bool },
-}
-
-#[derive(Clone, Debug)]
-struct ScannedNud<'source> {
-    identity: super::item::ItemIdentity,
-    leading_trivia: LeadingTrivia<'source>,
-    token: Token<'source>,
-    kind: NudKind,
-}
-
-#[derive(Clone, Debug, Default)]
-struct TriviaScan {
-    saw_newline: bool,
-    indent: usize,
-    parts: Vec<TriviaPart>,
-}
-
-#[derive(Clone, Copy)]
-struct ScanTriviaParser<'source, 'operators> {
-    context: PilotContext<'source, 'operators>,
-}
-
-impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for ScanTriviaParser<'source, 'operators>
-{
-    type Output = TriviaScan;
-
-    fn run_once(
-        self,
-        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
-    ) -> Option<Self::Output> {
-        scan_trivia(i, self.context)
-    }
-}
-
-#[derive(Clone, Copy)]
-struct ScanNudParser<'source, 'operators> {
-    context: PilotContext<'source, 'operators>,
-    frame: PilotFrame,
-}
-
-#[derive(Clone, Copy)]
-struct ScanNudUncheckedParser<'source, 'operators> {
-    context: PilotContext<'source, 'operators>,
-    frame: PilotFrame,
-}
-
-impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for ScanNudUncheckedParser<'source, 'operators>
-{
-    type Output = ScannedNud<'source>;
-
-    fn run_once(
-        self,
-        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
-    ) -> Option<Self::Output> {
-        scan_nud_unchecked(i, self.context, self.frame)
-    }
-}
-
-impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for ScanNudParser<'source, 'operators>
-{
-    type Output = ScannedNud<'source>;
-
-    fn run_once(
-        self,
-        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
-    ) -> Option<Self::Output> {
-        scan_nud(i, self.context, self.frame)
-    }
-}
-
-#[derive(Clone, Copy)]
-struct TailItemParser<'source, 'operators> {
-    context: PilotContext<'source, 'operators>,
-    frame: PilotFrame,
-}
-
-#[derive(Clone, Copy)]
-enum DirectWordKind {
-    Ordinary,
-    PathSegment,
-}
-
-#[derive(Clone, Copy)]
-struct DirectWordParser<'source, 'operators> {
-    context: PilotContext<'source, 'operators>,
-    kind: DirectWordKind,
-}
-
-impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for DirectWordParser<'source, 'operators>
-{
-    type Output = WordSpan<'source>;
-
-    fn run_once(
-        self,
-        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
-    ) -> Option<Self::Output> {
-        scan_direct_word(i, self.context, self.kind)
-    }
-}
-
-#[derive(Clone, Copy)]
-struct FixedInvalidRunParser<'source, 'operators> {
-    context: PilotContext<'source, 'operators>,
-    frame: PilotFrame,
-}
-
-impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for FixedInvalidRunParser<'source, 'operators>
-{
-    type Output = Range<usize>;
-
-    fn run_once(
-        self,
-        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
-    ) -> Option<Self::Output> {
-        consume_fixed_invalid_run(i, self.context, self.frame)
-    }
-}
-
-impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for TailItemParser<'source, 'operators>
-{
-    type Output = Item<'source>;
-
-    fn run_once(
-        self,
-        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
-    ) -> Option<Self::Output> {
-        tail_item(i, self.context, self.frame)
-    }
-}
-
-/// Isolated direct expression entry. It begins Rowan and the existing AST
-/// product only after a NUD has matched, so entry `None` is effect-free.
-pub(super) fn expr<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    frame: PilotFrame,
-) -> Option<TailExit<'source>> {
-    i.then(ScanNudParser { context, frame }, move |nud, mut i| {
-        i.state.start_node(SyntaxKind::Root);
-        emit_trivia(i.state, &nud.leading_trivia);
-        let mut nud = nud;
-        nud.leading_trivia = LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
-        i.state.start_node(SyntaxKind::OperatorChain);
-        i.state.begin_chain(nud.token.lexeme.range.start);
-        let exit = expr_from_scanned_nud(i.rb(), context, level, ExprMode::Normal, frame, nud);
-        let chain = i.state.finish_chain();
-        i.state.finish_node();
-        i.state.set_root_chain(chain);
-        exit
-    })
-}
-
-pub(super) fn expr_body<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-) -> Option<TailExit<'source>> {
-    i.then(ScanNudParser { context, frame }, move |nud, i| {
-        expr_from_scanned_nud(i, context, level, mode, frame, nud)
-    })
-}
-
-pub(super) fn expr_chain<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-) -> Option<(TailExit<'source>, OperatorChain<'source>)> {
-    i.then(ScanNudParser { context, frame }, move |mut nud, i| {
-        emit_trivia(i.state, &nud.leading_trivia);
-        nud.leading_trivia = LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
-        nested_expr_from_scanned(i, context, level, mode, frame, nud)
-    })
-}
-
-/// Isolated E3 adapter for a caller that has already accepted an argument
-/// opener and whose present closing parenthesis remains caller-owned.
-pub(super) fn present_borrowed_args<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    owner: BorrowedArgsOwner,
-    open: Range<usize>,
-    outer_frame: PilotFrame,
-) -> Result<BorrowedArgsResult<'source>, BorrowedArgsEnd<'source>> {
-    assert_eq!(
-        byte_offset(context.root, i.index()),
-        open.end,
-        "the borrowed-args adapter starts immediately after its owned opener"
-    );
-    assert_eq!(&context.root[open.clone()], "(");
-    i.state.start_node(owner.node_kind());
-    i.state.token_range(SyntaxKind::LParen, open.clone());
-    let inner_frame = PilotFrame {
-        delimiter: Some(Delimiter::Parenthesis),
-        ..outer_frame
-    };
-    let (exit, expression) =
-        expr_chain(i.rb(), context, Level::OUTER, ExprMode::Normal, inner_frame)
-            .expect("the present-close E3 witness has one expression");
-    let Err(Either::Right(end)) = exit else {
-        panic!("the present-close E3 witness must return its caller-owned close")
-    };
-    assert!(matches!(
-        end.item.payload,
-        Payload::Boundary(Boundary::Close(Delimiter::Parenthesis))
-    ));
-    if end.item.leading_trivia.text.is_empty() {
-        i.state.finish_node();
-        return Err(BorrowedArgsEnd { expression, end });
-    }
-    let close_item = borrow_close_for_owner(end.item, inner_frame);
-    assert_eq!(
-        byte_offset(context.root, i.index()),
-        close_item.extent.end,
-        "the adapter must claim the same close item returned by its child"
-    );
-    let close = emit_borrowed_close(i.state, &close_item);
+/// `None` occurs only before the lexical transaction has accepted a core.
+pub(super) fn expr(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Option<TailExit> {
+    let core = i.token(scan_core_item)?;
+    i.state.start_node(SyntaxKind::OperatorChain.into());
+    emit_core(&mut i, core);
+    let next = tail_item(i.rb());
+    let exit = tail(i.rb(), next);
     i.state.finish_node();
-    Ok(BorrowedArgsResult {
-        expression,
-        close_item,
-        range: open.start..close.end,
-    })
+    Some(exit)
 }
 
-fn nested_expr_from_scanned<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    nud: ScannedNud<'source>,
-) -> (TailExit<'source>, OperatorChain<'source>) {
-    i.state.start_node(SyntaxKind::OperatorChain);
-    i.state.begin_chain(nud.token.lexeme.range.start);
-    let exit = expr_from_scanned_nud(i.rb(), context, level, mode, frame, nud);
-    let chain = i.state.finish_chain();
-    i.state.finish_node();
-    (exit, chain)
-}
-
-fn expr_from_scanned_nud<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    nud: ScannedNud<'source>,
-) -> TailExit<'source> {
-    match nud.kind {
-        NudKind::Atom => {
-            emit_core(i.state, context, &nud);
-            scan_tail_after_accept(i, context, level, mode, frame)
-        }
-        NudKind::Prefix { .. } => prefix_after_accept(i, context, level, mode, frame, nud),
-        NudKind::Nullfix => {
-            emit_nullfix(i.state, context, &nud);
-            scan_tail_after_accept(i, context, level, mode, frame)
-        }
-        NudKind::OpenParenthesis => {
-            emit_group_open(i.state, &nud);
-            let inner_frame = PilotFrame {
-                delimiter: Some(Delimiter::Parenthesis),
-                ..frame
-            };
-            let (elements, close, exit) = parse_group_contents(i.rb(), context, inner_frame);
-            let end = close
-                .as_ref()
-                .map_or_else(|| boundary_start(&exit), |range| range.end);
-            i.state.finish_node();
-            i.state.push_chain_item(
-                OperatorChainItem::Primary(PrimaryExpression::parenthesized(
-                    elements,
-                    nud.token.lexeme.range.start..end,
-                )),
-                nud.token.lexeme.range.start..end,
-            );
-            match exit {
-                Ok(()) => scan_tail_after_accept(i, context, level, mode, frame),
-                handoff => handoff,
-            }
-        }
-    }
-}
-
-fn prefix_after_accept<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    outer_level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    prefix: ScannedNud<'source>,
-) -> TailExit<'source> {
-    let NudKind::Prefix { right } = &prefix.kind else {
-        unreachable!("prefix continuation requires a prefix operator")
-    };
-    emit_prefix(i.state, context, &prefix);
-    let rhs_level = Level::binding(right.clone());
-    let rhs = match expr_body(i.rb(), context, rhs_level.clone(), mode, frame) {
-        Some(rhs) => rhs,
-        None => recover_required_operand(
-            i.rb(),
-            context,
-            rhs_level,
-            mode,
-            frame,
-            GrammarRole::Expression(ExpressionRole::Nud),
-        ),
-    };
-    continue_after_child(i, context, outer_level, mode, frame, rhs)
-}
-
-fn scan_tail_after_accept<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-) -> TailExit<'source> {
-    if matches!(
-        mode,
-        ExprMode::MlArgument {
-            stop_before_tail: true
-        }
-    ) && !adjacent_fixed_tail_starts(context.root, i.index())
-    {
-        return Ok(());
-    }
-    i.then(TailItemParser { context, frame }, move |item, i| {
-        tail(i, context, level, mode, frame, item)
-    })
-    .expect("accepted tail-item completion is total")
-}
-
-fn adjacent_fixed_tail_starts(root: &str, index: *const u8) -> bool {
-    let remainder = &root[byte_offset(root, index)..];
-    if remainder.starts_with("::") || remainder.starts_with('(') {
-        return true;
-    }
-    let Some(after_dot) = remainder.strip_prefix('.') else {
-        return false;
-    };
-    !matches!(after_dot.chars().next(), Some('(' | '{' | '.'))
-}
-
-pub(super) fn tail<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    item: Item<'source>,
-) -> TailExit<'source> {
-    let Some(kind) = item.tail_kind() else {
-        return Err(Either::Right(End { item }));
-    };
-    if !tail_reads(&level, &kind) {
-        return Err(Either::Left(item));
-    }
-
-    match kind {
-        TailKind::Infix { right, .. } => {
-            emit_operator_item(i.state, context, &item, OperatorRole::Infix);
-            let rhs_level = Level::binding(right);
-            let rhs = match expr_body(i.rb(), context, rhs_level.clone(), mode, frame) {
-                Some(rhs) => rhs,
-                None => recover_required_operand(
-                    i.rb(),
-                    context,
-                    rhs_level,
-                    mode,
-                    frame,
-                    GrammarRole::Expression(ExpressionRole::Nud),
-                ),
-            };
-            continue_after_child(i, context, level, mode, frame, rhs)
-        }
-        TailKind::Suffix { .. } => {
-            emit_operator_item(i.state, context, &item, OperatorRole::Suffix);
-            scan_tail_after_accept(i, context, level, mode, frame)
-        }
-        TailKind::MlNud(nud_kind) => {
-            let (child, argument) =
-                ml_child_after_accept(i.rb(), context, level.clone(), frame, &item, nud_kind);
-            let range = argument.range();
-            i.state.push_chain_item(
-                OperatorChainItem::MlArgument {
-                    argument: Box::new(argument),
-                    range: range.clone(),
-                },
-                range,
-            );
-            continue_after_child(i, context, level, mode, frame, child)
-        }
-        TailKind::CallOpen => parse_call_after_open(i, context, level, mode, frame, item),
-        TailKind::Field => field_after_accept(i, context, level, mode, frame, item),
-        TailKind::Path => path_after_accept(i, context, level, mode, frame, item),
-        TailKind::Deferred => unreachable!("a deferred fixed-tail item is never accepted"),
-        TailKind::Malformed(kind) => {
-            let role = match kind {
-                MalformedTailKind::Adjacent => GrammarRole::Expression(ExpressionRole::Nud),
-                MalformedTailKind::Spaced => GrammarRole::Expression(ExpressionRole::MlArgument),
-            };
-            if kind == MalformedTailKind::Spaced {
-                emit_trivia(i.state, &item.leading_trivia);
-                i.state.start_node(SyntaxKind::MlArgument);
-                i.state.start_node(SyntaxKind::OperatorChain);
-                let range = token_range(&item);
-                i.state.begin_chain(range.start);
-                recover_invalid_item_without_trivia(i.rb(), role, &item);
-                let argument = i.state.finish_chain();
-                i.state.finish_node();
-                i.state.finish_node();
-                let range = argument.range();
-                i.state.push_chain_item(
-                    OperatorChainItem::MlArgument {
-                        argument: Box::new(argument),
-                        range: range.clone(),
-                    },
-                    range,
-                );
-            } else {
-                recover_invalid_item(i.rb(), role, &item);
-            }
-            scan_tail_after_accept(i, context, level, mode, frame)
-        }
-    }
-}
-
-pub(super) fn ml_child_after_accept<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    frame: PilotFrame,
-    item: &Item<'source>,
-    nud_kind: NudKind,
-) -> (TailExit<'source>, OperatorChain<'source>) {
-    let mut nud = nud_from_item(item, nud_kind);
-    emit_trivia(i.state, &item.leading_trivia);
-    nud.leading_trivia = LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
-    i.state.start_node(SyntaxKind::MlArgument);
-    let ml_mode = ExprMode::MlArgument {
-        stop_before_tail: !item.leading_trivia.text.is_empty(),
-    };
-    let child = nested_expr_from_scanned(i.rb(), context, level, ml_mode, frame, nud);
-    i.state.finish_node();
-    child
-}
-
-fn field_after_accept<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    item: Item<'source>,
-) -> TailExit<'source> {
-    let dot = token_range(&item);
-    emit_trivia(i.state, &item.leading_trivia);
-    i.state.start_node(SyntaxKind::FieldTail);
-    i.state.token_range(SyntaxKind::Dot, dot.clone());
-    let name = i
-        .rb()
-        .then(
-            DirectWordParser {
-                context,
-                kind: DirectWordKind::Ordinary,
-            },
-            |word, i| {
-                i.state.token_range(SyntaxKind::Identifier, word.range());
-                word
-            },
-        )
-        .map(Recovered::Complete)
-        .unwrap_or_else(|| {
-            recover_fixed_tail_slot(i.rb(), context, frame, ExpressionRole::FieldName);
-            Recovered::Incomplete
-        });
-    let end = byte_offset(context.root, i.index());
-    i.state.finish_node();
-    let range = dot.start..end;
-    i.state.push_chain_item(
-        OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(FieldTail::new(
-            dot,
-            name,
-            range.clone(),
-        ))),
-        range,
-    );
-    scan_tail_after_accept(i, context, level, mode, frame)
-}
-
-fn path_after_accept<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    item: Item<'source>,
-) -> TailExit<'source> {
-    let separator = token_range(&item);
-    emit_trivia(i.state, &item.leading_trivia);
-    i.state.start_node(SyntaxKind::PathTail);
-    i.state
-        .token_range(SyntaxKind::ColonColon, separator.clone());
-
-    let trivia_start = byte_offset(context.root, i.index());
-    let path_trivia = i
-        .rb()
-        .then(ScanTriviaParser { context }, |trivia, _| trivia)
-        .expect("path trivia scanning is total");
-    let trivia_end = byte_offset(context.root, i.index());
-    if trivia_start < trivia_end {
-        emit_trivia(
-            i.state,
-            &LeadingTrivia {
-                span: SourceSpan::checked(context.root, &context.root[trivia_start..trivia_end]),
-                parts: path_trivia.parts,
-            },
-        );
-    }
-
-    let segment = i
-        .rb()
-        .then(
-            DirectWordParser {
-                context,
-                kind: DirectWordKind::PathSegment,
-            },
-            |word, i| {
-                let segment = PathSegment::from_word(word);
-                let kind = match segment {
-                    PathSegment::Identifier(_) => SyntaxKind::Identifier,
-                    PathSegment::SigilIdentifier(_) => SyntaxKind::SigilIdentifier,
-                };
-                i.state.token_range(kind, word.range());
-                segment
-            },
-        )
-        .map(Recovered::Complete)
-        .unwrap_or_else(|| {
-            recover_fixed_tail_slot(i.rb(), context, frame, ExpressionRole::PathSegment);
-            Recovered::Incomplete
-        });
-    let end = byte_offset(context.root, i.index());
-    i.state.finish_node();
-    let range = separator.start..end;
-    i.state.push_chain_item(
-        OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(PathTail::new(
-            separator,
-            segment,
-            range.clone(),
-        ))),
-        range,
-    );
-    scan_tail_after_accept(i, context, level, mode, frame)
-}
-
-fn recover_fixed_tail_slot<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-    role: ExpressionRole,
-) {
-    let invalid = i
-        .rb()
-        .then(FixedInvalidRunParser { context, frame }, |range, _| range);
-    let (range, kind, continuation) = match invalid {
-        Some(range) => (
-            range,
-            RecoveryKind::Error,
-            CanonicalRecoveryContinuation::RetrySameSlot,
-        ),
-        None => {
-            let at = byte_offset(context.root, i.index());
-            (
-                at..at,
-                RecoveryKind::Missing,
-                CanonicalRecoveryContinuation::StopAtBoundary,
-            )
-        }
-    };
-    publish_recovery(
-        i,
-        GrammarRole::Expression(role),
-        ExpectedSyntax::Identifier,
-        range,
-        kind,
-        continuation,
-        RecoveryChainItem::None,
-    );
-}
-
-fn parse_call_after_open<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    open_item: Item<'source>,
-) -> TailExit<'source> {
-    let open = token_range(&open_item);
-    emit_call_open(i.state, &open_item);
-    let inner_frame = PilotFrame {
-        delimiter: Some(Delimiter::Parenthesis),
-        ..frame
-    };
-    let first = complete_tail_item(i.rb(), context, inner_frame);
-    let mut arguments = Vec::new();
-    let (close, exit) = match first.payload {
-        Payload::Boundary(Boundary::Close(Delimiter::Parenthesis)) => {
-            let close = emit_owned_close(i.state, first);
-            (Recovered::Complete(close.clone()), Ok(()))
-        }
-        Payload::Boundary(_) => {
-            let at = first.extent.start;
-            recover_missing_close(i.rb(), ConstructRole::ArgumentList, at);
-            (
-                Recovered::Incomplete,
-                Err(Either::Right(End { item: first })),
-            )
-        }
-        Payload::Tail {
-            kind: TailKind::MlNud(ref nud_kind),
-            ..
-        } => {
-            let mut nud = nud_from_item(&first, nud_kind.clone());
-            emit_trivia(i.state, &first.leading_trivia);
-            nud.leading_trivia =
-                LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
-            let (child, argument) = nested_expr_from_scanned(
-                i.rb(),
-                context,
-                Level::OUTER,
-                ExprMode::Normal,
-                inner_frame,
-                nud,
-            );
-            arguments.push(argument);
-            finish_call_child(i.rb(), context, ConstructRole::ArgumentList, child)
-        }
-        _ => {
-            emit_trivia(i.state, &first.leading_trivia);
-            i.state.start_node(SyntaxKind::OperatorChain);
-            i.state.begin_chain(first.extent.start);
-            recover_invalid_item_without_trivia(
-                i.rb(),
-                GrammarRole::Expression(ExpressionRole::CallArgument),
-                &first,
-            );
-            let argument = i.state.finish_chain();
-            i.state.finish_node();
-            arguments.push(argument);
-            let next = complete_tail_item(i.rb(), context, inner_frame);
-            finish_call_child(
-                i.rb(),
-                context,
-                ConstructRole::ArgumentList,
-                Err(Either::Right(End { item: next })),
-            )
-        }
-    };
-
-    let end = match &close {
-        Recovered::Complete(close) => close.end,
-        Recovered::Incomplete => boundary_start(&exit),
-    };
-    i.state.finish_node();
-    let call = CallTail::new(open.clone(), arguments, close, open.start..end);
-    i.state.push_chain_item(
-        OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(call)),
-        open.start..end,
-    );
-    match exit {
-        Ok(()) => scan_tail_after_accept(i, context, level, mode, frame),
-        handoff => handoff,
-    }
-}
-
-fn finish_call_child<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    owner: ConstructRole,
-    child: TailExit<'source>,
-) -> (Recovered<std::ops::Range<usize>>, TailExit<'source>) {
-    match child {
-        Err(Either::Right(end))
-            if matches!(
-                end.item.payload,
-                Payload::Boundary(Boundary::Close(Delimiter::Parenthesis))
-            ) =>
-        {
-            let close = emit_owned_close(i.state, end.item);
-            (Recovered::Complete(close), Ok(()))
-        }
-        Err(Either::Left(item)) => {
-            recover_missing_close(i.rb(), owner, item.extent.start);
-            (Recovered::Incomplete, Err(Either::Left(item)))
-        }
-        Err(Either::Right(end)) => {
-            recover_missing_close(i.rb(), owner, end.item.extent.start);
-            (Recovered::Incomplete, Err(Either::Right(end)))
-        }
-        Ok(()) => {
-            let at = byte_offset(context.root, i.index());
-            recover_missing_close(i, owner, at);
-            (Recovered::Incomplete, Ok(()))
-        }
-    }
-}
-
-fn parse_group_contents<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-) -> (
-    Vec<OperatorChain<'source>>,
-    Option<std::ops::Range<usize>>,
-    TailExit<'source>,
-) {
-    if let Some((child, element)) =
-        expr_chain(i.rb(), context, Level::OUTER, ExprMode::Normal, frame)
-    {
-        let (close, exit) = finish_group_child(i, context, child);
-        return (vec![element], close, exit);
-    }
-
-    let first = complete_tail_item(i.rb(), context, frame);
-    if matches!(
-        first.payload,
-        Payload::Boundary(Boundary::Close(Delimiter::Parenthesis))
-    ) {
-        let close = emit_owned_close(i.state, first);
-        return (Vec::new(), Some(close), Ok(()));
-    }
-
-    if matches!(first.payload, Payload::Boundary(_)) {
-        recover_missing_close(i.rb(), ConstructRole::ExpressionGroup, first.extent.start);
-        return (Vec::new(), None, Err(Either::Right(End { item: first })));
-    }
-
-    emit_trivia(i.state, &first.leading_trivia);
-    i.state.start_node(SyntaxKind::OperatorChain);
-    i.state.begin_chain(first.extent.start);
-    recover_invalid_item_without_trivia(
-        i.rb(),
-        GrammarRole::Expression(ExpressionRole::Nud),
-        &first,
-    );
-    let element = i.state.finish_chain();
-    i.state.finish_node();
-    let next = complete_tail_item(i.rb(), context, frame);
-    let (close, exit) = finish_group_child(i, context, Err(Either::Right(End { item: next })));
-    (vec![element], close, exit)
-}
-
-fn finish_group_child<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    child: TailExit<'source>,
-) -> (Option<std::ops::Range<usize>>, TailExit<'source>) {
-    match child {
-        Err(Either::Right(end))
-            if matches!(
-                end.item.payload,
-                Payload::Boundary(Boundary::Close(Delimiter::Parenthesis))
-            ) =>
-        {
-            let close = emit_owned_close(i.state, end.item);
-            (Some(close), Ok(()))
-        }
-        Err(Either::Left(item)) => {
-            recover_missing_close(i.rb(), ConstructRole::ExpressionGroup, item.extent.start);
-            (None, Err(Either::Left(item)))
-        }
-        Err(Either::Right(end)) => {
-            recover_missing_close(
-                i.rb(),
-                ConstructRole::ExpressionGroup,
-                end.item.extent.start,
-            );
-            (None, Err(Either::Right(end)))
-        }
-        Ok(()) => {
-            let at = byte_offset(context.root, i.index());
-            recover_missing_close(i, ConstructRole::ExpressionGroup, at);
-            (None, Ok(()))
-        }
-    }
-}
-
-fn recover_required_operand<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    role: GrammarRole,
-) -> TailExit<'source> {
-    let item = complete_tail_item(i.rb(), context, frame);
+/// Non-boundary items are returned unchanged and receive no builder effect.
+pub(super) fn tail(_: RewriteIn<'_, '_, '_, '_, '_>, item: Item) -> TailExit {
     match item.payload {
-        Payload::Boundary(_) => {
-            recover_missing(i.rb(), role, item.extent.start, ExpectedSyntax::Expression);
-            Err(Either::Right(End { item }))
-        }
-        _ => {
-            recover_invalid_item(i.rb(), role, &item);
-            scan_tail_after_accept(i, context, level, mode, frame)
-        }
+        Payload::Eof => Err(Either::Right(End { item })),
+        Payload::Token(_) => Err(Either::Left(item)),
     }
 }
 
-fn continue_after_child<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    level: Level,
-    mode: ExprMode,
-    frame: PilotFrame,
-    child: TailExit<'source>,
-) -> TailExit<'source> {
-    match child {
-        Ok(()) => scan_tail_after_accept(i, context, level, mode, frame),
-        Err(Either::Left(item)) => tail(i, context, level, mode, frame, item),
-        Err(Either::Right(end)) => Err(Either::Right(end)),
-    }
-}
-
-fn tail_reads(level: &Level, kind: &TailKind) -> bool {
-    match kind {
-        TailKind::Infix { left, .. } | TailKind::Suffix { left } => level.reads(left),
-        TailKind::CallOpen
-        | TailKind::Field
-        | TailKind::Path
-        | TailKind::MlNud(_)
-        | TailKind::Malformed(_) => true,
-        TailKind::Deferred => false,
-    }
-}
-
-fn scan_nud<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-) -> Option<ScannedNud<'source>> {
-    i.check(ScanNudUncheckedParser { context, frame })
-}
-
-fn scan_nud_unchecked<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-) -> Option<ScannedNud<'source>> {
-    let start = byte_offset(context.root, i.index());
-    let trivia = scan_trivia(i.rb(), context).expect("trivia scanning is total");
-    let payload_start = byte_offset(context.root, i.index());
-    let leading_trivia = LeadingTrivia {
-        span: SourceSpan::checked(context.root, &context.root[start..payload_start]),
-        parts: trivia.parts,
-    };
-    let remainder = &context.root[payload_start..];
-    let (token_len, kind, token_kind) = if remainder.starts_with('(') {
-        (
-            '('.len_utf8(),
-            NudKind::OpenParenthesis,
-            TokenKind::LeftParenthesis,
-        )
-    } else if let Some((length, fixity)) = probe_operator(
-        context.operators,
-        OperatorSite::Nud,
-        !leading_trivia.text.is_empty(),
-        frame,
-        remainder,
-    ) {
-        let kind = match fixity {
-            ProbedFixity::Prefix { right } => NudKind::Prefix { right },
-            ProbedFixity::Nullfix => NudKind::Nullfix,
-            ProbedFixity::Infix { .. } | ProbedFixity::Suffix { .. } => {
-                unreachable!("NUD probing accepts only NUD fixities")
-            }
+fn tail_item(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Item {
+    let leading = scan_trivia(i.rb());
+    if let Some(token) = i.token(scan_identifier) {
+        return Item {
+            leading,
+            payload: Payload::Token(token),
         };
-        (length, kind, TokenKind::DynamicOperator)
-    } else if let Some(length) = ordinary_word_length(remainder) {
-        (length, NudKind::Atom, TokenKind::Identifier)
-    } else if let Some(length) = decimal_integer_length(remainder) {
-        (length, NudKind::Atom, TokenKind::Integer)
-    } else {
-        return None;
-    };
-    consume_source_bytes(i.rb(), context.root, token_len);
-    let payload_end = payload_start + token_len;
-    let identity = i.recovery().allocate_item_identity(start);
-    i.recovery().record_scanned_item(identity);
-    i.recovery().line.column += remainder[..token_len].chars().count();
-    i.recovery().line.at_line_start = false;
-    Some(ScannedNud {
-        identity,
-        leading_trivia,
-        token: Token {
-            kind: token_kind,
-            lexeme: SourceSpan::checked(context.root, &context.root[payload_start..payload_end]),
-        },
-        kind,
+    }
+    if let Some(token) = i.token(scan_unknown) {
+        return Item {
+            leading,
+            payload: Payload::Token(token),
+        };
+    }
+    Item {
+        leading,
+        payload: Payload::Eof,
+    }
+}
+
+fn scan_core_item(mut i: LexIn<'_, '_, '_, '_>) -> Option<Item> {
+    let leading = scan_trivia_lex(i.rb());
+    let token = scan_identifier(i.rb())?;
+    Some(Item {
+        leading,
+        payload: Payload::Token(token),
     })
 }
 
-fn decimal_integer_length(source: &str) -> Option<usize> {
-    let length = source
-        .char_indices()
-        .take_while(|(_, character)| character.is_ascii_digit())
-        .map(|(offset, character)| offset + character.len_utf8())
-        .last()?;
-    Some(length)
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum ProbedFixity {
-    Prefix {
-        right: BindingPower,
-    },
-    Infix {
-        left: BindingPower,
-        right: BindingPower,
-    },
-    Suffix {
-        left: BindingPower,
-    },
-    Nullfix,
-}
-
-fn probe_operator(
-    table: &OperatorTable,
-    site: OperatorSite,
-    leading_trivia: bool,
-    frame: PilotFrame,
-    source: &str,
-) -> Option<(usize, ProbedFixity)> {
-    table
-        .longest_source_match_then(source, |last_character, entry, end| {
-            operator_boundary(last_character, &source[end..])?;
-            let trailing = analyze_trivia(&source[end..], 0, PilotLineState::default());
-            let after_trivia = &source[end + trailing.len..];
-            let kinds = entry.fixities().kinds();
-
-            if is_call_or_path_sensitive(kinds)
-                && trailing.len == 0
-                && matches!(after_trivia.chars().next(), Some('(' | ':'))
-            {
-                return None;
-            }
-
-            let post_whitespace = trailing.len != 0
-                || after_trivia.is_empty()
-                || next_is_active_stop(after_trivia, frame);
-            let value_start = successor_value_start(table, &trailing, frame, after_trivia);
-            let with_value = judge_operator(site, kinds, leading_trivia, post_whitespace, true);
-            let without_value = judge_operator(site, kinds, leading_trivia, post_whitespace, false);
-            let selected = if post_whitespace && is_call_or_path_sensitive(kinds) && value_start {
-                Some(OperatorFixity::Prefix)
-            } else if with_value != without_value {
-                if value_start {
-                    with_value
-                } else {
-                    without_value
-                }
-            } else {
-                with_value
-            }?;
-            let selected = probed_fixity(entry, selected)?;
-            match (&site, &selected) {
-                (OperatorSite::Nud, ProbedFixity::Prefix { .. } | ProbedFixity::Nullfix)
-                | (OperatorSite::Led, ProbedFixity::Infix { .. } | ProbedFixity::Suffix { .. }) => {
-                    Some(selected)
-                }
-                _ => None,
-            }
-        })
-        .map(|(fixity, end)| (end, fixity))
-}
-
-fn probed_fixity(entry: &OperatorEntry, fixity: OperatorFixity) -> Option<ProbedFixity> {
-    match fixity {
-        OperatorFixity::Prefix => Some(ProbedFixity::Prefix {
-            right: entry.fixities().prefix()?.right_binding_power().clone(),
-        }),
-        OperatorFixity::Infix => {
-            let infix = entry.fixities().infix()?;
-            Some(ProbedFixity::Infix {
-                left: infix.left_binding_power().clone(),
-                right: infix.right_binding_power().clone(),
-            })
-        }
-        OperatorFixity::Suffix => Some(ProbedFixity::Suffix {
-            left: entry.fixities().suffix()?.left_binding_power().clone(),
-        }),
-        OperatorFixity::Nullfix => entry
-            .fixities()
-            .is_nullfix()
-            .then_some(ProbedFixity::Nullfix),
+fn scan_trivia(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> LeadingTrivia {
+    let mut parts = Vec::new();
+    while let Some(part) = i.token(scan_trivia_part) {
+        parts.push(part);
     }
+    LeadingTrivia(parts.into_boxed_slice())
 }
 
-fn operator_boundary(last_character: char, remainder: &str) -> Option<()> {
-    (!is_xid_continue(last_character)
-        || remainder
-            .chars()
-            .next()
-            .is_none_or(|character| !is_xid_continue(character)))
-    .then_some(())
+fn scan_trivia_lex(mut i: LexIn<'_, '_, '_, '_>) -> LeadingTrivia {
+    let mut parts = Vec::new();
+    while let Some(part) = i.token(scan_trivia_part) {
+        parts.push(part);
+    }
+    LeadingTrivia(parts.into_boxed_slice())
 }
 
-fn successor_value_start(
-    table: &OperatorTable,
-    trailing: &RawTrivia,
-    frame: PilotFrame,
-    source: &str,
-) -> bool {
-    if trailing.saw_newline && frame.layout_baseline >= trailing.indent {
-        return false;
+fn scan_trivia_part(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+    if let Some(part) = i.token(scan_horizontal_whitespace) {
+        return Some(part);
     }
-    let Some(first) = source.chars().next() else {
-        return false;
-    };
-    matches!(first, '"' | '(' | '[' | '{' | '$' | '\\' | '%' | '_' | '\'')
-        || is_xid_start(first)
-        || first.is_ascii_digit()
-        || first == '.'
-        || table.value_start_source_len(source).is_some()
+    if let Some(part) = i.token(scan_newline) {
+        return Some(part);
+    }
+    if let Some(part) = i.token(scan_line_comment) {
+        return Some(part);
+    }
+    i.token(scan_block_comment)
 }
 
-fn next_is_active_stop(source: &str, frame: PilotFrame) -> bool {
-    match source.chars().next() {
-        Some(',') => frame.stop == Some(StopKind::Comma),
-        Some(';') => frame.stop == Some(StopKind::Semicolon),
-        Some(')') => frame.delimiter == Some(Delimiter::Parenthesis),
-        Some(']') => frame.delimiter == Some(Delimiter::Bracket),
-        Some('}') => frame.delimiter == Some(Delimiter::Brace),
-        _ => false,
-    }
-}
-
-fn scan_direct_word<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    kind: DirectWordKind,
-) -> Option<WordSpan<'source>> {
-    let start = byte_offset(context.root, i.index());
-    let remainder = &context.root[start..];
-    let length = match kind {
-        DirectWordKind::Ordinary => ordinary_word_length(remainder)?,
-        DirectWordKind::PathSegment => {
-            let Some(first) = remainder.chars().next() else {
-                return None;
-            };
-            if matches!(first, '$' | '&' | '\'') {
-                first.len_utf8() + ordinary_word_length(&remainder[first.len_utf8()..])?
-            } else {
-                ordinary_word_length(remainder)?
-            }
-        }
-    };
-    let end = start + length;
-    let text = &context.root[start..end];
-    for expected in text.chars() {
-        assert_eq!(i.next(), Some(expected));
-    }
-    let line = i.recovery();
-    line.line.column += text.chars().count();
-    line.line.at_line_start = false;
-    Some(WordSpan::from_root_range(context.root, start..end))
-}
-
-fn ordinary_word_length(source: &str) -> Option<usize> {
-    let mut characters = source.char_indices();
-    let (_, first) = characters.next()?;
-    if first != '_' && !is_xid_start(first) {
-        return None;
-    }
-    let mut end = first.len_utf8();
-    for (offset, character) in characters {
-        if is_xid_continue(character) {
-            end = offset + character.len_utf8();
-            continue;
-        }
-        if matches!(character, '?' | '!') {
-            end = offset + character.len_utf8();
-        }
-        break;
-    }
-    Some(end)
-}
-
-fn consume_fixed_invalid_run<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-) -> Option<Range<usize>> {
-    let start = byte_offset(context.root, i.index());
-    let remainder = &context.root[start..];
-    let first = remainder.chars().next()?;
-    if fixed_invalid_boundary(first, frame)
-        || fixed_retry_head(remainder, context.operators) && !first.is_numeric()
-    {
-        return None;
-    }
-
-    let mut end = first.len_utf8();
-    if first.is_numeric() {
-        for (offset, character) in remainder.char_indices().skip(1) {
-            if !character.is_numeric() {
-                break;
-            }
-            end = offset + character.len_utf8();
-        }
-    } else {
-        for (offset, character) in remainder.char_indices().skip(1) {
-            if fixed_invalid_boundary(character, frame)
-                || fixed_retry_head(&remainder[offset..], context.operators)
-            {
-                break;
-            }
-            end = offset + character.len_utf8();
-        }
-    }
-
-    let range = start..start + end;
-    let text = &context.root[range.clone()];
-    for expected in text.chars() {
-        assert_eq!(i.next(), Some(expected));
-    }
-    let line = i.recovery();
-    line.line.column += text.chars().count();
-    line.line.at_line_start = false;
-    Some(range)
-}
-
-fn fixed_invalid_boundary(character: char, frame: PilotFrame) -> bool {
-    character.is_whitespace()
-        || matches!(character, ')' | ']' | '}' | '.' | ':')
-        || character == ',' && frame.stop == Some(StopKind::Comma)
-        || character == ';' && frame.stop == Some(StopKind::Semicolon)
-}
-
-fn fixed_retry_head(source: &str, operators: &OperatorTable) -> bool {
-    let Some(character) = source.chars().next() else {
-        return false;
-    };
-    character == '('
-        || character == '_'
-        || is_xid_start(character)
-        || character.is_numeric()
-        || operators
-            .longest_source_match_then(source, |_, _, _| Some(()))
-            .is_some()
-}
-
-pub(super) fn tail_item<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-) -> Option<Item<'source>> {
-    let item_start = byte_offset(context.root, i.index());
-    let trivia = scan_trivia(i.rb(), context).expect("trivia scanning is total");
-    let payload_start = byte_offset(context.root, i.index());
-    let leading_trivia = LeadingTrivia {
-        span: SourceSpan::checked(context.root, &context.root[item_start..payload_start]),
-        parts: trivia.parts,
-    };
-    let logical_position = LogicalPosition {
-        line: i.recovery().line.line_number,
-        column: i.recovery().line.column,
-    };
-
-    if trivia.saw_newline
-        && (!frame.allow_same_level_newline || trivia.indent < frame.layout_baseline)
-    {
-        let identity = i.recovery().allocate_item_identity(item_start);
-        i.recovery().record_scanned_item(identity);
-        return Some(Item {
-            identity,
-            leading_trivia,
-            payload: Payload::Boundary(Boundary::Dedent(LayoutEvidence {
-                baseline: frame.layout_baseline,
-                observed_indent: trivia.indent,
-            })),
-            lexical_boundary_token: None,
-            extent: item_start..payload_start,
-            logical_position,
-        });
-    }
-
-    let (payload, lexical_boundary_token, payload_end) =
-        scan_item_payload(i.rb(), context, frame, !leading_trivia.text.is_empty());
-    let identity = i.recovery().allocate_item_identity(item_start);
-    let item = Item {
-        identity,
-        leading_trivia,
-        payload,
-        lexical_boundary_token,
-        extent: item_start..payload_end,
-        logical_position,
-    };
-    i.recovery().record_scanned_item(identity);
-    Some(item)
-}
-
-fn complete_tail_item<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-) -> Item<'source> {
-    i.then(TailItemParser { context, frame }, |item, _| item)
-        .expect("accepted item completion is total")
-}
-
-fn complete_item_payload<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-    mut pending: Item<'source>,
-) -> Item<'source> {
-    let spaced = !pending.leading_trivia.text.is_empty();
-    let (payload, lexical_boundary_token, payload_end) =
-        scan_item_payload(i.rb(), context, frame, spaced);
-    pending.extent.end = payload_end;
-    pending.payload = payload;
-    pending.lexical_boundary_token = lexical_boundary_token;
-    pending
-}
-
-fn scan_item_payload<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-    spaced: bool,
-) -> (Payload<'source>, Option<Token<'source>>, usize) {
-    let start = byte_offset(context.root, i.index());
-    let source = &context.root[start..];
-    if source.is_empty() {
-        return (Payload::Boundary(Boundary::EofAfterTrivia), None, start);
-    }
-
-    let first = source.chars().next().expect("nonempty payload source");
-    let lexical_boundary = match first {
-        ')' => Some((Boundary::Close(Delimiter::Parenthesis), first.len_utf8())),
-        ']' => Some((Boundary::Close(Delimiter::Bracket), first.len_utf8())),
-        '}' => Some((Boundary::Close(Delimiter::Brace), first.len_utf8())),
-        ',' if frame.stop == Some(StopKind::Comma) => {
-            Some((Boundary::Stop(StopKind::Comma), first.len_utf8()))
-        }
-        ';' if frame.stop == Some(StopKind::Semicolon) => {
-            Some((Boundary::Stop(StopKind::Semicolon), first.len_utf8()))
-        }
-        ':' if frame.stop == Some(StopKind::Colon) && !source.starts_with("::") => {
-            Some((Boundary::Stop(StopKind::Colon), first.len_utf8()))
-        }
-        _ => None,
-    };
-    if let Some((boundary, length)) = lexical_boundary {
-        let token = consume_token(i.rb(), context.root, start, length, token_kind(first));
-        return (Payload::Boundary(boundary), Some(token), start + length);
-    }
-
-    if let Some((length, fixity)) =
-        probe_operator(context.operators, OperatorSite::Led, spaced, frame, source)
-    {
-        let kind = match fixity {
-            ProbedFixity::Infix { left, right } => TailKind::Infix { left, right },
-            ProbedFixity::Suffix { left } => TailKind::Suffix { left },
-            ProbedFixity::Prefix { .. } | ProbedFixity::Nullfix => {
-                unreachable!("LED probing accepts only LED fixities")
-            }
-        };
-        let token = consume_token(
-            i.rb(),
-            context.root,
-            start,
-            length,
-            TokenKind::DynamicOperator,
-        );
-        return (tail_payload(kind, token).0, None, start + length);
-    }
-
-    let fixed_length = if source.starts_with("::") {
-        2
-    } else {
-        first.len_utf8()
-    };
-    let fixed_kind = match first {
-        ':' if source.starts_with("::") => Some((TailKind::Path, TokenKind::ColonColon)),
-        '.' if matches!(source[fixed_length..].chars().next(), Some('(' | '{' | '.')) => {
-            Some((TailKind::Deferred, TokenKind::Dot))
-        }
-        '.' => Some((TailKind::Field, TokenKind::Dot)),
-        '(' if !spaced => Some((TailKind::CallOpen, TokenKind::LeftParenthesis)),
-        '(' => Some((
-            TailKind::MlNud(NudKind::OpenParenthesis),
-            TokenKind::LeftParenthesis,
-        )),
-        _ => None,
-    };
-    if let Some((kind, token_kind)) = fixed_kind {
-        let token = consume_token(i.rb(), context.root, start, fixed_length, token_kind);
-        return (tail_payload(kind, token).0, None, start + fixed_length);
-    }
-
-    if spaced
-        && let Some((length, fixity)) =
-            probe_operator(context.operators, OperatorSite::Nud, true, frame, source)
-    {
-        let nud = match fixity {
-            ProbedFixity::Prefix { right } => NudKind::Prefix { right },
-            ProbedFixity::Nullfix => NudKind::Nullfix,
-            ProbedFixity::Infix { .. } | ProbedFixity::Suffix { .. } => {
-                unreachable!("NUD probing accepts only NUD fixities")
-            }
-        };
-        let token = consume_token(
-            i.rb(),
-            context.root,
-            start,
-            length,
-            TokenKind::DynamicOperator,
-        );
-        return (
-            tail_payload(TailKind::MlNud(nud), token).0,
-            None,
-            start + length,
-        );
-    }
-
-    let atom = ordinary_word_length(source)
-        .map(|length| (length, TokenKind::Identifier))
-        .or_else(|| decimal_integer_length(source).map(|length| (length, TokenKind::Integer)));
-    if let Some((length, token_kind)) = atom {
-        let token = consume_token(i.rb(), context.root, start, length, token_kind);
-        return (
-            tail_payload(TailKind::MlNud(NudKind::Atom), token).0,
-            None,
-            start + length,
-        );
-    }
-
-    let length = first.len_utf8();
-    let token = consume_token(i, context.root, start, length, TokenKind::Unknown);
-    (
-        tail_payload(
-            TailKind::Malformed(if spaced {
-                MalformedTailKind::Spaced
-            } else {
-                MalformedTailKind::Adjacent
-            }),
-            token,
-        )
-        .0,
-        None,
-        start + length,
-    )
-}
-
-fn consume_token<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    root: &'source str,
-    start: usize,
-    length: usize,
-    kind: TokenKind,
-) -> Token<'source> {
-    consume_source_bytes(i.rb(), root, length);
-    let line = i.recovery();
-    line.line.column += root[start..start + length].chars().count();
-    line.line.at_line_start = false;
-    Token {
-        kind,
-        lexeme: SourceSpan::checked(root, &root[start..start + length]),
-    }
-}
-
-fn consume_source_bytes(
-    mut i: In<'_, &str, &mut PilotRecoverState, ()>,
-    root: &str,
-    length: usize,
-) {
-    let start = byte_offset(root, i.index());
-    for expected in root[start..start + length].chars() {
-        assert_eq!(i.next(), Some(expected));
-    }
-}
-
-/// The layout owner may release a trivia-caused boundary and complete that
-/// same item under a new frame. Identity/trivia/position are not rebuilt.
-pub(super) fn resume_trivia_boundary<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source, '_>,
-    frame: PilotFrame,
-    mut item: Item<'source>,
-) -> Item<'source> {
-    let Payload::Boundary(Boundary::Dedent(evidence)) = item.payload else {
-        panic!("only a retained dedent item can be resumed");
-    };
-    assert_eq!(
-        byte_offset(context.root, i.index()),
-        item.leading_trivia.range.end,
-        "a retained boundary can only resume at its payload cursor"
-    );
-    if !frame.allow_same_level_newline || evidence.observed_indent < frame.layout_baseline {
-        return item;
-    }
-    if item.leading_trivia.range.end == context.root.len() {
-        item.payload = Payload::Boundary(Boundary::EofAfterTrivia);
-        return item;
-    }
-    complete_item_payload(i, context, frame, item)
-}
-
-fn tail_payload<'source>(
-    kind: TailKind,
-    token: Token<'source>,
-) -> (Payload<'source>, Option<Token<'source>>) {
-    (Payload::Tail { kind, token }, None)
-}
-
-pub(super) fn borrow_close_for_owner(mut item: Item<'_>, frame: PilotFrame) -> Item<'_> {
-    let Payload::Boundary(Boundary::Close(delimiter)) = item.payload else {
-        panic!("only a lexical close can be transferred to its caller");
-    };
-    assert_eq!(
-        frame.delimiter,
-        Some(delimiter),
-        "only the active delimiter owner can transfer its close"
-    );
-    let token = item
-        .lexical_boundary_token
-        .as_ref()
-        .expect("a lexical close must retain its token evidence");
-    assert_eq!(
-        token.lexeme.text,
-        delimiter_text(delimiter),
-        "close classification must match its lexical token"
-    );
-    item.payload = Payload::Boundary(Boundary::BorrowedClose(delimiter));
-    item
-}
-
-pub(super) fn claim_stop_for_owner(
-    mut item: Item<'_>,
-    frame: PilotFrame,
-    stop: StopKind,
-) -> Item<'_> {
-    assert_eq!(
-        frame.stop,
-        Some(stop),
-        "only the active stop owner can claim a stop"
-    );
-    let Payload::Tail { token, .. } = item.payload else {
-        panic!("only a completed token item can become an owner stop");
-    };
-    assert_eq!(
-        token.lexeme.text,
-        stop_text(stop),
-        "stop classification must match its lexical token"
-    );
-    item.lexical_boundary_token = Some(token);
-    item.payload = Payload::Boundary(Boundary::Stop(stop));
-    item
-}
-
-fn delimiter_text(delimiter: Delimiter) -> &'static str {
-    match delimiter {
-        Delimiter::Parenthesis => ")",
-        Delimiter::Bracket => "]",
-        Delimiter::Brace => "}",
-    }
-}
-
-fn stop_text(stop: StopKind) -> &'static str {
-    match stop {
-        StopKind::Comma => ",",
-        StopKind::Semicolon => ";",
-        StopKind::Colon => ":",
-    }
-}
-
-fn scan_trivia(
-    mut i: In<'_, &str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'_, '_>,
-) -> Option<TriviaScan> {
-    let start = byte_offset(context.root, i.index());
-    let raw = analyze_trivia(&context.root[start..], start, i.recovery().line);
-    consume_source_bytes(i.rb(), context.root, raw.len);
-    i.recovery().line = raw.line;
-    Some(TriviaScan {
-        saw_newline: raw.saw_newline,
-        indent: if raw.saw_newline {
-            raw.indent
-        } else {
-            i.recovery().line.column
-        },
-        parts: raw.parts,
+fn scan_horizontal_whitespace(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut whitespace| {
+        scan_horizontal_whitespace_unit(whitespace.rb())?;
+        while whitespace.token(scan_horizontal_whitespace_unit).is_some() {}
+        Some(())
+    });
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::Whitespace,
+        text: text.into(),
     })
 }
 
-#[derive(Clone, Debug, Default)]
-struct RawTrivia {
-    len: usize,
-    saw_newline: bool,
-    indent: usize,
-    line: PilotLineState,
-    parts: Vec<TriviaPart>,
+fn scan_horizontal_whitespace_unit(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+    matches!(i.next()?, ' ' | '\t').then_some(())
 }
 
-fn analyze_trivia(source: &str, base: usize, mut line: PilotLineState) -> RawTrivia {
-    let bytes = source.as_bytes();
-    let mut offset = 0;
-    let mut saw_newline = false;
-    let mut parts = Vec::new();
-    while offset < bytes.len() {
-        if let Some(whitespace) =
-            scan_raw_whitespace(source, base, &mut offset, &mut line, &mut saw_newline)
-        {
-            parts.extend(whitespace);
-            continue;
+fn scan_newline(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut newline| match newline.next()? {
+        '\r' => {
+            let _ = newline.token(scan_line_feed);
+            Some(())
         }
-        if source[offset..].starts_with("//") {
-            let start = offset;
-            advance_raw_text(source, &mut offset, 2, &mut line);
-            while offset < bytes.len() && !matches!(bytes[offset], b'\r' | b'\n') {
-                let character = source[offset..]
-                    .chars()
-                    .next()
-                    .expect("line-comment remainder is nonempty");
-                advance_raw_text(source, &mut offset, character.len_utf8(), &mut line);
-            }
-            parts.push(TriviaPart {
-                kind: TriviaPartKind::LineComment,
-                range: base + start..base + offset,
-            });
-            continue;
-        }
-        if source[offset..].starts_with("/*") {
-            let start = offset;
-            scan_raw_block_comment(source, base, &mut offset, &mut line, &mut saw_newline);
-            parts.push(TriviaPart {
-                kind: TriviaPartKind::BlockComment,
-                range: base + start..base + offset,
-            });
-            continue;
-        }
-        break;
-    }
-    RawTrivia {
-        len: offset,
-        saw_newline,
-        indent: line.line_indent,
-        line,
-        parts,
-    }
+        '\n' => Some(()),
+        _ => None,
+    });
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::Newline,
+        text: text.into(),
+    })
 }
 
-fn scan_raw_whitespace(
-    source: &str,
-    base: usize,
-    offset: &mut usize,
-    line: &mut PilotLineState,
-    saw_newline: &mut bool,
-) -> Option<Vec<TriviaPart>> {
-    let bytes = source.as_bytes();
-    if *offset >= bytes.len() || !matches!(bytes[*offset], b' ' | b'\t' | b'\r' | b'\n') {
-        return None;
-    }
-
-    if line.at_line_start {
-        // Match `scan::trivia::scan_whitespace`: each comment- or text-separated
-        // whitespace run replaces the preceding indentation contribution.
-        line.line_indent = 0;
-    }
-    let mut parts = Vec::new();
-    let mut horizontal_start = None;
-    while *offset < bytes.len() {
-        let start = *offset;
-        if matches!(bytes[*offset], b' ' | b'\t') {
-            horizontal_start.get_or_insert(start);
-            *offset += 1;
-            line.column += 1;
-            if line.at_line_start {
-                line.line_indent += 1;
-            }
-            continue;
-        }
-        let newline_len = if bytes[*offset] == b'\r' {
-            if bytes.get(*offset + 1) == Some(&b'\n') {
-                2
-            } else {
-                1
-            }
-        } else if bytes[*offset] == b'\n' {
-            1
-        } else {
-            0
-        };
-        if newline_len == 0 {
-            break;
-        }
-        if let Some(horizontal_start) = horizontal_start.take() {
-            parts.push(TriviaPart {
-                kind: TriviaPartKind::Whitespace,
-                range: base + horizontal_start..base + start,
-            });
-        }
-        *offset += newline_len;
-        let newline_end = *offset;
-        line.last_newline = Some((base + start, base + newline_end));
-        line.line_start = base + newline_end;
-        line.line_indent = 0;
-        line.line_number += 1;
-        line.column = 0;
-        line.at_line_start = true;
-        *saw_newline = true;
-        parts.push(TriviaPart {
-            kind: TriviaPartKind::Newline,
-            range: base + start..base + newline_end,
-        });
-    }
-    if let Some(horizontal_start) = horizontal_start {
-        parts.push(TriviaPart {
-            kind: TriviaPartKind::Whitespace,
-            range: base + horizontal_start..base + *offset,
-        });
-    }
-    Some(parts)
+fn scan_line_feed(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+    (i.next()? == '\n').then_some(())
 }
 
-fn scan_raw_block_comment(
-    source: &str,
-    base: usize,
-    offset: &mut usize,
-    line: &mut PilotLineState,
-    saw_newline: &mut bool,
-) {
-    debug_assert!(source[*offset..].starts_with("/*"));
-    advance_raw_text(source, offset, 2, line);
-    let mut depth = 1usize;
-    while *offset < source.len() {
-        if source[*offset..].starts_with('/') {
-            advance_raw_text(source, offset, 1, line);
-            // Preserve the oracle's overlap rule: consume immediately
-            // overlapping `*/` pairs before this slash may open a new depth.
-            while source[*offset..].starts_with("*/") {
-                advance_raw_text(source, offset, 2, line);
-            }
-            if source[*offset..].starts_with('*') {
-                advance_raw_text(source, offset, 1, line);
+fn scan_line_comment(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut comment| {
+        scan_pair(comment.rb(), '/', '/')?;
+        while comment.token(scan_line_comment_character).is_some() {}
+        Some(())
+    });
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::LineComment,
+        text: text.into(),
+    })
+}
+
+fn scan_line_comment_character(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+    (!matches!(i.next()?, '\r' | '\n')).then_some(())
+}
+
+fn scan_block_comment(mut i: LexIn<'_, '_, '_, '_>) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut comment| {
+        scan_pair(comment.rb(), '/', '*')?;
+        let mut depth = 1usize;
+        loop {
+            if comment.token(scan_block_open).is_some() {
                 depth += 1;
+                continue;
             }
-            continue;
-        }
-        if source[*offset..].starts_with('*') {
-            advance_raw_text(source, offset, 1, line);
-            // The symmetric `/*` overlap is skipped before this star may
-            // close the current depth.
-            while source[*offset..].starts_with("/*") {
-                advance_raw_text(source, offset, 2, line);
-            }
-            if source[*offset..].starts_with('/') {
-                advance_raw_text(source, offset, 1, line);
+            if comment.token(scan_block_close).is_some() {
                 depth -= 1;
                 if depth == 0 {
-                    return;
+                    return Some(());
                 }
+                continue;
             }
-            continue;
-        }
-        if scan_raw_whitespace(source, base, offset, line, saw_newline).is_some() {
-            continue;
-        }
-        let character = source[*offset..]
-            .chars()
-            .next()
-            .expect("block-comment remainder is nonempty");
-        advance_raw_text(source, offset, character.len_utf8(), line);
-    }
-}
-
-fn advance_raw_text(source: &str, offset: &mut usize, length: usize, line: &mut PilotLineState) {
-    debug_assert!(*offset + length <= source.len());
-    debug_assert!(source.is_char_boundary(*offset + length));
-    line.column += source[*offset..*offset + length].chars().count();
-    *offset += length;
-}
-
-fn recover_missing<'source>(
-    mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    role: GrammarRole,
-    at: usize,
-    expected: ExpectedSyntax,
-) {
-    publish_recovery(
-        i.rb(),
-        role,
-        expected,
-        at..at,
-        RecoveryKind::Missing,
-        CanonicalRecoveryContinuation::StopAtBoundary,
-        RecoveryChainItem::MissingOperand,
-    );
-}
-
-fn recover_missing_close<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    owner: ConstructRole,
-    at: usize,
-) {
-    let role = GrammarRole::ClosingDelimiter {
-        owner,
-        delimiter: SessionDelimiter::Parenthesis,
-    };
-    publish_recovery(
-        i,
-        role,
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(SessionDelimiter::Parenthesis)),
-        at..at,
-        RecoveryKind::Missing,
-        CanonicalRecoveryContinuation::StopAtBoundary,
-        RecoveryChainItem::None,
-    );
-}
-
-fn recover_invalid_item<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    role: GrammarRole,
-    item: &Item<'source>,
-) {
-    emit_trivia(i.state, &item.leading_trivia);
-    recover_invalid_item_without_trivia(i, role, item);
-}
-
-fn recover_invalid_item_without_trivia<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    role: GrammarRole,
-    item: &Item<'source>,
-) {
-    publish_recovery(
-        i,
-        role,
-        ExpectedSyntax::Expression,
-        token_range(item),
-        RecoveryKind::Error,
-        CanonicalRecoveryContinuation::RetrySameSlot,
-        RecoveryChainItem::Error,
-    );
-}
-
-fn publish_recovery<'source>(
-    i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-    range: std::ops::Range<usize>,
-    kind: RecoveryKind,
-    continuation: CanonicalRecoveryContinuation,
-    chain_item: RecoveryChainItem,
-) {
-    let expectation = SyntaxExpectation {
-        role,
-        expected,
-        range: range.clone(),
-        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-    };
-    let prepared = i.then(
-        move |mut grammar: In<'_, &'source str, &mut PilotRecoverState, ()>| {
-            let recovery = grammar.recovery();
-            recovery.record_expectation(expectation.clone());
-            let id = recovery.allocate_diagnostic_id();
-            Some((
-                id,
-                RecoveryDraft {
-                    site: RecoverySiteKey {
-                        role,
-                        range: range.clone(),
-                    },
-                    kind,
-                    unexpected: match kind {
-                        RecoveryKind::Missing => Arc::from([]),
-                        RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
-                            range: range.clone(),
-                            category: UnexpectedCategory::OtherCharacter,
-                        }]),
-                    },
-                    expectations: Arc::from([expectation]),
-                    primary_expectation: 0,
-                    continuation,
-                },
-                range,
-            ))
-        },
-        |(id, draft, range), committed| {
-            committed
-                .state
-                .publish_recovery(id, draft, range, chain_item)
-        },
-    );
-    assert!(prepared.is_some(), "accepted recovery preparation is total");
-}
-
-fn nud_from_item<'source>(item: &Item<'source>, kind: NudKind) -> ScannedNud<'source> {
-    let Payload::Tail { token, .. } = &item.payload else {
-        unreachable!("ML NUD comes from a tail token")
-    };
-    ScannedNud {
-        identity: item.identity,
-        leading_trivia: item.leading_trivia.clone(),
-        token: token.clone(),
-        kind,
-    }
-}
-
-fn emit_core<'source>(
-    output: &mut PilotOutput<'source>,
-    context: PilotContext<'source, '_>,
-    nud: &ScannedNud<'_>,
-) {
-    emit_trivia(output, &nud.leading_trivia);
-    output.start_node(match nud.token.kind {
-        TokenKind::Identifier => SyntaxKind::IdentifierExpression,
-        TokenKind::Integer => SyntaxKind::IntegerLiteral,
-        _ => unreachable!("a core NUD is a source word or decimal integer"),
-    });
-    output.token_range(
-        syntax_kind_for_token(nud.token.kind),
-        nud.token.lexeme.range.clone(),
-    );
-    output.finish_node();
-    let range = nud.token.lexeme.range.clone();
-    let primary = match nud.token.kind {
-        TokenKind::Identifier => {
-            PrimaryExpression::Identifier(WordSpan::from_root_range(context.root, range.clone()))
-        }
-        TokenKind::Integer => {
-            PrimaryExpression::Integer(IntegerLiteral::from_root_range(context.root, range.clone()))
-        }
-        _ => unreachable!("a core NUD is a source word or decimal integer"),
-    };
-    output.push_chain_item(OperatorChainItem::Primary(primary), range);
-}
-
-fn emit_prefix<'source>(
-    output: &mut PilotOutput<'source>,
-    context: PilotContext<'source, '_>,
-    prefix: &ScannedNud<'_>,
-) {
-    emit_trivia(output, &prefix.leading_trivia);
-    output.start_node(SyntaxKind::PrefixOperatorUse);
-    output.token_range(SyntaxKind::Operator, prefix.token.lexeme.range.clone());
-    output.finish_node();
-    let range = prefix.token.lexeme.range.clone();
-    output.push_chain_item(
-        OperatorChainItem::PrefixUse(OperatorUse::from_root_range(
-            context.root,
-            range.clone(),
-            OperatorRole::Prefix,
-        )),
-        range,
-    );
-}
-
-fn emit_nullfix<'source>(
-    output: &mut PilotOutput<'source>,
-    context: PilotContext<'source, '_>,
-    nullfix: &ScannedNud<'_>,
-) {
-    emit_trivia(output, &nullfix.leading_trivia);
-    output.start_node(SyntaxKind::NullfixOperatorUse);
-    output.token_range(SyntaxKind::Operator, nullfix.token.lexeme.range.clone());
-    output.finish_node();
-    let range = nullfix.token.lexeme.range.clone();
-    output.push_chain_item(
-        OperatorChainItem::NullfixUse(OperatorUse::from_root_range(
-            context.root,
-            range.clone(),
-            OperatorRole::Nullfix,
-        )),
-        range,
-    );
-}
-
-fn emit_operator_item<'source>(
-    output: &mut PilotOutput<'source>,
-    context: PilotContext<'source, '_>,
-    item: &Item<'_>,
-    role: OperatorRole,
-) {
-    let range = token_range(item);
-    emit_trivia(output, &item.leading_trivia);
-    output.start_node(match role {
-        OperatorRole::Infix => SyntaxKind::InfixOperatorUse,
-        OperatorRole::Suffix => SyntaxKind::SuffixOperatorUse,
-        OperatorRole::Prefix | OperatorRole::Nullfix => {
-            unreachable!("tail operators are infix or suffix")
+            if comment.next().is_none() {
+                return Some(());
+            }
         }
     });
-    output.token_range(SyntaxKind::Operator, range.clone());
-    output.finish_node();
-    let operator = OperatorUse::from_root_range(context.root, range.clone(), role);
-    output.push_chain_item(
-        match role {
-            OperatorRole::Infix => OperatorChainItem::InfixUse(operator),
-            OperatorRole::Suffix => OperatorChainItem::SuffixUse(operator),
-            OperatorRole::Prefix | OperatorRole::Nullfix => unreachable!(),
-        },
-        range,
-    );
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::BlockComment,
+        text: text.into(),
+    })
 }
 
-fn emit_call_open(output: &mut PilotOutput<'_>, item: &Item<'_>) {
-    emit_trivia(output, &item.leading_trivia);
-    output.start_node(SyntaxKind::CallTail);
-    output.token_range(SyntaxKind::LParen, token_range(item));
+fn scan_block_open(i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+    scan_pair(i, '/', '*')
 }
 
-fn emit_group_open(output: &mut PilotOutput<'_>, nud: &ScannedNud<'_>) {
-    emit_trivia(output, &nud.leading_trivia);
-    output.start_node(SyntaxKind::ParenthesizedExpression);
-    output.token_range(SyntaxKind::LParen, nud.token.lexeme.range.clone());
+fn scan_block_close(i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+    scan_pair(i, '*', '/')
 }
 
-fn emit_owned_close(output: &mut PilotOutput<'_>, item: Item<'_>) -> std::ops::Range<usize> {
-    emit_trivia(output, &item.leading_trivia);
-    let token = item
-        .lexical_boundary_token
-        .expect("a lexical close owns its token");
-    let range = token.lexeme.range;
-    output.token_range(SyntaxKind::RParen, range.clone());
-    range
+fn scan_pair(mut i: LexIn<'_, '_, '_, '_>, first: char, second: char) -> Option<()> {
+    (i.next()? == first).then_some(())?;
+    (i.next()? == second).then_some(())
 }
 
-fn emit_borrowed_close(output: &mut PilotOutput<'_>, item: &Item<'_>) -> std::ops::Range<usize> {
-    assert!(matches!(
-        item.payload,
-        Payload::Boundary(Boundary::BorrowedClose(Delimiter::Parenthesis))
-    ));
-    emit_trivia(output, &item.leading_trivia);
-    let token = item
-        .lexical_boundary_token
-        .as_ref()
-        .expect("a borrowed close retains lexical token evidence");
-    assert_eq!(token.kind, TokenKind::RightParenthesis);
-    assert_eq!(token.lexeme.text, ")");
-    let range = token.lexeme.range.clone();
-    output.token_range(SyntaxKind::RParen, range.clone());
-    range
+fn scan_identifier(mut i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut word| {
+        let first = word.next()?;
+        if first != '_' && !is_xid_start(first) {
+            return None;
+        }
+        while word.token(scan_identifier_continue).is_some() {}
+        let _ = word.token(scan_identifier_suffix);
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Identifier,
+        text: text.into(),
+    })
 }
 
-pub(super) fn emit_end(output: &mut PilotOutput<'_>, end: &End<'_>) {
-    emit_trivia(output, &end.item.leading_trivia);
-    if let Some(token) = &end.item.lexical_boundary_token {
-        output.token_range(
-            syntax_kind_for_token(token.kind),
-            token.lexeme.range.clone(),
-        );
+fn scan_identifier_continue(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+    is_xid_continue(i.next()?).then_some(())
+}
+
+fn scan_identifier_suffix(mut i: LexIn<'_, '_, '_, '_>) -> Option<()> {
+    matches!(i.next()?, '?' | '!').then_some(())
+}
+
+fn scan_unknown(i: LexIn<'_, '_, '_, '_>) -> Option<Token> {
+    let (character, text) = i.with_str(|mut one| one.next());
+    character?;
+    Some(Token {
+        kind: TokenKind::Unknown,
+        text: text.into(),
+    })
+}
+
+fn emit_core(i: &mut RewriteIn<'_, '_, '_, '_, '_>, item: Item) {
+    let Payload::Token(token) = item.payload else {
+        unreachable!("a core scanner always returns a token")
+    };
+    debug_assert_eq!(token.kind, TokenKind::Identifier);
+    i.state.start_node(SyntaxKind::IdentifierExpression.into());
+    emit_trivia(i, &item.leading);
+    i.state.token(SyntaxKind::Identifier.into(), &token.text);
+    i.state.finish_node();
+}
+
+fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &End) {
+    emit_trivia_builder(builder, &end.item.leading);
+}
+
+fn emit_trivia(i: &mut RewriteIn<'_, '_, '_, '_, '_>, trivia: &LeadingTrivia) {
+    emit_trivia_builder(&mut *i.state, trivia);
+}
+
+fn emit_trivia_builder(builder: &mut GreenNodeBuilder<'static>, trivia: &LeadingTrivia) {
+    for part in &trivia.0 {
+        let kind = match part.kind {
+            TriviaKind::Whitespace => SyntaxKind::Whitespace,
+            TriviaKind::Newline => SyntaxKind::Newline,
+            TriviaKind::LineComment => SyntaxKind::LineComment,
+            TriviaKind::BlockComment => SyntaxKind::BlockComment,
+        };
+        builder.token(kind.into(), &part.text);
     }
-}
-
-fn emit_trivia(output: &mut PilotOutput<'_>, trivia: &LeadingTrivia<'_>) {
-    for part in &trivia.parts {
-        output.token_range(
-            match part.kind {
-                TriviaPartKind::Whitespace => SyntaxKind::Whitespace,
-                TriviaPartKind::Newline => SyntaxKind::Newline,
-                TriviaPartKind::LineComment => SyntaxKind::LineComment,
-                TriviaPartKind::BlockComment => SyntaxKind::BlockComment,
-            },
-            part.range.clone(),
-        );
-    }
-}
-
-fn token_kind(character: char) -> TokenKind {
-    match character {
-        '0'..='9' => TokenKind::Integer,
-        '(' => TokenKind::LeftParenthesis,
-        ')' => TokenKind::RightParenthesis,
-        '.' => TokenKind::Dot,
-        character if character.is_alphabetic() => TokenKind::Identifier,
-        _ => TokenKind::Unknown,
-    }
-}
-
-fn token_range(item: &Item<'_>) -> std::ops::Range<usize> {
-    match &item.payload {
-        Payload::Tail { token, .. } => token.lexeme.range.clone(),
-        Payload::Boundary(_) => item
-            .lexical_boundary_token
-            .as_ref()
-            .expect("a token boundary has lexical evidence")
-            .lexeme
-            .range
-            .clone(),
-    }
-}
-
-fn boundary_start(exit: &TailExit<'_>) -> usize {
-    match exit {
-        Err(Either::Left(item)) => item.extent.start,
-        Err(Either::Right(end)) => end.item.extent.start,
-        Ok(()) => 0,
-    }
-}
-
-fn byte_offset(root: &str, index: *const u8) -> usize {
-    let root_start = root.as_ptr() as usize;
-    let index = index as usize;
-    assert!(index >= root_start && index <= root_start + root.len());
-    index - root_start
 }

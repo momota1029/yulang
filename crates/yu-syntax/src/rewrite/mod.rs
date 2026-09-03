@@ -1,8 +1,7 @@
-//! Isolated direct expression/tail pilot for the recursive-descent rewrite.
+//! Isolated source-free direct parser foundation.
 //!
-//! Nothing in this module is connected to production parser dispatch. Grammar
-//! owners emit through `PilotOutput` as soon as they accept a branch, while an
-//! unread tail item is handed directly to the enclosing level without replay.
+//! Source is borrowed only by the live `In<&str, ..>` cursor.  Logical items,
+//! boundaries, and the green parse result own every retained byte.
 
 mod driver;
 mod item;

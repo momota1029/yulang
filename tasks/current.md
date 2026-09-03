@@ -640,12 +640,20 @@ recoverable な facts のみ、`S` は直接の `GreenNodeBuilder`、Item は ow
 lexical `token` transaction と `maybe` は M3 scoped compiler/spec review 後に
 Authoritative 化した。chasa-recover の focused API slice は実装・repair review 完了
 (`token`/`maybe`、outer `S` を隠す private unit reborrow、unit-state-only `check`、19 tests
-green)。次は現在の uncommitted shell を新しい source-free CST-only foundation へ置換する。
-先の focused 23 件は
-この topology の completion evidence ではない。E5 の user decision
+green)。続く source-free CST-only foundation は実装・M3 review 完了した。旧 rewrite shell を
+direct `expr`/`tail` と local `In` alias へ置換し、`Recover = &OperatorTable + Mark=()`、direct
+`GreenNodeBuilder`、source lifetime/range/root/cursor を持たない owned Item/trivia/End/result に
+した。最初の closure は identifier core と次 Item/EOF handoff のみで、leading trivia は exact
+horizontal whitespace・CRLF/CR/LF・line comment・arbitrarily nested block comment を owned typed
+part として保持し、word は `_` start と trailing `?`/`!` 一文字を現行 lexical authority に合わせる。
+compiler/recovery review の trivia/word と CRLF/NBSP blocker は二回の repair で閉じ、final review と
+specification review は clean。`cargo test -p yu-syntax rewrite::tests -- --test-threads=1` は
+7 passed / 0 failed / 606 filtered、`cargo check -p yu-syntax`、scoped format/diff check は green。
+package/workspace suite と performance measurement は未実行。先の focused 23 件はこの topology の
+completion evidence ではない。E5 の user decision
 `x[a(b)]`（一つの `IndexItem` の nested `CallTail`、`IndexSeparator` recovery なし）は
 CST owner control として引き続き正本である。未完成の G4b owner loop を含むため、まだ
-commit/push しない。
+coverage ledger は閉じないが、この source-free foundation は独立した commit/push 境界とする。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
