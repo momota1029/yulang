@@ -76,6 +76,22 @@ never corrects the cursor. The parser wrapper preserves the wrapped parser's
 `S` capability and does not weaken the rule that a non-unit-state parser must
 be total or leave `S` unchanged on `None`.
 
+`token(f)` is the one explicitly transactional lexical parser. Its raw
+procedure has the shape
+`for<'short> FnOnce(In<'short, I, R, ()>) -> Option<O>` and is invoked directly,
+outside the ordinary function `ParserOnce` boundary. `token` checkpoints input
+and `R`, commits both on `Some`, and restores both on `None`. The free parser
+form has `S = ()`. `In<I, R, S>::token(f)` privately constructs the same short
+unit-state reborrow before running `Token`, so the lexical callback cannot
+observe or mutate an outer sink or other `S`.
+
+`maybe(p)` turns a unit-state parser's non-match into a successful optional
+value. It returns `Some(Some(output))` for a match and `Some(None)` for an
+absence. It adds no checkpoint: `p` remains responsible for its own non-match
+contract, and `token` remains the sole consume-then-non-match exception.
+`In<I, R, S>::maybe(p)` likewise uses a private short unit-state reborrow, so
+neither `p` nor a nested `token` receives the outer `S`.
+
 Tuple parsers are implemented only for `S = ()`. A tuple is transactional: if
 any member non-matches, the whole tuple restores its initial input and
 recoverable-state marks before returning `None`. A grammar parser that has
@@ -131,6 +147,10 @@ rollback is semantic, not a debug equality check; an `R` implementation is
 expected to use an inexpensive marker such as a log length when it needs
 transactional effects.
 
+`check` remains an `S = ()`-only method. An outer `In<I, R, S>` does not gain a
+general unit-parser bridge; only `token`, `maybe`, and `then` construct private
+unit-state reborrows for their narrower contracts.
+
 A caught contract panic poisons the wider parser invocation. It leaves the
 violating cursor advanced and does not promise tuple-wide unwind restoration
 for successful work performed before that scope. Parsing must not resume from
@@ -171,6 +191,12 @@ use case.
 - a direct unit-state function parser rolls `R` back and panics for a buggy
   consume-then-`None` procedure using only pointer identity for `&str`,
   without correcting the cursor;
+- `token` restores consumed UTF-8 input and `R` on `None`, and commits both on
+  `Some`;
+- `maybe(token(...))` preserves its nested `Option<Option<O>>` match and
+  absence shapes without adding another transaction;
+- outer-state `In::token` and `In::maybe` expose only unit-state callbacks, so
+  they cannot observe or mutate the outer `S`;
 - `In::map` maps only successful grammar output and does not expose `In`;
 - `In::then` runs its total continuation only after grammar success and can
   write an output sink;

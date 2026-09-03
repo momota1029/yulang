@@ -94,10 +94,9 @@ impl Recover for () {
 /// The capabilities passed to one parser invocation.
 ///
 /// Grammar parsers use `S = ()`. [`In::then`] hands its total callback an
-/// arbitrary reborrowable `S`. Grammar methods are absent for `S != ()`;
-/// `S = ()` is the intentional committed procedural escape hatch, whose
-/// direct return cannot propagate a non-match through `In::then` or
-/// `ParserOnce::then`.
+/// arbitrary reborrowable `S`. The lexical [`In::token`] and optional
+/// [`In::maybe`] conveniences privately use a short unit-state reborrow, so
+/// their parsers cannot observe or mutate the outer `S`.
 #[derive(Reborrow)]
 pub struct In<'a, I: Input, R: Recover + 'a = (), S: Rb + 'a = ()> {
     pub(crate) input: &'a mut I,
@@ -121,11 +120,37 @@ impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
         self.input.index()
     }
 
+    /// Run one lexical transaction through a short unit-state reborrow.
+    ///
+    /// The raw procedure cannot observe or mutate `S`. Unlike an ordinary
+    /// function parser, it may consume before returning `None`; [`token`]
+    /// restores both input and recoverable state in that case.
+    pub fn token<F, O>(&mut self, token: F) -> Option<O>
+    where
+        F: for<'short> FnOnce(In<'short, I, R, ()>) -> Option<O>,
+    {
+        let grammar = In::<I, R, ()>::new(&mut *self.input, R::shorten_mut(&mut self.recovery), ());
+        crate::parser::token(token).run_once(grammar)
+    }
+
+    /// Run an optional unit-state parser through a short reborrow.
+    ///
+    /// Parser absence is represented by the inner `None`; the outer `Option`
+    /// is always `Some` because [`maybe`] itself always succeeds.
+    pub fn maybe<P>(&mut self, parser: P) -> Option<Option<P::Output>>
+    where
+        P: ParserOnce<I, R, ()>,
+    {
+        let grammar = In::<I, R, ()>::new(&mut *self.input, R::shorten_mut(&mut self.recovery), ());
+        crate::parser::maybe(parser).run_once(grammar)
+    }
+
     /// Run a unit-state parser and map its successful output.
     ///
-    /// The mapping receives only the parser output. Parsing still goes through
-    /// [`In::check`]. A direct unit-state function parser rolls recoverable
-    /// state back on `None` and verifies its own input-nonconsumption contract.
+    /// The mapping receives only the parser output. A private unit-state
+    /// bridge runs it through [`In::check`]. A direct unit-state function
+    /// parser rolls recoverable state back on `None` and verifies its own
+    /// input-nonconsumption contract.
     pub fn map<P, F, O2>(self, parser: P, map: F) -> Option<O2>
     where
         P: ParserOnce<I, R, ()>,
@@ -137,9 +162,10 @@ impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
     /// Run a unit-state parser, then hand its output and this owned input to a
     /// total procedural continuation.
     ///
-    /// This is the central state-lifting primitive. The parser is run through
-    /// [`In::check`]. The continuation runs only after success and returns an
-    /// ordinary output directly; it cannot make this method backtrack.
+    /// This is the central state-lifting primitive. A private unit-state bridge
+    /// runs the parser through [`In::check`]. The continuation runs only after
+    /// success and returns an ordinary output directly; it cannot make this
+    /// method backtrack.
     pub fn then<P, F, O2>(mut self, parser: P, then: F) -> Option<O2>
     where
         P: ParserOnce<I, R, ()>,

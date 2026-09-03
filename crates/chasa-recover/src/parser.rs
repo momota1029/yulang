@@ -43,10 +43,11 @@ pub trait ParserOnce<I: Input, R: Recover, S: Rb> {
     /// Lift a successful unit-state grammar parser into non-recoverable state.
     ///
     /// The callback has the exact shape `FnOnce(O1, In<I, R, S2>) -> O2` and
-    /// is intentionally total. Grammar methods are absent for `S2 != ()`.
-    /// With `S2 = ()`, it is a committed procedural escape hatch: it may
-    /// consume input, but its direct output cannot propagate `None` through
-    /// `then`. There is no `bind`, `flat_map`, or `and_then`.
+    /// is intentionally total. Its implementation privately bridges through a
+    /// unit-state input before handing the callback the original `S2`. With
+    /// `S2 = ()`, it is a committed procedural escape hatch: it may consume
+    /// input, but its direct output cannot propagate `None` through `then`.
+    /// There is no `bind`, `flat_map`, or `and_then`.
     fn then<S2, O2, F>(self, map: F) -> Then<Self, F>
     where
         Self: Sized + ParserOnce<I, R, ()>,
@@ -116,6 +117,62 @@ where
         }
 
         output
+    }
+}
+
+/// A raw lexical procedure with input and recover-state rollback on non-match.
+#[must_use]
+pub struct Token<F>(F);
+
+/// Construct the one explicitly transactional lexical parser.
+///
+/// The procedure is invoked directly, outside the ordinary function
+/// [`ParserOnce`] boundary. It receives only unit state and may consume before
+/// returning `None`; [`Token`] then restores both input and recoverable state.
+pub fn token<F>(token: F) -> Token<F> {
+    Token(token)
+}
+
+impl<I, R, F, O> ParserOnce<I, R, ()> for Token<F>
+where
+    I: Input,
+    R: Recover,
+    F: for<'short> FnOnce(In<'short, I, R, ()>) -> Option<O>,
+{
+    type Output = O;
+
+    fn run_once(self, mut input: In<'_, I, R, ()>) -> Option<Self::Output> {
+        let checkpoint = input.checkpoint();
+        let output = (self.0)(input.rb());
+        if output.is_none() {
+            input.rollback(checkpoint);
+        }
+        output
+    }
+}
+
+/// An optional unit-state parser whose own invocation always succeeds.
+#[must_use]
+pub struct Maybe<P>(P);
+
+/// Turn parser non-match into a successful optional value.
+///
+/// This adds no transaction. The inner parser remains responsible for its
+/// own non-match contract.
+pub fn maybe<P>(parser: P) -> Maybe<P> {
+    Maybe(parser)
+}
+
+impl<I, R, P> ParserOnce<I, R, ()> for Maybe<P>
+where
+    I: Input,
+    R: Recover,
+    P: ParserOnce<I, R, ()>,
+{
+    type Output = Option<P::Output>;
+
+    fn run_once(self, mut input: In<'_, I, R, ()>) -> Option<Self::Output> {
+        Some(input.check(self.0))
     }
 }
 
@@ -381,7 +438,7 @@ mod tests {
 
     use reborrow_generic::Reborrow as _;
 
-    use super::{ParserOnce, ParserOnceStrExt, choice, item};
+    use super::{ParserOnce, ParserOnceStrExt, choice, item, maybe, token};
     use crate::input::{In, Recoverable};
 
     #[derive(Default)]
@@ -586,6 +643,105 @@ mod tests {
         assert_eq!(output, None);
         assert_eq!(source, "a");
         assert!(log.0.is_empty());
+    }
+
+    #[test]
+    fn token_non_match_restores_utf8_input_and_recoverable_state() {
+        let mut source = "β!";
+        let mut log = Log::default();
+        let parser = token(|mut input: In<&str, &mut Log, ()>| {
+            input.recovery().0.push('x');
+            assert_eq!(input.next(), Some('β'));
+            None::<char>
+        });
+
+        assert_eq!(
+            parser.run_once(In::<_, &mut Log, ()>::new(&mut source, &mut log, ())),
+            None
+        );
+        assert_eq!(source, "β!");
+        assert!(log.0.is_empty());
+    }
+
+    #[test]
+    fn token_success_commits_input_and_recoverable_state() {
+        let mut source = "β!";
+        let mut log = Log::default();
+        let parser = token(|mut input: In<&str, &mut Log, ()>| {
+            input.recovery().0.push('x');
+            input.next()
+        });
+
+        assert_eq!(
+            parser.run_once(In::<_, &mut Log, ()>::new(&mut source, &mut log, ())),
+            Some('β')
+        );
+        assert_eq!(source, "!");
+        assert_eq!(log.0, ['x']);
+    }
+
+    #[test]
+    fn maybe_token_preserves_nested_match_and_absence_shapes() {
+        let mut matched_source = "ab";
+        let mut matched_log = Log::default();
+        let matched = maybe(token(|mut input: In<&str, &mut Log, ()>| {
+            input.recovery().0.push('x');
+            input.next()
+        }));
+
+        assert_eq!(
+            matched.run_once(In::<_, &mut Log, ()>::new(
+                &mut matched_source,
+                &mut matched_log,
+                (),
+            )),
+            Some(Some('a'))
+        );
+        assert_eq!(matched_source, "b");
+        assert_eq!(matched_log.0, ['x']);
+
+        let mut absent_source = "β!";
+        let mut absent_log = Log::default();
+        let absent = maybe(token(|mut input: In<&str, &mut Log, ()>| {
+            input.recovery().0.push('y');
+            input.next();
+            None::<char>
+        }));
+
+        assert_eq!(
+            absent.run_once(In::<_, &mut Log, ()>::new(
+                &mut absent_source,
+                &mut absent_log,
+                (),
+            )),
+            Some(None)
+        );
+        assert_eq!(absent_source, "β!");
+        assert!(absent_log.0.is_empty());
+    }
+
+    #[test]
+    fn in_token_and_maybe_hide_outer_simple_state() {
+        let mut source = "a!";
+        let mut log = Log::default();
+        let mut sink = String::from("opaque");
+        let mut input = In::<_, &mut Log, &mut String>::new(&mut source, &mut log, &mut sink);
+
+        let token_output = input.token(|mut token: In<&str, &mut Log, ()>| {
+            token.recovery().0.push('x');
+            token.next()
+        });
+        let maybe_output = input.maybe(token(|mut token: In<&str, &mut Log, ()>| {
+            token.recovery().0.push('y');
+            token.next();
+            None::<char>
+        }));
+
+        assert_eq!(token_output, Some('a'));
+        assert_eq!(maybe_output, Some(None));
+        assert_eq!(source, "!");
+        assert_eq!(log.0, ['x']);
+        assert_eq!(sink, "opaque");
     }
 
     #[test]

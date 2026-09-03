@@ -630,6 +630,23 @@ format/diff check は green。parametric contract に従い benchmark、package/
 は未実行。production dispatch、legacy/new crossing、Yumark production bridge は scope 外の
 まま、次は isolated G4b expression-local delimited/fixed owners である。
 
+2026-09-03: ユーザー指示により successor rewrite の実験用構造を削除した。`Pilot*`、
+別 `Context`、frame/stop stack、`Level` wrapper、Item identity/scanned-item history、
+line state、output chain stack、`is_cut`、手書き `ParserOnce` wrapper、routine
+`In::then`、borrowed-source を抱える一時 `Item`/token/trivia、trivia 上書き経路を除去した。
+この中間 topology は 2026-09-03 後半の user decision で置換対象になった。successor
+rewrite は source/root/range/borrowed AST を持たず、`Recover` は operator table と真に
+recoverable な facts のみ、`S` は直接の `GreenNodeBuilder`、Item は owned text/trivia にする。
+lexical `token` transaction と `maybe` は M3 scoped compiler/spec review 後に
+Authoritative 化した。chasa-recover の focused API slice は実装・repair review 完了
+(`token`/`maybe`、outer `S` を隠す private unit reborrow、unit-state-only `check`、19 tests
+green)。次は現在の uncommitted shell を新しい source-free CST-only foundation へ置換する。
+先の focused 23 件は
+この topology の completion evidence ではない。E5 の user decision
+`x[a(b)]`（一つの `IndexItem` の nested `CallTail`、`IndexSeparator` recovery なし）は
+CST owner control として引き続き正本である。未完成の G4b owner loop を含むため、まだ
+commit/push しない。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
