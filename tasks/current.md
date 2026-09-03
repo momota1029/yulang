@@ -952,6 +952,14 @@ state/source reread/buffer/recovery recordの追加なし。post-item malformed 
 incomplete close後のmandatory arrow/head continuationは未実装。M1 specification reviewはclean、focused rewrite testsは68 passed、
 package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: `BracketRow`の残るBR-R post-item / terminal continuationを追加した。complete item後のdeeper newline
+valid primaryはzero-width Missing separatorを置いてnext itemとしてretryし、deeper newlineのmalformed followerはErrorへ
+consumeせずclose Missingだけを置いてunconsumed handoffする。same-line malformed post-itemは既存のone Error retryを使い、
+`,`へ到達したmalformed runもMissing itemを重ねずnext itemへ進む。incomplete row EOFはclose Missingに加え、leading rowでは
+mandatory head、tail rowではmandatory arrowのMissingを各owner内に置く。Generic owner (EffectRow / call / group)は不変。
+state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはclean、focused rewrite testsは68 passed、package
+check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

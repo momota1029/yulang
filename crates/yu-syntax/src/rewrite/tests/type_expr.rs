@@ -866,7 +866,10 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
         ("T [e)] -> U", 0),
         ("T [@ A] -> U", 0),
         ("T [@] -> U", 0),
-        ("T [@", 1),
+        ("T [@", 2),
+        ("T [e)", 2),
+        ("T [@, A] -> U", 0),
+        ("T [e @ A] -> U", 0),
     ] {
         let (green, exit) = run_type(source);
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -895,4 +898,31 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
         .find(|node| node.kind() == SyntaxKind::Error)
         .expect("bracket item error");
     assert_eq!(error.text().to_string(), "@ ");
+
+    let (green, exit) = run_type("[e");
+    assert_eq!(green.to_string(), "[e");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        2
+    );
+
+    let (green, exit) = run_type("T [e\n  @]");
+    assert_eq!(green.to_string(), "T [e");
+    assert!(matches!(exit, Some(Err(Either::Left(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
 }

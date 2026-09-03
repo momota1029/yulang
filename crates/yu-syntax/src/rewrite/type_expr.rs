@@ -102,6 +102,10 @@ fn type_leading_bracket_row(
 ) -> TailExit {
     let exit = type_bracket_row(i.rb(), open, baseline);
     let Ok(()) = exit else {
+        if let Err(Either::Right(end)) = exit {
+            emit_missing(&mut i, LeadingTrivia::default());
+            return Err(Either::Right(end));
+        }
         return exit;
     };
     let leading = scan_trivia(i.rb());
@@ -187,6 +191,10 @@ fn type_bracket_arrow_tail(mut i: RewriteIn, mut open: Item, baseline: usize) ->
     let exit = type_bracket_row(i.rb(), open, baseline);
     let exit = match exit {
         Ok(()) => type_bracket_arrow_after_row(i.rb(), baseline),
+        Err(Either::Right(end)) => {
+            emit_missing(&mut i, LeadingTrivia::default());
+            Err(Either::Right(end))
+        }
         Err(exit) => Err(exit),
     };
     i.state.finish_node();
@@ -616,6 +624,34 @@ fn type_delimited(
                     Err(exit) => return exit,
                 }
             }
+            Err(Either::Left(mut next))
+                if owner == TypeDelimitedOwner::BracketRow
+                    && is_type_deeper_newline(baseline, &next.leading)
+                    && is_type_nud(&next) =>
+            {
+                emit_missing(&mut i, LeadingTrivia::default());
+                let leading = std::mem::take(&mut next.leading);
+                emit_leading_trivia(&mut i, &leading);
+                next
+            }
+            Err(Either::Left(next))
+                if owner == TypeDelimitedOwner::BracketRow
+                    && type_chain_trivia(&next.leading, baseline)
+                    && !is_type_deeper_newline(baseline, &next.leading)
+                    && !is_type_nud(&next) =>
+            {
+                match retry_bracket_row_item(i.rb(), next, close, baseline) {
+                    Ok(next) => next,
+                    Err(exit) => return exit,
+                }
+            }
+            Err(Either::Left(next))
+                if owner == TypeDelimitedOwner::BracketRow
+                    && is_type_deeper_newline(baseline, &next.leading) =>
+            {
+                emit_missing(&mut i, LeadingTrivia::default());
+                return handoff(next);
+            }
             Err(Either::Left(mut next)) if is_type_implicit_boundary(baseline, &next.leading) => {
                 let leading = std::mem::take(&mut next.leading);
                 emit_leading_trivia(&mut i, &leading);
@@ -917,6 +953,10 @@ fn type_chain_trivia(leading: &LeadingTrivia, baseline: usize) -> bool {
 
 fn is_type_implicit_boundary(baseline: usize, leading: &LeadingTrivia) -> bool {
     indentation_after_newline(leading).is_some_and(|indentation| indentation <= baseline)
+}
+
+fn is_type_deeper_newline(baseline: usize, leading: &LeadingTrivia) -> bool {
+    indentation_after_newline(leading).is_some_and(|indentation| indentation > baseline)
 }
 
 fn is_type_payload_boundary(leading: &LeadingTrivia) -> bool {
