@@ -79,6 +79,12 @@ pub(super) fn emit_missing(i: &mut RewriteIn, leading: LeadingTrivia) {
     i.state.finish_node();
 }
 
+pub(super) fn emit_error_item(i: &mut RewriteIn, item: Item) {
+    i.state.start_node(SyntaxKind::Error.into());
+    emit_token_item(i, item);
+    i.state.finish_node();
+}
+
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
 pub(super) fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &End) {
     emit_trivia_builder(builder, &end.item.leading);

@@ -751,6 +751,14 @@ recovery record の追加なし。wrong close、missing separator、layout、typ
 4/G4b ledger は未完。M1 specification review は clean、focused rewrite tests は 30 passed、package
 check、format/diff check は green。
 
+2026-09-04: G4b direct delimited owner の wrong-close CST-only control を追加した。expected close
+を優先し、それ以外の `)`/`]`/`}` Item は owner-local `Error` として直ちに emit/consume して
+exactly one replacement Item を読む。`f(a])` は Error(`]`) 後に CallTail 自身が `)` を受理し、
+EOF へ至る wrong close は既存の owner-local Missing-close へ進む。source reread、state/rollback、
+event buffer、recovery record の追加なし。missing separator/layout/other invalid run/typed recovery
+record、Gate 4/G4b ledger は未完。M1 specification review は clean、focused rewrite tests は 31
+passed、package check、format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

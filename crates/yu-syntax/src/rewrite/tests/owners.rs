@@ -210,6 +210,58 @@ fn delimited_owner_recovers_missing_items_before_separators() {
 }
 
 #[test]
+fn delimited_owner_consumes_wrong_closes_before_settling_its_own_close() {
+    for (source, owner, wrong, missing) in [
+        (
+            "(a]",
+            SyntaxKind::ParenthesizedExpression,
+            SyntaxKind::RBracket,
+            true,
+        ),
+        ("f(a])", SyntaxKind::CallTail, SyntaxKind::RBracket, false),
+        ("x[a)", SyntaxKind::IndexTail, SyntaxKind::RParen, true),
+        (
+            "a.(x]",
+            SyntaxKind::ProjectionTupleTail,
+            SyntaxKind::RBracket,
+            true,
+        ),
+        (
+            "a.{x)",
+            SyntaxKind::ProjectionRecordTail,
+            SyntaxKind::RParen,
+            true,
+        ),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("delimited owner");
+        let error = owner
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("owner-local wrong-close error");
+        assert_eq!(
+            error.first_token().map(|token| token.kind()),
+            Some(wrong),
+            "{source:?}"
+        );
+        assert_eq!(
+            owner
+                .children()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn fixed_field_and_path_tails_keep_their_own_tokens() {
     let source = "a .field:: name b";
     let (green, exit) = run(source);

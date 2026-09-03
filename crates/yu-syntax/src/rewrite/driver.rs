@@ -7,7 +7,8 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 use super::{
     RewriteIn,
     emit::{
-        emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
+        emit_error_item, emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use,
+        emit_token_item,
     },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
     lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia},
@@ -290,6 +291,10 @@ fn delimited_items(
             item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
             continue;
         }
+        if is_close(&item) {
+            item = wrong_close_item(i.rb(), item, baseline, stops);
+            continue;
+        }
         if !is_nud_item(&item) {
             return handoff(item);
         }
@@ -310,6 +315,9 @@ fn delimited_items(
                 emit_token_item(&mut i, next);
                 return Ok(());
             }
+            Err(Either::Left(next)) if is_close(&next) => {
+                wrong_close_item(i.rb(), next, baseline, stops)
+            }
             Err(Either::Right(end)) => return missing_close(i, end.item),
             exit => return exit,
         };
@@ -326,6 +334,12 @@ fn missing_item(mut i: RewriteIn, mut item: Item) -> Item {
     let leading = std::mem::take(&mut item.leading);
     emit_missing(&mut i, leading);
     item
+}
+
+fn wrong_close_item(mut i: RewriteIn, item: Item, baseline: usize, stops: u8) -> Item {
+    emit_error_item(&mut i, item);
+    let leading = scan_trivia(i.rb());
+    tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
 }
 
 fn is_nud_item(item: &Item) -> bool {
@@ -479,6 +493,13 @@ fn is_separator(item: &Item) -> bool {
     matches!(
         token_kind(item),
         Some(TokenKind::Comma | TokenKind::Semicolon)
+    )
+}
+
+fn is_close(item: &Item) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
     )
 }
 
