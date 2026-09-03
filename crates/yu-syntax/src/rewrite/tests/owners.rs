@@ -296,6 +296,53 @@ fn parenthesized_items_recover_a_same_line_missing_separator_without_ml() {
 }
 
 #[test]
+fn delimited_items_accept_baseline_newlines_without_rescanning_the_handoff() {
+    for (source, owner, item_kind) in [
+        (
+            "(a\nb)",
+            SyntaxKind::ParenthesizedExpression,
+            SyntaxKind::OperatorChain,
+        ),
+        ("f(a\nb)", SyntaxKind::CallTail, SyntaxKind::OperatorChain),
+        ("x[a\nb]", SyntaxKind::IndexTail, SyntaxKind::IndexItem),
+        (
+            "a.(x\ny)",
+            SyntaxKind::ProjectionTupleTail,
+            SyntaxKind::OperatorChain,
+        ),
+        (
+            "a.{x\ny}",
+            SyntaxKind::ProjectionRecordTail,
+            SyntaxKind::OperatorChain,
+        ),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("delimited owner");
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == item_kind)
+                .count(),
+            2,
+            "{source:?}"
+        );
+        assert!(
+            !owner
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn fixed_field_and_path_tails_keep_their_own_tokens() {
     let source = "a .field:: name b";
     let (green, exit) = run(source);

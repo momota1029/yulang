@@ -318,6 +318,11 @@ fn delimited_items(
             Err(Either::Left(next)) if is_close(&next) => {
                 wrong_close_item(i.rb(), next, baseline, stops)
             }
+            Err(Either::Left(next))
+                if is_nud_item(&next) && implicit_delimited_newline(baseline, &next.leading) =>
+            {
+                next
+            }
             Err(Either::Left(next)) if !items_accept_ml && is_nud_item(&next) => {
                 missing_item(i.rb(), next)
             }
@@ -546,4 +551,24 @@ fn delimited_baseline(incoming: usize, leading: &LeadingTrivia) -> usize {
     (at_line_start && indentation > incoming)
         .then_some(indentation)
         .unwrap_or(incoming)
+}
+
+fn implicit_delimited_newline(baseline: usize, leading: &LeadingTrivia) -> bool {
+    let mut saw_newline = false;
+    let mut at_line_start = false;
+    let mut indentation = 0usize;
+    for part in &leading.0 {
+        for character in part.text.chars() {
+            match character {
+                '\r' | '\n' => {
+                    saw_newline = true;
+                    at_line_start = true;
+                    indentation = 0;
+                }
+                ' ' | '\t' if at_line_start => indentation += 1,
+                _ => at_line_start = false,
+            }
+        }
+    }
+    saw_newline && indentation <= baseline
 }

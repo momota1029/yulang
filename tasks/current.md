@@ -768,6 +768,15 @@ Missing を持ち、`x[a b]`/`a.(x y)` の ML rule は不変。layout newline、
 invalid run、Gate 4/G4b ledger は未完。M1 specification review は clean、focused rewrite tests は 32
 passed、package check、format/diff check は green。
 
+2026-09-04: G4b direct delimited owner に baseline 以下の layout newline を item continuation として
+受理する CST-only control を追加した。opener 後に得た既存 scalar baseline と already-scanned handoff
+Item の owned leading trivia だけを一回走査し、newline があり終端 indentation が baseline 以下なら、
+同じ Item を reread/rescan せず次の item として loop へ戻す。parenthesized/call/index/tuple・record
+projection 全 owner に共通で、state/rollback、event buffer、recovery record は追加していない。deeper
+newline と other invalid run は close phase の別 slice、typed recovery record と Gate 4/G4b ledger は
+未完である。M1 specification review は clean、focused rewrite tests は 33 passed、package check、
+format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
