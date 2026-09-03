@@ -12,8 +12,8 @@ use super::{
     },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
     lexer::{
-        is_operator_shaped_unknown, scan_nud_item, scan_operator_shaped_unknown, scan_trivia,
-        tail_item_after_trivia,
+        is_operator_shaped_unknown, path_segment_item_after_trivia, scan_nud_item,
+        scan_operator_shaped_unknown, scan_trivia, tail_item_after_trivia,
     },
     operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, stops_for},
 };
@@ -630,8 +630,11 @@ fn path_tail(
     i.state.start_node(SyntaxKind::PathTail.into());
     emit_token_item(&mut i, separator);
     let leading = scan_trivia(i.rb());
-    let mut segment = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
-    if token_kind(&segment) == Some(TokenKind::Identifier) {
+    let mut segment = path_segment_item_after_trivia(i.rb(), leading, baseline, stops);
+    if matches!(
+        token_kind(&segment),
+        Some(TokenKind::Identifier | TokenKind::SigilIdentifier)
+    ) {
         emit_token_item(&mut i, segment);
         i.state.finish_node();
         return scan_tail_after_accept(i, threshold, baseline, stops, ml_mode);

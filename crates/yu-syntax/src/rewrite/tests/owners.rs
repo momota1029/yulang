@@ -545,6 +545,64 @@ fn fixed_field_and_path_tails_keep_their_own_tokens() {
 }
 
 #[test]
+fn path_tails_classify_sigil_segments() {
+    let source = "a::$value?:: &reference::'label::_hidden::_";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let paths = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::PathTail)
+        .map(|path| {
+            path.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| {
+                    matches!(
+                        token.kind(),
+                        SyntaxKind::ColonColon
+                            | SyntaxKind::Identifier
+                            | SyntaxKind::SigilIdentifier
+                    )
+                })
+                .map(|token| (token.kind(), token.text().to_owned()))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        paths,
+        [
+            vec![
+                (SyntaxKind::ColonColon, "::".to_owned()),
+                (SyntaxKind::SigilIdentifier, "$value?".to_owned()),
+            ],
+            vec![
+                (SyntaxKind::ColonColon, "::".to_owned()),
+                (SyntaxKind::SigilIdentifier, "&reference".to_owned()),
+            ],
+            vec![
+                (SyntaxKind::ColonColon, "::".to_owned()),
+                (SyntaxKind::SigilIdentifier, "'label".to_owned()),
+            ],
+            vec![
+                (SyntaxKind::ColonColon, "::".to_owned()),
+                (SyntaxKind::SigilIdentifier, "_hidden".to_owned()),
+            ],
+            vec![
+                (SyntaxKind::ColonColon, "::".to_owned()),
+                (SyntaxKind::Identifier, "_".to_owned()),
+            ],
+        ]
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}
+
+#[test]
 fn fixed_tails_keep_missing_and_invalid_identifier_slots_local() {
     for (source, tail_kind, recovery_kind) in [
         ("x.", SyntaxKind::FieldTail, SyntaxKind::Missing),

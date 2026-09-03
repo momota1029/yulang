@@ -41,6 +41,23 @@ pub(super) fn tail_item_after_trivia(
     Item { leading, payload }
 }
 
+/// Path segments have their own lexical vocabulary: sigil-prefixed words and
+/// underscore-prefixed words are not ordinary expression primaries.
+pub(super) fn path_segment_item_after_trivia(
+    mut i: RewriteIn,
+    leading: LeadingTrivia,
+    baseline: usize,
+    stops: u8,
+) -> Item {
+    if let Some(segment) = i.token(scan_path_segment) {
+        return Item {
+            leading,
+            payload: Payload::Token(segment),
+        };
+    }
+    tail_item_after_trivia(i, leading, OperatorSite::Led, baseline, stops)
+}
+
 fn scan_tail_payload(
     mut i: RewriteIn,
     site: OperatorSite,
@@ -250,6 +267,26 @@ fn scan_identifier(mut i: LexIn) -> Option<Token> {
     accepted?;
     Some(Token {
         kind: TokenKind::Identifier,
+        text: text.into(),
+    })
+}
+
+fn scan_path_segment(mut i: LexIn) -> Option<Token> {
+    if let Some(mut word) = i.token(scan_identifier) {
+        if word.text.starts_with('_') && &*word.text != "_" {
+            word.kind = TokenKind::SigilIdentifier;
+        }
+        return Some(word);
+    }
+
+    let (accepted, text) = i.rb().with_str(|mut segment| {
+        matches!(segment.next()?, '$' | '&' | '\'').then_some(())?;
+        scan_identifier(segment.rb())?;
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::SigilIdentifier,
         text: text.into(),
     })
 }

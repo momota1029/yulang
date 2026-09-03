@@ -51,6 +51,7 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
         Payload::Token(token) => {
             let kind = match token.kind {
                 TokenKind::Identifier => SyntaxKind::Identifier,
+                TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
                 TokenKind::Integer => SyntaxKind::Integer,
                 TokenKind::Operator => unreachable!("operators have a selected dynamic role"),
                 TokenKind::LParen => SyntaxKind::LParen,

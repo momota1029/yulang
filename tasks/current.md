@@ -819,6 +819,15 @@ source reread、retained state、buffer は追加していない。M1 specificat
 隣接 recovery 2件を修正後 clean。focused rewrite tests は 46 passed、package check、format/diff check は green。typed
 recovery record、other invalid run、production/AST/Yumark bridge、Gate 4/G4b ledger は未完である。
 
+2026-09-04: G4b E2 の direct `PathTail` に path-segment lexical vocabulary を補完した。`::`直後は
+ordinary word、`$` / `&` / apostrophe 接頭辞 word、`_foo` を先に一 Item として読んで、それぞれ
+`Identifier` / `SigilIdentifier` token として PathTail 自身へ emit する。bare `_` は ordinary
+Identifier のままにし、path segment が不成立のときだけ既存 dynamic/fixed boundary fallback と
+Missing/Error recovery を使う。trivia ownership、source reread/state/rollback/event buffer/recovery record は
+増やしていない。M1 specification review は clean、focused rewrite tests は 47 passed、package check、
+format/diff check は green。typed recovery record、other invalid run、production/AST/Yumark bridge、Gate
+4/G4b ledger は未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
