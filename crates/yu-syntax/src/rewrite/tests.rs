@@ -173,6 +173,147 @@ fn words_match_the_oracle_start_and_suffix_rules() {
 }
 
 #[test]
+fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {
+    let source = "(a,b;c) d";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    let group = outer
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+        .expect("parenthesized primary");
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        3
+    );
+    assert_eq!(
+        outer
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::MlArgument)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| token.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::LParen,
+            SyntaxKind::Identifier,
+            SyntaxKind::Comma,
+            SyntaxKind::Identifier,
+            SyntaxKind::Semicolon,
+            SyntaxKind::Identifier,
+            SyntaxKind::RParen,
+            SyntaxKind::Whitespace,
+            SyntaxKind::Identifier,
+        ]
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}
+
+#[test]
+fn call_and_index_own_valid_multiple_item_sequences() {
+    let source = "f(a,b;c)[x,y;z]";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    let call = outer
+        .children()
+        .find(|node| node.kind() == SyntaxKind::CallTail)
+        .expect("call tail");
+    assert_eq!(
+        call.children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        3
+    );
+    let index = outer
+        .children()
+        .find(|node| node.kind() == SyntaxKind::IndexTail)
+        .expect("index tail");
+    assert_eq!(
+        index
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::IndexItem)
+            .count(),
+        3
+    );
+    let rparen = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::RParen)
+        .expect("call close");
+    assert_eq!(
+        rparen.parent().expect("call close owner").kind(),
+        SyntaxKind::CallTail
+    );
+    let rbracket = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::RBracket)
+        .expect("index close");
+    assert_eq!(
+        rbracket.parent().expect("index close owner").kind(),
+        SyntaxKind::IndexTail
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}
+
+#[test]
+fn each_delimited_owner_accepts_an_empty_valid_sequence() {
+    for (source, owner) in [
+        ("()", SyntaxKind::ParenthesizedExpression),
+        ("f()", SyntaxKind::CallTail),
+        ("x[]", SyntaxKind::IndexTail),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let node = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("delimited owner");
+        assert_eq!(
+            node.children()
+                .filter(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::OperatorChain | SyntaxKind::IndexItem
+                ))
+                .count(),
+            0,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn index_item_accepts_ml_argument_without_separator_recovery() {
     let (green, exit) = run("x[a b]");
     assert_eq!(green.to_string(), "x[a b]");

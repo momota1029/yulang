@@ -36,22 +36,41 @@ pub(super) struct End {
     pub(super) item: Item,
 }
 
+/// `Ok(())` means an accepted child owner closed normally; its caller scans
+/// the successor item only after closing that owner's Rowan node.
 pub(super) type TailExit = Result<(), Either<Item, End>>;
 
-/// `None` occurs only before the lexical transaction has accepted a core.
+/// `None` occurs only before the lexical transaction has accepted a NUD.
 pub(super) fn expr(mut i: RewriteIn) -> Option<TailExit> {
-    let core = i.token(scan_core_item)?;
-    Some(expr_from_core(i, core, true))
+    let nud = i.token(scan_nud_item)?;
+    Some(expr_from_nud(i, nud, true))
 }
 
-/// Parses an already-accepted identifier core without scanning it again.
-fn expr_from_core(mut i: RewriteIn, core: Item, accepts_ml: bool) -> TailExit {
+/// Parses an already-accepted NUD without scanning it again.
+fn expr_from_nud(mut i: RewriteIn, nud: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    emit_core(&mut i, core);
-    let next = tail_item(i.rb());
-    let exit = tail(i.rb(), next, accepts_ml);
+    let exit = match token_kind(&nud) {
+        Some(TokenKind::Identifier) => {
+            emit_core(&mut i, nud);
+            scan_tail_after_accept(i.rb(), accepts_ml)
+        }
+        Some(TokenKind::LParen) => parenthesized_nud(i.rb(), nud, accepts_ml),
+        _ => unreachable!("the NUD scanner accepts only identifier and `(`"),
+    };
     i.state.finish_node();
     exit
+}
+
+fn scan_tail_after_accept(mut i: RewriteIn, accepts_ml: bool) -> TailExit {
+    let next = tail_item(i.rb());
+    tail(i.rb(), next, accepts_ml)
+}
+
+fn continue_completed_tail(i: RewriteIn, accepts_ml: bool, exit: TailExit) -> TailExit {
+    match exit {
+        Ok(()) => scan_tail_after_accept(i, accepts_ml),
+        exit => exit,
+    }
 }
 
 /// Unaccepted items are returned unchanged and receive no builder effect.
@@ -81,7 +100,7 @@ fn is_ml_argument(item: &Item) -> bool {
 
 fn ml_argument(mut i: RewriteIn, argument: Item) -> TailExit {
     i.state.start_node(SyntaxKind::MlArgument.into());
-    let exit = expr_from_core(i.rb(), argument, false);
+    let exit = expr_from_nud(i.rb(), argument, false);
     i.state.finish_node();
     match exit {
         Err(Either::Left(next)) => tail(i, next, true),
@@ -89,44 +108,90 @@ fn ml_argument(mut i: RewriteIn, argument: Item) -> TailExit {
     }
 }
 
+fn parenthesized_nud(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
+    i.state
+        .start_node(SyntaxKind::ParenthesizedExpression.into());
+    emit_token_item(&mut i, open);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, accepts_ml);
+    i.state.finish_node();
+    continue_completed_tail(i, accepts_ml, exit)
+}
+
+fn delimited_items(
+    mut i: RewriteIn,
+    close: TokenKind,
+    item_node: Option<SyntaxKind>,
+    accepts_ml: bool,
+) -> TailExit {
+    let mut item = tail_item(i.rb());
+    loop {
+        if token_kind(&item) == Some(close) {
+            emit_token_item(&mut i, item);
+            return Ok(());
+        }
+
+        if !is_nud_item(&item) {
+            return handoff(item);
+        }
+        if let Some(kind) = item_node {
+            i.state.start_node(kind.into());
+        }
+        let exit = expr_from_item(i.rb(), item, accepts_ml);
+        if item_node.is_some() {
+            i.state.finish_node();
+        }
+        item = match exit {
+            Err(Either::Left(next)) if is_separator(&next) => {
+                emit_token_item(&mut i, next);
+                tail_item(i.rb())
+            }
+            Err(Either::Left(next)) if token_kind(&next) == Some(close) => {
+                emit_token_item(&mut i, next);
+                return Ok(());
+            }
+            exit => return exit,
+        };
+    }
+}
+
+fn is_nud_item(item: &Item) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::Identifier | TokenKind::LParen)
+    )
+}
+
+fn expr_from_item(i: RewriteIn, item: Item, accepts_ml: bool) -> TailExit {
+    debug_assert!(is_nud_item(&item));
+    expr_from_nud(i, item, accepts_ml)
+}
+
 fn call_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
-
-    let inner = expr(i.rb());
-    let exit = match inner {
-        Some(Err(Either::Left(close))) if token_kind(&close) == Some(TokenKind::RParen) => {
-            emit_token_item(&mut i, close);
-            i.state.finish_node();
-            let next = tail_item(i.rb());
-            return tail(i, next, accepts_ml);
-        }
-        Some(exit) => exit,
-        None => handoff(tail_item(i.rb())),
-    };
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, accepts_ml);
     i.state.finish_node();
-    exit
+    continue_completed_tail(i, accepts_ml, exit)
 }
 
 fn index_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
     emit_token_item(&mut i, open);
-    i.state.start_node(SyntaxKind::IndexItem.into());
+    let exit = delimited_items(
+        i.rb(),
+        TokenKind::RBracket,
+        Some(SyntaxKind::IndexItem),
+        accepts_ml,
+    );
+    i.state.finish_node();
+    continue_completed_tail(i, accepts_ml, exit)
+}
 
-    let inner = expr(i.rb());
-    i.state.finish_node();
-    let exit = match inner {
-        Some(Err(Either::Left(close))) if token_kind(&close) == Some(TokenKind::RBracket) => {
-            emit_token_item(&mut i, close);
-            i.state.finish_node();
-            let next = tail_item(i.rb());
-            return tail(i, next, accepts_ml);
-        }
-        Some(exit) => exit,
-        None => handoff(tail_item(i.rb())),
-    };
-    i.state.finish_node();
-    exit
+fn is_separator(item: &Item) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::Comma | TokenKind::Semicolon)
+    )
 }
 
 fn handoff(item: Item) -> TailExit {
@@ -158,9 +223,9 @@ fn tail_item(mut i: RewriteIn) -> Item {
     Item { leading, payload }
 }
 
-fn scan_core_item(mut i: LexIn) -> Option<Item> {
+fn scan_nud_item(mut i: LexIn) -> Option<Item> {
     let leading = scan_trivia_lex(i.rb());
-    let token = scan_identifier(i.rb())?;
+    let token = i.check(choice((token(scan_identifier), token(scan_lparen))))?;
     Some(Item {
         leading,
         payload: Payload::Token(token),
@@ -318,12 +383,19 @@ fn scan_punctuation(i: LexIn) -> Option<Token> {
         ')' => Some(TokenKind::RParen),
         '[' => Some(TokenKind::LBracket),
         ']' => Some(TokenKind::RBracket),
+        ',' => Some(TokenKind::Comma),
+        ';' => Some(TokenKind::Semicolon),
         _ => None,
     });
     Some(Token {
         kind: kind?,
         text: text.into(),
     })
+}
+
+fn scan_lparen(i: LexIn) -> Option<Token> {
+    let token = scan_punctuation(i)?;
+    (token.kind == TokenKind::LParen).then_some(token)
 }
 
 fn scan_unknown(i: LexIn) -> Option<Token> {
@@ -357,6 +429,8 @@ fn emit_token_item(i: &mut RewriteIn, item: Item) {
         TokenKind::RParen => SyntaxKind::RParen,
         TokenKind::LBracket => SyntaxKind::LBracket,
         TokenKind::RBracket => SyntaxKind::RBracket,
+        TokenKind::Comma => SyntaxKind::Comma,
+        TokenKind::Semicolon => SyntaxKind::Semicolon,
         TokenKind::Unknown => SyntaxKind::Unknown,
     };
     i.state.token(kind.into(), &token.text);

@@ -689,6 +689,16 @@ focused rewrite 11 tests、`cargo check -p yu-syntax`、scoped format/diff check
 package/workspace suite、performance、production、AST parity、Yumark bridge、上記の deferred
 G4b owner/recovery controls と Gate 4/G4b ledger は未実行・未完了である。
 
+2026-09-03: source-free rewrite の G4b valid delimited control を拡張した。`(...)` を
+identifier と並ぶ direct NUD にし、parenthesized/call/index owner が empty と comma/semicolon
+区切りの ordinary item sequence を受理する。private `delimited_items` は close token と optional
+`IndexItem` wrapper だけを受け、accepted owner へ直接 emit する。matching close を emit したら
+owner node を閉じてから初めて outer tail を scan するため、`(a,b;c) d` の `MlArgument(d)` は
+parenthesized node の外に出る。`f(a,b;c)[x,y;z]` の call close/index close と、`()`/`f()`/`x[]`
+の empty shape を focused controls で固定した。missing item/separator/close、wrong close、newline
+layout、comment ML、projection、production/AST/Yumark bridge、G4b/Gate 4 ledger は引き続き未実装。
+focused rewrite tests は 14 passed、package check、scoped format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
