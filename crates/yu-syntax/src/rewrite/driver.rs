@@ -260,7 +260,7 @@ fn parenthesized_nud(
     i.state
         .start_node(SyntaxKind::ParenthesizedExpression.into());
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, false);
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
@@ -270,7 +270,7 @@ fn delimited_items(
     close: TokenKind,
     item_node: Option<SyntaxKind>,
     incoming_baseline: usize,
-    accepts_ml: bool,
+    items_accept_ml: bool,
 ) -> TailExit {
     let stops = stops_for(close);
     let leading = scan_trivia(i.rb());
@@ -301,7 +301,7 @@ fn delimited_items(
         if let Some(kind) = item_node {
             i.state.start_node(kind.into());
         }
-        let exit = expr_from_nud(i.rb(), item, None, baseline, stops, accepts_ml);
+        let exit = expr_from_nud(i.rb(), item, None, baseline, stops, items_accept_ml);
         if item_node.is_some() {
             i.state.finish_node();
         }
@@ -317,6 +317,9 @@ fn delimited_items(
             }
             Err(Either::Left(next)) if is_close(&next) => {
                 wrong_close_item(i.rb(), next, baseline, stops)
+            }
+            Err(Either::Left(next)) if !items_accept_ml && is_nud_item(&next) => {
+                missing_item(i.rb(), next)
             }
             Err(Either::Right(end)) => return missing_close(i, end.item),
             exit => return exit,
@@ -362,7 +365,7 @@ fn call_tail(
 ) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, true);
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
@@ -382,7 +385,7 @@ fn index_tail(
         TokenKind::RBracket,
         Some(SyntaxKind::IndexItem),
         baseline,
-        accepts_ml,
+        true,
     );
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
@@ -446,7 +449,7 @@ fn projection_tuple_tail(
     i.state.start_node(SyntaxKind::ProjectionTupleTail.into());
     emit_token_item(&mut i, dot);
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, true);
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
@@ -463,7 +466,7 @@ fn projection_record_tail(
     i.state.start_node(SyntaxKind::ProjectionRecordTail.into());
     emit_token_item(&mut i, dot);
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, baseline, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, baseline, true);
     i.state.finish_node();
     continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }

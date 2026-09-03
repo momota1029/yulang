@@ -759,6 +759,15 @@ event buffer、recovery record の追加なし。missing separator/layout/other 
 record、Gate 4/G4b ledger は未完。M1 specification review は clean、focused rewrite tests は 31
 passed、package check、format/diff check は green。
 
+2026-09-04: parenthesized item の same-line missing-separator CST-only control を追加した。
+`items_accept_ml` は retained context でなく delimited owner が直接渡す scalar で、parenthesized は
+false、call/index/tuple・record projection は outer ML continuation に関係なく true。false owner が
+already-scanned NUD handoff を受けると、その leading trivia を出して zero-width `Missing` を置き、
+同じ Item を再scanせず次の item として parse する。よって `(a b)` は二つの OperatorChain と一つの
+Missing を持ち、`x[a b]`/`a.(x y)` の ML rule は不変。layout newline、typed recovery record、other
+invalid run、Gate 4/G4b ledger は未完。M1 specification review は clean、focused rewrite tests は 32
+passed、package check、format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

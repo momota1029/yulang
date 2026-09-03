@@ -262,6 +262,40 @@ fn delimited_owner_consumes_wrong_closes_before_settling_its_own_close() {
 }
 
 #[test]
+fn parenthesized_items_recover_a_same_line_missing_separator_without_ml() {
+    let (green, exit) = run("(a b)");
+    assert_eq!(green.to_string(), "(a b)");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let group = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+        .expect("parenthesized expression");
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        2
+    );
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert_eq!(
+        group
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::MlArgument)
+            .count(),
+        0
+    );
+}
+
+#[test]
 fn fixed_field_and_path_tails_keep_their_own_tokens() {
     let source = "a .field:: name b";
     let (green, exit) = run(source);
