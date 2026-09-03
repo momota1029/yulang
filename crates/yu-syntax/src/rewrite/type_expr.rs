@@ -137,12 +137,24 @@ fn type_bracket_row(mut i: RewriteIn, open: Item, baseline: usize) -> TailExit {
 
 fn type_bracket_arrow_after_row(mut i: RewriteIn, baseline: usize) -> TailExit {
     let leading = scan_trivia(i.rb());
-    let arrow = type_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&arrow.leading, baseline) || token_kind(&arrow) != Some(TokenKind::Arrow)
-    {
+    let mut arrow = type_nud_item_after_trivia(i.rb(), leading);
+    if !type_chain_trivia(&arrow.leading, baseline) {
+        emit_missing(&mut i, LeadingTrivia::default());
         return handoff(arrow);
     }
-    type_arrow_rhs(i, arrow, baseline)
+    if token_kind(&arrow) == Some(TokenKind::Arrow) {
+        return type_arrow_rhs(i, arrow, baseline);
+    }
+    if is_type_nud(&arrow) {
+        let leading = std::mem::take(&mut arrow.leading);
+        emit_missing(&mut i, leading);
+        return type_expr_from_nud(i, arrow, baseline, false);
+    }
+    if is_type_rhs_boundary(&arrow) {
+        let leading = std::mem::take(&mut arrow.leading);
+        emit_missing(&mut i, leading);
+    }
+    handoff(arrow)
 }
 
 fn type_group(mut i: RewriteIn, open: Item, baseline: usize, type_ml: bool) -> TailExit {

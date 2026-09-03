@@ -916,6 +916,13 @@ leading head、row close/item、mandatory arrowのrecoveryは未実装。M1 spec
 clean、focused rewrite testsは63 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは
 未完である。
 
+2026-09-04: direct `BracketRow` tailへBR-Aのnormal-boundary mandatory-arrow recoveryを追加した。actual arrowは
+existing TypeArrow RHS recursionを共有し、arrowなしでnext TypeExpression candidateがある場合はone Missing arrowから
+RHSをretryする。EOF / comma・semicolon / outer closeはarrow Missingだけを置いてboundaryをhandoffし、equal-or-shallower
+newlineもzero-width Missing後にunconsumedで返す。state/source reread/buffer/recovery recordの追加なし。malformed arrow
+run、missing head、row item / close recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは64 passed、
+package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

@@ -737,3 +737,27 @@ fn bracket_rows_attach_at_leading_and_arrow_positions() {
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
     }
 }
+
+#[test]
+fn bracket_row_arrow_is_mandatory_at_normal_boundaries() {
+    for source in ["T [e]", "T [e] U", "F(T [e])"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("T [e]\nU");
+    assert_eq!(green.to_string(), "T [e]");
+    assert!(matches!(exit, Some(Err(Either::Left(_)))));
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+}
