@@ -723,6 +723,15 @@ flat `OperatorChain` に置く。ML の argument vocabulary、integer 以外の 
 production/AST/Yumark bridge、G4b/Gate 4 ledger は引き続き scope 外である。focused rewrite tests は
 18 passed、package check、scoped format/diff check は green。
 
+2026-09-04: isolated source-free dynamic-operator scanner spine を追加した。pre-Item の raw
+suffix evidence、all-spelling の long-to-short fallback、merged Prefix+Nullfix 用 filtered
+value-start trie、explicit binding threshold/baseline/active-stop 引数、flat direct CST emission、
+Pratt Item handoff を実装した。§4.3 の source-only parametric accounting を採用し、rejected
+candidate は input/Recover/Rowan builder を変えない。M2 semantic/spec delta review は一件の
+`without_value` control 追加後 clean。focused `rewrite::tests` は 28 passed、package check、format、
+diff check は green。これは Gate 4/G4a や E/RB-E ledger を閉じず、production、AST parity、
+recovery diagnostics、Yumark、performance claim を含まない。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

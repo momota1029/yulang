@@ -8,10 +8,17 @@ use reborrow_generic::Reborrow as _;
 use rowan::GreenNodeBuilder;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::syntax_kind::SyntaxKind;
+use crate::{
+    operator::{BindingPower, OperatorFixity},
+    scan::operator::{OperatorSite, is_call_or_path_sensitive, judge_operator},
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
+    item::{
+        Item, LeadingTrivia, OperatorToken, OperatorUse, Payload, Token, TokenKind, Trivia,
+        TriviaKind,
+    },
     state::Recover,
 };
 
@@ -40,65 +47,156 @@ pub(super) struct End {
 /// the successor item only after closing that owner's Rowan node.
 pub(super) type TailExit = Result<(), Either<Item, End>>;
 
+const STOP_COMMA: u8 = 1 << 0;
+const STOP_SEMICOLON: u8 = 1 << 1;
+const STOP_RPAREN: u8 = 1 << 2;
+const STOP_RBRACKET: u8 = 1 << 3;
+const STOP_RBRACE: u8 = 1 << 4;
+
 /// `None` occurs only before the lexical transaction has accepted a NUD.
 pub(super) fn expr(mut i: RewriteIn) -> Option<TailExit> {
-    let nud = i.token(scan_nud_item)?;
-    Some(expr_from_nud(i, nud, true))
+    expr_at(i.rb(), None, 0, 0, true)
+}
+
+fn expr_at(
+    mut i: RewriteIn,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> Option<TailExit> {
+    let nud = i.token(|lex| scan_nud_item(lex, baseline, stops))?;
+    Some(expr_from_nud(
+        i, nud, threshold, baseline, stops, accepts_ml,
+    ))
 }
 
 /// Parses an already-accepted NUD without scanning it again.
-fn expr_from_nud(mut i: RewriteIn, nud: Item, accepts_ml: bool) -> TailExit {
+fn expr_from_nud(
+    mut i: RewriteIn,
+    nud: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = match token_kind(&nud) {
-        Some(TokenKind::Identifier) => {
-            emit_identifier_core(&mut i, nud);
-            scan_tail_after_accept(i.rb(), accepts_ml)
-        }
-        Some(TokenKind::Integer) => {
-            emit_integer_core(&mut i, nud);
-            scan_tail_after_accept(i.rb(), accepts_ml)
-        }
-        Some(TokenKind::LParen) => parenthesized_nud(i.rb(), nud, accepts_ml),
-        _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
-    };
+    let exit = append_nud(i.rb(), nud, threshold, baseline, stops, accepts_ml);
     i.state.finish_node();
     exit
 }
 
-fn scan_tail_after_accept(mut i: RewriteIn, accepts_ml: bool) -> TailExit {
-    let next = tail_item(i.rb());
-    tail(i.rb(), next, accepts_ml)
+/// Appends an accepted NUD to the active `OperatorChain` owner.
+fn append_nud(
+    mut i: RewriteIn,
+    nud: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
+    match token_kind(&nud) {
+        Some(TokenKind::Identifier) => {
+            emit_identifier_core(&mut i, nud);
+            scan_tail_after_accept(i.rb(), threshold, baseline, stops, accepts_ml)
+        }
+        Some(TokenKind::Integer) => {
+            emit_integer_core(&mut i, nud);
+            scan_tail_after_accept(i.rb(), threshold, baseline, stops, accepts_ml)
+        }
+        Some(TokenKind::LParen) => {
+            parenthesized_nud(i.rb(), nud, threshold, baseline, stops, accepts_ml)
+        }
+        Some(TokenKind::Operator) => {
+            operator_nud(i.rb(), nud, threshold, baseline, stops, accepts_ml)
+        }
+        _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
+    }
 }
 
-fn continue_completed_tail(i: RewriteIn, accepts_ml: bool, exit: TailExit) -> TailExit {
+fn expr_after_accept(
+    mut i: RewriteIn,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
+    let leading = scan_trivia(i.rb());
+    let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+    if is_nud_item(&item) {
+        append_nud(i, item, threshold, baseline, stops, accepts_ml)
+    } else {
+        handoff(item)
+    }
+}
+
+fn scan_tail_after_accept(
+    mut i: RewriteIn,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
+    let leading = scan_trivia(i.rb());
+    let next = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
+    tail(i, next, threshold, baseline, stops, accepts_ml)
+}
+
+fn continue_completed_tail(
+    i: RewriteIn,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+    exit: TailExit,
+) -> TailExit {
     match exit {
-        Ok(()) => scan_tail_after_accept(i, accepts_ml),
-        exit => exit,
+        Ok(()) => scan_tail_after_accept(i, threshold, baseline, stops, accepts_ml),
+        Err(Either::Left(item)) => tail(i, item, threshold, baseline, stops, accepts_ml),
+        Err(Either::Right(end)) => Err(Either::Right(end)),
     }
 }
 
 /// Unaccepted items are returned unchanged and receive no builder effect.
-pub(super) fn tail(mut i: RewriteIn, item: Item, accepts_ml: bool) -> TailExit {
+pub(super) fn tail(
+    mut i: RewriteIn,
+    item: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     if item.leading.0.is_empty() {
         match token_kind(&item) {
-            Some(TokenKind::LParen) => return call_tail(i.rb(), item, accepts_ml),
-            Some(TokenKind::LBracket) => return index_tail(i.rb(), item, accepts_ml),
+            Some(TokenKind::LParen) => {
+                return call_tail(i.rb(), item, threshold, baseline, stops, accepts_ml);
+            }
+            Some(TokenKind::LBracket) => {
+                return index_tail(i.rb(), item, threshold, baseline, stops, accepts_ml);
+            }
             _ => {}
         }
     }
     match token_kind(&item) {
-        Some(TokenKind::Dot) => return dot_tail(i.rb(), item, accepts_ml),
-        Some(TokenKind::PathSeparator) => return path_tail(i.rb(), item, accepts_ml),
+        Some(TokenKind::Dot) => {
+            return dot_tail(i.rb(), item, threshold, baseline, stops, accepts_ml);
+        }
+        Some(TokenKind::PathSeparator) => {
+            return path_tail(i.rb(), item, threshold, baseline, stops, accepts_ml);
+        }
+        Some(TokenKind::Operator) if is_led_operator(&item) => {
+            return operator_tail(i.rb(), item, threshold, baseline, stops, accepts_ml);
+        }
         _ => {}
     }
     if accepts_ml && is_ml_argument(&item) {
-        return ml_argument(i.rb(), item);
+        return ml_argument(i.rb(), item, threshold, baseline, stops);
     }
     handoff(item)
 }
 
 fn is_ml_argument(item: &Item) -> bool {
-    token_kind(item) == Some(TokenKind::Identifier)
+    is_nud_item(item)
         && !item.leading.0.is_empty()
         && item
             .leading
@@ -107,32 +205,105 @@ fn is_ml_argument(item: &Item) -> bool {
             .all(|part| part.kind == TriviaKind::Whitespace)
 }
 
-fn ml_argument(mut i: RewriteIn, argument: Item) -> TailExit {
+fn is_led_operator(item: &Item) -> bool {
+    matches!(
+        operator_use(item),
+        Some(OperatorUse::Infix { .. } | OperatorUse::Suffix(_))
+    )
+}
+
+fn ml_argument(
+    mut i: RewriteIn,
+    argument: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+) -> TailExit {
     i.state.start_node(SyntaxKind::MlArgument.into());
-    let exit = expr_from_nud(i.rb(), argument, false);
+    let exit = expr_from_nud(i.rb(), argument, threshold, baseline, stops, false);
     i.state.finish_node();
-    match exit {
-        Err(Either::Left(next)) => tail(i, next, true),
-        exit => exit,
+    continue_completed_tail(i, threshold, baseline, stops, true, exit)
+}
+
+fn operator_nud(
+    mut i: RewriteIn,
+    operator: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
+    match operator_use(&operator) {
+        Some(OperatorUse::Prefix(right)) => {
+            let right = right.clone();
+            emit_operator_use(&mut i, operator, SyntaxKind::PrefixOperatorUse);
+            let rhs = expr_after_accept(i.rb(), Some(&right), baseline, stops, accepts_ml);
+            continue_completed_tail(i, threshold, baseline, stops, accepts_ml, rhs)
+        }
+        Some(OperatorUse::Nullfix) => {
+            emit_operator_use(&mut i, operator, SyntaxKind::NullfixOperatorUse);
+            scan_tail_after_accept(i, threshold, baseline, stops, accepts_ml)
+        }
+        _ => unreachable!("the NUD scanner accepts only prefix and nullfix operators"),
     }
 }
 
-fn parenthesized_nud(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
+fn operator_tail(
+    mut i: RewriteIn,
+    operator: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
+    match operator_use(&operator) {
+        Some(OperatorUse::Infix { left, right }) => {
+            if threshold.is_some_and(|minimum| left < minimum) {
+                return handoff(operator);
+            }
+            let right = right.clone();
+            emit_operator_use(&mut i, operator, SyntaxKind::InfixOperatorUse);
+            let rhs = expr_after_accept(i.rb(), Some(&right), baseline, stops, accepts_ml);
+            continue_completed_tail(i, threshold, baseline, stops, accepts_ml, rhs)
+        }
+        Some(OperatorUse::Suffix(left)) => {
+            if threshold.is_some_and(|minimum| left < minimum) {
+                return handoff(operator);
+            }
+            emit_operator_use(&mut i, operator, SyntaxKind::SuffixOperatorUse);
+            scan_tail_after_accept(i, threshold, baseline, stops, accepts_ml)
+        }
+        _ => unreachable!("the LED scanner accepts only infix and suffix operators"),
+    }
+}
+
+fn parenthesized_nud(
+    mut i: RewriteIn,
+    open: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedExpression.into());
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, accepts_ml);
     i.state.finish_node();
-    continue_completed_tail(i, accepts_ml, exit)
+    continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
 
 fn delimited_items(
     mut i: RewriteIn,
     close: TokenKind,
     item_node: Option<SyntaxKind>,
+    incoming_baseline: usize,
     accepts_ml: bool,
 ) -> TailExit {
-    let mut item = tail_item(i.rb());
+    let stops = stops_for(close);
+    let leading = scan_trivia(i.rb());
+    let baseline = delimited_baseline(incoming_baseline, &leading);
+    let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
     loop {
         if token_kind(&item) == Some(close) {
             emit_token_item(&mut i, item);
@@ -145,14 +316,15 @@ fn delimited_items(
         if let Some(kind) = item_node {
             i.state.start_node(kind.into());
         }
-        let exit = expr_from_item(i.rb(), item, accepts_ml);
+        let exit = expr_from_item(i.rb(), item, None, baseline, stops, accepts_ml);
         if item_node.is_some() {
             i.state.finish_node();
         }
         item = match exit {
             Err(Either::Left(next)) if is_separator(&next) => {
                 emit_token_item(&mut i, next);
-                tail_item(i.rb())
+                let leading = scan_trivia(i.rb());
+                tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
             }
             Err(Either::Left(next)) if token_kind(&next) == Some(close) => {
                 emit_token_item(&mut i, next);
@@ -167,48 +339,94 @@ fn is_nud_item(item: &Item) -> bool {
     matches!(
         token_kind(item),
         Some(TokenKind::Identifier | TokenKind::Integer | TokenKind::LParen)
+    ) || matches!(
+        operator_use(item),
+        Some(OperatorUse::Prefix(_) | OperatorUse::Nullfix)
     )
 }
 
-fn expr_from_item(i: RewriteIn, item: Item, accepts_ml: bool) -> TailExit {
-    debug_assert!(is_nud_item(&item));
-    expr_from_nud(i, item, accepts_ml)
+fn expr_from_item(
+    i: RewriteIn,
+    item: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
+    expr_from_nud(i, item, threshold, baseline, stops, accepts_ml)
 }
 
-fn call_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
+fn call_tail(
+    mut i: RewriteIn,
+    open: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, accepts_ml);
     i.state.finish_node();
-    continue_completed_tail(i, accepts_ml, exit)
+    continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
 
-fn index_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
+fn index_tail(
+    mut i: RewriteIn,
+    open: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
     emit_token_item(&mut i, open);
     let exit = delimited_items(
         i.rb(),
         TokenKind::RBracket,
         Some(SyntaxKind::IndexItem),
+        baseline,
         accepts_ml,
     );
     i.state.finish_node();
-    continue_completed_tail(i, accepts_ml, exit)
+    continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
 
-fn dot_tail(mut i: RewriteIn, dot: Item, accepts_ml: bool) -> TailExit {
-    let next = tail_item(i.rb());
+fn dot_tail(
+    mut i: RewriteIn,
+    dot: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
+    let leading = scan_trivia(i.rb());
+    let next = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
     if next.leading.0.is_empty() {
         match token_kind(&next) {
-            Some(TokenKind::LParen) => return projection_tuple_tail(i, dot, next, accepts_ml),
-            Some(TokenKind::LBrace) => return projection_record_tail(i, dot, next, accepts_ml),
+            Some(TokenKind::LParen) => {
+                return projection_tuple_tail(i, dot, next, threshold, baseline, stops, accepts_ml);
+            }
+            Some(TokenKind::LBrace) => {
+                return projection_record_tail(
+                    i, dot, next, threshold, baseline, stops, accepts_ml,
+                );
+            }
             _ => {}
         }
     }
-    field_tail(i, dot, next, accepts_ml)
+    field_tail(i, dot, next, threshold, baseline, stops, accepts_ml)
 }
 
-fn field_tail(mut i: RewriteIn, dot: Item, name: Item, accepts_ml: bool) -> TailExit {
+fn field_tail(
+    mut i: RewriteIn,
+    dot: Item,
+    name: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state.start_node(SyntaxKind::FieldTail.into());
     emit_token_item(&mut i, dot);
     if token_kind(&name) != Some(TokenKind::Identifier) || !name.leading.0.is_empty() {
@@ -217,38 +435,62 @@ fn field_tail(mut i: RewriteIn, dot: Item, name: Item, accepts_ml: bool) -> Tail
     }
     emit_token_item(&mut i, name);
     i.state.finish_node();
-    scan_tail_after_accept(i, accepts_ml)
+    scan_tail_after_accept(i, threshold, baseline, stops, accepts_ml)
 }
 
-fn projection_tuple_tail(mut i: RewriteIn, dot: Item, open: Item, accepts_ml: bool) -> TailExit {
+fn projection_tuple_tail(
+    mut i: RewriteIn,
+    dot: Item,
+    open: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state.start_node(SyntaxKind::ProjectionTupleTail.into());
     emit_token_item(&mut i, dot);
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RParen, None, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RParen, None, baseline, accepts_ml);
     i.state.finish_node();
-    continue_completed_tail(i, accepts_ml, exit)
+    continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
 
-fn projection_record_tail(mut i: RewriteIn, dot: Item, open: Item, accepts_ml: bool) -> TailExit {
+fn projection_record_tail(
+    mut i: RewriteIn,
+    dot: Item,
+    open: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state.start_node(SyntaxKind::ProjectionRecordTail.into());
     emit_token_item(&mut i, dot);
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, accepts_ml);
+    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, baseline, accepts_ml);
     i.state.finish_node();
-    continue_completed_tail(i, accepts_ml, exit)
+    continue_completed_tail(i, threshold, baseline, stops, accepts_ml, exit)
 }
 
-fn path_tail(mut i: RewriteIn, separator: Item, accepts_ml: bool) -> TailExit {
+fn path_tail(
+    mut i: RewriteIn,
+    separator: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    accepts_ml: bool,
+) -> TailExit {
     i.state.start_node(SyntaxKind::PathTail.into());
     emit_token_item(&mut i, separator);
-    let segment = tail_item(i.rb());
+    let leading = scan_trivia(i.rb());
+    let segment = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
     if token_kind(&segment) != Some(TokenKind::Identifier) {
         i.state.finish_node();
         return handoff(segment);
     }
     emit_token_item(&mut i, segment);
     i.state.finish_node();
-    scan_tail_after_accept(i, accepts_ml)
+    scan_tail_after_accept(i, threshold, baseline, stops, accepts_ml)
 }
 
 fn is_separator(item: &Item) -> bool {
@@ -261,21 +503,201 @@ fn is_separator(item: &Item) -> bool {
 fn handoff(item: Item) -> TailExit {
     match item.payload {
         Payload::Eof => Err(Either::Right(End { item })),
-        Payload::Token(_) => Err(Either::Left(item)),
+        Payload::Token(_) | Payload::Operator(_) => Err(Either::Left(item)),
     }
 }
 
 fn token_kind(item: &Item) -> Option<TokenKind> {
     match &item.payload {
         Payload::Token(token) => Some(token.kind),
+        Payload::Operator(_) => Some(TokenKind::Operator),
         Payload::Eof => None,
     }
 }
 
-fn tail_item(mut i: RewriteIn) -> Item {
-    let leading = scan_trivia(i.rb());
-    let payload = i
-        .map(
+fn operator_use(item: &Item) -> Option<&OperatorUse> {
+    let Payload::Operator(operator) = &item.payload else {
+        return None;
+    };
+    Some(&operator.use_)
+}
+
+fn stops_for(close: TokenKind) -> u8 {
+    let close = match close {
+        TokenKind::RParen => STOP_RPAREN,
+        TokenKind::RBracket => STOP_RBRACKET,
+        TokenKind::RBrace => STOP_RBRACE,
+        _ => unreachable!("only a matching close owns a delimited stop set"),
+    };
+    STOP_COMMA | STOP_SEMICOLON | close
+}
+
+fn active_stop(source: &str, stops: u8) -> bool {
+    match source.chars().next() {
+        Some(',') => stops & STOP_COMMA != 0,
+        Some(';') => stops & STOP_SEMICOLON != 0,
+        Some(')') => stops & STOP_RPAREN != 0,
+        Some(']') => stops & STOP_RBRACKET != 0,
+        Some('}') => stops & STOP_RBRACE != 0,
+        _ => false,
+    }
+}
+
+fn delimited_baseline(incoming: usize, leading: &LeadingTrivia) -> usize {
+    let mut at_line_start = false;
+    let mut indentation = 0usize;
+
+    for part in &leading.0 {
+        for character in part.text.chars() {
+            match character {
+                '\r' | '\n' => {
+                    at_line_start = true;
+                    indentation = 0;
+                }
+                ' ' | '\t' if at_line_start => indentation += 1,
+                _ => at_line_start = false,
+            }
+        }
+    }
+
+    (at_line_start && indentation > incoming)
+        .then_some(indentation)
+        .unwrap_or(incoming)
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum RawTrailing {
+    None,
+    Space,
+    Newline { indentation: usize },
+}
+
+fn raw_trivia_character(
+    character: char,
+    saw_newline: &mut bool,
+    at_line_start: &mut bool,
+    indentation: &mut usize,
+) {
+    match character {
+        '\r' | '\n' => {
+            *saw_newline = true;
+            *at_line_start = true;
+            *indentation = 0;
+        }
+        ' ' | '\t' if *at_line_start => *indentation += 1,
+        _ => *at_line_start = false,
+    }
+}
+
+fn raw_trivia_suffix(mut source: &str) -> (RawTrailing, &str) {
+    let mut present = false;
+    let mut saw_newline = false;
+    let mut at_line_start = false;
+    let mut indentation = 0usize;
+
+    loop {
+        let before = source;
+        while let Some(character) = source.chars().next() {
+            if !matches!(character, ' ' | '\t' | '\r' | '\n') {
+                break;
+            }
+            present = true;
+            raw_trivia_character(
+                character,
+                &mut saw_newline,
+                &mut at_line_start,
+                &mut indentation,
+            );
+            source = &source[character.len_utf8()..];
+        }
+        if source.starts_with("//") {
+            present = true;
+            source = &source[2..];
+            raw_trivia_character('/', &mut saw_newline, &mut at_line_start, &mut indentation);
+            raw_trivia_character('/', &mut saw_newline, &mut at_line_start, &mut indentation);
+            while let Some(character) = source.chars().next() {
+                if matches!(character, '\r' | '\n') {
+                    break;
+                }
+                raw_trivia_character(
+                    character,
+                    &mut saw_newline,
+                    &mut at_line_start,
+                    &mut indentation,
+                );
+                source = &source[character.len_utf8()..];
+            }
+            continue;
+        }
+        if source.starts_with("/*") {
+            present = true;
+            let comment = source;
+            source = raw_block_comment_suffix(source);
+            let consumed = comment.len() - source.len();
+            for character in comment[..consumed].chars() {
+                raw_trivia_character(
+                    character,
+                    &mut saw_newline,
+                    &mut at_line_start,
+                    &mut indentation,
+                );
+            }
+            continue;
+        }
+        if source.len() == before.len() {
+            let trailing = if !present {
+                RawTrailing::None
+            } else if saw_newline {
+                RawTrailing::Newline { indentation }
+            } else {
+                RawTrailing::Space
+            };
+            return (trailing, source);
+        }
+    }
+}
+
+fn raw_block_comment_suffix(mut source: &str) -> &str {
+    debug_assert!(source.starts_with("/*"));
+    source = &source[2..];
+    let mut depth = 1usize;
+    while !source.is_empty() {
+        if source.starts_with("/*") {
+            depth += 1;
+            source = &source[2..];
+            continue;
+        }
+        if source.starts_with("*/") {
+            depth -= 1;
+            source = &source[2..];
+            if depth == 0 {
+                return source;
+            }
+            continue;
+        }
+        let character = source
+            .chars()
+            .next()
+            .expect("a non-empty UTF-8 suffix has one character");
+        source = &source[character.len_utf8()..];
+    }
+    source
+}
+
+fn tail_item_after_trivia(
+    mut i: RewriteIn,
+    leading: LeadingTrivia,
+    site: OperatorSite,
+    baseline: usize,
+    stops: u8,
+) -> Item {
+    let has_leading_trivia = !leading.0.is_empty();
+    let payload = if let Some(operator) =
+        i.token(|lex| scan_operator(lex, site, has_leading_trivia, baseline, stops))
+    {
+        Payload::Operator(operator)
+    } else {
+        i.map(
             choice((
                 token(scan_identifier),
                 token(scan_integer),
@@ -284,21 +706,26 @@ fn tail_item(mut i: RewriteIn) -> Item {
             )),
             Payload::Token,
         )
-        .unwrap_or(Payload::Eof);
+        .unwrap_or(Payload::Eof)
+    };
     Item { leading, payload }
 }
 
-fn scan_nud_item(mut i: LexIn) -> Option<Item> {
+fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<Item> {
     let leading = scan_trivia_lex(i.rb());
-    let token = i.check(choice((
-        token(scan_identifier),
-        token(scan_integer),
-        token(scan_lparen),
-    )))?;
-    Some(Item {
-        leading,
-        payload: Payload::Token(token),
-    })
+    let has_leading_trivia = !leading.0.is_empty();
+    let payload = if let Some(token) = i.token(scan_lparen) {
+        Payload::Token(token)
+    } else if let Some(operator) =
+        i.token(|lex| scan_operator(lex, OperatorSite::Nud, has_leading_trivia, baseline, stops))
+    {
+        Payload::Operator(operator)
+    } else if let Some(token) = i.token(scan_identifier) {
+        Payload::Token(token)
+    } else {
+        Payload::Token(i.token(scan_integer)?)
+    };
+    Some(Item { leading, payload })
 }
 
 fn scan_trivia(mut i: RewriteIn) -> LeadingTrivia {
@@ -463,6 +890,112 @@ fn scan_integer_digit(mut i: LexIn) -> Option<()> {
     i.next()?.is_ascii_digit().then_some(())
 }
 
+pub(super) fn scan_operator(
+    mut i: LexIn,
+    site: OperatorSite,
+    has_leading_trivia: bool,
+    baseline: usize,
+    stops: u8,
+) -> Option<OperatorToken> {
+    let table = i.recovery().operators();
+    let source = i.remainder();
+    let (use_, end) = table.longest_source_match_then(source, |last, entry, end| {
+        operator_boundary(last, &source[end..])?;
+
+        let (trailing, after_trivia) = raw_trivia_suffix(&source[end..]);
+        let kinds = entry.fixities().kinds();
+        if is_call_or_path_sensitive(kinds)
+            && trailing == RawTrailing::None
+            && matches!(after_trivia.chars().next(), Some('(' | ':'))
+        {
+            return None;
+        }
+
+        let post_whitespace = trailing != RawTrailing::None
+            || after_trivia.is_empty()
+            || active_stop(after_trivia, stops);
+        let value_start = raw_value_start(table, trailing, after_trivia, baseline);
+        let with_value = judge_operator(site, kinds, has_leading_trivia, post_whitespace, true);
+        let without_value = judge_operator(site, kinds, has_leading_trivia, post_whitespace, false);
+        let fixity = if is_call_or_path_sensitive(kinds) && post_whitespace && value_start {
+            Some(OperatorFixity::Prefix)
+        } else if with_value != without_value {
+            if value_start {
+                with_value
+            } else {
+                without_value
+            }
+        } else {
+            with_value
+        }?;
+        selected_operator_use(entry.fixities(), fixity)
+    })?;
+    let character_count = source[..end].chars().count();
+    let (accepted, text) = i.with_str(|mut operator| {
+        for _ in 0..character_count {
+            operator.next()?;
+        }
+        Some(())
+    });
+    accepted?;
+    Some(OperatorToken {
+        text: text.into(),
+        use_,
+    })
+}
+
+fn operator_boundary(last: char, following: &str) -> Option<()> {
+    (!is_xid_continue(last)
+        || following
+            .chars()
+            .next()
+            .is_none_or(|character| !is_xid_continue(character)))
+    .then_some(())
+}
+
+fn raw_value_start(
+    table: &crate::operator::OperatorTable,
+    trailing: RawTrailing,
+    source: &str,
+    baseline: usize,
+) -> bool {
+    if matches!(trailing, RawTrailing::Newline { indentation } if indentation <= baseline) {
+        return false;
+    }
+
+    match source.chars().next() {
+        Some('"' | '(' | '[' | '{' | '$' | '\\' | '%' | '_' | '\'') => true,
+        Some(character)
+            if is_xid_start(character) || character.is_ascii_digit() || character == '.' =>
+        {
+            true
+        }
+        _ => table.value_start_source_len(source).is_some(),
+    }
+}
+
+fn selected_operator_use(
+    fixities: &crate::operator::OperatorFixities,
+    fixity: OperatorFixity,
+) -> Option<OperatorUse> {
+    match fixity {
+        OperatorFixity::Prefix => Some(OperatorUse::Prefix(
+            fixities.prefix()?.right_binding_power().clone(),
+        )),
+        OperatorFixity::Infix => {
+            let infix = fixities.infix()?;
+            Some(OperatorUse::Infix {
+                left: infix.left_binding_power().clone(),
+                right: infix.right_binding_power().clone(),
+            })
+        }
+        OperatorFixity::Suffix => Some(OperatorUse::Suffix(
+            fixities.suffix()?.left_binding_power().clone(),
+        )),
+        OperatorFixity::Nullfix => fixities.is_nullfix().then_some(OperatorUse::Nullfix),
+    }
+}
+
 fn scan_punctuation(i: LexIn) -> Option<Token> {
     let (kind, text) = i.with_str(|mut punctuation| match punctuation.next()? {
         '(' => Some(TokenKind::LParen),
@@ -526,27 +1059,43 @@ fn emit_integer_core(i: &mut RewriteIn, item: Item) {
     i.state.finish_node();
 }
 
-fn emit_token_item(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("only a lexical item can be accepted")
+fn emit_operator_use(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
+    let Payload::Operator(operator) = item.payload else {
+        unreachable!("an operator use always owns an operator token")
     };
+    i.state.start_node(kind.into());
     emit_trivia(i, &item.leading);
-    let kind = match token.kind {
-        TokenKind::Identifier => SyntaxKind::Identifier,
-        TokenKind::Integer => SyntaxKind::Integer,
-        TokenKind::LParen => SyntaxKind::LParen,
-        TokenKind::RParen => SyntaxKind::RParen,
-        TokenKind::LBracket => SyntaxKind::LBracket,
-        TokenKind::RBracket => SyntaxKind::RBracket,
-        TokenKind::LBrace => SyntaxKind::LBrace,
-        TokenKind::RBrace => SyntaxKind::RBrace,
-        TokenKind::Comma => SyntaxKind::Comma,
-        TokenKind::Semicolon => SyntaxKind::Semicolon,
-        TokenKind::Dot => SyntaxKind::Dot,
-        TokenKind::PathSeparator => SyntaxKind::ColonColon,
-        TokenKind::Unknown => SyntaxKind::Unknown,
-    };
-    i.state.token(kind.into(), &token.text);
+    i.state.token(SyntaxKind::Operator.into(), &operator.text);
+    i.state.finish_node();
+}
+
+fn emit_token_item(i: &mut RewriteIn, item: Item) {
+    emit_trivia(i, &item.leading);
+    match item.payload {
+        Payload::Operator(operator) => {
+            i.state.token(SyntaxKind::Operator.into(), &operator.text);
+        }
+        Payload::Token(token) => {
+            let kind = match token.kind {
+                TokenKind::Identifier => SyntaxKind::Identifier,
+                TokenKind::Integer => SyntaxKind::Integer,
+                TokenKind::Operator => unreachable!("operators have a selected dynamic role"),
+                TokenKind::LParen => SyntaxKind::LParen,
+                TokenKind::RParen => SyntaxKind::RParen,
+                TokenKind::LBracket => SyntaxKind::LBracket,
+                TokenKind::RBracket => SyntaxKind::RBracket,
+                TokenKind::LBrace => SyntaxKind::LBrace,
+                TokenKind::RBrace => SyntaxKind::RBrace,
+                TokenKind::Comma => SyntaxKind::Comma,
+                TokenKind::Semicolon => SyntaxKind::Semicolon,
+                TokenKind::Dot => SyntaxKind::Dot,
+                TokenKind::PathSeparator => SyntaxKind::ColonColon,
+                TokenKind::Unknown => SyntaxKind::Unknown,
+            };
+            i.state.token(kind.into(), &token.text);
+        }
+        Payload::Eof => unreachable!("only a lexical item can be emitted"),
+    }
 }
 
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.

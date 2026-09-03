@@ -180,6 +180,13 @@ impl<'a, I: Input, R: Recover + 'a, S: Rb + 'a> In<'a, I, R, S> {
     }
 }
 
+impl<'a, 'source, R: Recover + 'a> In<'a, &'source str, R, ()> {
+    /// Borrow the live unconsumed suffix without retaining it in parser state.
+    pub fn remainder(&self) -> &'source str {
+        *self.input
+    }
+}
+
 impl<'a, 'source, R: Recover + 'a, S: Rb + 'a> In<'a, &'source str, R, S> {
     /// Run an operation through a short reborrow and return the exact source
     /// prefix it consumed from the current cursor.

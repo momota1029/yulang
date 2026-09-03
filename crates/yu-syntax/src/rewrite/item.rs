@@ -19,6 +19,7 @@ pub(super) enum TriviaKind {
 pub(super) enum TokenKind {
     Identifier,
     Integer,
+    Operator,
     LParen,
     RParen,
     LBracket,
@@ -39,8 +40,26 @@ pub(super) struct Token {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct OperatorToken {
+    pub(super) text: Box<str>,
+    pub(super) use_: OperatorUse,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum OperatorUse {
+    Prefix(BindingPower),
+    Infix {
+        left: BindingPower,
+        right: BindingPower,
+    },
+    Suffix(BindingPower),
+    Nullfix,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum Payload {
     Token(Token),
+    Operator(OperatorToken),
     Eof,
 }
 
@@ -50,3 +69,4 @@ pub(super) struct Item {
     pub(super) leading: LeadingTrivia,
     pub(super) payload: Payload,
 }
+use crate::operator::BindingPower;

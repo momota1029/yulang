@@ -10,6 +10,10 @@ impl<'operators> Recover<'operators> {
     pub(super) fn new(operators: &'operators OperatorTable) -> Self {
         Self { operators }
     }
+
+    pub(super) fn operators(&self) -> &'operators OperatorTable {
+        self.operators
+    }
 }
 
 impl Recoverable for Recover<'_> {
