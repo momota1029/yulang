@@ -855,6 +855,14 @@ runはone maximal non-empty `Error`にしてvalid name segmentまたはsafe boun
 recovery recordの追加なし。M1 specification review はclean、focused rewrite testsは52 passed、package check、format/
 diff checkはgreen。call/group/arrow/primaryのremaining recoveryとproduction wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: standalone `TypeExpression` の accepted `TypeArrowTail` mandatory RHS に direct CST recovery を
+追加した。exact `->`後のEOF、separator、all close token、equal-or-shallower newlineはarrow tail内のzero-width
+`Missing`一件にpost-arrow triviaを置き、boundary Item自体はconsumeせずcallerへ返す。malformed RHS runはone maximal
+non-empty `Error`にし、next valid TypePrimaryでsame RHS slotをretryする。boundaryへ至ったErrorにMissingを重ねず、
+recursive RHSのright-associative arrow ownershipは維持する。state/source reread/buffer/recovery recordの追加なし。M1
+specification review はclean、focused rewrite testsは53 passed、package check、format/diff checkはgreen。call/group/
+primaryのremaining recoveryとproduction wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

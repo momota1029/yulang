@@ -218,3 +218,45 @@ fn type_path_tail_recovers_its_mandatory_segment() {
         ]
     );
 }
+
+#[test]
+fn type_arrow_tail_recovers_its_mandatory_rhs() {
+    for (source, recovery) in [("A->", SyntaxKind::Missing), ("A->@B", SyntaxKind::Error)] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let arrow = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+            .expect("type arrow tail");
+        assert_eq!(
+            arrow
+                .children()
+                .filter(|node| node.kind() == recovery)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("A->\n");
+    assert_eq!(green.to_string(), "A->\n");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let arrow = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+        .expect("type arrow tail");
+    assert_eq!(
+        arrow
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Arrow, "->".to_owned()),
+            (SyntaxKind::Newline, "\n".to_owned()),
+        ]
+    );
+}

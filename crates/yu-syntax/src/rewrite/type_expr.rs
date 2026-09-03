@@ -173,18 +173,39 @@ fn type_arrow_tail(mut i: RewriteIn, arrow: Item, baseline: usize) -> TailExit {
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
     emit_token_item(&mut i, arrow);
     let trivia = scan_trivia(i.rb());
-    if !type_chain_trivia(&trivia, baseline) {
+    let mut rhs = type_item_after_trivia(i.rb(), trivia);
+    if !type_chain_trivia(&rhs.leading, baseline) || is_type_rhs_boundary(&rhs) {
+        let leading = std::mem::take(&mut rhs.leading);
+        emit_missing(&mut i, leading);
         i.state.finish_node();
-        return handoff(type_item_after_trivia(i, trivia));
+        return handoff(rhs);
     }
-    emit_leading_trivia(&mut i, &trivia);
-    let Some(rhs) = i.token(scan_type_nud_item) else {
+    if !is_type_primary(&rhs) {
+        rhs = retry_type_rhs(i.rb(), rhs, baseline);
+    }
+    if !is_type_primary(&rhs) {
         i.state.finish_node();
-        return handoff(type_item_after_trivia(i, LeadingTrivia::default()));
-    };
+        return handoff(rhs);
+    }
     let exit = type_expr_from_primary(i.rb(), rhs, baseline, false);
     i.state.finish_node();
     exit
+}
+
+fn retry_type_rhs(mut i: RewriteIn, mut item: Item, baseline: usize) -> Item {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_item_after_trivia(i.rb(), leading);
+        if is_type_primary(&item)
+            || !type_chain_trivia(&item.leading, baseline)
+            || is_type_rhs_boundary(&item)
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
 }
 
 fn continue_type_tail(i: RewriteIn, baseline: usize, type_ml: bool, exit: TailExit) -> TailExit {
@@ -227,6 +248,15 @@ fn is_type_path_boundary(item: &Item) -> bool {
                     | TokenKind::RBracket
                     | TokenKind::RBrace
             )
+        )
+}
+
+fn is_type_rhs_boundary(item: &Item) -> bool {
+    matches!(&item.payload, Payload::Eof)
+        || is_type_separator(item)
+        || matches!(
+            token_kind(item),
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
         )
 }
 
