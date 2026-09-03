@@ -9,9 +9,7 @@ use chasa::{
     prelude::{any, choice, from_fn, item, many_skip, none_of, one_of, tag},
 };
 
-use crate::{
-    session::{EmbeddedLexicalMode, LineState, SynIn},
-};
+use crate::session::{EmbeddedLexicalMode, LineState, SynIn};
 
 /// The typed, contiguous source range consumed by one maximal trivia scan.
 ///
@@ -132,9 +130,7 @@ pub(crate) enum CommentTermination {
 /// Yulang's `--` and `---` document markers are declaration-level tokens in
 /// the oracle grammar. Document recognition therefore stays outside this
 /// shared trivia scanner; only `//` is an ordinary line comment here.
-pub(crate) fn scan_trivia<E>(
-    mut i: SynIn<E>,
-) -> Option<TriviaRun>
+pub(crate) fn scan_trivia<E>(mut i: SynIn<E>) -> Option<TriviaRun>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -182,9 +178,7 @@ where
     }
 }
 
-fn scan_whitespace<E>(
-    mut i: SynIn<E>,
-) -> Option<Vec<TriviaPart>>
+fn scan_whitespace<E>(mut i: SynIn<E>) -> Option<Vec<TriviaPart>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -255,32 +249,23 @@ where
     consumed.then_some(parts)
 }
 
-fn scan_line_comment<E>(
-    mut i: SynIn<E>,
-) -> Option<TriviaPart>
+fn scan_line_comment<E>(mut i: SynIn<E>) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
     let start = i.pos();
     i.skip(tag("//"))?;
-    i
-        .local
-        .push_lexical_mode(EmbeddedLexicalMode::LineComment);
+    i.local.push_lexical_mode(EmbeddedLexicalMode::LineComment);
     i.skip(many_skip(none_of("\r\n")))?;
     debug_assert_eq!(
         i.local.pop_lexical_mode(),
         Some(EmbeddedLexicalMode::LineComment)
     );
-    Some(TriviaPart::new(
-        TriviaPartKind::LineComment,
-        start..i.pos(),
-    ))
+    Some(TriviaPart::new(TriviaPartKind::LineComment, start..i.pos()))
 }
 
-fn scan_block_comment<E>(
-    mut i: SynIn<E>,
-) -> Option<TriviaPart>
+fn scan_block_comment<E>(mut i: SynIn<E>) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -288,8 +273,7 @@ where
 {
     let start = i.pos();
     i.skip(tag("/*"))?;
-    i
-        .local
+    i.local
         .push_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: 1 });
 
     loop {
@@ -303,8 +287,7 @@ where
             // The oracle accepts an unterminated block comment at EOF and
             // synthesizes its closing trivia token. Keep the lexical frame so
             // callers can still observe that the source ended in this mode.
-            let Some(EmbeddedLexicalMode::BlockComment { depth }) = i.local.lexical_mode()
-            else {
+            let Some(EmbeddedLexicalMode::BlockComment { depth }) = i.local.lexical_mode() else {
                 unreachable!("block-comment scanner owns the top lexical frame");
             };
             return Some(TriviaPart::new(
@@ -323,8 +306,7 @@ where
                 else {
                     unreachable!("block-comment scanner owns the top lexical frame");
                 };
-                i
-                    .local
+                i.local
                     .replace_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: depth + 1 });
             }
             BlockCommentUnit::Close => {
@@ -344,8 +326,7 @@ where
                         start..i.pos(),
                     ));
                 }
-                i
-                    .local
+                i.local
                     .replace_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: depth - 1 });
             }
             BlockCommentUnit::Whitespace | BlockCommentUnit::Text => {}
@@ -353,9 +334,7 @@ where
     }
 }
 
-fn scan_block_slash<E>(
-    mut i: SynIn<E>,
-) -> Option<BlockCommentUnit>
+fn scan_block_slash<E>(mut i: SynIn<E>) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -365,15 +344,12 @@ where
     // `*/` prevents the same bytes from opening a nested comment.
     i.skip(many_skip(tag("*/")))?;
     Some(
-        i
-            .maybe(item('*'))?
+        i.maybe(item('*'))?
             .map_or(BlockCommentUnit::Text, |_| BlockCommentUnit::Open),
     )
 }
 
-fn scan_block_star<E>(
-    mut i: SynIn<E>,
-) -> Option<BlockCommentUnit>
+fn scan_block_star<E>(mut i: SynIn<E>) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -383,8 +359,7 @@ where
     // whether the final slash closes the current depth.
     i.skip(many_skip(tag("/*")))?;
     Some(
-        i
-            .maybe(item('/'))?
+        i.maybe(item('/'))?
             .map_or(BlockCommentUnit::Text, |_| BlockCommentUnit::Close),
     )
 }
@@ -406,7 +381,10 @@ enum BlockCommentUnit {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::{input::IsCut, prelude::{In, from_fn_once, item}};
+    use chasa::{
+        input::IsCut,
+        prelude::{In, from_fn_once, item},
+    };
 
     use crate::{input::SourceInput, session::ParseLocal};
 
@@ -425,9 +403,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let run = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let run = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert_eq!(run.range(), 0..trivia_end);
         assert_eq!(
@@ -469,9 +445,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let run = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let run = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert_eq!(run.range(), 0..0);
         assert!(run.parts().is_empty());
@@ -492,9 +466,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let run = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let run = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert_eq!(run.range(), 0..source.len());
         assert_eq!(
@@ -526,9 +498,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let span = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let span = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..9);
         assert_eq!(i.pos(), 9);
@@ -554,9 +524,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let span = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let span = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..3);
         assert_eq!(
@@ -585,9 +553,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let span = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let span = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..trivia_end);
         assert_eq!(i.input.remainder(), "next");
@@ -609,9 +575,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let span = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let span = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..trivia_end);
         assert_eq!(i.input.remainder(), "next");
@@ -640,9 +604,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let span = i
-            .run(scan_trivia)
-            .expect("trivia scanning is total");
+        let span = i.run(scan_trivia).expect("trivia scanning is total");
 
         assert!(span.is_empty());
         assert_eq!(i.pos(), 0);

@@ -38,8 +38,8 @@ use crate::{
         CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
         ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline,
         IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PatternRole, Probe,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax, any_ambient_owner_claims,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn,
+        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax, any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
 };
@@ -4422,8 +4422,7 @@ mod tests {
             assert_eq!(record.site.role, role, "role: {source:?} record {index}");
             assert_eq!(record.site.range, range, "range: {source:?} record {index}");
             assert_eq!(
-                record.expectations[record.primary_expectation].expected,
-                expected,
+                record.expectations[record.primary_expectation].expected, expected,
                 "primary expectation: {source:?} record {index}",
             );
         }

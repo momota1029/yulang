@@ -1496,11 +1496,8 @@ where
         if struct_indented_terminal_boundary_pending(block_indent, i) {
             break;
         }
-        if variant_named_field_missing_separator_pending(
-            VariantFieldDriverSpec::Struct,
-            i,
-            &trivia,
-        ) {
+        if variant_named_field_missing_separator_pending(VariantFieldDriverSpec::Struct, i, &trivia)
+        {
             continue;
         }
         break;

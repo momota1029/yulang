@@ -362,16 +362,12 @@ where
             outer_kind: YumarkEmbeddedOuterKind::Paired(Delimiter::Parenthesis),
             delimiter_floor: floor,
         });
-        let mut episode = parse_call_arguments_interior(
-            table,
-            self.i,
-            |i| yumark_argument_boundary(i, floor, boundary),
-        );
-        settle_ast_call_arguments_borrowed_close(
-            self.i,
-            &mut episode,
-            |i| yumark_argument_boundary(i, floor, boundary),
-        );
+        let mut episode = parse_call_arguments_interior(table, self.i, |i| {
+            yumark_argument_boundary(i, floor, boundary)
+        });
+        settle_ast_call_arguments_borrowed_close(self.i, &mut episode, |i| {
+            yumark_argument_boundary(i, floor, boundary)
+        });
         for recovery in self.i.local.drain_yumark_embedded_recoveries() {
             let order = self.recoveries.len();
             self.recoveries.push(AstGate3Recovery {
@@ -1426,7 +1422,10 @@ impl<'source> DocumentDriverState<'source> {
         let section_link = kind
             .section_level()
             .and_then(|level| self.open_section_by_level.insert(level, index));
-        let quote_link = kind.is_quote().then(|| self.innermost_quote.replace(index)).flatten();
+        let quote_link = kind
+            .is_quote()
+            .then(|| self.innermost_quote.replace(index))
+            .flatten();
         let envelope_stop = self.envelope_stop();
         io.push_frame(persistent);
         #[cfg(test)]

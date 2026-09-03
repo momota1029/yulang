@@ -3,8 +3,7 @@
 use std::ops::Range;
 
 use chasa::{
-    Back as _,
-    ErrorSink,
+    Back as _, ErrorSink,
     error::std::Unexpected,
     parser::SkipParserOnce as _,
     prelude::{many_skip, one_of},
@@ -46,9 +45,7 @@ impl<'source> WordSpan<'source> {
 ///
 /// Keyword interpretation is deliberately absent: the oracle classifies the
 /// same spelling differently by grammar position and active stop set.
-pub(crate) fn scan_word<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<WordSpan<'source>>
+pub(crate) fn scan_word<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -105,7 +102,10 @@ mod tests {
     use super::*;
     use chasa::{input::IsCut, prelude::In};
 
-    use crate::{input::SourceInput, session::{LineState, ParseLocal}};
+    use crate::{
+        input::SourceInput,
+        session::{LineState, ParseLocal},
+    };
 
     #[test]
     fn scans_plain_ascii_identifier() {
@@ -183,9 +183,7 @@ mod tests {
         )
         .set_local(&mut local);
 
-        let word = i
-            .run(scan_word)
-            .map(|word| (word.range(), word.text()));
+        let word = i.run(scan_word).map(|word| (word.range(), word.text()));
 
         (word, i.input.remainder(), i.local.line())
     }

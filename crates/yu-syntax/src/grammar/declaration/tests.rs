@@ -147,12 +147,8 @@ fn gate3b_derives_via_target_episode_companion_handoff_and_rollback() {
     let mut ast_sink = chasa::LatestSink::new();
     let mut ast_cut = false;
     let (ast, ast_remainder) = {
-        let mut i = In::new(
-            &mut ast_input,
-            &mut ast_sink,
-            IsCut::new(&mut ast_cut),
-        )
-        .set_local(&mut ast_local);
+        let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+            .set_local(&mut ast_local);
         let start = recognize_derives_attachment_start(
             DerivesAttachmentOwner::Type,
             DerivesAttachmentPosition::Header,
@@ -166,7 +162,11 @@ fn gate3b_derives_via_target_episode_companion_handoff_and_rollback() {
     assert_eq!(ast_remainder, " with:");
     assert!(ast.tail.is_some());
     assert!(matches!(
-        ast.attachments[0].clause.via.as_ref().map(|via| &via.target),
+        ast.attachments[0]
+            .clause
+            .via
+            .as_ref()
+            .map(|via| &via.target),
         Some(Recovered::Incomplete)
     ));
     let ast_snapshot = ast_local.value_snapshot();
@@ -195,10 +195,8 @@ fn gate3b_derives_via_target_episode_companion_handoff_and_rollback() {
             )
         })
         .expect("companion-aware direct derives start");
-    let direct =
-        commit_derives_attachments_with_companion_handoff_isolated(start, &mut committed);
-    let direct_remainder = committed
-        .probe(|probe| probe.input().input.remainder().to_owned());
+    let direct = commit_derives_attachments_with_companion_handoff_isolated(start, &mut committed);
+    let direct_remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
     committed.finish_node();
     let output = committed.into_output();
     assert_eq!(direct_remainder, " with:");
@@ -239,7 +237,10 @@ fn gate3b_derives_via_target_episode_companion_handoff_and_rollback() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::Error)
         .expect("companion ViaTarget Error node");
-    assert_eq!(recovery.parent().map(|parent| parent.kind()), Some(SyntaxKind::DerivesClause));
+    assert_eq!(
+        recovery.parent().map(|parent| parent.kind()),
+        Some(SyntaxKind::DerivesClause)
+    );
 
     let source = "derives Eq via @ key";
     let mut input = SourceInput::new(source);
@@ -252,9 +253,7 @@ fn gate3b_derives_via_target_episode_companion_handoff_and_rollback() {
     });
     let retained_fact = crate::session::YumarkEmbeddedRecoveryFact {
         spec: crate::session::RecoverySiteSpec {
-            role: GrammarRole::Declaration(DeclarationRole::Derives(
-                DerivesRole::RoleReference,
-            )),
+            role: GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)),
             expected: ExpectedSyntax::TypeExpression,
         },
         range: 0..0,
@@ -299,7 +298,11 @@ fn gate3b_derives_via_target_episode_companion_handoff_and_rollback() {
     let [attachment] = attachments.as_slice() else {
         panic!("one actual derives attachment clause");
     };
-    let via = attachment.clause.via.as_ref().expect("one actual via clause");
+    let via = attachment
+        .clause
+        .via
+        .as_ref()
+        .expect("one actual via clause");
     assert!(
         matches!(&via.target, Recovered::Complete(target)
             if target.text() == "key" && target.range() == (17..20)),
@@ -36709,11 +36712,8 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
         range: Range<usize>,
         expected: ExpectedSyntax,
     ) {
-        let output = parse_direct_root_candidate(
-            source,
-            &crate::operator::OperatorTable::empty(),
-            &[],
-        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let record = output
             .committed_recoveries()
             .iter()
@@ -36727,8 +36727,7 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
                 )
             });
         assert_eq!(
-            record.expectations[record.primary_expectation].expected,
-            expected,
+            record.expectations[record.primary_expectation].expected, expected,
             "primary expectation: {source:?} {role:?}",
         );
     }
@@ -36743,8 +36742,20 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
     let act_role = |role| GrammarRole::Declaration(DeclarationRole::Act(role));
 
     for (source, kind, role, range, expected) in [
-        ("mod", RecoveryKind::Missing, mod_role(ModRole::Name), 3..3, ExpectedSyntax::Identifier),
-        ("mod test", RecoveryKind::Missing, mod_role(ModRole::TestName), 8..8, ExpectedSyntax::Identifier),
+        (
+            "mod",
+            RecoveryKind::Missing,
+            mod_role(ModRole::Name),
+            3..3,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "mod test",
+            RecoveryKind::Missing,
+            mod_role(ModRole::TestName),
+            8..8,
+            ExpectedSyntax::Identifier,
+        ),
         (
             "mod outer",
             RecoveryKind::Missing,
@@ -36752,7 +36763,13 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
             9..9,
             ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
         ),
-        ("mod outer:", RecoveryKind::Missing, mod_role(ModRole::Body), 10..10, ExpectedSyntax::Statement),
+        (
+            "mod outer:",
+            RecoveryKind::Missing,
+            mod_role(ModRole::Body),
+            10..10,
+            ExpectedSyntax::Statement,
+        ),
         (
             "mod outer:\n  ",
             RecoveryKind::Missing,
@@ -36760,7 +36777,13 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
             13..13,
             ExpectedSyntax::Statement,
         ),
-        ("struct", RecoveryKind::Missing, struct_role(crate::session::StructRole::Name), 6..6, ExpectedSyntax::Identifier),
+        (
+            "struct",
+            RecoveryKind::Missing,
+            struct_role(crate::session::StructRole::Name),
+            6..6,
+            ExpectedSyntax::Identifier,
+        ),
         (
             "struct S",
             RecoveryKind::Missing,
@@ -36815,14 +36838,18 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
             RecoveryKind::Missing,
             close(ConstructRole::StructNamedFields, Delimiter::Brace),
             18..18,
-            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)),
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Brace,
+            )),
         ),
         (
             "struct Pair(Int,",
             RecoveryKind::Missing,
             close(ConstructRole::StructTupleFields, Delimiter::Parenthesis),
             16..16,
-            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            )),
         ),
     ] {
         assert_record(source, kind, role, range, expected);
@@ -36832,11 +36859,8 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
         source: &str,
         expected: &[(RecoveryKind, GrammarRole, Range<usize>, ExpectedSyntax)],
     ) -> SyntaxNode {
-        let output = parse_direct_root_candidate(
-            source,
-            &crate::operator::OperatorTable::empty(),
-            &[],
-        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         let records = output.committed_recoveries();
         assert_eq!(records.len(), expected.len(), "record count: {source:?}");
         for (record, (kind, role, range, primary)) in records.iter().zip(expected) {
@@ -36844,8 +36868,7 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
             assert_eq!(record.site.role, *role, "role: {source:?}");
             assert_eq!(record.site.range, *range, "range: {source:?}");
             assert_eq!(
-                record.expectations[record.primary_expectation].expected,
-                *primary,
+                record.expectations[record.primary_expectation].expected, *primary,
                 "primary: {source:?}",
             );
         }
@@ -36862,26 +36885,71 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
     }
 
     for (source, kind, role, range, expected) in [
-        ("enum E { Named { : Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldName), 18..18, ExpectedSyntax::Identifier),
-        ("enum E { Named { field Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldColon), 23..23, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
-        ("enum E { Named { field: }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldType), 24..24, ExpectedSyntax::TypeExpression),
-        ("enum E { Named { a: A b: B }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldSeparator), 22..22, ExpectedSyntax::DelimitedSequenceSeparator),
-        ("error E { Named { : Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldName), 19..19, ExpectedSyntax::Identifier),
-        ("error E { Named { field Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldColon), 24..24, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
-        ("error E { Named { field: }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldType), 25..25, ExpectedSyntax::TypeExpression),
-        ("error E { Named { a: A b: B }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldSeparator), 23..23, ExpectedSyntax::DelimitedSequenceSeparator),
+        (
+            "enum E { Named { : Int }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldName),
+            18..18,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "enum E { Named { field Int }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldColon),
+            23..23,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "enum E { Named { field: }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldType),
+            24..24,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "enum E { Named { a: A b: B }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldSeparator),
+            22..22,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        ),
+        (
+            "error E { Named { : Int }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldName),
+            19..19,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "error E { Named { field Int }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldColon),
+            24..24,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "error E { Named { field: }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldType),
+            25..25,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "error E { Named { a: A b: B }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldSeparator),
+            23..23,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        ),
     ] {
-        let root = assert_exact_variant_stream(
-            source,
-            &[(kind, role, range, expected)],
-        );
+        let root = assert_exact_variant_stream(source, &[(kind, role, range, expected)]);
         if matches!(
             role,
             GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Variant(
                 VariantDeclarationRole::NamedFieldSeparator,
-            ))) | GrammarRole::Declaration(DeclarationRole::Error(
-                ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator),
-            ))
+            ))) | GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldSeparator
+            ),))
         ) {
             let named_payload = root
                 .descendants()
@@ -36923,14 +36991,15 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
                     .any(|token| {
                         token.kind() == SyntaxKind::Whitespace
                             && token.text() == " "
-                            && syntax_range(token.text_range())
-                                == (21 + offset..22 + offset)
+                            && syntax_range(token.text_range()) == (21 + offset..22 + offset)
                     }),
                 "the original inter-field trivia remains between V3 fields: {source:?}",
             );
-            assert!(named_payload.children_with_tokens().any(
-                |element| element.kind() == SyntaxKind::RBrace
-            ));
+            assert!(
+                named_payload
+                    .children_with_tokens()
+                    .any(|element| element.kind() == SyntaxKind::RBrace)
+            );
         }
     }
 
@@ -36951,7 +37020,10 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
                 .all(|field| matches!(field, Recovered::Complete(_))),
             "AST complete fields: {source:?}",
         );
-        assert!(matches!(close, Recovered::Complete(_)), "AST close: {source:?}");
+        assert!(
+            matches!(close, Recovered::Complete(_)),
+            "AST close: {source:?}"
+        );
     }
 
     for (source, enum_owner) in [
@@ -37003,16 +37075,12 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
     for (source, declaration_role, range) in [
         (
             "enum E @;",
-            GrammarRole::Declaration(DeclarationRole::Enum(
-                EnumDeclarationRole::BodyIntroducer,
-            )),
+            GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::BodyIntroducer)),
             7..8,
         ),
         (
             "error E @;",
-            GrammarRole::Declaration(DeclarationRole::Error(
-                ErrorDeclarationRole::BodyIntroducer,
-            )),
+            GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::BodyIntroducer)),
             8..9,
         ),
     ] {
@@ -37032,28 +37100,168 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
         GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Variant(role)))
     }
     for (source, kind, role, range, expected) in [
-        ("enum E {,A}", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::Item), 9..9, ExpectedSyntax::Identifier),
-        ("enum E { @ A, B }", RecoveryKind::Error, enum_variant(VariantDeclarationRole::Name), 9..11, ExpectedSyntax::Identifier),
-        ("enum E { From from, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::FromType), 18..18, ExpectedSyntax::TypeExpression),
-        ("enum E { Rect @, Next }", RecoveryKind::Error, GrammarRole::Type(crate::session::TypeRole::Primary), 14..15, ExpectedSyntax::TypeExpression),
-        ("enum E { Named { : Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldName), 18..18, ExpectedSyntax::Identifier),
-        ("enum E { Named { field Int }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldColon), 23..23, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
-        ("enum E { Named { field: }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldType), 24..24, ExpectedSyntax::TypeExpression),
-        ("enum E { Named { a: A b: B }, Next }", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::NamedFieldSeparator), 22..22, ExpectedSyntax::DelimitedSequenceSeparator),
-        ("enum E { Tuple (, Int)}", RecoveryKind::Missing, enum_variant(VariantDeclarationRole::TupleFieldType), 16..16, ExpectedSyntax::TypeExpression),
-        ("enum E { Named { field: Int", RecoveryKind::Missing, close(ConstructRole::VariantNamedPayload, Delimiter::Brace), 27..27, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace))),
-        ("enum E { Tuple (Int", RecoveryKind::Missing, close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis), 19..19, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis))),
-        ("error E {,A}", RecoveryKind::Missing, error_variant(VariantDeclarationRole::Item), 10..10, ExpectedSyntax::Identifier),
-        ("error E { @ A, B }", RecoveryKind::Error, error_variant(VariantDeclarationRole::Name), 10..12, ExpectedSyntax::Identifier),
-        ("error E { From from, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::FromType), 19..19, ExpectedSyntax::TypeExpression),
-        ("error E { Rect @, Next }", RecoveryKind::Error, GrammarRole::Type(crate::session::TypeRole::Primary), 15..16, ExpectedSyntax::TypeExpression),
-        ("error E { Named { : Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldName), 19..19, ExpectedSyntax::Identifier),
-        ("error E { Named { field Int }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldColon), 24..24, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
-        ("error E { Named { field: }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldType), 25..25, ExpectedSyntax::TypeExpression),
-        ("error E { Named { a: A b: B }, Next }", RecoveryKind::Missing, error_variant(VariantDeclarationRole::NamedFieldSeparator), 23..23, ExpectedSyntax::DelimitedSequenceSeparator),
-        ("error E { Tuple (, Int)}", RecoveryKind::Missing, error_variant(VariantDeclarationRole::TupleFieldType), 17..17, ExpectedSyntax::TypeExpression),
-        ("error E { Named { field: Int", RecoveryKind::Missing, close(ConstructRole::VariantNamedPayload, Delimiter::Brace), 28..28, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace))),
-        ("error E { Tuple (Int", RecoveryKind::Missing, close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis), 20..20, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis))),
+        (
+            "enum E {,A}",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::Item),
+            9..9,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "enum E { @ A, B }",
+            RecoveryKind::Error,
+            enum_variant(VariantDeclarationRole::Name),
+            9..11,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "enum E { From from, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::FromType),
+            18..18,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "enum E { Rect @, Next }",
+            RecoveryKind::Error,
+            GrammarRole::Type(crate::session::TypeRole::Primary),
+            14..15,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "enum E { Named { : Int }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldName),
+            18..18,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "enum E { Named { field Int }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldColon),
+            23..23,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "enum E { Named { field: }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldType),
+            24..24,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "enum E { Named { a: A b: B }, Next }",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::NamedFieldSeparator),
+            22..22,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        ),
+        (
+            "enum E { Tuple (, Int)}",
+            RecoveryKind::Missing,
+            enum_variant(VariantDeclarationRole::TupleFieldType),
+            16..16,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "enum E { Named { field: Int",
+            RecoveryKind::Missing,
+            close(ConstructRole::VariantNamedPayload, Delimiter::Brace),
+            27..27,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Brace,
+            )),
+        ),
+        (
+            "enum E { Tuple (Int",
+            RecoveryKind::Missing,
+            close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis),
+            19..19,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            )),
+        ),
+        (
+            "error E {,A}",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::Item),
+            10..10,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "error E { @ A, B }",
+            RecoveryKind::Error,
+            error_variant(VariantDeclarationRole::Name),
+            10..12,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "error E { From from, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::FromType),
+            19..19,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "error E { Rect @, Next }",
+            RecoveryKind::Error,
+            GrammarRole::Type(crate::session::TypeRole::Primary),
+            15..16,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "error E { Named { : Int }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldName),
+            19..19,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "error E { Named { field Int }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldColon),
+            24..24,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "error E { Named { field: }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldType),
+            25..25,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "error E { Named { a: A b: B }, Next }",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::NamedFieldSeparator),
+            23..23,
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        ),
+        (
+            "error E { Tuple (, Int)}",
+            RecoveryKind::Missing,
+            error_variant(VariantDeclarationRole::TupleFieldType),
+            17..17,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "error E { Named { field: Int",
+            RecoveryKind::Missing,
+            close(ConstructRole::VariantNamedPayload, Delimiter::Brace),
+            28..28,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Brace,
+            )),
+        ),
+        (
+            "error E { Tuple (Int",
+            RecoveryKind::Missing,
+            close(ConstructRole::VariantTuplePayload, Delimiter::Parenthesis),
+            20..20,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            )),
+        ),
     ] {
         assert_record(source, kind, role, range, expected);
     }
@@ -37099,7 +37307,12 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
             assert_eq!(input.remainder(), "", "AST remainder: {source:?}");
             assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!cut, "AST cut: {source:?}");
-            assert_nv1_body(source, &declaration.body, type_range.clone(), close_range.clone());
+            assert_nv1_body(
+                source,
+                &declaration.body,
+                type_range.clone(),
+                close_range.clone(),
+            );
         } else {
             let mut input = SourceInput::new(source);
             let mut local = ParseLocal::new();
@@ -37112,14 +37325,16 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
             assert_eq!(input.remainder(), "", "AST remainder: {source:?}");
             assert!(sink.take_merged().is_none(), "AST sink: {source:?}");
             assert!(!cut, "AST cut: {source:?}");
-            assert_nv1_body(source, &declaration.body, type_range.clone(), close_range.clone());
+            assert_nv1_body(
+                source,
+                &declaration.body,
+                type_range.clone(),
+                close_range.clone(),
+            );
         }
 
-        let output = parse_direct_root_candidate(
-            source,
-            &crate::operator::OperatorTable::empty(),
-            &[],
-        );
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
         assert!(
             output.committed_recoveries().is_empty(),
             "NV1 has no separator recovery: {source:?}",
@@ -37131,10 +37346,12 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
                 .all(|node| !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
             "NV1 has no recovery node: {source:?}",
         );
-        assert!(root.descendants_with_tokens().filter_map(|element| element.into_token()).any(
-            |token| token.kind() == SyntaxKind::RBrace
-                && syntax_range(token.text_range()) == close_range
-        ));
+        assert!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::RBrace
+                    && syntax_range(token.text_range()) == close_range)
+        );
         assert!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
@@ -37144,47 +37361,272 @@ fn gate3b_ordinary_primary_control_declaration_and_variant_families() {
     }
 
     for (source, kind, role, range, expected) in [
-        ("type", RecoveryKind::Missing, type_role(TypeDeclarationRole::Name), 4..4, ExpectedSyntax::Identifier),
-        ("type Id ('a)", RecoveryKind::Missing, type_role(TypeDeclarationRole::DefinitionIntroducer), 8..8, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals)),
-        ("type T =", RecoveryKind::Missing, type_role(TypeDeclarationRole::Rhs), 8..8, ExpectedSyntax::TypeExpression),
-        ("type Box impl", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Head)), 13..13, ExpectedSyntax::TypeExpression),
-        ("type Box 't impl Pick Int:", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Description)), 26..26, ExpectedSyntax::TypeExpression),
-        ("type Box impl T", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::BodyIntroducer)), 15..15, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
-        ("type Box impl T: D:", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Body)), 19..19, ExpectedSyntax::Statement),
-        ("type Box impl T: D:\n  ", RecoveryKind::Missing, type_role(TypeDeclarationRole::AttachedImpl(ImplRole::IndentedStatement)), 22..22, ExpectedSyntax::Statement),
-        ("role", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::Head), 4..4, ExpectedSyntax::TypeExpression),
-        ("role Eq", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::BodyIntroducer), 7..7, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
-        ("role Eq:", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::Body), 8..8, ExpectedSyntax::Statement),
-        ("role Eq:\n  ", RecoveryKind::Missing, role_role(crate::session::RoleDeclarationRole::IndentedStatement), 11..11, ExpectedSyntax::Statement),
-        ("impl", RecoveryKind::Missing, impl_role(ImplRole::Head), 4..4, ExpectedSyntax::TypeExpression),
-        ("impl T:", RecoveryKind::Missing, impl_role(ImplRole::Description), 7..7, ExpectedSyntax::TypeExpression),
-        ("impl T: D", RecoveryKind::Missing, impl_role(ImplRole::BodyIntroducer), 9..9, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
-        ("impl T: D:", RecoveryKind::Missing, impl_role(ImplRole::Body), 10..10, ExpectedSyntax::Statement),
-        ("impl T: D:\n  ", RecoveryKind::Missing, impl_role(ImplRole::IndentedStatement), 13..13, ExpectedSyntax::Statement),
-        ("cast x): B;", RecoveryKind::Missing, cast_role(CastRole::PatternIntroducer), 5..5, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis))),
-        ("cast(@): B;", RecoveryKind::Error, GrammarRole::Pattern(crate::session::PatternRole::Primary), 5..6, ExpectedSyntax::Pattern),
-        ("cast(x) B;", RecoveryKind::Missing, cast_role(CastRole::TargetIntroducer), 8..8, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
-        ("cast(x): @;", RecoveryKind::Error, GrammarRole::Type(crate::session::TypeRole::Primary), 9..10, ExpectedSyntax::TypeExpression),
-        ("cast(x: A): B", RecoveryKind::Missing, cast_role(CastRole::BodyIntroducer), 13..13, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon)),
-        ("cast(x: A): B =", RecoveryKind::Missing, cast_role(CastRole::Body), 15..15, ExpectedSyntax::Expression),
-        ("cast(x: A): B =\n  @", RecoveryKind::Error, cast_role(CastRole::IndentedStatement), 18..19, ExpectedSyntax::Statement),
-        ("act", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::Head), 3..3, ExpectedSyntax::TypeExpression),
-        ("act A =", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::Source), 7..7, ExpectedSyntax::TypeExpression),
-        ("act A @;", RecoveryKind::Error, act_role(crate::session::ActDeclarationRole::BodyIntroducer), 6..7, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
-        ("act A:", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::Body), 6..6, ExpectedSyntax::Statement),
-        ("act A:\n  ", RecoveryKind::Missing, act_role(crate::session::ActDeclarationRole::IndentedStatement), 9..9, ExpectedSyntax::Statement),
-        ("for", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::Pattern), 3..3, ExpectedSyntax::Pattern),
-        ("for x xs: body", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::InKeyword), 6..6, ExpectedSyntax::Expression),
-        ("for x in", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::Iterable), 8..8, ExpectedSyntax::Expression),
-        ("for x in xs", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::BodyIntroducer), 11..11, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)),
-        ("for x in xs:", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::Body), 12..12, ExpectedSyntax::Expression),
-        ("for x in xs:\n  ", RecoveryKind::Missing, GrammarRole::ForStatement(ForStatementRole::IndentedStatement), 15..15, ExpectedSyntax::Statement),
-        ("type T = Int derives", RecoveryKind::Missing, GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)), 20..20, ExpectedSyntax::TypeExpression),
-        ("type T = Int derives Eq via", RecoveryKind::Missing, GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget)), 27..27, ExpectedSyntax::Identifier),
+        (
+            "type",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::Name),
+            4..4,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "type Id ('a)",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::DefinitionIntroducer),
+            8..8,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals),
+        ),
+        (
+            "type T =",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::Rhs),
+            8..8,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "type Box impl",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Head)),
+            13..13,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "type Box 't impl Pick Int:",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Description)),
+            26..26,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "type Box impl T",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::AttachedImpl(ImplRole::BodyIntroducer)),
+            15..15,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        ),
+        (
+            "type Box impl T: D:",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::AttachedImpl(ImplRole::Body)),
+            19..19,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "type Box impl T: D:\n  ",
+            RecoveryKind::Missing,
+            type_role(TypeDeclarationRole::AttachedImpl(
+                ImplRole::IndentedStatement,
+            )),
+            22..22,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "role",
+            RecoveryKind::Missing,
+            role_role(crate::session::RoleDeclarationRole::Head),
+            4..4,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "role Eq",
+            RecoveryKind::Missing,
+            role_role(crate::session::RoleDeclarationRole::BodyIntroducer),
+            7..7,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        ),
+        (
+            "role Eq:",
+            RecoveryKind::Missing,
+            role_role(crate::session::RoleDeclarationRole::Body),
+            8..8,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "role Eq:\n  ",
+            RecoveryKind::Missing,
+            role_role(crate::session::RoleDeclarationRole::IndentedStatement),
+            11..11,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "impl",
+            RecoveryKind::Missing,
+            impl_role(ImplRole::Head),
+            4..4,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "impl T:",
+            RecoveryKind::Missing,
+            impl_role(ImplRole::Description),
+            7..7,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "impl T: D",
+            RecoveryKind::Missing,
+            impl_role(ImplRole::BodyIntroducer),
+            9..9,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        ),
+        (
+            "impl T: D:",
+            RecoveryKind::Missing,
+            impl_role(ImplRole::Body),
+            10..10,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "impl T: D:\n  ",
+            RecoveryKind::Missing,
+            impl_role(ImplRole::IndentedStatement),
+            13..13,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "cast x): B;",
+            RecoveryKind::Missing,
+            cast_role(CastRole::PatternIntroducer),
+            5..5,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(
+                Delimiter::Parenthesis,
+            )),
+        ),
+        (
+            "cast(@): B;",
+            RecoveryKind::Error,
+            GrammarRole::Pattern(crate::session::PatternRole::Primary),
+            5..6,
+            ExpectedSyntax::Pattern,
+        ),
+        (
+            "cast(x) B;",
+            RecoveryKind::Missing,
+            cast_role(CastRole::TargetIntroducer),
+            8..8,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "cast(x): @;",
+            RecoveryKind::Error,
+            GrammarRole::Type(crate::session::TypeRole::Primary),
+            9..10,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "cast(x: A): B",
+            RecoveryKind::Missing,
+            cast_role(CastRole::BodyIntroducer),
+            13..13,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon),
+        ),
+        (
+            "cast(x: A): B =",
+            RecoveryKind::Missing,
+            cast_role(CastRole::Body),
+            15..15,
+            ExpectedSyntax::Expression,
+        ),
+        (
+            "cast(x: A): B =\n  @",
+            RecoveryKind::Error,
+            cast_role(CastRole::IndentedStatement),
+            18..19,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "act",
+            RecoveryKind::Missing,
+            act_role(crate::session::ActDeclarationRole::Head),
+            3..3,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "act A =",
+            RecoveryKind::Missing,
+            act_role(crate::session::ActDeclarationRole::Source),
+            7..7,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "act A @;",
+            RecoveryKind::Error,
+            act_role(crate::session::ActDeclarationRole::BodyIntroducer),
+            6..7,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "act A:",
+            RecoveryKind::Missing,
+            act_role(crate::session::ActDeclarationRole::Body),
+            6..6,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "act A:\n  ",
+            RecoveryKind::Missing,
+            act_role(crate::session::ActDeclarationRole::IndentedStatement),
+            9..9,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "for",
+            RecoveryKind::Missing,
+            GrammarRole::ForStatement(ForStatementRole::Pattern),
+            3..3,
+            ExpectedSyntax::Pattern,
+        ),
+        (
+            "for x xs: body",
+            RecoveryKind::Missing,
+            GrammarRole::ForStatement(ForStatementRole::InKeyword),
+            6..6,
+            ExpectedSyntax::Expression,
+        ),
+        (
+            "for x in",
+            RecoveryKind::Missing,
+            GrammarRole::ForStatement(ForStatementRole::Iterable),
+            8..8,
+            ExpectedSyntax::Expression,
+        ),
+        (
+            "for x in xs",
+            RecoveryKind::Missing,
+            GrammarRole::ForStatement(ForStatementRole::BodyIntroducer),
+            11..11,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        ),
+        (
+            "for x in xs:",
+            RecoveryKind::Missing,
+            GrammarRole::ForStatement(ForStatementRole::Body),
+            12..12,
+            ExpectedSyntax::Expression,
+        ),
+        (
+            "for x in xs:\n  ",
+            RecoveryKind::Missing,
+            GrammarRole::ForStatement(ForStatementRole::IndentedStatement),
+            15..15,
+            ExpectedSyntax::Statement,
+        ),
+        (
+            "type T = Int derives",
+            RecoveryKind::Missing,
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)),
+            20..20,
+            ExpectedSyntax::TypeExpression,
+        ),
+        (
+            "type T = Int derives Eq via",
+            RecoveryKind::Missing,
+            GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::ViaTarget)),
+            27..27,
+            ExpectedSyntax::Identifier,
+        ),
     ] {
         assert_record(source, kind, role, range, expected);
     }
-
 }
 
 #[test]
@@ -37205,7 +37647,10 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
                     panic!("Struct named body: {source:?}");
                 };
                 assert_eq!(body.fields.len(), expected, "Struct fields: {source:?}");
-                assert!(matches!(body.close, Recovered::Complete(_)), "Struct close: {source:?}");
+                assert!(
+                    matches!(body.close, Recovered::Complete(_)),
+                    "Struct close: {source:?}"
+                );
             }
             Owner::Enum | Owner::Error => {
                 let mut input = SourceInput::new(source);
@@ -37213,18 +37658,22 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
                 let mut sink = chasa::LatestSink::new();
                 let mut cut = false;
                 let body = match owner {
-                    Owner::Enum => parse_enum_declaration_isolated(
-                        In::new(&mut input, &mut sink, IsCut::new(&mut cut))
-                            .set_local(&mut local),
-                    )
-                    .expect("Enum candidate")
-                    .body,
-                    Owner::Error => parse_error_declaration_isolated(
-                        In::new(&mut input, &mut sink, IsCut::new(&mut cut))
-                            .set_local(&mut local),
-                    )
-                    .expect("Error candidate")
-                    .body,
+                    Owner::Enum => {
+                        parse_enum_declaration_isolated(
+                            In::new(&mut input, &mut sink, IsCut::new(&mut cut))
+                                .set_local(&mut local),
+                        )
+                        .expect("Enum candidate")
+                        .body
+                    }
+                    Owner::Error => {
+                        parse_error_declaration_isolated(
+                            In::new(&mut input, &mut sink, IsCut::new(&mut cut))
+                                .set_local(&mut local),
+                        )
+                        .expect("Error candidate")
+                        .body
+                    }
                     Owner::Struct => unreachable!(),
                 };
                 assert_eq!(input.remainder(), "", "variant remainder: {source:?}");
@@ -37240,7 +37689,10 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
                     panic!("named payload: {source:?}");
                 };
                 assert_eq!(fields.len(), expected, "variant fields: {source:?}");
-                assert!(matches!(close, Recovered::Complete(_)), "payload close: {source:?}");
+                assert!(
+                    matches!(close, Recovered::Complete(_)),
+                    "payload close: {source:?}"
+                );
             }
         }
     }
@@ -37249,12 +37701,13 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         source: &str,
         expected: &[(RecoveryKind, GrammarRole, Range<usize>, ExpectedSyntax)],
     ) -> SyntaxNode {
-        let output = parse_direct_root_candidate(
-            source,
-            &crate::operator::OperatorTable::empty(),
-            &[],
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert_eq!(
+            output.committed_recoveries().len(),
+            expected.len(),
+            "{source:?}"
         );
-        assert_eq!(output.committed_recoveries().len(), expected.len(), "{source:?}");
         for (record, (kind, role, range, primary)) in
             output.committed_recoveries().iter().zip(expected)
         {
@@ -37262,17 +37715,12 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
             assert_eq!(record.site.role, *role, "role: {source:?}");
             assert_eq!(record.site.range, *range, "range: {source:?}");
             assert_eq!(
-                record.expectations[record.primary_expectation].expected,
-                *primary,
+                record.expectations[record.primary_expectation].expected, *primary,
                 "primary: {source:?}",
             );
         }
         let root = SyntaxNode::new_root(output.green().clone());
-        assert_eq!(
-            root.to_string(),
-            source,
-            "lossless: {source:?}",
-        );
+        assert_eq!(root.to_string(), source, "lossless: {source:?}",);
         root
     }
 
@@ -37286,14 +37734,34 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator),
     ));
     for (source, owner, role, range) in [
-        ("struct S { x: Int; y: Bool }", Owner::Struct, struct_separator, 17..18),
-        ("enum E { Named { a: A; b: B }, Next }", Owner::Enum, enum_separator, 21..22),
-        ("error E { Named { a: A; b: B }, Next }", Owner::Error, error_separator, 22..23),
+        (
+            "struct S { x: Int; y: Bool }",
+            Owner::Struct,
+            struct_separator,
+            17..18,
+        ),
+        (
+            "enum E { Named { a: A; b: B }, Next }",
+            Owner::Enum,
+            enum_separator,
+            21..22,
+        ),
+        (
+            "error E { Named { a: A; b: B }, Next }",
+            Owner::Error,
+            error_separator,
+            22..23,
+        ),
     ] {
         assert_ast_fields(source, owner, 2);
         assert_direct(
             source,
-            &[(RecoveryKind::Error, role, range, ExpectedSyntax::DelimitedSequenceSeparator)],
+            &[(
+                RecoveryKind::Error,
+                role,
+                range,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            )],
         );
     }
 
@@ -37310,12 +37778,12 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
     ));
     let root = assert_direct(
         source,
-        &[ (
+        &[(
             RecoveryKind::Missing,
             struct_separator,
             17..17,
             ExpectedSyntax::DelimitedSequenceSeparator,
-        ) ],
+        )],
     );
     assert_eq!(
         root.descendants()
@@ -37377,9 +37845,10 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
             .count(),
         2,
     );
-    assert!(root
-        .descendants()
-        .all(|node| node.kind() != SyntaxKind::Error));
+    assert!(
+        root.descendants()
+            .all(|node| node.kind() != SyntaxKind::Error)
+    );
 
     let source = "struct S { x: F B }";
     let (declaration, remainder) = parse_struct_for_test(source);
@@ -37413,9 +37882,24 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
     );
 
     for (source, owner, close_owner, range) in [
-        ("struct S { a: A] }", Owner::Struct, ConstructRole::StructNamedFields, 15..16),
-        ("enum E { Named { a: A] }, Next }", Owner::Enum, ConstructRole::VariantNamedPayload, 21..22),
-        ("error E { Named { a: A] }, Next }", Owner::Error, ConstructRole::VariantNamedPayload, 22..23),
+        (
+            "struct S { a: A] }",
+            Owner::Struct,
+            ConstructRole::StructNamedFields,
+            15..16,
+        ),
+        (
+            "enum E { Named { a: A] }, Next }",
+            Owner::Enum,
+            ConstructRole::VariantNamedPayload,
+            21..22,
+        ),
+        (
+            "error E { Named { a: A] }, Next }",
+            Owner::Error,
+            ConstructRole::VariantNamedPayload,
+            22..23,
+        ),
     ] {
         assert_ast_fields(source, owner, 1);
         let role = GrammarRole::ClosingDelimiter {
@@ -37424,14 +37908,14 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         };
         assert_direct(
             source,
-            &[ (
+            &[(
                 RecoveryKind::Error,
                 role,
                 range,
                 ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
                     Delimiter::Brace,
                 )),
-            ) ],
+            )],
         );
     }
 
@@ -37520,8 +38004,7 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
                 let mut committed = probe.commit(FullCstOutput::new(source));
                 committed.start_node(SyntaxKind::Root);
                 let range = commit_enum_declaration_isolated(&mut committed, intro);
-                let remainder = committed
-                    .probe(|probe| probe.input().input.remainder().to_owned());
+                let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
                 committed.finish_node();
                 (range, remainder, committed.into_output())
             }
@@ -37533,8 +38016,7 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
                 let mut committed = probe.commit(FullCstOutput::new(source));
                 committed.start_node(SyntaxKind::Root);
                 let range = commit_error_declaration_isolated(&mut committed, intro);
-                let remainder = committed
-                    .probe(|probe| probe.input().input.remainder().to_owned());
+                let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
                 committed.finish_node();
                 (range, remainder, committed.into_output())
             }
@@ -37549,7 +38031,10 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         let mut expected_snapshot = ast_snapshot;
         expected_snapshot.next_diagnostic_id += 1;
         assert_eq!(direct_local.value_snapshot(), expected_snapshot);
-        assert!(direct_sink.take_merged().is_none(), "direct sink: {source:?}");
+        assert!(
+            direct_sink.take_merged().is_none(),
+            "direct sink: {source:?}"
+        );
         assert!(!direct_cut, "direct cut: {source:?}");
         let [record] = output.committed_recoveries() else {
             panic!("one borrowed named-payload close recovery: {source:?}");
@@ -37581,9 +38066,10 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
             vec![close_at..close_at],
             "{source:?}",
         );
-        assert!(root
-            .descendants()
-            .all(|node| node.kind() != SyntaxKind::Error));
+        assert!(
+            root.descendants()
+                .all(|node| node.kind() != SyntaxKind::Error)
+        );
     }
 
     for field_owner in [
@@ -37610,12 +38096,8 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         let mut ast_sink = chasa::LatestSink::new();
         let mut ast_cut = false;
         let (ast, ast_remainder) = {
-            let mut i = In::new(
-                &mut ast_input,
-                &mut ast_sink,
-                IsCut::new(&mut ast_cut),
-            )
-            .set_local(&mut ast_local);
+            let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+                .set_local(&mut ast_local);
             let parsed = parse_variant_named_field_sequence_ast(spec, &mut i);
             (parsed, i.input.remainder().to_owned())
         };
@@ -37641,8 +38123,7 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         commit_variant_named_field_sequence(spec, &mut committed);
-        let direct_remainder = committed
-            .probe(|probe| probe.input().input.remainder().to_owned());
+        let direct_remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
         committed.finish_node();
         let output = committed.into_output();
         assert_eq!(direct_remainder, "]");
@@ -37679,9 +38160,10 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
                 .collect::<Vec<_>>(),
             vec![5..5],
         );
-        assert!(root
-            .descendants()
-            .all(|node| node.kind() != SyntaxKind::Error));
+        assert!(
+            root.descendants()
+                .all(|node| node.kind() != SyntaxKind::Error)
+        );
 
         let source = "\n    a: A\n    b: B\n  }tail";
         let spec = VariantNamedFieldSequenceSpec {
@@ -37693,12 +38175,8 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         let mut ast_sink = chasa::LatestSink::new();
         let mut ast_cut = false;
         let (ast, ast_remainder) = {
-            let mut i = In::new(
-                &mut ast_input,
-                &mut ast_sink,
-                IsCut::new(&mut ast_cut),
-            )
-            .set_local(&mut ast_local);
+            let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+                .set_local(&mut ast_local);
             let parsed = parse_variant_named_field_sequence_ast(spec, &mut i);
             (parsed, i.input.remainder().to_owned())
         };
@@ -37720,8 +38198,7 @@ fn gate3b_shared_named_field_sequence_preserves_owner_boundaries_and_layout() {
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         commit_variant_named_field_sequence(spec, &mut committed);
-        let remainder = committed
-            .probe(|probe| probe.input().input.remainder().to_owned());
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
         committed.finish_node();
         let output = committed.into_output();
         assert_eq!(remainder, "tail");

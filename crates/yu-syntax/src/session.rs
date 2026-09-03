@@ -1034,19 +1034,17 @@ impl ParseLocal {
     }
 
     pub(crate) fn yumark_embedded_recovery_active(&self) -> bool {
-        matches!(self.yumark_frames.last(), Some(YumarkFrame::EmbeddedYulang { .. }))
+        matches!(
+            self.yumark_frames.last(),
+            Some(YumarkFrame::EmbeddedYulang { .. })
+        )
     }
 
-    pub(crate) fn record_yumark_embedded_recovery(
-        &mut self,
-        fact: YumarkEmbeddedRecoveryFact,
-    ) {
+    pub(crate) fn record_yumark_embedded_recovery(&mut self, fact: YumarkEmbeddedRecoveryFact) {
         self.yumark_frames.record_embedded_recovery(fact);
     }
 
-    pub(crate) fn drain_yumark_embedded_recoveries(
-        &mut self,
-    ) -> Vec<YumarkEmbeddedRecoveryFact> {
+    pub(crate) fn drain_yumark_embedded_recoveries(&mut self) -> Vec<YumarkEmbeddedRecoveryFact> {
         self.yumark_frames.drain_embedded_recoveries()
     }
 

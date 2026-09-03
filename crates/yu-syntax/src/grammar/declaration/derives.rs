@@ -1,7 +1,7 @@
 use super::*;
 use crate::session::{
-    CanonicalRecoveryContinuation, CanonicalRecoveryEpisode, RecoverySiteSpec,
-    UnexpectedCategory, YumarkEmbeddedRecoveryFact,
+    CanonicalRecoveryContinuation, CanonicalRecoveryEpisode, RecoverySiteSpec, UnexpectedCategory,
+    YumarkEmbeddedRecoveryFact,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -823,8 +823,7 @@ where
         Recovered::Complete(target)
     } else {
         let episode = derives_via_target_episode(DerivesViaBoundary::companion(start), i);
-        i.local
-            .record_yumark_embedded_recovery(episode.fact);
+        i.local.record_yumark_embedded_recovery(episode.fact);
         match episode.continuation {
             CanonicalRecoveryContinuation::RetrySameSlot => Recovered::Complete(
                 i.run(scan_word)
@@ -1187,8 +1186,7 @@ where
         Recovered::Complete(target)
     } else {
         let episode = derives_via_target_episode(DerivesViaBoundary::ordinary(spec), i);
-        i.local
-            .record_yumark_embedded_recovery(episode.fact);
+        i.local.record_yumark_embedded_recovery(episode.fact);
         match episode.continuation {
             CanonicalRecoveryContinuation::RetrySameSlot => Recovered::Complete(
                 i.run(scan_word)
@@ -1895,10 +1893,7 @@ where
         }
         if start < i.pos() && derives_via_raw_identifier_pending(i) {
             return CanonicalRecoveryEpisode {
-                fact: derives_via_target_recovery_fact(
-                    start..i.pos(),
-                    RecoveryKind::Error,
-                ),
+                fact: derives_via_target_recovery_fact(start..i.pos(), RecoveryKind::Error),
                 continuation: CanonicalRecoveryContinuation::RetrySameSlot,
             };
         }

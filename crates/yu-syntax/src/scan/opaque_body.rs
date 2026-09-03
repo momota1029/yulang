@@ -18,9 +18,7 @@ use chasa::{
     prelude::{any, from_fn, item},
 };
 
-use crate::{
-    session::{EmbeddedLexicalMode, FenceKind, ParseLocal, SynIn, YumarkMode},
-};
+use crate::session::{EmbeddedLexicalMode, FenceKind, ParseLocal, SynIn, YumarkMode};
 
 use super::trivia::{scan_comment, scan_trivia};
 
@@ -209,9 +207,7 @@ where
     }
 }
 
-fn scan_string_region<E>(
-    mut i: SynIn<E>,
-) -> Option<RegionEnd>
+fn scan_string_region<E>(mut i: SynIn<E>) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -276,9 +272,7 @@ where
 /// The literal's outer delimiter and all nested `[]`, `{}`, and `()` groups
 /// are tracked locally. Yumark text is not Yulang string syntax, so quotes and
 /// escapes remain ordinary text here.
-fn scan_quoted_yumark_region<E>(
-    mut i: SynIn<E>,
-) -> Option<RegionEnd>
+fn scan_quoted_yumark_region<E>(mut i: SynIn<E>) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -322,9 +316,8 @@ where
             replace_yumark_mode(&mut i, mode, quote_depth, line_document_continuation);
 
             if i.input.remainder().starts_with("```") {
-                if i.run(from_fn(|i| {
-                    scan_yumark_fence_region(i, quote_depth)
-                }))? == RegionEnd::Unterminated
+                if i.run(from_fn(|i| scan_yumark_fence_region(i, quote_depth)))?
+                    == RegionEnd::Unterminated
                 {
                     return Some(RegionEnd::Unterminated);
                 }
@@ -366,10 +359,7 @@ where
 
 /// Consumes a structural Yumark code fence, retaining its kind and logical
 /// line-continuation state until the matching closing fence or EOF.
-fn scan_yumark_fence_region<E>(
-    mut i: SynIn<E>,
-    quote_depth: usize,
-) -> Option<RegionEnd>
+fn scan_yumark_fence_region<E>(mut i: SynIn<E>, quote_depth: usize) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -427,10 +417,7 @@ where
 
 /// Raw fences only inspect structural line starts. Everything else, including
 /// braces and other lexical openers, is plain fence text.
-fn scan_raw_yumark_fence_body<E>(
-    mut i: &mut SynIn<E>,
-    quote_depth: usize,
-) -> Option<RegionEnd>
+fn scan_raw_yumark_fence_body<E>(mut i: &mut SynIn<E>, quote_depth: usize) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -459,10 +446,7 @@ where
 /// Yulang fence bodies need lexical-region awareness so a triple backtick in a
 /// string, comment, interpolation, rule literal, or nested Yumark literal is
 /// not mistaken for the statement-level fence stop.
-fn scan_yulang_fence_body<E>(
-    mut i: &mut SynIn<E>,
-    quote_depth: usize,
-) -> Option<RegionEnd>
+fn scan_yulang_fence_body<E>(mut i: &mut SynIn<E>, quote_depth: usize) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -525,10 +509,7 @@ where
     }
 }
 
-fn consume_yumark_fence_line_prefix<E>(
-    i: &mut SynIn<E>,
-    quote_depth: usize,
-) -> Option<bool>
+fn consume_yumark_fence_line_prefix<E>(i: &mut SynIn<E>, quote_depth: usize) -> Option<bool>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -576,21 +557,15 @@ where
     Some(())
 }
 
-fn replace_fence_mode<E>(
-    i: &mut SynIn<E>,
-    kind: FenceKind,
-    continuation: bool,
-) where
+fn replace_fence_mode<E>(i: &mut SynIn<E>, kind: FenceKind, continuation: bool)
+where
     E: ErrorSink<usize>,
 {
-    i
-        .local
+    i.local
         .replace_lexical_mode(EmbeddedLexicalMode::Fence { kind, continuation });
 }
 
-fn scan_yumark_quote_prefix<E>(
-    i: &mut SynIn<E>,
-) -> Option<usize>
+fn scan_yumark_quote_prefix<E>(i: &mut SynIn<E>) -> Option<usize>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -617,13 +592,11 @@ fn replace_yumark_mode<E>(
 ) where
     E: ErrorSink<usize>,
 {
-    i
-        .local
-        .replace_lexical_mode(EmbeddedLexicalMode::Yumark {
-            mode,
-            quote_depth,
-            line_document_continuation,
-        });
+    i.local.replace_lexical_mode(EmbeddedLexicalMode::Yumark {
+        mode,
+        quote_depth,
+        line_document_continuation,
+    });
 }
 
 fn matching_delimiter(character: char) -> Option<char> {
@@ -640,9 +613,7 @@ fn matching_delimiter(character: char) -> Option<char> {
 /// Unlike a normal string, a backslash has no effect on this literal's quote
 /// terminator. Its only nested structure is `{...}` rule interpolation, whose
 /// delimiters must remain opaque to the surrounding operator body.
-fn scan_rule_literal_region<E>(
-    mut i: SynIn<E>,
-) -> Option<RegionEnd>
+fn scan_rule_literal_region<E>(mut i: SynIn<E>) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -651,9 +622,7 @@ where
     i.skip(item('~'))?;
     i.skip(item('"'))?;
     mark_non_trivia(i.local);
-    i
-        .local
-        .push_lexical_mode(EmbeddedLexicalMode::RuleLiteral);
+    i.local.push_lexical_mode(EmbeddedLexicalMode::RuleLiteral);
 
     loop {
         if i.input.remainder().starts_with('"') {
@@ -684,9 +653,7 @@ where
 /// Consumes a `{...}` rule-literal interpolation without interpreting capture
 /// syntax. Capture and lazy-capture spellings do not change the lexical
 /// boundary; only nested delimiters, comments, and normal strings do.
-fn scan_rule_literal_interpolation<E>(
-    mut i: SynIn<E>,
-) -> Option<RegionEnd>
+fn scan_rule_literal_interpolation<E>(mut i: SynIn<E>) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -732,9 +699,7 @@ where
 /// outer `}`. The text between `%` and `{` is format text, not string text: it
 /// is deliberately scanned byte-for-byte so quotes, escapes, and newlines do
 /// not terminate the enclosing string before the interpolation body begins.
-fn scan_string_interpolation_region<E>(
-    mut i: SynIn<E>,
-) -> Option<RegionEnd>
+fn scan_string_interpolation_region<E>(mut i: SynIn<E>) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -742,16 +707,14 @@ where
 {
     i.skip(item('%'))?;
     mark_non_trivia(i.local);
-    i
-        .local
+    i.local
         .push_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 0 });
 
     loop {
         if i.input.remainder().starts_with('{') {
             i.skip(item('{'))?;
             mark_non_trivia(i.local);
-            i
-                .local
+            i.local
                 .replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 1 });
             break;
         }
@@ -800,17 +763,12 @@ where
             _ => {}
         }
 
-        i
-            .local
+        i.local
             .replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth });
     }
 }
 
-fn update_region_character<E>(
-    character: char,
-    start: usize,
-    i: &mut SynIn<E>,
-) -> Option<()>
+fn update_region_character<E>(character: char, start: usize, i: &mut SynIn<E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -882,10 +840,7 @@ fn mark_non_trivia(local: &mut ParseLocal) {
     local.set_line(line);
 }
 
-fn body_span<'source, E>(
-    start: usize,
-    i: &SynIn<'_, 'source, '_, E>,
-) -> OpaqueBodySpan<'source>
+fn body_span<'source, E>(start: usize, i: &SynIn<'_, 'source, '_, E>) -> OpaqueBodySpan<'source>
 where
     E: ErrorSink<usize>,
 {

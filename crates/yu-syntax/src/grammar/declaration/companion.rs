@@ -32,8 +32,8 @@ use crate::{
         DeclarationCompanionRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax,
         GrammarRole, IndentationBaseline, IndentationBaselineKind, InlineStatementOwnerKind,
         PunctuationEvidence, RecoveryKind, RecoverySiteKey, RecoverySiteSpec, StopKind, StopSet,
-        SynIn, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-        YumarkEmbeddedRecoveryFact, any_ambient_owner_claims,
+        SynIn, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax, YumarkEmbeddedRecoveryFact,
+        any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
 };
@@ -119,7 +119,10 @@ struct DeclarationCompanionIntroducerEpisode {
 impl DeclarationCompanionIntroducerEpisode {
     fn into_fact_and_retry(
         self,
-    ) -> (YumarkEmbeddedRecoveryFact, DeclarationCompanionIntroducerRetry) {
+    ) -> (
+        YumarkEmbeddedRecoveryFact,
+        DeclarationCompanionIntroducerRetry,
+    ) {
         let expected_continuation = match self.retry {
             DeclarationCompanionIntroducerRetry::Starter(_)
             | DeclarationCompanionIntroducerRetry::InlineItem => {
@@ -1590,8 +1593,8 @@ mod tests {
             OperatorCandidateProbe, ParseLocal, ParseLocalValueSnapshot, Probe, RecoveryKind,
             RecoverySiteSpec, StagedHeaderFact, StopKind, StopSet, TypeDelimitedOwner,
             TypeExpressionEpisodePolicy, TypeExpressionScopedStopFrame,
-            TypeMalformedCallerBoundaryFence, YumarkEmbeddedOuterKind,
-            YumarkEmbeddedRecoveryFact, YumarkFrame, YumarkOwner,
+            TypeMalformedCallerBoundaryFence, YumarkEmbeddedOuterKind, YumarkEmbeddedRecoveryFact,
+            YumarkFrame, YumarkOwner,
         },
     };
 
@@ -4648,12 +4651,8 @@ mod tests {
             });
             let mut ast_sink = chasa::LatestSink::new();
             let mut ast_cut = false;
-            let mut i = In::new(
-                &mut ast_input,
-                &mut ast_sink,
-                IsCut::new(&mut ast_cut),
-            )
-            .set_local(&mut ast_local);
+            let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+                .set_local(&mut ast_local);
             let companion = parse_declaration_companion_isolated(
                 &OperatorTable::empty(),
                 entry_line.line_indent,
@@ -4733,11 +4732,10 @@ mod tests {
                 &mut committed,
             )
             .expect("the direct D12a private source starts with a companion");
-            let direct_remainder = committed
-                .probe(|probe| probe.input().input.remainder().to_owned());
+            let direct_remainder =
+                committed.probe(|probe| probe.input().input.remainder().to_owned());
             let direct_line = committed.probe(|probe| probe.input().local.line());
-            let direct_frames =
-                committed.probe(|probe| probe.input().local.yumark_frame_depth());
+            let direct_frames = committed.probe(|probe| probe.input().local.yumark_frame_depth());
             committed.finish_node();
             let output = committed.into_output();
             assert_eq!(direct_range, ast_range);
@@ -4871,8 +4869,7 @@ mod tests {
                     )
                 });
             assert_eq!(
-                record.expectations[record.primary_expectation].expected,
-                expected,
+                record.expectations[record.primary_expectation].expected, expected,
                 "primary expectation: {source:?}",
             );
         }

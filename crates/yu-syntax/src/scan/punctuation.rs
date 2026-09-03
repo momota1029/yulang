@@ -9,9 +9,7 @@ use chasa::{
     prelude::{choice, from_fn, item, tag},
 };
 
-use crate::{
-    session::{Delimiter, SynIn},
-};
+use crate::session::{Delimiter, SynIn};
 
 /// The scanner-layer kind and source extent of one fixed punctuation token.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,9 +93,7 @@ where
     })
 }
 
-fn scan_dot<E>(
-    mut i: SynIn<E>,
-) -> Option<PunctuationKind>
+fn scan_dot<E>(mut i: SynIn<E>) -> Option<PunctuationKind>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -112,7 +108,10 @@ mod tests {
     use super::*;
     use chasa::{input::IsCut, prelude::In};
 
-    use crate::{input::SourceInput, session::{LineState, ParseLocal}};
+    use crate::{
+        input::SourceInput,
+        session::{LineState, ParseLocal},
+    };
 
     #[test]
     fn recognizes_the_complete_fixed_punctuation_set() {

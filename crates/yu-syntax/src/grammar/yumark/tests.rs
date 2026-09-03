@@ -21,10 +21,10 @@ use crate::{
     session::{
         BracedStatementBlockRole, ConstructRole, DeclarationCompanionRole, DeclarationRole,
         Delimiter, DerivesRole, ExpectedSyntax, ExpressionRole, FullCstOutput, GrammarRole,
-        IfExpressionRole, LineState, ParseLocal,
-        ParseLocalValueSnapshot, Probe, PunctuationEvidence, RecoveryKind, RecoverySiteSpec,
-        YumarkEnvelopeStop, YumarkEmbeddedOuterKind, YumarkEmbeddedRecoveryFact, YumarkFrame,
-        YumarkInlineClose, YumarkOwner, YumarkSlot, YumarkSyntaxEvidence,
+        IfExpressionRole, LineState, ParseLocal, ParseLocalValueSnapshot, Probe,
+        PunctuationEvidence, RecoveryKind, RecoverySiteSpec, YumarkEmbeddedOuterKind,
+        YumarkEmbeddedRecoveryFact, YumarkEnvelopeStop, YumarkFrame, YumarkInlineClose,
+        YumarkOwner, YumarkSlot, YumarkSyntaxEvidence,
     },
 };
 
@@ -1977,10 +1977,11 @@ fn yumark_gate3_structural_driver_ast_direct_and_bridge_table() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::YmQuoteBlock)
             .expect("quote block");
-        assert!(quote.descendants().any(|node| matches!(
-            node.kind(),
-            SyntaxKind::YmSection | SyntaxKind::YmList
-        )));
+        assert!(
+            quote
+                .descendants()
+                .any(|node| matches!(node.kind(), SyntaxKind::YmSection | SyntaxKind::YmList))
+        );
         let trailing = source.rfind("plain").or_else(|| source.rfind("after"));
         if let Some(start) = trailing {
             assert!(root.descendants().any(|node| {
@@ -2081,14 +2082,7 @@ fn yumark_gate3_structural_driver_ast_direct_and_bridge_table() {
         assert_eq!(
             ast.recoveries
                 .iter()
-                .map(|fact| {
-                    (
-                        fact.role,
-                        fact.range.clone(),
-                        fact.kind,
-                        fact.expected,
-                    )
-                })
+                .map(|fact| { (fact.role, fact.range.clone(), fact.kind, fact.expected,) })
                 .collect::<Vec<_>>(),
             expected,
             "AST transitive recovery: {source:?}",
@@ -2177,12 +2171,8 @@ fn yumark_gate3_structural_driver_ast_direct_and_bridge_table() {
         });
         let mut ast_sink = chasa::LatestSink::new();
         let mut ast_cut = false;
-        let mut i = In::new(
-            &mut ast_input,
-            &mut ast_sink,
-            IsCut::new(&mut ast_cut),
-        )
-        .set_local(&mut ast_local);
+        let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+            .set_local(&mut ast_local);
         let ast = parse_gate3_ast(
             &OperatorTable::empty(),
             Gate3Envelope {
@@ -2259,7 +2249,10 @@ fn yumark_gate3_structural_driver_ast_direct_and_bridge_table() {
             expected_direct_snapshot,
             "E2 AST/direct ParseLocal parity: {source:?}",
         );
-        assert!(direct_sink.take_merged().is_none(), "E2 direct sink: {source:?}");
+        assert!(
+            direct_sink.take_merged().is_none(),
+            "E2 direct sink: {source:?}"
+        );
         let root = SyntaxNode::new_root(direct.output.finish_prefix());
         assert_eq!(root.to_string(), source, "E2 lossless prefix: {source:?}");
         assert_eq!(
@@ -2466,11 +2459,17 @@ fn yumark_gate3_structural_driver_ast_direct_and_bridge_table() {
                     && usize::from(token.text_range().start()) == start
             })
             .expect("quote close suffix newline");
-        assert_eq!(newline.parent().map(|node| node.kind()), Some(expected_parent));
-        assert!(!newline
-            .ancestors()
-            .any(|ancestor| ancestor.kind() == SyntaxKind::YmQuoteBlock
-                && usize::from(ancestor.text_range().start()) == if start == 20 { 5 } else { 0 }));
+        assert_eq!(
+            newline.parent().map(|node| node.kind()),
+            Some(expected_parent)
+        );
+        assert!(
+            !newline
+                .ancestors()
+                .any(|ancestor| ancestor.kind() == SyntaxKind::YmQuoteBlock
+                    && usize::from(ancestor.text_range().start())
+                        == if start == 20 { 5 } else { 0 })
+        );
     }
     assert!(sink.take_merged().is_none());
 
@@ -2512,10 +2511,15 @@ fn yumark_gate3_structural_driver_ast_direct_and_bridge_table() {
                     && usize::from(token.text_range().start()) == newline_start
             })
             .expect("fence close suffix newline");
-        assert_eq!(token.parent().map(|node| node.kind()), Some(SyntaxKind::YmDoc));
-        assert!(!token
-            .ancestors()
-            .any(|ancestor| ancestor.kind() == SyntaxKind::YmCodeFence));
+        assert_eq!(
+            token.parent().map(|node| node.kind()),
+            Some(SyntaxKind::YmDoc)
+        );
+        assert!(
+            !token
+                .ancestors()
+                .any(|ancestor| ancestor.kind() == SyntaxKind::YmCodeFence)
+        );
         assert!(sink.take_merged().is_none(), "{source:?}");
     }
 
@@ -3103,12 +3107,8 @@ fn gate3b_derives_via_target_episode() {
         });
         let mut ast_sink = chasa::LatestSink::new();
         let mut ast_cut = false;
-        let mut i = In::new(
-            &mut ast_input,
-            &mut ast_sink,
-            IsCut::new(&mut ast_cut),
-        )
-        .set_local(&mut ast_local);
+        let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+            .set_local(&mut ast_local);
         let ast = parse_gate3_ast(
             &OperatorTable::empty(),
             Gate3Envelope {
@@ -3117,11 +3117,7 @@ fn gate3b_derives_via_target_episode() {
             },
             &mut i,
         );
-        assert_eq!(
-            ast.document.range,
-            0..source.len(),
-            "AST range: {source:?}",
-        );
+        assert_eq!(ast.document.range, 0..source.len(), "AST range: {source:?}",);
         assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
         assert_eq!(i.local.yumark_frame_depth(), 0, "AST frames: {source:?}");
         let expected_facts = expected
@@ -3309,12 +3305,7 @@ fn gate3b_declaration_companion_introducer_episode() {
     for (source, expected) in [
         (
             "\\ref({type T = Int with})",
-            Some((
-                23..23,
-                RecoveryKind::Missing,
-                None,
-                SyntaxKind::Missing,
-            )),
+            Some((23..23, RecoveryKind::Missing, None, SyntaxKind::Missing)),
         ),
         (
             "\\ref({type T = Int with :: item})",
@@ -3327,21 +3318,11 @@ fn gate3b_declaration_companion_introducer_episode() {
         ),
         (
             "\\ref({type T = Int with item})",
-            Some((
-                24..24,
-                RecoveryKind::Missing,
-                None,
-                SyntaxKind::Missing,
-            )),
+            Some((24..24, RecoveryKind::Missing, None, SyntaxKind::Missing)),
         ),
         (
             "\\ref({type T = Int with\n})",
-            Some((
-                23..23,
-                RecoveryKind::Missing,
-                None,
-                SyntaxKind::Missing,
-            )),
+            Some((23..23, RecoveryKind::Missing, None, SyntaxKind::Missing)),
         ),
         ("\\ref({type T = Int with: item})", None),
     ] {
@@ -3353,12 +3334,8 @@ fn gate3b_declaration_companion_introducer_episode() {
         });
         let mut ast_sink = chasa::LatestSink::new();
         let mut ast_cut = false;
-        let mut i = In::new(
-            &mut ast_input,
-            &mut ast_sink,
-            IsCut::new(&mut ast_cut),
-        )
-        .set_local(&mut ast_local);
+        let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+            .set_local(&mut ast_local);
         let ast = parse_gate3_ast(
             &OperatorTable::empty(),
             Gate3Envelope {
@@ -3387,14 +3364,7 @@ fn gate3b_declaration_companion_introducer_episode() {
             expected
                 .as_ref()
                 .map(|(range, kind, unexpected, _)| {
-                    vec![(
-                        role,
-                        range.clone(),
-                        *kind,
-                        primary,
-                        *unexpected,
-                        0usize,
-                    )]
+                    vec![(role, range.clone(), *kind, primary, *unexpected, 0usize)]
                 })
                 .unwrap_or_default(),
             "AST D12a fact: {source:?}",
@@ -3445,9 +3415,8 @@ fn gate3b_declaration_companion_introducer_episode() {
                         [crate::session::UnexpectedSyntax::Token { category, .. }] => {
                             Some(*category)
                         }
-                        unexpected => panic!(
-                            "one D12a direct unexpected token: {source:?}: {unexpected:?}"
-                        ),
+                        unexpected =>
+                            panic!("one D12a direct unexpected token: {source:?}: {unexpected:?}"),
                     },
                     *unexpected,
                     "D12a direct unexpected: {source:?}",
@@ -3545,5 +3514,4 @@ fn gate3b_declaration_companion_introducer_episode() {
             "D12a borrowed close owner: {source:?}",
         );
     }
-
 }

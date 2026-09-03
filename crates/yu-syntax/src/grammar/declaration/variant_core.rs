@@ -1109,11 +1109,7 @@ trait VariantNamedFieldSequenceContext {
     fn comma(&mut self) -> Option<Range<usize>>;
     fn record_comma(&mut self, range: Range<usize>);
     fn semicolon(&mut self) -> Option<Range<usize>>;
-    fn record_separator_error(
-        &mut self,
-        spec: VariantNamedFieldSequenceSpec,
-        range: Range<usize>,
-    );
+    fn record_separator_error(&mut self, spec: VariantNamedFieldSequenceSpec, range: Range<usize>);
     fn record_missing_separator(&mut self, spec: VariantNamedFieldSequenceSpec);
     fn record_missing_item(
         &mut self,
@@ -1138,10 +1134,8 @@ trait VariantNamedFieldSequenceContext {
 
 /// The sole post-opener brace-owned named-field sequence driver shared by
 /// Struct, Enum, and Error. Wrappers own only their opener and AST/CST shell.
-fn drive_variant_named_field_sequence<C>(
-    spec: VariantNamedFieldSequenceSpec,
-    context: &mut C,
-) where
+fn drive_variant_named_field_sequence<C>(spec: VariantNamedFieldSequenceSpec, context: &mut C)
+where
     C: VariantNamedFieldSequenceContext,
 {
     let layout = context.begin(spec);
@@ -1270,13 +1264,7 @@ fn drive_variant_named_field_sequence<C>(
     context.finish(layout);
 }
 
-struct AstVariantNamedFieldSequenceContext<
-    'a,
-    'input,
-    'source,
-    'local,
-    E: ErrorSink<usize>,
-> {
+struct AstVariantNamedFieldSequenceContext<'a, 'input, 'source, 'local, E: ErrorSink<usize>> {
     i: &'a mut SynIn<'input, 'source, 'local, E>,
     fields: Vec<Recovered<StructNamedField<'source>>>,
     trailing_comma: Option<Range<usize>>,
@@ -1554,11 +1542,7 @@ where
             .probe(|probe| scan_struct_semicolon(probe.input()))
     }
 
-    fn record_separator_error(
-        &mut self,
-        spec: VariantNamedFieldSequenceSpec,
-        range: Range<usize>,
-    ) {
+    fn record_separator_error(&mut self, spec: VariantNamedFieldSequenceSpec, range: Range<usize>) {
         emit_variant_field_error(
             spec.field_owner,
             VariantFieldRecoverySlot::Separator,
@@ -1652,11 +1636,7 @@ where
         trivia: &TriviaRun,
     ) -> bool {
         self.committed.probe(|probe| {
-            variant_named_field_missing_separator_pending(
-                spec.field_owner,
-                probe.input(),
-                trivia,
-            )
+            variant_named_field_missing_separator_pending(spec.field_owner, probe.input(), trivia)
         })
     }
 

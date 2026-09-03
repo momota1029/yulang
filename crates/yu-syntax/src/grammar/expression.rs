@@ -44,12 +44,11 @@ use crate::{
         CaseLikeRole, CastRole, ColonApplicationRole, CommitOutput, Committed,
         CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter, ExpectationSources,
         ExpectedSyntax, ExpressionDelimitedOwner, ExpressionRole, ForStatementRole, GrammarRole,
-        IfExpressionCompanionId, IfExpressionRole, IndentationBaseline,
-        IndentationBaselineKind, InlineStatementOwnerKind, LayoutDelimitedBoundary,
-        LayoutDelimitedFrame, LineState, Probe, RecoveryKind, RecoverySiteKey, RecoverySiteSpec,
-        RoleDeclarationRole, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax, WithBodyRole, YumarkEmbeddedRecoveryFact,
-        any_ambient_owner_claims, if_continuation_owner,
+        IfExpressionCompanionId, IfExpressionRole, IndentationBaseline, IndentationBaselineKind,
+        InlineStatementOwnerKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, LineState, Probe,
+        RecoveryKind, RecoverySiteKey, RecoverySiteSpec, RoleDeclarationRole, StopKind, StopSet,
+        SynIn, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax, WithBodyRole,
+        YumarkEmbeddedRecoveryFact, any_ambient_owner_claims, if_continuation_owner,
     },
     syntax_kind::SyntaxKind,
 };
@@ -1315,8 +1314,7 @@ where
                 Recovered::Complete(name)
             } else {
                 let episode = fixed_tail_recovery_episode(table, ExpressionRole::FieldName, i);
-                i.local
-                    .record_yumark_embedded_recovery(episode.fact);
+                i.local.record_yumark_embedded_recovery(episode.fact);
                 match episode.continuation {
                     CanonicalRecoveryContinuation::RetrySameSlot
                     | CanonicalRecoveryContinuation::StopAtBoundary => {}
@@ -1335,8 +1333,7 @@ where
                 Recovered::Complete(path_segment(segment))
             } else {
                 let episode = fixed_tail_recovery_episode(table, ExpressionRole::PathSegment, i);
-                i.local
-                    .record_yumark_embedded_recovery(episode.fact);
+                i.local.record_yumark_embedded_recovery(episode.fact);
                 match episode.continuation {
                     CanonicalRecoveryContinuation::RetrySameSlot
                     | CanonicalRecoveryContinuation::StopAtBoundary => {}
@@ -1368,8 +1365,8 @@ where
         Recovered::Complete(close)
     } else {
         let at = i.pos();
-        i.local.record_yumark_embedded_recovery(
-            call_interior_recovery_fact(
+        i.local
+            .record_yumark_embedded_recovery(call_interior_recovery_fact(
                 call_close_role(),
                 at..at,
                 RecoveryKind::Missing,
@@ -1377,8 +1374,7 @@ where
                     Delimiter::Parenthesis,
                 )),
                 None,
-            ),
-        );
+            ));
         Recovered::Incomplete
     };
     let arguments = finish_call_arguments_interior(i, episode);
@@ -1447,11 +1443,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
     B: FnMut(&mut SynIn<'_, 'source, '_, E>) -> bool,
 {
-    parse_call_arguments_loop(
-        table,
-        i,
-        BorrowedCallArgumentBoundary(parent_boundary),
-    )
+    parse_call_arguments_loop(table, i, BorrowedCallArgumentBoundary(parent_boundary))
 }
 
 fn parse_call_arguments_loop<'source, E, P>(
@@ -1496,15 +1488,14 @@ where
             i.errors_rollback(errors_checkpoint);
             if let Some(range) = call_argument_error_retry_ast_with_policy(table, i, &mut boundary)
             {
-                i.local.record_yumark_embedded_recovery(
-                    call_interior_recovery_fact(
+                i.local
+                    .record_yumark_embedded_recovery(call_interior_recovery_fact(
                         GrammarRole::Expression(ExpressionRole::CallArgument),
                         range.clone(),
                         RecoveryKind::Error,
                         ExpectedSyntax::Expression,
                         None,
-                    ),
-                );
+                    ));
                 arguments.push(OperatorChain::new(
                     vec![OperatorChainItem::Error {
                         range: range.clone(),
@@ -1518,15 +1509,14 @@ where
             } else {
                 let at = i.pos();
                 if i.run(recognize_call_separator).is_some() {
-                    i.local.record_yumark_embedded_recovery(
-                        call_interior_recovery_fact(
+                    i.local
+                        .record_yumark_embedded_recovery(call_interior_recovery_fact(
                             GrammarRole::Expression(ExpressionRole::CallArgument),
                             at..at,
                             RecoveryKind::Missing,
                             ExpectedSyntax::Expression,
                             None,
-                        ),
-                    );
+                        ));
                     arguments.push(OperatorChain::new(
                         vec![OperatorChainItem::MissingOperand { range: at..at }],
                         at..at,
@@ -1559,13 +1549,14 @@ where
         }
         if P::BORROWED && expression_nud_candidate_input(table, i) {
             let at = i.pos();
-            i.local.record_yumark_embedded_recovery(call_interior_recovery_fact(
-                GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
-                at..at,
-                RecoveryKind::Missing,
-                ExpectedSyntax::DelimitedSequenceSeparator,
-                None,
-            ));
+            i.local
+                .record_yumark_embedded_recovery(call_interior_recovery_fact(
+                    GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
+                    at..at,
+                    RecoveryKind::Missing,
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                    None,
+                ));
             continue;
         }
         break;
@@ -1890,8 +1881,7 @@ where
             {
                 continue;
             }
-            if i.local.yumark_embedded_recovery_active()
-                && expression_nud_candidate_input(table, i)
+            if i.local.yumark_embedded_recovery_active() && expression_nud_candidate_input(table, i)
             {
                 let at = i.pos();
                 publish_embedded_recovery(
@@ -1909,13 +1899,12 @@ where
             break Recovered::Incomplete;
         }
     };
-    let close = if matches!(close, Recovered::Incomplete)
-        && i.local.yumark_embedded_recovery_active()
-    {
-        settle_embedded_index_close(i)
-    } else {
-        close
-    };
+    let close =
+        if matches!(close, Recovered::Incomplete) && i.local.yumark_embedded_recovery_active() {
+            settle_embedded_index_close(i)
+        } else {
+            close
+        };
     pop_layout_delimited_baseline(layout, i);
     assert_eq!(
         i.local.pop_expression_delimited_owner(),
@@ -2015,13 +2004,13 @@ where
             }
             let category = match punctuation.kind() {
                 PunctuationKind::Close(actual @ (Delimiter::Parenthesis | Delimiter::Brace)) => {
-                    UnexpectedCategory::Punctuation(
-                        crate::session::PunctuationEvidence::Close(actual),
-                    )
+                    UnexpectedCategory::Punctuation(crate::session::PunctuationEvidence::Close(
+                        actual,
+                    ))
                 }
-                _ => UnexpectedCategory::Punctuation(
-                    crate::session::PunctuationEvidence::Close(Delimiter::Bracket),
-                ),
+                _ => UnexpectedCategory::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Bracket,
+                )),
             };
             publish_embedded_recovery(
                 i,
@@ -4978,8 +4967,7 @@ fn commit_index_tail<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     if !index_close_pending(committed) {
         loop {
-            let errors_checkpoint =
-                committed.probe(|probe| probe.input().errors_checkpoint());
+            let errors_checkpoint = committed.probe(|probe| probe.input().errors_checkpoint());
             if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
                 committed.probe(|probe| probe.input().errors_rollback(errors_checkpoint));
                 if index_item_error_retry(table, committed) {
@@ -11258,7 +11246,10 @@ mod tests {
                 if site.role == GrammarRole::IfExpression(IfExpressionRole::Condition)
                     && site.range == (3..3)
         ));
-        assert_eq!(SyntaxNode::new_root(output.finish_prefix()).to_string(), source);
+        assert_eq!(
+            SyntaxNode::new_root(output.finish_prefix()).to_string(),
+            source
+        );
         assert_eq!(format!("{expectations:?}"), sink_before);
 
         let source = "{@ value}";
@@ -11291,7 +11282,10 @@ mod tests {
                     == GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement)
                     && site.range == (1..3)
         ));
-        assert_eq!(SyntaxNode::new_root(output.finish_prefix()).to_string(), source);
+        assert_eq!(
+            SyntaxNode::new_root(output.finish_prefix()).to_string(),
+            source
+        );
         assert_eq!(format!("{expectations:?}"), sink_before);
     }
 
@@ -15401,8 +15395,7 @@ mod tests {
             assert_eq!(record.site.role, role, "role: {source:?} record {index}");
             assert_eq!(record.site.range, range, "range: {source:?} record {index}");
             assert_eq!(
-                record.expectations[record.primary_expectation].expected,
-                expected,
+                record.expectations[record.primary_expectation].expected, expected,
                 "primary expectation: {source:?} record {index}",
             );
         }

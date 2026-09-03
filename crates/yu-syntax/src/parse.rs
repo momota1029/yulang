@@ -153,7 +153,9 @@ pub fn parse_file(
         .iter()
         .map(|record| record.id.0)
         .max()
-        .map_or(0, |id| id.checked_add(1).expect("diagnostic ID space exhausted"));
+        .map_or(0, |id| {
+            id.checked_add(1).expect("diagnostic ID space exhausted")
+        });
     let diagnostics = recoveries
         .into_iter()
         .map(SyntaxDiagnostic::recovery)
@@ -375,9 +377,8 @@ mod tests {
 
     #[test]
     fn parse_file_keeps_the_first_local_fixity_and_reports_the_rejected_site() {
-        let source: Arc<SourceText> = Arc::from(
-            "infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\n",
-        );
+        let source: Arc<SourceText> =
+            Arc::from("infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\n");
         let header = Arc::new(crate::scan_header(Arc::clone(&source)));
 
         assert_eq!(header.operators().len(), 2);
@@ -405,9 +406,8 @@ mod tests {
 
     #[test]
     fn parse_file_preserves_recovery_diagnostics_before_construction_diagnostics() {
-        let source: Arc<SourceText> = Arc::from(
-            "infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\ngarbage\n",
-        );
+        let source: Arc<SourceText> =
+            Arc::from("infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\ngarbage\n");
         let header = Arc::new(crate::scan_header(Arc::clone(&source)));
         let parsed = parse_file(
             Arc::clone(&source),

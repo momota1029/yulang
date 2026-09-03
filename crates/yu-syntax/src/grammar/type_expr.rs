@@ -10752,8 +10752,7 @@ mod tests {
             assert_eq!(record.site.role, role, "role: {source:?} record {index}");
             assert_eq!(record.site.range, range, "range: {source:?} record {index}");
             assert_eq!(
-                record.expectations[record.primary_expectation].expected,
-                expected,
+                record.expectations[record.primary_expectation].expected, expected,
                 "primary expectation: {source:?} record {index}",
             );
         }
