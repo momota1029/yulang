@@ -732,6 +732,16 @@ candidate は input/Recover/Rowan builder を変えない。M2 semantic/spec del
 diff check は green。これは Gate 4/G4a や E/RB-E ledger を閉じず、production、AST parity、
 recovery diagnostics、Yumark、performance claim を含まない。
 
+2026-09-04: isolated G4b の direct delimited owner に EOF-close control を追加した。
+parenthesized/call/index/tuple projection/record projection は accepted child 後または opening
+trivia 後の owned EOF Item から leading trivia を一度だけ自身へ emit し、zero-width `Missing`
+を owner 内に直接置いてから empty-leading `End` を外へ handoff する。source の reread、cursor/
+state/rollback、event buffer、recovery record は追加していない。matching close は不変。これは
+E3/E5/E7g-h と parenthesized close の CST-only construction control であり、typed recovery
+record、wrong close、missing item/separator、layout、Gate 4/G4b ledger は未完のままである。M1
+specification review は clean、focused rewrite tests は 29 passed、package check、format/diff check
+は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

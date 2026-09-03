@@ -6,7 +6,10 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 
 use super::{
     RewriteIn,
-    emit::{emit_identifier_core, emit_integer_core, emit_operator_use, emit_token_item},
+    emit::{
+        emit_identifier_core, emit_integer_core, emit_missing_close, emit_operator_use,
+        emit_token_item,
+    },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
     lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia},
     operator::stops_for,
@@ -278,6 +281,9 @@ fn delimited_items(
             emit_token_item(&mut i, item);
             return Ok(());
         }
+        if matches!(&item.payload, Payload::Eof) {
+            return missing_close(i, item);
+        }
         if !is_nud_item(&item) {
             return handoff(item);
         }
@@ -298,9 +304,16 @@ fn delimited_items(
                 emit_token_item(&mut i, next);
                 return Ok(());
             }
+            Err(Either::Right(end)) => return missing_close(i, end.item),
             exit => return exit,
         };
     }
+}
+
+fn missing_close(mut i: RewriteIn, mut end: Item) -> TailExit {
+    let leading = std::mem::take(&mut end.leading);
+    emit_missing_close(&mut i, leading);
+    handoff(end)
 }
 
 fn is_nud_item(item: &Item) -> bool {

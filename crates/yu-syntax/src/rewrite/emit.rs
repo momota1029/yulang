@@ -71,6 +71,14 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
     }
 }
 
+/// A delimited owner accepts the trivia before its absent close, then emits the
+/// zero-width close slot before returning EOF to its caller.
+pub(super) fn emit_missing_close(i: &mut RewriteIn, leading: LeadingTrivia) {
+    emit_trivia(i, &leading);
+    i.state.start_node(SyntaxKind::Missing.into());
+    i.state.finish_node();
+}
+
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
 pub(super) fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &End) {
     emit_trivia_builder(builder, &end.item.leading);
