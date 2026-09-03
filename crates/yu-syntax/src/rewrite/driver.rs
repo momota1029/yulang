@@ -1,7 +1,6 @@
 use std::{ops::Range, sync::Arc};
 
-use chasa_recover::parser::{choice, item};
-use chasa_recover::{In, ParserOnce, ParserOnceStrExt as _};
+use chasa_recover::{In, ParserOnce};
 use reborrow_generic::Reborrow as _;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
@@ -9,10 +8,12 @@ use crate::{
     grammar::{
         declaration::Recovered,
         expression::{
-            CallTail, FieldTail, FixedPostfixTail, OperatorChain, OperatorChainItem, OperatorRole,
-            OperatorUse, PathSegment, PathTail, PrimaryExpression,
+            CallTail, FieldTail, FixedPostfixTail, IntegerLiteral, OperatorChain,
+            OperatorChainItem, OperatorRole, OperatorUse, PathSegment, PathTail, PrimaryExpression,
         },
     },
+    operator::{BindingPower, OperatorEntry, OperatorFixity, OperatorTable},
+    scan::operator::{OperatorSite, is_call_or_path_sensitive, judge_operator},
     scan::word::WordSpan,
     session::{
         CanonicalRecoveryContinuation, ConstructRole, Delimiter as SessionDelimiter,
@@ -24,12 +25,13 @@ use crate::{
 
 use super::{
     item::{
-        BinaryOperator, Boundary, Delimiter, Item, LayoutEvidence, Level, LogicalPosition,
+        Boundary, Delimiter, Item, LayoutEvidence, LeadingTrivia, Level, LogicalPosition,
         MalformedTailKind, NudKind, Payload, SourceSpan, StopKind, TailKind, Token, TokenKind,
+        TriviaPart, TriviaPartKind,
     },
     state::{
-        PilotFrame, PilotOutput, PilotRecoverState, RecoveryChainItem, RecoveryDraft,
-        level_is_readable, syntax_kind_for_token,
+        PilotFrame, PilotLineState, PilotOutput, PilotRecoverState, RecoveryChainItem,
+        RecoveryDraft, syntax_kind_for_token,
     },
 };
 
@@ -47,8 +49,9 @@ pub(super) struct End<'source> {
 pub(super) type TailExit<'source> = Result<(), Either<Item<'source>, End<'source>>>;
 
 #[derive(Clone, Copy)]
-pub(super) struct PilotContext<'source> {
+pub(super) struct PilotContext<'source, 'operators> {
     pub(super) root: &'source str,
+    pub(super) operators: &'operators OperatorTable,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -88,24 +91,25 @@ pub(super) enum ExprMode {
 #[derive(Clone, Debug)]
 struct ScannedNud<'source> {
     identity: super::item::ItemIdentity,
-    leading_trivia: SourceSpan<'source>,
+    leading_trivia: LeadingTrivia<'source>,
     token: Token<'source>,
     kind: NudKind,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct TriviaScan {
     saw_newline: bool,
     indent: usize,
+    parts: Vec<TriviaPart>,
 }
 
 #[derive(Clone, Copy)]
-struct ScanTriviaParser<'source> {
-    context: PilotContext<'source>,
+struct ScanTriviaParser<'source, 'operators> {
+    context: PilotContext<'source, 'operators>,
 }
 
-impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for ScanTriviaParser<'source>
+impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for ScanTriviaParser<'source, 'operators>
 {
     type Output = TriviaScan;
 
@@ -118,12 +122,19 @@ impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()
 }
 
 #[derive(Clone, Copy)]
-struct ScanNudParser<'source> {
-    context: PilotContext<'source>,
+struct ScanNudParser<'source, 'operators> {
+    context: PilotContext<'source, 'operators>,
+    frame: PilotFrame,
 }
 
-impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for ScanNudParser<'source>
+#[derive(Clone, Copy)]
+struct ScanNudUncheckedParser<'source, 'operators> {
+    context: PilotContext<'source, 'operators>,
+    frame: PilotFrame,
+}
+
+impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for ScanNudUncheckedParser<'source, 'operators>
 {
     type Output = ScannedNud<'source>;
 
@@ -131,13 +142,26 @@ impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()
         self,
         i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
     ) -> Option<Self::Output> {
-        scan_nud(i, self.context)
+        scan_nud_unchecked(i, self.context, self.frame)
+    }
+}
+
+impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for ScanNudParser<'source, 'operators>
+{
+    type Output = ScannedNud<'source>;
+
+    fn run_once(
+        self,
+        i: In<'_, &'source str, &'state mut PilotRecoverState, ()>,
+    ) -> Option<Self::Output> {
+        scan_nud(i, self.context, self.frame)
     }
 }
 
 #[derive(Clone, Copy)]
-struct TailItemParser<'source> {
-    context: PilotContext<'source>,
+struct TailItemParser<'source, 'operators> {
+    context: PilotContext<'source, 'operators>,
     frame: PilotFrame,
 }
 
@@ -148,13 +172,13 @@ enum DirectWordKind {
 }
 
 #[derive(Clone, Copy)]
-struct DirectWordParser<'source> {
-    context: PilotContext<'source>,
+struct DirectWordParser<'source, 'operators> {
+    context: PilotContext<'source, 'operators>,
     kind: DirectWordKind,
 }
 
-impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for DirectWordParser<'source>
+impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for DirectWordParser<'source, 'operators>
 {
     type Output = WordSpan<'source>;
 
@@ -167,13 +191,13 @@ impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()
 }
 
 #[derive(Clone, Copy)]
-struct FixedInvalidRunParser<'source> {
-    context: PilotContext<'source>,
+struct FixedInvalidRunParser<'source, 'operators> {
+    context: PilotContext<'source, 'operators>,
     frame: PilotFrame,
 }
 
-impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for FixedInvalidRunParser<'source>
+impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for FixedInvalidRunParser<'source, 'operators>
 {
     type Output = Range<usize>;
 
@@ -185,8 +209,8 @@ impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()
     }
 }
 
-impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
-    for TailItemParser<'source>
+impl<'source, 'operators, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()>
+    for TailItemParser<'source, 'operators>
 {
     type Output = Item<'source>;
 
@@ -202,15 +226,15 @@ impl<'source, 'state> ParserOnce<&'source str, &'state mut PilotRecoverState, ()
 /// product only after a NUD has matched, so entry `None` is effect-free.
 pub(super) fn expr<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     frame: PilotFrame,
 ) -> Option<TailExit<'source>> {
-    i.then(ScanNudParser { context }, move |nud, mut i| {
+    i.then(ScanNudParser { context, frame }, move |nud, mut i| {
         i.state.start_node(SyntaxKind::Root);
         emit_trivia(i.state, &nud.leading_trivia);
         let mut nud = nud;
-        nud.leading_trivia = SourceSpan::empty_at(context.root, nud.token.lexeme.range.start);
+        nud.leading_trivia = LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
         i.state.start_node(SyntaxKind::OperatorChain);
         i.state.begin_chain(nud.token.lexeme.range.start);
         let exit = expr_from_scanned_nud(i.rb(), context, level, ExprMode::Normal, frame, nud);
@@ -223,26 +247,26 @@ pub(super) fn expr<'source>(
 
 pub(super) fn expr_body<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
 ) -> Option<TailExit<'source>> {
-    i.then(ScanNudParser { context }, move |nud, i| {
+    i.then(ScanNudParser { context, frame }, move |nud, i| {
         expr_from_scanned_nud(i, context, level, mode, frame, nud)
     })
 }
 
 pub(super) fn expr_chain<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
 ) -> Option<(TailExit<'source>, OperatorChain<'source>)> {
-    i.then(ScanNudParser { context }, move |mut nud, i| {
+    i.then(ScanNudParser { context, frame }, move |mut nud, i| {
         emit_trivia(i.state, &nud.leading_trivia);
-        nud.leading_trivia = SourceSpan::empty_at(context.root, nud.token.lexeme.range.start);
+        nud.leading_trivia = LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
         nested_expr_from_scanned(i, context, level, mode, frame, nud)
     })
 }
@@ -251,7 +275,7 @@ pub(super) fn expr_chain<'source>(
 /// opener and whose present closing parenthesis remains caller-owned.
 pub(super) fn present_borrowed_args<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     owner: BorrowedArgsOwner,
     open: Range<usize>,
     outer_frame: PilotFrame,
@@ -299,7 +323,7 @@ pub(super) fn present_borrowed_args<'source>(
 
 fn nested_expr_from_scanned<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -315,7 +339,7 @@ fn nested_expr_from_scanned<'source>(
 
 fn expr_from_scanned_nud<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -326,7 +350,11 @@ fn expr_from_scanned_nud<'source>(
             emit_core(i.state, context, &nud);
             scan_tail_after_accept(i, context, level, mode, frame)
         }
-        NudKind::Prefix => prefix_after_accept(i, context, level, mode, frame, nud),
+        NudKind::Prefix { .. } => prefix_after_accept(i, context, level, mode, frame, nud),
+        NudKind::Nullfix => {
+            emit_nullfix(i.state, context, &nud);
+            scan_tail_after_accept(i, context, level, mode, frame)
+        }
         NudKind::OpenParenthesis => {
             emit_group_open(i.state, &nud);
             let inner_frame = PilotFrame {
@@ -355,19 +383,23 @@ fn expr_from_scanned_nud<'source>(
 
 fn prefix_after_accept<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     outer_level: Level,
     mode: ExprMode,
     frame: PilotFrame,
     prefix: ScannedNud<'source>,
 ) -> TailExit<'source> {
+    let NudKind::Prefix { right } = &prefix.kind else {
+        unreachable!("prefix continuation requires a prefix operator")
+    };
     emit_prefix(i.state, context, &prefix);
-    let rhs = match expr_body(i.rb(), context, Level::PREFIX, mode, frame) {
+    let rhs_level = Level::binding(right.clone());
+    let rhs = match expr_body(i.rb(), context, rhs_level.clone(), mode, frame) {
         Some(rhs) => rhs,
         None => recover_required_operand(
             i.rb(),
             context,
-            Level::PREFIX,
+            rhs_level,
             mode,
             frame,
             GrammarRole::Expression(ExpressionRole::Nud),
@@ -378,7 +410,7 @@ fn prefix_after_accept<'source>(
 
 fn scan_tail_after_accept<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -411,7 +443,7 @@ fn adjacent_fixed_tail_starts(root: &str, index: *const u8) -> bool {
 
 pub(super) fn tail<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -420,15 +452,15 @@ pub(super) fn tail<'source>(
     let Some(kind) = item.tail_kind() else {
         return Err(Either::Right(End { item }));
     };
-    if !tail_reads(level, kind) {
+    if !tail_reads(&level, &kind) {
         return Err(Either::Left(item));
     }
 
     match kind {
-        TailKind::Binary(operator) => {
-            emit_binary(i.state, context, &item, operator);
-            let rhs_level = operator.right_level();
-            let rhs = match expr_body(i.rb(), context, rhs_level, mode, frame) {
+        TailKind::Infix { right, .. } => {
+            emit_operator_item(i.state, context, &item, OperatorRole::Infix);
+            let rhs_level = Level::binding(right);
+            let rhs = match expr_body(i.rb(), context, rhs_level.clone(), mode, frame) {
                 Some(rhs) => rhs,
                 None => recover_required_operand(
                     i.rb(),
@@ -441,9 +473,13 @@ pub(super) fn tail<'source>(
             };
             continue_after_child(i, context, level, mode, frame, rhs)
         }
+        TailKind::Suffix { .. } => {
+            emit_operator_item(i.state, context, &item, OperatorRole::Suffix);
+            scan_tail_after_accept(i, context, level, mode, frame)
+        }
         TailKind::MlNud(nud_kind) => {
             let (child, argument) =
-                ml_child_after_accept(i.rb(), context, level, frame, &item, nud_kind);
+                ml_child_after_accept(i.rb(), context, level.clone(), frame, &item, nud_kind);
             let range = argument.range();
             i.state.push_chain_item(
                 OperatorChainItem::MlArgument {
@@ -491,7 +527,7 @@ pub(super) fn tail<'source>(
 
 pub(super) fn ml_child_after_accept<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     frame: PilotFrame,
     item: &Item<'source>,
@@ -499,7 +535,7 @@ pub(super) fn ml_child_after_accept<'source>(
 ) -> (TailExit<'source>, OperatorChain<'source>) {
     let mut nud = nud_from_item(item, nud_kind);
     emit_trivia(i.state, &item.leading_trivia);
-    nud.leading_trivia = SourceSpan::empty_at(context.root, nud.token.lexeme.range.start);
+    nud.leading_trivia = LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
     i.state.start_node(SyntaxKind::MlArgument);
     let ml_mode = ExprMode::MlArgument {
         stop_before_tail: !item.leading_trivia.text.is_empty(),
@@ -511,7 +547,7 @@ pub(super) fn ml_child_after_accept<'source>(
 
 fn field_after_accept<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -554,7 +590,7 @@ fn field_after_accept<'source>(
 
 fn path_after_accept<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -567,16 +603,18 @@ fn path_after_accept<'source>(
         .token_range(SyntaxKind::ColonColon, separator.clone());
 
     let trivia_start = byte_offset(context.root, i.index());
-    let trivia_end = i
+    let path_trivia = i
         .rb()
-        .then(ScanTriviaParser { context }, |_, i| {
-            byte_offset(context.root, i.index())
-        })
+        .then(ScanTriviaParser { context }, |trivia, _| trivia)
         .expect("path trivia scanning is total");
+    let trivia_end = byte_offset(context.root, i.index());
     if trivia_start < trivia_end {
         emit_trivia(
             i.state,
-            &SourceSpan::checked(context.root, &context.root[trivia_start..trivia_end]),
+            &LeadingTrivia {
+                span: SourceSpan::checked(context.root, &context.root[trivia_start..trivia_end]),
+                parts: path_trivia.parts,
+            },
         );
     }
 
@@ -618,7 +656,7 @@ fn path_after_accept<'source>(
 
 fn recover_fixed_tail_slot<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     frame: PilotFrame,
     role: ExpressionRole,
 ) {
@@ -653,7 +691,7 @@ fn recover_fixed_tail_slot<'source>(
 
 fn parse_call_after_open<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -681,12 +719,13 @@ fn parse_call_after_open<'source>(
             )
         }
         Payload::Tail {
-            kind: TailKind::MlNud(nud_kind),
+            kind: TailKind::MlNud(ref nud_kind),
             ..
         } => {
-            let mut nud = nud_from_item(&first, nud_kind);
+            let mut nud = nud_from_item(&first, nud_kind.clone());
             emit_trivia(i.state, &first.leading_trivia);
-            nud.leading_trivia = SourceSpan::empty_at(context.root, nud.token.lexeme.range.start);
+            nud.leading_trivia =
+                LeadingTrivia::empty_at(context.root, nud.token.lexeme.range.start);
             let (child, argument) = nested_expr_from_scanned(
                 i.rb(),
                 context,
@@ -738,7 +777,7 @@ fn parse_call_after_open<'source>(
 
 fn finish_call_child<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     owner: ConstructRole,
     child: TailExit<'source>,
 ) -> (Recovered<std::ops::Range<usize>>, TailExit<'source>) {
@@ -770,7 +809,7 @@ fn finish_call_child<'source>(
 
 fn parse_group_contents<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     frame: PilotFrame,
 ) -> (
     Vec<OperatorChain<'source>>,
@@ -815,7 +854,7 @@ fn parse_group_contents<'source>(
 
 fn finish_group_child<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     child: TailExit<'source>,
 ) -> (Option<std::ops::Range<usize>>, TailExit<'source>) {
     match child {
@@ -850,7 +889,7 @@ fn finish_group_child<'source>(
 
 fn recover_required_operand<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -871,7 +910,7 @@ fn recover_required_operand<'source>(
 
 fn continue_after_child<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     level: Level,
     mode: ExprMode,
     frame: PilotFrame,
@@ -884,9 +923,9 @@ fn continue_after_child<'source>(
     }
 }
 
-fn tail_reads(level: Level, kind: TailKind) -> bool {
+fn tail_reads(level: &Level, kind: &TailKind) -> bool {
     match kind {
-        TailKind::Binary(operator) => level_is_readable(level, operator.left_level()),
+        TailKind::Infix { left, .. } | TailKind::Suffix { left } => level.reads(left),
         TailKind::CallOpen
         | TailKind::Field
         | TailKind::Path
@@ -898,72 +937,208 @@ fn tail_reads(level: Level, kind: TailKind) -> bool {
 
 fn scan_nud<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
+    frame: PilotFrame,
+) -> Option<ScannedNud<'source>> {
+    i.check(ScanNudUncheckedParser { context, frame })
+}
+
+fn scan_nud_unchecked<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
+    context: PilotContext<'source, '_>,
+    frame: PilotFrame,
 ) -> Option<ScannedNud<'source>> {
     let start = byte_offset(context.root, i.index());
-    let ((trivia, (kind, character)), consumed) = i.check(
+    let trivia = scan_trivia(i.rb(), context).expect("trivia scanning is total");
+    let payload_start = byte_offset(context.root, i.index());
+    let leading_trivia = LeadingTrivia {
+        span: SourceSpan::checked(context.root, &context.root[start..payload_start]),
+        parts: trivia.parts,
+    };
+    let remainder = &context.root[payload_start..];
+    let (token_len, kind, token_kind) = if remainder.starts_with('(') {
         (
-            ScanTriviaParser { context },
-            choice((scan_prefix_nud, scan_open_nud, scan_atom_nud)),
+            '('.len_utf8(),
+            NudKind::OpenParenthesis,
+            TokenKind::LeftParenthesis,
         )
-            .with_str(),
-    )?;
-    let token_len = character.len_utf8();
-    let trivia_len = consumed.len() - token_len;
-    let _ = trivia;
-    let leading_trivia = SourceSpan::checked(context.root, &consumed[..trivia_len]);
-    let token_text = &consumed[trivia_len..];
+    } else if let Some((length, fixity)) = probe_operator(
+        context.operators,
+        OperatorSite::Nud,
+        !leading_trivia.text.is_empty(),
+        frame,
+        remainder,
+    ) {
+        let kind = match fixity {
+            ProbedFixity::Prefix { right } => NudKind::Prefix { right },
+            ProbedFixity::Nullfix => NudKind::Nullfix,
+            ProbedFixity::Infix { .. } | ProbedFixity::Suffix { .. } => {
+                unreachable!("NUD probing accepts only NUD fixities")
+            }
+        };
+        (length, kind, TokenKind::DynamicOperator)
+    } else if let Some(length) = ordinary_word_length(remainder) {
+        (length, NudKind::Atom, TokenKind::Identifier)
+    } else if let Some(length) = decimal_integer_length(remainder) {
+        (length, NudKind::Atom, TokenKind::Integer)
+    } else {
+        return None;
+    };
+    consume_source_bytes(i.rb(), context.root, token_len);
+    let payload_end = payload_start + token_len;
     let identity = i.recovery().allocate_item_identity(start);
     i.recovery().record_scanned_item(identity);
-    i.recovery().line.column += 1;
+    i.recovery().line.column += remainder[..token_len].chars().count();
     i.recovery().line.at_line_start = false;
     Some(ScannedNud {
         identity,
         leading_trivia,
         token: Token {
-            kind: match kind {
-                NudKind::Atom if character.is_ascii_digit() => TokenKind::Integer,
-                NudKind::Atom => TokenKind::Identifier,
-                NudKind::Prefix => TokenKind::PrefixOperator,
-                NudKind::OpenParenthesis => TokenKind::LeftParenthesis,
-            },
-            lexeme: SourceSpan::checked(context.root, token_text),
+            kind: token_kind,
+            lexeme: SourceSpan::checked(context.root, &context.root[payload_start..payload_end]),
         },
         kind,
     })
 }
 
-fn scan_atom(mut i: In<'_, &str, &mut PilotRecoverState, ()>) -> Option<char> {
-    i.check(choice((
-        item('a'),
-        item('b'),
-        item('c'),
-        item('f'),
-        item('x'),
-        item('y'),
-        item('α'),
-        item('あ'),
-    )))
+fn decimal_integer_length(source: &str) -> Option<usize> {
+    let length = source
+        .char_indices()
+        .take_while(|(_, character)| character.is_ascii_digit())
+        .map(|(offset, character)| offset + character.len_utf8())
+        .last()?;
+    Some(length)
 }
 
-fn scan_prefix_nud(mut i: In<'_, &str, &mut PilotRecoverState, ()>) -> Option<(NudKind, char)> {
-    i.check(item('-'))
-        .map(|character| (NudKind::Prefix, character))
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ProbedFixity {
+    Prefix {
+        right: BindingPower,
+    },
+    Infix {
+        left: BindingPower,
+        right: BindingPower,
+    },
+    Suffix {
+        left: BindingPower,
+    },
+    Nullfix,
 }
 
-fn scan_open_nud(mut i: In<'_, &str, &mut PilotRecoverState, ()>) -> Option<(NudKind, char)> {
-    i.check(item('('))
-        .map(|character| (NudKind::OpenParenthesis, character))
+fn probe_operator(
+    table: &OperatorTable,
+    site: OperatorSite,
+    leading_trivia: bool,
+    frame: PilotFrame,
+    source: &str,
+) -> Option<(usize, ProbedFixity)> {
+    table
+        .longest_source_match_then(source, |last_character, entry, end| {
+            operator_boundary(last_character, &source[end..])?;
+            let trailing = analyze_trivia(&source[end..], 0, PilotLineState::default());
+            let after_trivia = &source[end + trailing.len..];
+            let kinds = entry.fixities().kinds();
+
+            if is_call_or_path_sensitive(kinds)
+                && trailing.len == 0
+                && matches!(after_trivia.chars().next(), Some('(' | ':'))
+            {
+                return None;
+            }
+
+            let post_whitespace = trailing.len != 0
+                || after_trivia.is_empty()
+                || next_is_active_stop(after_trivia, frame);
+            let value_start = successor_value_start(table, &trailing, frame, after_trivia);
+            let with_value = judge_operator(site, kinds, leading_trivia, post_whitespace, true);
+            let without_value = judge_operator(site, kinds, leading_trivia, post_whitespace, false);
+            let selected = if post_whitespace && is_call_or_path_sensitive(kinds) && value_start {
+                Some(OperatorFixity::Prefix)
+            } else if with_value != without_value {
+                if value_start {
+                    with_value
+                } else {
+                    without_value
+                }
+            } else {
+                with_value
+            }?;
+            let selected = probed_fixity(entry, selected)?;
+            match (&site, &selected) {
+                (OperatorSite::Nud, ProbedFixity::Prefix { .. } | ProbedFixity::Nullfix)
+                | (OperatorSite::Led, ProbedFixity::Infix { .. } | ProbedFixity::Suffix { .. }) => {
+                    Some(selected)
+                }
+                _ => None,
+            }
+        })
+        .map(|(fixity, end)| (end, fixity))
 }
 
-fn scan_atom_nud(mut i: In<'_, &str, &mut PilotRecoverState, ()>) -> Option<(NudKind, char)> {
-    i.check(scan_atom)
-        .map(|character| (NudKind::Atom, character))
+fn probed_fixity(entry: &OperatorEntry, fixity: OperatorFixity) -> Option<ProbedFixity> {
+    match fixity {
+        OperatorFixity::Prefix => Some(ProbedFixity::Prefix {
+            right: entry.fixities().prefix()?.right_binding_power().clone(),
+        }),
+        OperatorFixity::Infix => {
+            let infix = entry.fixities().infix()?;
+            Some(ProbedFixity::Infix {
+                left: infix.left_binding_power().clone(),
+                right: infix.right_binding_power().clone(),
+            })
+        }
+        OperatorFixity::Suffix => Some(ProbedFixity::Suffix {
+            left: entry.fixities().suffix()?.left_binding_power().clone(),
+        }),
+        OperatorFixity::Nullfix => entry
+            .fixities()
+            .is_nullfix()
+            .then_some(ProbedFixity::Nullfix),
+    }
+}
+
+fn operator_boundary(last_character: char, remainder: &str) -> Option<()> {
+    (!is_xid_continue(last_character)
+        || remainder
+            .chars()
+            .next()
+            .is_none_or(|character| !is_xid_continue(character)))
+    .then_some(())
+}
+
+fn successor_value_start(
+    table: &OperatorTable,
+    trailing: &RawTrivia,
+    frame: PilotFrame,
+    source: &str,
+) -> bool {
+    if trailing.saw_newline && frame.layout_baseline >= trailing.indent {
+        return false;
+    }
+    let Some(first) = source.chars().next() else {
+        return false;
+    };
+    matches!(first, '"' | '(' | '[' | '{' | '$' | '\\' | '%' | '_' | '\'')
+        || is_xid_start(first)
+        || first.is_ascii_digit()
+        || first == '.'
+        || table.value_start_source_len(source).is_some()
+}
+
+fn next_is_active_stop(source: &str, frame: PilotFrame) -> bool {
+    match source.chars().next() {
+        Some(',') => frame.stop == Some(StopKind::Comma),
+        Some(';') => frame.stop == Some(StopKind::Semicolon),
+        Some(')') => frame.delimiter == Some(Delimiter::Parenthesis),
+        Some(']') => frame.delimiter == Some(Delimiter::Bracket),
+        Some('}') => frame.delimiter == Some(Delimiter::Brace),
+        _ => false,
+    }
 }
 
 fn scan_direct_word<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     kind: DirectWordKind,
 ) -> Option<WordSpan<'source>> {
     let start = byte_offset(context.root, i.index());
@@ -1014,13 +1189,15 @@ fn ordinary_word_length(source: &str) -> Option<usize> {
 
 fn consume_fixed_invalid_run<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     frame: PilotFrame,
 ) -> Option<Range<usize>> {
     let start = byte_offset(context.root, i.index());
     let remainder = &context.root[start..];
     let first = remainder.chars().next()?;
-    if fixed_invalid_boundary(first, frame) || fixed_retry_head(first) && !first.is_numeric() {
+    if fixed_invalid_boundary(first, frame)
+        || fixed_retry_head(remainder, context.operators) && !first.is_numeric()
+    {
         return None;
     }
 
@@ -1034,7 +1211,9 @@ fn consume_fixed_invalid_run<'source>(
         }
     } else {
         for (offset, character) in remainder.char_indices().skip(1) {
-            if fixed_invalid_boundary(character, frame) || fixed_retry_head(character) {
+            if fixed_invalid_boundary(character, frame)
+                || fixed_retry_head(&remainder[offset..], context.operators)
+            {
                 break;
             }
             end = offset + character.len_utf8();
@@ -1059,24 +1238,31 @@ fn fixed_invalid_boundary(character: char, frame: PilotFrame) -> bool {
         || character == ';' && frame.stop == Some(StopKind::Semicolon)
 }
 
-fn fixed_retry_head(character: char) -> bool {
-    matches!(character, '+' | '*' | '(' | '-')
+fn fixed_retry_head(source: &str, operators: &OperatorTable) -> bool {
+    let Some(character) = source.chars().next() else {
+        return false;
+    };
+    character == '('
         || character == '_'
         || is_xid_start(character)
         || character.is_numeric()
+        || operators
+            .longest_source_match_then(source, |_, _, _| Some(()))
+            .is_some()
 }
 
 pub(super) fn tail_item<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     frame: PilotFrame,
 ) -> Option<Item<'source>> {
     let item_start = byte_offset(context.root, i.index());
     let trivia = scan_trivia(i.rb(), context).expect("trivia scanning is total");
     let payload_start = byte_offset(context.root, i.index());
-    let leading_trivia =
-        SourceSpan::checked(context.root, &context.root[item_start..payload_start]);
-    let identity = i.recovery().allocate_item_identity(item_start);
+    let leading_trivia = LeadingTrivia {
+        span: SourceSpan::checked(context.root, &context.root[item_start..payload_start]),
+        parts: trivia.parts,
+    };
     let logical_position = LogicalPosition {
         line: i.recovery().line.line_number,
         column: i.recovery().line.column,
@@ -1085,6 +1271,7 @@ pub(super) fn tail_item<'source>(
     if trivia.saw_newline
         && (!frame.allow_same_level_newline || trivia.indent < frame.layout_baseline)
     {
+        let identity = i.recovery().allocate_item_identity(item_start);
         i.recovery().record_scanned_item(identity);
         return Some(Item {
             identity,
@@ -1099,26 +1286,24 @@ pub(super) fn tail_item<'source>(
         });
     }
 
-    let item = complete_item_payload(
-        i.rb(),
-        context,
-        frame,
-        Item {
-            identity,
-            leading_trivia,
-            payload: Payload::Boundary(Boundary::EofAfterTrivia),
-            lexical_boundary_token: None,
-            extent: item_start..payload_start,
-            logical_position,
-        },
-    );
+    let (payload, lexical_boundary_token, payload_end) =
+        scan_item_payload(i.rb(), context, frame, !leading_trivia.text.is_empty());
+    let identity = i.recovery().allocate_item_identity(item_start);
+    let item = Item {
+        identity,
+        leading_trivia,
+        payload,
+        lexical_boundary_token,
+        extent: item_start..payload_end,
+        logical_position,
+    };
     i.recovery().record_scanned_item(identity);
     Some(item)
 }
 
 fn complete_tail_item<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, &mut PilotOutput<'source>>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     frame: PilotFrame,
 ) -> Item<'source> {
     i.then(TailItemParser { context, frame }, |item, _| item)
@@ -1127,48 +1312,182 @@ fn complete_tail_item<'source>(
 
 fn complete_item_payload<'source>(
     mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     frame: PilotFrame,
     mut pending: Item<'source>,
 ) -> Item<'source> {
-    let Some(character) = i.next() else {
-        return pending;
-    };
-    let payload_start = pending.leading_trivia.range.end;
-    let mut payload_end = byte_offset(context.root, i.index());
-    if character == ':' && context.root[payload_end..].starts_with(':') {
-        let second = i.next().expect("the inspected second colon exists");
-        assert_eq!(second, ':');
-        payload_end = byte_offset(context.root, i.index());
-    }
-    i.recovery().line.column += 1;
-    if character == ':' && payload_end - payload_start == 2 {
-        i.recovery().line.column += 1;
-    }
-    i.recovery().line.at_line_start = false;
-    let token = Token {
-        kind: if character == ':' && payload_end - payload_start == 2 {
-            TokenKind::ColonColon
-        } else {
-            token_kind(character)
-        },
-        lexeme: SourceSpan::checked(context.root, &context.root[payload_start..payload_end]),
-    };
     let spaced = !pending.leading_trivia.text.is_empty();
+    let (payload, lexical_boundary_token, payload_end) =
+        scan_item_payload(i.rb(), context, frame, spaced);
     pending.extent.end = payload_end;
-    let next_character = context.root[payload_end..].chars().next();
-    let (payload, lexical_boundary_token) =
-        classify_payload(frame, character, next_character, token, spaced);
     pending.payload = payload;
     pending.lexical_boundary_token = lexical_boundary_token;
     pending
+}
+
+fn scan_item_payload<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
+    context: PilotContext<'source, '_>,
+    frame: PilotFrame,
+    spaced: bool,
+) -> (Payload<'source>, Option<Token<'source>>, usize) {
+    let start = byte_offset(context.root, i.index());
+    let source = &context.root[start..];
+    if source.is_empty() {
+        return (Payload::Boundary(Boundary::EofAfterTrivia), None, start);
+    }
+
+    let first = source.chars().next().expect("nonempty payload source");
+    let lexical_boundary = match first {
+        ')' => Some((Boundary::Close(Delimiter::Parenthesis), first.len_utf8())),
+        ']' => Some((Boundary::Close(Delimiter::Bracket), first.len_utf8())),
+        '}' => Some((Boundary::Close(Delimiter::Brace), first.len_utf8())),
+        ',' if frame.stop == Some(StopKind::Comma) => {
+            Some((Boundary::Stop(StopKind::Comma), first.len_utf8()))
+        }
+        ';' if frame.stop == Some(StopKind::Semicolon) => {
+            Some((Boundary::Stop(StopKind::Semicolon), first.len_utf8()))
+        }
+        ':' if frame.stop == Some(StopKind::Colon) && !source.starts_with("::") => {
+            Some((Boundary::Stop(StopKind::Colon), first.len_utf8()))
+        }
+        _ => None,
+    };
+    if let Some((boundary, length)) = lexical_boundary {
+        let token = consume_token(i.rb(), context.root, start, length, token_kind(first));
+        return (Payload::Boundary(boundary), Some(token), start + length);
+    }
+
+    if let Some((length, fixity)) =
+        probe_operator(context.operators, OperatorSite::Led, spaced, frame, source)
+    {
+        let kind = match fixity {
+            ProbedFixity::Infix { left, right } => TailKind::Infix { left, right },
+            ProbedFixity::Suffix { left } => TailKind::Suffix { left },
+            ProbedFixity::Prefix { .. } | ProbedFixity::Nullfix => {
+                unreachable!("LED probing accepts only LED fixities")
+            }
+        };
+        let token = consume_token(
+            i.rb(),
+            context.root,
+            start,
+            length,
+            TokenKind::DynamicOperator,
+        );
+        return (tail_payload(kind, token).0, None, start + length);
+    }
+
+    let fixed_length = if source.starts_with("::") {
+        2
+    } else {
+        first.len_utf8()
+    };
+    let fixed_kind = match first {
+        ':' if source.starts_with("::") => Some((TailKind::Path, TokenKind::ColonColon)),
+        '.' if matches!(source[fixed_length..].chars().next(), Some('(' | '{' | '.')) => {
+            Some((TailKind::Deferred, TokenKind::Dot))
+        }
+        '.' => Some((TailKind::Field, TokenKind::Dot)),
+        '(' if !spaced => Some((TailKind::CallOpen, TokenKind::LeftParenthesis)),
+        '(' => Some((
+            TailKind::MlNud(NudKind::OpenParenthesis),
+            TokenKind::LeftParenthesis,
+        )),
+        _ => None,
+    };
+    if let Some((kind, token_kind)) = fixed_kind {
+        let token = consume_token(i.rb(), context.root, start, fixed_length, token_kind);
+        return (tail_payload(kind, token).0, None, start + fixed_length);
+    }
+
+    if spaced
+        && let Some((length, fixity)) =
+            probe_operator(context.operators, OperatorSite::Nud, true, frame, source)
+    {
+        let nud = match fixity {
+            ProbedFixity::Prefix { right } => NudKind::Prefix { right },
+            ProbedFixity::Nullfix => NudKind::Nullfix,
+            ProbedFixity::Infix { .. } | ProbedFixity::Suffix { .. } => {
+                unreachable!("NUD probing accepts only NUD fixities")
+            }
+        };
+        let token = consume_token(
+            i.rb(),
+            context.root,
+            start,
+            length,
+            TokenKind::DynamicOperator,
+        );
+        return (
+            tail_payload(TailKind::MlNud(nud), token).0,
+            None,
+            start + length,
+        );
+    }
+
+    let atom = ordinary_word_length(source)
+        .map(|length| (length, TokenKind::Identifier))
+        .or_else(|| decimal_integer_length(source).map(|length| (length, TokenKind::Integer)));
+    if let Some((length, token_kind)) = atom {
+        let token = consume_token(i.rb(), context.root, start, length, token_kind);
+        return (
+            tail_payload(TailKind::MlNud(NudKind::Atom), token).0,
+            None,
+            start + length,
+        );
+    }
+
+    let length = first.len_utf8();
+    let token = consume_token(i, context.root, start, length, TokenKind::Unknown);
+    (
+        tail_payload(
+            TailKind::Malformed(if spaced {
+                MalformedTailKind::Spaced
+            } else {
+                MalformedTailKind::Adjacent
+            }),
+            token,
+        )
+        .0,
+        None,
+        start + length,
+    )
+}
+
+fn consume_token<'source>(
+    mut i: In<'_, &'source str, &mut PilotRecoverState, ()>,
+    root: &'source str,
+    start: usize,
+    length: usize,
+    kind: TokenKind,
+) -> Token<'source> {
+    consume_source_bytes(i.rb(), root, length);
+    let line = i.recovery();
+    line.line.column += root[start..start + length].chars().count();
+    line.line.at_line_start = false;
+    Token {
+        kind,
+        lexeme: SourceSpan::checked(root, &root[start..start + length]),
+    }
+}
+
+fn consume_source_bytes(
+    mut i: In<'_, &str, &mut PilotRecoverState, ()>,
+    root: &str,
+    length: usize,
+) {
+    let start = byte_offset(root, i.index());
+    for expected in root[start..start + length].chars() {
+        assert_eq!(i.next(), Some(expected));
+    }
 }
 
 /// The layout owner may release a trivia-caused boundary and complete that
 /// same item under a new frame. Identity/trivia/position are not rebuilt.
 pub(super) fn resume_trivia_boundary<'source>(
     i: In<'_, &'source str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     frame: PilotFrame,
     mut item: Item<'source>,
 ) -> Item<'source> {
@@ -1188,47 +1507,6 @@ pub(super) fn resume_trivia_boundary<'source>(
         return item;
     }
     complete_item_payload(i, context, frame, item)
-}
-
-fn classify_payload<'source>(
-    frame: PilotFrame,
-    character: char,
-    next_character: Option<char>,
-    token: Token<'source>,
-    spaced: bool,
-) -> (Payload<'source>, Option<Token<'source>>) {
-    let lexical = |boundary| (Payload::Boundary(boundary), Some(token.clone()));
-    match character {
-        ')' => lexical(Boundary::Close(Delimiter::Parenthesis)),
-        ']' => lexical(Boundary::Close(Delimiter::Bracket)),
-        '}' => lexical(Boundary::Close(Delimiter::Brace)),
-        ',' if frame.stop == Some(StopKind::Comma) => lexical(Boundary::Stop(StopKind::Comma)),
-        ';' if frame.stop == Some(StopKind::Semicolon) => {
-            lexical(Boundary::Stop(StopKind::Semicolon))
-        }
-        ':' if token.lexeme.text == "::" => tail_payload(TailKind::Path, token),
-        ':' if frame.stop == Some(StopKind::Colon) => lexical(Boundary::Stop(StopKind::Colon)),
-        '.' if matches!(next_character, Some('(' | '{' | '.')) => {
-            tail_payload(TailKind::Deferred, token)
-        }
-        '.' => tail_payload(TailKind::Field, token),
-        '+' => tail_payload(TailKind::Binary(BinaryOperator::Add), token),
-        '*' => tail_payload(TailKind::Binary(BinaryOperator::Multiply), token),
-        '(' if !spaced => tail_payload(TailKind::CallOpen, token),
-        '(' => tail_payload(TailKind::MlNud(NudKind::OpenParenthesis), token),
-        '-' => tail_payload(TailKind::MlNud(NudKind::Prefix), token),
-        character if character.is_alphanumeric() => {
-            tail_payload(TailKind::MlNud(NudKind::Atom), token)
-        }
-        _ => tail_payload(
-            TailKind::Malformed(if spaced {
-                MalformedTailKind::Spaced
-            } else {
-                MalformedTailKind::Adjacent
-            }),
-            token,
-        ),
-    }
 }
 
 fn tail_payload<'source>(
@@ -1301,40 +1579,209 @@ fn stop_text(stop: StopKind) -> &'static str {
 
 fn scan_trivia(
     mut i: In<'_, &str, &mut PilotRecoverState, ()>,
-    context: PilotContext<'_>,
+    context: PilotContext<'_, '_>,
 ) -> Option<TriviaScan> {
-    let mut trivia = TriviaScan::default();
-    loop {
-        if i.check(item(' ')).is_some() || i.check(item('\t')).is_some() {
-            let line = i.recovery();
-            line.line.column += 1;
-            if trivia.saw_newline {
-                trivia.indent += 1;
-            }
+    let start = byte_offset(context.root, i.index());
+    let raw = analyze_trivia(&context.root[start..], start, i.recovery().line);
+    consume_source_bytes(i.rb(), context.root, raw.len);
+    i.recovery().line = raw.line;
+    Some(TriviaScan {
+        saw_newline: raw.saw_newline,
+        indent: if raw.saw_newline {
+            raw.indent
+        } else {
+            i.recovery().line.column
+        },
+        parts: raw.parts,
+    })
+}
+
+#[derive(Clone, Debug, Default)]
+struct RawTrivia {
+    len: usize,
+    saw_newline: bool,
+    indent: usize,
+    line: PilotLineState,
+    parts: Vec<TriviaPart>,
+}
+
+fn analyze_trivia(source: &str, base: usize, mut line: PilotLineState) -> RawTrivia {
+    let bytes = source.as_bytes();
+    let mut offset = 0;
+    let mut saw_newline = false;
+    let mut parts = Vec::new();
+    while offset < bytes.len() {
+        if let Some(whitespace) =
+            scan_raw_whitespace(source, base, &mut offset, &mut line, &mut saw_newline)
+        {
+            parts.extend(whitespace);
             continue;
         }
-        let newline_start = byte_offset(context.root, i.index());
-        if i.check((item('\r'), item('\n'))).is_some() || i.check(item('\n')).is_some() {
-            let newline_end = byte_offset(context.root, i.index());
-            trivia.saw_newline = true;
-            trivia.indent = 0;
-            let line = i.recovery();
-            line.line.last_newline = Some((newline_start, newline_end));
-            line.line.line_start = newline_end;
-            line.line.line_indent = 0;
-            line.line.line_number += 1;
-            line.line.column = 0;
-            line.line.at_line_start = true;
+        if source[offset..].starts_with("//") {
+            let start = offset;
+            advance_raw_text(source, &mut offset, 2, &mut line);
+            while offset < bytes.len() && !matches!(bytes[offset], b'\r' | b'\n') {
+                let character = source[offset..]
+                    .chars()
+                    .next()
+                    .expect("line-comment remainder is nonempty");
+                advance_raw_text(source, &mut offset, character.len_utf8(), &mut line);
+            }
+            parts.push(TriviaPart {
+                kind: TriviaPartKind::LineComment,
+                range: base + start..base + offset,
+            });
+            continue;
+        }
+        if source[offset..].starts_with("/*") {
+            let start = offset;
+            scan_raw_block_comment(source, base, &mut offset, &mut line, &mut saw_newline);
+            parts.push(TriviaPart {
+                kind: TriviaPartKind::BlockComment,
+                range: base + start..base + offset,
+            });
             continue;
         }
         break;
     }
-    if trivia.saw_newline {
-        i.recovery().line.line_indent = trivia.indent;
-    } else {
-        trivia.indent = i.recovery().line.column;
+    RawTrivia {
+        len: offset,
+        saw_newline,
+        indent: line.line_indent,
+        line,
+        parts,
     }
-    Some(trivia)
+}
+
+fn scan_raw_whitespace(
+    source: &str,
+    base: usize,
+    offset: &mut usize,
+    line: &mut PilotLineState,
+    saw_newline: &mut bool,
+) -> Option<Vec<TriviaPart>> {
+    let bytes = source.as_bytes();
+    if *offset >= bytes.len() || !matches!(bytes[*offset], b' ' | b'\t' | b'\r' | b'\n') {
+        return None;
+    }
+
+    if line.at_line_start {
+        // Match `scan::trivia::scan_whitespace`: each comment- or text-separated
+        // whitespace run replaces the preceding indentation contribution.
+        line.line_indent = 0;
+    }
+    let mut parts = Vec::new();
+    let mut horizontal_start = None;
+    while *offset < bytes.len() {
+        let start = *offset;
+        if matches!(bytes[*offset], b' ' | b'\t') {
+            horizontal_start.get_or_insert(start);
+            *offset += 1;
+            line.column += 1;
+            if line.at_line_start {
+                line.line_indent += 1;
+            }
+            continue;
+        }
+        let newline_len = if bytes[*offset] == b'\r' {
+            if bytes.get(*offset + 1) == Some(&b'\n') {
+                2
+            } else {
+                1
+            }
+        } else if bytes[*offset] == b'\n' {
+            1
+        } else {
+            0
+        };
+        if newline_len == 0 {
+            break;
+        }
+        if let Some(horizontal_start) = horizontal_start.take() {
+            parts.push(TriviaPart {
+                kind: TriviaPartKind::Whitespace,
+                range: base + horizontal_start..base + start,
+            });
+        }
+        *offset += newline_len;
+        let newline_end = *offset;
+        line.last_newline = Some((base + start, base + newline_end));
+        line.line_start = base + newline_end;
+        line.line_indent = 0;
+        line.line_number += 1;
+        line.column = 0;
+        line.at_line_start = true;
+        *saw_newline = true;
+        parts.push(TriviaPart {
+            kind: TriviaPartKind::Newline,
+            range: base + start..base + newline_end,
+        });
+    }
+    if let Some(horizontal_start) = horizontal_start {
+        parts.push(TriviaPart {
+            kind: TriviaPartKind::Whitespace,
+            range: base + horizontal_start..base + *offset,
+        });
+    }
+    Some(parts)
+}
+
+fn scan_raw_block_comment(
+    source: &str,
+    base: usize,
+    offset: &mut usize,
+    line: &mut PilotLineState,
+    saw_newline: &mut bool,
+) {
+    debug_assert!(source[*offset..].starts_with("/*"));
+    advance_raw_text(source, offset, 2, line);
+    let mut depth = 1usize;
+    while *offset < source.len() {
+        if source[*offset..].starts_with('/') {
+            advance_raw_text(source, offset, 1, line);
+            // Preserve the oracle's overlap rule: consume immediately
+            // overlapping `*/` pairs before this slash may open a new depth.
+            while source[*offset..].starts_with("*/") {
+                advance_raw_text(source, offset, 2, line);
+            }
+            if source[*offset..].starts_with('*') {
+                advance_raw_text(source, offset, 1, line);
+                depth += 1;
+            }
+            continue;
+        }
+        if source[*offset..].starts_with('*') {
+            advance_raw_text(source, offset, 1, line);
+            // The symmetric `/*` overlap is skipped before this star may
+            // close the current depth.
+            while source[*offset..].starts_with("/*") {
+                advance_raw_text(source, offset, 2, line);
+            }
+            if source[*offset..].starts_with('/') {
+                advance_raw_text(source, offset, 1, line);
+                depth -= 1;
+                if depth == 0 {
+                    return;
+                }
+            }
+            continue;
+        }
+        if scan_raw_whitespace(source, base, offset, line, saw_newline).is_some() {
+            continue;
+        }
+        let character = source[*offset..]
+            .chars()
+            .next()
+            .expect("block-comment remainder is nonempty");
+        advance_raw_text(source, offset, character.len_utf8(), line);
+    }
+}
+
+fn advance_raw_text(source: &str, offset: &mut usize, length: usize, line: &mut PilotLineState) {
+    debug_assert!(*offset + length <= source.len());
+    debug_assert!(source.is_char_boundary(*offset + length));
+    line.column += source[*offset..*offset + length].chars().count();
+    *offset += length;
 }
 
 fn recover_missing<'source>(
@@ -1464,27 +1911,36 @@ fn nud_from_item<'source>(item: &Item<'source>, kind: NudKind) -> ScannedNud<'so
 
 fn emit_core<'source>(
     output: &mut PilotOutput<'source>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     nud: &ScannedNud<'_>,
 ) {
     emit_trivia(output, &nud.leading_trivia);
-    output.start_node(SyntaxKind::IdentifierExpression);
+    output.start_node(match nud.token.kind {
+        TokenKind::Identifier => SyntaxKind::IdentifierExpression,
+        TokenKind::Integer => SyntaxKind::IntegerLiteral,
+        _ => unreachable!("a core NUD is a source word or decimal integer"),
+    });
     output.token_range(
         syntax_kind_for_token(nud.token.kind),
         nud.token.lexeme.range.clone(),
     );
     output.finish_node();
     let range = nud.token.lexeme.range.clone();
-    let word = WordSpan::from_root_range(context.root, range.clone());
-    output.push_chain_item(
-        OperatorChainItem::Primary(PrimaryExpression::Identifier(word)),
-        range,
-    );
+    let primary = match nud.token.kind {
+        TokenKind::Identifier => {
+            PrimaryExpression::Identifier(WordSpan::from_root_range(context.root, range.clone()))
+        }
+        TokenKind::Integer => {
+            PrimaryExpression::Integer(IntegerLiteral::from_root_range(context.root, range.clone()))
+        }
+        _ => unreachable!("a core NUD is a source word or decimal integer"),
+    };
+    output.push_chain_item(OperatorChainItem::Primary(primary), range);
 }
 
 fn emit_prefix<'source>(
     output: &mut PilotOutput<'source>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
     prefix: &ScannedNud<'_>,
 ) {
     emit_trivia(output, &prefix.leading_trivia);
@@ -1502,23 +1958,50 @@ fn emit_prefix<'source>(
     );
 }
 
-fn emit_binary<'source>(
+fn emit_nullfix<'source>(
     output: &mut PilotOutput<'source>,
-    context: PilotContext<'source>,
+    context: PilotContext<'source, '_>,
+    nullfix: &ScannedNud<'_>,
+) {
+    emit_trivia(output, &nullfix.leading_trivia);
+    output.start_node(SyntaxKind::NullfixOperatorUse);
+    output.token_range(SyntaxKind::Operator, nullfix.token.lexeme.range.clone());
+    output.finish_node();
+    let range = nullfix.token.lexeme.range.clone();
+    output.push_chain_item(
+        OperatorChainItem::NullfixUse(OperatorUse::from_root_range(
+            context.root,
+            range.clone(),
+            OperatorRole::Nullfix,
+        )),
+        range,
+    );
+}
+
+fn emit_operator_item<'source>(
+    output: &mut PilotOutput<'source>,
+    context: PilotContext<'source, '_>,
     item: &Item<'_>,
-    _: BinaryOperator,
+    role: OperatorRole,
 ) {
     let range = token_range(item);
     emit_trivia(output, &item.leading_trivia);
-    output.start_node(SyntaxKind::InfixOperatorUse);
+    output.start_node(match role {
+        OperatorRole::Infix => SyntaxKind::InfixOperatorUse,
+        OperatorRole::Suffix => SyntaxKind::SuffixOperatorUse,
+        OperatorRole::Prefix | OperatorRole::Nullfix => {
+            unreachable!("tail operators are infix or suffix")
+        }
+    });
     output.token_range(SyntaxKind::Operator, range.clone());
     output.finish_node();
+    let operator = OperatorUse::from_root_range(context.root, range.clone(), role);
     output.push_chain_item(
-        OperatorChainItem::InfixUse(OperatorUse::from_root_range(
-            context.root,
-            range.clone(),
-            OperatorRole::Infix,
-        )),
+        match role {
+            OperatorRole::Infix => OperatorChainItem::InfixUse(operator),
+            OperatorRole::Suffix => OperatorChainItem::SuffixUse(operator),
+            OperatorRole::Prefix | OperatorRole::Nullfix => unreachable!(),
+        },
         range,
     );
 }
@@ -1572,43 +2055,23 @@ pub(super) fn emit_end(output: &mut PilotOutput<'_>, end: &End<'_>) {
     }
 }
 
-fn emit_trivia(output: &mut PilotOutput<'_>, trivia: &SourceSpan<'_>) {
-    let mut offset = trivia.range.start;
-    let bytes = trivia.text.as_bytes();
-    let mut index = 0;
-    while index < bytes.len() {
-        let start = index;
-        let newline = if bytes[index] == b'\r' && bytes.get(index + 1) == Some(&b'\n') {
-            index += 2;
-            true
-        } else if bytes[index] == b'\n' {
-            index += 1;
-            true
-        } else {
-            while index < bytes.len() && bytes[index] != b'\r' && bytes[index] != b'\n' {
-                index += 1;
-            }
-            false
-        };
-        let end = offset + (index - start);
+fn emit_trivia(output: &mut PilotOutput<'_>, trivia: &LeadingTrivia<'_>) {
+    for part in &trivia.parts {
         output.token_range(
-            if newline {
-                SyntaxKind::Newline
-            } else {
-                SyntaxKind::Whitespace
+            match part.kind {
+                TriviaPartKind::Whitespace => SyntaxKind::Whitespace,
+                TriviaPartKind::Newline => SyntaxKind::Newline,
+                TriviaPartKind::LineComment => SyntaxKind::LineComment,
+                TriviaPartKind::BlockComment => SyntaxKind::BlockComment,
             },
-            offset..end,
+            part.range.clone(),
         );
-        offset = end;
     }
 }
 
 fn token_kind(character: char) -> TokenKind {
     match character {
         '0'..='9' => TokenKind::Integer,
-        '+' => TokenKind::InfixOperator(BinaryOperator::Add),
-        '*' => TokenKind::InfixOperator(BinaryOperator::Multiply),
-        '-' => TokenKind::PrefixOperator,
         '(' => TokenKind::LeftParenthesis,
         ')' => TokenKind::RightParenthesis,
         '.' => TokenKind::Dot,

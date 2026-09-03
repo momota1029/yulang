@@ -1,4 +1,7 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+    collections::BTreeSet,
+    sync::{Arc, LazyLock},
+};
 
 use chasa_recover::In;
 
@@ -10,6 +13,7 @@ use crate::{
             FixedPostfixTail, OperatorChain, OperatorChainItem, PathSegment, PrimaryExpression,
         },
     },
+    operator::{BindingPower, OperatorDeclaration, OperatorFixities, OperatorTable},
     session::{
         CanonicalRecoveryContinuation, ConstructRole, Delimiter as SessionDelimiter, DiagnosticId,
         ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, RecoveryKind,
@@ -17,6 +21,31 @@ use crate::{
     },
     syntax_kind::SyntaxKind,
 };
+
+static PILOT_OPERATORS: LazyLock<OperatorTable> = LazyLock::new(|| {
+    OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new().with_infix(BindingPower::scalar(10), BindingPower::scalar(11)),
+        ),
+        OperatorDeclaration::new(
+            "*",
+            OperatorFixities::new().with_infix(BindingPower::scalar(20), BindingPower::scalar(21)),
+        ),
+        OperatorDeclaration::new(
+            "-",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(30)),
+        ),
+    ])
+    .expect("isolated pilot operator table")
+});
+
+fn pilot_context(source: &'static str) -> PilotContext<'static, 'static> {
+    PilotContext {
+        root: source,
+        operators: &PILOT_OPERATORS,
+    }
+}
 
 use super::{
     driver::{
@@ -46,12 +75,30 @@ fn run_complete(source: &'static str) -> CompleteRun<'static> {
 }
 
 fn run_complete_with_frame(source: &'static str, frame: PilotFrame) -> CompleteRun<'static> {
+    run_complete_with_operators_and_frame(source, &PILOT_OPERATORS, frame)
+}
+
+fn run_complete_with_operators(
+    source: &'static str,
+    operators: &OperatorTable,
+) -> CompleteRun<'static> {
+    run_complete_with_operators_and_frame(source, operators, PilotFrame::default())
+}
+
+fn run_complete_with_operators_and_frame(
+    source: &'static str,
+    operators: &OperatorTable,
+    frame: PilotFrame,
+) -> CompleteRun<'static> {
     let mut remainder = source;
     let mut recovery = PilotRecoverState::default();
     let mut output = PilotOutput::new(source);
     let exit = expr(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: source },
+        PilotContext {
+            root: source,
+            operators,
+        },
         Level::OUTER,
         frame,
     )
@@ -90,7 +137,7 @@ fn setup_tail(
     let mut recovery = PilotRecoverState::default();
     let item = tail_item(
         In::new(&mut remainder, &mut recovery, ()),
-        PilotContext { root: source },
+        pilot_context(source),
         PilotFrame::default(),
     )
     .unwrap();
@@ -406,7 +453,7 @@ fn gate3_dot_family_defer_returns_the_exact_item_without_publication() {
 
         let exit = tail(
             In::new(&mut remainder, &mut recovery, &mut output),
-            PilotContext { root: source },
+            pilot_context(source),
             Level::OUTER,
             ExprMode::Normal,
             frame,
@@ -597,7 +644,7 @@ fn gate3_ml_argument_owns_its_adjacent_fixed_tail_chain() {
     };
     let (exit, argument) = ml_child_after_accept(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: source },
+        pilot_context(source),
         Level::OUTER,
         PilotFrame::default(),
         &item,
@@ -647,7 +694,7 @@ fn gate3_present_borrowed_close_is_emitted_only_by_each_args_owner() {
         output.token_range(SyntaxKind::Unknown, 0..open.start);
         let result = present_borrowed_args(
             In::new(&mut remainder, &mut recovery, &mut output),
-            PilotContext { root: source },
+            pilot_context(source),
             owner,
             open.clone(),
             PilotFrame::default(),
@@ -755,7 +802,7 @@ fn gate3_borrowed_close_rejects_an_adjacent_close_without_emitting_it() {
     output.token_range(SyntaxKind::Unknown, 0..open.start);
     let rejected = present_borrowed_args(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: source },
+        pilot_context(source),
         BorrowedArgsOwner::InlineReference,
         open,
         PilotFrame::default(),
@@ -792,7 +839,7 @@ fn binary_prefix_and_ml_each_exercise_normal_item_and_end_handoffs() {
     let (mut remainder, mut recovery, mut output, item) = setup_tail("*b");
     let ok = tail(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: "*b" },
+        pilot_context("*b"),
         Level::OUTER,
         ExprMode::MlArgument {
             stop_before_tail: true,
@@ -805,8 +852,8 @@ fn binary_prefix_and_ml_each_exercise_normal_item_and_end_handoffs() {
     let (mut remainder, mut recovery, mut output, item) = setup_tail("*b+c");
     let left = tail(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: "*b+c" },
-        Level(11),
+        pilot_context("*b+c"),
+        Level::scalar(11),
         ExprMode::Normal,
         PilotFrame::default(),
         item,
@@ -827,7 +874,7 @@ fn binary_prefix_and_ml_each_exercise_normal_item_and_end_handoffs() {
     let (mut remainder, mut recovery, mut output, item) = setup_tail("*b");
     let end = tail(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: "*b" },
+        pilot_context("*b"),
         Level::OUTER,
         ExprMode::Normal,
         PilotFrame::default(),
@@ -844,7 +891,7 @@ fn binary_prefix_and_ml_each_exercise_normal_item_and_end_handoffs() {
             Level::OUTER,
             0,
         ),
-        ("-b+c", ExprMode::Normal, Level(11), 1),
+        ("-b+c", ExprMode::Normal, Level::scalar(11), 1),
         ("-b", ExprMode::Normal, Level::OUTER, 2),
     ] {
         let mut remainder = source;
@@ -855,7 +902,7 @@ fn binary_prefix_and_ml_each_exercise_normal_item_and_end_handoffs() {
         output.begin_chain(0);
         let exit = expr_body(
             In::new(&mut remainder, &mut recovery, &mut output),
-            PilotContext { root: source },
+            pilot_context(source),
             level,
             mode,
             PilotFrame::default(),
@@ -877,13 +924,13 @@ fn binary_prefix_and_ml_each_exercise_normal_item_and_end_handoffs() {
             Level::OUTER,
             0,
         ),
-        ("x+c", ExprMode::Normal, Level(11), 1),
+        ("x+c", ExprMode::Normal, Level::scalar(11), 1),
         ("x", ExprMode::Normal, Level::OUTER, 2),
     ] {
         let (mut remainder, mut recovery, mut output, item) = setup_tail(source);
         let exit = tail(
             In::new(&mut remainder, &mut recovery, &mut output),
-            PilotContext { root: source },
+            pilot_context(source),
             level,
             mode,
             PilotFrame::default(),
@@ -899,11 +946,14 @@ fn binary_prefix_and_ml_each_exercise_normal_item_and_end_handoffs() {
 
 #[test]
 fn recovered_operands_keep_child_control_and_handoff_the_same_lower_item() {
-    let (mut remainder, mut recovery, mut output, item) = setup_tail("*?+c");
+    // `"` is raw oracle ValueStart evidence, so the dynamic introducer is
+    // accepted by the real judge; quote NUD ownership intentionally remains
+    // outside isolated G4a and therefore exercises typed Error continuation.
+    let (mut remainder, mut recovery, mut output, item) = setup_tail("*\"+c");
     let binary = tail(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: "*?+c" },
-        Level(11),
+        pilot_context("*\"+c"),
+        Level::scalar(11),
         ExprMode::Normal,
         PilotFrame::default(),
         item,
@@ -922,7 +972,7 @@ fn recovered_operands_keep_child_control_and_handoff_the_same_lower_item() {
         1
     );
 
-    let source = "-?+c";
+    let source = "-\"+c";
     let mut remainder = source;
     let mut recovery = PilotRecoverState::default();
     let mut output = PilotOutput::new(source);
@@ -931,8 +981,8 @@ fn recovered_operands_keep_child_control_and_handoff_the_same_lower_item() {
     output.begin_chain(0);
     let prefix = expr_body(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: source },
-        Level(11),
+        pilot_context(source),
+        Level::scalar(11),
         ExprMode::Normal,
         PilotFrame::default(),
     )
@@ -951,14 +1001,14 @@ fn recovered_operands_keep_child_control_and_handoff_the_same_lower_item() {
         1
     );
 
-    let (mut remainder, mut recovery, mut output, item) = setup_tail(" -?+c");
+    let (mut remainder, mut recovery, mut output, item) = setup_tail(" -\"+c");
     let Some(TailKind::MlNud(nud_kind)) = item.tail_kind() else {
         panic!()
     };
     let (ml_child, argument) = ml_child_after_accept(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: " -?+c" },
-        Level(11),
+        pilot_context(" -\"+c"),
+        Level::scalar(11),
         PilotFrame::default(),
         &item,
         nud_kind,
@@ -984,13 +1034,15 @@ fn recovered_operands_keep_child_control_and_handoff_the_same_lower_item() {
 fn malformed_accepted_owners_publish_typed_total_recoveries() {
     let cases = [
         (
-            "a+",
+            // The quote makes the infix acceptable to the oracle judge, then
+            // the not-yet-owned quote NUD becomes the typed Error operand.
+            "a+\"",
             GrammarRole::Expression(ExpressionRole::Nud),
-            RecoveryKind::Missing,
-            CanonicalRecoveryContinuation::StopAtBoundary,
+            RecoveryKind::Error,
+            CanonicalRecoveryContinuation::RetrySameSlot,
         ),
         (
-            "-?",
+            "-\"",
             GrammarRole::Expression(ExpressionRole::Nud),
             RecoveryKind::Error,
             CanonicalRecoveryContinuation::RetrySameSlot,
@@ -1100,7 +1152,7 @@ fn paren_layout_controls_and_boundary_resumption_preserve_same_item() {
     let mut output = PilotOutput::new(source);
     let exit = expr(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: source },
+        pilot_context(source),
         Level::OUTER,
         PilotFrame::default(),
     )
@@ -1120,7 +1172,7 @@ fn paren_layout_controls_and_boundary_resumption_preserve_same_item() {
     let identity = end.item.identity;
     let still_dedent = resume_trivia_boundary(
         In::new(&mut remainder, &mut recovery, ()),
-        PilotContext { root: source },
+        pilot_context(source),
         PilotFrame {
             layout_baseline: 1,
             allow_same_level_newline: true,
@@ -1135,7 +1187,7 @@ fn paren_layout_controls_and_boundary_resumption_preserve_same_item() {
     let wrong_cursor = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         resume_trivia_boundary(
             In::new(&mut wrong_remainder, &mut recovery, ()),
-            PilotContext { root: source },
+            pilot_context(source),
             PilotFrame {
                 allow_same_level_newline: true,
                 ..PilotFrame::default()
@@ -1148,7 +1200,7 @@ fn paren_layout_controls_and_boundary_resumption_preserve_same_item() {
 
     let resumed = resume_trivia_boundary(
         In::new(&mut remainder, &mut recovery, ()),
-        PilotContext { root: source },
+        pilot_context(source),
         PilotFrame {
             allow_same_level_newline: true,
             ..PilotFrame::default()
@@ -1184,7 +1236,7 @@ fn eof_trivia_boundary_resume_changes_only_the_same_item_payload() {
     let mut output = PilotOutput::new(source);
     let exit = expr(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: source },
+        pilot_context(source),
         Level::OUTER,
         PilotFrame::default(),
     )
@@ -1203,7 +1255,7 @@ fn eof_trivia_boundary_resume_changes_only_the_same_item_payload() {
 
     let resumed = resume_trivia_boundary(
         In::new(&mut remainder, &mut recovery, ()),
-        PilotContext { root: source },
+        pilot_context(source),
         PilotFrame {
             allow_same_level_newline: true,
             ..PilotFrame::default()
@@ -1223,7 +1275,7 @@ fn close_stop_and_eof_retain_identity_trivia_extent_and_logical_position() {
     let mut recovery = PilotRecoverState::default();
     let close = tail_item(
         In::new(&mut remainder, &mut recovery, ()),
-        PilotContext { root: source },
+        pilot_context(source),
         PilotFrame::default(),
     )
     .unwrap();
@@ -1253,7 +1305,7 @@ fn close_stop_and_eof_retain_identity_trivia_extent_and_logical_position() {
     let mut recovery = PilotRecoverState::default();
     let token = tail_item(
         In::new(&mut remainder, &mut recovery, ()),
-        PilotContext { root: source },
+        pilot_context(source),
         PilotFrame::default(),
     )
     .unwrap();
@@ -1303,7 +1355,7 @@ fn close_stop_and_eof_retain_identity_trivia_extent_and_logical_position() {
 #[test]
 fn unread_tail_preserves_complete_input_r_frame_s_and_item_snapshot() {
     let source = "p  +x";
-    let context = PilotContext { root: source };
+    let context = pilot_context(source);
     let frame = PilotFrame {
         layout_baseline: 3,
         allow_same_level_newline: true,
@@ -1375,7 +1427,7 @@ fn unread_tail_preserves_complete_input_r_frame_s_and_item_snapshot() {
     let exit = tail(
         In::new(&mut remainder, &mut recovery, &mut output),
         context,
-        Level(11),
+        Level::scalar(11),
         ExprMode::Normal,
         frame,
         item,
@@ -1436,6 +1488,669 @@ fn pilot_field_cone_is_exhaustive_and_recovery_reuse_stays_at_gate_seven() {
 }
 
 #[test]
+fn gate4a_source_words_integers_and_all_dynamic_fixities_stay_flat() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "~",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(30)),
+        ),
+        OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new().with_infix(BindingPower::scalar(10), BindingPower::scalar(11)),
+        ),
+        OperatorDeclaration::new(
+            "^",
+            OperatorFixities::new().with_suffix(BindingPower::scalar(40)),
+        ),
+        OperatorDeclaration::new(
+            "@",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(50))
+                .with_nullfix(),
+        ),
+    ])
+    .expect("four-fixity G4a table");
+
+    let run = run_complete_with_operators("~long_name^+@", &operators);
+    assert_eq!(run.green.to_string(), "~long_name^+@");
+    let [
+        OperatorChainItem::PrefixUse(prefix),
+        OperatorChainItem::Primary(PrimaryExpression::Identifier(word)),
+        OperatorChainItem::SuffixUse(suffix),
+        OperatorChainItem::InfixUse(infix),
+        OperatorChainItem::NullfixUse(nullfix),
+    ] = run.chain.items()
+    else {
+        panic!(
+            "all dynamic uses stay in one source-order OperatorChain: {:#?}",
+            run.chain.items()
+        )
+    };
+    assert_eq!(prefix.text(), "~");
+    assert_eq!(word.text(), "long_name");
+    assert_eq!(suffix.text(), "^");
+    assert_eq!(infix.text(), "+");
+    assert_eq!(nullfix.text(), "@");
+
+    let integer = run_complete_with_operators("12345", &operators);
+    let [OperatorChainItem::Primary(PrimaryExpression::Integer(integer))] = integer.chain.items()
+    else {
+        panic!("decimal source run is one integer primary")
+    };
+    assert_eq!(integer.text(), "12345");
+    assert_eq!(integer.range(), 0..5);
+}
+
+#[test]
+fn gate4a_raw_value_start_families_select_prefix_without_owning_the_successor() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "@",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(30))
+                .with_infix(BindingPower::scalar(10), BindingPower::scalar(11))
+                .with_nullfix(),
+        ),
+        OperatorDeclaration::new(
+            "!",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(40)),
+        ),
+        OperatorDeclaration::new("!", OperatorFixities::new().with_nullfix()),
+        OperatorDeclaration::new(
+            "!?",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(50)),
+        ),
+        OperatorDeclaration::new(
+            "!λ",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(60))
+                .with_nullfix(),
+        ),
+    ])
+    .expect("raw ValueStart control table");
+
+    for source in [
+        "@\"", "@(", "@[", "@{", "@$", "@\\", "@%", "@_", "@'", "@word", "@λ", "@1", "@.", "@!word",
+    ] {
+        let run = run_complete_with_operators(source, &operators);
+        assert!(
+            matches!(
+                run.chain.items().first(),
+                Some(OperatorChainItem::PrefixUse(operator)) if operator.text() == "@"
+            ),
+            "raw successor family must select prefix without completing successor evidence: {source:?}"
+        );
+    }
+
+    assert_eq!(
+        operators.value_start_source_len("!?word"),
+        Some("!".len()),
+        "the longer prefix-only spelling is absent from the filtered trie"
+    );
+    let ineligible_longer = run_complete_with_operators("@!?word", &operators);
+    assert!(matches!(
+        ineligible_longer.chain.items().first(),
+        Some(OperatorChainItem::PrefixUse(operator)) if operator.text() == "@"
+    ));
+
+    assert_eq!(
+        operators.value_start_source_len("!λx"),
+        Some("!".len()),
+        "the multibyte identifier boundary rejects the longer terminal and retries the shorter one"
+    );
+    let boundary_fallback = run_complete_with_operators("@!λx", &operators);
+    assert!(matches!(
+        boundary_fallback.chain.items(),
+        [
+            OperatorChainItem::PrefixUse(at),
+            OperatorChainItem::PrefixUse(bang),
+            OperatorChainItem::Primary(PrimaryExpression::Identifier(word)),
+        ] if at.text() == "@" && bang.text() == "!" && word.text() == "λx"
+    ));
+}
+
+#[test]
+fn gate4a_long_operator_falls_back_for_nud_but_wins_for_led() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "+!",
+            OperatorFixities::new().with_infix(BindingPower::scalar(10), BindingPower::scalar(11)),
+        ),
+        OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(30)),
+        ),
+        OperatorDeclaration::new(
+            "!",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(40))
+                .with_nullfix(),
+        ),
+    ])
+    .expect("overlapping G4a table");
+
+    let nud = run_complete_with_operators("+!alpha", &operators);
+    let [
+        OperatorChainItem::PrefixUse(plus),
+        OperatorChainItem::PrefixUse(bang),
+        OperatorChainItem::Primary(_),
+    ] = nud.chain.items()
+    else {
+        panic!("NUD must split the rejected long spelling")
+    };
+    assert_eq!(plus.text(), "+");
+    assert_eq!(bang.text(), "!");
+
+    let led = run_complete_with_operators("alpha+!beta", &operators);
+    let [
+        OperatorChainItem::Primary(_),
+        OperatorChainItem::InfixUse(long),
+        OperatorChainItem::Primary(_),
+    ] = led.chain.items()
+    else {
+        panic!("LED must keep the accepted longest spelling")
+    };
+    assert_eq!(long.text(), "+!");
+    assert_eq!(long.range(), 5..7);
+}
+
+#[test]
+fn gate4a_dynamic_ml_nud_owns_one_scanned_item_and_its_trivia() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "@",
+        OperatorFixities::new().with_nullfix(),
+    )])
+    .expect("nullfix table");
+    let run = run_complete_with_operators("function /*arg*/ @", &operators);
+    assert_eq!(run.green.to_string(), "function /*arg*/ @");
+    let [
+        OperatorChainItem::Primary(_),
+        OperatorChainItem::MlArgument { argument, .. },
+    ] = run.chain.items()
+    else {
+        panic!("spaced dynamic NUD is an ML argument")
+    };
+    assert!(matches!(
+        argument.items(),
+        [OperatorChainItem::NullfixUse(operator)] if operator.text() == "@"
+    ));
+    assert_eq!(
+        run.scanned
+            .iter()
+            .map(|identity| identity.ordinal)
+            .collect::<Vec<_>>(),
+        vec![0, 1, 2],
+        "the ML operator item and final boundary are each completed once"
+    );
+    let root = SyntaxNode::new_root(run.green);
+    assert!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::BlockComment)
+    );
+}
+
+#[test]
+fn gate4a_binding_power_changes_control_only_not_flat_products() {
+    fn table(plus: i8, multiply: i8) -> OperatorTable {
+        OperatorTable::from_declarations([
+            OperatorDeclaration::new(
+                "+",
+                OperatorFixities::new()
+                    .with_infix(BindingPower::scalar(plus), BindingPower::scalar(plus + 1)),
+            ),
+            OperatorDeclaration::new(
+                "*",
+                OperatorFixities::new().with_infix(
+                    BindingPower::scalar(multiply),
+                    BindingPower::scalar(multiply + 1),
+                ),
+            ),
+        ])
+        .expect("binding-power variation table")
+    }
+
+    let conventional = run_complete_with_operators("alpha+beta*gamma", &table(10, 20));
+    let reversed = run_complete_with_operators("alpha+beta*gamma", &table(30, 20));
+    assert_eq!(conventional.green, reversed.green);
+    assert_eq!(conventional.chain, reversed.chain);
+    assert!(matches!(
+        conventional.chain.items(),
+        [
+            OperatorChainItem::Primary(_),
+            OperatorChainItem::InfixUse(_),
+            OperatorChainItem::Primary(_),
+            OperatorChainItem::InfixUse(_),
+            OperatorChainItem::Primary(_),
+        ]
+    ));
+}
+
+#[test]
+fn gate4a_rejected_call_or_colon_probe_creates_no_item_or_state_effect() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "@",
+        OperatorFixities::new()
+            .with_prefix(BindingPower::scalar(30))
+            .with_nullfix(),
+    )])
+    .expect("call-sensitive operator table");
+
+    for source in ["@(", "@:"] {
+        let mut remainder = source;
+        let mut recovery = PilotRecoverState::default();
+        recovery.line.last_newline = Some((2, 4));
+        recovery.line.line_start = 4;
+        recovery.line.line_indent = 5;
+        recovery.line.line_number = 7;
+        recovery.line.column = 11;
+        recovery.line.at_line_start = true;
+        let prior_item = recovery.allocate_item_identity(13);
+        recovery.record_scanned_item(prior_item);
+        recovery.record_expectation(expectation(17..17));
+        let _ = recovery.allocate_diagnostic_id();
+        recovery.record_provisional_recovery(ProvisionalRecovery {
+            site: RecoverySiteKey {
+                role: GrammarRole::Expression(ExpressionRole::Nud),
+                range: 19..19,
+            },
+            kind: RecoveryKind::Missing,
+        });
+        recovery.record_persistent_recovery(PersistentRecovery {
+            site: RecoverySiteKey {
+                role: GrammarRole::Expression(ExpressionRole::MlArgument),
+                range: 23..24,
+            },
+            kind: RecoveryKind::Error,
+        });
+        recovery.is_cut = true;
+        let before_line = recovery.line;
+        let before_next_item_ordinal = recovery.next_item_ordinal;
+        let before_scanned = recovery.scanned_items().to_vec();
+        let before_expectations = recovery.expectations().to_vec();
+        let before_next_diagnostic_id = recovery.next_diagnostic_id();
+        let before_provisional = recovery.provisional_recoveries().to_vec();
+        let before_persistent = recovery.persistent_recoveries().to_vec();
+        let before_is_cut = recovery.is_cut;
+        let mut output = PilotOutput::new(source);
+        let frame = PilotFrame {
+            layout_baseline: 29,
+            allow_same_level_newline: true,
+            delimiter: Some(Delimiter::Brace),
+            stop: Some(StopKind::Comma),
+        };
+        let before_frame = frame;
+        let before_remainder = remainder;
+        let before_pointer = remainder.as_ptr();
+        let result = expr(
+            In::new(&mut remainder, &mut recovery, &mut output),
+            PilotContext {
+                root: source,
+                operators: &operators,
+            },
+            Level::OUTER,
+            frame,
+        );
+        assert!(result.is_none(), "{source}");
+        assert_eq!(remainder, before_remainder, "{source}");
+        assert_eq!(remainder.as_ptr(), before_pointer, "{source}");
+        assert_eq!(frame, before_frame, "{source}");
+        assert_eq!(recovery.line, before_line, "{source}");
+        assert_eq!(
+            recovery.next_item_ordinal, before_next_item_ordinal,
+            "{source}"
+        );
+        assert_eq!(recovery.scanned_items(), before_scanned, "{source}");
+        assert_eq!(recovery.expectations(), before_expectations, "{source}");
+        assert_eq!(
+            recovery.next_diagnostic_id(),
+            before_next_diagnostic_id,
+            "{source}"
+        );
+        assert_eq!(
+            recovery.provisional_recoveries(),
+            before_provisional,
+            "{source}"
+        );
+        assert_eq!(
+            recovery.persistent_recoveries(),
+            before_persistent,
+            "{source}"
+        );
+        assert_eq!(recovery.is_cut, before_is_cut, "{source}");
+        assert!(output.recoveries().is_empty(), "{source}");
+        assert!(output.root_chain().is_none(), "{source}");
+    }
+
+    let mixed = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "@",
+        OperatorFixities::new()
+            .with_prefix(BindingPower::scalar(30))
+            .with_infix(BindingPower::scalar(10), BindingPower::scalar(11))
+            .with_nullfix(),
+    )])
+    .expect("mixed-fixity call control");
+    let accepted = run_complete_with_operators("@()", &mixed);
+    assert!(matches!(
+        accepted.chain.items().first(),
+        Some(OperatorChainItem::PrefixUse(operator)) if operator.text() == "@"
+    ));
+    let colon = run_complete_with_operators("@:value", &mixed);
+    assert!(matches!(
+        colon.chain.items().first(),
+        Some(OperatorChainItem::NullfixUse(operator)) if operator.text() == "@"
+    ));
+}
+
+#[test]
+fn gate4a_trivia_oracle_controls_dynamic_fixity_and_committed_line_state() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "@",
+        OperatorFixities::new()
+            .with_prefix(BindingPower::scalar(30))
+            .with_nullfix(),
+    )])
+    .expect("trivia control table");
+
+    for source in ["@// line\n  word", "@/* outer /* inner */ outer */word"] {
+        let run = run_complete_with_operators_and_frame(
+            source,
+            &operators,
+            PilotFrame {
+                layout_baseline: 1,
+                allow_same_level_newline: true,
+                ..PilotFrame::default()
+            },
+        );
+        assert!(matches!(
+            run.chain.items().first(),
+            Some(OperatorChainItem::PrefixUse(operator)) if operator.text() == "@"
+        ));
+    }
+
+    for source in ["@/* outer /* nested", "@/**/*word"] {
+        let run = run_complete_with_operators(source, &operators);
+        assert!(matches!(
+            run.chain.items().first(),
+            Some(OperatorChainItem::NullfixUse(operator)) if operator.text() == "@"
+        ));
+        let root = SyntaxNode::new_root(run.green);
+        let block_comment = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::BlockComment)
+            .expect("the unterminated remainder is materialized as one block-comment token");
+        assert_eq!(block_comment.text(), &source[1..]);
+    }
+
+    for (baseline, expected_prefix) in [(1, true), (2, false)] {
+        for source in ["@\r\n  word", "@\n  /*c*/  word"] {
+            let run = run_complete_with_operators_and_frame(
+                source,
+                &operators,
+                PilotFrame {
+                    layout_baseline: baseline,
+                    allow_same_level_newline: true,
+                    ..PilotFrame::default()
+                },
+            );
+            assert_eq!(
+                matches!(
+                    run.chain.items().first(),
+                    Some(OperatorChainItem::PrefixUse(operator)) if operator.text() == "@"
+                ),
+                expected_prefix,
+                "strict baseline and oracle indentation for {source:?} at {baseline}"
+            );
+            assert_eq!(
+                matches!(
+                    run.chain.items().first(),
+                    Some(OperatorChainItem::NullfixUse(operator)) if operator.text() == "@"
+                ),
+                !expected_prefix,
+                "the alternate NUD fixity is selected for {source:?} at {baseline}"
+            );
+        }
+    }
+
+    let source = "\n  /*c*/  word";
+    let mut remainder = source;
+    let mut recovery = PilotRecoverState::default();
+    let item = tail_item(
+        In::new(&mut remainder, &mut recovery, ()),
+        PilotContext {
+            root: source,
+            operators: &operators,
+        },
+        PilotFrame {
+            layout_baseline: 0,
+            allow_same_level_newline: true,
+            ..PilotFrame::default()
+        },
+    )
+    .expect("the committed Item owns the maximal trivia run and following word");
+    assert_eq!(item.leading_trivia.text, "\n  /*c*/  ");
+    assert_eq!(
+        item.leading_trivia.parts,
+        [
+            super::item::TriviaPart {
+                kind: super::item::TriviaPartKind::Newline,
+                range: 0..1,
+            },
+            super::item::TriviaPart {
+                kind: super::item::TriviaPartKind::Whitespace,
+                range: 1..3,
+            },
+            super::item::TriviaPart {
+                kind: super::item::TriviaPartKind::BlockComment,
+                range: 3..8,
+            },
+            super::item::TriviaPart {
+                kind: super::item::TriviaPartKind::Whitespace,
+                range: 8..10,
+            },
+        ]
+    );
+    assert_eq!(item.logical_position.line, 1);
+    assert_eq!(item.logical_position.column, 9);
+    assert_eq!(recovery.line.last_newline, Some((0, 1)));
+    assert_eq!(recovery.line.line_start, 1);
+    assert_eq!(recovery.line.line_indent, 2);
+    assert_eq!(recovery.line.line_number, 1);
+    assert_eq!(recovery.line.column, 13);
+    assert!(!recovery.line.at_line_start);
+    assert_eq!(remainder, "");
+}
+
+#[test]
+fn gate4a_eof_and_each_active_stop_select_nullfix() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "@",
+        OperatorFixities::new()
+            .with_prefix(BindingPower::scalar(30))
+            .with_nullfix(),
+    )])
+    .expect("active-stop control table");
+    let cases = [
+        ("@", PilotFrame::default(), Boundary::EofAfterTrivia),
+        (
+            "@,",
+            PilotFrame {
+                stop: Some(StopKind::Comma),
+                ..PilotFrame::default()
+            },
+            Boundary::Stop(StopKind::Comma),
+        ),
+        (
+            "@;",
+            PilotFrame {
+                stop: Some(StopKind::Semicolon),
+                ..PilotFrame::default()
+            },
+            Boundary::Stop(StopKind::Semicolon),
+        ),
+        (
+            "@)",
+            PilotFrame {
+                delimiter: Some(Delimiter::Parenthesis),
+                ..PilotFrame::default()
+            },
+            Boundary::Close(Delimiter::Parenthesis),
+        ),
+        (
+            "@]",
+            PilotFrame {
+                delimiter: Some(Delimiter::Bracket),
+                ..PilotFrame::default()
+            },
+            Boundary::Close(Delimiter::Bracket),
+        ),
+        (
+            "@}",
+            PilotFrame {
+                delimiter: Some(Delimiter::Brace),
+                ..PilotFrame::default()
+            },
+            Boundary::Close(Delimiter::Brace),
+        ),
+    ];
+
+    for (source, frame, boundary) in cases {
+        let mut remainder = source;
+        let mut recovery = PilotRecoverState::default();
+        let mut output = PilotOutput::new(source);
+        let exit = expr(
+            In::new(&mut remainder, &mut recovery, &mut output),
+            PilotContext {
+                root: source,
+                operators: &operators,
+            },
+            Level::OUTER,
+            frame,
+        )
+        .expect("the nullfix candidate is a complete NUD");
+        let Err(Either::Right(end)) = exit else {
+            panic!("the active stop is returned to its owner for {source:?}")
+        };
+        assert_eq!(end.item.payload, Payload::Boundary(boundary), "{source}");
+        assert!(matches!(
+            output.root_chain().unwrap().items(),
+            [OperatorChainItem::NullfixUse(operator)] if operator.text() == "@"
+        ));
+        assert_eq!(remainder, "", "{source}");
+    }
+}
+
+#[test]
+fn gate4a_whitespace_newline_value_start_and_stop_control_fixity() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "@",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(30))
+                .with_nullfix(),
+        ),
+        OperatorDeclaration::new(
+            "!",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(40))
+                .with_nullfix(),
+        ),
+    ])
+    .expect("value-start control table");
+
+    for source in ["@word", "@ 123", "@!word"] {
+        let run = run_complete_with_operators(source, &operators);
+        assert!(matches!(
+            run.chain.items().first(),
+            Some(OperatorChainItem::PrefixUse(operator)) if operator.text() == "@"
+        ));
+    }
+
+    let allowed = run_complete_with_operators_and_frame(
+        "@\n  word",
+        &operators,
+        PilotFrame {
+            layout_baseline: 0,
+            allow_same_level_newline: true,
+            ..PilotFrame::default()
+        },
+    );
+    assert!(matches!(
+        allowed.chain.items().first(),
+        Some(OperatorChainItem::PrefixUse(_))
+    ));
+
+    let refused = run_complete_with_operators_and_frame(
+        "@\n  word",
+        &operators,
+        PilotFrame {
+            layout_baseline: 2,
+            allow_same_level_newline: true,
+            ..PilotFrame::default()
+        },
+    );
+    assert!(matches!(
+        refused.chain.items().first(),
+        Some(OperatorChainItem::NullfixUse(_))
+    ));
+
+    let source = "@;";
+    let mut remainder = source;
+    let mut recovery = PilotRecoverState::default();
+    let mut output = PilotOutput::new(source);
+    let exit = expr(
+        In::new(&mut remainder, &mut recovery, &mut output),
+        PilotContext {
+            root: source,
+            operators: &operators,
+        },
+        Level::OUTER,
+        PilotFrame {
+            stop: Some(StopKind::Semicolon),
+            ..PilotFrame::default()
+        },
+    )
+    .expect("nullfix before active stop is a complete NUD");
+    assert!(matches!(
+        exit,
+        Err(Either::Right(super::driver::End {
+            item: super::item::Item {
+                payload: Payload::Boundary(Boundary::Stop(StopKind::Semicolon)),
+                ..
+            }
+        }))
+    ));
+    assert_eq!(remainder, "");
+}
+
+#[test]
+fn gate4a_filtered_value_start_uses_merged_capabilities_and_boundaries() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "!",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(40)),
+        ),
+        OperatorDeclaration::new("!", OperatorFixities::new().with_nullfix()),
+        OperatorDeclaration::new(
+            "!?",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(50)),
+        ),
+        OperatorDeclaration::new(
+            "λ",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(60))
+                .with_nullfix(),
+        ),
+    ])
+    .expect("filtered value-start table");
+
+    assert_eq!(operators.value_start_source_len("!?word"), Some(1));
+    assert_eq!(operators.value_start_source_len("λx"), None);
+    assert_eq!(operators.value_start_source_len("λ+"), Some("λ".len()));
+}
+
+#[test]
 fn effect_free_entry_nonmatch_preserves_input_r_and_output() {
     let source = ")";
     let mut remainder = source;
@@ -1444,7 +2159,7 @@ fn effect_free_entry_nonmatch_preserves_input_r_and_output() {
     let mut output = PilotOutput::new(source);
     let result = expr(
         In::new(&mut remainder, &mut recovery, &mut output),
-        PilotContext { root: source },
+        pilot_context(source),
         Level::OUTER,
         PilotFrame::default(),
     );

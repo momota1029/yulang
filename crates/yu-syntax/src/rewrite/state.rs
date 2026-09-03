@@ -12,7 +12,7 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::item::{Delimiter, ItemIdentity, Level, StopKind, TokenKind};
+use super::item::{Delimiter, ItemIdentity, StopKind, TokenKind};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) struct PilotLineState {
@@ -466,16 +466,10 @@ pub(super) fn syntax_kind_for_token(kind: TokenKind) -> SyntaxKind {
     match kind {
         TokenKind::Identifier => SyntaxKind::Identifier,
         TokenKind::Integer => SyntaxKind::Integer,
-        TokenKind::PrefixOperator | TokenKind::InfixOperator(_) | TokenKind::Unknown => {
-            SyntaxKind::Operator
-        }
+        TokenKind::DynamicOperator | TokenKind::Unknown => SyntaxKind::Operator,
         TokenKind::LeftParenthesis => SyntaxKind::LParen,
         TokenKind::RightParenthesis => SyntaxKind::RParen,
         TokenKind::Dot => SyntaxKind::Dot,
         TokenKind::ColonColon => SyntaxKind::ColonColon,
     }
-}
-
-pub(super) fn level_is_readable(level: Level, operator_level: Level) -> bool {
-    operator_level >= level
 }

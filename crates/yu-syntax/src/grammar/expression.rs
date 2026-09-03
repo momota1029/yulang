@@ -648,6 +648,15 @@ pub(crate) struct IntegerLiteral<'source> {
 }
 
 impl<'source> IntegerLiteral<'source> {
+    pub(crate) fn from_root_range(root: &'source str, range: Range<usize>) -> Self {
+        let text = &root[range.clone()];
+        Self {
+            text,
+            start: range.start,
+            end: range.end,
+        }
+    }
+
     pub(crate) fn text(self) -> &'source str {
         self.text
     }

@@ -131,8 +131,8 @@ where
                 || candidate_input.input.remainder().is_empty()
                 || next_is_expression_stop(&candidate_input);
             let pre_whitespace = leading == LeadingTrivia::Present;
-            let with_value = judge(site, kinds, pre_whitespace, post_whitespace, true);
-            let without_value = judge(site, kinds, pre_whitespace, post_whitespace, false);
+            let with_value = judge_operator(site, kinds, pre_whitespace, post_whitespace, true);
+            let without_value = judge_operator(site, kinds, pre_whitespace, post_whitespace, false);
 
             let fixity = if should_prefer_prefix_with_argument(kinds, post_whitespace)
                 && candidate_input
@@ -271,7 +271,7 @@ where
     }
 }
 
-fn is_call_or_path_sensitive(kinds: OperatorKindSet) -> bool {
+pub(crate) fn is_call_or_path_sensitive(kinds: OperatorKindSet) -> bool {
     kinds.contains(OperatorKindSet::PREFIX | OperatorKindSet::NULLFIX)
         && !kinds.contains(OperatorKindSet::INFIX)
         && !kinds.contains(OperatorKindSet::SUFFIX)
@@ -300,7 +300,7 @@ fn scanned_fixity(fixities: &OperatorFixities, fixity: OperatorFixity) -> Option
     }
 }
 
-fn judge(
+pub(crate) fn judge_operator(
     site: OperatorSite,
     kinds: OperatorKindSet,
     pre_whitespace: bool,

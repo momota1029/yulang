@@ -3,6 +3,7 @@
 use std::{cmp::Ordering, collections::BTreeMap, ops::Range};
 
 use chasa::parser::trie::TrieState as ChasaTrieState;
+use unicode_ident::is_xid_continue;
 
 use crate::{BindingPower as HeaderBindingPower, HeaderOperator, SyntaxDependencySlot};
 
@@ -14,6 +15,7 @@ pub struct OperatorTable {
     entries: Vec<OperatorEntry>,
     sites: Vec<OperatorFixitySites>,
     trie: OperatorTrie,
+    value_start_trie: OperatorTrie,
 }
 
 impl OperatorTable {
@@ -22,6 +24,7 @@ impl OperatorTable {
             entries: Vec::new(),
             sites: Vec::new(),
             trie: OperatorTrie::new(),
+            value_start_trie: OperatorTrie::new(),
         }
     }
 
@@ -52,6 +55,29 @@ impl OperatorTable {
             table: self,
             node: Some(0),
         }
+    }
+
+    /// Traverses the frozen all-spelling trie directly from source. Terminal
+    /// candidates are offered longest first; rejecting one continues at the
+    /// next shorter terminal without retaining source-specific matcher state.
+    pub(crate) fn longest_source_match_then<T>(
+        &self,
+        source: &str,
+        mut accept: impl FnMut(char, &OperatorEntry, usize) -> Option<T>,
+    ) -> Option<(T, usize)> {
+        self.trie
+            .longest_source_match_then(&self.entries, source, &mut accept)
+    }
+
+    /// Greedily recognizes a boundary-valid spelling whose final merged entry
+    /// has both Prefix and Nullfix capability. The filtered trie is frozen with
+    /// the canonical trie and borrows the canonical entry storage.
+    pub(crate) fn value_start_source_len(&self, source: &str) -> Option<usize> {
+        self.value_start_trie
+            .longest_source_match_then(&self.entries, source, &mut |last_character, _entry, end| {
+                operator_boundary_source(last_character, &source[end..]).then_some(())
+            })
+            .map(|((), end)| end)
     }
 
     pub(crate) fn is_empty(&self) -> bool {
@@ -694,6 +720,15 @@ impl OperatorTableBuilder {
                 fixities: definition.fixities,
             });
             table.sites.push(definition.sites);
+            if table.entries[entry_index]
+                .fixities()
+                .kinds()
+                .contains(OperatorKindSet::PREFIX | OperatorKindSet::NULLFIX)
+            {
+                table
+                    .value_start_trie
+                    .insert(table.entries[entry_index].spelling(), entry_index);
+            }
         }
         debug_assert_eq!(table.entries.len(), table.sites.len());
         table
@@ -799,6 +834,53 @@ impl OperatorTrie {
         }
         self.nodes[node].entry
     }
+
+    fn longest_source_match_then<T>(
+        &self,
+        entries: &[OperatorEntry],
+        source: &str,
+        accept: &mut impl FnMut(char, &OperatorEntry, usize) -> Option<T>,
+    ) -> Option<(T, usize)> {
+        self.longest_source_match_from(entries, source, 0, 0, None, accept)
+    }
+
+    fn longest_source_match_from<T>(
+        &self,
+        entries: &[OperatorEntry],
+        source: &str,
+        node: usize,
+        offset: usize,
+        last_character: Option<char>,
+        accept: &mut impl FnMut(char, &OperatorEntry, usize) -> Option<T>,
+    ) -> Option<(T, usize)> {
+        if let Some(character) = source[offset..].chars().next()
+            && let Some(next) = self.nodes[node].children.get(&character).copied()
+        {
+            let next_offset = offset + character.len_utf8();
+            if let Some(accepted) = self.longest_source_match_from(
+                entries,
+                source,
+                next,
+                next_offset,
+                Some(character),
+                accept,
+            ) {
+                return Some(accepted);
+            }
+        }
+
+        let entry = self.nodes[node].entry?;
+        let accepted = accept(last_character?, entries.get(entry)?, offset)?;
+        Some((accepted, offset))
+    }
+}
+
+fn operator_boundary_source(last_character: char, remainder: &str) -> bool {
+    !is_xid_continue(last_character)
+        || remainder
+            .chars()
+            .next()
+            .is_none_or(|character| !is_xid_continue(character))
 }
 
 #[derive(Debug, Default)]
@@ -1211,5 +1293,56 @@ mod tests {
                 .kinds()
                 .contains(OperatorKindSet::PREFIX | OperatorKindSet::NULLFIX)
         );
+    }
+
+    #[test]
+    fn filtered_value_start_trie_is_built_after_capability_merge() {
+        let table = OperatorTable::from_declarations([
+            OperatorDeclaration::new(
+                "!",
+                OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+            ),
+            OperatorDeclaration::new("!", OperatorFixities::new().with_nullfix()),
+            OperatorDeclaration::new(
+                "!?",
+                OperatorFixities::new().with_prefix(BindingPower::scalar(80)),
+            ),
+            OperatorDeclaration::new(
+                "λ",
+                OperatorFixities::new()
+                    .with_prefix(BindingPower::scalar(60))
+                    .with_nullfix(),
+            ),
+        ])
+        .expect("distinct merged capabilities build one filtered terminal");
+
+        assert_eq!(table.value_start_source_len("!?operand"), Some(1));
+        assert_eq!(
+            table.value_start_source_len("λx"),
+            None,
+            "identifier-like terminal observes its following XID boundary"
+        );
+        assert_eq!(table.value_start_source_len("λ+"), Some("λ".len()));
+        assert_eq!(
+            table.value_start_source_len("!?"),
+            Some(1),
+            "the longer Prefix-only spelling is absent, not a qualifying split"
+        );
+    }
+
+    #[test]
+    fn direct_source_traversal_offers_longest_terminal_then_shorter_terminal() {
+        let table = OperatorTable::from_declarations([
+            OperatorDeclaration::new("+", OperatorFixities::new().with_nullfix()),
+            OperatorDeclaration::new("+!", OperatorFixities::new().with_nullfix()),
+        ])
+        .expect("overlap table");
+        let mut offered = Vec::new();
+        let accepted = table.longest_source_match_then("+!tail", |_, entry, _| {
+            offered.push(entry.spelling().to_owned());
+            (entry.spelling() == "+").then(|| entry.spelling().to_owned())
+        });
+        assert_eq!(offered, ["+!", "+"]);
+        assert_eq!(accepted, Some(("+".to_owned(), 1)));
     }
 }

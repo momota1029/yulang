@@ -616,6 +616,20 @@ Statement/declaration/body の共同 SCC construction として確定し、E12 r
 は禁止である。次の active gate は isolated G4a dynamic item/operator kernel であり、production
 dispatch、legacy/new crossing、Yumark production bridge は引き続き scope 外である。
 
+2026-09-03: isolated G4a dynamic item/operator kernel を完了した。immutable
+`OperatorTable` の all-spelling/value-start trie、source-only token probe、dynamic
+Prefix/Nullfix/Infix/Suffix/ML handoff、BindingPower threshold、word/decimal literal と
+flat source-order `OperatorChain`、typed ordinary trivia と base MissingOperand/Error
+recovery を direct rewrite pilot に実装した。review で発見した comment-separated
+indentation を ordinary trivia oracle に合わせ、nested/unterminated comment と CRLF を
+含む raw evidence を修正し、invalid recovery retry-head の all-trie work を §4.3 の
+`T_all` に加えた。M2 specification/performance review と一回の batched repair を閉じ、
+`cargo test -p yu-syntax rewrite::tests -- --test-threads=1` は 28 passed / 0 failed、
+`cargo test -q -p yu-syntax operator::tests -- --test-threads=1` は 14 passed / 0 failed、
+format/diff check は green。parametric contract に従い benchmark、package/workspace suite
+は未実行。production dispatch、legacy/new crossing、Yumark production bridge は scope 外の
+まま、次は isolated G4b expression-local delimited/fixed owners である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

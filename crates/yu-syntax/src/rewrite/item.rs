@@ -1,6 +1,6 @@
-use std::ops::Range;
+use std::ops::{Deref, Range};
 
-use crate::input::checked_root_range;
+use crate::{input::checked_root_range, operator::BindingPower};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct ItemIdentity {
@@ -18,6 +18,43 @@ pub(super) struct LogicalPosition {
 pub(super) struct SourceSpan<'source> {
     pub(super) text: &'source str,
     pub(super) range: Range<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TriviaPartKind {
+    Whitespace,
+    Newline,
+    LineComment,
+    BlockComment,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct TriviaPart {
+    pub(super) kind: TriviaPartKind,
+    pub(super) range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct LeadingTrivia<'source> {
+    pub(super) span: SourceSpan<'source>,
+    pub(super) parts: Vec<TriviaPart>,
+}
+
+impl<'source> LeadingTrivia<'source> {
+    pub(super) fn empty_at(root: &'source str, offset: usize) -> Self {
+        Self {
+            span: SourceSpan::empty_at(root, offset),
+            parts: Vec::new(),
+        }
+    }
+}
+
+impl<'source> Deref for LeadingTrivia<'source> {
+    type Target = SourceSpan<'source>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.span
+    }
 }
 
 impl<'source> SourceSpan<'source> {
@@ -61,37 +98,37 @@ pub(super) enum Boundary {
     EofAfterTrivia,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum BinaryOperator {
-    Add,
-    Multiply,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum Level {
+    Outer,
+    Binding(BindingPower),
 }
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(super) struct Level(pub(super) u8);
 
 impl Level {
-    pub(super) const OUTER: Self = Self(0);
-    pub(super) const PREFIX: Self = Self(30);
-}
+    pub(super) const OUTER: Self = Self::Outer;
 
-impl BinaryOperator {
-    pub(super) fn left_level(self) -> Level {
+    pub(super) fn binding(power: BindingPower) -> Self {
+        Self::Binding(power)
+    }
+
+    #[cfg(test)]
+    pub(super) fn scalar(value: i8) -> Self {
+        Self::binding(BindingPower::scalar(value))
+    }
+
+    pub(super) fn reads(&self, left: &BindingPower) -> bool {
         match self {
-            Self::Add => Level(10),
-            Self::Multiply => Level(20),
+            Self::Outer => true,
+            Self::Binding(threshold) => left >= threshold,
         }
     }
-
-    pub(super) fn right_level(self) -> Level {
-        Level(self.left_level().0 + 1)
-    }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum NudKind {
     Atom,
-    Prefix,
+    Prefix { right: BindingPower },
+    Nullfix,
     OpenParenthesis,
 }
 
@@ -101,9 +138,15 @@ pub(super) enum MalformedTailKind {
     Spaced,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum TailKind {
-    Binary(BinaryOperator),
+    Infix {
+        left: BindingPower,
+        right: BindingPower,
+    },
+    Suffix {
+        left: BindingPower,
+    },
     CallOpen,
     Field,
     Path,
@@ -116,8 +159,7 @@ pub(super) enum TailKind {
 pub(super) enum TokenKind {
     Identifier,
     Integer,
-    PrefixOperator,
-    InfixOperator(BinaryOperator),
+    DynamicOperator,
     LeftParenthesis,
     RightParenthesis,
     Dot,
@@ -145,7 +187,7 @@ pub(super) enum Payload<'source> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct Item<'source> {
     pub(super) identity: ItemIdentity,
-    pub(super) leading_trivia: SourceSpan<'source>,
+    pub(super) leading_trivia: LeadingTrivia<'source>,
     pub(super) payload: Payload<'source>,
     pub(super) lexical_boundary_token: Option<Token<'source>>,
     pub(super) extent: Range<usize>,
@@ -154,8 +196,8 @@ pub(super) struct Item<'source> {
 
 impl Item<'_> {
     pub(super) fn tail_kind(&self) -> Option<TailKind> {
-        match self.payload {
-            Payload::Tail { kind, .. } => Some(kind),
+        match &self.payload {
+            Payload::Tail { kind, .. } => Some(kind.clone()),
             Payload::Boundary(_) => None,
         }
     }

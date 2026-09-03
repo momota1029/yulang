@@ -302,16 +302,19 @@ O(bytes + structural work
 ```
 
 Here `T_all` is the total all-spelling-trie child-map `step` attempts by
-ordinary NUD/LED candidate traversal, including the final unsuccessful probe;
-`T_value` is the corresponding total for `value_start_trie`; `D` is the maximum
-child-map degree of either trie; `C` is the number of terminal candidate
-callbacks; and `H` is the total decoded raw-trivia characters observed by those
-callbacks. `H` includes the transient `TriviaRun` parts and allocation churn:
-that work is `O(H + C)` and creates no retained state. The BTreeMap transition
-representation supplies the `log(max(2, D))` term. Boundary, stop, and judge
-work are constant per callback. The unchanged `bytes + structural work` terms
-include accepted Item work, BindingPower clones, committed trivia, output, and
-all non-operator owners.
+ordinary NUD/LED candidate traversal and recovery retry-head probes, including
+the final unsuccessful step of each traversal; `T_value` is the corresponding
+total for `value_start_trie`; and `D` is the maximum child-map degree of either
+trie. `C` is the number of terminal candidate callbacks in ordinary NUD/LED
+acceptance traversal, and `H` is the total decoded raw-trivia characters
+observed by those acceptance callbacks. `H` includes the transient `TriviaRun`
+parts and allocation churn: that work is `O(H + C)` and creates no retained
+state. A retry-head terminal callback performs no trivia analysis and only
+constant work already dominated by its `T_all` traversal. The BTreeMap
+transition representation supplies the `log(max(2, D))` term. Boundary, stop,
+and judge work are constant per acceptance callback. The unchanged
+`bytes + structural work` terms include accepted Item work, BindingPower
+clones, committed trivia, output, and all non-operator owners.
 
 Let `K_all` and `K_value` be the maximum matching spelling depths reached by
 the two recursive trie traversals during one scanner call. Their additional
