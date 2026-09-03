@@ -93,7 +93,16 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             return Ok(());
         }
         if matches!(&item.payload, Payload::Eof) {
-            return handoff(item);
+            return missing_type_close(i, item);
+        }
+        if is_type_separator(&item) {
+            item = missing_type_item(i.rb(), item);
+            emit_token_item(&mut i, item);
+            item = match type_after_separator(i.rb()) {
+                Ok(next) => next,
+                Err(exit) => return exit,
+            };
+            continue;
         }
         if !is_type_primary(&item) {
             return handoff(item);
@@ -103,9 +112,10 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             Ok(()) => type_item_after_trivia(i.rb(), LeadingTrivia::default()),
             Err(Either::Left(next)) if is_type_separator(&next) => {
                 emit_token_item(&mut i, next);
-                let leading = scan_trivia(i.rb());
-                emit_leading_trivia(&mut i, &leading);
-                type_item_after_trivia(i.rb(), LeadingTrivia::default())
+                match type_after_separator(i.rb()) {
+                    Ok(next) => next,
+                    Err(exit) => return exit,
+                }
             }
             Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::RParen) => {
                 emit_token_item(&mut i, next);
@@ -116,9 +126,42 @@ fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
                 emit_leading_trivia(&mut i, &leading);
                 next
             }
+            Err(Either::Right(end)) => return missing_type_close(i, end.item),
             Err(exit) => return Err(exit),
         };
     }
+}
+
+fn type_after_separator(mut i: RewriteIn) -> Result<Item, TailExit> {
+    let leading = scan_trivia(i.rb());
+    let mut next = type_item_after_trivia(i.rb(), leading);
+    if token_kind(&next) == Some(TokenKind::RParen) {
+        let leading = std::mem::take(&mut next.leading);
+        emit_leading_trivia(&mut i, &leading);
+        emit_token_item(&mut i, next);
+        return Err(Ok(()));
+    }
+    if matches!(&next.payload, Payload::Eof) {
+        next = missing_type_item(i.rb(), next);
+        return Err(missing_type_close(i, next));
+    }
+    if is_type_primary(&next) {
+        let leading = std::mem::take(&mut next.leading);
+        emit_leading_trivia(&mut i, &leading);
+    }
+    Ok(next)
+}
+
+fn missing_type_item(mut i: RewriteIn, mut item: Item) -> Item {
+    let leading = std::mem::take(&mut item.leading);
+    emit_missing(&mut i, leading);
+    item
+}
+
+fn missing_type_close(mut i: RewriteIn, mut item: Item) -> TailExit {
+    let leading = std::mem::take(&mut item.leading);
+    emit_missing(&mut i, leading);
+    handoff(item)
 }
 
 fn type_path_tail(mut i: RewriteIn, separator: Item, baseline: usize, type_ml: bool) -> TailExit {

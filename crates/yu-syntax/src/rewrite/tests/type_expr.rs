@@ -136,6 +136,20 @@ fn type_call_and_group_keep_explicit_and_implicit_boundaries() {
             .count(),
         3
     );
+    assert_eq!(
+        call.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::LParen, "(".to_owned()),
+            (SyntaxKind::Comma, ",".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Semicolon, ";".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::RParen, ")".to_owned()),
+        ]
+    );
     let apply = top
         .children()
         .find(|node| node.kind() == SyntaxKind::TypeApplyArgument)
@@ -257,6 +271,54 @@ fn type_arrow_tail_recovers_its_mandatory_rhs() {
         [
             (SyntaxKind::Arrow, "->".to_owned()),
             (SyntaxKind::Newline, "\n".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn type_delimited_owner_recovers_missing_items_and_close_at_eof() {
+    for (source, owner, missing) in [
+        ("T(", SyntaxKind::TypeCallTail, 1),
+        ("(A", SyntaxKind::ParenthesizedTypeGroup, 1),
+        ("T(A,", SyntaxKind::TypeCallTail, 2),
+        ("T(,A)", SyntaxKind::TypeCallTail, 1),
+        ("T(A,,B)", SyntaxKind::TypeCallTail, 1),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("type delimited owner");
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("T(A ");
+    assert_eq!(green.to_string(), "T(A ");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let call = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+        .expect("type call tail");
+    assert_eq!(
+        call.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::LParen, "(".to_owned()),
+            (SyntaxKind::Identifier, "A".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
         ]
     );
 }

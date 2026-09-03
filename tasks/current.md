@@ -863,6 +863,15 @@ recursive RHSのright-associative arrow ownershipは維持する。state/source 
 specification review はclean、focused rewrite testsは53 passed、package check、format/diff checkはgreen。call/group/
 primaryのremaining recoveryとproduction wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: `TypeCallTail` / `ParenthesizedTypeGroup` の shared direct delimiter owner にEOF close と
+explicit comma/semicolon recoveryを追加した。opening/post-item EOFはclose `Missing`一件、accepted separator直後の
+EOFはitem `Missing`一件とdistinct close `Missing`一件を置く。leading/repeated separatorはeach one Missing item後に
+same positionからretryし、matching `)`が実在するtrailing separatorはvalidのままにする。post-separator triviaはnext
+item/close/missing itemを判定してowner直下へ一度だけemitする。state/source reread/buffer/recovery recordの追加なし。
+M1 specification review はclean、focused rewrite testsは54 passed、package check、format/diff checkはgreen。wrong close、
+invalid item retry、same-line missing separator、layout/other remaining type recovery、production wiring、Gate 4/G4b ledgerは
+未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
