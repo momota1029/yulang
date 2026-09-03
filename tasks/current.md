@@ -872,6 +872,14 @@ M1 specification review はclean、focused rewrite testsは54 passed、package c
 invalid item retry、same-line missing separator、layout/other remaining type recovery、production wiring、Gate 4/G4b ledgerは
 未完である。
 
+2026-09-04: standalone `TypeExpression`へnormal-only `NamedRecordType` primaryを追加した。type-local lone
+`:` scannerを既存 expression punctuationから分離し、plain `Identifier : TypeExpression` field、comma / captured-base
+implicit newline sequence、actual `}`だけでvalidになるtrailing commaをdirect Rowanで構築する。opening/field-boundary
+triviaはrecord直下、name-to-colon/colon-to-RHS triviaはfield直下に一度だけ置き、`F {a: A}`はTypeApply、`F{a:A}`は
+record tailにせずhandoffする。state/source reread/buffer/recovery recordの追加なし。これはvalid surfaceだけで、record
+field/close/separator recoveryとsame-line field-head boundary queryは未実装。M1 specification reviewはclean、focused
+rewrite testsは56 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

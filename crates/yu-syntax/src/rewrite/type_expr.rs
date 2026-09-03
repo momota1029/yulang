@@ -7,7 +7,7 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     RewriteIn,
     driver::{Either, TailExit, handoff, token_kind},
-    emit::{emit_error_item, emit_leading_trivia, emit_missing, emit_token_item},
+    emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
     lexer::{scan_trivia, scan_type_nud_item, type_item_after_trivia},
 };
@@ -30,6 +30,7 @@ fn type_expr_from_primary(
             scan_type_tail(i.rb(), baseline, type_ml)
         }
         Some(TokenKind::LParen) => type_group(i.rb(), primary, baseline, type_ml),
+        Some(TokenKind::LBrace) => type_record(i.rb(), primary, baseline, type_ml),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     };
     i.state.finish_node();
@@ -80,6 +81,97 @@ fn type_call_tail(mut i: RewriteIn, open: Item, baseline: usize, type_ml: bool) 
     let exit = type_delimited(i.rb(), baseline);
     i.state.finish_node();
     continue_type_tail(i, baseline, type_ml, exit)
+}
+
+fn type_record(mut i: RewriteIn, open: Item, baseline: usize, type_ml: bool) -> TailExit {
+    i.state.start_node(SyntaxKind::NamedRecordType.into());
+    emit_token_item(&mut i, open);
+    let exit = type_record_fields(i.rb(), baseline);
+    i.state.finish_node();
+    continue_type_tail(i, baseline, type_ml, exit)
+}
+
+fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
+    let opening = scan_trivia(i.rb());
+    let baseline = type_delimited_baseline(incoming_baseline, &opening);
+    emit_leading_trivia(&mut i, &opening);
+    let mut item = type_item_after_trivia(i.rb(), LeadingTrivia::default());
+    loop {
+        if token_kind(&item) == Some(TokenKind::RBrace) {
+            emit_token_item(&mut i, item);
+            return Ok(());
+        }
+        if matches!(&item.payload, Payload::Eof) || !is_type_record_field_name(&item) {
+            return handoff(item);
+        }
+        let exit = type_record_field(i.rb(), item, baseline);
+        item = match type_record_successor(i.rb(), exit, baseline) {
+            Ok(next) => next,
+            Err(exit) => return exit,
+        };
+    }
+}
+
+fn type_record_field(mut i: RewriteIn, name: Item, baseline: usize) -> TailExit {
+    i.state.start_node(SyntaxKind::TypeRecordField.into());
+    emit_token_item(&mut i, name);
+    let leading = scan_trivia(i.rb());
+    let colon = type_item_after_trivia(i.rb(), leading);
+    if !type_chain_trivia(&colon.leading, baseline) || token_kind(&colon) != Some(TokenKind::Colon)
+    {
+        i.state.finish_node();
+        return handoff(colon);
+    }
+    emit_token_item(&mut i, colon);
+    let leading = scan_trivia(i.rb());
+    let mut rhs = type_item_after_trivia(i.rb(), leading);
+    if !type_chain_trivia(&rhs.leading, baseline) || !is_type_primary(&rhs) {
+        i.state.finish_node();
+        return handoff(rhs);
+    }
+    let leading = std::mem::take(&mut rhs.leading);
+    emit_leading_trivia(&mut i, &leading);
+    let exit = type_expr_from_primary(i.rb(), rhs, baseline, false);
+    i.state.finish_node();
+    exit
+}
+
+fn type_record_successor(
+    mut i: RewriteIn,
+    exit: TailExit,
+    baseline: usize,
+) -> Result<Item, TailExit> {
+    match exit {
+        Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::Comma) => {
+            emit_token_item(&mut i, next);
+            let leading = scan_trivia(i.rb());
+            let mut next = type_item_after_trivia(i.rb(), leading);
+            if token_kind(&next) == Some(TokenKind::RBrace) {
+                let leading = std::mem::take(&mut next.leading);
+                emit_leading_trivia(&mut i, &leading);
+                emit_token_item(&mut i, next);
+                return Err(Ok(()));
+            }
+            if is_type_record_field_name(&next) {
+                let leading = std::mem::take(&mut next.leading);
+                emit_leading_trivia(&mut i, &leading);
+            }
+            Ok(next)
+        }
+        Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::RBrace) => {
+            emit_token_item(&mut i, next);
+            Err(Ok(()))
+        }
+        Err(Either::Left(mut next))
+            if is_type_record_field_name(&next)
+                && is_type_implicit_boundary(baseline, &next.leading) =>
+        {
+            let leading = std::mem::take(&mut next.leading);
+            emit_leading_trivia(&mut i, &leading);
+            Ok(next)
+        }
+        exit => Err(exit),
+    }
 }
 
 fn type_delimited(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
@@ -267,8 +359,13 @@ fn is_type_primary(item: &Item) -> bool {
                 | TokenKind::SigilIdentifier
                 | TokenKind::Integer
                 | TokenKind::LParen
+                | TokenKind::LBrace
         )
     )
+}
+
+fn is_type_record_field_name(item: &Item) -> bool {
+    token_kind(item) == Some(TokenKind::Identifier)
 }
 
 fn is_type_path_segment(item: &Item) -> bool {

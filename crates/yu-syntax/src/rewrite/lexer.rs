@@ -116,6 +116,7 @@ pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
         token(scan_path_segment),
         token(scan_integer),
         token(scan_lparen),
+        token(scan_lbrace),
     )))?;
     Some(Item {
         leading: LeadingTrivia::default(),
@@ -130,6 +131,7 @@ pub(super) fn type_item_after_trivia(i: RewriteIn, leading: LeadingTrivia) -> It
                 token(scan_path_segment),
                 token(scan_integer),
                 token(scan_type_arrow),
+                token(scan_type_colon),
                 token(scan_punctuation),
                 token(scan_unknown),
             )),
@@ -376,6 +378,18 @@ fn scan_type_arrow(i: LexIn) -> Option<Token> {
     })
 }
 
+fn scan_type_colon(i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.with_str(|mut colon| {
+        (colon.next()? == ':').then_some(())?;
+        colon.token(scan_colon).is_none().then_some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Colon,
+        text: text.into(),
+    })
+}
+
 fn scan_record_spread_marker(i: LexIn) -> Option<Token> {
     let (accepted, text) = i.with_str(|mut marker| {
         scan_pair(marker.rb(), '.', '.')?;
@@ -394,6 +408,15 @@ fn scan_record_spread_marker(i: LexIn) -> Option<Token> {
 fn scan_lparen(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LParen).then_some(token)
+}
+
+fn scan_lbrace(i: LexIn) -> Option<Token> {
+    let token = scan_punctuation(i)?;
+    (token.kind == TokenKind::LBrace).then_some(token)
+}
+
+fn scan_colon(mut i: LexIn) -> Option<()> {
+    (i.next()? == ':').then_some(())
 }
 
 fn scan_dot(mut i: LexIn) -> Option<()> {

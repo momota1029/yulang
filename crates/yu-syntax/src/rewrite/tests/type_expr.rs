@@ -322,3 +322,82 @@ fn type_delimited_owner_recovers_missing_items_and_close_at_eof() {
         ]
     );
 }
+
+#[test]
+fn named_record_type_keeps_field_and_separator_ownership() {
+    let source = "{a: A, b: List(Int)}";
+    let (green, exit) = run_type(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let record = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+        .expect("named record type");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .count(),
+        2
+    );
+    assert_eq!(
+        record
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::LBrace, "{".to_owned()),
+            (SyntaxKind::Comma, ",".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::RBrace, "}".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn named_record_type_accepts_layout_and_type_tails() {
+    let layout = "{\n  a: A\n  b: B\n}";
+    let (green, exit) = run_type(layout);
+    assert_eq!(green.to_string(), layout);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let record = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+        .expect("named record type");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .count(),
+        2
+    );
+
+    let applied = run_type("F {a: A} -> Out").0;
+    assert_eq!(applied.to_string(), "F {a: A} -> Out");
+    let top = top_type_expression(&applied);
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+    );
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeArrowTail)
+    );
+
+    let (adjacent, exit) = run_type("F{a:A}");
+    assert_eq!(adjacent.to_string(), "F");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::LBrace)
+    ));
+    assert!(
+        !SyntaxNode::new_root(adjacent)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::NamedRecordType)
+    );
+}
