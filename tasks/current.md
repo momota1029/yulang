@@ -672,6 +672,23 @@ owned Item/End のまま上位 owner へ伝播する。M3 compiler/recovery/spec
 未実行。これは E5 の valid construction control だけで、G4b owner loop、leading-item/missing-bracket/
 separator recovery、production、AST parity、Yumark bridge、Gate 4/G4b coverage ledger は未完了である。
 
+2026-09-03: ユーザーは上の E5 primary witness を訂正した。`x[a b]` は `a` の tail がすでに
+leading-horizontal-whitespace を含めて取得した `b` Item を、再 scan せず `MlArgument` の子式へ渡す
+one `IndexItem` である。`IndexSeparator` Missing は作らない。`x[a(b)]` は `CallTail` の `)` と
+`IndexTail` の `]` の owner control を保つ補助 witness へ下げる。正本は
+`notes/design/2026-09-03-yu-syntax-g4b-e5-index-ml-application-correction.md`。この narrow valid
+construction 以外の ML layout/comment/other NUD/multiple-argument、index separator/missing-close
+recovery、production、AST parity、Yumark bridge、Gate 4/G4b ledger は未完了である。
+
+2026-09-03: この訂正済み isolated valid witness は完了した。`x[a b]` は one `IndexItem` 内で
+one `MlArgument(b)` を作り、同じ `]` を `IndexTail` まで handoff する。ML child の continuation
+capability は child 自身の adjacent CallTail/IndexTail を通しても保たれ、`x[a b c]` と
+`x[a b(c) d]` は sibling `MlArgument` になって child 内へ nest しない。M1 spec pre-write と
+semantic closure review は、二つの continuation propagation gap を修正後 clean で閉じた。
+focused rewrite 11 tests、`cargo check -p yu-syntax`、scoped format/diff check は green。
+package/workspace suite、performance、production、AST parity、Yumark bridge、上記の deferred
+G4b owner/recovery controls と Gate 4/G4b ledger は未実行・未完了である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

@@ -50,8 +50,8 @@ fn caller_owned_builder_finishes_after_source_drops() {
 }
 
 #[test]
-fn post_core_identifier_is_owned_unemitted_handoff() {
-    let (green, exit) = run("a β");
+fn post_core_newline_identifier_is_owned_unemitted_handoff() {
+    let (green, exit) = run("a\nβ");
     assert_eq!(green.to_string(), "a");
     let Some(Err(Either::Left(item))) = exit else {
         panic!("the next item is handed to the enclosing owner")
@@ -62,7 +62,7 @@ fn post_core_identifier_is_owned_unemitted_handoff() {
             .iter()
             .map(|part| (part.kind, &*part.text))
             .collect::<Vec<_>>(),
-        [(TriviaKind::Whitespace, " ")]
+        [(TriviaKind::Newline, "\n")]
     );
     let Payload::Token(token) = item.payload else {
         panic!("the handed item is lexical")
@@ -173,7 +173,160 @@ fn words_match_the_oracle_start_and_suffix_rules() {
 }
 
 #[test]
-fn index_item_contains_nested_call_without_separator_recovery() {
+fn index_item_accepts_ml_argument_without_separator_recovery() {
+    let (green, exit) = run("x[a b]");
+    assert_eq!(green.to_string(), "x[a b]");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer_chain = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    let indexes = outer_chain
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::IndexTail)
+        .collect::<Vec<_>>();
+    assert_eq!(indexes.len(), 1);
+    let items = indexes[0]
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::IndexItem)
+        .collect::<Vec<_>>();
+    assert_eq!(items.len(), 1);
+    let item_chain = items[0]
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("the index item owns its expression chain");
+    let ml_arguments = item_chain
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::MlArgument)
+        .collect::<Vec<_>>();
+    assert_eq!(ml_arguments.len(), 1);
+    let argument_chain = ml_arguments[0]
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("the ML argument owns its expression chain");
+    assert_eq!(
+        argument_chain
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| token.text().to_owned())
+            .collect::<Vec<_>>(),
+        [" ", "b"]
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| token.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::Identifier,
+            SyntaxKind::LBracket,
+            SyntaxKind::Identifier,
+            SyntaxKind::Whitespace,
+            SyntaxKind::Identifier,
+            SyntaxKind::RBracket,
+        ]
+    );
+    let rbracket = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::RBracket)
+        .expect("index close");
+    assert_eq!(
+        rbracket.parent().expect("index close owner").kind(),
+        SyntaxKind::IndexTail
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}
+
+#[test]
+fn index_item_multiple_ml_arguments_stay_siblings() {
+    let (green, exit) = run("x[a b c]");
+    assert_eq!(green.to_string(), "x[a b c]");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer_chain = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    let index = outer_chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::IndexTail)
+        .expect("outer index tail");
+    let item_chain = index
+        .children()
+        .find(|node| node.kind() == SyntaxKind::IndexItem)
+        .and_then(|item| {
+            item.children()
+                .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        })
+        .expect("the index item owns its expression chain");
+    let arguments = item_chain
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::MlArgument)
+        .collect::<Vec<_>>();
+    assert_eq!(arguments.len(), 2);
+    for argument in arguments {
+        assert!(
+            !argument
+                .descendants()
+                .skip(1)
+                .any(|node| node.kind() == SyntaxKind::MlArgument)
+        );
+    }
+}
+
+#[test]
+fn index_item_ml_child_keeps_its_continuation_after_call() {
+    let (green, exit) = run("x[a b(c) d]");
+    assert_eq!(green.to_string(), "x[a b(c) d]");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer_chain = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    let index = outer_chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::IndexTail)
+        .expect("outer index tail");
+    let item_chain = index
+        .children()
+        .find(|node| node.kind() == SyntaxKind::IndexItem)
+        .and_then(|item| {
+            item.children()
+                .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        })
+        .expect("the index item owns its expression chain");
+    let arguments = item_chain
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::MlArgument)
+        .collect::<Vec<_>>();
+    assert_eq!(arguments.len(), 2);
+    assert!(
+        arguments[0]
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::CallTail)
+    );
+    for argument in arguments {
+        assert!(
+            !argument
+                .descendants()
+                .skip(1)
+                .any(|node| node.kind() == SyntaxKind::MlArgument)
+        );
+    }
+}
+
+#[test]
+fn index_item_nested_call_keeps_close_owner_control() {
     let (green, exit) = run("x[a(b)]");
     assert_eq!(green.to_string(), "x[a(b)]");
     assert!(matches!(exit, Some(Err(Either::Right(_)))));

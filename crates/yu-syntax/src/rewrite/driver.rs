@@ -38,27 +38,55 @@ pub(super) type TailExit = Result<(), Either<Item, End>>;
 /// `None` occurs only before the lexical transaction has accepted a core.
 pub(super) fn expr(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Option<TailExit> {
     let core = i.token(scan_core_item)?;
+    Some(expr_from_core(i, core, true))
+}
+
+/// Parses an already-accepted identifier core without scanning it again.
+fn expr_from_core(mut i: RewriteIn<'_, '_, '_, '_, '_>, core: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
     emit_core(&mut i, core);
     let next = tail_item(i.rb());
-    let exit = tail(i.rb(), next);
+    let exit = tail(i.rb(), next, accepts_ml);
     i.state.finish_node();
-    Some(exit)
+    exit
 }
 
 /// Unaccepted items are returned unchanged and receive no builder effect.
-pub(super) fn tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, item: Item) -> TailExit {
+pub(super) fn tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, item: Item, accepts_ml: bool) -> TailExit {
     if item.leading.0.is_empty() {
         match token_kind(&item) {
-            Some(TokenKind::LParen) => return call_tail(i.rb(), item),
-            Some(TokenKind::LBracket) => return index_tail(i.rb(), item),
+            Some(TokenKind::LParen) => return call_tail(i.rb(), item, accepts_ml),
+            Some(TokenKind::LBracket) => return index_tail(i.rb(), item, accepts_ml),
             _ => {}
         }
+    }
+    if accepts_ml && is_ml_argument(&item) {
+        return ml_argument(i.rb(), item);
     }
     handoff(item)
 }
 
-fn call_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item) -> TailExit {
+fn is_ml_argument(item: &Item) -> bool {
+    token_kind(item) == Some(TokenKind::Identifier)
+        && !item.leading.0.is_empty()
+        && item
+            .leading
+            .0
+            .iter()
+            .all(|part| part.kind == TriviaKind::Whitespace)
+}
+
+fn ml_argument(mut i: RewriteIn<'_, '_, '_, '_, '_>, argument: Item) -> TailExit {
+    i.state.start_node(SyntaxKind::MlArgument.into());
+    let exit = expr_from_core(i.rb(), argument, false);
+    i.state.finish_node();
+    match exit {
+        Err(Either::Left(next)) => tail(i, next, true),
+        exit => exit,
+    }
+}
+
+fn call_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
 
@@ -68,7 +96,7 @@ fn call_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item) -> TailExit {
             emit_token_item(&mut i, close);
             i.state.finish_node();
             let next = tail_item(i.rb());
-            return tail(i, next);
+            return tail(i, next, accepts_ml);
         }
         Some(exit) => exit,
         None => handoff(tail_item(i.rb())),
@@ -77,7 +105,7 @@ fn call_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item) -> TailExit {
     exit
 }
 
-fn index_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item) -> TailExit {
+fn index_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
     emit_token_item(&mut i, open);
     i.state.start_node(SyntaxKind::IndexItem.into());
@@ -89,7 +117,7 @@ fn index_tail(mut i: RewriteIn<'_, '_, '_, '_, '_>, open: Item) -> TailExit {
             emit_token_item(&mut i, close);
             i.state.finish_node();
             let next = tail_item(i.rb());
-            return tail(i, next);
+            return tail(i, next, accepts_ml);
         }
         Some(exit) => exit,
         None => handoff(tail_item(i.rb())),
