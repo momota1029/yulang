@@ -74,9 +74,11 @@ itself. The builder receives the text captured at the point of consumption;
 it has no source/root field and no coverage/range side channel.
 
 No successor parser result, `Item`, `End`, token, trivia record, recovery
-record, or internal expression product borrows the source. The isolated parse
-result is the owned green tree plus, when recovery facts exist, owned recovery
-facts. It is not an `OperatorChain<'source>` or any other borrowed AST.
+record, or internal expression product borrows the source. A grammar procedure
+does not construct, root, or finish a `GreenNodeBuilder`: its enclosing owner
+supplies that builder through `S` and owns tree completion. Its direct result is
+only the owned handoff or recovery fact, never an `OperatorChain<'source>` or
+another borrowed AST.
 
 An unaccepted logical item owns its leading trivia and lexical text. Handoff
 therefore moves the same item without a source rewind or a rescan. `Range` is
@@ -173,8 +175,9 @@ The first slice proves only the new local contract:
   `Some(Some(value))` and `Some(None)`;
 - a `token` called from an `S`-carrying rewrite handle exposes no builder to
   its raw procedure and cannot create a speculative Rowan effect;
-- an isolated direct expression result is an owned `GreenNode`, without a
-  source lifetime, `RowanSink`, source root, range, or `OperatorChain`;
+- a caller-owned builder can finish an isolated direct expression tree after
+  the source is dropped, without a `RowanSink`, source root, range, or
+  `OperatorChain` result;
 - an unaccepted Item retains owned leading trivia and text through one tail
   handoff; accepted text is emitted directly to the builder.
 
@@ -195,9 +198,10 @@ The source-free CST foundation then completed steps 2 and the deliberately
 narrow first closure of step 3. The old rewrite shell was replaced by direct
 `expr`/`tail` procedures over the local `In` aliases. `Recover` contains only
 the operator-table reference and `Mark = ()`; `S` is a direct
-`GreenNodeBuilder`; `Item`, trivia, `End`, and `ParseResult` retain only owned
-text or a `GreenNode`. The first closure accepts an identifier core and returns
-the next logical item or EOF as the existing tail handoff. Its owned trivia
+`GreenNodeBuilder`; `Item`, trivia, and `End` retain only owned text. Grammar
+procedures do not construct or finish the builder; their enclosing owner does.
+The first closure accepts an identifier core and returns the next logical item
+or EOF as the existing tail handoff. Its owned trivia
 scanner preserves exact horizontal whitespace, CRLF/CR/LF, line comments, and
 arbitrarily nested block comments; its word scanner accepts `_` starts and one
 trailing `?` or `!`, matching the current lexical authority.
@@ -213,3 +217,11 @@ This foundation does not close a Gate 4/G4b cell. It has no dynamic operator,
 delimiter, index, call, recovery-diagnostic, production, AST-parity, or Yumark
 bridge claim; in particular the E5 `x[a(b)]` CST control remains for its
 assigned owner slice.
+
+A follow-up corrected an accidental test-wrapper entrypoint that had created,
+rooted, and finished a builder inside `driver.rs`. The production-facing
+rewrite now exposes only the direct `expr(In<..., &mut GreenNodeBuilder>)`
+procedure and its owned `TailExit`; test-only outer-owner setup constructs and
+finishes a tree. A focused witness drops its `String` before the outer owner
+emits the owned `End` trivia and finishes the builder. M2 compiler/recovery
+review and its closure review were clean.

@@ -5,7 +5,7 @@ use reborrow_generic::Reborrow as _;
 use rowan::GreenNodeBuilder;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::{operator::OperatorTable, syntax_kind::SyntaxKind};
+use crate::syntax_kind::SyntaxKind;
 
 use super::{
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
@@ -34,28 +34,6 @@ pub(super) struct End {
 }
 
 pub(super) type TailExit = Result<(), Either<Item, End>>;
-
-/// No field of this result borrows the input source.
-pub(super) struct ParseResult {
-    pub(super) green: rowan::GreenNode,
-    pub(super) exit: Option<TailExit>,
-}
-
-pub(super) fn parse(source: &str, operators: &OperatorTable) -> ParseResult {
-    let mut input = source;
-    let mut recover = Recover::new(operators);
-    let mut builder = GreenNodeBuilder::new();
-    builder.start_node(SyntaxKind::Root.into());
-    let exit = expr(In::new(&mut input, &mut recover, &mut builder));
-    if let Some(Err(Either::Right(end))) = &exit {
-        emit_end(&mut builder, end);
-    }
-    builder.finish_node();
-    ParseResult {
-        green: builder.finish(),
-        exit,
-    }
-}
 
 /// `None` occurs only before the lexical transaction has accepted a core.
 pub(super) fn expr(mut i: RewriteIn<'_, '_, '_, '_, '_>) -> Option<TailExit> {
@@ -274,7 +252,8 @@ fn emit_core(i: &mut RewriteIn<'_, '_, '_, '_, '_>, item: Item) {
     i.state.finish_node();
 }
 
-fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &End) {
+/// The enclosing owner emits accepted EOF trivia after receiving `End`.
+pub(super) fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &End) {
     emit_trivia_builder(builder, &end.item.leading);
 }
 

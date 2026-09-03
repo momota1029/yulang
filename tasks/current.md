@@ -641,9 +641,10 @@ lexical `token` transaction と `maybe` は M3 scoped compiler/spec review 後�
 Authoritative 化した。chasa-recover の focused API slice は実装・repair review 完了
 (`token`/`maybe`、outer `S` を隠す private unit reborrow、unit-state-only `check`、19 tests
 green)。続く source-free CST-only foundation は実装・M3 review 完了した。旧 rewrite shell を
-direct `expr`/`tail` と local `In` alias へ置換し、`Recover = &OperatorTable + Mark=()`、direct
-`GreenNodeBuilder`、source lifetime/range/root/cursor を持たない owned Item/trivia/End/result に
-した。最初の closure は identifier core と次 Item/EOF handoff のみで、leading trivia は exact
+direct `expr`/`tail` と local `In` alias へ置換し、`Recover = &OperatorTable + Mark=()`、caller-owned
+direct `GreenNodeBuilder`、source lifetime/range/root/cursor を持たない owned Item/trivia/End にした。
+grammar procedure は builder の生成/root/finish をせず、outer owner が `S` と tree completion を持つ。
+最初の closure は identifier core と次 Item/EOF handoff のみで、leading trivia は exact
 horizontal whitespace・CRLF/CR/LF・line comment・arbitrarily nested block comment を owned typed
 part として保持し、word は `_` start と trailing `?`/`!` 一文字を現行 lexical authority に合わせる。
 compiler/recovery review の trivia/word と CRLF/NBSP blocker は二回の repair で閉じ、final review と
@@ -654,6 +655,11 @@ completion evidence ではない。E5 の user decision
 `x[a(b)]`（一つの `IndexItem` の nested `CallTail`、`IndexSeparator` recovery なし）は
 CST owner control として引き続き正本である。未完成の G4b owner loop を含むため、まだ
 coverage ledger は閉じないが、この source-free foundation は独立した commit/push 境界とする。
+follow-up で driver 内に残っていた test-wrapper `parse`/`ParseResult`（builder生成/root/finish）を
+除去し、rewrite entry は caller-owned builder を `S` として受ける direct `expr`/owned `TailExit` のみと
+した。test-only outer owner は source `String` を drop 後に owned `End` trivia を emit して builder を
+finish する witness を持つ。M2 compiler/recovery review と closure review は clean、focused 7 tests は
+green。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

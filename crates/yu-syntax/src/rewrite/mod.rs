@@ -1,7 +1,7 @@
 //! Isolated source-free direct parser foundation.
 //!
 //! Source is borrowed only by the live `In<&str, ..>` cursor.  Logical items,
-//! boundaries, and the green parse result own every retained byte.
+//! boundaries, and accepted trivia own every retained byte.
 
 mod driver;
 mod item;
