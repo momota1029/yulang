@@ -126,8 +126,11 @@ fn type_leading_bracket_row(
         if is_type_rhs_boundary(&head) {
             let leading = std::mem::take(&mut head.leading);
             emit_missing(&mut i, leading);
+            return handoff(head);
         }
-        return handoff(head);
+        let leading = std::mem::take(&mut head.leading);
+        emit_leading_trivia(&mut i, &leading);
+        return retry_leading_bracket_row_head_error(i, head, baseline, type_ml);
     }
 }
 
@@ -147,6 +150,34 @@ fn retry_leading_bracket_row_head(mut i: RewriteIn, head: Item) -> Result<Item, 
     i.state.finish_node();
     let leading = scan_trivia(i.rb());
     Ok(type_nud_item_after_trivia(i, leading))
+}
+
+fn retry_leading_bracket_row_head_error(
+    mut i: RewriteIn,
+    mut head: Item,
+    baseline: usize,
+    type_ml: bool,
+) -> TailExit {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, head);
+        let leading = scan_trivia(i.rb());
+        head = type_nud_item_after_trivia(i.rb(), leading);
+        if !type_chain_trivia(&head.leading, baseline) || is_type_rhs_boundary(&head) {
+            i.state.finish_node();
+            return handoff(head);
+        }
+        if is_type_primary(&head) {
+            i.state.finish_node();
+            let leading = std::mem::take(&mut head.leading);
+            emit_leading_trivia(&mut i, &leading);
+            return type_expr_from_primary_started(i, head, baseline, type_ml);
+        }
+        if token_kind(&head) == Some(TokenKind::LBracket) {
+            i.state.finish_node();
+            return handoff(head);
+        }
+    }
 }
 
 fn type_bracket_arrow_tail(mut i: RewriteIn, mut open: Item, baseline: usize) -> TailExit {

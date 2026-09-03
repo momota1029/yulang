@@ -937,6 +937,13 @@ state/source reread/buffer/recovery recordの追加なし。malformed head / row
 reviewはclean、focused rewrite testsは66 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b
 ledgerは未完である。
 
+2026-09-04: direct leading `BracketRow`のBR-H malformed-head retryを追加した。row-to-head accepted chain triviaは
+enclosing TypeExpressionが所有し、maximal malformed bytesだけをone `Error`としてvalid non-bracket TypePrimaryへretryする。
+malformed runがEOF / outer boundary / equal-or-shallower newlineへ着いた場合はsame head slotへMissingを重ねずhandoffする。
+state/source reread/buffer/recovery recordの追加なし。malformed run後のdisabled second row統合とrow item / close recoveryは未実装。
+M1 specification reviewはownership修正後clean、focused rewrite testsは67 passed、package check、format/diff checkはgreen。
+production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

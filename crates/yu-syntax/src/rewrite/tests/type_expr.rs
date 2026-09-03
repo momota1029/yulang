@@ -818,3 +818,43 @@ fn leading_bracket_row_retries_a_balanced_second_row_as_one_error() {
             .any(|node| node.kind() == SyntaxKind::Error)
     );
 }
+
+#[test]
+fn leading_bracket_row_retries_malformed_heads_without_a_missing_cascade() {
+    for source in ["[e] @ T", "[e] @"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let top = top_type_expression(&green);
+        assert_eq!(
+            top.children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !top.children()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+        assert!(
+            top.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Whitespace)
+                .all(|token| token
+                    .parent()
+                    .is_some_and(|parent| parent.kind() == SyntaxKind::TypeExpression)),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("[e] @\nT");
+    assert_eq!(green.to_string(), "[e] @");
+    assert!(matches!(exit, Some(Err(Either::Left(_)))));
+    assert!(
+        !top_type_expression(&green)
+            .children()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+}
