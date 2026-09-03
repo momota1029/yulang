@@ -314,6 +314,88 @@ fn each_delimited_owner_accepts_an_empty_valid_sequence() {
 }
 
 #[test]
+fn fixed_field_and_path_tails_keep_their_own_tokens() {
+    let source = "a .field:: name b";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    assert_eq!(
+        outer.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::FieldTail,
+            SyntaxKind::PathTail,
+            SyntaxKind::MlArgument,
+        ]
+    );
+    let field = outer
+        .children()
+        .find(|node| node.kind() == SyntaxKind::FieldTail)
+        .expect("field tail");
+    assert_eq!(
+        field
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Dot, ".".to_owned()),
+            (SyntaxKind::Identifier, "field".to_owned()),
+        ]
+    );
+    let path = outer
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PathTail)
+        .expect("path tail");
+    assert_eq!(
+        path.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::ColonColon, "::".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Identifier, "name".to_owned()),
+        ]
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
+}
+
+#[test]
+fn double_dot_is_not_a_field_tail() {
+    for source in ["a..", "a..."] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), "a", "{source:?}");
+        assert!(
+            matches!(
+                exit,
+                Some(Err(Either::Left(item)))
+                    if matches!(item.payload, Payload::Token(ref token)
+                        if token.kind == TokenKind::Unknown && &*token.text == ".")
+            ),
+            "{source:?}"
+        );
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::FieldTail),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn index_item_accepts_ml_argument_without_separator_recovery() {
     let (green, exit) = run("x[a b]");
     assert_eq!(green.to_string(), "x[a b]");

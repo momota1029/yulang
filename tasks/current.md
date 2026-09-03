@@ -699,6 +699,14 @@ parenthesized node の外に出る。`f(a,b;c)[x,y;z]` の call close/index clos
 layout、comment ML、projection、production/AST/Yumark bridge、G4b/Gate 4 ledger は引き続き未実装。
 focused rewrite tests は 14 passed、package check、scoped format/diff check は green。
 
+2026-09-03: 同じ isolated G4b valid control に fixed field/path tail を追加した。field は accepted
+`.` Item とそれに隣接する identifier を `FieldTail` に、path は greedy `::` Item と次の
+identifier Item（leading trivia を含む）を `PathTail` に直接 emit し、それぞれ node を閉じてから
+outer tail を scan する。`a .field:: name b` は flat `FieldTail`/`PathTail`/`MlArgument` と token
+owner を固定し、`a..`/`a...` は field にしない。field/path RHS recovery、projection、sigil path
+segment、newline/layout、production/AST/Yumark bridge、G4b/Gate 4 ledger は未実装のままである。
+focused rewrite tests は 16 passed、package check、scoped format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

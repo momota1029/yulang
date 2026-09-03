@@ -82,6 +82,11 @@ pub(super) fn tail(mut i: RewriteIn, item: Item, accepts_ml: bool) -> TailExit {
             _ => {}
         }
     }
+    match token_kind(&item) {
+        Some(TokenKind::Dot) => return field_tail(i.rb(), item, accepts_ml),
+        Some(TokenKind::PathSeparator) => return path_tail(i.rb(), item, accepts_ml),
+        _ => {}
+    }
     if accepts_ml && is_ml_argument(&item) {
         return ml_argument(i.rb(), item);
     }
@@ -185,6 +190,31 @@ fn index_tail(mut i: RewriteIn, open: Item, accepts_ml: bool) -> TailExit {
     );
     i.state.finish_node();
     continue_completed_tail(i, accepts_ml, exit)
+}
+
+fn field_tail(mut i: RewriteIn, dot: Item, accepts_ml: bool) -> TailExit {
+    i.state.start_node(SyntaxKind::FieldTail.into());
+    emit_token_item(&mut i, dot);
+    let Some(name) = i.token(scan_identifier) else {
+        i.state.finish_node();
+        return handoff(tail_item(i.rb()));
+    };
+    i.state.token(SyntaxKind::Identifier.into(), &name.text);
+    i.state.finish_node();
+    scan_tail_after_accept(i, accepts_ml)
+}
+
+fn path_tail(mut i: RewriteIn, separator: Item, accepts_ml: bool) -> TailExit {
+    i.state.start_node(SyntaxKind::PathTail.into());
+    emit_token_item(&mut i, separator);
+    let segment = tail_item(i.rb());
+    if token_kind(&segment) != Some(TokenKind::Identifier) {
+        i.state.finish_node();
+        return handoff(segment);
+    }
+    emit_token_item(&mut i, segment);
+    i.state.finish_node();
+    scan_tail_after_accept(i, accepts_ml)
 }
 
 fn is_separator(item: &Item) -> bool {
@@ -385,6 +415,11 @@ fn scan_punctuation(i: LexIn) -> Option<Token> {
         ']' => Some(TokenKind::RBracket),
         ',' => Some(TokenKind::Comma),
         ';' => Some(TokenKind::Semicolon),
+        '.' => punctuation
+            .token(scan_dot)
+            .is_none()
+            .then_some(TokenKind::Dot),
+        ':' => (punctuation.next()? == ':').then_some(TokenKind::PathSeparator),
         _ => None,
     });
     Some(Token {
@@ -396,6 +431,10 @@ fn scan_punctuation(i: LexIn) -> Option<Token> {
 fn scan_lparen(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LParen).then_some(token)
+}
+
+fn scan_dot(mut i: LexIn) -> Option<()> {
+    (i.next()? == '.').then_some(())
 }
 
 fn scan_unknown(i: LexIn) -> Option<Token> {
@@ -431,6 +470,8 @@ fn emit_token_item(i: &mut RewriteIn, item: Item) {
         TokenKind::RBracket => SyntaxKind::RBracket,
         TokenKind::Comma => SyntaxKind::Comma,
         TokenKind::Semicolon => SyntaxKind::Semicolon,
+        TokenKind::Dot => SyntaxKind::Dot,
+        TokenKind::PathSeparator => SyntaxKind::ColonColon,
         TokenKind::Unknown => SyntaxKind::Unknown,
     };
     i.state.token(kind.into(), &token.text);

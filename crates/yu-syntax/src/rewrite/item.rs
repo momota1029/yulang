@@ -24,6 +24,8 @@ pub(super) enum TokenKind {
     RBracket,
     Comma,
     Semicolon,
+    Dot,
+    PathSeparator,
     Unknown,
 }
 
