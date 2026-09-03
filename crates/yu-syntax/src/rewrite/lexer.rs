@@ -1,0 +1,260 @@
+//! Lexical item construction and ordinary trivia ownership for the rewrite.
+
+use chasa_recover::parser::{choice, token};
+use reborrow_generic::Reborrow as _;
+use unicode_ident::{is_xid_continue, is_xid_start};
+
+use crate::scan::operator::OperatorSite;
+
+use super::{
+    LexIn, RewriteIn,
+    item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
+    operator::scan_operator,
+};
+
+pub(super) fn tail_item_after_trivia(
+    mut i: RewriteIn,
+    leading: LeadingTrivia,
+    site: OperatorSite,
+    baseline: usize,
+    stops: u8,
+) -> Item {
+    let has_leading_trivia = !leading.0.is_empty();
+    let payload = if let Some(operator) =
+        i.token(|lex| scan_operator(lex, site, has_leading_trivia, baseline, stops))
+    {
+        Payload::Operator(operator)
+    } else {
+        i.map(
+            choice((
+                token(scan_identifier),
+                token(scan_integer),
+                token(scan_punctuation),
+                token(scan_unknown),
+            )),
+            Payload::Token,
+        )
+        .unwrap_or(Payload::Eof)
+    };
+    Item { leading, payload }
+}
+
+pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<Item> {
+    let leading = scan_trivia_lex(i.rb());
+    let has_leading_trivia = !leading.0.is_empty();
+    let payload = if let Some(token) = i.token(scan_lparen) {
+        Payload::Token(token)
+    } else if let Some(operator) =
+        i.token(|lex| scan_operator(lex, OperatorSite::Nud, has_leading_trivia, baseline, stops))
+    {
+        Payload::Operator(operator)
+    } else if let Some(token) = i.token(scan_identifier) {
+        Payload::Token(token)
+    } else {
+        Payload::Token(i.token(scan_integer)?)
+    };
+    Some(Item { leading, payload })
+}
+
+pub(super) fn scan_trivia(mut i: RewriteIn) -> LeadingTrivia {
+    let mut parts = Vec::new();
+    while let Some(part) = i.token(scan_trivia_part) {
+        parts.push(part);
+    }
+    LeadingTrivia(parts.into_boxed_slice())
+}
+
+fn scan_trivia_lex(mut i: LexIn) -> LeadingTrivia {
+    let mut parts = Vec::new();
+    while let Some(part) = i.token(scan_trivia_part) {
+        parts.push(part);
+    }
+    LeadingTrivia(parts.into_boxed_slice())
+}
+
+fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
+    i.check(choice((
+        token(scan_horizontal_whitespace),
+        token(scan_newline),
+        token(scan_line_comment),
+        token(scan_block_comment),
+    )))
+}
+
+fn scan_horizontal_whitespace(mut i: LexIn) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut whitespace| {
+        scan_horizontal_whitespace_unit(whitespace.rb())?;
+        while whitespace.token(scan_horizontal_whitespace_unit).is_some() {}
+        Some(())
+    });
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::Whitespace,
+        text: text.into(),
+    })
+}
+
+fn scan_horizontal_whitespace_unit(mut i: LexIn) -> Option<()> {
+    matches!(i.next()?, ' ' | '\t').then_some(())
+}
+
+fn scan_newline(mut i: LexIn) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut newline| match newline.next()? {
+        '\r' => {
+            let _ = newline.token(scan_line_feed);
+            Some(())
+        }
+        '\n' => Some(()),
+        _ => None,
+    });
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::Newline,
+        text: text.into(),
+    })
+}
+
+fn scan_line_feed(mut i: LexIn) -> Option<()> {
+    (i.next()? == '\n').then_some(())
+}
+
+fn scan_line_comment(mut i: LexIn) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut comment| {
+        scan_pair(comment.rb(), '/', '/')?;
+        while comment.token(scan_line_comment_character).is_some() {}
+        Some(())
+    });
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::LineComment,
+        text: text.into(),
+    })
+}
+
+fn scan_line_comment_character(mut i: LexIn) -> Option<()> {
+    (!matches!(i.next()?, '\r' | '\n')).then_some(())
+}
+
+fn scan_block_comment(mut i: LexIn) -> Option<Trivia> {
+    let (accepted, text) = i.rb().with_str(|mut comment| {
+        scan_pair(comment.rb(), '/', '*')?;
+        let mut depth = 1usize;
+        loop {
+            if comment.token(scan_block_open).is_some() {
+                depth += 1;
+                continue;
+            }
+            if comment.token(scan_block_close).is_some() {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(());
+                }
+                continue;
+            }
+            if comment.next().is_none() {
+                return Some(());
+            }
+        }
+    });
+    accepted?;
+    Some(Trivia {
+        kind: TriviaKind::BlockComment,
+        text: text.into(),
+    })
+}
+
+fn scan_block_open(i: LexIn) -> Option<()> {
+    scan_pair(i, '/', '*')
+}
+
+fn scan_block_close(i: LexIn) -> Option<()> {
+    scan_pair(i, '*', '/')
+}
+
+fn scan_pair(mut i: LexIn, first: char, second: char) -> Option<()> {
+    (i.next()? == first).then_some(())?;
+    (i.next()? == second).then_some(())
+}
+
+fn scan_identifier(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut word| {
+        let first = word.next()?;
+        if first != '_' && !is_xid_start(first) {
+            return None;
+        }
+        while word.token(scan_identifier_continue).is_some() {}
+        let _ = word.token(scan_identifier_suffix);
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Identifier,
+        text: text.into(),
+    })
+}
+
+fn scan_identifier_continue(mut i: LexIn) -> Option<()> {
+    is_xid_continue(i.next()?).then_some(())
+}
+
+fn scan_identifier_suffix(mut i: LexIn) -> Option<()> {
+    matches!(i.next()?, '?' | '!').then_some(())
+}
+
+fn scan_integer(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut number| {
+        scan_integer_digit(number.rb())?;
+        while number.token(scan_integer_digit).is_some() {}
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Integer,
+        text: text.into(),
+    })
+}
+
+fn scan_integer_digit(mut i: LexIn) -> Option<()> {
+    i.next()?.is_ascii_digit().then_some(())
+}
+
+fn scan_punctuation(i: LexIn) -> Option<Token> {
+    let (kind, text) = i.with_str(|mut punctuation| match punctuation.next()? {
+        '(' => Some(TokenKind::LParen),
+        ')' => Some(TokenKind::RParen),
+        '[' => Some(TokenKind::LBracket),
+        ']' => Some(TokenKind::RBracket),
+        '{' => Some(TokenKind::LBrace),
+        '}' => Some(TokenKind::RBrace),
+        ',' => Some(TokenKind::Comma),
+        ';' => Some(TokenKind::Semicolon),
+        '.' => punctuation
+            .token(scan_dot)
+            .is_none()
+            .then_some(TokenKind::Dot),
+        ':' => (punctuation.next()? == ':').then_some(TokenKind::PathSeparator),
+        _ => None,
+    });
+    Some(Token {
+        kind: kind?,
+        text: text.into(),
+    })
+}
+
+fn scan_lparen(i: LexIn) -> Option<Token> {
+    let token = scan_punctuation(i)?;
+    (token.kind == TokenKind::LParen).then_some(token)
+}
+
+fn scan_dot(mut i: LexIn) -> Option<()> {
+    (i.next()? == '.').then_some(())
+}
+
+fn scan_unknown(i: LexIn) -> Option<Token> {
+    let (character, text) = i.with_str(|mut one| one.next());
+    character?;
+    Some(Token {
+        kind: TokenKind::Unknown,
+        text: text.into(),
+    })
+}
