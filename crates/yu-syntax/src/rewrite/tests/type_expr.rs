@@ -858,3 +858,41 @@ fn leading_bracket_row_retries_malformed_heads_without_a_missing_cascade() {
             .any(|node| node.kind() == SyntaxKind::Missing)
     );
 }
+
+#[test]
+fn bracket_rows_recover_malformed_items_and_local_closes() {
+    for (source, missing) in [
+        ("T [)] -> U", 1),
+        ("T [e)] -> U", 0),
+        ("T [@ A] -> U", 0),
+        ("T [@] -> U", 0),
+        ("T [@", 1),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("T [@ A] -> U");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let error = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("bracket item error");
+    assert_eq!(error.text().to_string(), "@ ");
+}

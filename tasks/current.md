@@ -944,6 +944,14 @@ state/source reread/buffer/recovery recordの追加なし。malformed run後のd
 M1 specification reviewはownership修正後clean、focused rewrite testsは67 passed、package check、format/diff checkはgreen。
 production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: shared direct type-delimited loopへowner-local `BracketRow` policyを追加し、initial malformed itemと
+local mismatched closeのBR-R retryを実装した。`T [@ A] -> U`はsame-line gap込みone `Error("@ ")`からitem `A`へretryし、
+`T [)] -> U`はone Missing item + one close Error、`T [e)] -> U`はclose Errorだけでactual `]`へretryする。Generic owner
+(EffectRow / call / group)のbranchは変えない。terminal malformed itemはitem Missingを重ねずclose Missingだけを置く。
+state/source reread/buffer/recovery recordの追加なし。post-item malformed / separator / layout recovery、repeated close、
+incomplete close後のmandatory arrow/head continuationは未実装。M1 specification reviewはclean、focused rewrite testsは68 passed、
+package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
