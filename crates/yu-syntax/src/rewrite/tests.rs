@@ -173,6 +173,45 @@ fn words_match_the_oracle_start_and_suffix_rules() {
 }
 
 #[test]
+fn decimal_integer_core_keeps_its_direct_tail_chain() {
+    let source = "123(a).field::name";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let outer = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    assert_eq!(
+        outer.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IntegerLiteral,
+            SyntaxKind::CallTail,
+            SyntaxKind::FieldTail,
+            SyntaxKind::PathTail,
+        ]
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Integer, "123".to_owned()),
+            (SyntaxKind::LParen, "(".to_owned()),
+            (SyntaxKind::Identifier, "a".to_owned()),
+            (SyntaxKind::RParen, ")".to_owned()),
+            (SyntaxKind::Dot, ".".to_owned()),
+            (SyntaxKind::Identifier, "field".to_owned()),
+            (SyntaxKind::ColonColon, "::".to_owned()),
+            (SyntaxKind::Identifier, "name".to_owned()),
+        ]
+    );
+}
+
+#[test]
 fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {
     let source = "(a,b;c) d";
     let (green, exit) = run(source);

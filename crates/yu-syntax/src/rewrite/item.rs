@@ -18,6 +18,7 @@ pub(super) enum TriviaKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum TokenKind {
     Identifier,
+    Integer,
     LParen,
     RParen,
     LBracket,

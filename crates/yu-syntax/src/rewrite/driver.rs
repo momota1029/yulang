@@ -51,11 +51,15 @@ fn expr_from_nud(mut i: RewriteIn, nud: Item, accepts_ml: bool) -> TailExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
     let exit = match token_kind(&nud) {
         Some(TokenKind::Identifier) => {
-            emit_core(&mut i, nud);
+            emit_identifier_core(&mut i, nud);
+            scan_tail_after_accept(i.rb(), accepts_ml)
+        }
+        Some(TokenKind::Integer) => {
+            emit_integer_core(&mut i, nud);
             scan_tail_after_accept(i.rb(), accepts_ml)
         }
         Some(TokenKind::LParen) => parenthesized_nud(i.rb(), nud, accepts_ml),
-        _ => unreachable!("the NUD scanner accepts only identifier and `(`"),
+        _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
     };
     i.state.finish_node();
     exit
@@ -162,7 +166,7 @@ fn delimited_items(
 fn is_nud_item(item: &Item) -> bool {
     matches!(
         token_kind(item),
-        Some(TokenKind::Identifier | TokenKind::LParen)
+        Some(TokenKind::Identifier | TokenKind::Integer | TokenKind::LParen)
     )
 }
 
@@ -274,6 +278,7 @@ fn tail_item(mut i: RewriteIn) -> Item {
         .map(
             choice((
                 token(scan_identifier),
+                token(scan_integer),
                 token(scan_punctuation),
                 token(scan_unknown),
             )),
@@ -285,7 +290,11 @@ fn tail_item(mut i: RewriteIn) -> Item {
 
 fn scan_nud_item(mut i: LexIn) -> Option<Item> {
     let leading = scan_trivia_lex(i.rb());
-    let token = i.check(choice((token(scan_identifier), token(scan_lparen))))?;
+    let token = i.check(choice((
+        token(scan_identifier),
+        token(scan_integer),
+        token(scan_lparen),
+    )))?;
     Some(Item {
         leading,
         payload: Payload::Token(token),
@@ -437,6 +446,23 @@ fn scan_identifier_suffix(mut i: LexIn) -> Option<()> {
     matches!(i.next()?, '?' | '!').then_some(())
 }
 
+fn scan_integer(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut number| {
+        scan_integer_digit(number.rb())?;
+        while number.token(scan_integer_digit).is_some() {}
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Integer,
+        text: text.into(),
+    })
+}
+
+fn scan_integer_digit(mut i: LexIn) -> Option<()> {
+    i.next()?.is_ascii_digit().then_some(())
+}
+
 fn scan_punctuation(i: LexIn) -> Option<Token> {
     let (kind, text) = i.with_str(|mut punctuation| match punctuation.next()? {
         '(' => Some(TokenKind::LParen),
@@ -478,7 +504,7 @@ fn scan_unknown(i: LexIn) -> Option<Token> {
     })
 }
 
-fn emit_core(i: &mut RewriteIn, item: Item) {
+fn emit_identifier_core(i: &mut RewriteIn, item: Item) {
     let Payload::Token(token) = item.payload else {
         unreachable!("a core scanner always returns a token")
     };
@@ -489,6 +515,17 @@ fn emit_core(i: &mut RewriteIn, item: Item) {
     i.state.finish_node();
 }
 
+fn emit_integer_core(i: &mut RewriteIn, item: Item) {
+    let Payload::Token(token) = item.payload else {
+        unreachable!("a core scanner always returns a token")
+    };
+    debug_assert_eq!(token.kind, TokenKind::Integer);
+    i.state.start_node(SyntaxKind::IntegerLiteral.into());
+    emit_trivia(i, &item.leading);
+    i.state.token(SyntaxKind::Integer.into(), &token.text);
+    i.state.finish_node();
+}
+
 fn emit_token_item(i: &mut RewriteIn, item: Item) {
     let Payload::Token(token) = item.payload else {
         unreachable!("only a lexical item can be accepted")
@@ -496,6 +533,7 @@ fn emit_token_item(i: &mut RewriteIn, item: Item) {
     emit_trivia(i, &item.leading);
     let kind = match token.kind {
         TokenKind::Identifier => SyntaxKind::Identifier,
+        TokenKind::Integer => SyntaxKind::Integer,
         TokenKind::LParen => SyntaxKind::LParen,
         TokenKind::RParen => SyntaxKind::RParen,
         TokenKind::LBracket => SyntaxKind::LBracket,

@@ -715,6 +715,14 @@ emit し、既存 `delimited_items` が comma/semicolon item sequence とそれ�
 close、layout、production/AST/Yumark bridge、G4b/Gate 4 ledger は未実装のままである。focused rewrite
 tests は 17 passed、package check、scoped format/diff check は green。
 
+2026-09-04: source-free direct rewrite に既存 oracle と同じ ASCII decimal integer NUD を追加した。
+lexical transaction が一個以上の ASCII digit を greedily owned `Integer` Item として受理し、
+`IntegerLiteral(Integer)` を直接 emit する。normal core として identifier と同じ direct tail
+continuation を持つため、`123(a).field::name` は `IntegerLiteral` から Call/Field/Path tail を一つの
+flat `OperatorChain` に置く。ML の argument vocabulary、integer 以外の literal、recovery、layout、
+production/AST/Yumark bridge、G4b/Gate 4 ledger は引き続き scope 外である。focused rewrite tests は
+18 passed、package check、scoped format/diff check は green。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
