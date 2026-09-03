@@ -210,6 +210,61 @@ fn delimited_owner_recovers_missing_items_before_separators() {
 }
 
 #[test]
+fn delimited_nud_recovery_retries_one_maximal_error_run() {
+    for (source, owner, item_kind) in [
+        (
+            "(@@a)",
+            SyntaxKind::ParenthesizedExpression,
+            SyntaxKind::OperatorChain,
+        ),
+        ("f(@a)", SyntaxKind::CallTail, SyntaxKind::OperatorChain),
+        ("x[@a]", SyntaxKind::IndexTail, SyntaxKind::IndexItem),
+        (
+            "a.(@x)",
+            SyntaxKind::ProjectionTupleTail,
+            SyntaxKind::OperatorChain,
+        ),
+        (
+            "a.{@x}",
+            SyntaxKind::ProjectionRecordTail,
+            SyntaxKind::OperatorChain,
+        ),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("delimited owner");
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == item_kind)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !owner
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn delimited_owner_consumes_wrong_closes_before_settling_its_own_close() {
     for (source, owner, wrong, missing) in [
         (

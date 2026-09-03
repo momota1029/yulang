@@ -307,7 +307,8 @@ fn delimited_items(
             continue;
         }
         if !is_nud_item(&item) {
-            return handoff(item);
+            item = retry_nud_item(i.rb(), item, baseline, stops);
+            continue;
         }
         if let Some(kind) = item_node {
             i.state.start_node(kind.into());
@@ -361,6 +362,23 @@ fn wrong_close_item(mut i: RewriteIn, item: Item, baseline: usize, stops: u8) ->
     emit_error_item(&mut i, item);
     let leading = scan_trivia(i.rb());
     tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
+}
+
+fn retry_nud_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: u8) -> Item {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+        if is_nud_item(&item)
+            || is_separator(&item)
+            || is_close(&item)
+            || matches!(&item.payload, Payload::Eof)
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
 }
 
 fn is_nud_item(item: &Item) -> bool {

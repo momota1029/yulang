@@ -789,6 +789,15 @@ recovery record の追加なし。M1 specification review は repair 後 clean�
 passed、package check、format/diff check は green。typed recovery record、other invalid run、Gate 4/G4b
 ledger は未完である。
 
+2026-09-04: G4b delimited owner の mandatory NUD retry を追加した。parenthesized/call/index/tuple・record
+projection の item loop は close/separator/EOF を先に保ったうえで invalid Item を owner-local の一つの
+`Error` 内で、next NUD candidate または同じ boundary まで consume し、candidate を同じ item slot として
+retry する。したがって `(@@a)` は一つの Error の後に `a` を一 element として持ち、five owner の
+`@` retry も valid item へ戻る。各 iteration は current Item を消費し、source reread/state/rollback/event
+buffer/recovery record は追加していない。M1 specification review は clean、focused rewrite tests は 38
+passed、package check、format/diff check は green。typed recovery record、other invalid run、Gate 4/G4b
+ledger は未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
