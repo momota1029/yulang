@@ -10,7 +10,7 @@ use super::{
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
     lexer::{
-        scan_lbracket, scan_trivia, scan_type_nud_item, type_item_after_trivia,
+        scan_lbrace, scan_lbracket, scan_trivia, scan_type_nud_item, type_item_after_trivia,
         type_nud_item_after_trivia,
     },
 };
@@ -36,6 +36,9 @@ fn type_expr_from_primary(
         Some(TokenKind::LBrace) => type_record(i.rb(), primary, baseline, type_ml),
         Some(TokenKind::Forall) => type_forall(i.rb(), primary, baseline),
         Some(TokenKind::EffectRowApostrophe) => type_effect_row(i.rb(), primary, baseline, type_ml),
+        Some(TokenKind::PolymorphicVariantColon) => {
+            type_polymorphic_variant(i.rb(), primary, baseline, type_ml)
+        }
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     };
     i.state.finish_node();
@@ -248,6 +251,125 @@ fn type_effect_row(mut i: RewriteIn, apostrophe: Item, baseline: usize, type_ml:
     continue_type_tail(i, baseline, type_ml, exit)
 }
 
+fn type_polymorphic_variant(
+    mut i: RewriteIn,
+    colon: Item,
+    baseline: usize,
+    type_ml: bool,
+) -> TailExit {
+    i.state
+        .start_node(SyntaxKind::PolymorphicVariantType.into());
+    emit_token_item(&mut i, colon);
+    let open = i
+        .token(scan_lbrace)
+        .expect("the polymorphic-variant compound probe accepted an adjacent brace");
+    emit_token_item(
+        &mut i,
+        Item {
+            leading: LeadingTrivia::default(),
+            payload: Payload::Token(open),
+        },
+    );
+    let exit = type_polymorphic_variant_tags(i.rb(), baseline);
+    i.state.finish_node();
+    continue_type_tail(i, baseline, type_ml, exit)
+}
+
+fn type_polymorphic_variant_tags(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
+    let opening = scan_trivia(i.rb());
+    let baseline = type_delimited_baseline(incoming_baseline, &opening);
+    emit_leading_trivia(&mut i, &opening);
+    let mut item = type_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
+    loop {
+        if token_kind(&item) == Some(TokenKind::RBrace) {
+            emit_token_item(&mut i, item);
+            return Ok(());
+        }
+        if matches!(&item.payload, Payload::Eof) || !is_type_polymorphic_variant_tag_name(&item) {
+            return handoff(item);
+        }
+        let exit = type_polymorphic_variant_tag(i.rb(), item, baseline);
+        item = match type_polymorphic_variant_successor(i.rb(), exit, baseline) {
+            Ok(next) => next,
+            Err(exit) => return exit,
+        };
+    }
+}
+
+fn type_polymorphic_variant_tag(mut i: RewriteIn, name: Item, baseline: usize) -> TailExit {
+    i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
+    emit_token_item(&mut i, name);
+    let leading = scan_trivia(i.rb());
+    let mut item = type_nud_item_after_trivia(i.rb(), leading);
+    loop {
+        if !is_type_payload_boundary(&item.leading) || !is_type_primary(&item) {
+            i.state.finish_node();
+            return handoff(item);
+        }
+        let exit = type_polymorphic_variant_payload(i.rb(), item, baseline);
+        item = match exit {
+            Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
+            Err(Either::Left(next)) => next,
+            Err(Either::Right(end)) => {
+                i.state.finish_node();
+                return Err(Either::Right(end));
+            }
+        };
+    }
+}
+
+fn type_polymorphic_variant_payload(
+    mut i: RewriteIn,
+    mut primary: Item,
+    baseline: usize,
+) -> TailExit {
+    i.state
+        .start_node(SyntaxKind::PolymorphicVariantPayload.into());
+    let boundary = std::mem::take(&mut primary.leading);
+    emit_leading_trivia(&mut i, &boundary);
+    let exit = type_expr_from_primary(i.rb(), primary, baseline, true);
+    i.state.finish_node();
+    exit
+}
+
+fn type_polymorphic_variant_successor(
+    mut i: RewriteIn,
+    exit: TailExit,
+    baseline: usize,
+) -> Result<Item, TailExit> {
+    match exit {
+        Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::Comma) => {
+            emit_token_item(&mut i, next);
+            let leading = scan_trivia(i.rb());
+            let mut next = type_nud_item_after_trivia(i.rb(), leading);
+            if token_kind(&next) == Some(TokenKind::RBrace)
+                || is_type_polymorphic_variant_tag_name(&next)
+            {
+                let leading = std::mem::take(&mut next.leading);
+                emit_leading_trivia(&mut i, &leading);
+            }
+            if token_kind(&next) == Some(TokenKind::RBrace) {
+                emit_token_item(&mut i, next);
+                return Err(Ok(()));
+            }
+            Ok(next)
+        }
+        Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::RBrace) => {
+            emit_token_item(&mut i, next);
+            Err(Ok(()))
+        }
+        Err(Either::Left(mut next))
+            if is_type_polymorphic_variant_tag_name(&next)
+                && is_type_implicit_boundary(baseline, &next.leading) =>
+        {
+            let leading = std::mem::take(&mut next.leading);
+            emit_leading_trivia(&mut i, &leading);
+            Ok(next)
+        }
+        exit => Err(exit),
+    }
+}
+
 fn type_delimited(mut i: RewriteIn, close: TokenKind, incoming_baseline: usize) -> TailExit {
     let opening = scan_trivia(i.rb());
     let baseline = type_delimited_baseline(incoming_baseline, &opening);
@@ -436,11 +558,16 @@ fn is_type_primary(item: &Item) -> bool {
                 | TokenKind::LBrace
                 | TokenKind::Forall
                 | TokenKind::EffectRowApostrophe
+                | TokenKind::PolymorphicVariantColon
         )
     )
 }
 
 fn is_type_record_field_name(item: &Item) -> bool {
+    token_kind(item) == Some(TokenKind::Identifier)
+}
+
+fn is_type_polymorphic_variant_tag_name(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Identifier)
 }
 
@@ -497,6 +624,10 @@ fn type_chain_trivia(leading: &LeadingTrivia, baseline: usize) -> bool {
 
 fn is_type_implicit_boundary(baseline: usize, leading: &LeadingTrivia) -> bool {
     indentation_after_newline(leading).is_some_and(|indentation| indentation <= baseline)
+}
+
+fn is_type_payload_boundary(leading: &LeadingTrivia) -> bool {
+    !leading.0.is_empty() && indentation_after_newline(leading).is_none()
 }
 
 fn type_delimited_baseline(incoming: usize, opening: &LeadingTrivia) -> usize {

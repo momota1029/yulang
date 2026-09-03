@@ -115,6 +115,7 @@ pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
     let token = i.check(choice((
         token(scan_type_forall),
         token(scan_type_effect_row_apostrophe),
+        token(scan_type_polymorphic_variant_colon),
         token(scan_path_segment),
         token(scan_integer),
         token(scan_lparen),
@@ -141,6 +142,7 @@ pub(super) fn type_item_after_trivia(i: RewriteIn, leading: LeadingTrivia) -> It
         .map(
             choice((
                 token(scan_type_effect_row_apostrophe),
+                token(scan_type_polymorphic_variant_colon),
                 token(scan_path_segment),
                 token(scan_integer),
                 token(scan_type_arrow),
@@ -424,6 +426,18 @@ fn scan_type_effect_row_apostrophe(mut i: LexIn) -> Option<Token> {
     })
 }
 
+fn scan_type_polymorphic_variant_colon(mut i: LexIn) -> Option<Token> {
+    i.remainder().starts_with(":{").then_some(())?;
+    let (accepted, text) = i
+        .rb()
+        .with_str(|mut colon| (colon.next()? == ':').then_some(()));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::PolymorphicVariantColon,
+        text: text.into(),
+    })
+}
+
 fn scan_type_colon(mut i: LexIn) -> Option<Token> {
     let remainder = i.remainder();
     (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())?;
@@ -457,7 +471,7 @@ fn scan_lparen(i: LexIn) -> Option<Token> {
     (token.kind == TokenKind::LParen).then_some(token)
 }
 
-fn scan_lbrace(i: LexIn) -> Option<Token> {
+pub(super) fn scan_lbrace(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LBrace).then_some(token)
 }

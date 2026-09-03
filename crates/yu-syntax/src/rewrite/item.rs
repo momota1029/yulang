@@ -35,6 +35,7 @@ pub(super) enum TokenKind {
     Colon,
     Forall,
     EffectRowApostrophe,
+    PolymorphicVariantColon,
     PathSeparator,
     Unknown,
 }

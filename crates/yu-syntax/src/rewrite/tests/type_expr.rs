@@ -590,3 +590,88 @@ fn effect_row_type_composes_with_layout_and_tails() {
         assert!(exit.is_none(), "{source:?}");
     }
 }
+
+#[test]
+fn polymorphic_variant_type_keeps_two_level_boundaries() {
+    for (source, tags, payloads) in [
+        (":{}", 0, 0),
+        (":{A Int, B}", 2, 1),
+        (":{A Int Bool}", 1, 2),
+        (":{A Int\nB}", 2, 1),
+        (":{A,}", 1, 0),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let variant = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert_eq!(
+            variant
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+                .count(),
+            tags,
+            "{source:?}"
+        );
+        assert_eq!(
+            variant
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload)
+                .count(),
+            payloads,
+            "{source:?}"
+        );
+    }
+
+    let nested = ":{\n  A Pair(\n    Int,\n    Bool\n  )\n  B\n}";
+    let (green, exit) = run_type(nested);
+    assert_eq!(green.to_string(), nested);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let variant = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(
+        variant
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn polymorphic_variant_type_composes_with_type_tails() {
+    let (green, exit) = run_type("F :{A} -> Out");
+    assert_eq!(green.to_string(), "F :{A} -> Out");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let top = top_type_expression(&green);
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+    );
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeArrowTail)
+    );
+
+    let path = run_type(":{A}::Result").0;
+    assert!(
+        top_type_expression(&path)
+            .children()
+            .any(|node| node.kind() == SyntaxKind::TypePathTail)
+    );
+
+    let (green, exit) = run_type("F:{A}");
+    assert_eq!(green.to_string(), "F");
+    assert!(matches!(exit, Some(Err(Either::Left(_)))));
+
+    for source in [": {A}", ":/*comment*/{A}", ":\n{A}", ":"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), "", "{source:?}");
+        assert!(exit.is_none(), "{source:?}");
+    }
+}

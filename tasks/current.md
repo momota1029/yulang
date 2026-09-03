@@ -897,6 +897,15 @@ non-match契約を満たす。state/source reread/buffer/recovery recordの追�
 recoveryは未実装。M1 specification reviewはclean、focused rewrite testsは60 passed、package check、format/diff checkは
 green。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: standalone `TypeExpression`へnormal-only `PolymorphicVariantType` primaryを追加した。type-local exact
+adjacent `":{"` probeはcomplete pairをrawで確認してcolonだけをItemにし、ownerがadjacent `{`をdirectにconsumeする。
+outer tag listはplain `Identifier`、comma / captured-base qualifying implicit newline、actual `}`だけを受け、tag直下の
+payloadはnon-empty same-line triviaだけをboundaryとしてfull type-ML `TypeExpression`を`PolymorphicVariantPayload`へ
+保持する。physical newlineはpayload列を必ず終えてouter tag listへhandoffし、nested call内のnewlineはnested ownerへ
+留まる。variantはnonterminal primaryなのでordinary TypeApply/path/arrowへ戻る。state/source reread/buffer/recovery
+recordの追加なし。これはvalid surfaceだけで、tag/payload/close/separator recoveryは未実装。M1 specification reviewはclean、
+focused rewrite testsは62 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
