@@ -906,6 +906,16 @@ payloadはnon-empty same-line triviaだけをboundaryとしてfull type-ML `Type
 recordの追加なし。これはvalid surfaceだけで、tag/payload/close/separator recoveryは未実装。M1 specification reviewはclean、
 focused rewrite testsは62 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: standalone `TypeExpression`へnormal-only bare `BracketRow`を追加した。`[`はfresh type slotでは
+leading rowを先にdirectに構築してone enclosing TypeExpressionのmandatory headへ付き、operand-complete tailでは
+TypeApplyより先にargument-effect rowとして`TypeArrowTail`へ入る。両位置のrow item listは既存のparameterized
+type-delimited ownerを共有し、comma / semicolon / captured-base implicit newline / actual `]`をそのまま使う。leading
+rowのhead、arrow RHS、delimited item、record/forall/poly payloadのfresh slotは同じdirect NUD dispatchを使い、type-ML
+scopeもleading rowを経て保持する。state/source reread/buffer/recovery recordの追加なし。これはvalid surfaceだけで、
+leading head、row close/item、mandatory arrowのrecoveryは未実装。M1 specification reviewはtype-ML propagation修正後
+clean、focused rewrite testsは63 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは
+未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

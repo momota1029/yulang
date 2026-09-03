@@ -641,6 +641,21 @@ fn polymorphic_variant_type_keeps_two_level_boundaries() {
             .count(),
         2
     );
+
+    let (green, exit) = run_type(":{A [e] T X}");
+    assert_eq!(green.to_string(), ":{A [e] T X}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let variant = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(
+        variant
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload)
+            .count(),
+        2
+    );
 }
 
 #[test]
@@ -673,5 +688,52 @@ fn polymorphic_variant_type_composes_with_type_tails() {
         let (green, exit) = run_type(source);
         assert_eq!(green.to_string(), "", "{source:?}");
         assert!(exit.is_none(), "{source:?}");
+    }
+}
+
+#[test]
+fn bracket_rows_attach_at_leading_and_arrow_positions() {
+    for (source, items) in [("[] T", 0), ("[e] T", 1), ("[e, f; g\nh] T", 4)] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let top = top_type_expression(&green);
+        let row = top
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BracketRow)
+            .expect("leading bracket row");
+        assert_eq!(
+            row.children()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .count(),
+            items,
+            "{source:?}"
+        );
+    }
+
+    let source = "T [e, f] -> U -> V";
+    let (green, exit) = run_type(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let top = top_type_expression(&green);
+    let tail = top
+        .children()
+        .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+        .expect("bracket row arrow tail");
+    assert!(
+        tail.children()
+            .any(|node| node.kind() == SyntaxKind::BracketRow)
+    );
+    assert_eq!(
+        top.descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypeArrowTail)
+            .count(),
+        2
+    );
+
+    for source in ["T -> [e] U", "F([e] T)", "[[e] T] U", "[e] F [io] -> U"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
     }
 }

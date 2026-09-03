@@ -118,6 +118,7 @@ pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
         token(scan_type_polymorphic_variant_colon),
         token(scan_path_segment),
         token(scan_integer),
+        token(scan_lbracket),
         token(scan_lparen),
         token(scan_lbrace),
     )))?;
