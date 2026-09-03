@@ -19,6 +19,7 @@ use super::{
 mod lexical;
 mod operators;
 mod owners;
+mod tails;
 
 fn run(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();

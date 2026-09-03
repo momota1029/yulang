@@ -828,6 +828,14 @@ Missing/Error recovery を使う。trivia ownership、source reread/state/rollba
 format/diff check は green。typed recovery record、other invalid run、production/AST/Yumark bridge、Gate
 4/G4b ledger は未完である。
 
+2026-09-04: direct rewrite の growing owner code を責務ごとに分割した。`driver` は expression recursion と
+owned Item handoff、`delimited` は唯一の parameterized Item/Separator/Close loop とその local recovery、
+`tails` は call/index/dot/path fixed continuation を担当する。fixed-tail fixture は `tests/tails` へ移し、
+existing contract を変更していない。state/source reread/event buffer/新しい parser abstraction は追加して
+いない。M1 review は stale duplicate owner の compile blocker 一件を削除後 clean、focused rewrite tests は 47
+passed、package check、format/diff check は green。typed recovery record、other invalid run、production/AST/
+Yumark bridge、Gate 4/G4b ledger は未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
