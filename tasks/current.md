@@ -1103,6 +1103,12 @@ indentation decisionへ混ぜない。comma / semicolonのown-vs-outer owner dis
 Gate 4/G4b ledgerは未完である。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewは
 two repair delta後clean、focused rewrite testsは84 passed、package check、format/diff checkはgreen。
 
+2026-09-04: Forall punctuation residualを再調査した。rootの`for 'a, 'b: T`とTypeDelimited / NamedRecord RHS内の
+同じsource形はForallへ同じ`Item::Comma`として到達するため、current direct parserだけでouter-ownedかlocal Errorかを
+判別できない。正本の分岐を実装するにはRecover stateやhidden contextを増やさず、caller-owned separator capabilityを
+TypeExpressionのrecursive call pathへ明示で引き回す配線が必要である。この配線はForall local sliceを越えるため未着手、
+後続のbounded structural sliceとして扱う。コード変更なし。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
