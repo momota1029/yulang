@@ -10,21 +10,21 @@ use super::{
     driver::{
         Either, MlMode, TailExit, chain_continuation, continue_completed_tail, expr_from_nud,
         handoff, implicit_delimited_newline, is_active_stop, is_close, is_led_operator,
-        is_nud_item, is_separator, is_statement_nud, scan_tail_after_accept, tail, token_kind,
+        is_nud_item, is_separator, scan_tail_after_accept, tail, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item, emit_with_keyword},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{
         introduced_body_indentation, path_segment_item_after_trivia, scan_trivia,
-        tail_item_after_trivia, with_colon_follower,
+        statement_item_after_trivia, tail_item_after_trivia, with_colon_follower,
     },
     operator::STOP_COMMA,
-    statement::{expression_statement, indented_statement_block},
+    statement::{canonical_statement, indented_statement_block, is_canonical_statement_nud},
 };
 
 /// A lone eligible colon is terminal and owns its mandatory RHS, including
 /// recovery. Inline RHSs use the direct expression vocabulary; indented RHSs
-/// retain the narrower direct normal-statement construction.
+/// use canonical Statements.
 pub(super) fn colon_tail(
     mut i: RewriteIn,
     mut colon: Item,
@@ -210,7 +210,7 @@ pub(super) fn with_tail(
         }
     } else {
         let leading = scan_trivia(i.rb());
-        let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+        let mut item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
         if implicit_delimited_newline(baseline, &item.leading) {
             emit_missing(&mut i, LeadingTrivia::default());
             i.state.finish_node();
@@ -234,7 +234,7 @@ fn with_inline_body(
     allow_braced: bool,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
-    let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+    let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
     with_inline_item(i, item, baseline, stops, missing_on_boundary, allow_braced)
 }
 
@@ -261,8 +261,10 @@ fn with_inline_item(
         return handoff(item);
     }
     emit_inline_leading(&mut i, &mut item);
-    if is_statement_nud(&item) && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace)) {
-        return expression_statement(i, item, baseline, stops);
+    if is_canonical_statement_nud(i.rb(), &item, baseline)
+        && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace))
+    {
+        return canonical_statement(i, item, baseline, stops);
     }
 
     item = retry_with_inline_body(i.rb(), item, baseline, stops, allow_braced);
@@ -281,8 +283,8 @@ fn with_inline_item(
         return handoff(item);
     }
     emit_inline_leading(&mut i, &mut item);
-    debug_assert!(is_statement_nud(&item));
-    expression_statement(i, item, baseline, stops)
+    debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
+    canonical_statement(i, item, baseline, stops)
 }
 
 fn retry_with_inline_body(
@@ -296,14 +298,14 @@ fn retry_with_inline_body(
     loop {
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
-        item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+        item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
         if with_inline_boundary(i.rb(), &item, baseline, stops)
             || (!allow_braced
                 && matches!(
                     token_kind(&item),
                     Some(TokenKind::LBrace | TokenKind::PathSeparator)
                 ))
-            || (is_statement_nud(&item)
+            || (is_canonical_statement_nud(i.rb(), &item, baseline)
                 && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace)))
         {
             i.state.finish_node();

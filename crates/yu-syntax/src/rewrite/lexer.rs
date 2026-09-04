@@ -48,6 +48,29 @@ pub(super) fn tail_item_after_trivia(
     Item { leading, payload }
 }
 
+/// Complete one canonical Statement head. Visibility words are reserved here,
+/// before dynamic operators, but nowhere in expression-only positions.
+pub(super) fn statement_item_after_trivia(
+    mut i: RewriteIn,
+    leading: LeadingTrivia,
+    baseline: usize,
+    stops: Stops,
+) -> Item {
+    let payload = if let Some(keyword) = i.token(scan_statement_keyword) {
+        Payload::Token(keyword)
+    } else {
+        scan_tail_payload(
+            i,
+            OperatorSite::Nud,
+            !leading.0.is_empty(),
+            baseline,
+            stops,
+            false,
+        )
+    };
+    Item { leading, payload }
+}
+
 /// Path segments have their own lexical vocabulary: sigil-prefixed words and
 /// underscore-prefixed words are not ordinary expression primaries.
 pub(super) fn path_segment_item_after_trivia(
@@ -481,6 +504,32 @@ fn scan_nud_keyword(mut i: LexIn) -> Option<Token> {
         .or_else(|| scan_exact_word(i, "catch"))
 }
 
+fn scan_statement_keyword(mut i: LexIn) -> Option<Token> {
+    scan_exact_word(i.rb(), "my")
+        .or_else(|| scan_exact_word(i.rb(), "our"))
+        .or_else(|| scan_exact_word(i, "pub"))
+}
+
+/// Split the same maximal identifier spelling accepted by [`scan_identifier`]
+/// without consuming source.
+pub(super) fn source_identifier(source: &str) -> Option<(&str, &str)> {
+    if !identifier_starts(source) {
+        return None;
+    }
+    let mut end = source.chars().next()?.len_utf8();
+    for character in source[end..].chars() {
+        if is_xid_continue(character) {
+            end += character.len_utf8();
+        } else {
+            break;
+        }
+    }
+    if matches!(source[end..].chars().next(), Some('?' | '!')) {
+        end += 1;
+    }
+    Some((&source[..end], &source[end..]))
+}
+
 pub(super) fn scan_apostrophe_sigil_identifier(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut segment| {
         (segment.next()? == '\'').then_some(())?;
@@ -738,18 +787,24 @@ fn scan_pattern_pipe(mut i: LexIn) -> Option<Token> {
 
 /// Fixed `=` spellings accept only the maximal operator-shaped spelling `=`.
 pub(super) fn scan_exact_equals(i: LexIn) -> Option<Token> {
+    is_exact_equals_source(i.remainder()).then_some(())?;
     let (accepted, text) = i.with_str(|mut equals| {
         (equals.next()? == '=').then_some(())?;
-        equals
-            .token(scan_operator_shaped_character)
-            .is_none()
-            .then_some(())
+        Some(())
     });
     accepted?;
     Some(Token {
         kind: TokenKind::Equals,
         text: text.into(),
     })
+}
+
+pub(super) fn is_exact_equals_source(source: &str) -> bool {
+    source.starts_with('=')
+        && !source[1..]
+            .chars()
+            .next()
+            .is_some_and(is_operator_shaped_character)
 }
 
 fn scan_record_spread_marker(i: LexIn) -> Option<Token> {

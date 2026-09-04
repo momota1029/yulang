@@ -17,14 +17,12 @@ use super::{
         introduced_body_indentation, pattern_nud_item_after_trivia,
         scan_apostrophe_sigil_identifier, scan_trivia, tail_item_after_trivia,
     },
-    operator::{
-        STOP_ARROW, STOP_COLON, STOP_COMMA, STOP_LBRACE, STOP_LINE_BREAK, active_stop_item,
-    },
+    operator::{STOP_ARROW, STOP_COLON, STOP_COMMA, STOP_LBRACE, STOP_LINE_BREAK},
     pattern::{
         PATTERN_STOP_ARM_GUARD_IF, PATTERN_STOP_ARM_GUARD_WHERE,
         PATTERN_STOP_ARM_RECOVERY_SEPARATOR, PATTERN_STOP_ARROW, PATTERN_STOP_COMMA,
         PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET, PATTERN_STOP_RPAREN, PATTERN_STOP_SEMICOLON,
-        PatternStops, is_pattern_nud, pattern_from_arm_item,
+        PatternStops, is_pattern_nud, pattern_from_entry_item, pattern_stops_from_owner,
     },
     statement::indented_statement_block,
 };
@@ -241,7 +239,7 @@ fn arm(
     outer_stops: Stops,
 ) -> TailExit {
     i.state.start_node(family.arm_node().into());
-    let exit = pattern_from_arm_item(i.rb(), item, arm_baseline, first_stops);
+    let exit = pattern_from_entry_item(i.rb(), item, arm_baseline, first_stops);
     let item = match arm_successor(i.rb(), exit, first_stops) {
         Ok(item) => item,
         Err(exit) => return finish_absent_arm(i, exit),
@@ -254,7 +252,7 @@ fn arm(
             emit_token_item(&mut i, comma);
             let handler_stops = family.handler_pattern_stops(outer_stops);
             let handler = scan_arm_item(i.rb(), handler_stops);
-            let exit = pattern_from_arm_item(i.rb(), handler, arm_baseline, handler_stops);
+            let exit = pattern_from_entry_item(i.rb(), handler, arm_baseline, handler_stops);
             match arm_successor(i.rb(), exit, first_stops) {
                 Ok(item) => item,
                 Err(exit) => return finish_absent_arm(i, exit),
@@ -468,9 +466,11 @@ impl ArmSequencePolicy {
         let common = PATTERN_STOP_ARROW | PATTERN_STOP_ARM_GUARD_IF | PATTERN_STOP_ARM_GUARD_WHERE;
         match self.family() {
             CaseLikeFamily::Case => {
-                common | PATTERN_STOP_ARM_RECOVERY_SEPARATOR | pattern_outer_stops(outer_stops)
+                common | PATTERN_STOP_ARM_RECOVERY_SEPARATOR | pattern_stops_from_owner(outer_stops)
             }
-            CaseLikeFamily::Catch => common | PATTERN_STOP_COMMA | pattern_outer_stops(outer_stops),
+            CaseLikeFamily::Catch => {
+                common | PATTERN_STOP_COMMA | pattern_stops_from_owner(outer_stops)
+            }
         }
     }
 
@@ -707,24 +707,10 @@ impl CaseLikeFamily {
                     | PATTERN_STOP_RBRACKET
                     | PATTERN_STOP_RBRACE
                     | PATTERN_STOP_SEMICOLON
-                    | pattern_outer_stops(outer_stops)
+                    | pattern_stops_from_owner(outer_stops)
             }
         }
     }
-}
-
-fn pattern_outer_stops(stops: Stops) -> PatternStops {
-    [
-        (TokenKind::Colon, super::pattern::PATTERN_STOP_COLON),
-        (TokenKind::Comma, PATTERN_STOP_COMMA),
-        (TokenKind::Semicolon, PATTERN_STOP_SEMICOLON),
-        (TokenKind::RParen, PATTERN_STOP_RPAREN),
-        (TokenKind::RBracket, PATTERN_STOP_RBRACKET),
-        (TokenKind::RBrace, PATTERN_STOP_RBRACE),
-    ]
-    .into_iter()
-    .filter_map(|(kind, stop)| active_stop_item(kind, stops).then_some(stop))
-    .fold(0, |stops, stop| stops | stop)
 }
 
 fn emit_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {

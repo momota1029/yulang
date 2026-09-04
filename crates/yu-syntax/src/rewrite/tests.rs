@@ -15,9 +15,11 @@ use super::{
     operator::{STOP_COLON, scan_operator},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_with_stops},
     state::Recover,
+    statement::statement,
     type_expr::type_expr,
 };
 
+mod binding;
 mod case_like;
 mod if_expr;
 mod lexical;
@@ -38,6 +40,28 @@ fn run_with(source: &str, operators: &OperatorTable) -> (GreenNode, Option<TailE
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = expr(In::new(&mut input, &mut recover, &mut builder));
+    if let Some(Err(Either::Right(end))) = &exit {
+        emit_end(&mut builder, end);
+    }
+    builder.finish_node();
+    (builder.finish(), exit)
+}
+
+fn run_statement(source: &str) -> (GreenNode, Option<TailExit>) {
+    let operators = OperatorTable::empty();
+    run_statement_with(source, &operators)
+}
+
+fn run_statement_with(source: &str, operators: &OperatorTable) -> (GreenNode, Option<TailExit>) {
+    let mut input = source;
+    let mut recover = Recover::new(operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = Some(statement(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        0,
+    ));
     if let Some(Err(Either::Right(end))) = &exit {
         emit_end(&mut builder, end);
     }

@@ -7,7 +7,7 @@ use crate::syntax_kind::SyntaxKind;
 mod delimited;
 
 use super::{
-    RewriteIn,
+    RewriteIn, Stops,
     driver::{
         Either, TailExit, delimited_baseline, handoff, implicit_delimited_newline, token_kind,
     },
@@ -49,6 +49,21 @@ pub(super) const PATTERN_DEFAULT_STOPS: PatternStops = PATTERN_STOP_COMMA
     | PATTERN_STOP_RBRACE
     | PATTERN_STOP_EQUALS;
 
+pub(super) fn pattern_stops_from_owner(stops: Stops) -> PatternStops {
+    [
+        (TokenKind::Colon, PATTERN_STOP_COLON),
+        (TokenKind::Comma, PATTERN_STOP_COMMA),
+        (TokenKind::Semicolon, PATTERN_STOP_SEMICOLON),
+        (TokenKind::RParen, PATTERN_STOP_RPAREN),
+        (TokenKind::RBracket, PATTERN_STOP_RBRACKET),
+        (TokenKind::RBrace, PATTERN_STOP_RBRACE),
+        (TokenKind::Arrow, PATTERN_STOP_ARROW),
+    ]
+    .into_iter()
+    .filter_map(|(kind, stop)| super::operator::active_stop_item(kind, stops).then_some(stop))
+    .fold(0, |stops, stop| stops | stop)
+}
+
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 enum PatternPrecedence {
     Lowest,
@@ -85,7 +100,7 @@ fn pattern_from_item(
     exit
 }
 
-pub(super) fn pattern_from_arm_item(
+pub(super) fn pattern_from_entry_item(
     i: RewriteIn,
     item: Item,
     baseline: usize,

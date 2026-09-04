@@ -196,6 +196,19 @@ pub(super) fn newline_indentation_after_trivia(source: &str) -> Option<usize> {
     }
 }
 
+/// Return source-only facts about one maximal trivia run.  Statement-head
+/// reservation uses the same lexical trivia boundary as operator and body
+/// layout probes without completing an Item.
+pub(super) fn source_after_trivia(source: &str) -> (&str, bool, Option<usize>) {
+    let (trailing, source) = raw_trivia_suffix(source);
+    let present = trailing != RawTrailing::None;
+    let indentation = match trailing {
+        RawTrailing::Newline { indentation } => Some(indentation),
+        RawTrailing::None | RawTrailing::Space => None,
+    };
+    (source, present, indentation)
+}
+
 fn operator_boundary(last: char, following: &str) -> Option<()> {
     (!is_xid_continue(last)
         || following

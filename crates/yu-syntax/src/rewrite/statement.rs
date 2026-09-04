@@ -1,35 +1,56 @@
-//! Direct normal-expression statements and their closed sequence owners.
+//! Direct canonical statements and their closed sequence owners.
 
 use reborrow_generic::Reborrow as _;
 
-use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{operator::BindingPower, syntax_kind::SyntaxKind};
 
 use super::{
     RewriteIn, Stops,
+    binding::{binding_statement, binding_statement_selected, is_binding_visibility},
     driver::{
         Either, MlMode, TailExit, continue_completed_tail, delimited_baseline, expr_from_nud,
         handoff, implicit_delimited_newline, indentation_after_newline, is_active_stop,
-        is_normal_core_item, is_separator, is_statement_nud, token_kind,
+        is_separator, is_statement_nud, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
-    lexer::{scan_trivia, tail_item_after_trivia},
+    lexer::{scan_trivia, statement_item_after_trivia},
     operator::stops_for,
 };
 
-/// The first reusable direct `Statement` callee. Its current normal subset is
-/// deliberately bounded to direct cores and direct braced primaries.
-pub(super) fn expression_statement(
+pub(super) fn statement(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+    let leading = scan_trivia(i.rb());
+    let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
+    if is_canonical_statement_nud(i.rb(), &item, baseline) {
+        canonical_statement(i, item, baseline, stops)
+    } else {
+        handoff(item)
+    }
+}
+
+pub(super) fn canonical_statement(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
     stops: Stops,
 ) -> TailExit {
-    debug_assert!(is_statement_nud(&item));
+    debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
     i.state.start_node(SyntaxKind::Statement.into());
-    let exit = expr_from_nud(i.rb(), item, None, baseline, stops, MlMode::All);
+    let exit = if binding_statement_selected(i.rb(), &item, baseline) {
+        binding_statement(i.rb(), item, baseline, stops)
+    } else {
+        expr_from_nud(i.rb(), item, None, baseline, stops, MlMode::All)
+    };
     i.state.finish_node();
     exit
+}
+
+pub(super) fn is_canonical_statement_nud(i: RewriteIn, item: &Item, baseline: usize) -> bool {
+    if is_binding_visibility(item) {
+        binding_statement_selected(i, item, baseline)
+    } else {
+        is_statement_nud(item)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -38,9 +59,8 @@ enum StatementSequencePolicy {
     Braced,
 }
 
-/// A normal-only construction callee for the future canonical statement
-/// sequence. It owns its opening trivia and equal-indent separators; dedent
-/// and unimplemented statement starts remain complete pending Items.
+/// The canonical indented sequence owns its opening trivia and equal-indent
+/// separators; dedent and unimplemented statement starts remain pending Items.
 pub(super) fn indented_statement_block(
     mut i: RewriteIn,
     base_indent: usize,
@@ -170,16 +190,16 @@ fn indented_statement_slot(
         }
         return handoff(item);
     }
-    if is_normal_core_item(&item) {
-        return expression_statement(i, item, baseline, stops);
+    if is_canonical_statement_nud(i.rb(), &item, baseline) {
+        return canonical_statement(i, item, baseline, stops);
     }
 
     item = retry_indented_statement(i.rb(), item, baseline, block_indent, stops);
     if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops) {
         return handoff(item);
     }
-    debug_assert!(is_normal_core_item(&item));
-    expression_statement(i, item, baseline, stops)
+    debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
+    canonical_statement(i, item, baseline, stops)
 }
 
 fn retry_indented_statement(
@@ -195,7 +215,7 @@ fn retry_indented_statement(
         let leading = scan_trivia(i.rb());
         item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
         if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops)
-            || is_normal_core_item(&item)
+            || is_canonical_statement_nud(i.rb(), &item, baseline)
         {
             i.state.finish_node();
             return item;
@@ -248,15 +268,15 @@ fn braced_terminal(mut i: RewriteIn, item: Item) -> TailExit {
 }
 
 fn braced_statement_slot(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> TailExit {
-    if is_statement_nud(&item) {
-        return expression_statement(i, item, baseline, stops);
+    if is_canonical_statement_nud(i.rb(), &item, baseline) {
+        return canonical_statement(i, item, baseline, stops);
     }
 
     let item = retry_braced_statement(i.rb(), item, baseline, stops);
     if braced_statement_boundary(&item, baseline) {
         handoff(item)
-    } else if is_statement_nud(&item) {
-        expression_statement(i, item, baseline, stops)
+    } else if is_canonical_statement_nud(i.rb(), &item, baseline) {
+        canonical_statement(i, item, baseline, stops)
     } else {
         handoff(item)
     }
@@ -268,7 +288,9 @@ fn retry_braced_statement(mut i: RewriteIn, mut item: Item, baseline: usize, sto
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
-        if braced_statement_boundary(&item, baseline) || is_statement_nud(&item) {
+        if braced_statement_boundary(&item, baseline)
+            || is_canonical_statement_nud(i.rb(), &item, baseline)
+        {
             i.state.finish_node();
             return item;
         }
@@ -307,7 +329,7 @@ fn braced_statement_successor(
         Err(Either::Left(item)) if is_separator(&item) => {
             Ok(braced_explicit_separator(i, item, baseline, stops))
         }
-        Err(Either::Left(item)) if is_statement_nud(&item) => {
+        Err(Either::Left(item)) if is_canonical_statement_nud(i.rb(), &item, baseline) => {
             emit_missing(&mut i, LeadingTrivia::default());
             Ok(item)
         }
@@ -344,13 +366,4 @@ fn missing_brace_close(mut i: RewriteIn, mut item: Item) -> TailExit {
     let leading = std::mem::take(&mut item.leading);
     emit_missing(&mut i, leading);
     handoff(item)
-}
-
-fn statement_item_after_trivia(
-    mut i: RewriteIn,
-    leading: LeadingTrivia,
-    baseline: usize,
-    stops: Stops,
-) -> Item {
-    tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
 }

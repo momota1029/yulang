@@ -1330,6 +1330,23 @@ trivia parentの4 blockerを検出し、one repair deltaでapproved。focused di
 tests 11、If tests 8、tails tests 11 passed、`cargo check -p yu-syntax`、format/diff checkはgreen。AST / HIR / typed
 diagnostics / production dispatch / Yumark wiring / G4a RB-E / Gate 4 certificationは未実装である。
 
+2026-09-05: isolated SCC construction witness C8として、nested canonical `Statement` の最初の宣言選択肢に
+direct CST-only `BindingStatement` を追加した。shape は `Statement > BindingStatement > BindingHeader
+[BindingBody]` であり、Header が `my` / `our` / `pub`、canonical `Pattern` target、受理された exact
+`=` とその前の Gbind trivia を所有する。body のない binding は `BindingBody` を作らず、受理後の
+`=` は inline の一つの `OperatorChain` または strictly-deeper `IndentedStatementBlock` を必須にする。
+target は caller の active stop を Pattern capability へ写して exact `=` を加え、nested delimiter の
+local replacement を保つ。`==` / `=>` は `=` へ分割しない。target 後および `=` 後の shallow/equal
+newline は Item と leading trivia を outer Statement owner へ戻し、deeper newline だけを Gbind / body
+layout として受理する。visibility-led head は Statement position だけで source-only に reservation し、
+`my use = value` と `my use path`、将来 declaration head、operator-definition head の既決 collision を
+区別する。braced / indented sequence と inline `with:` は同じ canonical Statement entry を使うが、colon
+inline と if/case/catch inline body は引き続き expression-only である。M1 specification review は
+accepted-equals の shallow-newline overclaim を一件検出し、one repair で delta-approved。focused Binding
+tests 7、tails 11、if 8、case-like 12、Pattern 11 passed、`cargo check -p yu-syntax`、format/diff check は
+green。package/workspace suite、performance、legacy/public dispatch、AST/HIR、typed diagnostics、Yumark、
+Gate 4/6 certificationは未実施のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
