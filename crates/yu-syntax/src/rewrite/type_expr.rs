@@ -281,10 +281,18 @@ fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             emit_token_item(&mut i, item);
             return Ok(());
         }
-        if matches!(&item.payload, Payload::Eof) || !is_type_record_field_name(&item) {
+        if matches!(&item.payload, Payload::Eof) {
             return handoff(item);
         }
-        let exit = type_record_field(i.rb(), item, baseline);
+        let exit = if is_type_record_field_name(&item) {
+            type_record_field(i.rb(), item, baseline)
+        } else if token_kind(&item) == Some(TokenKind::Colon) {
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            type_record_missing_name(i.rb(), item, baseline)
+        } else {
+            return handoff(item);
+        };
         item = match type_record_successor(i.rb(), exit, baseline) {
             Ok(next) => next,
             Err(exit) => return exit,
@@ -320,28 +328,38 @@ fn type_record_field(mut i: RewriteIn, name: Item, baseline: usize) -> TailExit 
         return handoff(colon);
     }
     emit_token_item(&mut i, colon);
+    let exit = type_record_rhs(i.rb(), baseline);
+    i.state.finish_node();
+    exit
+}
+
+fn type_record_missing_name(mut i: RewriteIn, colon: Item, baseline: usize) -> TailExit {
+    i.state.start_node(SyntaxKind::TypeRecordField.into());
+    emit_missing(&mut i, LeadingTrivia::default());
+    emit_token_item(&mut i, colon);
+    let exit = type_record_rhs(i.rb(), baseline);
+    i.state.finish_node();
+    exit
+}
+
+fn type_record_rhs(mut i: RewriteIn, baseline: usize) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut rhs = type_nud_item_after_trivia(i.rb(), leading);
     if !type_chain_trivia(&rhs.leading, baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
         return handoff(rhs);
     }
     if is_type_record_field_boundary(&rhs) {
         let leading = std::mem::take(&mut rhs.leading);
         emit_missing(&mut i, leading);
-        i.state.finish_node();
         return handoff(rhs);
     }
     if !is_type_nud(&rhs) {
-        i.state.finish_node();
         return handoff(rhs);
     }
     let leading = std::mem::take(&mut rhs.leading);
     emit_leading_trivia(&mut i, &leading);
-    let exit = type_expr_from_nud(i.rb(), rhs, baseline, false);
-    i.state.finish_node();
-    exit
+    type_expr_from_nud(i, rhs, baseline, false)
 }
 
 fn type_record_successor(
@@ -371,7 +389,8 @@ fn type_record_successor(
             Err(Ok(()))
         }
         Err(Either::Left(mut next))
-            if is_type_record_field_name(&next)
+            if (is_type_record_field_name(&next)
+                || token_kind(&next) == Some(TokenKind::Colon))
                 && is_type_implicit_boundary(baseline, &next.leading) =>
         {
             let leading = std::mem::take(&mut next.leading);

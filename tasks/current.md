@@ -1002,6 +1002,14 @@ whole-field sequence error、semicolon、record close / next-field owner query�
 追加なし。M1 specification reviewはclean、focused rewrite testsは71 passed、package check、format/diff checkはgreen。production
 wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`のfresh field slotでliteral colonから始まるmissing-name skeletonを追加した。`{: A}`、
+explicit comma後、qualifying implicit newline後の`:`はrecord直下にgap triviaを残して`TypeRecordField`を開始し、zero-width
+Missing name一件、literal colon、canonical RHSを順に所有する。`{:}`はname と RHS のdistinct Missingを持つ。既存fieldのRHS
+judgeをshared helperへ抽出したがnormal / boundary branchは変えない。malformed-name skeleton、leading/repeated separator、
+whole-field sequence error、semicolon、record close / next-field owner queryは未実装。state/source reread/buffer/recovery recordの
+追加なし。M1 specification reviewはclean、focused rewrite testsは72 passed、package check、format/diff checkはgreen。production
+wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

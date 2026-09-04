@@ -451,6 +451,41 @@ fn named_record_field_recovers_missing_colon_and_type() {
 }
 
 #[test]
+fn named_record_field_recovers_a_missing_name_before_colon() {
+    for (source, fields, missing) in [
+        ("{: A}", 1, 1),
+        ("{a: A, : B}", 2, 1),
+        ("{a: A\n: B}", 2, 1),
+        ("{:}", 1, 2),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("named record type");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            fields,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn named_record_type_accepts_layout_and_type_tails() {
     let layout = "{\n  a: A\n  b: B\n}";
     let (green, exit) = run_type(layout);
