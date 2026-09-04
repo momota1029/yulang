@@ -1347,6 +1347,23 @@ tests 7、tails 11、if 8、case-like 12、Pattern 11 passed、`cargo check -p y
 green。package/workspace suite、performance、legacy/public dispatch、AST/HIR、typed diagnostics、Yumark、
 Gate 4/6 certificationは未実施のままである。
 
+2026-09-05: isolated SCC construction witness C9として、nested canonical `Statement` に source-free direct
+`UseDeclaration > UseTree` を追加した。plain path、`mod` / `realm/` / `band::` form、operator-name segment、
+terminal group / glob、recursive group / exclusion group、alias、`without`、version、`with` anchorまでを一つの
+recursive direct Rowan ownerで構築する。bare exact `use`はStatement headで即時に選び、visibility prefix後の
+`use`はsource-onlyのvalid UseTree starterを条件に選ぶため、`useful`と`my use = value`は従来どおりUseへ
+予約しない。mandatory slot/retryはsink-free canonical Item transactionからcaller-owned stopとleading triviaを
+そのままhandoffし、groupはnewline separatorを受理しつつ、missing close後のequal-or-shallower known statement
+introだけをouter safe pointとして優先する。mismatched local closeはgroup自身が`Error`で所有する。これに必要な
+shared internal helperは、既存payload scanを共用する`scan_statement_item(LexIn, ..)`と
+`is_active_stop_lex(LexIn, ..)`のみであり、state、token buffer、source/CST replay、legacy/public dispatchは増やして
+いない。M2の仕様・sibling reviewerは初回にidentifier vocabulary、typed caller boundary、group newline、mismatched
+closeの4 blockerを検出し、round 1で修復した。delta regressionがmissing-close後のdedent statement handoffを追加で
+検出し、architectureのouter safe-point ruleに従うround 2で修復、両reviewerがfinal deltaをapprovedした。focused
+Use tests 10、Binding 7、tails 11、if 8、case-like 12、Pattern 11、`cargo check -p yu-syntax`、format/diff checkは
+green。broad package/workspace suite、performance、legacy/public dispatch、AST/HIR/header projection、typed
+diagnostics、Yumark、Gate 4/6 certificationは未実施のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

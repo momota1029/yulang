@@ -5,7 +5,7 @@ use reborrow_generic::Reborrow as _;
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
-    RewriteIn, Stops,
+    LexIn, RewriteIn, Stops,
     case_like::{CaseLikeFamily, case_like_nud},
     delimited::parenthesized_nud,
     emit::{
@@ -381,12 +381,20 @@ pub(super) fn is_nud_item(item: &Item) -> bool {
 /// A local stop is determined from the complete Item, not only punctuation.
 /// Dynamic word operators need the live suffix probe to retain `elsif?` and
 /// `else!` as operators rather than splitting them into contextual words.
-pub(super) fn is_active_stop(mut i: RewriteIn, item: &Item, stops: Stops) -> bool {
+pub(super) fn is_active_stop(i: RewriteIn, item: &Item, stops: Stops) -> bool {
+    i.map(
+        |lex: LexIn| Some(is_active_stop_lex(lex, item, stops)),
+        |active| active,
+    )
+    .expect("typed stop observation is total")
+}
+
+pub(super) fn is_active_stop_lex(mut i: LexIn, item: &Item, stops: Stops) -> bool {
     if token_kind(item).is_some_and(|kind| active_stop_item(kind, stops)) {
         return true;
     }
-    (stops & super::operator::STOP_ELSIF != 0 && is_contextual_word(i.rb(), item, "elsif"))
-        || (stops & super::operator::STOP_ELSE != 0 && is_contextual_word(i, item, "else"))
+    (stops & super::operator::STOP_ELSIF != 0 && is_contextual_word_lex(i.rb(), item, "elsif"))
+        || (stops & super::operator::STOP_ELSE != 0 && is_contextual_word_lex(i, item, "else"))
 }
 
 pub(super) fn is_contextual_word(mut i: RewriteIn, item: &Item, word: &str) -> bool {
@@ -397,6 +405,18 @@ pub(super) fn is_contextual_word(mut i: RewriteIn, item: &Item, word: &str) -> b
                 && i.rb()
                     .map(contextual_word_suffix_follower, |follower| follower)
                     .unwrap_or(false)
+        }
+        Payload::Eof => false,
+    }
+}
+
+fn is_contextual_word_lex(mut i: LexIn, item: &Item, word: &str) -> bool {
+    match &item.payload {
+        Payload::Token(token) => token.kind == TokenKind::Identifier && &*token.text == word,
+        Payload::Operator(operator) => {
+            &*operator.text == word
+                && i.token(contextual_word_suffix_follower)
+                    .expect("contextual suffix observation is total")
         }
         Payload::Eof => false,
     }

@@ -9,10 +9,10 @@ use crate::{
 
 use super::{
     RewriteIn, Stops,
-    driver::{Either, TailExit, expr},
+    driver::{Either, TailExit, expr, token_kind},
     emit::emit_end,
     item::{OperatorUse, Payload, TokenKind, TriviaKind},
-    operator::{STOP_COLON, scan_operator},
+    operator::{STOP_ARROW, STOP_COLON, scan_operator, stops_for},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_with_stops},
     state::Recover,
     statement::statement,
@@ -28,6 +28,7 @@ mod owners;
 mod pattern;
 mod tails;
 mod type_expr;
+mod use_decl;
 
 fn run(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();
@@ -53,6 +54,14 @@ fn run_statement(source: &str) -> (GreenNode, Option<TailExit>) {
 }
 
 fn run_statement_with(source: &str, operators: &OperatorTable) -> (GreenNode, Option<TailExit>) {
+    run_statement_with_stops(source, operators, 0)
+}
+
+fn run_statement_with_stops(
+    source: &str,
+    operators: &OperatorTable,
+    stops: Stops,
+) -> (GreenNode, Option<TailExit>) {
     let mut input = source;
     let mut recover = Recover::new(operators);
     let mut builder = GreenNodeBuilder::new();
@@ -60,7 +69,7 @@ fn run_statement_with(source: &str, operators: &OperatorTable) -> (GreenNode, Op
     let exit = Some(statement(
         In::new(&mut input, &mut recover, &mut builder),
         0,
-        0,
+        stops,
     ));
     if let Some(Err(Either::Right(end))) = &exit {
         emit_end(&mut builder, end);

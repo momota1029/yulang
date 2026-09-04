@@ -20,6 +20,7 @@ mod state;
 mod statement;
 mod tails;
 mod type_expr;
+mod use_decl;
 
 #[cfg(test)]
 mod tests;

@@ -33,17 +33,30 @@ pub(super) fn tail_item_after_trivia(
         if let Some(marker) = i.token(scan_record_spread_marker) {
             Payload::Token(marker)
         } else {
-            scan_tail_payload(i, site, has_leading_trivia, baseline, stops, false)
+            i.token(|lex| {
+                Some(scan_tail_payload(
+                    lex,
+                    site,
+                    has_leading_trivia,
+                    baseline,
+                    stops,
+                    false,
+                ))
+            })
+            .expect("tail payload scanning is total")
         }
     } else {
-        scan_tail_payload(
-            i,
-            site,
-            has_leading_trivia,
-            baseline,
-            stops,
-            marker_after_operator || (record_spread && matches!(site, OperatorSite::Led)),
-        )
+        i.token(|lex| {
+            Some(scan_tail_payload(
+                lex,
+                site,
+                has_leading_trivia,
+                baseline,
+                stops,
+                marker_after_operator || (record_spread && matches!(site, OperatorSite::Led)),
+            ))
+        })
+        .expect("tail payload scanning is total")
     };
     Item { leading, payload }
 }
@@ -56,19 +69,47 @@ pub(super) fn statement_item_after_trivia(
     baseline: usize,
     stops: Stops,
 ) -> Item {
-    let payload = if let Some(keyword) = i.token(scan_statement_keyword) {
+    let has_leading_trivia = !leading.0.is_empty();
+    let payload = i
+        .token(|lex| {
+            Some(scan_statement_payload(
+                lex,
+                has_leading_trivia,
+                baseline,
+                stops,
+            ))
+        })
+        .expect("statement payload scanning is total");
+    Item { leading, payload }
+}
+
+/// Scan one complete canonical Statement item without access to the Rowan
+/// sink. Callers may therefore use the exact typed boundary vocabulary inside
+/// a rollback-capable lexical transaction.
+pub(super) fn scan_statement_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
+    let leading = scan_trivia(i.rb());
+    let payload = scan_statement_payload(i, !leading.0.is_empty(), baseline, stops);
+    Some(Item { leading, payload })
+}
+
+fn scan_statement_payload(
+    mut i: LexIn,
+    has_leading_trivia: bool,
+    baseline: usize,
+    stops: Stops,
+) -> Payload {
+    if let Some(keyword) = i.token(scan_statement_keyword) {
         Payload::Token(keyword)
     } else {
         scan_tail_payload(
             i,
             OperatorSite::Nud,
-            !leading.0.is_empty(),
+            has_leading_trivia,
             baseline,
             stops,
             false,
         )
-    };
-    Item { leading, payload }
+    }
 }
 
 /// Path segments have their own lexical vocabulary: sigil-prefixed words and
@@ -89,7 +130,7 @@ pub(super) fn path_segment_item_after_trivia(
 }
 
 fn scan_tail_payload(
-    mut i: RewriteIn,
+    mut i: LexIn,
     site: OperatorSite,
     has_leading_trivia: bool,
     baseline: usize,
@@ -124,7 +165,7 @@ fn scan_tail_payload(
     }
 }
 
-fn scan_token_payload(mut i: RewriteIn) -> Payload {
+fn scan_token_payload(i: LexIn) -> Payload {
     i.map(
         choice((
             token(scan_identifier),
@@ -507,7 +548,8 @@ fn scan_nud_keyword(mut i: LexIn) -> Option<Token> {
 fn scan_statement_keyword(mut i: LexIn) -> Option<Token> {
     scan_exact_word(i.rb(), "my")
         .or_else(|| scan_exact_word(i.rb(), "our"))
-        .or_else(|| scan_exact_word(i, "pub"))
+        .or_else(|| scan_exact_word(i.rb(), "pub"))
+        .or_else(|| scan_exact_word(i, "use"))
 }
 
 /// Split the same maximal identifier spelling accepted by [`scan_identifier`]

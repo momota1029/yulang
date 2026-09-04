@@ -19,12 +19,16 @@ use super::{
     operator::source_after_trivia,
     pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item, pattern_stops_from_owner},
     statement::indented_statement_block,
+    use_decl::use_declaration_selected,
 };
 
-pub(super) fn binding_statement_selected(i: RewriteIn, item: &Item, baseline: usize) -> bool {
+pub(super) fn binding_statement_selected(mut i: RewriteIn, item: &Item, baseline: usize) -> bool {
     let Some(visibility) = visibility_word(item) else {
         return false;
     };
+    if use_declaration_selected(i.rb(), item, baseline) {
+        return false;
+    }
     i.map(
         |i: LexIn| Some(binding_follower(i, visibility, baseline)),
         |selected| selected,
@@ -165,7 +169,7 @@ fn binding_follower(i: LexIn, visibility: &str, baseline: usize) -> bool {
     };
 
     match head {
-        "use" => !use_tree_candidate(after_head),
+        "use" => true,
         "mod" | "struct" | "type" | "role" | "impl" | "cast" => false,
         "enum" | "error" | "act" => {
             visibility == "my" && !named_declaration_head_candidate(after_head, baseline)
@@ -175,15 +179,6 @@ fn binding_follower(i: LexIn, visibility: &str, baseline: usize) -> bool {
         }
         _ => true,
     }
-}
-
-fn use_tree_candidate(source: &str) -> bool {
-    let (source, gap, indentation) = source_after_trivia(source);
-    gap && indentation.is_none() && use_tree_atom(source)
-}
-
-fn use_tree_atom(source: &str) -> bool {
-    matches!(source.chars().next(), Some('{' | '(')) || source_identifier(source).is_some()
 }
 
 fn named_declaration_head_candidate(source: &str, baseline: usize) -> bool {

@@ -16,6 +16,7 @@ use super::{
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{scan_trivia, statement_item_after_trivia},
     operator::stops_for,
+    use_decl::{use_declaration, use_declaration_selected},
 };
 
 pub(super) fn statement(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
@@ -36,7 +37,9 @@ pub(super) fn canonical_statement(
 ) -> TailExit {
     debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
     i.state.start_node(SyntaxKind::Statement.into());
-    let exit = if binding_statement_selected(i.rb(), &item, baseline) {
+    let exit = if use_declaration_selected(i.rb(), &item, baseline) {
+        use_declaration(i.rb(), item, baseline, stops)
+    } else if binding_statement_selected(i.rb(), &item, baseline) {
         binding_statement(i.rb(), item, baseline, stops)
     } else {
         expr_from_nud(i.rb(), item, None, baseline, stops, MlMode::All)
@@ -45,8 +48,10 @@ pub(super) fn canonical_statement(
     exit
 }
 
-pub(super) fn is_canonical_statement_nud(i: RewriteIn, item: &Item, baseline: usize) -> bool {
-    if is_binding_visibility(item) {
+pub(super) fn is_canonical_statement_nud(mut i: RewriteIn, item: &Item, baseline: usize) -> bool {
+    if use_declaration_selected(i.rb(), item, baseline) {
+        true
+    } else if is_binding_visibility(item) {
         binding_statement_selected(i, item, baseline)
     } else {
         is_statement_nud(item)
