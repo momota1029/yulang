@@ -380,7 +380,12 @@ fn type_record_rhs(mut i: RewriteIn, baseline: usize) -> TailExit {
         return handoff(rhs);
     }
     if !is_type_nud(&rhs) {
-        return handoff(rhs);
+        let leading = std::mem::take(&mut rhs.leading);
+        emit_leading_trivia(&mut i, &leading);
+        rhs = retry_type_rhs(i.rb(), rhs, baseline);
+        if !type_chain_trivia(&rhs.leading, baseline) || !is_type_nud(&rhs) {
+            return handoff(rhs);
+        }
     }
     let leading = std::mem::take(&mut rhs.leading);
     emit_leading_trivia(&mut i, &leading);

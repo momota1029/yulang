@@ -1018,6 +1018,13 @@ close / next-field owner queryは未実装。state/source reread/buffer/recovery
 含め2巡clean、focused rewrite testsは73 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは
 未完である。
 
+2026-09-04: direct `NamedRecordType`のaccepted colon後にmalformed RHS slot retryを追加した。colon-to-RHS triviaをfield直下へ
+置いてからshared type RHS retryを使うため、`@`はexact one `Error`になりvalid Type NUDへsame slot retryする。retryが返すitemも
+layoutを再判定し、deeper newlineはRHS continuation、shallow newlineのfield headはrecord sequenceへhandoffする。comma / close /
+EOFへ着いたErrorはadditional Missing RHSを作らない。malformed-name / colon / RHS sequence recoveryの残り、semicolon、record close /
+next-field owner queryは未実装。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはclean、focused rewrite
+testsは74 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
