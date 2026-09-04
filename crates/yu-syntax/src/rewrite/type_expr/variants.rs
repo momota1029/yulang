@@ -174,12 +174,16 @@ fn type_polymorphic_variant_tags(
         if matches!(&item.payload, Payload::Eof) {
             return type_polymorphic_variant_boundary(i, item, position);
         }
-        if !is_type_polymorphic_variant_tag_name(&item) {
+        if !is_type_nud(&item) {
             return handoff(item);
         }
         let leading = std::mem::take(&mut item.leading);
         emit_leading_trivia(&mut i, &leading);
-        let exit = type_polymorphic_variant_tag(i.rb(), item, baseline, outer_closes);
+        let exit = if is_type_polymorphic_variant_tag_name(&item) {
+            type_polymorphic_variant_tag(i.rb(), item, baseline, outer_closes)
+        } else {
+            type_polymorphic_variant_wrong_kind_tag(i.rb(), item, baseline, outer_closes)
+        };
         position = TagPosition::AfterTag;
         item = match exit {
             Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
@@ -210,20 +214,57 @@ fn type_polymorphic_variant_tag(
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
     emit_token_item(&mut i, name);
     let leading = scan_trivia(i.rb());
-    let mut item = type_nud_item_after_trivia(i.rb(), leading);
+    let item = type_nud_item_after_trivia(i.rb(), leading);
+    let exit = type_polymorphic_variant_tag_payloads(i.rb(), item, baseline, outer_closes);
+    i.state.finish_node();
+    exit
+}
+
+fn type_polymorphic_variant_wrong_kind_tag(
+    mut i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    outer_closes: u8,
+) -> TailExit {
+    i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
+    i.state.start_node(SyntaxKind::Error.into());
+    let exit = type_expr_from_nud(i.rb(), primary, baseline, true, None, true, outer_closes);
+    i.state.finish_node();
+    let exit =
+        type_polymorphic_variant_tag_payloads_after_head(i.rb(), exit, baseline, outer_closes);
+    i.state.finish_node();
+    exit
+}
+
+fn type_polymorphic_variant_tag_payloads_after_head(
+    mut i: RewriteIn,
+    exit: TailExit,
+    baseline: usize,
+    outer_closes: u8,
+) -> TailExit {
+    let item = match exit {
+        Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
+        Err(Either::Left(item)) => item,
+        Err(Either::Right(end)) => return handoff(end.item),
+    };
+    type_polymorphic_variant_tag_payloads(i, item, baseline, outer_closes)
+}
+
+fn type_polymorphic_variant_tag_payloads(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    outer_closes: u8,
+) -> TailExit {
     loop {
         if !is_type_payload_boundary(&item.leading) || !is_type_nud(&item) {
-            i.state.finish_node();
             return handoff(item);
         }
         let exit = type_polymorphic_variant_payload(i.rb(), item, baseline, outer_closes);
         item = match exit {
             Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
             Err(Either::Left(next)) => next,
-            Err(Either::Right(end)) => {
-                i.state.finish_node();
-                return handoff(end.item);
-            }
+            Err(Either::Right(end)) => return handoff(end.item),
         };
     }
 }

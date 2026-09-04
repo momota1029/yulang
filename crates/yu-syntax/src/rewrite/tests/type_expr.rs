@@ -1772,6 +1772,97 @@ fn polymorphic_variant_type_recovers_outer_tag_positions() {
 }
 
 #[test]
+fn polymorphic_variant_type_recovers_non_identifier_tag_primaries() {
+    for (source, tag_text, payloads) in [
+        (":{123}", "123", 0),
+        (":{123 Int}", "123", 1),
+        (":{for 'a: T}", "for 'a: T", 0),
+        (":{:{A} B}", ":{A}", 1),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        let tags = variant
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+            .collect::<Vec<_>>();
+        assert_eq!(tags.len(), 1, "{source:?}");
+        let tag = &tags[0];
+        let errors = tag
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1, "{source:?}");
+        let error = &errors[0];
+        assert_eq!(error.text().to_string(), tag_text, "{source:?}");
+        assert_eq!(
+            error
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !tag.descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+        assert_eq!(
+            tag.descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload)
+                .count(),
+            payloads,
+            "{source:?}"
+        );
+    }
+
+    for source in [":{123, A}", ":{123\nA}"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert_eq!(
+            variant
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+                .count(),
+            2,
+            "{source:?}"
+        );
+        assert!(
+            !variant
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type(":{123]}");
+    assert_eq!(green.to_string(), ":{123]}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let variant = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(
+        variant
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .map(|node| node.text().to_string())
+            .collect::<Vec<_>>(),
+        ["123", "]"]
+    );
+}
+
+#[test]
 fn polymorphic_variant_type_recovers_local_separators_and_closes() {
     for source in [":{;A}", ":{A;B}", ":{A ; B}"] {
         let (green, exit) = run_type(source);

@@ -1129,6 +1129,15 @@ root local close / semicolon、nested active close、space有無を含むcaller-
 leading-trivia direct-CST ownershipをfixture化した。M1 spec reviewはevidence repair後approved、focused rewrite tests 93 passed、
 package check・format・diff check green。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `PolymorphicVariantType`のcanonical `NT-6`を追加した。tag slotでIdentifier以外の
+Type NUDを一度だけcanonical primaryとして読み、同じ`PolymorphicVariantTag`内の
+`Error > TypeExpression`へ候補全体を置く。`type_ml = true`、`record_base = None`、
+`outer_separators = true`、active `outer_closes`はpayloadと同じ明示引数で渡し、返ったitemはnormal tagと
+共通のpayload judgeへそのまま渡すため、spaced payload・comma・newline・local closeのownerは変えない。
+numeric / forall / nested PV candidate、comma/newlineのrecovered tag position、disjoint local-close Errorを
+fixture化した。`NT-8`と`IT` malformed recoveryは未実装のまま残した。M1 spec review approved、focused rewrite
+tests 94 passed。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
