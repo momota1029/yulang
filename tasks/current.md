@@ -1034,6 +1034,16 @@ error、semicolon、record close / next-field owner queryは未実装。state/so
 M1 specification reviewはEOF/outer-close Missing fieldの修正後clean、focused rewrite testsは76 passed、package check、
 format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`のmalformed-name colon skeletonを追加した。plain Identifierを含まない
+same-line malformed runの直後にrecord depthのliteral colonがある場合だけ、`TypeRecordField`内のname `Error`から
+colon / canonical RHSをsame fieldで続行する。sigil / number / punctuation runを含み、nested delimiter内のcolonは
+outer field colonにしない。physical newline、plain Identifier、separator / close / EOFではlocal probeをrollbackして
+initial Itemをwhole-field sequence recoveryへhandoffする。probeはunit-state `LexIn`でlocal suffixだけを読み、shared
+trivia/type-item scannerはstate-generic化してdirect parserと同じlexical spellingを使う。whole-field Error retry、semicolon、
+record close / next-field owner queryは未実装。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewは
+AnyPhysicalHandoff / current-depth修正後clean、focused rewrite testsは77 passed、package check、format/diff checkはgreen。
+production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

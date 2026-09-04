@@ -5,7 +5,7 @@ use reborrow_generic::Reborrow as _;
 use crate::syntax_kind::SyntaxKind;
 
 use super::{
-    RewriteIn,
+    LexIn, RewriteIn,
     driver::{Either, TailExit, handoff, token_kind},
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
@@ -300,7 +300,15 @@ fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             emit_leading_trivia(&mut i, &leading);
             type_record_missing_name(i.rb(), item, baseline)
         } else {
-            return handoff(item);
+            i.rb()
+                .then(type_record_malformed_name_colon, |has_colon, i| {
+                    if has_colon && indentation_after_newline(&item.leading).is_none() {
+                        type_record_malformed_name(i, item, baseline)
+                    } else {
+                        handoff(item)
+                    }
+                })
+                .expect("the malformed-name probe always succeeds")
         };
         item = match type_record_successor(i.rb(), exit, baseline) {
             Ok(next) => next,
@@ -352,6 +360,84 @@ fn type_record_missing_name(mut i: RewriteIn, colon: Item, baseline: usize) -> T
     let exit = type_record_rhs(i.rb(), baseline);
     i.state.finish_node();
     exit
+}
+
+fn type_record_malformed_name_colon(mut i: LexIn) -> Option<bool> {
+    let mut input = i.remainder();
+    let mut probe: LexIn = chasa_recover::In::new(&mut input, i.recovery(), ());
+    let mut nested_depth = 0usize;
+    loop {
+        let leading = scan_trivia(probe.rb());
+        let item = type_nud_item_after_trivia(probe.rb(), leading);
+        if indentation_after_newline(&item.leading).is_some()
+            || matches!(item.payload, Payload::Eof)
+        {
+            return Some(false);
+        }
+        match token_kind(&item) {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+                continue;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+                continue;
+            }
+            _ => {}
+        }
+        if nested_depth == 0 && token_kind(&item) == Some(TokenKind::Colon) {
+            return Some(true);
+        }
+        if nested_depth == 0
+            && (is_type_record_field_name(&item) || is_type_record_field_boundary(&item))
+        {
+            return Some(false);
+        }
+    }
+}
+
+fn type_record_malformed_name(mut i: RewriteIn, mut item: Item, baseline: usize) -> TailExit {
+    let leading = std::mem::take(&mut item.leading);
+    emit_leading_trivia(&mut i, &leading);
+    i.state.start_node(SyntaxKind::TypeRecordField.into());
+    i.state.start_node(SyntaxKind::Error.into());
+    let mut nested_depth = 0usize;
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_nud_item_after_trivia(i.rb(), leading);
+        if token_kind(&item) == Some(TokenKind::Colon) && nested_depth == 0 {
+            i.state.finish_node();
+            emit_token_item(&mut i, item);
+            let exit = type_record_rhs(i.rb(), baseline);
+            i.state.finish_node();
+            return exit;
+        }
+        let was_nested = nested_depth != 0;
+        match token_kind(&item) {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+            }
+            _ => {}
+        }
+        if matches!(item.payload, Payload::Eof)
+            || (nested_depth == 0
+                && (is_type_record_field_name(&item)
+                    || (!was_nested && is_type_record_field_boundary(&item))
+                    || is_type_implicit_boundary(baseline, &item.leading)))
+        {
+            i.state.finish_node();
+            i.state.finish_node();
+            return handoff(item);
+        }
+    }
 }
 
 fn retry_type_record_colon(mut i: RewriteIn, mut item: Item, baseline: usize) -> TailExit {

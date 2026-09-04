@@ -471,6 +471,79 @@ fn named_record_type_recovers_a_missing_field_before_eof_or_outer_close() {
 }
 
 #[test]
+fn named_record_field_retries_a_malformed_name_only_with_a_colon_skeleton() {
+    for (source, error_text) in [
+        ("{@: A}", "@"),
+        ("{'a: A}", "'a"),
+        ("{1: A}", "1"),
+        ("{@ !: A}", "@ !"),
+        ("{@ (): A}", "@ ()"),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("named record type");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        let field = record
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .expect("type record field");
+        assert_eq!(
+            field
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            field
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Error)
+                .expect("name error")
+                .text(),
+            error_text,
+            "{source:?}"
+        );
+        assert_eq!(
+            field
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            0,
+            "{source:?}"
+        );
+    }
+
+    for source in ["{@ a: A}", "{@\n    : A}", "{@ (: A)}"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), "{", "{source:?}");
+        assert!(matches!(
+            exit,
+            Some(Err(Either::Left(item)))
+                if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Unknown && &*token.text == "@")
+        ));
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeRecordField),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn named_record_field_recovers_missing_colon_and_type() {
     for (source, fields) in [
         ("{a}", 1),

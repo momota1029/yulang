@@ -1,7 +1,10 @@
 //! Lexical item construction and ordinary trivia ownership for the rewrite.
 
-use chasa_recover::parser::{choice, token};
-use reborrow_generic::Reborrow as _;
+use chasa_recover::{
+    In,
+    parser::{choice, token},
+};
+use reborrow_generic::short::Rb;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::scan::operator::OperatorSite;
@@ -10,6 +13,7 @@ use super::{
     LexIn, RewriteIn,
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
     operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, scan_operator},
+    state::Recover,
 };
 
 pub(super) fn tail_item_after_trivia(
@@ -95,7 +99,7 @@ fn scan_token_payload(mut i: RewriteIn) -> Payload {
 }
 
 pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<Item> {
-    let leading = scan_trivia_lex(i.rb());
+    let leading = scan_trivia(i.rb());
     let has_leading_trivia = !leading.0.is_empty();
     let payload = if let Some(token) = i.token(scan_lparen) {
         Payload::Token(token)
@@ -128,7 +132,13 @@ pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
     })
 }
 
-pub(super) fn type_nud_item_after_trivia(mut i: RewriteIn, leading: LeadingTrivia) -> Item {
+pub(super) fn type_nud_item_after_trivia<S>(
+    mut i: In<'_, &str, &mut Recover<'_>, S>,
+    leading: LeadingTrivia,
+) -> Item
+where
+    S: Rb,
+{
     if let Some(token) = i.token(scan_type_forall) {
         return Item {
             leading,
@@ -138,7 +148,13 @@ pub(super) fn type_nud_item_after_trivia(mut i: RewriteIn, leading: LeadingTrivi
     type_item_after_trivia(i, leading)
 }
 
-pub(super) fn type_item_after_trivia(i: RewriteIn, leading: LeadingTrivia) -> Item {
+pub(super) fn type_item_after_trivia<S>(
+    i: In<'_, &str, &mut Recover<'_>, S>,
+    leading: LeadingTrivia,
+) -> Item
+where
+    S: Rb,
+{
     let payload = i
         .map(
             choice((
@@ -180,15 +196,10 @@ pub(super) fn is_operator_shaped_unknown(item: &Item) -> bool {
     )
 }
 
-pub(super) fn scan_trivia(mut i: RewriteIn) -> LeadingTrivia {
-    let mut parts = Vec::new();
-    while let Some(part) = i.token(scan_trivia_part) {
-        parts.push(part);
-    }
-    LeadingTrivia(parts.into_boxed_slice())
-}
-
-fn scan_trivia_lex(mut i: LexIn) -> LeadingTrivia {
+pub(super) fn scan_trivia<S>(mut i: In<'_, &str, &mut Recover<'_>, S>) -> LeadingTrivia
+where
+    S: Rb,
+{
     let mut parts = Vec::new();
     while let Some(part) = i.token(scan_trivia_part) {
         parts.push(part);
