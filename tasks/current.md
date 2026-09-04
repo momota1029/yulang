@@ -1256,6 +1256,18 @@ M1 specification reviewはpre-write / post-writeともapproved。focused rewrite
 yu-syntax`、format/diff checkはgreen。これはcanonical Statement / colon recoveryの完了を主張せず、G4a RB-E / Gate 4は
 未実装のままである。
 
+2026-09-04: isolated SCC construction witness C3として、direct expressionの`LBrace` Nudから
+`BracedStatementBlockExpression`を追加した。privateな`StatementSequencePolicy::{Indented, Braced}`だけでC2と
+statement start・normal successor・separator emissionを共有し、source/root/cursor・token/event buffer・ambient contextは
+導入していない。brace ownerはlocal stop `{Comma, Semicolon, RBrace}`でouter stopを遮断し、空 block、opening trivia、direct
+normal statement、comma / semicolon / current-depth newline separator、trailing separator、matching closeを直接所有する。
+`{x: 1, y: 2}`のcommaはcolon RHSではなくbrace sequenceのseparatorであり、record CSTは作らない。accepted `{`はEOF時に
+owner-local `Missing` closeを一つ置き、invalid runとmismatched `)` / `]`はbrace-local one `Error`にしてmatching `}`まで
+進める。returned newlineはblock baseline以下だけがseparatorで、deeper newlineはexpression continuationのまま残す。
+M1 specification reviewはboundary repair後approved。focused rewrite tails tests 11 passed、`cargo check -p yu-syntax`、
+format/diff checkはgreen。declaration / dynamic Prefix・Nullfix statement start、colon mandatory recovery、AST / diagnostic /
+production wiring、G4a RB-E / Gate 4は未実装のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

@@ -113,6 +113,8 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<
     let has_leading_trivia = !leading.0.is_empty();
     let payload = if let Some(token) = i.token(scan_lparen) {
         Payload::Token(token)
+    } else if let Some(token) = i.token(scan_lbrace) {
+        Payload::Token(token)
     } else if let Some(operator) =
         i.token(|lex| scan_operator(lex, OperatorSite::Nud, has_leading_trivia, baseline, stops))
     {

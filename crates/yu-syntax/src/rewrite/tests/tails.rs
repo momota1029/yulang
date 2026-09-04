@@ -468,3 +468,283 @@ fn colon_c2_handoffs_unimplemented_block_statement_slots() {
             .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
     );
 }
+
+#[test]
+fn braced_statement_block_owns_normal_sequence_and_colon_comma() {
+    for source in ["{}", "{ }", "{\n}"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("braced statement block");
+        assert!(
+            !block
+                .children()
+                .any(|node| node.kind() == SyntaxKind::Statement)
+        );
+    }
+
+    let (green, exit) = run("{x: 1}");
+    assert_eq!(green.to_string(), "{x: 1}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .expect("braced statement block");
+    assert_eq!(
+        block.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::Statement]
+    );
+    assert_eq!(
+        block
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .count(),
+        1
+    );
+
+    for (source, separator) in [
+        ("{x,y}", SyntaxKind::Comma),
+        ("{x;y}", SyntaxKind::Semicolon),
+        ("{x\ny}", SyntaxKind::Newline),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("braced statement block");
+        assert_eq!(
+            block.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            [
+                SyntaxKind::Statement,
+                SyntaxKind::BlockStatementSeparator,
+                SyntaxKind::Statement,
+            ],
+            "{source:?}"
+        );
+        let separator_node = block
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+            .expect("block separator");
+        assert!(
+            separator_node
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == separator),
+            "{source:?}"
+        );
+    }
+
+    for source in ["{x,}", "{x;}", "{x\n}"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("braced statement block");
+        assert_eq!(
+            block.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            [SyntaxKind::Statement, SyntaxKind::BlockStatementSeparator],
+            "{source:?}"
+        );
+        assert!(
+            !block
+                .descendants()
+                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run("{x: 1, y: 2}");
+    assert_eq!(green.to_string(), "{x: 1, y: 2}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .expect("braced statement block");
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Statement)
+            .count(),
+        2
+    );
+    assert_eq!(
+        block
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .count(),
+        2
+    );
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
+    for source in ["{", "{x", "{x,"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("braced statement block");
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run("{@}");
+    assert_eq!(green.to_string(), "{@}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run("{x]}");
+    assert_eq!(green.to_string(), "{x]}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .expect("braced statement block");
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+    assert_eq!(
+        block
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::RBrace)
+            .count(),
+        1
+    );
+    assert!(
+        !block
+            .children()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (green, exit) = run("{x\n  y}");
+    assert_eq!(green.to_string(), "{x\n  y}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .expect("braced statement block");
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Statement)
+            .count(),
+        1
+    );
+    assert!(
+        block
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::MlArgument)
+    );
+
+    let (green, exit) = run("{x,@\ny}");
+    assert_eq!(green.to_string(), "{x,@\ny}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .expect("braced statement block");
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+            .count(),
+        2
+    );
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Statement)
+            .count(),
+        2
+    );
+
+    let (green, exit) = run("{x\n  @}");
+    assert_eq!(green.to_string(), "{x\n  @}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .expect("braced statement block");
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+            .count(),
+        0
+    );
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run("{{x}}.field");
+    assert_eq!(green.to_string(), "{{x}}.field");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        operator_chain_children(&green),
+        [
+            SyntaxKind::BracedStatementBlockExpression,
+            SyntaxKind::FieldTail,
+        ]
+    );
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .count(),
+        2
+    );
+}

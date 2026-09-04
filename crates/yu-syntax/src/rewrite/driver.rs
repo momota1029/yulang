@@ -13,6 +13,7 @@ use super::{
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
     lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia, with_colon_follower},
     operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item},
+    statement::braced_nud,
     tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail},
 };
 
@@ -86,6 +87,7 @@ fn append_nud(
         Some(TokenKind::LParen) => {
             parenthesized_nud(i.rb(), nud, threshold, baseline, stops, ml_mode)
         }
+        Some(TokenKind::LBrace) => braced_nud(i.rb(), nud, threshold, baseline, stops, ml_mode),
         Some(TokenKind::Operator) => operator_nud(i.rb(), nud, threshold, baseline, stops, ml_mode),
         _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
     }
@@ -347,11 +349,15 @@ fn operator_tail(
 }
 
 pub(super) fn is_nud_item(item: &Item) -> bool {
-    is_normal_core_item(item)
+    is_statement_nud(item)
         || matches!(
             operator_use(item),
             Some(OperatorUse::Prefix(_) | OperatorUse::Nullfix)
         )
+}
+
+pub(super) fn is_statement_nud(item: &Item) -> bool {
+    is_normal_core_item(item) || token_kind(item) == Some(TokenKind::LBrace)
 }
 
 pub(super) fn is_normal_core_item(item: &Item) -> bool {
