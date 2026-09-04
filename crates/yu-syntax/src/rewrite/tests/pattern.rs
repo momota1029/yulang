@@ -494,6 +494,151 @@ fn standalone_pattern_recovery_leaves_caller_boundaries_and_their_gaps_intact() 
 }
 
 #[test]
+fn standalone_patterns_keep_parenthesized_and_list_recovery_inside_their_owners() {
+    for (source, owner, patterns, expected_missing, expected_errors) in [
+        ("(,a)", SyntaxKind::ParenthesizedPattern, 2, 1, 0),
+        ("(a b)", SyntaxKind::ParenthesizedPattern, 2, 1, 0),
+        ("(a]", SyntaxKind::ParenthesizedPattern, 1, 1, 1),
+        ("[,a]", SyntaxKind::ListPattern, 2, 1, 0),
+        ("[a b]", SyntaxKind::ListPattern, 2, 1, 0),
+        ("[..]", SyntaxKind::ListPattern, 1, 1, 0),
+        ("[..,a]", SyntaxKind::ListPattern, 2, 1, 0),
+        ("[..@tail]", SyntaxKind::ListPattern, 1, 0, 1),
+    ] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        let pattern = pattern_node(green);
+        let delimited = pattern
+            .children()
+            .find(|node| node.kind() == owner)
+            .expect("delimited Pattern owner");
+        assert_eq!(
+            delimited
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Pattern)
+                .count(),
+            patterns,
+            "{source:?}"
+        );
+        assert_eq!(
+            delimited
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            expected_missing,
+            "{source:?}"
+        );
+        let errors = delimited
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), expected_errors, "{source:?}");
+        if source == "(a]" {
+            assert_eq!(errors[0].text().to_string(), "]");
+        }
+        if source == "[..@tail]" {
+            assert_eq!(errors[0].text().to_string(), "@");
+        }
+    }
+
+    for (source, owner) in [
+        ("(a\n", SyntaxKind::ParenthesizedPattern),
+        ("[a\n", SyntaxKind::ListPattern),
+    ] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        assert_eq!(trivia_parents(&green), [owner], "{source:?}");
+    }
+}
+
+#[test]
+fn standalone_patterns_keep_delimiter_and_malformed_list_item_recovery_local() {
+    for (source, owner) in [
+        ("(a", SyntaxKind::ParenthesizedPattern),
+        ("[a", SyntaxKind::ListPattern),
+    ] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        let delimited = pattern_node(green)
+            .children()
+            .find(|node| node.kind() == owner)
+            .expect("delimited Pattern owner");
+        assert_eq!(
+            delimited
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_pattern("[a, @ b]");
+    assert_eq!(green.to_string(), "[a, @ b]");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let list = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ListPattern)
+        .expect("ListPattern");
+    let items = list
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Pattern)
+        .collect::<Vec<_>>();
+    assert_eq!(items.len(), 2);
+    let errors = items[1]
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@ ");
+    assert!(
+        items[1]
+            .children()
+            .any(|node| node.kind() == SyntaxKind::IdentifierPattern)
+    );
+    assert!(
+        !items[1]
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (green, exit) = run_pattern("[...,a]");
+    assert_eq!(green.to_string(), "[...,a]");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let list = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ListPattern)
+        .expect("ListPattern");
+    let errors = list
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "...");
+    assert!(
+        !list
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::ListPatternSpreadItem)
+    );
+    assert_eq!(
+        list.children()
+            .filter(|node| node.kind() == SyntaxKind::Pattern)
+            .count(),
+        2
+    );
+    assert_eq!(
+        list.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Comma)
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn standalone_patterns_keep_inter_child_trivia_with_the_introducing_owner() {
     let (green, exit) = run_pattern("A | B");
     assert!(matches!(exit, Err(Either::Right(_))));

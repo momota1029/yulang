@@ -1186,6 +1186,17 @@ M1 specification reviewはtwo repair deltas後approved。focused Pattern tests�
 one Missing、P3 initial-Missing/post-Error split、P4 nested Missing/tail、caller gap handoffをexact CSTで固定した。
 P5〜P8、production wiring、AST parity、full RB-P/Gate 5 certificationは未完である。
 
+2026-09-04: direct `Pattern`のP5/P6 parenthesized/list delimiter recoveryを追加した。Parenthesized / Listの
+mandatory item positionは直接`Pattern`へ委譲し、P1のnonempty Error / same-slot retry / boundary handoffをそのまま
+再利用する。list spread `..`のRHSも常にnested `Pattern`へ委譲するため、close / commaではone Missing、`@tail`では
+one Error後に`tail`を同じRHS slotへretryする。accepted delimiterのEOF closeとleading triviaはdelimiter ownerに
+留め、shared `missing_close`とRecordの既存item/field pathは変更していない。P5 `(,a)` / `(a b)` / `(a]` / `(a`、
+P6 `[,a]` / `[a b]` / `[..]` / `[..,a]` / `[..@tail]` / `[a`、`[a, @ b]`、`[...,a]`をexact direct CSTで
+固定した。M1 specification reviewはinitial evidence gap（literal EOF、malformed ListItem retry、non-split marker）を
+一回のtest-only repairで閉じてapproved。focused Pattern tests 9 passed、`cargo fmt --all -- --check`、
+`cargo check -p yu-syntax`、diff checkはgreen。P7/P8、consumer / outer-arrow recovery、production wiring、AST parity、
+full RB-P/Gate 5 certificationは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
