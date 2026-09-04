@@ -544,6 +544,57 @@ fn named_record_field_retries_a_malformed_name_only_with_a_colon_skeleton() {
 }
 
 #[test]
+fn named_record_type_recovers_an_invalid_semicolon_separator() {
+    for (source, fields) in [("{a: A;b: B}", 2), ("{a: A; b: B}", 2), ("{a: A;}", 1)] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("named record type");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            fields,
+            "{source:?}"
+        );
+        let error = record
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("separator error");
+        assert_eq!(error.text(), ";", "{source:?}");
+    }
+
+    let source = "{a: A; (\n) b: B}";
+    let (green, exit) = run_type(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let record = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+        .expect("named record type");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .count(),
+        2
+    );
+    assert_eq!(
+        record
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("separator error")
+            .text(),
+        "; (\n)"
+    );
+}
+
+#[test]
 fn named_record_field_recovers_missing_colon_and_type() {
     for (source, fields) in [
         ("{a}", 1),

@@ -505,6 +505,63 @@ fn type_record_after_comma(mut i: RewriteIn) -> Result<Item, TailExit> {
     Ok(next)
 }
 
+fn retry_type_record_separator(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+) -> Result<Item, TailExit> {
+    i.state.start_node(SyntaxKind::Error.into());
+    let mut nested_depth = 0usize;
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_nud_item_after_trivia(i.rb(), leading);
+        if matches!(item.payload, Payload::Eof) {
+            i.state.finish_node();
+            return Err(handoff(item));
+        }
+        if token_kind(&item) == Some(TokenKind::RBrace) && nested_depth == 0 {
+            i.state.finish_node();
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            emit_token_item(&mut i, item);
+            return Err(Ok(()));
+        }
+        if token_kind(&item) == Some(TokenKind::Comma) && nested_depth == 0 {
+            i.state.finish_node();
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            emit_token_item(&mut i, item);
+            return type_record_after_comma(i);
+        }
+        if is_type_record_field_start(&item) && nested_depth == 0 {
+            i.state.finish_node();
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            return Ok(item);
+        }
+        let was_nested = nested_depth != 0;
+        match token_kind(&item) {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+            }
+            _ => {}
+        }
+        if nested_depth == 0
+            && (!was_nested && is_type_record_field_boundary(&item)
+                || (!was_nested && is_type_implicit_boundary(baseline, &item.leading)))
+        {
+            i.state.finish_node();
+            return Err(handoff(item));
+        }
+    }
+}
+
 fn type_record_successor(
     mut i: RewriteIn,
     exit: TailExit,
@@ -514,6 +571,11 @@ fn type_record_successor(
         Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::Comma) => {
             emit_token_item(&mut i, next);
             type_record_after_comma(i)
+        }
+        Err(Either::Left(mut next)) if token_kind(&next) == Some(TokenKind::Semicolon) => {
+            let leading = std::mem::take(&mut next.leading);
+            emit_leading_trivia(&mut i, &leading);
+            retry_type_record_separator(i, next, baseline)
         }
         Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::RBrace) => {
             emit_token_item(&mut i, next);

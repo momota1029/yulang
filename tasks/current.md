@@ -1044,6 +1044,14 @@ record close / next-field owner queryは未実装。state/source reread/buffer/r
 AnyPhysicalHandoff / current-depth修正後clean、focused rewrite testsは77 passed、package check、format/diff checkはgreen。
 production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`でaccepted field後のinvalid semicolon separator recoveryを追加した。field-to-
+semicolon gapはrecord直下、semicolonからcurrent-depth malformed runまではone record-level `Error`で所有し、depth-zeroの
+field start / comma / matching `}`だけへretryする。inner closeとそのleading newlineはrecord boundaryにせずError内へ残す。
+EOF / outer close / qualifying newlineはunconsumed handoffで、record close recoveryはまだ追加しない。leading semicolonと
+whole-field sequence error、record close / next-field owner queryは未実装。state/source reread/buffer/recovery recordの追加なし。
+M1 specification reviewはnested-close newline修正後clean、focused rewrite testsは78 passed、package check、format/diff checkは
+green。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
