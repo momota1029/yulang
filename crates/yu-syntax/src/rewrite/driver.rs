@@ -17,7 +17,7 @@ use super::{
     operator::{
         STOP_LINE_BREAK, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item,
     },
-    statement::braced_nud,
+    statement::{StatementLineHandoff, braced_nud},
     tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail, with_tail},
 };
 
@@ -43,7 +43,14 @@ pub(super) enum MlMode {
 }
 
 pub(super) fn expr(mut i: RewriteIn) -> Option<TailExit> {
-    expr_at(i.rb(), None, 0, 0, MlMode::All)
+    expr_at(
+        i.rb(),
+        None,
+        0,
+        0,
+        MlMode::All,
+        StatementLineHandoff::OrdinaryLayout,
+    )
 }
 
 fn expr_at(
@@ -52,9 +59,18 @@ fn expr_at(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> Option<TailExit> {
     let nud = i.token(|lex| scan_nud_item(lex, baseline, stops))?;
-    Some(expr_from_nud(i, nud, threshold, baseline, stops, ml_mode))
+    Some(expr_from_nud(
+        i,
+        nud,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+    ))
 }
 
 pub(super) fn expr_from_nud(
@@ -64,9 +80,18 @@ pub(super) fn expr_from_nud(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = append_nud(i.rb(), nud, threshold, baseline, stops, ml_mode);
+    let exit = append_nud(
+        i.rb(),
+        nud,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+    );
     i.state.finish_node();
     exit
 }
@@ -78,6 +103,7 @@ fn append_nud(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if is_contextual_word(i.rb(), &nud, "case") {
         return case_like_nud(
@@ -88,6 +114,7 @@ fn append_nud(
             baseline,
             stops,
             ml_mode,
+            line_handoff,
         );
     }
     if is_contextual_word(i.rb(), &nud, "catch") {
@@ -99,25 +126,48 @@ fn append_nud(
             baseline,
             stops,
             ml_mode,
+            line_handoff,
         );
     }
     if is_contextual_word(i.rb(), &nud, "if") {
-        return if_nud(i, nud, threshold, baseline, stops, ml_mode);
+        return if_nud(i, nud, threshold, baseline, stops, ml_mode, line_handoff);
     }
     match token_kind(&nud) {
         Some(TokenKind::Identifier) => {
             emit_identifier_core(&mut i, nud);
-            scan_tail_after_accept(i.rb(), threshold, baseline, stops, ml_mode)
+            scan_tail_after_accept(i.rb(), threshold, baseline, stops, ml_mode, line_handoff)
         }
         Some(TokenKind::Integer) => {
             emit_integer_core(&mut i, nud);
-            scan_tail_after_accept(i.rb(), threshold, baseline, stops, ml_mode)
+            scan_tail_after_accept(i.rb(), threshold, baseline, stops, ml_mode, line_handoff)
         }
-        Some(TokenKind::LParen) => {
-            parenthesized_nud(i.rb(), nud, threshold, baseline, stops, ml_mode)
-        }
-        Some(TokenKind::LBrace) => braced_nud(i.rb(), nud, threshold, baseline, stops, ml_mode),
-        Some(TokenKind::Operator) => operator_nud(i.rb(), nud, threshold, baseline, stops, ml_mode),
+        Some(TokenKind::LParen) => parenthesized_nud(
+            i.rb(),
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+        ),
+        Some(TokenKind::LBrace) => braced_nud(
+            i.rb(),
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+        ),
+        Some(TokenKind::Operator) => operator_nud(
+            i.rb(),
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+        ),
         _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
     }
 }
@@ -131,6 +181,7 @@ pub(super) fn required_expr_after_accept(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = tail_item_after_trivia(
@@ -140,7 +191,7 @@ pub(super) fn required_expr_after_accept(
         baseline,
         stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
     );
-    required_expr_item(i, item, threshold, baseline, stops, ml_mode)
+    required_expr_item(i, item, threshold, baseline, stops, ml_mode, line_handoff)
 }
 
 pub(super) fn required_expr_item(
@@ -150,6 +201,7 @@ pub(super) fn required_expr_item(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if is_required_operand_boundary(i.rb(), &item, stops) {
         let leading = std::mem::take(&mut item.leading);
@@ -157,7 +209,7 @@ pub(super) fn required_expr_item(
         return handoff(item);
     }
     if is_nud_item(&item) {
-        return append_nud(i, item, threshold, baseline, stops, ml_mode);
+        return append_nud(i, item, threshold, baseline, stops, ml_mode, line_handoff);
     }
     if is_unread_operand_boundary(&item) {
         return handoff(item);
@@ -180,7 +232,7 @@ pub(super) fn required_expr_item(
         }
         if is_nud_item(&item) {
             i.state.finish_node();
-            return append_nud(i, item, threshold, baseline, stops, ml_mode);
+            return append_nud(i, item, threshold, baseline, stops, ml_mode, line_handoff);
         }
         if is_unread_operand_boundary(&item) {
             i.state.finish_node();
@@ -209,10 +261,11 @@ pub(super) fn scan_tail_after_accept(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
-    tail(i, item, threshold, baseline, stops, ml_mode)
+    tail(i, item, threshold, baseline, stops, ml_mode, line_handoff)
 }
 
 pub(super) fn continue_completed_tail(
@@ -221,11 +274,12 @@ pub(super) fn continue_completed_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
     exit: TailExit,
 ) -> TailExit {
     match exit {
-        Ok(()) => scan_tail_after_accept(i, threshold, baseline, stops, ml_mode),
-        Err(Either::Left(item)) => tail(i, item, threshold, baseline, stops, ml_mode),
+        Ok(()) => scan_tail_after_accept(i, threshold, baseline, stops, ml_mode, line_handoff),
+        Err(Either::Left(item)) => tail(i, item, threshold, baseline, stops, ml_mode, line_handoff),
         Err(Either::Right(end)) => Err(Either::Right(end)),
     }
 }
@@ -237,41 +291,82 @@ pub(super) fn tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if is_active_stop(i.rb(), &item, stops) || is_line_stop(&item, stops) {
         return handoff(item);
     }
     if is_with_tail_item(i.rb(), &item, baseline, ml_mode) {
-        return with_tail(i, item, baseline, stops);
+        return with_tail(i, item, baseline, stops, line_handoff);
     }
     if item.leading.0.is_empty() {
         match token_kind(&item) {
             Some(TokenKind::LParen) => {
-                return call_tail(i.rb(), item, threshold, baseline, stops, ml_mode);
+                return call_tail(
+                    i.rb(),
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                );
             }
             Some(TokenKind::LBracket) => {
-                return index_tail(i.rb(), item, threshold, baseline, stops, ml_mode);
+                return index_tail(
+                    i.rb(),
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                );
             }
             _ => {}
         }
     }
     match token_kind(&item) {
         Some(TokenKind::Dot) => {
-            return dot_tail(i.rb(), item, threshold, baseline, stops, ml_mode);
+            return dot_tail(
+                i.rb(),
+                item,
+                threshold,
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+            );
         }
         Some(TokenKind::PathSeparator) => {
-            return path_tail(i.rb(), item, threshold, baseline, stops, ml_mode);
+            return path_tail(
+                i.rb(),
+                item,
+                threshold,
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+            );
         }
         Some(TokenKind::Operator) if is_led_operator(&item) => {
-            return operator_tail(i.rb(), item, threshold, baseline, stops, ml_mode);
+            return operator_tail(
+                i.rb(),
+                item,
+                threshold,
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+            );
         }
         _ => {}
     }
     if is_ml_argument(&item, baseline, ml_mode) {
-        return ml_argument(i.rb(), item, threshold, baseline, stops);
+        return ml_argument(i.rb(), item, threshold, baseline, stops, line_handoff);
     }
     if token_kind(&item) == Some(TokenKind::Colon) {
-        return colon_tail(i, item, baseline, stops, ml_mode);
+        return colon_tail(i, item, baseline, stops, ml_mode, line_handoff);
     }
     handoff(item)
 }
@@ -311,11 +406,28 @@ fn ml_argument(
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::MlArgument.into());
-    let exit = expr_from_nud(i.rb(), argument, threshold, baseline, stops, MlMode::None);
+    let exit = expr_from_nud(
+        i.rb(),
+        argument,
+        threshold,
+        baseline,
+        stops,
+        MlMode::None,
+        line_handoff,
+    );
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, stops, MlMode::All, exit)
+    continue_completed_tail(
+        i,
+        threshold,
+        baseline,
+        stops,
+        MlMode::All,
+        line_handoff,
+        exit,
+    )
 }
 
 fn operator_nud(
@@ -325,17 +437,25 @@ fn operator_nud(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     match operator_use(&operator) {
         Some(OperatorUse::Prefix(right)) => {
             let right = right.clone();
             emit_operator_use(&mut i, operator, SyntaxKind::PrefixOperatorUse);
-            let rhs = required_expr_after_accept(i.rb(), Some(&right), baseline, stops, ml_mode);
-            continue_completed_tail(i, threshold, baseline, stops, ml_mode, rhs)
+            let rhs = required_expr_after_accept(
+                i.rb(),
+                Some(&right),
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+            );
+            continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, rhs)
         }
         Some(OperatorUse::Nullfix) => {
             emit_operator_use(&mut i, operator, SyntaxKind::NullfixOperatorUse);
-            scan_tail_after_accept(i, threshold, baseline, stops, ml_mode)
+            scan_tail_after_accept(i, threshold, baseline, stops, ml_mode, line_handoff)
         }
         _ => unreachable!("the NUD scanner accepts only prefix and nullfix operators"),
     }
@@ -348,6 +468,7 @@ fn operator_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     match operator_use(&operator) {
         Some(OperatorUse::Infix { left, right }) => {
@@ -356,15 +477,22 @@ fn operator_tail(
             }
             let right = right.clone();
             emit_operator_use(&mut i, operator, SyntaxKind::InfixOperatorUse);
-            let rhs = required_expr_after_accept(i.rb(), Some(&right), baseline, stops, ml_mode);
-            continue_completed_tail(i, threshold, baseline, stops, ml_mode, rhs)
+            let rhs = required_expr_after_accept(
+                i.rb(),
+                Some(&right),
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+            );
+            continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, rhs)
         }
         Some(OperatorUse::Suffix(left)) => {
             if threshold.is_some_and(|minimum| left < minimum) {
                 return handoff(operator);
             }
             emit_operator_use(&mut i, operator, SyntaxKind::SuffixOperatorUse);
-            scan_tail_after_accept(i, threshold, baseline, stops, ml_mode)
+            scan_tail_after_accept(i, threshold, baseline, stops, ml_mode, line_handoff)
         }
         _ => unreachable!("the LED scanner accepts only infix and suffix operators"),
     }

@@ -1439,7 +1439,16 @@ incoming valueを再利用する。Catch braced armではzero crossingをrecover
 inline canonical Statement crossingだけをNominal newline authorityにする。TND-J priorityはcomplete exact
 equality、ordinary/braced/Catch-through line、EOF/semicolon/active stop、deeper EOF trivia、recoveryを一つの
 pure form judgeへ固定し、EOFとsemicolonもphysical line evidenceを先に判定する。M3 compiler-referee / spec
-reviewはthree delta roundsでapproved。ユーザー承認まではDraft相当の設計記録だけで、C14 code / fixtureは未着手。
+reviewはthree delta roundsでapproved。ユーザーは2026-09-05に承認し、設計はAuthoritativeへ遷移した。C14ではこの
+four-state valueをstatement / expression / Patternのdirect coneだけで明示的にthreadし、complete bare `type`の
+post-header Itemを一回だけform judgeへ渡してNominal / Equality / existing EqualityRecoveryを選ぶ。初回M3
+post-write査読はrecord-pattern default expressionが`OrdinaryLayout`とstopなしをfabricateする欠落を検出した。
+修復はPatternの全current entry / recursion / delimiter pathへincoming valueを即時引数として通し、record defaultには
+unchanged handoffと`stops_for(RBrace)`を渡した。braced/Catch-through-inline newline、record comma / right brace、
+zero-inline Catch controlのfocused fixtureを追加し、compiler-referee / specification / regression delta reviewはapproved。
+`cargo check -p yu-syntax`、focused TypeDeclaration / repair fixture、`cargo test -p yu-syntax rewrite::tests:: --lib`
+(198 passed)、format / diff checkはgreen。broad package/workspace suite、performance、production/public/root parser、
+AST/HIR/header projection、typed diagnostics、Yumark、Gate 4/6/9 certificationは未実施のままである。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

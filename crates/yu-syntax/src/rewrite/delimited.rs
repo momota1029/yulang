@@ -17,6 +17,7 @@ use super::{
         tail_item_after_trivia,
     },
     operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, stops_for},
+    statement::StatementLineHandoff,
 };
 
 pub(super) fn parenthesized_nud(
@@ -26,6 +27,7 @@ pub(super) fn parenthesized_nud(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedExpression.into());
@@ -37,9 +39,10 @@ pub(super) fn parenthesized_nud(
         false,
         baseline,
         MlMode::LayoutOnly,
+        line_handoff,
     );
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
+    continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, exit)
 }
 
 pub(super) fn delimited_items(
@@ -49,6 +52,7 @@ pub(super) fn delimited_items(
     record_spread: bool,
     incoming_baseline: usize,
     item_ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let mut stops = stops_for(close);
     if record_spread {
@@ -77,7 +81,7 @@ pub(super) fn delimited_items(
             continue;
         }
         if is_record_spread_item(&item) {
-            let exit = record_spread_item(i.rb(), item, baseline, stops);
+            let exit = record_spread_item(i.rb(), item, baseline, stops, line_handoff);
             item = match delimited_successor(i.rb(), exit, close, baseline, stops, item_ml_mode) {
                 Ok(item) => item,
                 Err(exit) => return exit,
@@ -91,7 +95,15 @@ pub(super) fn delimited_items(
         if let Some(kind) = item_node {
             i.state.start_node(kind.into());
         }
-        let exit = expr_from_nud(i.rb(), item, None, baseline, stops, item_ml_mode);
+        let exit = expr_from_nud(
+            i.rb(),
+            item,
+            None,
+            baseline,
+            stops,
+            item_ml_mode,
+            line_handoff,
+        );
         if item_node.is_some() {
             i.state.finish_node();
         }
@@ -149,7 +161,13 @@ fn delimited_successor(
     }
 }
 
-fn record_spread_item(mut i: RewriteIn, marker: Item, baseline: usize, stops: Stops) -> TailExit {
+fn record_spread_item(
+    mut i: RewriteIn,
+    marker: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     i.state
         .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
     emit_token_item(&mut i, marker);
@@ -160,7 +178,15 @@ fn record_spread_item(mut i: RewriteIn, marker: Item, baseline: usize, stops: St
         rhs = retry_nud_item(i.rb(), rhs, baseline, rhs_stops);
     }
     let exit = if is_nud_item(&rhs) {
-        expr_from_nud(i.rb(), rhs, None, baseline, stops, MlMode::All)
+        expr_from_nud(
+            i.rb(),
+            rhs,
+            None,
+            baseline,
+            stops,
+            MlMode::All,
+            line_handoff,
+        )
     } else {
         let leading = std::mem::take(&mut rhs.leading);
         emit_missing(&mut i, leading);

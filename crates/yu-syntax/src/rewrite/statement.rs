@@ -23,11 +23,36 @@ use super::{
     use_decl::{use_declaration, use_declaration_selected},
 };
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum StatementLineHandoff {
+    OrdinaryLayout,
+    BracedStatementSequence,
+    CatchBracedArm,
+    CatchArmSequenceThroughInlineCanonicalStatement,
+}
+
+impl StatementLineHandoff {
+    pub(super) fn through_inline_statement(self) -> Self {
+        match self {
+            Self::CatchBracedArm | Self::CatchArmSequenceThroughInlineCanonicalStatement => {
+                Self::CatchArmSequenceThroughInlineCanonicalStatement
+            }
+            other => other,
+        }
+    }
+}
+
 pub(super) fn statement(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
     if is_canonical_statement_nud(i.rb(), &item, baseline) {
-        canonical_statement(i, item, baseline, stops)
+        canonical_statement(
+            i,
+            item,
+            baseline,
+            stops,
+            StatementLineHandoff::OrdinaryLayout,
+        )
     } else {
         handoff(item)
     }
@@ -38,23 +63,32 @@ pub(super) fn canonical_statement(
     item: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
     i.state.start_node(SyntaxKind::Statement.into());
     let exit = if struct_declaration_selected(i.rb(), &item, baseline) {
         struct_declaration(i.rb(), item, baseline, stops)
     } else if mod_declaration_selected(i.rb(), &item, baseline) {
-        mod_declaration(i.rb(), item, baseline, stops)
+        mod_declaration(i.rb(), item, baseline, stops, line_handoff)
     } else if use_declaration_selected(i.rb(), &item, baseline) {
         use_declaration(i.rb(), item, baseline, stops)
     } else if type_declaration_selected(i.rb(), &item, baseline) {
-        type_declaration(i.rb(), item, baseline, stops)
+        type_declaration(i.rb(), item, baseline, stops, line_handoff)
     } else if for_statement_selected(&item) {
-        for_statement(i.rb(), item, baseline, stops)
+        for_statement(i.rb(), item, baseline, stops, line_handoff)
     } else if binding_statement_selected(i.rb(), &item, baseline) {
-        binding_statement(i.rb(), item, baseline, stops)
+        binding_statement(i.rb(), item, baseline, stops, line_handoff)
     } else {
-        expr_from_nud(i.rb(), item, None, baseline, stops, MlMode::All)
+        expr_from_nud(
+            i.rb(),
+            item,
+            None,
+            baseline,
+            stops,
+            MlMode::All,
+            line_handoff,
+        )
     };
     i.state.finish_node();
     exit
@@ -121,6 +155,7 @@ pub(super) fn braced_nud(
     incoming_baseline: usize,
     outer_stops: Stops,
     outer_ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let exit = braced_statement_block(i.rb(), open, incoming_baseline);
     continue_completed_tail(
@@ -129,6 +164,7 @@ pub(super) fn braced_nud(
         incoming_baseline,
         outer_stops,
         outer_ml_mode,
+        line_handoff,
         exit,
     )
 }
@@ -227,7 +263,13 @@ fn indented_statement_slot(
         return handoff(item);
     }
     if is_canonical_statement_nud(i.rb(), &item, baseline) {
-        return canonical_statement(i, item, baseline, stops);
+        return canonical_statement(
+            i,
+            item,
+            baseline,
+            stops,
+            StatementLineHandoff::OrdinaryLayout,
+        );
     }
 
     item = retry_indented_statement(i.rb(), item, baseline, block_indent, stops);
@@ -235,7 +277,13 @@ fn indented_statement_slot(
         return handoff(item);
     }
     debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
-    canonical_statement(i, item, baseline, stops)
+    canonical_statement(
+        i,
+        item,
+        baseline,
+        stops,
+        StatementLineHandoff::OrdinaryLayout,
+    )
 }
 
 fn retry_indented_statement(
@@ -305,14 +353,26 @@ fn braced_terminal(mut i: RewriteIn, item: Item) -> TailExit {
 
 fn braced_statement_slot(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> TailExit {
     if is_canonical_statement_nud(i.rb(), &item, baseline) {
-        return canonical_statement(i, item, baseline, stops);
+        return canonical_statement(
+            i,
+            item,
+            baseline,
+            stops,
+            StatementLineHandoff::BracedStatementSequence,
+        );
     }
 
     let item = retry_braced_statement(i.rb(), item, baseline, stops);
     if braced_statement_boundary(&item, baseline) {
         handoff(item)
     } else if is_canonical_statement_nud(i.rb(), &item, baseline) {
-        canonical_statement(i, item, baseline, stops)
+        canonical_statement(
+            i,
+            item,
+            baseline,
+            stops,
+            StatementLineHandoff::BracedStatementSequence,
+        )
     } else {
         handoff(item)
     }

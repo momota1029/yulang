@@ -19,7 +19,7 @@ use super::{
     mod_decl::mod_declaration_selected,
     operator::source_after_trivia,
     pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item, pattern_stops_from_owner},
-    statement::indented_statement_block,
+    statement::{StatementLineHandoff, indented_statement_block},
     struct_decl::struct_declaration_selected,
     type_decl::type_declaration_selected,
     use_decl::use_declaration_selected,
@@ -57,13 +57,14 @@ pub(super) fn binding_statement(
     visibility: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     debug_assert!(binding_statement_selected(i.rb(), &visibility, baseline));
     i.state.start_node(SyntaxKind::BindingStatement.into());
     i.state.start_node(SyntaxKind::BindingHeader.into());
     emit_visibility(&mut i, visibility);
 
-    let exit = binding_target(i.rb(), baseline, stops);
+    let exit = binding_target(i.rb(), baseline, stops, line_handoff);
     let Err(Either::Left(mut item)) = exit else {
         i.state.finish_node();
         i.state.finish_node();
@@ -82,13 +83,18 @@ pub(super) fn binding_statement(
     i.state.finish_node();
 
     i.state.start_node(SyntaxKind::BindingBody.into());
-    let exit = binding_body(i.rb(), baseline, stops);
+    let exit = binding_body(i.rb(), baseline, stops, line_handoff);
     i.state.finish_node();
     i.state.finish_node();
     exit
 }
 
-fn binding_target(mut i: RewriteIn, baseline: usize, owner_stops: Stops) -> TailExit {
+fn binding_target(
+    mut i: RewriteIn,
+    baseline: usize,
+    owner_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let indentation = introduced_body_indentation(i.rb());
     let mut leading = scan_trivia(i.rb());
     let stops = pattern_stops_from_owner(owner_stops)
@@ -105,10 +111,15 @@ fn binding_target(mut i: RewriteIn, baseline: usize, owner_stops: Stops) -> Tail
     emit_leading_trivia(&mut i, &leading);
     leading = LeadingTrivia::default();
     let item = pattern_nud_item_after_trivia(i.rb(), leading, stops);
-    pattern_from_entry_item(i, item, baseline, stops)
+    pattern_from_entry_item(i, item, baseline, stops, line_handoff)
 }
 
-fn binding_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+fn binding_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     match introduced_body_indentation(i.rb()) {
         Some(indentation) if indentation > baseline => indented_statement_block(i, baseline, stops),
         Some(_) => {
@@ -117,11 +128,16 @@ fn binding_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
             let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
             handoff(item)
         }
-        None => inline_binding_body(i, baseline, stops),
+        None => inline_binding_body(i, baseline, stops, line_handoff),
     }
 }
 
-fn inline_binding_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+fn inline_binding_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
     emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
@@ -130,7 +146,7 @@ fn inline_binding_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailE
         return handoff(item);
     }
     if is_nud_item(&item) {
-        return expr_from_nud(i, item, None, baseline, stops, MlMode::All);
+        return expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff);
     }
 
     item = retry_inline_binding_body(i.rb(), item, baseline, stops);
@@ -142,7 +158,7 @@ fn inline_binding_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailE
     }
     emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
     debug_assert!(is_nud_item(&item));
-    expr_from_nud(i, item, None, baseline, stops, MlMode::All)
+    expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff)
 }
 
 fn retry_inline_binding_body(

@@ -1,6 +1,6 @@
 # Direct TND statement-line handoff amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Scope: source-free, direct-CST-only successor rewrite における bare nominal
 `TypeDeclaration` の terminal newline 判定だけ。`TND-G/J/T/R` の観測可能な文法、
@@ -10,6 +10,8 @@ AST / HIR / header / session / diagnostic record は変更しない。
 Drafted-by: primary with architecture review
 
 Reviewed-by: M3 compiler-referee and specification review, 2026-09-05
+
+Approved-by: user, 2026-09-05
 
 Supersedes: `2026-08-20-yu-syntax-chasa-architecture.md` の TND にある
 ambient-owner stack / skipped-inline count を読む**実装経路だけ**。TND の grammar、

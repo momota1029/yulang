@@ -17,6 +17,7 @@ use super::{
             tail_item_after_trivia,
         },
     },
+    super::{operator::stops_for, statement::StatementLineHandoff},
     PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
     PATTERN_STOP_RPAREN, PatternCompletion, PatternPrecedence, PatternStops, RewriteIn,
     pattern_from_item_recording, scan_pattern_tail,
@@ -62,6 +63,7 @@ pub(super) fn parenthesized_pattern(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     pattern_delimited(
@@ -71,6 +73,7 @@ pub(super) fn parenthesized_pattern(
         minimum,
         incoming_baseline,
         outer_stops,
+        line_handoff,
         completion,
     )
 }
@@ -81,6 +84,7 @@ pub(super) fn list_pattern(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     pattern_delimited(
@@ -90,6 +94,7 @@ pub(super) fn list_pattern(
         minimum,
         incoming_baseline,
         outer_stops,
+        line_handoff,
         completion,
     )
 }
@@ -100,6 +105,7 @@ pub(super) fn record_pattern(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     pattern_delimited(
@@ -109,6 +115,7 @@ pub(super) fn record_pattern(
         minimum,
         incoming_baseline,
         outer_stops,
+        line_handoff,
         completion,
     )
 }
@@ -120,6 +127,7 @@ fn pattern_delimited(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     i.state.start_node(owner.node().into());
@@ -143,6 +151,7 @@ fn pattern_delimited(
                     incoming_baseline,
                     outer_stops,
                     contents_completion,
+                    line_handoff,
                     completion,
                 );
             }
@@ -179,10 +188,23 @@ fn pattern_delimited(
                     PatternPrecedence::Lowest,
                     item_baseline,
                     local_stops,
+                    line_handoff,
                     &mut item_completion,
                 ),
-                Owner::List => list_item(i.rb(), item, item_baseline, &mut item_completion),
-                Owner::Record => record_item(i.rb(), item, item_baseline, &mut item_completion),
+                Owner::List => list_item(
+                    i.rb(),
+                    item,
+                    item_baseline,
+                    line_handoff,
+                    &mut item_completion,
+                ),
+                Owner::Record => record_item(
+                    i.rb(),
+                    item,
+                    item_baseline,
+                    line_handoff,
+                    &mut item_completion,
+                ),
             };
             merge_completion(&mut contents_completion, item_completion);
             item = match exit {
@@ -212,6 +234,7 @@ fn pattern_delimited(
                 incoming_baseline,
                 outer_stops,
                 contents_completion,
+                line_handoff,
                 completion,
             );
         }
@@ -249,6 +272,7 @@ fn finish_delimited_pattern(
     incoming_baseline: usize,
     outer_stops: PatternStops,
     contents_completion: PatternCompletion,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     let mut tail_completion = PatternCompletion::Complete;
@@ -257,6 +281,7 @@ fn finish_delimited_pattern(
         minimum,
         incoming_baseline,
         outer_stops,
+        line_handoff,
         &mut tail_completion,
     );
     *completion = contents_completion;
@@ -274,6 +299,7 @@ fn list_item(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     if token_kind(&item) != Some(TokenKind::DotDot) {
@@ -283,6 +309,7 @@ fn list_item(
             PatternPrecedence::Lowest,
             baseline,
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+            line_handoff,
             completion,
         );
     }
@@ -300,6 +327,7 @@ fn list_item(
         PatternPrecedence::Lowest,
         rhs_baseline,
         PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+        line_handoff,
         completion,
     );
     i.state.finish_node();
@@ -310,6 +338,7 @@ fn record_item(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     if token_kind(&item) == Some(TokenKind::DotDot) {
@@ -331,6 +360,7 @@ fn record_item(
             PatternPrecedence::Lowest,
             rhs_baseline,
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
+            line_handoff,
             completion,
         );
         i.state.finish_node();
@@ -363,11 +393,12 @@ fn record_item(
             PatternPrecedence::Lowest,
             nested_baseline,
             record_stops,
+            line_handoff,
             completion,
         );
-        record_default_after_pattern(i.rb(), exit, baseline)
+        record_default_after_pattern(i.rb(), exit, baseline, line_handoff)
     } else if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Equals) {
-        record_default_after_equals(i.rb(), item, baseline)
+        record_default_after_equals(i.rb(), item, baseline, line_handoff)
     } else {
         handoff(item)
     };
@@ -375,7 +406,12 @@ fn record_item(
     exit
 }
 
-fn record_default_after_pattern(mut i: RewriteIn, exit: TailExit, baseline: usize) -> TailExit {
+fn record_default_after_pattern(
+    mut i: RewriteIn,
+    exit: TailExit,
+    baseline: usize,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let item = match exit {
         Ok(()) => scan_pattern_nud_successor(
             i.rb(),
@@ -385,13 +421,18 @@ fn record_default_after_pattern(mut i: RewriteIn, exit: TailExit, baseline: usiz
         Err(Either::Right(end)) => return Err(Either::Right(end)),
     };
     if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Equals) {
-        record_default_after_equals(i, item, baseline)
+        record_default_after_equals(i, item, baseline, line_handoff)
     } else {
         handoff(item)
     }
 }
 
-fn record_default_after_equals(mut i: RewriteIn, equals: Item, baseline: usize) -> TailExit {
+fn record_default_after_equals(
+    mut i: RewriteIn,
+    equals: Item,
+    baseline: usize,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     emit_token_item(&mut i, equals);
     let leading = scan_trivia(i.rb());
     let mut rhs = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, 0);
@@ -399,7 +440,15 @@ fn record_default_after_equals(mut i: RewriteIn, equals: Item, baseline: usize) 
         let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
         let leading = std::mem::take(&mut rhs.leading);
         emit_leading_trivia(&mut i, &leading);
-        return super::super::driver::expr_from_nud(i, rhs, None, rhs_baseline, 0, MlMode::All);
+        return super::super::driver::expr_from_nud(
+            i,
+            rhs,
+            None,
+            rhs_baseline,
+            stops_for(TokenKind::RBrace),
+            MlMode::All,
+            line_handoff,
+        );
     }
     let leading = std::mem::take(&mut rhs.leading);
     emit_missing(&mut i, leading);

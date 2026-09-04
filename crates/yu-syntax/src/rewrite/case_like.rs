@@ -24,7 +24,7 @@ use super::{
         PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET, PATTERN_STOP_RPAREN, PATTERN_STOP_SEMICOLON,
         PatternStops, is_pattern_nud, pattern_from_entry_item, pattern_stops_from_owner,
     },
-    statement::indented_statement_block,
+    statement::{StatementLineHandoff, indented_statement_block},
 };
 
 #[derive(Clone, Copy)]
@@ -54,14 +54,23 @@ pub(super) fn case_like_nud(
     baseline: usize,
     outer_stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     emit_leading_trivia(&mut i, &keyword.leading);
     keyword.leading = LeadingTrivia::default();
     i.state.start_node(family.expression_node().into());
     emit_keyword(&mut i, keyword, family.keyword_node());
-    let exit = case_like_head(i.rb(), family, baseline, outer_stops);
+    let exit = case_like_head(i.rb(), family, baseline, outer_stops, line_handoff);
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, outer_stops, ml_mode, exit)
+    continue_completed_tail(
+        i,
+        threshold,
+        baseline,
+        outer_stops,
+        ml_mode,
+        line_handoff,
+        exit,
+    )
 }
 
 fn case_like_head(
@@ -69,6 +78,7 @@ fn case_like_head(
     family: CaseLikeFamily,
     baseline: usize,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     emit_leading_trivia(&mut i, &leading);
@@ -96,13 +106,21 @@ fn case_like_head(
     );
     i.state.start_node(family.scrutinee_node().into());
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = required_expr_item(i.rb(), item, None, baseline, scrutinee_stops, MlMode::All);
+    let exit = required_expr_item(
+        i.rb(),
+        item,
+        None,
+        baseline,
+        scrutinee_stops,
+        MlMode::All,
+        line_handoff,
+    );
     i.state.finish_node();
     i.state.finish_node();
 
     match exit {
         Err(Either::Left(introducer)) if token_kind(&introducer) == Some(TokenKind::Colon) => {
-            colon_block(i, family, introducer, baseline, outer_stops)
+            colon_block(i, family, introducer, baseline, outer_stops, line_handoff)
         }
         Err(Either::Left(open))
             if matches!(family, CaseLikeFamily::Catch)
@@ -120,6 +138,7 @@ fn colon_block(
     colon: Item,
     baseline: usize,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(family.block_node().into());
     emit_token_item(&mut i, colon);
@@ -130,13 +149,14 @@ fn colon_block(
                 CaseLikeFamily::Case => ArmSequencePolicy::CaseInline,
                 CaseLikeFamily::Catch => ArmSequencePolicy::CatchInline,
             };
-            arm_sequence(i.rb(), policy, baseline, outer_stops)
+            arm_sequence(i.rb(), policy, baseline, outer_stops, line_handoff)
         }
         Some(arm_indent) if arm_indent > baseline => arm_sequence(
             i.rb(),
             ArmSequencePolicy::Indented { family, arm_indent },
             baseline,
             outer_stops,
+            line_handoff,
         ),
         Some(_) => wrong_indent_block(i.rb(), family),
     };
@@ -167,6 +187,7 @@ fn catch_braced_block(
         ArmSequencePolicy::CatchBraced { baseline },
         baseline,
         outer_stops,
+        StatementLineHandoff::CatchBracedArm,
     );
     i.state.finish_node();
     exit
@@ -196,6 +217,7 @@ fn arm_sequence(
     policy: ArmSequencePolicy,
     baseline: usize,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let first_stops = policy.first_pattern_stops(outer_stops);
     let mut item = scan_arm_item(i.rb(), first_stops);
@@ -211,6 +233,7 @@ fn arm_sequence(
             policy.body_stops(),
             first_stops,
             outer_stops,
+            line_handoff,
         );
         let next = match exit {
             Err(Either::Left(next)) => next,
@@ -237,9 +260,10 @@ fn arm(
     body_stops: Stops,
     first_stops: PatternStops,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(family.arm_node().into());
-    let exit = pattern_from_entry_item(i.rb(), item, arm_baseline, first_stops);
+    let exit = pattern_from_entry_item(i.rb(), item, arm_baseline, first_stops, line_handoff);
     let item = match arm_successor(i.rb(), exit, first_stops) {
         Ok(item) => item,
         Err(exit) => return finish_absent_arm(i, exit),
@@ -252,7 +276,8 @@ fn arm(
             emit_token_item(&mut i, comma);
             let handler_stops = family.handler_pattern_stops(outer_stops);
             let handler = scan_arm_item(i.rb(), handler_stops);
-            let exit = pattern_from_entry_item(i.rb(), handler, arm_baseline, handler_stops);
+            let exit =
+                pattern_from_entry_item(i.rb(), handler, arm_baseline, handler_stops, line_handoff);
             match arm_successor(i.rb(), exit, first_stops) {
                 Ok(item) => item,
                 Err(exit) => return finish_absent_arm(i, exit),
@@ -262,7 +287,15 @@ fn arm(
         };
 
     let item = if let Some(kind) = guard_kind(i.rb(), &item) {
-        guard(i.rb(), family, item, arm_baseline, outer_stops, kind)
+        guard(
+            i.rb(),
+            family,
+            item,
+            arm_baseline,
+            outer_stops,
+            kind,
+            line_handoff,
+        )
     } else {
         Ok(item)
     };
@@ -276,9 +309,20 @@ fn arm(
         let arrow_baseline = indentation_after_newline(&arrow.leading).unwrap_or(arm_baseline);
         emit_leading_trivia(&mut i, &std::mem::take(&mut arrow.leading));
         emit_token_item(&mut i, arrow);
-        arm_body(i.rb(), arrow_baseline, body_stops | outer_stops)
+        arm_body(
+            i.rb(),
+            arrow_baseline,
+            body_stops | outer_stops,
+            line_handoff,
+        )
     } else {
-        missing_arrow_then_body(i.rb(), item, arm_baseline, body_stops | outer_stops)
+        missing_arrow_then_body(
+            i.rb(),
+            item,
+            arm_baseline,
+            body_stops | outer_stops,
+            line_handoff,
+        )
     };
     let exit = arm_terminal(i.rb(), exit, first_stops);
     i.state.finish_node();
@@ -311,6 +355,7 @@ fn guard(
     baseline: usize,
     outer_stops: Stops,
     kind: SyntaxKind,
+    line_handoff: StatementLineHandoff,
 ) -> Result<Item, TailExit> {
     emit_leading_trivia(&mut i, &std::mem::take(&mut keyword.leading));
     i.state.start_node(family.guard_node().into());
@@ -332,6 +377,7 @@ fn guard(
         baseline,
         outer_stops | STOP_ARROW,
         MlMode::All,
+        line_handoff,
     );
     i.state.finish_node();
     i.state.finish_node();
@@ -343,15 +389,21 @@ fn missing_arrow_then_body(
     mut item: Item,
     arm_baseline: usize,
     body_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if !implicit_delimited_newline(arm_baseline, &item.leading) {
         emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
     }
     emit_missing(&mut i, LeadingTrivia::default());
-    arm_inline_body_item(i, item, arm_baseline, body_stops)
+    arm_inline_body_item(i, item, arm_baseline, body_stops, line_handoff)
 }
 
-fn arm_body(mut i: RewriteIn, arrow_baseline: usize, body_stops: Stops) -> TailExit {
+fn arm_body(
+    mut i: RewriteIn,
+    arrow_baseline: usize,
+    body_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     if introduced_body_indentation(i.rb()).is_some_and(|indentation| indentation > arrow_baseline) {
         indented_statement_block(i, arrow_baseline, body_stops)
     } else {
@@ -363,7 +415,7 @@ fn arm_body(mut i: RewriteIn, arrow_baseline: usize, body_stops: Stops) -> TailE
             arrow_baseline,
             body_stops,
         );
-        arm_inline_body_item(i, item, arrow_baseline, body_stops)
+        arm_inline_body_item(i, item, arrow_baseline, body_stops, line_handoff)
     }
 }
 
@@ -372,6 +424,7 @@ fn arm_inline_body_item(
     mut item: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if arm_body_boundary(i.rb(), &item, baseline, stops) {
         if !implicit_delimited_newline(baseline, &item.leading) {
@@ -382,7 +435,7 @@ fn arm_inline_body_item(
     }
     emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
     if is_nud_item(&item) {
-        return expr_from_nud(i, item, None, baseline, stops, MlMode::All);
+        return expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff);
     }
 
     item = retry_arm_body(i.rb(), item, baseline, stops);
@@ -395,7 +448,7 @@ fn arm_inline_body_item(
     }
     emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
     debug_assert!(is_nud_item(&item));
-    expr_from_nud(i, item, None, baseline, stops, MlMode::All)
+    expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff)
 }
 
 fn retry_arm_body(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {

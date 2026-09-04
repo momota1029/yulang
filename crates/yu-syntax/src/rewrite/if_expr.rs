@@ -15,7 +15,7 @@ use super::{
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{introduced_body_indentation, scan_trivia, tail_item_after_trivia},
     operator::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE},
-    statement::indented_statement_block,
+    statement::{StatementLineHandoff, indented_statement_block},
 };
 
 pub(super) fn if_nud(
@@ -25,14 +25,30 @@ pub(super) fn if_nud(
     baseline: usize,
     outer_stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     emit_leading_trivia(&mut i, &keyword.leading);
     keyword.leading = LeadingTrivia::default();
     i.state.start_node(SyntaxKind::IfExpression.into());
-    let exit = if_arm(i.rb(), keyword, SyntaxKind::IfKw, baseline, outer_stops);
-    let exit = if_continuations(i.rb(), exit, baseline, outer_stops);
+    let exit = if_arm(
+        i.rb(),
+        keyword,
+        SyntaxKind::IfKw,
+        baseline,
+        outer_stops,
+        line_handoff,
+    );
+    let exit = if_continuations(i.rb(), exit, baseline, outer_stops, line_handoff);
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, outer_stops, ml_mode, exit)
+    continue_completed_tail(
+        i,
+        threshold,
+        baseline,
+        outer_stops,
+        ml_mode,
+        line_handoff,
+        exit,
+    )
 }
 
 fn if_continuations(
@@ -40,6 +56,7 @@ fn if_continuations(
     mut exit: TailExit,
     if_baseline: usize,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     loop {
         let Err(Either::Left(mut keyword)) = exit else {
@@ -51,8 +68,15 @@ fn if_continuations(
         emit_leading_trivia(&mut i, &keyword.leading);
         keyword.leading = LeadingTrivia::default();
         exit = match kind {
-            SyntaxKind::ElsifKw => if_arm(i.rb(), keyword, kind, if_baseline, outer_stops),
-            SyntaxKind::ElseKw => else_arm(i.rb(), keyword, if_baseline, outer_stops),
+            SyntaxKind::ElsifKw => if_arm(
+                i.rb(),
+                keyword,
+                kind,
+                if_baseline,
+                outer_stops,
+                line_handoff,
+            ),
+            SyntaxKind::ElseKw => else_arm(i.rb(), keyword, if_baseline, outer_stops, line_handoff),
             _ => unreachable!("only if-continuation keyword kinds are selected"),
         };
         if kind == SyntaxKind::ElseKw {
@@ -61,14 +85,33 @@ fn if_continuations(
     }
 }
 
-fn arm_keyword(mut i: RewriteIn, item: &Item, if_baseline: usize) -> Option<SyntaxKind> {
-    let continuation = indentation_after_newline(&item.leading)
-        .is_none_or(|indentation| indentation >= if_baseline);
+fn arm_keyword(i: RewriteIn, item: &Item, if_baseline: usize) -> Option<SyntaxKind> {
+    match active_statement_companion(i, item, if_baseline, STOP_ELSIF | STOP_ELSE) {
+        Some(ActiveStatementCompanion::Elsif) => Some(SyntaxKind::ElsifKw),
+        Some(ActiveStatementCompanion::Else) => Some(SyntaxKind::ElseKw),
+        None => None,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ActiveStatementCompanion {
+    Elsif,
+    Else,
+}
+
+pub(super) fn active_statement_companion(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+) -> Option<ActiveStatementCompanion> {
+    let continuation =
+        indentation_after_newline(&item.leading).is_none_or(|indentation| indentation >= baseline);
     continuation.then_some(())?;
-    if is_contextual_word(i.rb(), item, "elsif") {
-        Some(SyntaxKind::ElsifKw)
-    } else if is_contextual_word(i, item, "else") {
-        Some(SyntaxKind::ElseKw)
+    if stops & STOP_ELSIF != 0 && is_contextual_word(i.rb(), item, "elsif") {
+        Some(ActiveStatementCompanion::Elsif)
+    } else if stops & STOP_ELSE != 0 && is_contextual_word(i, item, "else") {
+        Some(ActiveStatementCompanion::Else)
     } else {
         None
     }
@@ -80,17 +123,23 @@ fn if_arm(
     keyword_kind: SyntaxKind,
     baseline: usize,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::IfArm.into());
     emit_contextual_keyword(&mut i, keyword, keyword_kind);
 
     let condition_stops = outer_stops | STOP_COLON | STOP_LBRACE | STOP_ELSIF | STOP_ELSE;
-    let (exit, condition_missing) = condition(i.rb(), baseline, condition_stops);
+    let (exit, condition_missing) = condition(i.rb(), baseline, condition_stops, line_handoff);
 
     let exit = match exit {
         Err(Either::Left(colon)) if token_kind(&colon) == Some(TokenKind::Colon) => {
             emit_token_item(&mut i, colon);
-            colon_body(i.rb(), baseline, outer_stops | STOP_ELSIF | STOP_ELSE)
+            colon_body(
+                i.rb(),
+                baseline,
+                outer_stops | STOP_ELSIF | STOP_ELSE,
+                line_handoff,
+            )
         }
         exit => missing_if_arm(i.rb(), exit, condition_missing),
     };
@@ -98,7 +147,12 @@ fn if_arm(
     exit
 }
 
-fn condition(mut i: RewriteIn, baseline: usize, stops: Stops) -> (TailExit, bool) {
+fn condition(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> (TailExit, bool) {
     let leading = scan_trivia(i.rb());
     emit_leading_trivia(&mut i, &leading);
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
@@ -106,7 +160,15 @@ fn condition(mut i: RewriteIn, baseline: usize, stops: Stops) -> (TailExit, bool
     let missing = is_required_operand_boundary(i.rb(), &item, stops);
     i.state.start_node(SyntaxKind::Condition.into());
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = required_expr_item(i.rb(), item, None, baseline, stops, MlMode::All);
+    let exit = required_expr_item(
+        i.rb(),
+        item,
+        None,
+        baseline,
+        stops,
+        MlMode::All,
+        line_handoff,
+    );
     i.state.finish_node();
     i.state.finish_node();
     (exit, missing)
@@ -131,7 +193,13 @@ fn missing_if_arm(mut i: RewriteIn, exit: TailExit, condition_missing: bool) -> 
     }
 }
 
-fn else_arm(mut i: RewriteIn, keyword: Item, baseline: usize, outer_stops: Stops) -> TailExit {
+fn else_arm(
+    mut i: RewriteIn,
+    keyword: Item,
+    baseline: usize,
+    outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     i.state.start_node(SyntaxKind::ElseArm.into());
     emit_contextual_keyword(&mut i, keyword, SyntaxKind::ElseKw);
 
@@ -139,29 +207,56 @@ fn else_arm(mut i: RewriteIn, keyword: Item, baseline: usize, outer_stops: Stops
     let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, outer_stops);
     let exit = if token_kind(&item) == Some(TokenKind::Colon) {
         emit_token_item(&mut i, item);
-        colon_body(i.rb(), baseline, outer_stops | STOP_ELSIF | STOP_ELSE)
+        colon_body(
+            i.rb(),
+            baseline,
+            outer_stops | STOP_ELSIF | STOP_ELSE,
+            line_handoff,
+        )
     } else {
-        inline_body_item(i.rb(), item, baseline, outer_stops | STOP_ELSIF | STOP_ELSE)
+        inline_body_item(
+            i.rb(),
+            item,
+            baseline,
+            outer_stops | STOP_ELSIF | STOP_ELSE,
+            line_handoff,
+        )
     };
     i.state.finish_node();
     exit
 }
 
-fn colon_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+fn colon_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     if introduced_body_indentation(i.rb()).is_some_and(|indentation| indentation > baseline) {
         indented_statement_block(i, baseline, stops)
     } else {
-        inline_body(i, baseline, stops)
+        inline_body(i, baseline, stops, line_handoff)
     }
 }
 
-fn inline_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+fn inline_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    inline_body_item(i, item, baseline, stops)
+    inline_body_item(i, item, baseline, stops, line_handoff)
 }
 
-fn inline_body_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> TailExit {
+fn inline_body_item(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     if inline_boundary(i.rb(), &item, baseline, stops) {
         emit_inline_missing(&mut i, &mut item, baseline);
         return handoff(item);
@@ -169,7 +264,7 @@ fn inline_body_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: St
 
     emit_inline_leading(&mut i, &mut item);
     if is_nud_item(&item) {
-        return expr_from_nud(i, item, None, baseline, stops, MlMode::All);
+        return expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff);
     }
 
     item = retry_inline_body(i.rb(), item, baseline, stops);
@@ -181,7 +276,7 @@ fn inline_body_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: St
     }
     emit_inline_leading(&mut i, &mut item);
     debug_assert!(is_nud_item(&item));
-    expr_from_nud(i, item, None, baseline, stops, MlMode::All)
+    expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff)
 }
 
 fn retry_inline_body(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {

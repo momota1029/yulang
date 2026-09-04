@@ -18,8 +18,8 @@ use super::{
     },
     operator::source_after_trivia,
     statement::{
-        braced_statement_block, canonical_statement, indented_statement_block,
-        is_canonical_statement_nud,
+        StatementLineHandoff, braced_statement_block, canonical_statement,
+        indented_statement_block, is_canonical_statement_nud,
     },
 };
 
@@ -46,6 +46,7 @@ pub(super) fn mod_declaration(
     intro: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     debug_assert!(mod_declaration_selected(i.rb(), &intro, baseline));
     i.state.start_node(SyntaxKind::ModDeclaration.into());
@@ -72,7 +73,7 @@ pub(super) fn mod_declaration(
                     emit_missing(&mut i, LeadingTrivia::default());
                     handoff(scan_pending_item(i.rb(), baseline, stops))
                 } else {
-                    parse_body(i.rb(), baseline, stops)
+                    parse_body(i.rb(), baseline, stops, line_handoff)
                 }
             }
             Err(boundary) => handoff(boundary),
@@ -153,12 +154,23 @@ fn required_name(mut i: RewriteIn, baseline: usize, stops: Stops) -> SlotResult<
     }
 }
 
-fn parse_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+fn parse_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let item = statement_item_after_trivia(i.rb(), LeadingTrivia::default(), baseline, stops);
-    parse_body_item(i, item, baseline, stops)
+    parse_body_item(i, item, baseline, stops, line_handoff)
 }
 
-fn parse_body_item(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> TailExit {
+fn parse_body_item(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     match token_kind(&item) {
         Some(TokenKind::Semicolon) => {
             emit_token_item(&mut i, item);
@@ -173,7 +185,7 @@ fn parse_body_item(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) 
         }
         Some(TokenKind::Colon) => {
             emit_token_item(&mut i, item);
-            parse_colon_body(i, baseline, stops)
+            parse_colon_body(i, baseline, stops, line_handoff)
         }
         _ if mod_boundary(i.rb(), &item, baseline, stops) => {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -181,9 +193,9 @@ fn parse_body_item(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) 
         }
         _ if is_canonical_statement_nud(i.rb(), &item, baseline) => {
             emit_missing(&mut i, LeadingTrivia::default());
-            parse_inline_statement(i, item, baseline, stops)
+            parse_inline_statement(i, item, baseline, stops, line_handoff)
         }
-        _ => recover_body_introducer(i, item, baseline, stops),
+        _ => recover_body_introducer(i, item, baseline, stops, line_handoff),
     }
 }
 
@@ -192,6 +204,7 @@ fn recover_body_introducer(
     mut item: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -204,7 +217,7 @@ fn recover_body_introducer(
         }
         if is_body_starter_item(&item) {
             i.state.finish_node();
-            return parse_body_item(i, item, baseline, stops);
+            return parse_body_item(i, item, baseline, stops, line_handoff);
         }
         if mod_boundary(i.rb(), &item, baseline, stops) {
             i.state.finish_node();
@@ -212,12 +225,17 @@ fn recover_body_introducer(
         }
         if is_canonical_statement_nud(i.rb(), &item, baseline) {
             i.state.finish_node();
-            return parse_inline_statement(i, item, baseline, stops);
+            return parse_inline_statement(i, item, baseline, stops, line_handoff);
         }
     }
 }
 
-fn parse_colon_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+fn parse_colon_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     match introduced_body_indentation(i.rb()) {
         Some(indentation) if indentation > baseline => indented_statement_block(i, baseline, stops),
         Some(_) => {
@@ -227,12 +245,18 @@ fn parse_colon_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit
         None => {
             let leading = scan_trivia(i.rb());
             let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
-            parse_inline_body_item(i, item, baseline, stops)
+            parse_inline_body_item(i, item, baseline, stops, line_handoff)
         }
     }
 }
 
-fn parse_inline_body_item(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> TailExit {
+fn parse_inline_body_item(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     if inline_terminal_semicolon(&item) {
         emit_missing(&mut i, LeadingTrivia::default());
         emit_token_item(&mut i, item);
@@ -243,7 +267,7 @@ fn parse_inline_body_item(mut i: RewriteIn, item: Item, baseline: usize, stops: 
         return handoff(item);
     }
     if is_canonical_statement_nud(i.rb(), &item, baseline) {
-        return parse_inline_statement(i, item, baseline, stops);
+        return parse_inline_statement(i, item, baseline, stops, line_handoff);
     }
 
     i.state.start_node(SyntaxKind::Error.into());
@@ -263,13 +287,25 @@ fn parse_inline_body_item(mut i: RewriteIn, item: Item, baseline: usize, stops: 
         }
         if is_canonical_statement_nud(i.rb(), &item, baseline) {
             i.state.finish_node();
-            return parse_inline_statement(i, item, baseline, stops);
+            return parse_inline_statement(i, item, baseline, stops, line_handoff);
         }
     }
 }
 
-fn parse_inline_statement(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> TailExit {
-    let exit = canonical_statement(i.rb(), item, baseline, stops);
+fn parse_inline_statement(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
+    let exit = canonical_statement(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        line_handoff.through_inline_statement(),
+    );
     match exit {
         Ok(()) => scan_after_completed(i, baseline, stops),
         Err(Either::Left(item)) if inline_terminal_semicolon(&item) => {

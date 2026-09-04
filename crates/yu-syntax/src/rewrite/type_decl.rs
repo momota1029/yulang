@@ -6,8 +6,12 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
-    driver::{TailExit, handoff, implicit_delimited_newline, is_active_stop, token_kind},
+    driver::{
+        TailExit, handoff, implicit_delimited_newline, indentation_after_newline, is_active_stop,
+        token_kind,
+    },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    if_expr::{ActiveStatementCompanion, active_statement_companion},
     item::{Item, LeadingTrivia, Payload, Token, TokenKind},
     lexer::{
         declaration_type_header_item_after_trivia, is_declaration_starter_word,
@@ -15,6 +19,7 @@ use super::{
         statement_item_after_trivia, type_nud_item_after_trivia,
     },
     operator::{STOP_SEMICOLON, STOP_WITH, source_after_trivia},
+    statement::StatementLineHandoff,
     type_expr::{is_type_caller_boundary, required_type_expr_with_caller_stops},
 };
 
@@ -35,6 +40,7 @@ pub(super) fn type_declaration(
     intro: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     debug_assert!(type_declaration_selected(i.rb(), &intro, baseline));
     i.state.start_node(SyntaxKind::TypeDeclaration.into());
@@ -57,9 +63,9 @@ pub(super) fn type_declaration(
         match required_name(i.rb(), baseline, stops) {
             Ok(None) => {
                 parameters(i.rb());
-                definition(i.rb(), None, baseline, stops)
+                definition(i.rb(), None, baseline, stops, line_handoff)
             }
-            Ok(Some(equals)) => definition(i.rb(), Some(equals), baseline, stops),
+            Ok(Some(equals)) => definition(i.rb(), Some(equals), baseline, stops, line_handoff),
             Err(boundary) => handoff(boundary),
         }
     };
@@ -121,16 +127,45 @@ fn parameters(mut i: RewriteIn) {
     i.state.finish_node();
 }
 
-fn definition(mut i: RewriteIn, pending: Option<Item>, baseline: usize, stops: Stops) -> TailExit {
+fn definition(
+    mut i: RewriteIn,
+    pending: Option<Item>,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let already_scanned = pending.is_some();
-    let mut item = pending.unwrap_or_else(|| definition_item(i.rb(), baseline));
+    let mut item = pending.unwrap_or_else(|| definition_item(i.rb()));
+    let companion = (!already_scanned)
+        .then(|| active_statement_companion(i.rb(), &item, baseline, stops))
+        .flatten();
+    match type_form(
+        i.rb(),
+        &item,
+        baseline,
+        stops,
+        line_handoff,
+        companion,
+        already_scanned,
+    ) {
+        TypeDeclarationForm::Equality => {
+            emit_token_item(&mut i, item);
+            return rhs(i, baseline, stops);
+        }
+        TypeDeclarationForm::Nominal(boundary) => {
+            if boundary.type_owns_leading() {
+                emit_item_leading(&mut i, &mut item);
+            }
+            return handoff(item);
+        }
+        TypeDeclarationForm::EqualityRecovery => {}
+    }
+    if !already_scanned && gtype_item_allowed(&item, baseline) {
+        emit_item_leading(&mut i, &mut item);
+    }
     if !already_scanned && !gtype_item_allowed(&item, baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
-    }
-    if token_kind(&item) == Some(TokenKind::Equals) {
-        emit_token_item(&mut i, item);
-        return rhs(i, baseline, stops);
     }
     if definition_boundary(i.rb(), &item, baseline, stops) {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -184,13 +219,87 @@ fn rhs_item(mut i: RewriteIn, mut primary: Item, baseline: usize, stops: Stops) 
     required_type_expr_with_caller_stops(i, primary, baseline, caller_stops)
 }
 
-fn definition_item(mut i: RewriteIn, baseline: usize) -> Item {
+fn definition_item(mut i: RewriteIn) -> Item {
     let leading = scan_trivia(i.rb());
-    let mut item = type_nud_item_after_trivia(i.rb(), leading);
-    if gtype_item_allowed(&item, baseline) {
-        emit_item_leading(&mut i, &mut item);
+    type_nud_item_after_trivia(i.rb(), leading)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeDeclarationForm {
+    Equality,
+    Nominal(NominalBoundary),
+    EqualityRecovery,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NominalBoundary {
+    SameLineTerminal,
+    EofOwnedTrivia,
+    OrdinaryLayoutNewline,
+    BracedStatementSequenceNewline,
+    CatchArmSequenceNewlineThroughInlineCanonicalStatement,
+    ActiveFixed,
+    AmbientCompanion,
+}
+
+impl NominalBoundary {
+    fn type_owns_leading(self) -> bool {
+        matches!(self, Self::SameLineTerminal | Self::EofOwnedTrivia)
     }
-    item
+}
+
+fn type_form(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    companion: Option<ActiveStatementCompanion>,
+    name_was_incomplete: bool,
+) -> TypeDeclarationForm {
+    if name_was_incomplete {
+        debug_assert_eq!(token_kind(item), Some(TokenKind::Equals));
+        return TypeDeclarationForm::Equality;
+    }
+    if companion.is_some() {
+        return TypeDeclarationForm::Nominal(NominalBoundary::AmbientCompanion);
+    }
+    if token_kind(item) == Some(TokenKind::Equals) && gtype_item_allowed(item, baseline) {
+        return TypeDeclarationForm::Equality;
+    }
+    if let Some(indentation) = indentation_after_newline(&item.leading) {
+        return match line_handoff {
+            StatementLineHandoff::OrdinaryLayout if indentation <= baseline => {
+                TypeDeclarationForm::Nominal(NominalBoundary::OrdinaryLayoutNewline)
+            }
+            StatementLineHandoff::BracedStatementSequence => {
+                TypeDeclarationForm::Nominal(NominalBoundary::BracedStatementSequenceNewline)
+            }
+            StatementLineHandoff::CatchArmSequenceThroughInlineCanonicalStatement => {
+                TypeDeclarationForm::Nominal(
+                    NominalBoundary::CatchArmSequenceNewlineThroughInlineCanonicalStatement,
+                )
+            }
+            StatementLineHandoff::OrdinaryLayout if matches!(item.payload, Payload::Eof) => {
+                TypeDeclarationForm::Nominal(NominalBoundary::EofOwnedTrivia)
+            }
+            StatementLineHandoff::CatchBracedArm | StatementLineHandoff::OrdinaryLayout => {
+                TypeDeclarationForm::EqualityRecovery
+            }
+        };
+    }
+    if matches!(item.payload, Payload::Eof) || token_kind(item) == Some(TokenKind::Semicolon) {
+        return TypeDeclarationForm::Nominal(NominalBoundary::SameLineTerminal);
+    }
+    if is_active_stop(i.rb(), item, stops)
+        && matches!(
+            token_kind(item),
+            Some(TokenKind::Comma | TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+        )
+    {
+        return TypeDeclarationForm::Nominal(NominalBoundary::ActiveFixed);
+    }
+    TypeDeclarationForm::EqualityRecovery
 }
 
 fn rhs_gap_is_outer_owned(item: &Item, baseline: usize, caller_stops: Stops) -> bool {

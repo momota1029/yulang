@@ -22,7 +22,7 @@ use super::{
         PATTERN_STOP_IN, PATTERN_STOP_LBRACE, PATTERN_STOP_PRIMARY_COLON, PatternCompletion,
         pattern_from_entry_item_with_completion, pattern_stops_from_owner,
     },
-    statement::{braced_statement_block, indented_statement_block},
+    statement::{StatementLineHandoff, braced_statement_block, indented_statement_block},
 };
 
 pub(super) fn for_statement_selected(item: &Item) -> bool {
@@ -34,12 +34,13 @@ pub(super) fn for_statement(
     keyword: Item,
     baseline: usize,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     debug_assert!(for_statement_selected(&keyword));
     i.state.start_node(SyntaxKind::ForStatement.into());
     emit_keyword(&mut i, keyword, SyntaxKind::ForKw, "for");
     emit_optional_label(i.rb(), baseline, outer_stops);
-    let exit = pattern_slot(i.rb(), baseline, outer_stops);
+    let exit = pattern_slot(i.rb(), baseline, outer_stops, line_handoff);
     i.state.finish_node();
     exit
 }
@@ -91,7 +92,12 @@ fn scan_label(
     Some((before, label, after))
 }
 
-fn pattern_slot(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailExit {
+fn pattern_slot(
+    mut i: RewriteIn,
+    baseline: usize,
+    outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let stops = pattern_stops_from_owner(outer_stops)
         | PATTERN_STOP_PRIMARY_COLON
         | PATTERN_STOP_LBRACE
@@ -110,15 +116,16 @@ fn pattern_slot(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailEx
         return handoff(item);
     }
     emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
-    let outcome = pattern_from_entry_item_with_completion(i.rb(), item, baseline, stops);
+    let outcome =
+        pattern_from_entry_item_with_completion(i.rb(), item, baseline, stops, line_handoff);
     match outcome.exit {
         Err(Either::Left(item)) => match outcome.completion {
-            PatternCompletion::Complete => in_slot(i, item, baseline, outer_stops),
+            PatternCompletion::Complete => in_slot(i, item, baseline, outer_stops, line_handoff),
             PatternCompletion::Incomplete if missing_at_in => {
-                in_slot(i, item, baseline, outer_stops)
+                in_slot(i, item, baseline, outer_stops, line_handoff)
             }
             PatternCompletion::Incomplete if missing_at_body => {
-                body(i, item, baseline, outer_stops)
+                body(i, item, baseline, outer_stops, line_handoff)
             }
             PatternCompletion::Incomplete => handoff(item),
         },
@@ -127,14 +134,20 @@ fn pattern_slot(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailEx
     }
 }
 
-fn in_slot(mut i: RewriteIn, mut item: Item, baseline: usize, outer_stops: Stops) -> TailExit {
+fn in_slot(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     if implicit_delimited_newline(baseline, &item.leading) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
     if item_word(&item) == Some("in") {
         emit_keyword(&mut i, item, SyntaxKind::InKw, "in");
-        return iterable(i, baseline, outer_stops);
+        return iterable(i, baseline, outer_stops, line_handoff);
     }
 
     if !outer_boundary(i.rb(), &item, baseline, outer_stops)
@@ -150,15 +163,20 @@ fn in_slot(mut i: RewriteIn, mut item: Item, baseline: usize, outer_stops: Stops
         token_kind(&item),
         Some(TokenKind::Colon | TokenKind::LBrace)
     ) {
-        return body(i, item, baseline, outer_stops);
+        return body(i, item, baseline, outer_stops, line_handoff);
     }
     if outer_boundary(i.rb(), &item, baseline, outer_stops) {
         return handoff(item);
     }
-    iterable_from_item(i, item, baseline, outer_stops, false)
+    iterable_from_item(i, item, baseline, outer_stops, false, line_handoff)
 }
 
-fn iterable(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailExit {
+fn iterable(
+    mut i: RewriteIn,
+    baseline: usize,
+    outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut item = tail_item_after_trivia(
         i.rb(),
@@ -171,7 +189,7 @@ fn iterable(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailExit {
     if !implicit_delimited_newline(baseline, &item.leading) {
         emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
     }
-    iterable_from_item(i, item, baseline, outer_stops, missing)
+    iterable_from_item(i, item, baseline, outer_stops, missing, line_handoff)
 }
 
 fn iterable_from_item(
@@ -180,6 +198,7 @@ fn iterable_from_item(
     baseline: usize,
     outer_stops: Stops,
     missing: bool,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if !implicit_delimited_newline(baseline, &item.leading) && !item.leading.0.is_empty() {
         emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
@@ -197,6 +216,7 @@ fn iterable_from_item(
             baseline,
             iterable_stops(outer_stops),
             MlMode::All,
+            line_handoff,
         )
     };
     i.state.finish_node();
@@ -209,17 +229,23 @@ fn iterable_from_item(
                 Some(TokenKind::Colon | TokenKind::LBrace)
             ) =>
         {
-            body(i, item, baseline, outer_stops)
+            body(i, item, baseline, outer_stops, line_handoff)
         }
         Err(Either::Left(item)) if missing => handoff(item),
-        Err(Either::Left(item)) => body(i, item, baseline, outer_stops),
+        Err(Either::Left(item)) => body(i, item, baseline, outer_stops, line_handoff),
         Err(Either::Right(end)) if missing => Err(Either::Right(end)),
         Err(Either::Right(end)) => missing_body_introducer(i, Err(Either::Right(end))),
         Ok(()) => unreachable!("an iterable leaves its successor Item"),
     }
 }
 
-fn body(mut i: RewriteIn, mut item: Item, baseline: usize, outer_stops: Stops) -> TailExit {
+fn body(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     if implicit_delimited_newline(baseline, &item.leading) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
@@ -227,7 +253,7 @@ fn body(mut i: RewriteIn, mut item: Item, baseline: usize, outer_stops: Stops) -
     match token_kind(&item) {
         Some(TokenKind::Colon) => {
             emit_token_item(&mut i, item);
-            colon_body(i, baseline, outer_stops)
+            colon_body(i, baseline, outer_stops, line_handoff)
         }
         Some(TokenKind::LBrace) => {
             emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
@@ -236,11 +262,16 @@ fn body(mut i: RewriteIn, mut item: Item, baseline: usize, outer_stops: Stops) -
         _ if outer_boundary(i.rb(), &item, baseline, outer_stops) => {
             missing_body_introducer(i, handoff(item))
         }
-        _ => recover_body_introducer(i, item, baseline, outer_stops),
+        _ => recover_body_introducer(i, item, baseline, outer_stops, line_handoff),
     }
 }
 
-fn colon_body(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailExit {
+fn colon_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     match introduced_body_indentation(i.rb()) {
         Some(indentation) if indentation > baseline => {
             indented_statement_block(i, baseline, outer_stops)
@@ -251,17 +282,30 @@ fn colon_body(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailExit
             let item = statement_item_after_trivia(i, leading, baseline, outer_stops);
             handoff(item)
         }
-        None => inline_body(i, baseline, outer_stops),
+        None => inline_body(i, baseline, outer_stops, line_handoff),
     }
 }
 
-fn inline_body(mut i: RewriteIn, baseline: usize, outer_stops: Stops) -> TailExit {
+fn inline_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let stops = outer_stops | STOP_COMMA | STOP_SEMICOLON;
     let leading = scan_trivia(i.rb());
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
     emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = required_expr_item(i.rb(), item, None, baseline, stops, MlMode::All);
+    let exit = required_expr_item(
+        i.rb(),
+        item,
+        None,
+        baseline,
+        stops,
+        MlMode::All,
+        line_handoff,
+    );
     i.state.finish_node();
     exit
 }
@@ -271,6 +315,7 @@ fn recover_body_introducer(
     mut item: Item,
     baseline: usize,
     outer_stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -282,7 +327,7 @@ fn recover_body_introducer(
             Some(TokenKind::Colon | TokenKind::LBrace)
         ) {
             i.state.finish_node();
-            return body(i, item, baseline, outer_stops);
+            return body(i, item, baseline, outer_stops, line_handoff);
         }
         if implicit_delimited_newline(baseline, &item.leading)
             || outer_boundary(i.rb(), &item, baseline, outer_stops)

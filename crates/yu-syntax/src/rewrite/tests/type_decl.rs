@@ -220,7 +220,6 @@ fn type_c12_exact_equals_and_header_recovery_do_not_cascade() {
         ("type = Int", 1, 0),
         ("type @ Name = Int", 0, 1),
         ("type Name @ = Int", 0, 1),
-        ("type Id 'a 'a", 1, 0),
         ("type Id 'a ('a)", 1, 0),
     ] {
         let (green, _) = run_statement(source);
@@ -242,14 +241,6 @@ fn type_c12_exact_equals_and_header_recovery_do_not_cascade() {
         assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
         assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
     }
-
-    let (green, exit) = run_statement("type T\n= A");
-    assert_eq!(green.to_string(), "type T");
-    assert_eq!(
-        count(&type_declaration_node(&green), SyntaxKind::Missing),
-        1
-    );
-    assert!(matches!(exit, Some(Err(Either::Left(_)))));
 
     for (source, missing, errors) in [("type T = @ A", 0, 1), ("type T = @;", 0, 1)] {
         let (green, _) = run_statement(source);
@@ -823,4 +814,152 @@ fn type_c12_reaches_full_statement_consumers_only() {
             "{source:?}"
         );
     }
+}
+
+#[test]
+fn type_c14_commits_complete_nominal_headers_at_the_owned_terminal() {
+    for source in [
+        "type Point",
+        "type Point  ",
+        "type Point\n  ",
+        "type Id 'a 'a",
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+        assert_eq!(
+            count(&declaration, SyntaxKind::TypeExpression),
+            0,
+            "{source:?}"
+        );
+    }
+
+    for (source, kind) in [
+        ("type Point;", TokenKind::Semicolon),
+        ("type Point)", TokenKind::RParen),
+        ("type Point]", TokenKind::RBracket),
+        ("type Point}", TokenKind::RBrace),
+    ] {
+        let stops = match kind {
+            TokenKind::Semicolon => 0,
+            _ => stops_for(kind),
+        };
+        let (green, exit) = run_statement_with_stops(source, &OperatorTable::empty(), stops);
+        assert_eq!(green.to_string(), "type Point", "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(
+            count(&declaration, SyntaxKind::TypeExpression),
+            0,
+            "{source:?}"
+        );
+        assert!(matches!(
+            exit,
+            Some(Err(Either::Left(ref item))) if token_kind(item) == Some(kind)
+        ));
+    }
+
+    let (green, exit) =
+        run_statement_with_stops("type Point else", &OperatorTable::empty(), STOP_ELSE);
+    assert_eq!(green.to_string(), "type Point");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 0);
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(ref item)))
+            if matches!(&item.payload, Payload::Token(token) if token.text.as_ref() == "else")
+    ));
+}
+
+#[test]
+fn type_c14_threads_only_statement_line_provenance() {
+    let (green, exit) = run_statement("type Point\nnext");
+    assert_eq!(green.to_string(), "type Point");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(ref item)))
+            if matches!(&item.payload, Payload::Token(token) if token.text.as_ref() == "next")
+                && item.leading.0.iter().map(|part| &*part.text).collect::<String>() == "\n"
+    ));
+    assert_eq!(
+        count(&type_declaration_node(&green), SyntaxKind::Missing),
+        0
+    );
+
+    let (green, exit) = run_statement("type Point\n= Value");
+    assert_eq!(green.to_string(), "type Point");
+    assert_eq!(
+        count(&type_declaration_node(&green), SyntaxKind::Missing),
+        0
+    );
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(ref item))) if token_kind(item) == Some(TokenKind::Equals)
+    ));
+
+    for source in [
+        "{type Point\nnext}",
+        "catch action { A -> value with: type Point\n B -> fallback }",
+        "catch action { A -> value with: mod M: type Point\n B -> fallback }",
+        "f(value with: type Point, next)",
+        "if c: value with: type Point else: fallback",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green.clone())
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeDeclaration),
+            "missing TypeDeclaration for {source:?}"
+        );
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+    }
+
+    let (green, _) = run_statement("{ x } with: type Point\n  next");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(
+        count(&declaration, SyntaxKind::Missing),
+        1,
+        "the completed braced block must not leak its line owner"
+    );
+}
+
+#[test]
+fn type_c14_preserves_handoff_through_record_pattern_defaults() {
+    for source in [
+        "{my {x = y with: type Point\n next} = rhs}",
+        "catch action { A -> value with: for {x = y with: type Point\n next} in xs: B",
+        "{my {x = y with: type Point, z} = rhs}",
+        "{my {x = y with: type Point} = rhs}",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green.clone())
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeDeclaration),
+            "missing TypeDeclaration for {source:?}"
+        );
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+        assert_eq!(
+            count(&declaration, SyntaxKind::TypeExpression),
+            0,
+            "{source:?}"
+        );
+    }
+
+    let (green, _) = run_statement("catch action { A -> type Point\n B -> fallback }");
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::TypeDeclaration),
+        "a zero-inline Catch arm must not enter canonical TypeDeclaration parsing"
+    );
 }

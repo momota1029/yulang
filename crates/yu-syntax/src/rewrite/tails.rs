@@ -19,7 +19,10 @@ use super::{
         statement_item_after_trivia, tail_item_after_trivia, with_colon_follower,
     },
     operator::STOP_COMMA,
-    statement::{canonical_statement, indented_statement_block, is_canonical_statement_nud},
+    statement::{
+        StatementLineHandoff, canonical_statement, indented_statement_block,
+        is_canonical_statement_nud,
+    },
 };
 
 /// A lone eligible colon is terminal and owns its mandatory RHS, including
@@ -31,6 +34,7 @@ pub(super) fn colon_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if matches!(ml_mode, MlMode::None) || !chain_continuation(&colon.leading, baseline) {
         return handoff(colon);
@@ -52,7 +56,7 @@ pub(super) fn colon_tail(
             baseline,
             stops | STOP_COMMA,
         );
-        inline_colon_argument(i.rb(), item, baseline, stops, ml_mode, true)
+        inline_colon_argument(i.rb(), item, baseline, stops, ml_mode, true, line_handoff)
     } else {
         indented_statement_block(i.rb(), baseline, stops)
     };
@@ -67,13 +71,14 @@ fn inline_colon_argument(
     stops: Stops,
     ml_mode: MlMode,
     missing_on_boundary: bool,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if is_colon_owned_comma(&item, stops) {
         emit_inline_leading(&mut i, &mut item);
         if missing_on_boundary {
             emit_missing(&mut i, LeadingTrivia::default());
         }
-        return inline_colon_successor(i, handoff(item), baseline, stops, ml_mode);
+        return inline_colon_successor(i, handoff(item), baseline, stops, ml_mode, line_handoff);
     }
     if inline_colon_boundary(i.rb(), &item, baseline, stops) {
         if missing_on_boundary {
@@ -86,7 +91,14 @@ fn inline_colon_argument(
     if !is_nud_item(&item) {
         item = retry_inline_colon_argument(i.rb(), item, baseline, stops);
         if is_colon_owned_comma(&item, stops) {
-            return inline_colon_successor(i, handoff(item), baseline, stops, ml_mode);
+            return inline_colon_successor(
+                i,
+                handoff(item),
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+            );
         }
         if inline_colon_boundary(i.rb(), &item, baseline, stops) {
             if !implicit_delimited_newline(baseline, &item.leading) {
@@ -97,8 +109,16 @@ fn inline_colon_argument(
         emit_inline_leading(&mut i, &mut item);
     }
 
-    let exit = expr_from_nud(i.rb(), item, None, baseline, stops | STOP_COMMA, ml_mode);
-    inline_colon_successor(i, exit, baseline, stops, ml_mode)
+    let exit = expr_from_nud(
+        i.rb(),
+        item,
+        None,
+        baseline,
+        stops | STOP_COMMA,
+        ml_mode,
+        line_handoff,
+    );
+    inline_colon_successor(i, exit, baseline, stops, ml_mode, line_handoff)
 }
 
 fn inline_colon_successor(
@@ -107,6 +127,7 @@ fn inline_colon_successor(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     match exit {
         Ok(()) => Ok(()),
@@ -122,7 +143,7 @@ fn inline_colon_successor(
                 baseline,
                 stops | STOP_COMMA,
             );
-            inline_colon_argument(i, item, baseline, stops, ml_mode, true)
+            inline_colon_argument(i, item, baseline, stops, ml_mode, true, line_handoff)
         }
         exit => exit,
     }
@@ -187,6 +208,7 @@ pub(super) fn with_tail(
     mut keyword: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     emit_leading_trivia(&mut i, &keyword.leading);
     keyword.leading = LeadingTrivia::default();
@@ -205,7 +227,7 @@ pub(super) fn with_tail(
         if introduced_body_indentation(i.rb()).is_some_and(|indentation| indentation > baseline) {
             indented_statement_block(i.rb(), baseline, stops)
         } else {
-            let exit = with_inline_body(i.rb(), baseline, stops, true, true);
+            let exit = with_inline_body(i.rb(), baseline, stops, true, true, line_handoff);
             with_inline_terminal(i.rb(), exit, baseline, stops)
         }
     } else {
@@ -218,7 +240,7 @@ pub(super) fn with_tail(
         }
         emit_inline_leading(&mut i, &mut item);
         emit_missing(&mut i, LeadingTrivia::default());
-        let exit = with_inline_item(i.rb(), item, baseline, stops, false, false);
+        let exit = with_inline_item(i.rb(), item, baseline, stops, false, false, line_handoff);
         exit
     };
 
@@ -232,10 +254,19 @@ fn with_inline_body(
     stops: Stops,
     missing_on_boundary: bool,
     allow_braced: bool,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
-    with_inline_item(i, item, baseline, stops, missing_on_boundary, allow_braced)
+    with_inline_item(
+        i,
+        item,
+        baseline,
+        stops,
+        missing_on_boundary,
+        allow_braced,
+        line_handoff,
+    )
 }
 
 fn with_inline_item(
@@ -245,6 +276,7 @@ fn with_inline_item(
     stops: Stops,
     missing_on_boundary: bool,
     allow_braced: bool,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if !allow_braced
         && matches!(
@@ -264,7 +296,13 @@ fn with_inline_item(
     if is_canonical_statement_nud(i.rb(), &item, baseline)
         && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace))
     {
-        return canonical_statement(i, item, baseline, stops);
+        return canonical_statement(
+            i,
+            item,
+            baseline,
+            stops,
+            line_handoff.through_inline_statement(),
+        );
     }
 
     item = retry_with_inline_body(i.rb(), item, baseline, stops, allow_braced);
@@ -284,7 +322,13 @@ fn with_inline_item(
     }
     emit_inline_leading(&mut i, &mut item);
     debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
-    canonical_statement(i, item, baseline, stops)
+    canonical_statement(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff.through_inline_statement(),
+    )
 }
 
 fn retry_with_inline_body(
@@ -353,6 +397,7 @@ pub(super) fn call_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
@@ -363,9 +408,10 @@ pub(super) fn call_tail(
         false,
         baseline,
         MlMode::All,
+        line_handoff,
     );
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
+    continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, exit)
 }
 
 pub(super) fn index_tail(
@@ -375,6 +421,7 @@ pub(super) fn index_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
     emit_token_item(&mut i, open);
@@ -385,9 +432,10 @@ pub(super) fn index_tail(
         false,
         baseline,
         MlMode::All,
+        line_handoff,
     );
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
+    continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, exit)
 }
 
 pub(super) fn dot_tail(
@@ -397,21 +445,49 @@ pub(super) fn dot_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let next = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
     if next.leading.0.is_empty() {
         match token_kind(&next) {
             Some(TokenKind::LParen) => {
-                return projection_tuple_tail(i, dot, next, threshold, baseline, stops, ml_mode);
+                return projection_tuple_tail(
+                    i,
+                    dot,
+                    next,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                );
             }
             Some(TokenKind::LBrace) => {
-                return projection_record_tail(i, dot, next, threshold, baseline, stops, ml_mode);
+                return projection_record_tail(
+                    i,
+                    dot,
+                    next,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                );
             }
             _ => {}
         }
     }
-    field_tail(i, dot, next, threshold, baseline, stops, ml_mode)
+    field_tail(
+        i,
+        dot,
+        next,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+    )
 }
 
 fn field_tail(
@@ -422,13 +498,14 @@ fn field_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::FieldTail.into());
     emit_token_item(&mut i, dot);
     if token_kind(&name) == Some(TokenKind::Identifier) && name.leading.0.is_empty() {
         emit_token_item(&mut i, name);
         i.state.finish_node();
-        return scan_tail_after_accept(i, threshold, baseline, stops, ml_mode);
+        return scan_tail_after_accept(i, threshold, baseline, stops, ml_mode, line_handoff);
     }
     if !name.leading.0.is_empty() || is_fixed_tail_boundary(&name) {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -436,7 +513,7 @@ fn field_tail(
         name = retry_fixed_tail_item(i.rb(), name, baseline, stops);
     }
     i.state.finish_node();
-    tail(i, name, threshold, baseline, stops, ml_mode)
+    tail(i, name, threshold, baseline, stops, ml_mode, line_handoff)
 }
 
 fn projection_tuple_tail(
@@ -447,6 +524,7 @@ fn projection_tuple_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::ProjectionTupleTail.into());
     emit_token_item(&mut i, dot);
@@ -458,9 +536,10 @@ fn projection_tuple_tail(
         false,
         baseline,
         MlMode::All,
+        line_handoff,
     );
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
+    continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, exit)
 }
 
 fn projection_record_tail(
@@ -471,13 +550,22 @@ fn projection_record_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::ProjectionRecordTail.into());
     emit_token_item(&mut i, dot);
     emit_token_item(&mut i, open);
-    let exit = delimited_items(i.rb(), TokenKind::RBrace, None, true, baseline, MlMode::All);
+    let exit = delimited_items(
+        i.rb(),
+        TokenKind::RBrace,
+        None,
+        true,
+        baseline,
+        MlMode::All,
+        line_handoff,
+    );
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, stops, ml_mode, exit)
+    continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, exit)
 }
 
 pub(super) fn path_tail(
@@ -487,6 +575,7 @@ pub(super) fn path_tail(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::PathTail.into());
     emit_token_item(&mut i, separator);
@@ -498,7 +587,7 @@ pub(super) fn path_tail(
     ) {
         emit_token_item(&mut i, segment);
         i.state.finish_node();
-        return scan_tail_after_accept(i, threshold, baseline, stops, ml_mode);
+        return scan_tail_after_accept(i, threshold, baseline, stops, ml_mode, line_handoff);
     }
     if is_fixed_tail_boundary(&segment) {
         let leading = std::mem::take(&mut segment.leading);
@@ -507,7 +596,15 @@ pub(super) fn path_tail(
         segment = retry_fixed_tail_item(i.rb(), segment, baseline, stops);
     }
     i.state.finish_node();
-    tail(i, segment, threshold, baseline, stops, ml_mode)
+    tail(
+        i,
+        segment,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+    )
 }
 
 fn retry_fixed_tail_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {

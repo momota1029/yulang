@@ -18,6 +18,7 @@ use super::{
         type_item_after_trivia, type_nud_item_after_trivia,
     },
     operator::STOP_IN,
+    statement::StatementLineHandoff,
     type_expr::required_type_expr,
 };
 
@@ -83,7 +84,14 @@ pub(super) fn pattern(i: RewriteIn) -> TailExit {
 pub(super) fn pattern_with_stops(mut i: RewriteIn, stops: PatternStops) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = pattern_nud_item_after_trivia(i.rb(), leading, stops);
-    pattern_from_item(i, item, PatternPrecedence::Lowest, 0, stops)
+    pattern_from_item(
+        i,
+        item,
+        PatternPrecedence::Lowest,
+        0,
+        stops,
+        StatementLineHandoff::OrdinaryLayout,
+    )
 }
 
 fn pattern_from_item(
@@ -92,8 +100,9 @@ fn pattern_from_item(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    pattern_from_item_with_completion(i, item, minimum, baseline, stops).exit
+    pattern_from_item_with_completion(i, item, minimum, baseline, stops, line_handoff).exit
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -113,9 +122,18 @@ fn pattern_from_item_with_completion(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
 ) -> PatternOutcome {
     let mut completion = PatternCompletion::Incomplete;
-    let exit = pattern_from_item_recording(i, item, minimum, baseline, stops, &mut completion);
+    let exit = pattern_from_item_recording(
+        i,
+        item,
+        minimum,
+        baseline,
+        stops,
+        line_handoff,
+        &mut completion,
+    );
     PatternOutcome { exit, completion }
 }
 
@@ -125,11 +143,20 @@ fn pattern_from_item_recording(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     let baseline = delimited_baseline(baseline, &item.leading);
     i.state.start_node(SyntaxKind::Pattern.into());
-    let exit = pattern_from_item_core(i.rb(), item, minimum, baseline, stops, completion);
+    let exit = pattern_from_item_core(
+        i.rb(),
+        item,
+        minimum,
+        baseline,
+        stops,
+        line_handoff,
+        completion,
+    );
     i.state.finish_node();
     exit
 }
@@ -140,13 +167,14 @@ fn pattern_from_item_core(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     if is_pattern_nud(&item, stops) {
         *completion = PatternCompletion::Complete;
-        pattern_from_primary(i, item, minimum, baseline, stops, completion)
+        pattern_from_primary(i, item, minimum, baseline, stops, line_handoff, completion)
     } else {
-        recover_pattern_primary(i, item, minimum, baseline, stops, completion)
+        recover_pattern_primary(i, item, minimum, baseline, stops, line_handoff, completion)
     }
 }
 
@@ -155,8 +183,16 @@ pub(super) fn pattern_from_entry_item(
     item: Item,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    pattern_from_item(i, item, PatternPrecedence::Lowest, baseline, stops)
+    pattern_from_item(
+        i,
+        item,
+        PatternPrecedence::Lowest,
+        baseline,
+        stops,
+        line_handoff,
+    )
 }
 
 pub(super) fn pattern_from_entry_item_with_completion(
@@ -164,8 +200,16 @@ pub(super) fn pattern_from_entry_item_with_completion(
     item: Item,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
 ) -> PatternOutcome {
-    pattern_from_item_with_completion(i, item, PatternPrecedence::Lowest, baseline, stops)
+    pattern_from_item_with_completion(
+        i,
+        item,
+        PatternPrecedence::Lowest,
+        baseline,
+        stops,
+        line_handoff,
+    )
 }
 
 fn recover_pattern_primary(
@@ -174,6 +218,7 @@ fn recover_pattern_primary(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     *completion = PatternCompletion::Incomplete;
@@ -183,7 +228,7 @@ fn recover_pattern_primary(
     }
     if is_current_pattern_tail(&item, stops) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return pattern_tail(i, item, minimum, baseline, stops, completion);
+        return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
     }
 
     i.state.start_node(SyntaxKind::Error.into());
@@ -197,14 +242,22 @@ fn recover_pattern_primary(
         }
         if is_current_pattern_tail(&item, stops) {
             i.state.finish_node();
-            return pattern_tail(i, item, minimum, baseline, stops, completion);
+            return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
         }
         if is_pattern_nud(&item, stops) {
             let leading = std::mem::take(&mut item.leading);
             emit_leading_trivia(&mut i, &leading);
             i.state.finish_node();
             *completion = PatternCompletion::Complete;
-            return pattern_from_primary(i, item, minimum, baseline, stops, completion);
+            return pattern_from_primary(
+                i,
+                item,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                completion,
+            );
         }
     }
 }
@@ -215,6 +268,7 @@ fn pattern_from_primary(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     match token_kind(&item) {
@@ -222,13 +276,13 @@ fn pattern_from_primary(
             i.state.start_node(SyntaxKind::IdentifierPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
-            scan_pattern_tail(i, minimum, baseline, stops, completion)
+            scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion)
         }
         Some(TokenKind::Integer) => {
             i.state.start_node(SyntaxKind::IntegerPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
-            scan_pattern_tail(i, minimum, baseline, stops, completion)
+            scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion)
         }
         Some(TokenKind::Colon | TokenKind::PatternSymbolColon) => {
             i.state.start_node(SyntaxKind::SymbolPattern.into());
@@ -246,13 +300,17 @@ fn pattern_from_primary(
                 *completion = PatternCompletion::Incomplete;
             }
             i.state.finish_node();
-            scan_pattern_tail(i, minimum, baseline, stops, completion)
+            scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion)
         }
         Some(TokenKind::LParen) => {
-            parenthesized_pattern(i, item, minimum, baseline, stops, completion)
+            parenthesized_pattern(i, item, minimum, baseline, stops, line_handoff, completion)
         }
-        Some(TokenKind::LBracket) => list_pattern(i, item, minimum, baseline, stops, completion),
-        Some(TokenKind::LBrace) => record_pattern(i, item, minimum, baseline, stops, completion),
+        Some(TokenKind::LBracket) => {
+            list_pattern(i, item, minimum, baseline, stops, line_handoff, completion)
+        }
+        Some(TokenKind::LBrace) => {
+            record_pattern(i, item, minimum, baseline, stops, line_handoff, completion)
+        }
         _ => unreachable!("the Pattern NUD judge accepted only Pattern primaries"),
     }
 }
@@ -262,11 +320,12 @@ fn scan_pattern_tail(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = pattern_item_after_trivia(i.rb(), leading, stops);
-    pattern_tail(i, item, minimum, baseline, stops, completion)
+    pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion)
 }
 
 fn pattern_tail(
@@ -275,6 +334,7 @@ fn pattern_tail(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     if implicit_delimited_newline(baseline, &item.leading) {
@@ -299,7 +359,7 @@ fn pattern_tail(
             item = recover_pattern_alias_binding(i.rb(), item, baseline, stops, completion);
         }
         i.state.finish_node();
-        return pattern_tail(i, item, minimum, baseline, stops, completion);
+        return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
     }
     if token_kind(&item) == Some(TokenKind::Pipe) && minimum <= PatternPrecedence::Alternation {
         let leading = std::mem::take(&mut item.leading);
@@ -319,10 +379,11 @@ fn pattern_tail(
             PatternPrecedence::Alternation,
             rhs_baseline,
             stops,
+            line_handoff,
             completion,
         );
         i.state.finish_node();
-        return continue_pattern_tail(i, exit, minimum, baseline, stops, completion);
+        return continue_pattern_tail(i, exit, minimum, baseline, stops, line_handoff, completion);
     }
     if token_kind(&item) == Some(TokenKind::Colon)
         && stops & PATTERN_STOP_COLON == 0
@@ -388,11 +449,14 @@ fn continue_pattern_tail(
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
+    line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
     match exit {
-        Ok(()) => scan_pattern_tail(i, minimum, baseline, stops, completion),
-        Err(Either::Left(item)) => pattern_tail(i, item, minimum, baseline, stops, completion),
+        Ok(()) => scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion),
+        Err(Either::Left(item)) => {
+            pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion)
+        }
         Err(Either::Right(end)) => Err(Either::Right(end)),
     }
 }
