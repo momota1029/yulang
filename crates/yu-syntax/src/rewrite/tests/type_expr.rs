@@ -635,7 +635,13 @@ fn named_record_field_retries_a_malformed_name_only_with_a_colon_skeleton() {
 
 #[test]
 fn named_record_type_recovers_an_invalid_semicolon_separator() {
-    for (source, fields) in [("{a: A;b: B}", 2), ("{a: A; b: B}", 2), ("{a: A;}", 1)] {
+    for (source, fields) in [
+        ("{a: A;b: B}", 2),
+        ("{a: A; b: B}", 2),
+        ("{a: A;}", 1),
+        ("{;b: B}", 1),
+        ("{;}", 0),
+    ] {
         let (green, exit) = run_type(source);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");

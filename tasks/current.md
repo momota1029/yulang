@@ -1069,6 +1069,12 @@ recordの追加なし。M1 specification reviewはcontinuation policyとtest-con
 passed、package check、format/diff checkはgreen。leading semicolon / next-field owner query、production wiring、Gate 4/G4b
 ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`のfresh field slotでもleading semicolonをaccepted field後と同じ
+record-level separator recoveryへ明示的にrouteした。semicolon前のtriviaはrecord直下、`;`だけはone `Error`、後続の
+field / comma / matching `}`は既存ownerが再開する。`{;b: B}`と`{;}`でfield Missingを重ねないことを固定した。
+next-field owner query、production wiring、Gate 4/G4b ledgerは未完である。state/source reread/buffer/recovery recordの
+追加なし。M1 specification reviewはclean、focused rewrite testsは81 passed、package check、format/diff checkはgreen。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

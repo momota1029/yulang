@@ -295,6 +295,15 @@ fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             };
             continue;
         }
+        if token_kind(&item) == Some(TokenKind::Semicolon) {
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            item = match retry_type_record_separator(i.rb(), item, baseline) {
+                Ok(next) => next,
+                Err(exit) => return exit,
+            };
+            continue;
+        }
         let exit = if is_type_record_field_name(&item) {
             type_record_field(i.rb(), item, baseline)
         } else if token_kind(&item) == Some(TokenKind::Colon) {
