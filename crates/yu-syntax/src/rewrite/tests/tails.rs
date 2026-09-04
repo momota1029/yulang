@@ -295,19 +295,219 @@ fn lone_colon_tail_is_terminal_and_preserves_outer_comma_ownership() {
 }
 
 #[test]
-fn with_colon_is_reserved_for_its_dedicated_tail_owner() {
+fn with_c5_is_a_terminal_direct_body_tail() {
     let (green, exit) = run("f with: x");
-    assert_eq!(green.to_string(), "f");
+    assert_eq!(green.to_string(), "f with: x");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        operator_chain_children(&green),
+        [SyntaxKind::IdentifierExpression, SyntaxKind::WithBodyTail,]
+    );
+
+    for source in ["f /*c*/ with : x", "f\n  with:\n    x"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::WithBodyTail)
+        );
+    }
+
+    for source in ["f withx", "f with?"] {
+        let (green, _) = run(source);
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::WithBodyTail),
+            "{source:?}"
+        );
+    }
+
+    let with_operator = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "with",
+        OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::scalar(40)),
+    )])
+    .expect("contextual with test table");
+    let (green, exit) = run_with("f with: x", &with_operator);
+    assert_eq!(green.to_string(), "f with: x");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::WithKw)
+    );
+    for source in ["f with?: x", "f with!: x"] {
+        let (green, _) = run_with(source, &with_operator);
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::WithBodyTail),
+            "{source:?}"
+        );
+    }
+
+    for source in ["f with: x: y", "f with: x with: y"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.children()
+                .find(|node| node.kind() == SyntaxKind::OperatorChain)
+                .expect("outer chain")
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::WithBodyTail)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    for source in ["f with", "f with x", "f with: ", "f with:\n  "] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let tail = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+            .expect("with tail");
+        assert_eq!(
+            tail.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run("f with:\nx");
+    assert_eq!(green.to_string(), "f with:");
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
             if matches!(item.payload, Payload::Token(ref token)
-                if token.kind == TokenKind::Identifier && &*token.text == "with")
+                if token.kind == TokenKind::Identifier && &*token.text == "x")
     ));
+    let tail = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+        .expect("with tail");
+    assert_eq!(
+        tail.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run("f with\nx");
+    assert_eq!(green.to_string(), "f with");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token)
+                if token.kind == TokenKind::Identifier && &*token.text == "x")
+    ));
+    let tail = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+        .expect("with tail");
+    assert_eq!(
+        tail.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
     assert!(
-        !SyntaxNode::new_root(green)
+        !tail
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Newline)
+    );
+
+    let (green, exit) = run("f with ;");
+    assert_eq!(green.to_string(), "f with ");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Semicolon)
+    ));
+    let tail = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+        .expect("with tail");
+    assert!(
+        !tail
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Semicolon)
+    );
+
+    for source in ["f with: ;", "f with: @;", "f with: @ x"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let tail = SyntaxNode::new_root(green)
             .descendants()
-            .any(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+            .expect("with tail");
+        if source == "f with: ;" {
+            assert_eq!(
+                tail.children()
+                    .filter(|node| node.kind() == SyntaxKind::Missing)
+                    .count(),
+                1
+            );
+        } else {
+            assert_eq!(
+                tail.children()
+                    .filter(|node| node.kind() == SyntaxKind::Error)
+                    .count(),
+                1,
+                "{source:?}"
+            );
+        }
+        if source != "f with: @ x" {
+            assert!(
+                tail.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| token.kind() == SyntaxKind::Semicolon)
+            );
+        }
+    }
+
+    let (green, exit) = run("f with {}");
+    assert_eq!(green.to_string(), "f with ");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::LBrace)
+    ));
+    let tail = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+        .expect("with tail");
+    assert_eq!(
+        tail.descendants()
+            .filter(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .count(),
+        0
+    );
+
+    let (green, exit) = run("(f with: x, y)");
+    assert_eq!(green.to_string(), "(f with: x, y)");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let tail = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+        .expect("with tail");
+    assert!(
+        !tail
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Comma)
     );
 }
 

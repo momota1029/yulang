@@ -1282,6 +1282,20 @@ pre-write・post-write・owner-boundary deltaともapproved。focused rewrite ta
 format/diff checkはgreen。typed diagnostics、AST / production wiring、dynamic Statement variants、G4a RB-E / Gate 4は
 未実装である。
 
+2026-09-05: isolated SCC construction witness C5として、direct generic `WithBodyTail`を追加した。
+chain-continuationかつML scope外のmaximal exact `with`をdynamic word operator / ML argumentより先にterminal LEDとして
+受理し、pre-`with` triviaはouter `OperatorChain`、`WithKw`以降のintroducer / inline triviaはtail直下に置く。dynamic
+tableが`with` spellingをoperatorとしてscanした場合もsource-only suffix probeで`with?` / `with!`をrejectし、exact
+`with`だけを`WithKw`へemitする。actual lone colonならinline一 `Statement`またはstrictly-deeper existing
+`IndentedStatementBlock`へ入り、inline terminal semicolonはcomplete / Missing / Error body後に限ってtailが所有する。
+colonがないaccepted keywordはone Missing colonにcutし、same-line normal coreからbody retryするが、shallow newline、`::`、
+`{}`はunconsumed boundaryのままにしてgeneric `with {}`をbraced bodyへしない。inline invalid runはone `Error`にして
+same slotでretryし、nested colon / withはbody `Statement`側へ入る。tailはterminalでouter chainにlater tailを追加しない。
+M1 specification reviewはinitial planのmissing-colon brace / semicolon ownership gapとpost-writeのoperator suffix /
+shallow-newline / semicolon gapをone repair roundで閉じてapproved。focused rewrite tails tests 11 passed、
+`cargo check -p yu-syntax`、format/diff checkはgreen。current direct Statement subset以外のdeclaration / Prefix /
+Nullfix statement、typed diagnostics、AST / production wiring、G4a RB-E / Gate 4は未実装である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

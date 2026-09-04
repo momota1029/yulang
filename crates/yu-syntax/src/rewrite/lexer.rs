@@ -136,6 +136,12 @@ pub(super) fn with_colon_follower(i: LexIn) -> Option<bool> {
     Some(lone_colon_after_trivia(i.remainder()))
 }
 
+/// A dynamic table may recognize the `with` prefix before the word scanner's
+/// optional `?` / `!` suffix. Contextual `with` accepts only the full word.
+pub(super) fn with_word_suffix_follower(i: LexIn) -> Option<bool> {
+    Some(!matches!(i.remainder().chars().next(), Some('?' | '!')))
+}
+
 /// Source-only layout evidence for a colon's mandatory RHS. The accepted
 /// branch later completes the first logical Item itself.
 pub(super) fn newline_indentation_follower(i: LexIn) -> Option<Option<usize>> {

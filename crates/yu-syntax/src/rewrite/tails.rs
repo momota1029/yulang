@@ -10,16 +10,16 @@ use super::{
     driver::{
         Either, MlMode, TailExit, chain_continuation, continue_completed_tail, expr_from_nud,
         handoff, implicit_delimited_newline, is_close, is_led_operator, is_nud_item, is_separator,
-        scan_tail_after_accept, tail, token_kind,
+        is_statement_nud, scan_tail_after_accept, tail, token_kind,
     },
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    emit::{emit_leading_trivia, emit_missing, emit_token_item, emit_with_keyword},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{
         newline_indentation_follower, path_segment_item_after_trivia, scan_trivia,
-        tail_item_after_trivia,
+        tail_item_after_trivia, with_colon_follower,
     },
     operator::STOP_COMMA,
-    statement::indented_statement_block,
+    statement::{expression_statement, indented_statement_block},
 };
 
 /// A lone eligible colon is terminal and owns its mandatory RHS, including
@@ -183,6 +183,165 @@ fn emit_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize) {
 fn newline_indentation_follows(i: RewriteIn) -> Option<usize> {
     i.map(newline_indentation_follower, |indentation| indentation)
         .flatten()
+}
+
+/// The terminal generic `with:` continuation. Its body is an existing direct
+/// Statement callee, never a target-owning or replayed expression parser.
+pub(super) fn with_tail(
+    mut i: RewriteIn,
+    mut keyword: Item,
+    baseline: usize,
+    stops: u8,
+) -> TailExit {
+    emit_leading_trivia(&mut i, &keyword.leading);
+    keyword.leading = LeadingTrivia::default();
+    i.state.start_node(SyntaxKind::WithBodyTail.into());
+    emit_with_keyword(&mut i, keyword);
+
+    let exit = if i
+        .rb()
+        .map(with_colon_follower, |follower| follower)
+        .unwrap_or(false)
+    {
+        let leading = scan_trivia(i.rb());
+        let colon = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
+        debug_assert_eq!(token_kind(&colon), Some(TokenKind::Colon));
+        emit_token_item(&mut i, colon);
+        if newline_indentation_follows(i.rb()).is_some_and(|indentation| indentation > baseline) {
+            indented_statement_block(i.rb(), baseline, stops)
+        } else {
+            let exit = with_inline_body(i.rb(), baseline, stops, true, true);
+            with_inline_terminal(i.rb(), exit, baseline, stops)
+        }
+    } else {
+        let leading = scan_trivia(i.rb());
+        let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+        if implicit_delimited_newline(baseline, &item.leading) {
+            emit_missing(&mut i, LeadingTrivia::default());
+            i.state.finish_node();
+            return handoff(item);
+        }
+        emit_inline_leading(&mut i, &mut item);
+        emit_missing(&mut i, LeadingTrivia::default());
+        let exit = with_inline_item(i.rb(), item, baseline, stops, false, false);
+        exit
+    };
+
+    i.state.finish_node();
+    exit
+}
+
+fn with_inline_body(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: u8,
+    missing_on_boundary: bool,
+    allow_braced: bool,
+) -> TailExit {
+    let leading = scan_trivia(i.rb());
+    let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+    with_inline_item(i, item, baseline, stops, missing_on_boundary, allow_braced)
+}
+
+fn with_inline_item(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: u8,
+    missing_on_boundary: bool,
+    allow_braced: bool,
+) -> TailExit {
+    if !allow_braced
+        && matches!(
+            token_kind(&item),
+            Some(TokenKind::LBrace | TokenKind::PathSeparator)
+        )
+    {
+        return handoff(item);
+    }
+    if with_inline_boundary(&item, baseline, stops) {
+        if missing_on_boundary {
+            emit_with_inline_missing(&mut i, &mut item, baseline);
+        }
+        return handoff(item);
+    }
+    emit_inline_leading(&mut i, &mut item);
+    if is_statement_nud(&item) && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace)) {
+        return expression_statement(i, item, baseline, stops);
+    }
+
+    item = retry_with_inline_body(i.rb(), item, baseline, stops, allow_braced);
+    if !allow_braced
+        && matches!(
+            token_kind(&item),
+            Some(TokenKind::LBrace | TokenKind::PathSeparator)
+        )
+    {
+        return handoff(item);
+    }
+    if with_inline_boundary(&item, baseline, stops) {
+        if !implicit_delimited_newline(baseline, &item.leading) {
+            emit_inline_leading(&mut i, &mut item);
+        }
+        return handoff(item);
+    }
+    emit_inline_leading(&mut i, &mut item);
+    debug_assert!(is_statement_nud(&item));
+    expression_statement(i, item, baseline, stops)
+}
+
+fn retry_with_inline_body(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: u8,
+    allow_braced: bool,
+) -> Item {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+        if with_inline_boundary(&item, baseline, stops)
+            || (!allow_braced
+                && matches!(
+                    token_kind(&item),
+                    Some(TokenKind::LBrace | TokenKind::PathSeparator)
+                ))
+            || (is_statement_nud(&item)
+                && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace)))
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
+}
+
+fn with_inline_boundary(item: &Item, baseline: usize, stops: u8) -> bool {
+    matches!(item.payload, Payload::Eof)
+        || is_separator(item)
+        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || implicit_delimited_newline(baseline, &item.leading)
+}
+
+fn emit_with_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize) {
+    if !implicit_delimited_newline(baseline, &item.leading) {
+        emit_inline_leading(i, item);
+    }
+    emit_missing(i, LeadingTrivia::default());
+}
+
+fn with_inline_terminal(mut i: RewriteIn, exit: TailExit, baseline: usize, stops: u8) -> TailExit {
+    let Err(Either::Left(semicolon)) = exit else {
+        return exit;
+    };
+    if token_kind(&semicolon) != Some(TokenKind::Semicolon) {
+        return handoff(semicolon);
+    }
+    emit_token_item(&mut i, semicolon);
+    let leading = scan_trivia(i.rb());
+    let item = tail_item_after_trivia(i, leading, OperatorSite::Led, baseline, stops);
+    handoff(item)
 }
 
 pub(super) fn call_tail(

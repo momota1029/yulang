@@ -42,6 +42,24 @@ pub(super) fn emit_operator_use(i: &mut RewriteIn, item: Item, kind: SyntaxKind)
     i.state.finish_node();
 }
 
+/// An accepted contextual `with` outranks an otherwise selected dynamic word
+/// operator, but remains a single already-owned Item.
+pub(super) fn emit_with_keyword(i: &mut RewriteIn, item: Item) {
+    emit_trivia(i, &item.leading);
+    match item.payload {
+        Payload::Token(token) => {
+            debug_assert_eq!(token.kind, TokenKind::Identifier);
+            debug_assert_eq!(&*token.text, "with");
+            i.state.token(SyntaxKind::WithKw.into(), &token.text);
+        }
+        Payload::Operator(operator) => {
+            debug_assert_eq!(&*operator.text, "with");
+            i.state.token(SyntaxKind::WithKw.into(), &operator.text);
+        }
+        Payload::Eof => unreachable!("an accepted contextual keyword is lexical"),
+    }
+}
+
 pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
     emit_trivia(i, &item.leading);
     match item.payload {

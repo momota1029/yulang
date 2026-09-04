@@ -11,10 +11,10 @@ use super::{
         emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
     },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
-    lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia, with_colon_follower},
+    lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia, with_word_suffix_follower},
     operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item},
     statement::braced_nud,
-    tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail},
+    tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail, with_tail},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -208,8 +208,8 @@ pub(super) fn tail(
     stops: u8,
     ml_mode: MlMode,
 ) -> TailExit {
-    if is_with_colon_reservation(i.rb(), &item, baseline, ml_mode) {
-        return handoff(item);
+    if is_with_tail_item(i.rb(), &item, baseline, ml_mode) {
+        return with_tail(i, item, baseline, stops);
     }
     if item.leading.0.is_empty() {
         match token_kind(&item) {
@@ -243,21 +243,19 @@ pub(super) fn tail(
     handoff(item)
 }
 
-fn is_with_colon_reservation(
-    mut i: RewriteIn,
-    item: &Item,
-    baseline: usize,
-    ml_mode: MlMode,
-) -> bool {
+fn is_with_tail_item(mut i: RewriteIn, item: &Item, baseline: usize, ml_mode: MlMode) -> bool {
     !matches!(ml_mode, MlMode::None)
         && chain_continuation(&item.leading, baseline)
-        && matches!(
-            &item.payload,
-            Payload::Token(token) if token.kind == TokenKind::Identifier && &*token.text == "with"
-        )
-        && i.rb()
-            .map(with_colon_follower, |follower| follower)
-            .unwrap_or(false)
+        && match &item.payload {
+            Payload::Token(token) => token.kind == TokenKind::Identifier && &*token.text == "with",
+            Payload::Operator(operator) => {
+                &*operator.text == "with"
+                    && i.rb()
+                        .map(with_word_suffix_follower, |follower| follower)
+                        .unwrap_or(false)
+            }
+            Payload::Eof => false,
+        }
 }
 
 fn is_ml_argument(item: &Item, baseline: usize, mode: MlMode) -> bool {
