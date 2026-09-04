@@ -11,9 +11,9 @@ use super::{
         emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
     },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
-    lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia},
+    lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia, with_colon_follower},
     operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item},
-    tails::{call_tail, dot_tail, index_tail, path_tail},
+    tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -206,6 +206,9 @@ pub(super) fn tail(
     stops: u8,
     ml_mode: MlMode,
 ) -> TailExit {
+    if is_with_colon_reservation(i.rb(), &item, baseline, ml_mode) {
+        return handoff(item);
+    }
     if item.leading.0.is_empty() {
         match token_kind(&item) {
             Some(TokenKind::LParen) => {
@@ -232,7 +235,27 @@ pub(super) fn tail(
     if is_ml_argument(&item, baseline, ml_mode) {
         return ml_argument(i.rb(), item, threshold, baseline, stops);
     }
+    if token_kind(&item) == Some(TokenKind::Colon) {
+        return colon_tail(i, item, baseline, stops, ml_mode);
+    }
     handoff(item)
+}
+
+fn is_with_colon_reservation(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    ml_mode: MlMode,
+) -> bool {
+    !matches!(ml_mode, MlMode::None)
+        && chain_continuation(&item.leading, baseline)
+        && matches!(
+            &item.payload,
+            Payload::Token(token) if token.kind == TokenKind::Identifier && &*token.text == "with"
+        )
+        && i.rb()
+            .map(with_colon_follower, |follower| follower)
+            .unwrap_or(false)
 }
 
 fn is_ml_argument(item: &Item, baseline: usize, mode: MlMode) -> bool {
@@ -245,6 +268,10 @@ fn is_ml_argument(item: &Item, baseline: usize, mode: MlMode) -> bool {
         MlMode::LayoutOnly => indentation.is_some_and(|indentation| indentation > baseline),
         MlMode::None => false,
     }
+}
+
+pub(super) fn chain_continuation(leading: &LeadingTrivia, baseline: usize) -> bool {
+    indentation_after_newline(leading).is_none_or(|indentation| indentation > baseline)
 }
 
 pub(super) fn is_led_operator(item: &Item) -> bool {

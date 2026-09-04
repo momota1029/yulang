@@ -183,3 +183,171 @@ fn double_dot_is_not_a_field_tail() {
         );
     }
 }
+
+#[test]
+fn lone_colon_tail_is_terminal_and_preserves_outer_comma_ownership() {
+    let (green, exit) = run("f: x");
+    assert_eq!(green.to_string(), "f: x");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        operator_chain_children(&green),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::ColonApplicationTail,
+        ]
+    );
+
+    let operators = dynamic_operator_table();
+    let (green, exit) = run_with("a + b: x", &operators);
+    assert_eq!(green.to_string(), "a + b: x");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let chain = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("outer expression chain");
+    assert_eq!(
+        chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::InfixOperatorUse,
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::ColonApplicationTail,
+        ]
+    );
+    let colon = chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .expect("colon tail");
+    assert_eq!(
+        colon.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::OperatorChain]
+    );
+
+    let (green, exit) = run("f: x, y");
+    assert_eq!(green.to_string(), "f: x, y");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let colon = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .expect("colon tail");
+    assert_eq!(
+        colon
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        2
+    );
+    assert_eq!(
+        colon
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Comma)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run("(f: x, y)");
+    assert_eq!(green.to_string(), "(f: x, y)");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let colon = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .expect("colon tail");
+    assert_eq!(
+        colon
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Comma)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run("f::T");
+    assert_eq!(green.to_string(), "f::T");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::PathTail)
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+    );
+
+    let (green, exit) = run("f\n: x");
+    assert_eq!(green.to_string(), "f");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
+    ));
+}
+
+#[test]
+fn with_colon_is_reserved_for_its_dedicated_tail_owner() {
+    let (green, exit) = run("f with: x");
+    assert_eq!(green.to_string(), "f");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token)
+                if token.kind == TokenKind::Identifier && &*token.text == "with")
+    ));
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+    );
+}
+
+#[test]
+fn colon_c1_handoffs_before_an_unimplemented_mandatory_slot() {
+    for source in ["f:", "f:\n x", "f: @"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), "f", "{source:?}");
+        assert!(matches!(
+            exit,
+            Some(Err(Either::Left(item)))
+                if matches!(item.payload, Payload::Token(ref token)
+                    if token.kind == TokenKind::Colon)
+        ));
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        );
+    }
+
+    for source in ["f: x,", "f: x,\n y", "f: x, @"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), "f: x", "{source:?}");
+        assert!(matches!(
+            exit,
+            Some(Err(Either::Left(item)))
+                if matches!(item.payload, Payload::Token(ref token)
+                    if token.kind == TokenKind::Comma)
+        ));
+        let root = SyntaxNode::new_root(green);
+        let colon = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .expect("completed first argument retains the colon tail");
+        assert!(
+            !colon
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Comma)
+        );
+    }
+}

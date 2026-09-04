@@ -12,7 +12,7 @@ use super::{
     item::{OperatorToken, OperatorUse},
 };
 
-const STOP_COMMA: u8 = 1 << 0;
+pub(super) const STOP_COMMA: u8 = 1 << 0;
 const STOP_SEMICOLON: u8 = 1 << 1;
 const STOP_RPAREN: u8 = 1 << 2;
 const STOP_RBRACKET: u8 = 1 << 3;
@@ -165,6 +165,29 @@ pub(super) fn active_stop_item(kind: super::item::TokenKind, stops: u8) -> bool 
         super::item::TokenKind::RBrace => stops & STOP_RBRACE != 0,
         _ => false,
     }
+}
+
+/// Source-only reservation evidence for the second half of an exact `with:`
+/// introducer. No logical item or parser state is completed by this probe.
+pub(super) fn lone_colon_after_trivia(source: &str) -> bool {
+    let (_, source) = raw_trivia_suffix(source);
+    source.starts_with(':') && !source.starts_with("::")
+}
+
+/// C1 accepts only the direct parser's same-line normal core starts before it
+/// commits a colon or a colon-owned comma. More complete Nud recognition and
+/// all recovery stay with the later expression/statement construction.
+pub(super) fn inline_normal_nud_after_trivia(source: &str) -> bool {
+    let (trailing, source) = raw_trivia_suffix(source);
+    if matches!(trailing, RawTrailing::Newline { .. }) {
+        return false;
+    }
+    source.chars().next().is_some_and(|character| {
+        character == '('
+            || character.is_ascii_digit()
+            || character == '_'
+            || is_xid_start(character)
+    })
 }
 
 fn operator_boundary(last: char, following: &str) -> Option<()> {

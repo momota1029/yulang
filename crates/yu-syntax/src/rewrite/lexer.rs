@@ -13,8 +13,8 @@ use super::{
     LexIn, RewriteIn,
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
     operator::{
-        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, scan_dangling_operator,
-        scan_operator,
+        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, inline_normal_nud_after_trivia,
+        lone_colon_after_trivia, scan_dangling_operator, scan_operator,
     },
     state::Recover,
 };
@@ -98,6 +98,7 @@ fn scan_token_payload(mut i: RewriteIn) -> Payload {
         choice((
             token(scan_identifier),
             token(scan_integer),
+            token(scan_expression_colon),
             token(scan_punctuation),
             token(scan_unknown),
         )),
@@ -125,6 +126,18 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<
         Payload::Token(i.token(scan_integer)?)
     };
     Some(Item { leading, payload })
+}
+
+/// Source-only reservation evidence for the second half of an exact `with:`
+/// introducer. It completes no logical item and leaves the cursor unchanged.
+pub(super) fn with_colon_follower(i: LexIn) -> Option<bool> {
+    Some(lone_colon_after_trivia(i.remainder()))
+}
+
+/// C1's pre-commit eligibility check. It observes source only and leaves the
+/// cursor unchanged; the normal scanner still creates the one logical Item.
+pub(super) fn inline_normal_nud_follower(i: LexIn) -> Option<bool> {
+    Some(inline_normal_nud_after_trivia(i.remainder()))
 }
 
 pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
@@ -487,6 +500,21 @@ pub(super) fn scan_punctuation(i: LexIn) -> Option<Token> {
     });
     Some(Token {
         kind: kind?,
+        text: text.into(),
+    })
+}
+
+/// The expression tail owns only a lone colon; the longer `::` spelling
+/// remains the path separator recognized by [`scan_punctuation`].
+fn scan_expression_colon(mut i: LexIn) -> Option<Token> {
+    let remainder = i.remainder();
+    (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())?;
+    let (accepted, text) = i
+        .rb()
+        .with_str(|mut colon| (colon.next()? == ':').then_some(()));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Colon,
         text: text.into(),
     })
 }

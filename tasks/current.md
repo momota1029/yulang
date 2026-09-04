@@ -1227,9 +1227,22 @@ all-spelling trieのlonger-to-shorter recovery probeでcurrent NUDのPrefixま�
 `Missing`を重ねない。equal-or-shallow newline、colon / equal / other structural starter、non-active closeは
 unacceptedのままhandoffし、generic colon/equal vocabularyやterminal ownerは追加していない。M1 specification reviewは
 pre-writeとone repair deltaでapprovedとなり、shallow newlineをEOFより先にboundaryとして判定する修正を含む。focused
-rewrite operator tests 11 passed、`cargo check -p yu-syntax`、format/diff checkはgreen。この記録はdirect
+ rewrite operator tests 11 passed、`cargo check -p yu-syntax`、format/diff checkはgreen。この記録はdirect
 CST/remainderだけのisolated evidenceであり、diagnostic/recovery identity、AST parity、production wiring、G4a/RB-E、
 Gate 4 certificationは未実装である。
+
+2026-09-04: isolated SCC construction witnessとしてdirect expressionのC1 lone-colon tailを追加した。operand-complete
+かつML argumentでないLEDで、pre-colon triviaがchain-continuationであり、source-onlyのsame-line direct normal core
+probe（Identifier / Integer / `(`）が成功した場合だけ`ColonApplicationTail`をcommitする。colon-leading triviaはouter
+`OperatorChain`直下、post-colon horizontal triviaとcolon-own same-line commaはtail直下に置く。rootの`f: x, y`はtwo RHS
+chain、active outer commaを持つ`(f: x, y)`はone RHSのままcommaをparentへhandoffする。accepted tailはterminalで
+predecessorをwrapしない。`::`は`PathTail`のまま、exact `with:`はfuture `WithBodyTail`へreservation handoffする。colonや
+colon-owned commaの前にはsource-only probeを置き、EOF / post-colon newline / invalid initial RHSではcolonを、trailing
+comma / newline-after-comma / invalid next RHSではcommaをunconsumed handoffするため、Missing/Error recoveryを暗黙に
+実装していない。M1 specification reviewはone repair delta後approved。focused rewrite tails tests 7 passed、
+`cargo check -p yu-syntax`、format/diff checkはgreen。これはC1 inline normal constructionだけであり、dynamic prefix
+initial RHS、layout newline argument、`IndentedStatementBlock` / canonical `Statement`、mandatory recovery、diagnostic / AST
+parity / production wiring、G4a RB-E / Gate 4は未実装である。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

@@ -8,13 +8,107 @@ use super::{
     RewriteIn,
     delimited::delimited_items,
     driver::{
-        MlMode, TailExit, continue_completed_tail, is_close, is_led_operator, is_separator,
-        scan_tail_after_accept, tail, token_kind,
+        Either, MlMode, TailExit, chain_continuation, continue_completed_tail, expr_from_nud,
+        handoff, is_close, is_led_operator, is_nud_item, is_separator, scan_tail_after_accept,
+        tail, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
-    lexer::{path_segment_item_after_trivia, scan_trivia, tail_item_after_trivia},
+    lexer::{
+        inline_normal_nud_follower, path_segment_item_after_trivia, scan_trivia,
+        tail_item_after_trivia,
+    },
+    operator::STOP_COMMA,
 };
+
+/// The C1 construction witness owns a lone colon only for a same-line inline
+/// argument sequence. Newline bodies and mandatory-slot recovery remain for
+/// the canonical statement/block owner, so this isolated parser hands those
+/// inputs back without constructing recovery nodes.
+pub(super) fn colon_tail(
+    mut i: RewriteIn,
+    mut colon: Item,
+    baseline: usize,
+    stops: u8,
+    ml_mode: MlMode,
+) -> TailExit {
+    if matches!(ml_mode, MlMode::None) || !chain_continuation(&colon.leading, baseline) {
+        return handoff(colon);
+    }
+    if !same_line_normal_nud_follows(i.rb()) {
+        return handoff(colon);
+    }
+
+    emit_leading_trivia(&mut i, &colon.leading);
+    colon.leading = LeadingTrivia::default();
+    i.state.start_node(SyntaxKind::ColonApplicationTail.into());
+    emit_token_item(&mut i, colon);
+
+    let leading = scan_trivia(i.rb());
+    let mut item = tail_item_after_trivia(
+        i.rb(),
+        leading,
+        OperatorSite::Nud,
+        baseline,
+        stops | STOP_COMMA,
+    );
+    let leading = std::mem::take(&mut item.leading);
+    emit_leading_trivia(&mut i, &leading);
+    let exit = inline_colon_argument(i.rb(), item, baseline, stops, ml_mode);
+    i.state.finish_node();
+    exit
+}
+
+fn inline_colon_argument(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: u8,
+    ml_mode: MlMode,
+) -> TailExit {
+    if !is_nud_item(&item) {
+        return handoff(item);
+    }
+    let exit = expr_from_nud(i.rb(), item, None, baseline, stops | STOP_COMMA, ml_mode);
+    inline_colon_successor(i, exit, baseline, stops, ml_mode)
+}
+
+fn inline_colon_successor(
+    mut i: RewriteIn,
+    exit: TailExit,
+    baseline: usize,
+    stops: u8,
+    ml_mode: MlMode,
+) -> TailExit {
+    match exit {
+        Ok(()) => Ok(()),
+        Err(Either::Left(comma))
+            if token_kind(&comma) == Some(TokenKind::Comma) && stops & STOP_COMMA == 0 =>
+        {
+            if !same_line_normal_nud_follows(i.rb()) {
+                return handoff(comma);
+            }
+            emit_token_item(&mut i, comma);
+            let leading = scan_trivia(i.rb());
+            let mut item = tail_item_after_trivia(
+                i.rb(),
+                leading,
+                OperatorSite::Nud,
+                baseline,
+                stops | STOP_COMMA,
+            );
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            inline_colon_argument(i, item, baseline, stops, ml_mode)
+        }
+        exit => exit,
+    }
+}
+
+fn same_line_normal_nud_follows(i: RewriteIn) -> bool {
+    i.map(inline_normal_nud_follower, |follower| follower)
+        .unwrap_or(false)
+}
 
 pub(super) fn call_tail(
     mut i: RewriteIn,
