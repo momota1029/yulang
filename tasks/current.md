@@ -1244,6 +1244,18 @@ comma / newline-after-comma / invalid next RHSではcommaをunconsumed handoff�
 initial RHS、layout newline argument、`IndentedStatementBlock` / canonical `Statement`、mandatory recovery、diagnostic / AST
 parity / production wiring、G4a RB-E / Gate 4は未実装である。
 
+2026-09-04: isolated SCC construction witness C2として、direct colon tailから呼ぶnormal-only
+`IndentedStatementBlock`とreusable `Statement > OperatorChain` calleeを追加した。colonはsource-only unit parserで
+post-colon maximal triviaを観測し、newlineのfinal indentationがexpression baselineよりstrictly greaterで、Identifier /
+Integer / `(`のdirect coreが続くときだけC2をcommitする。blockはpost-colon opening trivia全体を直接所有し、各statementを
+block indentationでdirect expressionへ渡す。equal-indentで返ったnormal core Itemだけを`BlockStatementSeparator`として
+emitし、dedent・deeper continuation・invalid startはleading triviaを含むItemをunconsumed handoffする。深い行は同一
+statementの`MlArgument`のままでsiblingにしない。semicolon、dynamic prefix / nullfix block start、newline colon-inline
+arguments、declaration等のStatement variant、Missing / Error recovery、AST / diagnostic / production wiringは追加していない。
+M1 specification reviewはpre-write / post-writeともapproved。focused rewrite tails tests 9 passed、`cargo check -p
+yu-syntax`、format/diff checkはgreen。これはcanonical Statement / colon recoveryの完了を主張せず、G4a RB-E / Gate 4は
+未実装のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

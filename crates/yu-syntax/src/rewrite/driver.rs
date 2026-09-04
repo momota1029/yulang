@@ -347,12 +347,17 @@ fn operator_tail(
 }
 
 pub(super) fn is_nud_item(item: &Item) -> bool {
+    is_normal_core_item(item)
+        || matches!(
+            operator_use(item),
+            Some(OperatorUse::Prefix(_) | OperatorUse::Nullfix)
+        )
+}
+
+pub(super) fn is_normal_core_item(item: &Item) -> bool {
     matches!(
         token_kind(item),
         Some(TokenKind::Identifier | TokenKind::Integer | TokenKind::LParen)
-    ) || matches!(
-        operator_use(item),
-        Some(OperatorUse::Prefix(_) | OperatorUse::Nullfix)
     )
 }
 
@@ -402,7 +407,7 @@ pub(super) fn implicit_delimited_newline(baseline: usize, leading: &LeadingTrivi
     indentation_after_newline(leading).is_some_and(|indentation| indentation <= baseline)
 }
 
-fn indentation_after_newline(leading: &LeadingTrivia) -> Option<usize> {
+pub(super) fn indentation_after_newline(leading: &LeadingTrivia) -> Option<usize> {
     let mut saw_newline = false;
     let mut at_line_start = false;
     let mut indentation = 0usize;

@@ -15,16 +15,16 @@ use super::{
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{
-        inline_normal_nud_follower, path_segment_item_after_trivia, scan_trivia,
-        tail_item_after_trivia,
+        inline_normal_nud_follower, normal_statement_indentation_follower,
+        path_segment_item_after_trivia, scan_trivia, tail_item_after_trivia,
     },
     operator::STOP_COMMA,
+    statement::indented_statement_block,
 };
 
-/// The C1 construction witness owns a lone colon only for a same-line inline
-/// argument sequence. Newline bodies and mandatory-slot recovery remain for
-/// the canonical statement/block owner, so this isolated parser hands those
-/// inputs back without constructing recovery nodes.
+/// C1/C2 construct normal inline arguments and normal indented expression
+/// statements. All mandatory-slot recovery and the remaining canonical
+/// Statement variants still hand the colon back before committing it.
 pub(super) fn colon_tail(
     mut i: RewriteIn,
     mut colon: Item,
@@ -35,7 +35,9 @@ pub(super) fn colon_tail(
     if matches!(ml_mode, MlMode::None) || !chain_continuation(&colon.leading, baseline) {
         return handoff(colon);
     }
-    if !same_line_normal_nud_follows(i.rb()) {
+    let inline = same_line_normal_nud_follows(i.rb());
+    let indented = !inline && indented_normal_statement_follows(i.rb(), baseline);
+    if !inline && !indented {
         return handoff(colon);
     }
 
@@ -44,17 +46,21 @@ pub(super) fn colon_tail(
     i.state.start_node(SyntaxKind::ColonApplicationTail.into());
     emit_token_item(&mut i, colon);
 
-    let leading = scan_trivia(i.rb());
-    let mut item = tail_item_after_trivia(
-        i.rb(),
-        leading,
-        OperatorSite::Nud,
-        baseline,
-        stops | STOP_COMMA,
-    );
-    let leading = std::mem::take(&mut item.leading);
-    emit_leading_trivia(&mut i, &leading);
-    let exit = inline_colon_argument(i.rb(), item, baseline, stops, ml_mode);
+    let exit = if inline {
+        let leading = scan_trivia(i.rb());
+        let mut item = tail_item_after_trivia(
+            i.rb(),
+            leading,
+            OperatorSite::Nud,
+            baseline,
+            stops | STOP_COMMA,
+        );
+        let leading = std::mem::take(&mut item.leading);
+        emit_leading_trivia(&mut i, &leading);
+        inline_colon_argument(i.rb(), item, baseline, stops, ml_mode)
+    } else {
+        indented_statement_block(i.rb(), baseline, stops)
+    };
     i.state.finish_node();
     exit
 }
@@ -108,6 +114,13 @@ fn inline_colon_successor(
 fn same_line_normal_nud_follows(i: RewriteIn) -> bool {
     i.map(inline_normal_nud_follower, |follower| follower)
         .unwrap_or(false)
+}
+
+fn indented_normal_statement_follows(i: RewriteIn, baseline: usize) -> bool {
+    i.map(normal_statement_indentation_follower, |indentation| {
+        indentation.is_some_and(|indentation| indentation > baseline)
+    })
+    .unwrap_or(false)
 }
 
 pub(super) fn call_tail(

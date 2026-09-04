@@ -182,6 +182,22 @@ pub(super) fn inline_normal_nud_after_trivia(source: &str) -> bool {
     if matches!(trailing, RawTrailing::Newline { .. }) {
         return false;
     }
+    normal_direct_core_start(source)
+}
+
+/// C2's source-only block evidence. A caller compares the returned
+/// indentation with its own baseline; no logical item is completed here.
+pub(super) fn normal_statement_indentation_after_trivia(source: &str) -> Option<usize> {
+    let (trailing, source) = raw_trivia_suffix(source);
+    match trailing {
+        RawTrailing::Newline { indentation } if normal_direct_core_start(source) => {
+            Some(indentation)
+        }
+        RawTrailing::None | RawTrailing::Space | RawTrailing::Newline { .. } => None,
+    }
+}
+
+fn normal_direct_core_start(source: &str) -> bool {
     source.chars().next().is_some_and(|character| {
         character == '('
             || character.is_ascii_digit()

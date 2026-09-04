@@ -313,7 +313,7 @@ fn with_colon_is_reserved_for_its_dedicated_tail_owner() {
 
 #[test]
 fn colon_c1_handoffs_before_an_unimplemented_mandatory_slot() {
-    for source in ["f:", "f:\n x", "f: @"] {
+    for source in ["f:", "f:\nx", "f:\n  ", "f: @"] {
         let (green, exit) = run(source);
         assert_eq!(green.to_string(), "f", "{source:?}");
         assert!(matches!(
@@ -350,4 +350,121 @@ fn colon_c1_handoffs_before_an_unimplemented_mandatory_slot() {
                 .any(|token| token.kind() == SyntaxKind::Comma)
         );
     }
+}
+
+#[test]
+fn colon_c2_indented_expression_statement_block_preserves_dedent() {
+    let (green, exit) = run("f:\n  x");
+    assert_eq!(green.to_string(), "f:\n  x");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+        .expect("indented colon block");
+    assert_eq!(
+        block.first_token().expect("opening newline").kind(),
+        SyntaxKind::Newline
+    );
+    assert_eq!(
+        block.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::Statement]
+    );
+
+    let (green, exit) = run("f:\n  x\n  y");
+    assert_eq!(green.to_string(), "f:\n  x\n  y");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+        .expect("indented colon block");
+    assert_eq!(
+        block.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::Statement,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::Statement,
+        ]
+    );
+
+    let (green, exit) = run("f:\n  x\nz");
+    assert_eq!(green.to_string(), "f:\n  x");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token)
+                if token.kind == TokenKind::Identifier && &*token.text == "z")
+    ));
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Statement)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run("f:\n    x\n      y");
+    assert_eq!(green.to_string(), "f:\n    x\n      y");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+        .expect("indented colon block");
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Statement)
+            .count(),
+        1
+    );
+    assert!(
+        block
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::MlArgument)
+    );
+}
+
+#[test]
+fn colon_c2_handoffs_unimplemented_block_statement_slots() {
+    for source in ["f:\nx", "f:\n  ", "f:\n  @"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), "f", "{source:?}");
+        assert!(matches!(
+            exit,
+            Some(Err(Either::Left(item)))
+                if matches!(item.payload, Payload::Token(ref token)
+                    if token.kind == TokenKind::Colon)
+        ));
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+        );
+    }
+
+    let (green, exit) = run("f:\n  x\n  @");
+    assert_eq!(green.to_string(), "f:\n  x");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token)
+                if token.kind == TokenKind::Unknown)
+    ));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+        .expect("completed first block statement");
+    assert!(
+        !block
+            .children()
+            .any(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+    );
 }

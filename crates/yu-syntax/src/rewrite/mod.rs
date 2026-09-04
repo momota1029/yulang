@@ -14,6 +14,7 @@ mod lexer;
 mod operator;
 mod pattern;
 mod state;
+mod statement;
 mod tails;
 mod type_expr;
 
