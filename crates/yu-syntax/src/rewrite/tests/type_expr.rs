@@ -407,6 +407,70 @@ fn named_record_type_keeps_field_and_separator_ownership() {
 }
 
 #[test]
+fn named_record_type_recovers_leading_and_repeated_commas() {
+    for (source, fields, missing) in [
+        ("{,a: A}", 1, 1),
+        ("{a: A,,b: B}", 2, 1),
+        ("{,}", 0, 1),
+        ("{a: A,}", 1, 0),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("named record type");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            fields,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn named_record_type_recovers_a_missing_field_before_eof_or_outer_close() {
+    let (green, exit) = run_type("{a: A,");
+    assert_eq!(green.to_string(), "{a: A,");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_type("{a: A,]");
+    assert_eq!(green.to_string(), "{a: A,");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBracket)
+    ));
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn named_record_field_recovers_missing_colon_and_type() {
     for (source, fields) in [
         ("{a}", 1),

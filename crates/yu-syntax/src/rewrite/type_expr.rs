@@ -284,6 +284,15 @@ fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
         if matches!(&item.payload, Payload::Eof) {
             return handoff(item);
         }
+        if token_kind(&item) == Some(TokenKind::Comma) {
+            item = missing_type_item(i.rb(), item);
+            emit_token_item(&mut i, item);
+            item = match type_record_after_comma(i.rb()) {
+                Ok(next) => next,
+                Err(exit) => return exit,
+            };
+            continue;
+        }
         let exit = if is_type_record_field_name(&item) {
             type_record_field(i.rb(), item, baseline)
         } else if token_kind(&item) == Some(TokenKind::Colon) {
@@ -392,6 +401,24 @@ fn type_record_rhs(mut i: RewriteIn, baseline: usize) -> TailExit {
     type_expr_from_nud(i, rhs, baseline, false)
 }
 
+fn type_record_after_comma(mut i: RewriteIn) -> Result<Item, TailExit> {
+    let leading = scan_trivia(i.rb());
+    let mut next = type_item_after_trivia(i.rb(), leading);
+    if token_kind(&next) == Some(TokenKind::RBrace) || is_type_record_field_start(&next) {
+        let leading = std::mem::take(&mut next.leading);
+        emit_leading_trivia(&mut i, &leading);
+    }
+    if token_kind(&next) == Some(TokenKind::RBrace) {
+        emit_token_item(&mut i, next);
+        return Err(Ok(()));
+    }
+    if matches!(&next.payload, Payload::Eof) || is_type_mismatched_close(&next, TokenKind::RBrace) {
+        next = missing_type_item(i.rb(), next);
+        return Err(handoff(next));
+    }
+    Ok(next)
+}
+
 fn type_record_successor(
     mut i: RewriteIn,
     exit: TailExit,
@@ -400,27 +427,14 @@ fn type_record_successor(
     match exit {
         Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::Comma) => {
             emit_token_item(&mut i, next);
-            let leading = scan_trivia(i.rb());
-            let mut next = type_item_after_trivia(i.rb(), leading);
-            if token_kind(&next) == Some(TokenKind::RBrace) {
-                let leading = std::mem::take(&mut next.leading);
-                emit_leading_trivia(&mut i, &leading);
-                emit_token_item(&mut i, next);
-                return Err(Ok(()));
-            }
-            if is_type_record_field_name(&next) {
-                let leading = std::mem::take(&mut next.leading);
-                emit_leading_trivia(&mut i, &leading);
-            }
-            Ok(next)
+            type_record_after_comma(i)
         }
         Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::RBrace) => {
             emit_token_item(&mut i, next);
             Err(Ok(()))
         }
         Err(Either::Left(mut next))
-            if (is_type_record_field_name(&next)
-                || token_kind(&next) == Some(TokenKind::Colon))
+            if is_type_record_field_start(&next)
                 && is_type_implicit_boundary(baseline, &next.leading) =>
         {
             let leading = std::mem::take(&mut next.leading);
@@ -999,6 +1013,10 @@ fn is_type_nud(item: &Item) -> bool {
 
 fn is_type_record_field_name(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Identifier)
+}
+
+fn is_type_record_field_start(item: &Item) -> bool {
+    is_type_record_field_name(item) || token_kind(item) == Some(TokenKind::Colon)
 }
 
 fn is_type_polymorphic_variant_tag_name(item: &Item) -> bool {

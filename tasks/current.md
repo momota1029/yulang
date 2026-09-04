@@ -1025,6 +1025,15 @@ EOFへ着いたErrorはadditional Missing RHSを作らない。malformed-name / 
 next-field owner queryは未実装。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはclean、focused rewrite
 testsは74 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`のleading / repeated comma recoveryを追加した。commaごとにrecord直下へ
+zero-width Missing field一件を置き、次field slotをsame-positionでretryする。accepted field後とleading/repeated位置は
+shared post-comma continuationを通り、matching `}`だけがvalid trailing commaとしてraw triviaとcloseをrecordが所有する。
+EOF / `)` / `]`はpost-comma triviaをMissing fieldへ置き、boundaryをunconsumed handoffするためtrailing commaと
+混同しない。literal-colon missing-name skeletonもpost-comma field startとして従来通り受ける。whole-field sequence
+error、semicolon、record close / next-field owner queryは未実装。state/source reread/buffer/recovery recordの追加なし。
+M1 specification reviewはEOF/outer-close Missing fieldの修正後clean、focused rewrite testsは76 passed、package check、
+format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
