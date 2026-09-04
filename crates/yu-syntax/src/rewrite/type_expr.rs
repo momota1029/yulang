@@ -593,14 +593,14 @@ fn type_delimited(
             continue;
         }
         if !is_type_nud(&item) {
-            if owner == TypeDelimitedOwner::BracketRow {
-                item = match retry_bracket_row_item(i.rb(), item, close, baseline) {
-                    Ok(next) => next,
-                    Err(exit) => return exit,
-                };
-                continue;
+            if owner != TypeDelimitedOwner::BracketRow && is_type_mismatched_close(&item, close) {
+                return handoff(item);
             }
-            return handoff(item);
+            item = match retry_type_delimited_item(i.rb(), item, close, owner, baseline) {
+                Ok(next) => next,
+                Err(exit) => return exit,
+            };
+            continue;
         }
         let exit = type_expr_from_nud(i.rb(), item, baseline, false);
         item = match exit {
@@ -640,7 +640,13 @@ fn type_delimited(
                     && !is_type_deeper_newline(baseline, &next.leading)
                     && !is_type_nud(&next) =>
             {
-                match retry_bracket_row_item(i.rb(), next, close, baseline) {
+                match retry_type_delimited_item(
+                    i.rb(),
+                    next,
+                    close,
+                    TypeDelimitedOwner::BracketRow,
+                    baseline,
+                ) {
                     Ok(next) => next,
                     Err(exit) => return exit,
                 }
@@ -668,10 +674,11 @@ fn type_delimited(
     }
 }
 
-fn retry_bracket_row_item(
+fn retry_type_delimited_item(
     mut i: RewriteIn,
     mut item: Item,
     close: TokenKind,
+    owner: TypeDelimitedOwner,
     baseline: usize,
 ) -> Result<Item, TailExit> {
     i.state.start_node(SyntaxKind::Error.into());
@@ -687,7 +694,7 @@ fn retry_bracket_row_item(
         if is_type_separator(&item) {
             i.state.finish_node();
             emit_token_item(&mut i, item);
-            return type_after_separator(i, close, TypeDelimitedOwner::BracketRow, baseline);
+            return type_after_separator(i, close, owner, baseline);
         }
         if is_type_implicit_boundary(baseline, &item.leading) {
             i.state.finish_node();
@@ -695,13 +702,17 @@ fn retry_bracket_row_item(
             emit_leading_trivia(&mut i, &leading);
             return Ok(item);
         }
-        if !type_chain_trivia(&item.leading, baseline) {
-            i.state.finish_node();
-            return Err(handoff(item));
-        }
         if matches!(&item.payload, Payload::Eof) {
             i.state.finish_node();
-            return Err(missing_bracket_row_close(i, item, baseline));
+            return Err(if owner == TypeDelimitedOwner::BracketRow {
+                missing_bracket_row_close(i, item, baseline)
+            } else {
+                missing_type_close(i, item)
+            });
+        }
+        if owner != TypeDelimitedOwner::BracketRow && is_type_mismatched_close(&item, close) {
+            i.state.finish_node();
+            return Err(handoff(item));
         }
         let leading = std::mem::take(&mut item.leading);
         emit_leading_trivia(&mut i, &leading);

@@ -324,6 +324,55 @@ fn type_delimited_owner_recovers_missing_items_and_close_at_eof() {
 }
 
 #[test]
+fn type_delimited_owner_retries_malformed_initial_items() {
+    for (source, owner, recovered) in [
+        ("T(@A)", SyntaxKind::TypeCallTail, "A"),
+        ("(@A)", SyntaxKind::ParenthesizedTypeGroup, "A"),
+        ("'[@A]", SyntaxKind::EffectRowType, "A"),
+        ("T(@, A)", SyntaxKind::TypeCallTail, "A"),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("type delimited owner");
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            owner
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Identifier && token.text() == recovered),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("T(@");
+    assert_eq!(green.to_string(), "T(@");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let call = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+        .expect("type call tail");
+    assert_eq!(
+        call.children()
+            .filter(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn named_record_type_keeps_field_and_separator_ownership() {
     let source = "{a: A, b: List(Int)}";
     let (green, exit) = run_type(source);

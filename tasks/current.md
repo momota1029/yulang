@@ -983,6 +983,16 @@ CST fixtureで固定した。Generic (EffectRow / call / group) close behavior�
 の追加なし。M1 specification reviewはnewline ownership修正を含め2巡clean、focused rewrite testsは69 passed、package check、
 format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: shared direct type-delimited item retryを一般ownerにも追加した。`TypeCallTail` /
+`ParenthesizedTypeGroup` / `EffectRowType`のinitial itemまたはliteral separator直後のmalformed runは、same-line /
+deeper triviaを含むone `Error`からvalid Type NUDへsame slot retryし、literal separatorなら次item slotへ、actual matching
+closeならincomplete itemを重ねずcloseをそのownerが読む。EOFはErrorの後にdistinct close Missingを置く。mismatched closeは
+direct standalone entryにouter-delimiter authorityがまだ無いため、一切consume / Error化せずpending `Item`のままhandoffする。
+BracketRowも同じhelperへ畳んだが、BR-RP1のitem Errorとclose Errorのtrivia/range ownershipは不変に保った。state/source
+reread/buffer/recovery recordの追加なし。M1 specification reviewはcompile-blocker修正とBR-RP1 range deltaを含めclean、focused
+rewrite testsは70 passed、package check、format/diff checkはgreen。generic mismatched-close retry、complete item後のmalformed
+gap / missing separator、other type owner recovery、production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
