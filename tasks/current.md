@@ -1429,6 +1429,18 @@ one bundled repairと両delta reviewはapproved。focused For 12、Pattern 11、
 format/diff checkはgreen（existing warningのみ）。broad package/workspace suite、performance、production/public/root
 parser、AST/HIR/header projection、typed diagnostics、Yumark、Gate 4/6/9 certificationは未実施のままである。
 
+2026-09-05: C14候補として、bare nominal `TypeDeclaration`のterminal newline provenanceを
+source-free direct pathへ移す`direct-tnd-statement-line-handoff-amendment`をReviewed化した。
+旧ambient-owner stack / skipped-inline countの**実装経路だけ**を、immediate Copy argument
+`StatementLineHandoff::{OrdinaryLayout, BracedStatementSequence, CatchBracedArm,
+CatchArmSequenceThroughInlineCanonicalStatement}`へ置換する候補である。四値はglobal state / Context /
+Item metadataではなく、nearest statement ownerからcontained callへlexically渡し、return後にcallerの
+incoming valueを再利用する。Catch braced armではzero crossingをrecoveryのまま、With/Mod経由のone-or-more
+inline canonical Statement crossingだけをNominal newline authorityにする。TND-J priorityはcomplete exact
+equality、ordinary/braced/Catch-through line、EOF/semicolon/active stop、deeper EOF trivia、recoveryを一つの
+pure form judgeへ固定し、EOFとsemicolonもphysical line evidenceを先に判定する。M3 compiler-referee / spec
+reviewはthree delta roundsでapproved。ユーザー承認まではDraft相当の設計記録だけで、C14 code / fixtureは未着手。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
