@@ -6,6 +6,7 @@
 use chasa_recover::In;
 use rowan::GreenNodeBuilder;
 
+mod case_like;
 mod delimited;
 mod driver;
 mod emit;

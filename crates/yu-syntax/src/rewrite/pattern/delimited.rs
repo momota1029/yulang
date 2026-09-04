@@ -17,7 +17,9 @@ use super::{
             tail_item_after_trivia,
         },
     },
-    PatternPrecedence, RewriteIn, pattern_from_item, scan_pattern_tail,
+    PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
+    PATTERN_STOP_RPAREN, PatternPrecedence, PatternStops, RewriteIn, pattern_from_item,
+    scan_pattern_tail,
 };
 
 #[derive(Clone, Copy)]
@@ -43,6 +45,15 @@ impl Owner {
             Self::Record => TokenKind::RBrace,
         }
     }
+
+    fn local_stops(self) -> PatternStops {
+        PATTERN_STOP_COMMA
+            | match self {
+                Self::Parenthesized => PATTERN_STOP_RPAREN,
+                Self::List => PATTERN_STOP_RBRACKET,
+                Self::Record => PATTERN_STOP_RBRACE,
+            }
+    }
 }
 
 pub(super) fn parenthesized_pattern(
@@ -50,7 +61,7 @@ pub(super) fn parenthesized_pattern(
     open: Item,
     minimum: PatternPrecedence,
     incoming_baseline: usize,
-    colon_stop: bool,
+    outer_stops: PatternStops,
 ) -> TailExit {
     pattern_delimited(
         i,
@@ -58,7 +69,7 @@ pub(super) fn parenthesized_pattern(
         Owner::Parenthesized,
         minimum,
         incoming_baseline,
-        colon_stop,
+        outer_stops,
     )
 }
 
@@ -67,9 +78,16 @@ pub(super) fn list_pattern(
     open: Item,
     minimum: PatternPrecedence,
     incoming_baseline: usize,
-    colon_stop: bool,
+    outer_stops: PatternStops,
 ) -> TailExit {
-    pattern_delimited(i, open, Owner::List, minimum, incoming_baseline, colon_stop)
+    pattern_delimited(
+        i,
+        open,
+        Owner::List,
+        minimum,
+        incoming_baseline,
+        outer_stops,
+    )
 }
 
 pub(super) fn record_pattern(
@@ -77,7 +95,7 @@ pub(super) fn record_pattern(
     open: Item,
     minimum: PatternPrecedence,
     incoming_baseline: usize,
-    colon_stop: bool,
+    outer_stops: PatternStops,
 ) -> TailExit {
     pattern_delimited(
         i,
@@ -85,7 +103,7 @@ pub(super) fn record_pattern(
         Owner::Record,
         minimum,
         incoming_baseline,
-        colon_stop,
+        outer_stops,
     )
 }
 
@@ -95,14 +113,15 @@ fn pattern_delimited(
     owner: Owner,
     minimum: PatternPrecedence,
     incoming_baseline: usize,
-    colon_stop: bool,
+    outer_stops: PatternStops,
 ) -> TailExit {
     i.state.start_node(owner.node().into());
     emit_token_item(&mut i, open);
     let opening = scan_trivia(i.rb());
     let baseline = delimited_baseline(incoming_baseline, &opening);
     emit_leading_trivia(&mut i, &opening);
-    let mut item = pattern_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
+    let local_stops = owner.local_stops();
+    let mut item = pattern_nud_item_after_trivia(i.rb(), LeadingTrivia::default(), local_stops);
     let mut expect_item = true;
 
     loop {
@@ -110,13 +129,13 @@ fn pattern_delimited(
             if token_kind(&item) == Some(owner.close()) {
                 emit_token_item(&mut i, item);
                 i.state.finish_node();
-                return scan_pattern_tail(i, minimum, incoming_baseline, colon_stop);
+                return scan_pattern_tail(i, minimum, incoming_baseline, outer_stops);
             }
             if matches!(owner, Owner::Record) && token_kind(&item) == Some(TokenKind::Comma) {
                 let leading = std::mem::take(&mut item.leading);
                 emit_missing(&mut i, leading);
                 emit_token_item(&mut i, item);
-                item = scan_pattern_nud_successor(i.rb());
+                item = scan_pattern_nud_successor(i.rb(), local_stops);
                 continue;
             }
             if token_kind(&item).is_none() {
@@ -124,12 +143,12 @@ fn pattern_delimited(
             }
             if is_other_close(owner, &item) {
                 emit_error_item(&mut i, item);
-                item = scan_pattern_nud_successor(i.rb());
+                item = scan_pattern_nud_successor(i.rb(), local_stops);
                 continue;
             }
             if matches!(owner, Owner::Record) && !is_item_start(owner, &item) {
                 emit_error_item(&mut i, item);
-                item = scan_pattern_nud_successor(i.rb());
+                item = scan_pattern_nud_successor(i.rb(), local_stops);
                 continue;
             }
             let item_baseline = delimited_baseline(baseline, &item.leading);
@@ -141,13 +160,13 @@ fn pattern_delimited(
                     item,
                     PatternPrecedence::Lowest,
                     item_baseline,
-                    false,
+                    local_stops,
                 ),
                 Owner::List => list_item(i.rb(), item, item_baseline),
                 Owner::Record => record_item(i.rb(), item, item_baseline),
             };
             item = match exit {
-                Ok(()) => scan_pattern_nud_successor(i.rb()),
+                Ok(()) => scan_pattern_nud_successor(i.rb(), local_stops),
                 Err(Either::Left(next)) => next,
                 Err(Either::Right(end)) => return missing_close(i, end.item),
             };
@@ -157,21 +176,21 @@ fn pattern_delimited(
 
         if token_kind(&item) == Some(TokenKind::Comma) {
             emit_token_item(&mut i, item);
-            item = scan_pattern_nud_successor(i.rb());
+            item = scan_pattern_nud_successor(i.rb(), local_stops);
             expect_item = true;
             continue;
         }
         if token_kind(&item) == Some(owner.close()) {
             emit_token_item(&mut i, item);
             i.state.finish_node();
-            return scan_pattern_tail(i, minimum, incoming_baseline, colon_stop);
+            return scan_pattern_tail(i, minimum, incoming_baseline, outer_stops);
         }
         if token_kind(&item).is_none() {
             return missing_close(i, item);
         }
         if is_other_close(owner, &item) {
             emit_error_item(&mut i, item);
-            item = scan_pattern_nud_successor(i.rb());
+            item = scan_pattern_nud_successor(i.rb(), local_stops);
             continue;
         }
         if is_item_start(owner, &item) {
@@ -186,7 +205,7 @@ fn pattern_delimited(
             continue;
         }
         emit_error_item(&mut i, item);
-        item = scan_pattern_nud_successor(i.rb());
+        item = scan_pattern_nud_successor(i.rb(), local_stops);
         if matches!(owner, Owner::Record) {
             expect_item = true;
         }
@@ -195,16 +214,29 @@ fn pattern_delimited(
 
 fn list_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
     if token_kind(&item) != Some(TokenKind::DotDot) {
-        return pattern_from_item(i, item, PatternPrecedence::Lowest, baseline, false);
+        return pattern_from_item(
+            i,
+            item,
+            PatternPrecedence::Lowest,
+            baseline,
+            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+        );
     }
     i.state.start_node(SyntaxKind::ListPatternSpreadItem.into());
     emit_token_item(&mut i, item);
     let leading = scan_trivia(i.rb());
-    let mut rhs = pattern_nud_item_after_trivia(i.rb(), leading);
+    let mut rhs =
+        pattern_nud_item_after_trivia(i.rb(), leading, PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET);
     let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
     let leading = std::mem::take(&mut rhs.leading);
     emit_leading_trivia(&mut i, &leading);
-    let exit = pattern_from_item(i.rb(), rhs, PatternPrecedence::Lowest, rhs_baseline, false);
+    let exit = pattern_from_item(
+        i.rb(),
+        rhs,
+        PatternPrecedence::Lowest,
+        rhs_baseline,
+        PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+    );
     i.state.finish_node();
     exit
 }
@@ -215,11 +247,21 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
             .start_node(SyntaxKind::RecordPatternSpreadItem.into());
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
-        let mut rhs = pattern_nud_item_after_trivia(i.rb(), leading);
+        let mut rhs = pattern_nud_item_after_trivia(
+            i.rb(),
+            leading,
+            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
+        );
         let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
         let leading = std::mem::take(&mut rhs.leading);
         emit_leading_trivia(&mut i, &leading);
-        let exit = pattern_from_item(i.rb(), rhs, PatternPrecedence::Lowest, rhs_baseline, false);
+        let exit = pattern_from_item(
+            i.rb(),
+            rhs,
+            PatternPrecedence::Lowest,
+            rhs_baseline,
+            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
+        );
         i.state.finish_node();
         return exit;
     }
@@ -233,11 +275,12 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
     i.state.start_node(SyntaxKind::RecordPatternField.into());
     emit_token_item(&mut i, item);
     let leading = scan_trivia(i.rb());
-    let item = pattern_item_after_trivia(i.rb(), leading);
+    let record_stops = PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE | PATTERN_STOP_EQUALS;
+    let item = pattern_item_after_trivia(i.rb(), leading, record_stops);
     let exit = if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Colon) {
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
-        let mut nested = pattern_nud_item_after_trivia(i.rb(), leading);
+        let mut nested = pattern_nud_item_after_trivia(i.rb(), leading, record_stops);
         let nested_baseline = delimited_baseline(baseline, &nested.leading);
         let leading = std::mem::take(&mut nested.leading);
         emit_leading_trivia(&mut i, &leading);
@@ -246,7 +289,7 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
             nested,
             PatternPrecedence::Lowest,
             nested_baseline,
-            false,
+            record_stops,
         );
         record_default_after_pattern(i.rb(), exit, baseline)
     } else if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Equals) {
@@ -260,7 +303,10 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
 
 fn record_default_after_pattern(mut i: RewriteIn, exit: TailExit, baseline: usize) -> TailExit {
     let item = match exit {
-        Ok(()) => scan_pattern_nud_successor(i.rb()),
+        Ok(()) => scan_pattern_nud_successor(
+            i.rb(),
+            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE | PATTERN_STOP_EQUALS,
+        ),
         Err(Either::Left(item)) => item,
         Err(Either::Right(end)) => return Err(Either::Right(end)),
     };
@@ -286,9 +332,9 @@ fn record_default_after_equals(mut i: RewriteIn, equals: Item, baseline: usize) 
     handoff(rhs)
 }
 
-fn scan_pattern_nud_successor(mut i: RewriteIn) -> Item {
+fn scan_pattern_nud_successor(mut i: RewriteIn, stops: PatternStops) -> Item {
     let leading = scan_trivia(i.rb());
-    pattern_nud_item_after_trivia(i, leading)
+    pattern_nud_item_after_trivia(i, leading, stops)
 }
 
 fn missing_close(mut i: RewriteIn, mut item: Item) -> TailExit {

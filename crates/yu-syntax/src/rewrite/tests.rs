@@ -13,11 +13,12 @@ use super::{
     emit::emit_end,
     item::{OperatorUse, Payload, TokenKind, TriviaKind},
     operator::{STOP_COLON, scan_operator},
-    pattern::pattern_with_colon_stop,
+    pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_with_stops},
     state::Recover,
     type_expr::type_expr,
 };
 
+mod case_like;
 mod if_expr;
 mod lexical;
 mod operators;
@@ -68,7 +69,8 @@ fn run_pattern_with_colon_stop(source: &str, colon_stop: bool) -> (GreenNode, Ta
     let mut recover = Recover::new(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let exit = pattern_with_colon_stop(In::new(&mut input, &mut recover, &mut builder), colon_stop);
+    let stops = PATTERN_DEFAULT_STOPS | colon_stop.then_some(PATTERN_STOP_COLON).unwrap_or(0);
+    let exit = pattern_with_stops(In::new(&mut input, &mut recover, &mut builder), stops);
     if let Err(Either::Right(end)) = &exit {
         emit_end(&mut builder, end);
     }

@@ -13,7 +13,7 @@ use super::{
     LexIn, RewriteIn, Stops,
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
     operator::{
-        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
+        STOP_ARROW, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
         newline_indentation_after_trivia, scan_dangling_operator, scan_operator,
     },
     state::Recover,
@@ -73,8 +73,12 @@ fn scan_tail_payload(
     stops: Stops,
     marker_after_operator: bool,
 ) -> Payload {
-    if matches!(site, OperatorSite::Nud)
-        && let Some(keyword) = i.token(scan_if_keyword)
+    if stops & STOP_ARROW != 0
+        && let Some(arrow) = i.token(scan_arm_arrow)
+    {
+        Payload::Token(arrow)
+    } else if matches!(site, OperatorSite::Nud)
+        && let Some(keyword) = i.token(scan_nud_keyword)
     {
         Payload::Token(keyword)
     } else if let Some(operator) =
@@ -114,7 +118,11 @@ fn scan_token_payload(mut i: RewriteIn) -> Payload {
 pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
     let has_leading_trivia = !leading.0.is_empty();
-    let payload = if let Some(keyword) = i.token(scan_if_keyword) {
+    let payload = if stops & STOP_ARROW != 0
+        && let Some(arrow) = i.token(scan_arm_arrow)
+    {
+        Payload::Token(arrow)
+    } else if let Some(keyword) = i.token(scan_nud_keyword) {
         Payload::Token(keyword)
     } else if let Some(token) = i.token(scan_lparen) {
         Payload::Token(token)
@@ -148,10 +156,19 @@ pub(super) fn contextual_word_suffix_follower(i: LexIn) -> Option<bool> {
     Some(!matches!(i.remainder().chars().next(), Some('?' | '!')))
 }
 
-/// Source-only layout evidence for a colon's mandatory RHS. The accepted
-/// branch later completes the first logical Item itself.
-pub(super) fn newline_indentation_follower(i: LexIn) -> Option<Option<usize>> {
+/// Source-only evidence for a body after any already-accepted introducer.
+/// The caller alone decides its own body arity and indentation policy.
+pub(super) fn introduced_body_indentation_follower(i: LexIn) -> Option<Option<usize>> {
     Some(newline_indentation_after_trivia(i.remainder()))
+}
+
+/// The one shared source-only layout probe for an already-accepted body
+/// introducer.  It neither completes an Item nor changes recovery state.
+pub(super) fn introduced_body_indentation(i: RewriteIn) -> Option<usize> {
+    i.map(introduced_body_indentation_follower, |indentation| {
+        indentation
+    })
+    .flatten()
 }
 
 pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
@@ -228,35 +245,48 @@ fn scan_malformed_equals(i: LexIn) -> Option<Token> {
 pub(super) fn pattern_nud_item_after_trivia<S>(
     mut i: In<'_, &str, &mut Recover<'_>, S>,
     leading: LeadingTrivia,
+    stops: super::pattern::PatternStops,
 ) -> Item
 where
     S: Rb,
 {
-    let payload = i
-        .map(
-            choice((
-                token(scan_pattern_symbol_colon),
-                token(scan_pattern_tail_token),
-            )),
-            Payload::Token,
-        )
-        .unwrap_or(Payload::Eof);
+    let payload = if let Some(symbol) = i.token(scan_pattern_symbol_colon) {
+        Payload::Token(symbol)
+    } else {
+        pattern_payload(i, stops)
+    };
     Item { leading, payload }
 }
 
 /// Complete an already-accepted Pattern's successor.  A colon here belongs to
 /// the Pattern tail judge (or its caller), never to a fresh Symbol primary.
 pub(super) fn pattern_item_after_trivia<S>(
-    i: In<'_, &str, &mut Recover<'_>, S>,
+    mut i: In<'_, &str, &mut Recover<'_>, S>,
     leading: LeadingTrivia,
+    stops: super::pattern::PatternStops,
 ) -> Item
 where
     S: Rb,
 {
-    let payload = i
-        .map(token(scan_pattern_tail_token), Payload::Token)
-        .unwrap_or(Payload::Eof);
+    let payload = pattern_payload(i.rb(), stops);
     Item { leading, payload }
+}
+
+fn pattern_payload<S>(
+    mut i: In<'_, &str, &mut Recover<'_>, S>,
+    stops: super::pattern::PatternStops,
+) -> Payload
+where
+    S: Rb,
+{
+    if stops & super::pattern::PATTERN_STOP_ARROW != 0
+        && let Some(arrow) = i.token(scan_arm_arrow)
+    {
+        Payload::Token(arrow)
+    } else {
+        i.map(token(scan_pattern_tail_token), Payload::Token)
+            .unwrap_or(Payload::Eof)
+    }
 }
 
 fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
@@ -277,9 +307,13 @@ fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
 
 /// Keep a rejected exact record marker or field introducer as one malformed
 /// item.  This comes after their exact scanners, so plain `.` remains a
-/// punctuation token and exact `..` / `=` retain their normal owners.
+/// punctuation token and exact `..` / `=` retain their normal owners. An
+/// inactive or longer arm-arrow spelling remains whole for recovery.
 fn scan_pattern_malformed_fixed_operator(i: LexIn) -> Option<Token> {
-    (i.remainder().starts_with("..") || i.remainder().starts_with('=')).then_some(())?;
+    (i.remainder().starts_with("..")
+        || i.remainder().starts_with('=')
+        || i.remainder().starts_with("->"))
+    .then_some(())?;
     scan_operator_shaped_unknown(i)
 }
 
@@ -441,8 +475,45 @@ pub(super) fn scan_identifier(mut i: LexIn) -> Option<Token> {
 /// Contextual NUD keywords stay identifier-shaped until the accepting owner
 /// chooses their CST kind. This source-only scanner enforces maximal words
 /// before dynamic word operators are considered.
-fn scan_if_keyword(i: LexIn) -> Option<Token> {
-    scan_exact_word(i, "if")
+fn scan_nud_keyword(mut i: LexIn) -> Option<Token> {
+    scan_exact_word(i.rb(), "if")
+        .or_else(|| scan_exact_word(i.rb(), "case"))
+        .or_else(|| scan_exact_word(i, "catch"))
+}
+
+pub(super) fn scan_apostrophe_sigil_identifier(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut segment| {
+        (segment.next()? == '\'').then_some(())?;
+        scan_identifier(segment.rb())?;
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::SigilIdentifier,
+        text: text.into(),
+    })
+}
+
+/// An arm owns only the complete fixed `->` spelling. A longer
+/// operator-shaped spelling, such as `->>`, remains whole for ordinary
+/// operator selection or recovery.
+pub(super) fn scan_arm_arrow(mut i: LexIn) -> Option<Token> {
+    let remainder = i.remainder();
+    is_exact_arm_arrow(remainder).then_some(())?;
+    let (accepted, text) = i.rb().with_str(|mut arrow| scan_pair(arrow.rb(), '-', '>'));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Arrow,
+        text: text.into(),
+    })
+}
+
+pub(super) fn is_exact_arm_arrow(remainder: &str) -> bool {
+    remainder.starts_with("->")
+        && !remainder[2..]
+            .chars()
+            .next()
+            .is_some_and(is_operator_shaped_character)
 }
 
 fn scan_exact_word(mut i: LexIn, word: &str) -> Option<Token> {

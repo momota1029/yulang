@@ -1314,6 +1314,22 @@ boundary、pre-keyword triviaを補正し、post-writeでcondition wrapper / tri
 閉じてapproved。focused direct if tests 8 passed、existing tails tests 11 passed、`cargo check -p yu-syntax`、format/diff
 checkはgreen。
 
+2026-09-05: isolated SCC construction witness C7として、source-free direct NUD `CaseExpression` / `CatchExpression`を
+追加した。maximal exact `case` / `catch`はdynamic word operatorより先に受理し、apostrophe-sigil label、mandatory
+`CaseLikeScrutinee > OperatorChain`、family-owned blockだけをdirect Rowanで構築する。`CaseLikeFamily`とclosed
+`ArmSequencePolicy`はcase inline、catch inline single、両familyのstrictly-deeper indented、catch-only braceを表し、
+statement sequenceとは分離した一個のarm loopがPattern・catch handler・`if` / `where` guard・exact `->`・one bodyを
+所有する。case scrutineeはcolonだけ、catch scrutineeはcolonとbraceをlocal stopにし、caseがbrace blockを先取りしない。
+arrow、guard word、delimiter close、outer punctuationはcaller-owned `PatternStops` capabilityとして渡し、nested
+Pattern delimiterは自分のclose/comma maskへ置換する。`->>`は一個のunknown spellingのまま、operator tableのfixity / BPは
+arm shapeへ影響しない。colon / arrow後layoutはif / colon / withとも同じsource-only `introduced_body_indentation`へ寄せ、
+wrong-indent colon bodyはBlock内のone Missing armと未消費handoffになる。caseのmalformed next armだけにはcompleted
+Pattern grammarを変えないrecovery-only comma safe pointを与え、accepted arm-entry triviaはPatternでなくBlockが直接所有する。
+M1 specification reviewはpre-write approved、post-writeでwrong-indent・policy region/trailing comma・case recovery comma・
+trivia parentの4 blockerを検出し、one repair deltaでapproved。focused direct case-like tests 12 passed、existing Pattern
+tests 11、If tests 8、tails tests 11 passed、`cargo check -p yu-syntax`、format/diff checkはgreen。AST / HIR / typed
+diagnostics / production dispatch / Yumark wiring / G4a RB-E / Gate 4 certificationは未実装である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

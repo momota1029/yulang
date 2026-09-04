@@ -15,7 +15,7 @@ use super::{
     emit::{emit_leading_trivia, emit_missing, emit_token_item, emit_with_keyword},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{
-        newline_indentation_follower, path_segment_item_after_trivia, scan_trivia,
+        introduced_body_indentation, path_segment_item_after_trivia, scan_trivia,
         tail_item_after_trivia, with_colon_follower,
     },
     operator::STOP_COMMA,
@@ -36,7 +36,7 @@ pub(super) fn colon_tail(
         return handoff(colon);
     }
     let indented =
-        newline_indentation_follows(i.rb()).is_some_and(|indentation| indentation > baseline);
+        introduced_body_indentation(i.rb()).is_some_and(|indentation| indentation > baseline);
 
     emit_leading_trivia(&mut i, &colon.leading);
     colon.leading = LeadingTrivia::default();
@@ -180,11 +180,6 @@ fn emit_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize) {
     emit_missing(i, LeadingTrivia::default());
 }
 
-fn newline_indentation_follows(i: RewriteIn) -> Option<usize> {
-    i.map(newline_indentation_follower, |indentation| indentation)
-        .flatten()
-}
-
 /// The terminal generic `with:` continuation. Its body is an existing direct
 /// Statement callee, never a target-owning or replayed expression parser.
 pub(super) fn with_tail(
@@ -207,7 +202,7 @@ pub(super) fn with_tail(
         let colon = tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops);
         debug_assert_eq!(token_kind(&colon), Some(TokenKind::Colon));
         emit_token_item(&mut i, colon);
-        if newline_indentation_follows(i.rb()).is_some_and(|indentation| indentation > baseline) {
+        if introduced_body_indentation(i.rb()).is_some_and(|indentation| indentation > baseline) {
             indented_statement_block(i.rb(), baseline, stops)
         } else {
             let exit = with_inline_body(i.rb(), baseline, stops, true, true);

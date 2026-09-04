@@ -6,6 +6,7 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 
 use super::{
     RewriteIn, Stops,
+    case_like::{CaseLikeFamily, case_like_nud},
     delimited::parenthesized_nud,
     emit::{
         emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
@@ -13,7 +14,9 @@ use super::{
     if_expr::if_nud,
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
     lexer::{contextual_word_suffix_follower, scan_nud_item, scan_trivia, tail_item_after_trivia},
-    operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item},
+    operator::{
+        STOP_LINE_BREAK, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item,
+    },
     statement::braced_nud,
     tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail, with_tail},
 };
@@ -76,6 +79,28 @@ fn append_nud(
     stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
+    if is_contextual_word(i.rb(), &nud, "case") {
+        return case_like_nud(
+            i,
+            CaseLikeFamily::Case,
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+        );
+    }
+    if is_contextual_word(i.rb(), &nud, "catch") {
+        return case_like_nud(
+            i,
+            CaseLikeFamily::Catch,
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+        );
+    }
     if is_contextual_word(i.rb(), &nud, "if") {
         return if_nud(i, nud, threshold, baseline, stops, ml_mode);
     }
@@ -165,7 +190,9 @@ pub(super) fn required_expr_item(
 }
 
 pub(super) fn is_required_operand_boundary(mut i: RewriteIn, item: &Item, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof) || is_active_stop(i.rb(), item, stops)
+    matches!(item.payload, Payload::Eof)
+        || is_active_stop(i.rb(), item, stops)
+        || is_line_stop(item, stops)
 }
 
 fn is_unread_operand_boundary(item: &Item) -> bool {
@@ -211,7 +238,7 @@ pub(super) fn tail(
     stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
-    if is_active_stop(i.rb(), &item, stops) {
+    if is_active_stop(i.rb(), &item, stops) || is_line_stop(&item, stops) {
         return handoff(item);
     }
     if is_with_tail_item(i.rb(), &item, baseline, ml_mode) {
@@ -448,4 +475,8 @@ pub(super) fn indentation_after_newline(leading: &LeadingTrivia) -> Option<usize
         }
     }
     saw_newline.then_some(indentation)
+}
+
+pub(super) fn is_line_stop(item: &Item, stops: Stops) -> bool {
+    stops & STOP_LINE_BREAK != 0 && indentation_after_newline(&item.leading).is_some()
 }

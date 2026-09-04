@@ -23,6 +23,8 @@ pub(super) const STOP_COLON: Stops = 1 << 7;
 pub(super) const STOP_LBRACE: Stops = 1 << 8;
 pub(super) const STOP_ELSIF: Stops = 1 << 9;
 pub(super) const STOP_ELSE: Stops = 1 << 10;
+pub(super) const STOP_ARROW: Stops = 1 << 11;
+pub(super) const STOP_LINE_BREAK: Stops = 1 << 12;
 
 pub(super) fn stops_for(close: super::item::TokenKind) -> Stops {
     let close = match close {
@@ -158,6 +160,7 @@ fn active_stop(source: &str, stops: Stops) -> bool {
         Some('}') => stops & STOP_RBRACE != 0,
         Some(':') => stops & STOP_COLON != 0 && !source.starts_with("::"),
         Some('{') => stops & STOP_LBRACE != 0,
+        Some('-') => stops & STOP_ARROW != 0 && super::lexer::is_exact_arm_arrow(source),
         _ => false,
     }
 }
@@ -171,6 +174,7 @@ pub(super) fn active_stop_item(kind: super::item::TokenKind, stops: Stops) -> bo
         super::item::TokenKind::RBrace => stops & STOP_RBRACE != 0,
         super::item::TokenKind::Colon => stops & STOP_COLON != 0,
         super::item::TokenKind::LBrace => stops & STOP_LBRACE != 0,
+        super::item::TokenKind::Arrow => stops & STOP_ARROW != 0,
         _ => false,
     }
 }

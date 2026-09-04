@@ -13,7 +13,7 @@ use super::{
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
-    lexer::{newline_indentation_follower, scan_trivia, tail_item_after_trivia},
+    lexer::{introduced_body_indentation, scan_trivia, tail_item_after_trivia},
     operator::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE},
     statement::indented_statement_block,
 };
@@ -148,11 +148,7 @@ fn else_arm(mut i: RewriteIn, keyword: Item, baseline: usize, outer_stops: Stops
 }
 
 fn colon_body(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
-    if i.rb()
-        .map(newline_indentation_follower, |indentation| indentation)
-        .flatten()
-        .is_some_and(|indentation| indentation > baseline)
-    {
+    if introduced_body_indentation(i.rb()).is_some_and(|indentation| indentation > baseline) {
         indented_statement_block(i, baseline, stops)
     } else {
         inline_body(i, baseline, stops)
