@@ -803,8 +803,9 @@ fn type_forall(
             i.state.finish_node();
             return handoff(binder);
         }
+        let exit = type_forall_first_malformed_binder(i.rb(), binder, baseline, record_base);
         i.state.finish_node();
-        return handoff(binder);
+        return exit;
     }
     let missing_boundary = binder.leading.0.is_empty();
     type_forall_binder(i.rb(), binder, missing_boundary);
@@ -841,8 +842,209 @@ fn type_forall_after_binder(
         if is_type_rhs_boundary(&next) {
             let leading = std::mem::take(&mut next.leading);
             emit_missing(&mut i, leading);
+            return handoff(next);
         }
-        return handoff(next);
+        return type_forall_malformed_after_binder(i, next, baseline, record_base);
+    }
+}
+
+fn type_forall_first_malformed_binder(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    record_base: Option<usize>,
+) -> TailExit {
+    let leading = std::mem::take(&mut item.leading);
+    i.state.start_node(SyntaxKind::ForallTypeBinder.into());
+    emit_leading_trivia(&mut i, &leading);
+    i.state.start_node(SyntaxKind::Error.into());
+    let mut nested_depth = 0usize;
+    loop {
+        let kind = token_kind(&item);
+        emit_token_item(&mut i, item);
+        match kind {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+            }
+            _ => {}
+        }
+        let leading = scan_trivia(i.rb());
+        item = type_item_after_trivia(i.rb(), leading);
+        if matches!(item.payload, Payload::Eof)
+            || (nested_depth == 0
+                && (!type_chain_trivia(&item.leading, baseline) || is_type_rhs_boundary(&item)))
+        {
+            i.state.finish_node();
+            i.state.finish_node();
+            return handoff(item);
+        }
+        if nested_depth == 0 && token_kind(&item) == Some(TokenKind::Colon) {
+            i.state.finish_node();
+            i.state.finish_node();
+            return type_forall_body(i, item, baseline, record_base);
+        }
+        if nested_depth == 0 && is_forall_binder(&item) {
+            i.state.finish_node();
+            i.state.finish_node();
+            let missing_boundary = item.leading.0.is_empty();
+            type_forall_binder(i.rb(), item, missing_boundary);
+            return type_forall_after_binder(i, baseline, record_base);
+        }
+    }
+}
+
+fn type_forall_malformed_after_binder(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    record_base: Option<usize>,
+) -> TailExit {
+    let retry_binder = i
+        .rb()
+        .then(
+            type_forall_malformed_retries_binder,
+            |(is_binder, indent), _| is_binder && indent.is_none_or(|indent| indent > baseline),
+        )
+        .expect("the forall malformed-retry probe always succeeds");
+    if retry_binder {
+        return type_forall_retry_binder(i, item, baseline, record_base);
+    }
+    type_forall_retry_colon_or_body(i, item, baseline, record_base)
+}
+
+fn type_forall_malformed_retries_binder(mut i: LexIn) -> Option<(bool, Option<usize>)> {
+    let mut input = i.remainder();
+    let mut probe: LexIn = chasa_recover::In::new(&mut input, i.recovery(), ());
+    let mut minimum_indentation: Option<usize> = None;
+    let mut nested_depth = 0usize;
+    loop {
+        let leading = scan_trivia(probe.rb());
+        if nested_depth == 0 {
+            if let Some(indentation) = indentation_after_newline(&leading) {
+                minimum_indentation =
+                    Some(minimum_indentation.map_or(indentation, |min| min.min(indentation)));
+            }
+        }
+        let item = type_nud_item_after_trivia(probe.rb(), leading);
+        if matches!(item.payload, Payload::Eof) {
+            return Some((false, minimum_indentation));
+        }
+        if nested_depth == 0 {
+            if is_type_rhs_boundary(&item) {
+                return Some((false, minimum_indentation));
+            }
+            if is_forall_binder(&item) {
+                return Some((true, minimum_indentation));
+            }
+            if token_kind(&item) == Some(TokenKind::Colon) || is_type_nud(&item) {
+                return Some((false, minimum_indentation));
+            }
+        }
+        match token_kind(&item) {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn type_forall_retry_binder(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    record_base: Option<usize>,
+) -> TailExit {
+    let leading = std::mem::take(&mut item.leading);
+    i.state.start_node(SyntaxKind::ForallTypeBinder.into());
+    emit_leading_trivia(&mut i, &leading);
+    i.state.start_node(SyntaxKind::Error.into());
+    let mut nested_depth = 0usize;
+    loop {
+        let kind = token_kind(&item);
+        emit_token_item(&mut i, item);
+        match kind {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+            }
+            _ => {}
+        }
+        let leading = scan_trivia(i.rb());
+        item = type_item_after_trivia(i.rb(), leading);
+        if nested_depth == 0 && is_forall_binder(&item) {
+            i.state.finish_node();
+            i.state.finish_node();
+            let missing_boundary = item.leading.0.is_empty();
+            type_forall_binder(i.rb(), item, missing_boundary);
+            return type_forall_after_binder(i, baseline, record_base);
+        }
+        if matches!(item.payload, Payload::Eof)
+            || (nested_depth == 0
+                && (!type_chain_trivia(&item.leading, baseline) || is_type_rhs_boundary(&item)))
+        {
+            i.state.finish_node();
+            i.state.finish_node();
+            return handoff(item);
+        }
+    }
+}
+
+fn type_forall_retry_colon_or_body(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    record_base: Option<usize>,
+) -> TailExit {
+    let leading = std::mem::take(&mut item.leading);
+    emit_leading_trivia(&mut i, &leading);
+    i.state.start_node(SyntaxKind::Error.into());
+    let mut nested_depth = 0usize;
+    loop {
+        let kind = token_kind(&item);
+        emit_token_item(&mut i, item);
+        match kind {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+            }
+            _ => {}
+        }
+        let leading = scan_trivia(i.rb());
+        item = type_nud_item_after_trivia(i.rb(), leading);
+        if matches!(item.payload, Payload::Eof)
+            || (nested_depth == 0
+                && (!type_chain_trivia(&item.leading, baseline) || is_type_rhs_boundary(&item)))
+        {
+            i.state.finish_node();
+            return handoff(item);
+        }
+        if nested_depth == 0 && token_kind(&item) == Some(TokenKind::Colon) {
+            i.state.finish_node();
+            return type_forall_body(i, item, baseline, record_base);
+        }
+        if nested_depth == 0 && is_type_nud(&item) {
+            i.state.finish_node();
+            return type_expr_from_nud(i, item, baseline, false, record_base);
+        }
     }
 }
 
@@ -887,11 +1089,33 @@ fn type_forall_body(
         return handoff(body);
     }
     if !is_type_nud(&body) {
-        return handoff(body);
+        body = type_forall_retry_body(i.rb(), body, baseline);
+        if !is_type_nud(&body) {
+            return handoff(body);
+        }
     }
     let leading = std::mem::take(&mut body.leading);
     emit_leading_trivia(&mut i, &leading);
     type_expr_from_nud(i, body, baseline, false, record_base)
+}
+
+fn type_forall_retry_body(mut i: RewriteIn, mut item: Item, baseline: usize) -> Item {
+    let leading = std::mem::take(&mut item.leading);
+    emit_leading_trivia(&mut i, &leading);
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_nud_item_after_trivia(i.rb(), leading);
+        if is_type_nud(&item)
+            || matches!(item.payload, Payload::Eof)
+            || !type_chain_trivia(&item.leading, baseline)
+            || is_type_rhs_boundary(&item)
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
 }
 
 fn type_effect_row(

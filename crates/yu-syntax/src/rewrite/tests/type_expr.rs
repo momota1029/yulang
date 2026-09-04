@@ -1063,6 +1063,152 @@ fn forall_type_recovers_clean_mandatory_slots_without_cascading() {
 }
 
 #[test]
+fn forall_type_recovers_malformed_phase_runs_and_retries() {
+    for (source, expected_error, expected_missing, expected_binders) in [
+        ("for @", "@", 0, 1),
+        ("for T", "T", 0, 1),
+        ("for @ 'a: T", "@", 0, 2),
+        ("for @: T", "@", 0, 1),
+        ("for 'a @", "@", 0, 1),
+        ("for 'a @ 'b: T", "@", 0, 3),
+        ("for 'a @: T", "@", 0, 1),
+        ("for 'a @ T", "@", 0, 1),
+        ("for 'a: @", "@", 0, 1),
+        ("for 'a: @ T", "@", 0, 1),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let forall = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            [expected_error],
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            expected_missing,
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+                .count(),
+            expected_binders,
+            "{source:?}"
+        );
+    }
+
+    let first_binder = run_type("for @ 'a: T").0;
+    let first_binder = SyntaxNode::new_root(first_binder)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+        .expect("recovered first binder");
+    assert!(
+        first_binder
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+
+    let malformed_colon = run_type("for 'a @: T").0;
+    let malformed_colon = SyntaxNode::new_root(malformed_colon)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ForallType)
+        .expect("forall type");
+    assert!(
+        malformed_colon
+            .children()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+
+    let (green, exit) = run_type("for 'a @\nT");
+    assert_eq!(green.to_string(), "for 'a @");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Identifier && token.text.as_ref() == "T")
+                && item.leading.0.iter().any(|trivia| trivia.kind == TriviaKind::Newline && trivia.text.as_ref() == "\n")
+    ));
+    let root = SyntaxNode::new_root(green);
+    let forall = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ForallType)
+        .expect("forall type");
+    assert!(
+        !forall
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Newline)
+    );
+
+    let deeper = run_type("for\n  'a @\n  'b: T").0;
+    let deeper = SyntaxNode::new_root(deeper);
+    assert_eq!(
+        deeper
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+            .count(),
+        3
+    );
+
+    let nested = run_type("for (@: T) 'a: T").0;
+    let nested = SyntaxNode::new_root(nested);
+    assert_eq!(
+        nested
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .map(|node| node.text().to_string())
+            .collect::<Vec<_>>(),
+        ["(@: T)"]
+    );
+
+    let nested_newline = run_type("for (@\n) 'a: T").0;
+    let nested_newline = SyntaxNode::new_root(nested_newline);
+    assert_eq!(
+        nested_newline
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .map(|node| node.text().to_string())
+            .collect::<Vec<_>>(),
+        ["(@\n)"]
+    );
+    assert_eq!(
+        nested_newline
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+            .count(),
+        2
+    );
+
+    for source in ["for 'a @ (@: T)", "for 'a @ ('b)"] {
+        let (green, _) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let forall = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        assert!(
+            !forall
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Colon),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn forall_type_does_not_reclassify_type_apply_for() {
     for source in ["forx 'a", "forall 'a", "for_ 'a"] {
         let (green, exit) = run_type(source);

@@ -1093,6 +1093,16 @@ newlineを所有する。malformed binder / colon / body run、punctuation recov
 4/G4b ledgerは未完である。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewは
 first-binder newline-owner delta後clean、focused rewrite testsは83 passed、package check、format/diff checkはgreen。
 
+2026-09-04: direct `ForallType`のmalformed binder / colon / body run recoveryを追加した。first-binder phaseは
+non-apostrophe candidateをone incomplete `ForallTypeBinder`内のErrorとして読み、depth-zeroのlater apostrophe binderまたは
+literal colonだけへretryする。accepted binder後はsink-free unit probeがlater retry targetをbinder対colon/bodyで先に分け、
+ErrorのCST homeをincomplete binderまたはForall direct childへ一意に決める。malformed colon Errorからnon-binder bodyへ
+retryするときはsame-causeのMissing colonを重ねず、literal colon bodyのmalformed runもone Errorだけでcandidate / boundaryへ
+戻す。all recovery scannerはcurrent delimiter depthだけをjudgeし、inner colon / binder / shallow newlineをouter retryや
+indentation decisionへ混ぜない。comma / semicolonのown-vs-outer owner distinctionは未実装の次sliceである。production wiring、
+Gate 4/G4b ledgerは未完である。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewは
+two repair delta後clean、focused rewrite testsは84 passed、package check、format/diff checkはgreen。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
