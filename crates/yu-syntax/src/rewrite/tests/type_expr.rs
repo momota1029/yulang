@@ -407,6 +407,74 @@ fn named_record_type_keeps_field_and_separator_ownership() {
 }
 
 #[test]
+fn named_record_type_claims_a_same_line_complete_field_head_before_type_apply() {
+    let (green, exit) = run_type("{a: F b: B}");
+    assert_eq!(green.to_string(), "{a: F b: B}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let record = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+        .expect("named record type");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .count(),
+        2
+    );
+    assert_eq!(
+        record
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert!(
+        !record
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+    );
+    assert_eq!(
+        record
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Whitespace)
+            .map(|token| token.text().to_owned())
+            .collect::<Vec<_>>(),
+        [" "]
+    );
+
+    let (green, exit) = run_type("{a: F B}");
+    assert_eq!(green.to_string(), "{a: F B}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let record = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+        .expect("named record type");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .count(),
+        1
+    );
+    assert_eq!(
+        record
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        0
+    );
+    assert_eq!(
+        record
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn named_record_type_recovers_leading_and_repeated_commas() {
     for (source, fields, missing) in [
         ("{,a: A}", 1, 1),

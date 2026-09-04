@@ -1075,6 +1075,15 @@ field / comma / matching `}`は既存ownerが再開する。`{;b: B}`と`{;}`で
 next-field owner query、production wiring、Gate 4/G4b ledgerは未完である。state/source reread/buffer/recovery recordの
 追加なし。M1 specification reviewはclean、focused rewrite testsは81 passed、package check、format/diff checkはgreen。
 
+2026-09-04: direct `NamedRecordType`のsame-line next-field owner queryを追加した。accepted field RHSだけへ
+`record_base: Option<usize>`を明示的に引き回し、TypeApply accept直前でsame-line complete `Identifier … Colon`を
+sink-freeに見つけたときはcandidateをhandoffする。record sequenceがgap triviaを直下へ一度emitし、zero-width Missing
+separator一件を置いてnext fieldをretryする。`{a: F b: B}`はtwo fields + one Missing separatorでRHS `F`を止め、
+`{a: F B}`はone fieldのordinary TypeApplyのまま保つ。nested delimiter / ML argumentにはrecord baseを渡さず、
+enclosing continuation後だけouter RHS contextを再開する。production wiring、Gate 4/G4b ledgerは未完である。
+state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはclean、focused rewrite testsは82 passed、
+package check、format/diff checkはgreen。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
