@@ -12,15 +12,15 @@ use super::super::{
     lexer::{scan_trivia, type_item_after_trivia, type_nud_item_after_trivia},
 };
 use super::{
-    indentation_after_newline, is_forall_binder, is_type_nud, is_type_rhs_boundary,
-    is_type_separator, type_chain_trivia, type_expr_from_nud,
+    TypeApplyBoundary, indentation_after_newline, is_forall_binder, is_type_nud,
+    is_type_rhs_boundary, is_type_separator, type_chain_trivia, type_expr_from_nud,
 };
 
 pub(super) fn type_forall(
     mut i: RewriteIn,
     keyword: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -39,7 +39,7 @@ pub(super) fn type_forall(
             i.rb(),
             binder,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -52,7 +52,7 @@ pub(super) fn type_forall(
                 i.rb(),
                 binder,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -73,7 +73,7 @@ pub(super) fn type_forall(
             i.rb(),
             binder,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -85,7 +85,7 @@ pub(super) fn type_forall(
     let exit = type_forall_after_binder(
         i.rb(),
         baseline,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     );
@@ -96,7 +96,7 @@ pub(super) fn type_forall(
 fn type_forall_after_binder(
     mut i: RewriteIn,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -112,7 +112,7 @@ fn type_forall_after_binder(
                 i,
                 next,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -127,7 +127,7 @@ fn type_forall_after_binder(
                 i,
                 next,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -140,7 +140,7 @@ fn type_forall_after_binder(
                 next,
                 baseline,
                 false,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -158,7 +158,7 @@ fn type_forall_after_binder(
             i,
             next,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -169,7 +169,7 @@ fn type_forall_first_separator(
     mut i: RewriteIn,
     separator: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -185,7 +185,7 @@ fn type_forall_first_separator(
             i,
             next,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -195,7 +195,7 @@ fn type_forall_first_separator(
             i,
             next,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -203,7 +203,13 @@ fn type_forall_first_separator(
     if is_forall_binder(&next) {
         let missing_boundary = next.leading.0.is_empty();
         type_forall_binder(i.rb(), next, missing_boundary);
-        return type_forall_after_binder(i, baseline, record_base, outer_separators, outer_closes);
+        return type_forall_after_binder(
+            i,
+            baseline,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+        );
     }
     if is_type_nud(&next) {
         return handoff(next);
@@ -212,7 +218,7 @@ fn type_forall_first_separator(
         i,
         next,
         baseline,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     )
@@ -222,19 +228,19 @@ fn type_forall_continuation_separator(
     mut i: RewriteIn,
     separator: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
     emit_forall_separator_binder(i.rb(), separator);
-    type_forall_after_binder(i, baseline, record_base, outer_separators, outer_closes)
+    type_forall_after_binder(i, baseline, apply_boundary, outer_separators, outer_closes)
 }
 
 fn type_forall_first_malformed_binder(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -266,7 +272,7 @@ fn type_forall_first_malformed_binder(
                 i,
                 item,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -285,7 +291,7 @@ fn type_forall_first_malformed_binder(
                 i,
                 item,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -298,7 +304,7 @@ fn type_forall_first_malformed_binder(
             return type_forall_after_binder(
                 i,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -310,7 +316,7 @@ fn type_forall_malformed_after_binder(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -330,7 +336,7 @@ fn type_forall_malformed_after_binder(
             i,
             item,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -339,7 +345,7 @@ fn type_forall_malformed_after_binder(
         i,
         item,
         baseline,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     )
@@ -402,7 +408,7 @@ fn type_forall_retry_binder(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -435,7 +441,7 @@ fn type_forall_retry_binder(
             return type_forall_after_binder(
                 i,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -447,7 +453,7 @@ fn type_forall_retry_binder(
                 i,
                 item,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -466,7 +472,7 @@ fn type_forall_retry_colon_or_body(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -496,7 +502,7 @@ fn type_forall_retry_colon_or_body(
                 i,
                 item,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -513,7 +519,7 @@ fn type_forall_retry_colon_or_body(
                 i,
                 item,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -525,7 +531,7 @@ fn type_forall_retry_colon_or_body(
                 item,
                 baseline,
                 false,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -569,7 +575,7 @@ fn type_forall_body(
     mut i: RewriteIn,
     colon: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -602,7 +608,7 @@ fn type_forall_body(
         body,
         baseline,
         false,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     )

@@ -1381,6 +1381,22 @@ tails 11、if 8、case-like 12、Pattern 11、lexical 10、`cargo check -p yu-sy
 broad package/workspace suite、performance、legacy/public/root dispatch、AST/HIR/header projection、typed diagnostics、
 Yumark、Gate 4/6 certificationは未実施のままである。
 
+2026-09-05: isolated SCC construction witness C11として、nested canonical `Statement` に source-free direct
+`StructDeclaration`を追加した。optional visibility、exact `StructKw`、raw name、bodyless semicolon、named brace
+field、tuple field、strictly-deeper named indented fieldを直接構築し、new direct nodeは`StructDeclaration`と
+`StructField`だけである。field listはstatement / NamedRecord ownerを流用せずStructがcomma、qualifying newline、
+close、gap triviaを所有し、named fieldのcolon-to-type triviaは`StructField`、tuple fieldはnested
+`TypeExpression`だけを持つ。named/tuple RHSはordinary mandatory TypeExpression entryを使い、named field scopeだけに
+`StructNamedFields` pre-TypeApply probeを渡すため、`x: F y: Y`はMissing separator + two fieldsとなる一方、
+`x: F Y`とtuple `Pair(F Y)`は一つのTypeApplyのままにする。complete Struct name後の全TypePrimaryはbodyを発明せず
+BodyIntroducer Missingとpending handoffになり、`:{` polymorphic variantはlone colon bodyと誤認しない。M2仕様査読は
+first reviewでTypePrimary handoff、tuple Type vocabulary、Gfield-name newline、trivia ownership、consumer matrixを検出し、
+round 1で修復した。final deltaで`:{` body-starter誤認を検出し、round 2でexisting Type scannerのsource-only probeへ寄せて
+閉じ、specification / sibling reviewerともapprovedした。focused Struct tests 11、direct Type / Binding / Use / Mod /
+owners / tails / if / case-like / Pattern focused sets、`cargo check -p yu-syntax`、format/diff checkはgreen。broad
+package/workspace suite、performance、legacy/public/root dispatch、AST/HIR/header projection、typed diagnostics、
+generics/derives/companion/method/doc-comment、Yumark、Gate 4/6 certificationは未実施のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

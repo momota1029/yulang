@@ -12,7 +12,7 @@ use super::super::{
     lexer::{scan_trivia, type_item_after_trivia, type_nud_item_after_trivia},
 };
 use super::{
-    continue_type_tail, indentation_after_newline, is_type_implicit_boundary,
+    TypeApplyBoundary, continue_type_tail, indentation_after_newline, is_type_implicit_boundary,
     is_type_mismatched_close, is_type_nud, is_type_record_field_boundary,
     is_type_record_field_name, is_type_record_field_start, missing_type_close, missing_type_item,
     retry_type_rhs, type_chain_trivia, type_delimited_baseline, type_expr_from_nud,
@@ -24,7 +24,7 @@ pub(super) fn type_record(
     open: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -40,7 +40,7 @@ pub(super) fn type_record(
         i,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
         exit,
@@ -133,7 +133,7 @@ fn type_record_field(mut i: RewriteIn, name: Item, baseline: usize, outer_closes
                 colon,
                 baseline,
                 false,
-                Some(baseline),
+                Some(TypeApplyBoundary::NamedRecord(baseline)),
                 true,
                 outer_closes,
             );
@@ -374,7 +374,7 @@ fn retry_type_record_colon(
                 item,
                 baseline,
                 false,
-                Some(baseline),
+                Some(TypeApplyBoundary::NamedRecord(baseline)),
                 true,
                 outer_closes,
             );
@@ -404,7 +404,15 @@ fn type_record_rhs(mut i: RewriteIn, baseline: usize, outer_closes: u8) -> TailE
     }
     let leading = std::mem::take(&mut rhs.leading);
     emit_leading_trivia(&mut i, &leading);
-    type_expr_from_nud(i, rhs, baseline, false, Some(baseline), true, outer_closes)
+    type_expr_from_nud(
+        i,
+        rhs,
+        baseline,
+        false,
+        Some(TypeApplyBoundary::NamedRecord(baseline)),
+        true,
+        outer_closes,
+    )
 }
 
 fn type_record_after_comma(mut i: RewriteIn) -> Result<Item, TailExit> {

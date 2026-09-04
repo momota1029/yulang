@@ -12,8 +12,8 @@ use super::super::{
     lexer::{scan_lbrace, scan_lbracket, scan_trivia, type_nud_item_after_trivia},
 };
 use super::{
-    TypeDelimitedOwner, continue_type_tail, indentation_after_newline, is_type_mismatched_close,
-    is_type_nud, is_type_outer_close, is_type_payload_boundary,
+    TypeApplyBoundary, TypeDelimitedOwner, continue_type_tail, indentation_after_newline,
+    is_type_mismatched_close, is_type_nud, is_type_outer_close, is_type_payload_boundary,
     is_type_polymorphic_variant_tag_name, type_delimited, type_delimited_baseline,
     type_expr_from_nud, with_type_outer_close,
 };
@@ -23,7 +23,7 @@ pub(super) fn type_effect_row(
     apostrophe: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -51,7 +51,7 @@ pub(super) fn type_effect_row(
         i,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
         exit,
@@ -63,7 +63,7 @@ pub(super) fn type_polymorphic_variant(
     colon: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -91,7 +91,7 @@ pub(super) fn type_polymorphic_variant(
         i,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
         exit,

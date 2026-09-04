@@ -17,6 +17,7 @@ use super::{
     lexer::{scan_trivia, statement_item_after_trivia},
     mod_decl::{mod_declaration, mod_declaration_selected},
     operator::stops_for,
+    struct_decl::{struct_declaration, struct_declaration_selected},
     use_decl::{use_declaration, use_declaration_selected},
 };
 
@@ -38,7 +39,9 @@ pub(super) fn canonical_statement(
 ) -> TailExit {
     debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
     i.state.start_node(SyntaxKind::Statement.into());
-    let exit = if mod_declaration_selected(i.rb(), &item, baseline) {
+    let exit = if struct_declaration_selected(i.rb(), &item, baseline) {
+        struct_declaration(i.rb(), item, baseline, stops)
+    } else if mod_declaration_selected(i.rb(), &item, baseline) {
         mod_declaration(i.rb(), item, baseline, stops)
     } else if use_declaration_selected(i.rb(), &item, baseline) {
         use_declaration(i.rb(), item, baseline, stops)
@@ -52,7 +55,9 @@ pub(super) fn canonical_statement(
 }
 
 pub(super) fn is_canonical_statement_nud(mut i: RewriteIn, item: &Item, baseline: usize) -> bool {
-    if mod_declaration_selected(i.rb(), item, baseline) {
+    if struct_declaration_selected(i.rb(), item, baseline) {
+        true
+    } else if mod_declaration_selected(i.rb(), item, baseline) {
         true
     } else if use_declaration_selected(i.rb(), item, baseline) {
         true

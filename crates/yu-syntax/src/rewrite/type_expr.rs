@@ -27,6 +27,12 @@ use self::{
     variants::{type_effect_row, type_polymorphic_variant},
 };
 
+#[derive(Clone, Copy)]
+pub(super) enum TypeApplyBoundary {
+    NamedRecord(usize),
+    StructNamedFields,
+}
+
 pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
     let primary = i.token(scan_type_nud_item)?;
     Some(type_expr_from_nud(i, primary, 0, false, None, false, 0))
@@ -38,7 +44,28 @@ pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
 /// module owns both a malformed type-primary Error and the retry. This entry
 /// point has no caller-arrow policy; consumers that make an Arrow active must
 /// own that boundary themselves.
-pub(super) fn required_type_expr(mut i: RewriteIn, mut primary: Item, baseline: usize) -> TailExit {
+pub(super) fn required_type_expr(i: RewriteIn, primary: Item, baseline: usize) -> TailExit {
+    required_type_expr_inner(i, primary, baseline, None, false, 0)
+}
+
+pub(super) fn required_type_expr_with_boundary(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_closes: u8,
+) -> TailExit {
+    required_type_expr_inner(i, primary, baseline, apply_boundary, true, outer_closes)
+}
+
+fn required_type_expr_inner(
+    mut i: RewriteIn,
+    mut primary: Item,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+) -> TailExit {
     if is_required_type_boundary(&primary, baseline) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
         emit_missing(&mut i, LeadingTrivia::default());
@@ -46,7 +73,15 @@ pub(super) fn required_type_expr(mut i: RewriteIn, mut primary: Item, baseline: 
         return handoff(primary);
     }
     if is_type_nud(&primary) {
-        return type_expr_from_nud(i, primary, baseline, false, None, false, 0);
+        return type_expr_from_nud(
+            i,
+            primary,
+            baseline,
+            false,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+        );
     }
 
     i.state.start_node(SyntaxKind::Error.into());
@@ -60,7 +95,15 @@ pub(super) fn required_type_expr(mut i: RewriteIn, mut primary: Item, baseline: 
         }
         if is_type_nud(&primary) {
             i.state.finish_node();
-            return type_expr_from_nud(i, primary, baseline, false, None, false, 0);
+            return type_expr_from_nud(
+                i,
+                primary,
+                baseline,
+                false,
+                apply_boundary,
+                outer_separators,
+                outer_closes,
+            );
         }
     }
 }
@@ -70,7 +113,7 @@ fn type_expr_from_nud(
     primary: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -81,7 +124,7 @@ fn type_expr_from_nud(
             primary,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -93,7 +136,7 @@ fn type_expr_from_nud(
         primary,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     )
@@ -104,7 +147,7 @@ fn type_expr_from_primary(
     primary: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -114,7 +157,7 @@ fn type_expr_from_primary(
         primary,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     );
@@ -127,7 +170,7 @@ fn type_expr_from_primary_started(
     primary: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -138,7 +181,7 @@ fn type_expr_from_primary_started(
                 i.rb(),
                 baseline,
                 type_ml,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             )
@@ -148,7 +191,7 @@ fn type_expr_from_primary_started(
             primary,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),
@@ -157,7 +200,7 @@ fn type_expr_from_primary_started(
             primary,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),
@@ -165,7 +208,7 @@ fn type_expr_from_primary_started(
             i.rb(),
             primary,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),
@@ -174,7 +217,7 @@ fn type_expr_from_primary_started(
             primary,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),
@@ -183,7 +226,7 @@ fn type_expr_from_primary_started(
             primary,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),
@@ -195,7 +238,7 @@ fn scan_type_tail(
     mut i: RewriteIn,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -206,7 +249,7 @@ fn scan_type_tail(
         item,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     )
@@ -217,7 +260,7 @@ fn type_tail(
     item: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -233,7 +276,7 @@ fn type_tail(
                 i.rb(),
                 item,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -244,7 +287,7 @@ fn type_tail(
                 item,
                 baseline,
                 type_ml,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -255,7 +298,7 @@ fn type_tail(
                 item,
                 baseline,
                 type_ml,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -265,14 +308,20 @@ fn type_tail(
                 i.rb(),
                 item,
                 baseline,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
         }
         _ => {}
     }
-    if record_base.is_some_and(|base| type_record_next_field(i.rb(), &item, base)) {
+    if match apply_boundary {
+        Some(TypeApplyBoundary::NamedRecord(base)) => type_record_next_field(i.rb(), &item, base),
+        Some(TypeApplyBoundary::StructNamedFields) => {
+            super::struct_decl::struct_named_fields_next_field_candidate(i.rb(), &item)
+        }
+        None => false,
+    } {
         return handoff(item);
     }
     if !item.leading.0.is_empty() && is_type_primary(&item) {
@@ -280,7 +329,7 @@ fn type_tail(
             i,
             item,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -293,7 +342,7 @@ fn type_leading_bracket_row(
     open: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -320,7 +369,7 @@ fn type_leading_bracket_row(
                 head,
                 baseline,
                 type_ml,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -344,7 +393,7 @@ fn type_leading_bracket_row(
             head,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -374,7 +423,7 @@ fn retry_leading_bracket_row_head_error(
     mut head: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -396,7 +445,7 @@ fn retry_leading_bracket_row_head_error(
                 head,
                 baseline,
                 type_ml,
-                record_base,
+                apply_boundary,
                 outer_separators,
                 outer_closes,
             );
@@ -412,7 +461,7 @@ fn type_bracket_arrow_tail(
     mut i: RewriteIn,
     mut open: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -424,7 +473,7 @@ fn type_bracket_arrow_tail(
         Ok(()) => type_bracket_arrow_after_row(
             i.rb(),
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),
@@ -455,7 +504,7 @@ fn type_bracket_row(mut i: RewriteIn, open: Item, baseline: usize, outer_closes:
 fn type_bracket_arrow_after_row(
     mut i: RewriteIn,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -470,7 +519,7 @@ fn type_bracket_arrow_after_row(
             i,
             arrow,
             baseline,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -483,7 +532,7 @@ fn type_bracket_arrow_after_row(
             arrow,
             baseline,
             false,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -500,7 +549,7 @@ fn type_group(
     open: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -519,7 +568,7 @@ fn type_group(
         i,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
         exit,
@@ -531,7 +580,7 @@ fn type_call_tail(
     open: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -549,7 +598,7 @@ fn type_call_tail(
         i,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
         exit,
@@ -581,7 +630,7 @@ fn type_path_tail(
     separator: Item,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -598,7 +647,7 @@ fn type_path_tail(
             segment,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -613,7 +662,7 @@ fn type_path_tail(
             segment,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         );
@@ -624,7 +673,7 @@ fn type_path_tail(
         i,
         baseline,
         type_ml,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     )
@@ -650,7 +699,7 @@ fn type_apply_argument(
     mut i: RewriteIn,
     mut argument: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -671,7 +720,7 @@ fn type_apply_argument(
         i,
         baseline,
         false,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
         exit,
@@ -682,7 +731,7 @@ fn type_arrow_tail(
     mut i: RewriteIn,
     arrow: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -691,7 +740,7 @@ fn type_arrow_tail(
         i.rb(),
         arrow,
         baseline,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     );
@@ -703,7 +752,7 @@ fn type_arrow_rhs(
     mut i: RewriteIn,
     arrow: Item,
     baseline: usize,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
 ) -> TailExit {
@@ -726,7 +775,7 @@ fn type_arrow_rhs(
         rhs,
         baseline,
         false,
-        record_base,
+        apply_boundary,
         outer_separators,
         outer_closes,
     );
@@ -753,7 +802,7 @@ fn continue_type_tail(
     i: RewriteIn,
     baseline: usize,
     type_ml: bool,
-    record_base: Option<usize>,
+    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
     exit: TailExit,
@@ -763,7 +812,7 @@ fn continue_type_tail(
             i,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),
@@ -772,7 +821,7 @@ fn continue_type_tail(
             item,
             baseline,
             type_ml,
-            record_base,
+            apply_boundary,
             outer_separators,
             outer_closes,
         ),

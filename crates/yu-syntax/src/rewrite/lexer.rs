@@ -550,7 +550,8 @@ fn scan_statement_keyword(mut i: LexIn) -> Option<Token> {
         .or_else(|| scan_exact_word(i.rb(), "our"))
         .or_else(|| scan_exact_word(i.rb(), "pub"))
         .or_else(|| scan_exact_word(i.rb(), "use"))
-        .or_else(|| scan_exact_word(i, "mod"))
+        .or_else(|| scan_exact_word(i.rb(), "mod"))
+        .or_else(|| scan_exact_word(i, "struct"))
 }
 
 /// Split the same maximal identifier spelling accepted by [`scan_identifier`]

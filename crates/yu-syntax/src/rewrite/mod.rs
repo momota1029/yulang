@@ -19,6 +19,7 @@ mod operator;
 mod pattern;
 mod state;
 mod statement;
+mod struct_decl;
 mod tails;
 mod type_expr;
 mod use_decl;

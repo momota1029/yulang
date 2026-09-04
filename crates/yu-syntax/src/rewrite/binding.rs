@@ -20,6 +20,7 @@ use super::{
     operator::source_after_trivia,
     pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item, pattern_stops_from_owner},
     statement::indented_statement_block,
+    struct_decl::struct_declaration_selected,
     use_decl::use_declaration_selected,
 };
 
@@ -31,6 +32,9 @@ pub(super) fn binding_statement_selected(mut i: RewriteIn, item: &Item, baseline
         return false;
     }
     if mod_declaration_selected(i.rb(), item, baseline) {
+        return false;
+    }
+    if struct_declaration_selected(i.rb(), item, baseline) {
         return false;
     }
     i.map(
@@ -174,7 +178,7 @@ fn binding_follower(i: LexIn, visibility: &str, baseline: usize) -> bool {
 
     match head {
         "use" => true,
-        "struct" | "type" | "role" | "impl" | "cast" => false,
+        "type" | "role" | "impl" | "cast" => false,
         "enum" | "error" | "act" => {
             visibility == "my" && !named_declaration_head_candidate(after_head, baseline)
         }
