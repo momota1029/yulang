@@ -1109,6 +1109,13 @@ two repair delta後clean、focused rewrite testsは84 passed、package check、f
 TypeExpressionのrecursive call pathへ明示で引き回す配線が必要である。この配線はForall local sliceを越えるため未着手、
 後続のbounded structural sliceとして扱う。コード変更なし。
 
+2026-09-04: standalone direct `TypeExpression`のsource ownerを責務単位で分割した。`type_expr.rs`は
+entry / primary dispatch / fixed tails / shared boundary predicatesだけを残し、`type_expr/record.rs`がNamedRecord、
+`type_expr/forall.rs`がForall、`type_expr/variants.rs`がEffectRowとPolymorphicVariant、
+`type_expr/delimited.rs`がgeneric delimiterとBracketRow recoveryを所有する。Recovery state・入力形式・CST node
+order・テスト契約は変更せず、移動した各4 owner bodyは旧sourceとvisibility修正を除いてbyte一致を機械照合した。
+focused rewrite tests、package check、format/diff checkを実行し、独立delta reviewもclean。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
