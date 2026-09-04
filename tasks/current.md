@@ -1219,6 +1219,18 @@ reviewはこのtrivia owner gapをone repairで検出・修正しapproved。focu
 consumerはまだ存在しないため、この入口はArrow policyを発明しておらず、consumer / outer-arrow recovery、production wiring、
 AST parity、full RB-P/Gate 5 certificationは未完である。
 
+2026-09-04: source-free direct expressionに、dynamic Prefix / Infixを受理した後のnarrow mandatory
+operand recoveryを追加した。normal operator scannerがvalue-start不足で不受理にした場合だけ、同じcanonical
+all-spelling trieのlonger-to-shorter recovery probeでcurrent NUDのPrefixまたはcurrent LEDのInfix roleが一意に
+決まるときに受理する。EOF / active delimiter stopにはretained leading triviaを`Missing`へ一回だけ置き、invalid
+`Item` runはone `Error`へまとめてnext Nudを同じoperand slotにretryする。boundaryまでならError sentinelだけで
+`Missing`を重ねない。equal-or-shallow newline、colon / equal / other structural starter、non-active closeは
+unacceptedのままhandoffし、generic colon/equal vocabularyやterminal ownerは追加していない。M1 specification reviewは
+pre-writeとone repair deltaでapprovedとなり、shallow newlineをEOFより先にboundaryとして判定する修正を含む。focused
+rewrite operator tests 11 passed、`cargo check -p yu-syntax`、format/diff checkはgreen。この記録はdirect
+CST/remainderだけのisolated evidenceであり、diagnostic/recovery identity、AST parity、production wiring、G4a/RB-E、
+Gate 4 certificationは未実装である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

@@ -92,6 +92,15 @@ fn dynamic_operator_candidate_fallback_is_site_aware() {
             SyntaxKind::IdentifierExpression,
         ]
     );
+
+    let (green, exit) = run_with("a +\n", &operators);
+    assert_eq!(green.to_string(), "a");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token)
+                if token.kind == TokenKind::Unknown && &*token.text == "+")
+    ));
 }
 
 #[test]
@@ -355,5 +364,64 @@ fn dynamic_operator_lower_bp_handoff_preserves_trivia_and_flat_output() {
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
             .any(|token| token.kind() == SyntaxKind::BlockComment && token.text() == "/* carry */")
+    );
+}
+
+#[test]
+fn dangling_operator_recovery_is_direct_cst_only() {
+    let operators = dynamic_operator_table();
+
+    for (source, use_kind) in [
+        ("~", SyntaxKind::PrefixOperatorUse),
+        ("a +", SyntaxKind::InfixOperatorUse),
+        ("(a +)", SyntaxKind::InfixOperatorUse),
+    ] {
+        let (green, exit) = run_with(source, &operators);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert!(
+            root.descendants().any(|node| node.kind() == use_kind),
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_with("a + @ b", &operators);
+    assert_eq!(green.to_string(), "a + @ b");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing),
+        "a malformed operand is its own sentinel"
+    );
+    assert_eq!(
+        operator_chain_children(&green),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::InfixOperatorUse,
+            SyntaxKind::Error,
+            SyntaxKind::IdentifierExpression,
+        ]
     );
 }

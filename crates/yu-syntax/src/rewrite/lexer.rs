@@ -12,7 +12,10 @@ use crate::scan::operator::OperatorSite;
 use super::{
     LexIn, RewriteIn,
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
-    operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, scan_operator},
+    operator::{
+        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, scan_dangling_operator,
+        scan_operator,
+    },
     state::Recover,
 };
 
@@ -74,6 +77,11 @@ fn scan_tail_payload(
         i.token(|lex| scan_operator(lex, site, has_leading_trivia, baseline, stops))
     {
         Payload::Operator(operator)
+    } else if matches!(site, OperatorSite::Led)
+        && let Some(operator) =
+            i.token(|lex| scan_dangling_operator(lex, OperatorSite::Led, baseline, stops))
+    {
+        Payload::Operator(operator)
     } else if marker_after_operator {
         if let Some(marker) = i.token(scan_record_spread_marker) {
             Payload::Token(marker)
@@ -105,6 +113,10 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<
         Payload::Token(token)
     } else if let Some(operator) =
         i.token(|lex| scan_operator(lex, OperatorSite::Nud, has_leading_trivia, baseline, stops))
+    {
+        Payload::Operator(operator)
+    } else if let Some(operator) =
+        i.token(|lex| scan_dangling_operator(lex, OperatorSite::Nud, baseline, stops))
     {
         Payload::Operator(operator)
     } else if let Some(token) = i.token(scan_identifier) {

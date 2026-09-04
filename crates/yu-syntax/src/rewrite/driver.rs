@@ -7,10 +7,12 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 use super::{
     RewriteIn,
     delimited::parenthesized_nud,
-    emit::{emit_identifier_core, emit_integer_core, emit_operator_use},
+    emit::{
+        emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
+    },
     item::{Item, LeadingTrivia, OperatorUse, Payload, TokenKind, TriviaKind},
     lexer::{scan_nud_item, scan_trivia, tail_item_after_trivia},
-    operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR},
+    operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item},
     tails::{call_tail, dot_tail, index_tail, path_tail},
 };
 
@@ -89,7 +91,10 @@ fn append_nud(
     }
 }
 
-fn expr_after_accept(
+/// An accepted prefix or infix always owns its mandatory right operand.  A
+/// pure local absence is Missing; malformed source is one Error sentinel and
+/// never receives a second Missing at the same boundary.
+fn required_expr_after_accept(
     mut i: RewriteIn,
     threshold: Option<&BindingPower>,
     baseline: usize,
@@ -104,11 +109,66 @@ fn expr_after_accept(
         baseline,
         stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
     );
+    required_expr_item(i, item, threshold, baseline, stops, ml_mode)
+}
+
+fn required_expr_item(
+    mut i: RewriteIn,
+    mut item: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: u8,
+    ml_mode: MlMode,
+) -> TailExit {
     if is_nud_item(&item) {
-        append_nud(i, item, threshold, baseline, stops, ml_mode)
-    } else {
-        handoff(item)
+        return append_nud(i, item, threshold, baseline, stops, ml_mode);
     }
+    if is_required_operand_boundary(&item, stops) {
+        let leading = std::mem::take(&mut item.leading);
+        emit_missing(&mut i, leading);
+        return handoff(item);
+    }
+    if is_unread_operand_boundary(&item) {
+        return handoff(item);
+    }
+
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = tail_item_after_trivia(
+            i.rb(),
+            leading,
+            OperatorSite::Nud,
+            baseline,
+            stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
+        );
+        if is_nud_item(&item) {
+            i.state.finish_node();
+            return append_nud(i, item, threshold, baseline, stops, ml_mode);
+        }
+        if is_required_operand_boundary(&item, stops) {
+            i.state.finish_node();
+            return handoff(item);
+        }
+        if is_unread_operand_boundary(&item) {
+            i.state.finish_node();
+            return handoff(item);
+        }
+    }
+}
+
+fn is_required_operand_boundary(item: &Item, stops: u8) -> bool {
+    matches!(item.payload, Payload::Eof)
+        || token_kind(item).is_some_and(|kind| active_stop_item(kind, stops))
+}
+
+fn is_unread_operand_boundary(item: &Item) -> bool {
+    is_close(item)
+        || matches!(
+            token_kind(item),
+            Some(TokenKind::LBracket | TokenKind::LBrace)
+        )
 }
 
 pub(super) fn scan_tail_after_accept(
@@ -219,7 +279,7 @@ fn operator_nud(
         Some(OperatorUse::Prefix(right)) => {
             let right = right.clone();
             emit_operator_use(&mut i, operator, SyntaxKind::PrefixOperatorUse);
-            let rhs = expr_after_accept(i.rb(), Some(&right), baseline, stops, ml_mode);
+            let rhs = required_expr_after_accept(i.rb(), Some(&right), baseline, stops, ml_mode);
             continue_completed_tail(i, threshold, baseline, stops, ml_mode, rhs)
         }
         Some(OperatorUse::Nullfix) => {
@@ -245,7 +305,7 @@ fn operator_tail(
             }
             let right = right.clone();
             emit_operator_use(&mut i, operator, SyntaxKind::InfixOperatorUse);
-            let rhs = expr_after_accept(i.rb(), Some(&right), baseline, stops, ml_mode);
+            let rhs = required_expr_after_accept(i.rb(), Some(&right), baseline, stops, ml_mode);
             continue_completed_tail(i, threshold, baseline, stops, ml_mode, rhs)
         }
         Some(OperatorUse::Suffix(left)) => {

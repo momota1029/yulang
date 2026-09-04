@@ -84,6 +84,67 @@ pub(super) fn scan_operator(
     })
 }
 
+/// After ordinary role selection rejects a spelling for lack of a value,
+/// recover one role only when the current site makes that role unambiguous.
+///
+/// This remains a source-only probe: no logical Item exists until the caller
+/// accepts the returned token.  In particular, it keeps the ordinary trie
+/// traversal's longer-to-shorter fallback and boundary check intact.
+pub(super) fn scan_dangling_operator(
+    mut i: LexIn,
+    site: OperatorSite,
+    baseline: usize,
+    stops: u8,
+) -> Option<OperatorToken> {
+    let table = i.recovery().operators();
+    let source = i.remainder();
+    let (use_, end) = table.longest_source_match_then(source, |last, entry, end| {
+        operator_boundary(last, &source[end..])?;
+        let fixities = entry.fixities();
+        let fixity = match site {
+            OperatorSite::Nud if fixities.prefix().is_some() && !fixities.is_nullfix() => {
+                OperatorFixity::Prefix
+            }
+            OperatorSite::Led if fixities.infix().is_some() && fixities.suffix().is_none() => {
+                OperatorFixity::Infix
+            }
+            _ => return None,
+        };
+        dangling_follower(&source[end..], baseline, stops)?;
+        selected_operator_use(fixities, fixity)
+    })?;
+    let character_count = source[..end].chars().count();
+    let (accepted, text) = i.with_str(|mut operator| {
+        for _ in 0..character_count {
+            operator.next()?;
+        }
+        Some(())
+    });
+    accepted?;
+    Some(OperatorToken {
+        text: text.into(),
+        use_,
+    })
+}
+
+/// A dangling role may be followed by a local boundary, EOF, or one invalid
+/// region.  Structural starters stay for their future direct owners, and a
+/// shallow newline stays with the outer statement owner.
+fn dangling_follower(source: &str, baseline: usize, stops: u8) -> Option<()> {
+    let (trailing, after_trivia) = raw_trivia_suffix(source);
+    if matches!(trailing, RawTrailing::Newline { indentation } if indentation <= baseline) {
+        return None;
+    }
+    if after_trivia.is_empty() || active_stop(after_trivia, stops) {
+        return Some(());
+    }
+    (!matches!(
+        after_trivia.chars().next(),
+        Some(':' | '=' | ',' | ';' | ')' | ']' | '}' | '{')
+    ))
+    .then_some(())
+}
+
 fn active_stop(source: &str, stops: u8) -> bool {
     match source.chars().next() {
         Some(',') => stops & STOP_COMMA != 0,
@@ -91,6 +152,17 @@ fn active_stop(source: &str, stops: u8) -> bool {
         Some(')') => stops & STOP_RPAREN != 0,
         Some(']') => stops & STOP_RBRACKET != 0,
         Some('}') => stops & STOP_RBRACE != 0,
+        _ => false,
+    }
+}
+
+pub(super) fn active_stop_item(kind: super::item::TokenKind, stops: u8) -> bool {
+    match kind {
+        super::item::TokenKind::Comma => stops & STOP_COMMA != 0,
+        super::item::TokenKind::Semicolon => stops & STOP_SEMICOLON != 0,
+        super::item::TokenKind::RParen => stops & STOP_RPAREN != 0,
+        super::item::TokenKind::RBracket => stops & STOP_RBRACKET != 0,
+        super::item::TokenKind::RBrace => stops & STOP_RBRACE != 0,
         _ => false,
     }
 }
