@@ -21,6 +21,7 @@ use super::{
 
 mod binding;
 mod case_like;
+mod for_statement;
 mod if_expr;
 mod lexical;
 mod mod_decl;

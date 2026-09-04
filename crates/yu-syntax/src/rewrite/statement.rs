@@ -13,6 +13,7 @@ use super::{
         is_separator, is_statement_nud, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    for_decl::{for_statement, for_statement_selected},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{scan_trivia, statement_item_after_trivia},
     mod_decl::{mod_declaration, mod_declaration_selected},
@@ -48,6 +49,8 @@ pub(super) fn canonical_statement(
         use_declaration(i.rb(), item, baseline, stops)
     } else if type_declaration_selected(i.rb(), &item, baseline) {
         type_declaration(i.rb(), item, baseline, stops)
+    } else if for_statement_selected(&item) {
+        for_statement(i.rb(), item, baseline, stops)
     } else if binding_statement_selected(i.rb(), &item, baseline) {
         binding_statement(i.rb(), item, baseline, stops)
     } else {
@@ -65,6 +68,8 @@ pub(super) fn is_canonical_statement_nud(mut i: RewriteIn, item: &Item, baseline
     } else if use_declaration_selected(i.rb(), item, baseline) {
         true
     } else if type_declaration_selected(i.rb(), item, baseline) {
+        true
+    } else if for_statement_selected(item) {
         true
     } else if is_binding_visibility(item) {
         binding_statement_selected(i, item, baseline)

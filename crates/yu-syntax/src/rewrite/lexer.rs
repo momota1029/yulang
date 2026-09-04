@@ -574,7 +574,8 @@ fn scan_statement_keyword(mut i: LexIn) -> Option<Token> {
         .or_else(|| scan_exact_word(i.rb(), "use"))
         .or_else(|| scan_exact_word(i.rb(), "mod"))
         .or_else(|| scan_exact_word(i.rb(), "struct"))
-        .or_else(|| scan_exact_word(i, "type"))
+        .or_else(|| scan_exact_word(i.rb(), "type"))
+        .or_else(|| scan_exact_word(i, "for"))
 }
 
 /// Split the same maximal identifier spelling accepted by [`scan_identifier`]
@@ -708,6 +709,7 @@ pub(super) fn is_declaration_starter_word(word: &str) -> bool {
             | "impl"
             | "cast"
             | "act"
+            | "for"
             | "my"
             | "our"
             | "pub"

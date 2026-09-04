@@ -26,6 +26,7 @@ pub(super) const STOP_ELSE: Stops = 1 << 10;
 pub(super) const STOP_ARROW: Stops = 1 << 11;
 pub(super) const STOP_LINE_BREAK: Stops = 1 << 12;
 pub(super) const STOP_WITH: Stops = 1 << 13;
+pub(super) const STOP_IN: Stops = 1 << 14;
 
 pub(super) fn stops_for(close: super::item::TokenKind) -> Stops {
     let close = match close {

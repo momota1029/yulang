@@ -11,6 +11,7 @@ mod case_like;
 mod delimited;
 mod driver;
 mod emit;
+mod for_decl;
 mod if_expr;
 mod item;
 mod lexer;

@@ -64,10 +64,40 @@ pub(super) fn required_type_expr_with_caller_stops(
     baseline: usize,
     caller_stops: Stops,
 ) -> TailExit {
-    required_type_expr_inner(i, primary, baseline, None, false, 0, caller_stops)
+    required_type_expr_with_caller_stops_and_completion(i, primary, baseline, caller_stops).0
+}
+
+pub(super) fn required_type_expr_with_caller_stops_and_completion(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    caller_stops: Stops,
+) -> (TailExit, bool) {
+    required_type_expr_inner_with_completion(i, primary, baseline, None, false, 0, caller_stops)
 }
 
 fn required_type_expr_inner(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+) -> TailExit {
+    required_type_expr_inner_with_completion(
+        i,
+        primary,
+        baseline,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+    )
+    .0
+}
+
+fn required_type_expr_inner_with_completion(
     mut i: RewriteIn,
     mut primary: Item,
     baseline: usize,
@@ -75,23 +105,26 @@ fn required_type_expr_inner(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+) -> (TailExit, bool) {
     if is_required_type_boundary(&primary, baseline, caller_stops) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
-        return handoff(primary);
+        return (handoff(primary), false);
     }
     if is_type_nud(&primary) {
-        return type_expr_from_nud(
-            i,
-            primary,
-            baseline,
-            false,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
-            caller_stops,
+        return (
+            type_expr_from_nud(
+                i,
+                primary,
+                baseline,
+                false,
+                apply_boundary,
+                outer_separators,
+                outer_closes,
+                caller_stops,
+            ),
+            true,
         );
     }
 
@@ -102,19 +135,22 @@ fn required_type_expr_inner(
         primary = type_nud_item_after_trivia(i.rb(), leading);
         if is_required_type_boundary(&primary, baseline, caller_stops) {
             i.state.finish_node();
-            return handoff(primary);
+            return (handoff(primary), false);
         }
         if is_type_nud(&primary) {
             i.state.finish_node();
-            return type_expr_from_nud(
-                i,
-                primary,
-                baseline,
-                false,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
+            return (
+                type_expr_from_nud(
+                    i,
+                    primary,
+                    baseline,
+                    false,
+                    apply_boundary,
+                    outer_separators,
+                    outer_closes,
+                    caller_stops,
+                ),
+                true,
             );
         }
     }
@@ -1058,6 +1094,7 @@ pub(super) fn is_type_caller_boundary(item: &Item, caller_stops: Stops) -> bool 
         return false;
     }
     (caller_stops & super::operator::STOP_WITH != 0 && &*token.text == "with")
+        || (caller_stops & super::operator::STOP_IN != 0 && &*token.text == "in")
         || (caller_stops & super::operator::STOP_ELSIF != 0 && &*token.text == "elsif")
         || (caller_stops & super::operator::STOP_ELSE != 0 && &*token.text == "else")
 }

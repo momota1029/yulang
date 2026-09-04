@@ -1414,6 +1414,21 @@ Use 10、Binding 7と関連canonical owner sets、`cargo check -p yu-syntax`、f
 package/workspace suite、performance、production/public/root parser、AST/HIR/header projection、typed diagnostics、
 Yumark、Gate 4/6/9 certificationは未実施のままである。
 
+2026-09-05: isolated SCC construction witness C13として、nested canonical `Statement`にsource-free direct
+`ForStatement`を追加した。Authoritative `FOR-G/J/T/R`のisolated Gate 2--8 analogueだけを実装し、exact bare
+`for`、lexical transactionによるoptional apostrophe-sigil label、full `Pattern`、exact `InKw`、one
+`ForIterable > OperatorChain`、colon inline/strictly-deeper indented/brace statement bodyをdirect Rowanで
+構築する。`forall` / `fork` / `format`はordinary expressionのまま、`my for = 1`はBindingのままであり、
+public/root/header/AST/HIR/session/legacy parserを変更していない。For callerだけがPatternのexact `in`、fresh
+primary colon / left-brace boundaryを渡し、Pattern annotationのTypeExpressionにも`in` stopを引き渡す。入れ子
+Patternのcompletionはdelimiter owner内で単調に集約するため、`for (x |) in ...`は未完成Patternとしてexact
+`in`をpendingのまま返し、`InKw`を誤ってcommitしない。iterableのcolon/brace stop、missing
+in/iterable/bodyのno-cascade recovery、Use groupのshallow statement handoff、inline body後のsame-indent sibling
+保持をfocused fixtureで固定した。M2 pre-write spec audit、post-write specification / sibling regression review、
+one bundled repairと両delta reviewはapproved。focused For 12、Pattern 11、`cargo check -p yu-syntax`、
+format/diff checkはgreen（existing warningのみ）。broad package/workspace suite、performance、production/public/root
+parser、AST/HIR/header projection、typed diagnostics、Yumark、Gate 4/6/9 certificationは未実施のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

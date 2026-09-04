@@ -18,8 +18,8 @@ use super::{
         },
     },
     PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
-    PATTERN_STOP_RPAREN, PatternPrecedence, PatternStops, RewriteIn, pattern_from_item,
-    scan_pattern_tail,
+    PATTERN_STOP_RPAREN, PatternCompletion, PatternPrecedence, PatternStops, RewriteIn,
+    pattern_from_item_recording, scan_pattern_tail,
 };
 
 #[derive(Clone, Copy)]
@@ -62,6 +62,7 @@ pub(super) fn parenthesized_pattern(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    completion: &mut PatternCompletion,
 ) -> TailExit {
     pattern_delimited(
         i,
@@ -70,6 +71,7 @@ pub(super) fn parenthesized_pattern(
         minimum,
         incoming_baseline,
         outer_stops,
+        completion,
     )
 }
 
@@ -79,6 +81,7 @@ pub(super) fn list_pattern(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    completion: &mut PatternCompletion,
 ) -> TailExit {
     pattern_delimited(
         i,
@@ -87,6 +90,7 @@ pub(super) fn list_pattern(
         minimum,
         incoming_baseline,
         outer_stops,
+        completion,
     )
 }
 
@@ -96,6 +100,7 @@ pub(super) fn record_pattern(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    completion: &mut PatternCompletion,
 ) -> TailExit {
     pattern_delimited(
         i,
@@ -104,6 +109,7 @@ pub(super) fn record_pattern(
         minimum,
         incoming_baseline,
         outer_stops,
+        completion,
     )
 }
 
@@ -114,6 +120,7 @@ fn pattern_delimited(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
+    completion: &mut PatternCompletion,
 ) -> TailExit {
     i.state.start_node(owner.node().into());
     emit_token_item(&mut i, open);
@@ -123,22 +130,32 @@ fn pattern_delimited(
     let local_stops = owner.local_stops();
     let mut item = pattern_nud_item_after_trivia(i.rb(), LeadingTrivia::default(), local_stops);
     let mut expect_item = true;
+    let mut contents_completion = PatternCompletion::Complete;
 
     loop {
         if expect_item {
             if token_kind(&item) == Some(owner.close()) {
                 emit_token_item(&mut i, item);
                 i.state.finish_node();
-                return scan_pattern_tail(i, minimum, incoming_baseline, outer_stops);
+                return finish_delimited_pattern(
+                    i,
+                    minimum,
+                    incoming_baseline,
+                    outer_stops,
+                    contents_completion,
+                    completion,
+                );
             }
             if matches!(owner, Owner::Record) && token_kind(&item) == Some(TokenKind::Comma) {
                 let leading = std::mem::take(&mut item.leading);
                 emit_missing(&mut i, leading);
+                contents_completion = PatternCompletion::Incomplete;
                 emit_token_item(&mut i, item);
                 item = scan_pattern_nud_successor(i.rb(), local_stops);
                 continue;
             }
             if token_kind(&item).is_none() {
+                *completion = PatternCompletion::Incomplete;
                 return missing_close(i, item);
             }
             if is_other_close(owner, &item) {
@@ -154,21 +171,27 @@ fn pattern_delimited(
             let item_baseline = delimited_baseline(baseline, &item.leading);
             let leading = std::mem::take(&mut item.leading);
             emit_leading_trivia(&mut i, &leading);
+            let mut item_completion = PatternCompletion::Incomplete;
             let exit = match owner {
-                Owner::Parenthesized => pattern_from_item(
+                Owner::Parenthesized => pattern_from_item_recording(
                     i.rb(),
                     item,
                     PatternPrecedence::Lowest,
                     item_baseline,
                     local_stops,
+                    &mut item_completion,
                 ),
-                Owner::List => list_item(i.rb(), item, item_baseline),
-                Owner::Record => record_item(i.rb(), item, item_baseline),
+                Owner::List => list_item(i.rb(), item, item_baseline, &mut item_completion),
+                Owner::Record => record_item(i.rb(), item, item_baseline, &mut item_completion),
             };
+            merge_completion(&mut contents_completion, item_completion);
             item = match exit {
                 Ok(()) => scan_pattern_nud_successor(i.rb(), local_stops),
                 Err(Either::Left(next)) => next,
-                Err(Either::Right(end)) => return missing_close(i, end.item),
+                Err(Either::Right(end)) => {
+                    *completion = PatternCompletion::Incomplete;
+                    return missing_close(i, end.item);
+                }
             };
             expect_item = false;
             continue;
@@ -183,9 +206,17 @@ fn pattern_delimited(
         if token_kind(&item) == Some(owner.close()) {
             emit_token_item(&mut i, item);
             i.state.finish_node();
-            return scan_pattern_tail(i, minimum, incoming_baseline, outer_stops);
+            return finish_delimited_pattern(
+                i,
+                minimum,
+                incoming_baseline,
+                outer_stops,
+                contents_completion,
+                completion,
+            );
         }
         if token_kind(&item).is_none() {
+            *completion = PatternCompletion::Incomplete;
             return missing_close(i, item);
         }
         if is_other_close(owner, &item) {
@@ -212,14 +243,47 @@ fn pattern_delimited(
     }
 }
 
-fn list_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
+fn finish_delimited_pattern(
+    i: RewriteIn,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    contents_completion: PatternCompletion,
+    completion: &mut PatternCompletion,
+) -> TailExit {
+    let mut tail_completion = PatternCompletion::Complete;
+    let exit = scan_pattern_tail(
+        i,
+        minimum,
+        incoming_baseline,
+        outer_stops,
+        &mut tail_completion,
+    );
+    *completion = contents_completion;
+    merge_completion(completion, tail_completion);
+    exit
+}
+
+fn merge_completion(completion: &mut PatternCompletion, nested: PatternCompletion) {
+    if nested == PatternCompletion::Incomplete {
+        *completion = PatternCompletion::Incomplete;
+    }
+}
+
+fn list_item(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    completion: &mut PatternCompletion,
+) -> TailExit {
     if token_kind(&item) != Some(TokenKind::DotDot) {
-        return pattern_from_item(
+        return pattern_from_item_recording(
             i,
             item,
             PatternPrecedence::Lowest,
             baseline,
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+            completion,
         );
     }
     i.state.start_node(SyntaxKind::ListPatternSpreadItem.into());
@@ -230,18 +294,24 @@ fn list_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
     let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
     let leading = std::mem::take(&mut rhs.leading);
     emit_leading_trivia(&mut i, &leading);
-    let exit = pattern_from_item(
+    let exit = pattern_from_item_recording(
         i.rb(),
         rhs,
         PatternPrecedence::Lowest,
         rhs_baseline,
         PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+        completion,
     );
     i.state.finish_node();
     exit
 }
 
-fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
+fn record_item(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    completion: &mut PatternCompletion,
+) -> TailExit {
     if token_kind(&item) == Some(TokenKind::DotDot) {
         i.state
             .start_node(SyntaxKind::RecordPatternSpreadItem.into());
@@ -255,23 +325,26 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
         let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
         let leading = std::mem::take(&mut rhs.leading);
         emit_leading_trivia(&mut i, &leading);
-        let exit = pattern_from_item(
+        let exit = pattern_from_item_recording(
             i.rb(),
             rhs,
             PatternPrecedence::Lowest,
             rhs_baseline,
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
+            completion,
         );
         i.state.finish_node();
         return exit;
     }
     if !is_pattern_name(&item) {
+        *completion = PatternCompletion::Incomplete;
         let mut item = item;
         let leading = std::mem::take(&mut item.leading);
         emit_missing(&mut i, leading);
         return handoff(item);
     }
 
+    *completion = PatternCompletion::Complete;
     i.state.start_node(SyntaxKind::RecordPatternField.into());
     emit_token_item(&mut i, item);
     let leading = scan_trivia(i.rb());
@@ -284,12 +357,13 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
         let nested_baseline = delimited_baseline(baseline, &nested.leading);
         let leading = std::mem::take(&mut nested.leading);
         emit_leading_trivia(&mut i, &leading);
-        let exit = pattern_from_item(
+        let exit = pattern_from_item_recording(
             i.rb(),
             nested,
             PatternPrecedence::Lowest,
             nested_baseline,
             record_stops,
+            completion,
         );
         record_default_after_pattern(i.rb(), exit, baseline)
     } else if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Equals) {
