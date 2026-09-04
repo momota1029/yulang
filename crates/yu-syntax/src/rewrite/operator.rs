@@ -13,7 +13,7 @@ use super::{
 };
 
 pub(super) const STOP_COMMA: Stops = 1 << 0;
-const STOP_SEMICOLON: Stops = 1 << 1;
+pub(super) const STOP_SEMICOLON: Stops = 1 << 1;
 const STOP_RPAREN: Stops = 1 << 2;
 const STOP_RBRACKET: Stops = 1 << 3;
 const STOP_RBRACE: Stops = 1 << 4;
@@ -25,6 +25,7 @@ pub(super) const STOP_ELSIF: Stops = 1 << 9;
 pub(super) const STOP_ELSE: Stops = 1 << 10;
 pub(super) const STOP_ARROW: Stops = 1 << 11;
 pub(super) const STOP_LINE_BREAK: Stops = 1 << 12;
+pub(super) const STOP_WITH: Stops = 1 << 13;
 
 pub(super) fn stops_for(close: super::item::TokenKind) -> Stops {
     let close = match close {

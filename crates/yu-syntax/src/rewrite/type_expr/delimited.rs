@@ -5,16 +5,17 @@ use reborrow_generic::Reborrow as _;
 use crate::syntax_kind::SyntaxKind;
 
 use super::super::{
-    RewriteIn,
+    RewriteIn, Stops,
     driver::{Either, TailExit, handoff, token_kind},
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{scan_trivia, type_nud_item_after_trivia},
 };
 use super::{
-    is_type_deeper_newline, is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
-    is_type_separator, missing_bracket_row_close, missing_type_close, missing_type_item,
-    type_chain_trivia, type_delimited_baseline, type_expr_from_nud, with_type_outer_close,
+    is_type_caller_boundary, is_type_deeper_newline, is_type_implicit_boundary,
+    is_type_mismatched_close, is_type_nud, is_type_separator, missing_bracket_row_close,
+    missing_type_close, missing_type_item, type_chain_trivia, type_delimited_baseline,
+    type_expr_from_nud, with_type_outer_close,
 };
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -29,6 +30,7 @@ pub(super) fn type_delimited(
     incoming_baseline: usize,
     owner: TypeDelimitedOwner,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     let opening = scan_trivia(i.rb());
     let baseline = type_delimited_baseline(incoming_baseline, &opening);
@@ -42,6 +44,13 @@ pub(super) fn type_delimited(
         if token_kind(&item) == Some(close) {
             emit_token_item(&mut i, item);
             return Ok(());
+        }
+        if is_type_caller_boundary(&item, caller_stops) && !is_type_nud(&item) {
+            if owner == TypeDelimitedOwner::BracketRow {
+                emit_missing(&mut i, LeadingTrivia::default());
+            }
+            emit_missing(&mut i, LeadingTrivia::default());
+            return handoff(item);
         }
         if matches!(&item.payload, Payload::Eof) {
             if owner == TypeDelimitedOwner::BracketRow {
@@ -57,7 +66,7 @@ pub(super) fn type_delimited(
         if is_type_separator(&item) {
             item = missing_type_item(i.rb(), item);
             emit_token_item(&mut i, item);
-            item = match type_after_separator(i.rb(), close, owner, baseline) {
+            item = match type_after_separator(i.rb(), close, owner, baseline, caller_stops) {
                 Ok(next) => next,
                 Err(exit) => return exit,
             };
@@ -67,10 +76,12 @@ pub(super) fn type_delimited(
             if owner != TypeDelimitedOwner::BracketRow && is_type_mismatched_close(&item, close) {
                 return handoff(item);
             }
-            item = match retry_type_delimited_item(i.rb(), item, close, owner, baseline) {
-                Ok(next) => next,
-                Err(exit) => return exit,
-            };
+            item =
+                match retry_type_delimited_item(i.rb(), item, close, owner, baseline, caller_stops)
+                {
+                    Ok(next) => next,
+                    Err(exit) => return exit,
+                };
             continue;
         }
         let exit = type_expr_from_nud(
@@ -81,19 +92,24 @@ pub(super) fn type_delimited(
             None,
             true,
             with_type_outer_close(outer_closes, close),
+            caller_stops,
         );
         item = match exit {
             Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
-            Err(Either::Left(next)) if is_type_separator(&next) => {
-                emit_token_item(&mut i, next);
-                match type_after_separator(i.rb(), close, owner, baseline) {
-                    Ok(next) => next,
-                    Err(exit) => return exit,
-                }
-            }
             Err(Either::Left(next)) if token_kind(&next) == Some(close) => {
                 emit_token_item(&mut i, next);
                 return Ok(());
+            }
+            Err(Either::Left(next)) if is_type_caller_boundary(&next, caller_stops) => {
+                emit_missing(&mut i, LeadingTrivia::default());
+                return handoff(next);
+            }
+            Err(Either::Left(next)) if is_type_separator(&next) => {
+                emit_token_item(&mut i, next);
+                match type_after_separator(i.rb(), close, owner, baseline, caller_stops) {
+                    Ok(next) => next,
+                    Err(exit) => return exit,
+                }
             }
             Err(Either::Left(mut next))
                 if owner == TypeDelimitedOwner::BracketRow
@@ -125,6 +141,7 @@ pub(super) fn type_delimited(
                     close,
                     TypeDelimitedOwner::BracketRow,
                     baseline,
+                    caller_stops,
                 ) {
                     Ok(next) => next,
                     Err(exit) => return exit,
@@ -159,6 +176,7 @@ fn retry_type_delimited_item(
     close: TokenKind,
     owner: TypeDelimitedOwner,
     baseline: usize,
+    caller_stops: Stops,
 ) -> Result<Item, TailExit> {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -170,10 +188,15 @@ fn retry_type_delimited_item(
             emit_token_item(&mut i, item);
             return Err(Ok(()));
         }
+        if is_type_caller_boundary(&item, caller_stops) {
+            i.state.finish_node();
+            emit_missing(&mut i, LeadingTrivia::default());
+            return Err(handoff(item));
+        }
         if is_type_separator(&item) {
             i.state.finish_node();
             emit_token_item(&mut i, item);
-            return type_after_separator(i, close, owner, baseline);
+            return type_after_separator(i, close, owner, baseline, caller_stops);
         }
         if is_type_implicit_boundary(baseline, &item.leading) {
             i.state.finish_node();
@@ -237,6 +260,7 @@ fn type_after_separator(
     close: TokenKind,
     owner: TypeDelimitedOwner,
     baseline: usize,
+    caller_stops: Stops,
 ) -> Result<Item, TailExit> {
     let leading = scan_trivia(i.rb());
     let mut next = type_nud_item_after_trivia(i.rb(), leading);
@@ -245,6 +269,11 @@ fn type_after_separator(
         emit_leading_trivia(&mut i, &leading);
         emit_token_item(&mut i, next);
         return Err(Ok(()));
+    }
+    if is_type_caller_boundary(&next, caller_stops) && !is_type_nud(&next) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Err(handoff(next));
     }
     if matches!(&next.payload, Payload::Eof) {
         next = missing_type_item(i.rb(), next);

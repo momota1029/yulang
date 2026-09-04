@@ -1,0 +1,368 @@
+//! Direct canonical equality-form `type` declaration construction.
+
+use reborrow_generic::Reborrow as _;
+
+use crate::syntax_kind::SyntaxKind;
+
+use super::{
+    LexIn, RewriteIn, Stops,
+    driver::{TailExit, handoff, implicit_delimited_newline, is_active_stop, token_kind},
+    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    lexer::{
+        declaration_type_header_item_after_trivia, is_declaration_starter_word,
+        scan_declaration_type_parameter, scan_identifier, scan_trivia, source_identifier,
+        statement_item_after_trivia, type_nud_item_after_trivia,
+    },
+    operator::{STOP_SEMICOLON, STOP_WITH, source_after_trivia},
+    type_expr::{is_type_caller_boundary, required_type_expr_with_caller_stops},
+};
+
+type NameResult = Result<Option<Item>, Item>;
+
+pub(super) fn type_declaration_selected(i: RewriteIn, item: &Item, baseline: usize) -> bool {
+    if item_word(item) == Some("type") {
+        return true;
+    }
+    if !matches!(item_word(item), Some("my" | "our" | "pub")) {
+        return false;
+    }
+    observes(i, |source| prefixed_type_candidate(source, baseline))
+}
+
+pub(super) fn type_declaration(
+    mut i: RewriteIn,
+    intro: Item,
+    baseline: usize,
+    stops: Stops,
+) -> TailExit {
+    debug_assert!(type_declaration_selected(i.rb(), &intro, baseline));
+    i.state.start_node(SyntaxKind::TypeDeclaration.into());
+    if item_word(&intro) == Some("type") {
+        emit_intro(&mut i, intro, SyntaxKind::TypeKw);
+    } else {
+        emit_visibility(&mut i, intro);
+        let accepted = emit_gtype(i.rb(), baseline, true);
+        debug_assert!(accepted);
+        let keyword = i
+            .token(|lex| scan_exact_identifier(lex, "type"))
+            .expect("visibility-led selection proved exact `type`");
+        i.state.token(SyntaxKind::TypeKw.into(), &keyword.text);
+    }
+
+    let exit = if !emit_gtype(i.rb(), baseline, true) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        handoff(scan_pending_item(i.rb(), baseline, stops))
+    } else {
+        match required_name(i.rb(), baseline, stops) {
+            Ok(None) => {
+                parameters(i.rb());
+                definition(i.rb(), None, baseline, stops)
+            }
+            Ok(Some(equals)) => definition(i.rb(), Some(equals), baseline, stops),
+            Err(boundary) => handoff(boundary),
+        }
+    };
+    i.state.finish_node();
+    exit
+}
+
+/// `Some(equals)` means the incomplete name slot reached a literal `=` and
+/// the definition/RHS slots may continue without a second name diagnostic.
+fn required_name(mut i: RewriteIn, baseline: usize, stops: Stops) -> NameResult {
+    let item = declaration_type_header_item_after_trivia(i.rb(), LeadingTrivia::default());
+    if token_kind(&item) == Some(TokenKind::Equals) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Ok(Some(item));
+    }
+    if header_boundary(i.rb(), &item, baseline, stops) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Err(item);
+    }
+    if raw_name(&item) {
+        emit_token_item(&mut i, item);
+        return Ok(None);
+    }
+
+    i.state.start_node(SyntaxKind::Error.into());
+    let mut item = item;
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = declaration_type_header_item_after_trivia(i.rb(), leading);
+        if !gtype_item_allowed(&item, baseline) || header_boundary(i.rb(), &item, baseline, stops) {
+            i.state.finish_node();
+            return Err(item);
+        }
+        if token_kind(&item) == Some(TokenKind::Equals) {
+            emit_item_leading(&mut i, &mut item);
+            i.state.finish_node();
+            return Ok(Some(item));
+        }
+        if raw_name(&item) {
+            emit_item_leading(&mut i, &mut item);
+            i.state.finish_node();
+            emit_token_item(&mut i, item);
+            return Ok(None);
+        }
+    }
+}
+
+fn parameters(mut i: RewriteIn) {
+    let Some((leading, parameter)) = i.token(scan_parameter) else {
+        return;
+    };
+    i.state
+        .start_node(SyntaxKind::DeclarationTypeParameterList.into());
+    emit_parameter(&mut i, leading, parameter);
+    while let Some((leading, parameter)) = i.token(scan_parameter) {
+        emit_parameter(&mut i, leading, parameter);
+    }
+    i.state.finish_node();
+}
+
+fn definition(mut i: RewriteIn, pending: Option<Item>, baseline: usize, stops: Stops) -> TailExit {
+    let already_scanned = pending.is_some();
+    let mut item = pending.unwrap_or_else(|| definition_item(i.rb(), baseline));
+    if !already_scanned && !gtype_item_allowed(&item, baseline) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return handoff(item);
+    }
+    if token_kind(&item) == Some(TokenKind::Equals) {
+        emit_token_item(&mut i, item);
+        return rhs(i, baseline, stops);
+    }
+    if definition_boundary(i.rb(), &item, baseline, stops) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return handoff(item);
+    }
+    if type_starter(&item) {
+        emit_missing(&mut i, std::mem::take(&mut item.leading));
+        return rhs_item(i, item, baseline, stops);
+    }
+
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_nud_item_after_trivia(i.rb(), leading);
+        if !gtype_item_allowed(&item, baseline)
+            || definition_boundary(i.rb(), &item, baseline, stops)
+        {
+            i.state.finish_node();
+            return handoff(item);
+        }
+        if token_kind(&item) == Some(TokenKind::Equals) {
+            emit_item_leading(&mut i, &mut item);
+            i.state.finish_node();
+            emit_token_item(&mut i, item);
+            return rhs(i, baseline, stops);
+        }
+        if type_starter(&item) {
+            emit_item_leading(&mut i, &mut item);
+            i.state.finish_node();
+            return rhs_item(i, item, baseline, stops);
+        }
+    }
+}
+
+fn rhs(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+    let leading = scan_trivia(i.rb());
+    let mut primary = type_nud_item_after_trivia(i.rb(), leading);
+    let caller_stops = stops | STOP_SEMICOLON | STOP_WITH;
+    if !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
+        emit_item_leading(&mut i, &mut primary);
+    }
+    required_type_expr_with_caller_stops(i, primary, baseline, caller_stops)
+}
+
+fn rhs_item(mut i: RewriteIn, mut primary: Item, baseline: usize, stops: Stops) -> TailExit {
+    let caller_stops = stops | STOP_SEMICOLON | STOP_WITH;
+    if !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
+        emit_item_leading(&mut i, &mut primary);
+    }
+    required_type_expr_with_caller_stops(i, primary, baseline, caller_stops)
+}
+
+fn definition_item(mut i: RewriteIn, baseline: usize) -> Item {
+    let leading = scan_trivia(i.rb());
+    let mut item = type_nud_item_after_trivia(i.rb(), leading);
+    if gtype_item_allowed(&item, baseline) {
+        emit_item_leading(&mut i, &mut item);
+    }
+    item
+}
+
+fn rhs_gap_is_outer_owned(item: &Item, baseline: usize, caller_stops: Stops) -> bool {
+    implicit_delimited_newline(baseline, &item.leading)
+        || (is_type_caller_boundary(item, caller_stops)
+            && token_kind(item) != Some(TokenKind::Semicolon))
+}
+
+fn header_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    matches!(item.payload, Payload::Eof)
+        || implicit_delimited_newline(baseline, &item.leading)
+        || is_active_stop(i.rb(), item, stops)
+        || matches!(
+            token_kind(item),
+            Some(TokenKind::Comma | TokenKind::Semicolon)
+        )
+}
+
+fn definition_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    header_boundary(i.rb(), item, baseline, stops)
+        || item_word(item).is_some_and(|word| {
+            matches!(word, "with" | "derives") || is_declaration_starter_word(word)
+        })
+}
+
+fn emit_gtype(mut i: RewriteIn, baseline: usize, required: bool) -> bool {
+    let allowed = observes(i.rb(), |source| {
+        let (_, present, indentation) = source_after_trivia(source);
+        (!required || present) && indentation.is_none_or(|indentation| indentation > baseline)
+    });
+    if !allowed {
+        return false;
+    }
+    let trivia = scan_trivia(i.rb());
+    emit_leading_trivia(&mut i, &trivia);
+    true
+}
+
+fn gtype_item_allowed(item: &Item, baseline: usize) -> bool {
+    !implicit_delimited_newline(baseline, &item.leading)
+}
+
+fn scan_parameter(mut i: LexIn) -> Option<(LeadingTrivia, Token)> {
+    let leading = scan_trivia(i.rb());
+    if leading.0.is_empty()
+        || leading
+            .0
+            .iter()
+            .any(|trivia| trivia.text.contains(['\r', '\n']))
+    {
+        return None;
+    }
+    let parameter = scan_declaration_type_parameter(i.rb())?;
+    parameter_spelling(&parameter).then_some((leading, parameter))
+}
+
+fn parameter_spelling(parameter: &Token) -> bool {
+    if parameter.kind == TokenKind::SigilIdentifier {
+        return true;
+    }
+    debug_assert_eq!(parameter.kind, TokenKind::Identifier);
+    !is_declaration_starter_word(&parameter.text)
+        && !matches!(
+            &*parameter.text,
+            "for"
+                | "realm"
+                | "band"
+                | "as"
+                | "without"
+                | "with"
+                | "if"
+                | "case"
+                | "catch"
+                | "where"
+                | "elsif"
+                | "else"
+                | "derives"
+        )
+}
+
+fn emit_parameter(i: &mut RewriteIn, leading: LeadingTrivia, parameter: Token) {
+    emit_leading_trivia(i, &leading);
+    let kind = match parameter.kind {
+        TokenKind::Identifier => SyntaxKind::Identifier,
+        TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
+        _ => unreachable!("declaration parameter scanner returns identifiers"),
+    };
+    i.state.token(kind.into(), &parameter.text);
+}
+
+fn type_starter(item: &Item) -> bool {
+    matches!(
+        token_kind(item),
+        Some(
+            TokenKind::Identifier
+                | TokenKind::SigilIdentifier
+                | TokenKind::Integer
+                | TokenKind::LParen
+                | TokenKind::LBrace
+                | TokenKind::LBracket
+                | TokenKind::Forall
+                | TokenKind::EffectRowApostrophe
+                | TokenKind::PolymorphicVariantColon
+        )
+    )
+}
+
+fn raw_name(item: &Item) -> bool {
+    token_kind(item) == Some(TokenKind::Identifier)
+}
+
+fn scan_pending_item(mut i: RewriteIn, baseline: usize, stops: Stops) -> Item {
+    let leading = scan_trivia(i.rb());
+    statement_item_after_trivia(i, leading, baseline, stops)
+}
+
+fn prefixed_type_candidate(source: &str, baseline: usize) -> bool {
+    let (source, present, indentation) = source_after_trivia(source);
+    present
+        && indentation.is_none_or(|indentation| indentation > baseline)
+        && source_identifier(source).is_some_and(|(word, _)| word == "type")
+}
+
+fn scan_exact_identifier(mut i: LexIn, expected: &str) -> Option<Token> {
+    let token = scan_identifier(i.rb())?;
+    (&*token.text == expected).then_some(token)
+}
+
+fn item_word(item: &Item) -> Option<&str> {
+    match &item.payload {
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text,
+        }) => Some(text),
+        _ => None,
+    }
+}
+
+fn emit_intro(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
+    let Payload::Token(token) = item.payload else {
+        unreachable!("accepted Type intro is lexical")
+    };
+    emit_leading_trivia(i, &item.leading);
+    i.state.token(kind.into(), &token.text);
+}
+
+fn emit_visibility(i: &mut RewriteIn, item: Item) {
+    let Payload::Token(token) = item.payload else {
+        unreachable!("accepted Type visibility is lexical")
+    };
+    emit_leading_trivia(i, &item.leading);
+    let kind = match &*token.text {
+        "my" => SyntaxKind::MyKw,
+        "our" => SyntaxKind::OurKw,
+        "pub" => SyntaxKind::PubKw,
+        _ => unreachable!("Type visibility uses exact declaration words"),
+    };
+    i.state.token(kind.into(), &token.text);
+}
+
+fn emit_item_leading(i: &mut RewriteIn, item: &mut Item) {
+    let leading = std::mem::take(&mut item.leading);
+    emit_leading_trivia(i, &leading);
+}
+
+fn observes<F>(i: RewriteIn, predicate: F) -> bool
+where
+    F: FnOnce(&str) -> bool,
+{
+    i.map(
+        |lex: LexIn| Some(predicate(lex.remainder())),
+        |observed| observed,
+    )
+    .expect("source observation is total")
+}

@@ -21,6 +21,7 @@ use super::{
     pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item, pattern_stops_from_owner},
     statement::indented_statement_block,
     struct_decl::struct_declaration_selected,
+    type_decl::type_declaration_selected,
     use_decl::use_declaration_selected,
 };
 
@@ -35,6 +36,9 @@ pub(super) fn binding_statement_selected(mut i: RewriteIn, item: &Item, baseline
         return false;
     }
     if struct_declaration_selected(i.rb(), item, baseline) {
+        return false;
+    }
+    if type_declaration_selected(i.rb(), item, baseline) {
         return false;
     }
     i.map(

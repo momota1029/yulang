@@ -415,6 +415,23 @@ fn use_c9_missing_group_close_hands_equal_indent_statement_intro_to_caller() {
                 && item.leading.0.iter().map(|part| &*part.text).collect::<Vec<_>>().concat() == "\n"
     ));
 
+    let (green, exit) = run_statement("use {a\ntype T = A");
+    assert_eq!(green.to_string(), "use {a");
+    assert_eq!(
+        descendants_of_kind(&use_declaration(&green), SyntaxKind::Missing),
+        1
+    );
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(
+                    item.payload,
+                    Payload::Token(ref token)
+                        if token.kind == TokenKind::Identifier && &*token.text == "type"
+                )
+                && item.leading.0.iter().map(|part| &*part.text).collect::<Vec<_>>().concat() == "\n"
+    ));
+
     for source in ["use {a\n  use b}", "use {a\nuseful}"] {
         let (green, exit) = run_statement(source);
         assert_eq!(green.to_string(), source);

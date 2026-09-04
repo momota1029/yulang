@@ -1397,6 +1397,23 @@ owners / tails / if / case-like / Pattern focused sets、`cargo check -p yu-synt
 package/workspace suite、performance、legacy/public/root dispatch、AST/HIR/header projection、typed diagnostics、
 generics/derives/companion/method/doc-comment、Yumark、Gate 4/6 certificationは未実施のままである。
 
+2026-09-05: isolated SCC construction witness C12として、nested canonical `Statement`にequality-formだけの
+source-free direct `TypeDeclaration`を追加した。optional visibility、exact `type`、raw `Identifier` name、
+same-line whitespace-separated `Identifier | SigilIdentifier` parameter list、exact lone `=`、ordinary mandatory
+full `TypeExpression` RHSを直接構築する。bare nominal、`impl` / `with` / colon / brace body、derives、semanticsは
+追加していない。parameter scannerは全canonical declaration starterと`impl` / `with` / `derives`を予約し、
+`$` / `&` / `'`を`SigilIdentifier`、underscore-leading nameを`Identifier`として保持する。
+Type RHS caller boundaryは既存`Stops`を明示引数で全normal / malformed / nested ownerへ通し、outer semicolon、
+exact `with`、active stopをpending Itemとして返す一方、`A::with`と`{with: T}`のlocal syntax precedenceを保つ。
+new ambient state、buffer、replay、TypeDeclaration固有delimiter/list/fenceは導入していない。M2仕様査読の
+round 1でraw name vocabulary、declaration-starter reservation、nested caller-stop propagation、TD-R fixture不足を
+検出して修復した。round 2でmalformed path retryのcaller-stop漏れと残るTD-R matrixを修復し、regression deltaは
+approvedとなった。最後のspec deltaで指摘されたRHS ownership証明不足は、既決expected contractだけを固定する
+test-only parent/RHS assertionとしてprimaryが補完した。focused TypeDeclaration 13、TypeExpression 49、Struct 11、
+Use 10、Binding 7と関連canonical owner sets、`cargo check -p yu-syntax`、format/diff checkはgreen。broad
+package/workspace suite、performance、production/public/root parser、AST/HIR/header projection、typed diagnostics、
+Yumark、Gate 4/6/9 certificationは未実施のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

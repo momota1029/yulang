@@ -268,6 +268,28 @@ where
     type_item_after_trivia(i, leading)
 }
 
+/// Type-declaration headers use raw identifiers rather than TypeExpression's
+/// contextual/sigil classification.  Exact `=` remains separately visible so
+/// the mandatory name slot can hand it directly to the definition slot.
+pub(super) fn declaration_type_header_item_after_trivia<S>(
+    mut i: In<'_, &str, &mut Recover<'_>, S>,
+    leading: LeadingTrivia,
+) -> Item
+where
+    S: Rb,
+{
+    if let Some(token) = i
+        .token(scan_exact_equals)
+        .or_else(|| i.token(scan_identifier))
+    {
+        return Item {
+            leading,
+            payload: Payload::Token(token),
+        };
+    }
+    type_nud_item_after_trivia(i, leading)
+}
+
 pub(super) fn type_item_after_trivia<S>(
     i: In<'_, &str, &mut Recover<'_>, S>,
     leading: LeadingTrivia,
@@ -551,7 +573,8 @@ fn scan_statement_keyword(mut i: LexIn) -> Option<Token> {
         .or_else(|| scan_exact_word(i.rb(), "pub"))
         .or_else(|| scan_exact_word(i.rb(), "use"))
         .or_else(|| scan_exact_word(i.rb(), "mod"))
-        .or_else(|| scan_exact_word(i, "struct"))
+        .or_else(|| scan_exact_word(i.rb(), "struct"))
+        .or_else(|| scan_exact_word(i, "type"))
 }
 
 /// Split the same maximal identifier spelling accepted by [`scan_identifier`]
@@ -661,6 +684,39 @@ pub(super) fn scan_path_segment(mut i: LexIn) -> Option<Token> {
         kind: TokenKind::SigilIdentifier,
         text: text.into(),
     })
+}
+
+/// Preserve declaration-parameter sigils without applying TypeExpression's
+/// underscore-to-sigil path-segment classification.
+pub(super) fn scan_declaration_type_parameter(mut i: LexIn) -> Option<Token> {
+    if let Some(word) = i.token(scan_identifier) {
+        return Some(word);
+    }
+    i.token(scan_path_segment)
+}
+
+pub(super) fn is_declaration_starter_word(word: &str) -> bool {
+    matches!(
+        word,
+        "use"
+            | "mod"
+            | "struct"
+            | "type"
+            | "enum"
+            | "error"
+            | "role"
+            | "impl"
+            | "cast"
+            | "act"
+            | "my"
+            | "our"
+            | "pub"
+            | "lazy"
+            | "prefix"
+            | "infix"
+            | "suffix"
+            | "nullfix"
+    )
 }
 
 fn scan_identifier_continue(mut i: LexIn) -> Option<()> {

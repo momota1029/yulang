@@ -881,7 +881,7 @@ fn group_caller_boundary(mut i: LexIn, item: &Item, baseline: usize, stops: Stop
 fn is_exact_canonical_statement_intro(item: &Item) -> bool {
     matches!(
         item_word(item),
-        Some("use" | "mod" | "struct" | "my" | "our" | "pub")
+        Some("use" | "mod" | "struct" | "type" | "my" | "our" | "pub")
     )
 }
 

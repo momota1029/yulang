@@ -5,15 +5,15 @@ use reborrow_generic::Reborrow as _;
 use crate::syntax_kind::SyntaxKind;
 
 use super::super::{
-    LexIn, RewriteIn,
+    LexIn, RewriteIn, Stops,
     driver::{TailExit, handoff, token_kind},
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{scan_trivia, type_item_after_trivia, type_nud_item_after_trivia},
 };
 use super::{
-    TypeApplyBoundary, indentation_after_newline, is_forall_binder, is_type_nud,
-    is_type_rhs_boundary, is_type_separator, type_chain_trivia, type_expr_from_nud,
+    TypeApplyBoundary, indentation_after_newline, is_forall_binder, is_type_caller_boundary,
+    is_type_nud, is_type_rhs_boundary, is_type_separator, type_chain_trivia, type_expr_from_nud,
 };
 
 pub(super) fn type_forall(
@@ -23,6 +23,7 @@ pub(super) fn type_forall(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::ForallType.into());
     emit_token_item(&mut i, keyword);
@@ -42,12 +43,15 @@ pub(super) fn type_forall(
             apply_boundary,
             outer_separators,
             outer_closes,
+            caller_stops,
         );
         i.state.finish_node();
         return exit;
     }
     if !is_forall_binder(&binder) {
-        if is_forall_local_separator(&binder, outer_separators) {
+        if is_forall_local_separator(&binder, outer_separators)
+            && !is_type_caller_boundary(&binder, caller_stops)
+        {
             let exit = type_forall_first_separator(
                 i.rb(),
                 binder,
@@ -55,6 +59,7 @@ pub(super) fn type_forall(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
             i.state.finish_node();
             return exit;
@@ -64,7 +69,7 @@ pub(super) fn type_forall(
             i.state.finish_node();
             return handoff(binder);
         }
-        if is_forall_boundary(&binder, baseline, outer_separators) {
+        if is_forall_boundary(&binder, baseline, outer_separators, caller_stops) {
             let binder = type_forall_missing_binder(i.rb(), binder, true);
             i.state.finish_node();
             return handoff(binder);
@@ -76,6 +81,7 @@ pub(super) fn type_forall(
             apply_boundary,
             outer_separators,
             outer_closes,
+            caller_stops,
         );
         i.state.finish_node();
         return exit;
@@ -88,6 +94,7 @@ pub(super) fn type_forall(
         apply_boundary,
         outer_separators,
         outer_closes,
+        caller_stops,
     );
     i.state.finish_node();
     exit
@@ -99,6 +106,7 @@ fn type_forall_after_binder(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     loop {
         let leading = scan_trivia(i.rb());
@@ -115,6 +123,7 @@ fn type_forall_after_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
         if is_forall_binder(&next) {
@@ -122,7 +131,9 @@ fn type_forall_after_binder(
             type_forall_binder(i.rb(), next, missing_boundary);
             continue;
         }
-        if is_forall_local_separator(&next, outer_separators) {
+        if is_forall_local_separator(&next, outer_separators)
+            && !is_type_caller_boundary(&next, caller_stops)
+        {
             return type_forall_continuation_separator(
                 i,
                 next,
@@ -130,7 +141,17 @@ fn type_forall_after_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
+        }
+        if is_forall_boundary(&next, baseline, outer_separators, caller_stops) {
+            let leading = if is_forall_outer_separator(&next, outer_separators) {
+                LeadingTrivia::default()
+            } else {
+                std::mem::take(&mut next.leading)
+            };
+            emit_missing(&mut i, leading);
+            return handoff(next);
         }
         if is_type_nud(&next) {
             let leading = std::mem::take(&mut next.leading);
@@ -143,16 +164,8 @@ fn type_forall_after_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
-        }
-        if is_forall_boundary(&next, baseline, outer_separators) {
-            let leading = if is_forall_outer_separator(&next, outer_separators) {
-                LeadingTrivia::default()
-            } else {
-                std::mem::take(&mut next.leading)
-            };
-            emit_missing(&mut i, leading);
-            return handoff(next);
         }
         return type_forall_malformed_after_binder(
             i,
@@ -161,6 +174,7 @@ fn type_forall_after_binder(
             apply_boundary,
             outer_separators,
             outer_closes,
+            caller_stops,
         );
     }
 }
@@ -172,11 +186,13 @@ fn type_forall_first_separator(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     emit_forall_separator_binder(i.rb(), separator);
     let leading = scan_trivia(i.rb());
     let next = type_item_after_trivia(i.rb(), leading);
-    if matches!(next.payload, Payload::Eof) || is_forall_boundary(&next, baseline, outer_separators)
+    if matches!(next.payload, Payload::Eof)
+        || is_forall_boundary(&next, baseline, outer_separators, caller_stops)
     {
         return handoff(next);
     }
@@ -188,6 +204,7 @@ fn type_forall_first_separator(
             apply_boundary,
             outer_separators,
             outer_closes,
+            caller_stops,
         );
     }
     if token_kind(&next) == Some(TokenKind::Colon) {
@@ -198,6 +215,7 @@ fn type_forall_first_separator(
             apply_boundary,
             outer_separators,
             outer_closes,
+            caller_stops,
         );
     }
     if is_forall_binder(&next) {
@@ -209,6 +227,7 @@ fn type_forall_first_separator(
             apply_boundary,
             outer_separators,
             outer_closes,
+            caller_stops,
         );
     }
     if is_type_nud(&next) {
@@ -221,6 +240,7 @@ fn type_forall_first_separator(
         apply_boundary,
         outer_separators,
         outer_closes,
+        caller_stops,
     )
 }
 
@@ -231,9 +251,17 @@ fn type_forall_continuation_separator(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     emit_forall_separator_binder(i.rb(), separator);
-    type_forall_after_binder(i, baseline, apply_boundary, outer_separators, outer_closes)
+    type_forall_after_binder(
+        i,
+        baseline,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+    )
 }
 
 fn type_forall_first_malformed_binder(
@@ -243,6 +271,7 @@ fn type_forall_first_malformed_binder(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     let leading = std::mem::take(&mut item.leading);
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
@@ -265,7 +294,10 @@ fn type_forall_first_malformed_binder(
         }
         let leading = scan_trivia(i.rb());
         item = type_item_after_trivia(i.rb(), leading);
-        if nested_depth == 0 && is_forall_local_separator(&item, outer_separators) {
+        if nested_depth == 0
+            && is_forall_local_separator(&item, outer_separators)
+            && !is_type_caller_boundary(&item, caller_stops)
+        {
             i.state.finish_node();
             i.state.finish_node();
             return type_forall_first_separator(
@@ -275,10 +307,12 @@ fn type_forall_first_malformed_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
         if matches!(item.payload, Payload::Eof)
-            || (nested_depth == 0 && is_forall_boundary(&item, baseline, outer_separators))
+            || (nested_depth == 0
+                && is_forall_boundary(&item, baseline, outer_separators, caller_stops))
         {
             i.state.finish_node();
             i.state.finish_node();
@@ -294,6 +328,7 @@ fn type_forall_first_malformed_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
         if nested_depth == 0 && is_forall_binder(&item) {
@@ -307,6 +342,7 @@ fn type_forall_first_malformed_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
     }
@@ -319,17 +355,14 @@ fn type_forall_malformed_after_binder(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
-    let probe = if outer_separators {
-        type_forall_malformed_retries_binder_outer
-    } else {
-        type_forall_malformed_retries_binder_local
-    };
     let retry_binder = i
         .rb()
-        .then(probe, |(is_binder, indent), _| {
-            is_binder && indent.is_none_or(|indent| indent > baseline)
-        })
+        .then(
+            |lex: LexIn| type_forall_malformed_retries_binder(lex, outer_separators, caller_stops),
+            |(is_binder, indent), _| is_binder && indent.is_none_or(|indent| indent > baseline),
+        )
         .expect("the forall malformed-retry probe always succeeds");
     if retry_binder {
         return type_forall_retry_binder(
@@ -339,6 +372,7 @@ fn type_forall_malformed_after_binder(
             apply_boundary,
             outer_separators,
             outer_closes,
+            caller_stops,
         );
     }
     type_forall_retry_colon_or_body(
@@ -348,12 +382,14 @@ fn type_forall_malformed_after_binder(
         apply_boundary,
         outer_separators,
         outer_closes,
+        caller_stops,
     )
 }
 
 fn type_forall_malformed_retries_binder(
     mut i: LexIn,
     outer_separators: bool,
+    caller_stops: Stops,
 ) -> Option<(bool, Option<usize>)> {
     let mut input = i.remainder();
     let mut probe: LexIn = chasa_recover::In::new(&mut input, i.recovery(), ());
@@ -372,7 +408,9 @@ fn type_forall_malformed_retries_binder(
             return Some((false, minimum_indentation));
         }
         if nested_depth == 0 {
-            if is_type_rhs_boundary(&item) && (outer_separators || !is_type_separator(&item)) {
+            if (is_type_rhs_boundary(&item) && (outer_separators || !is_type_separator(&item)))
+                || is_type_caller_boundary(&item, caller_stops)
+            {
                 return Some((false, minimum_indentation));
             }
             if is_forall_binder(&item) {
@@ -396,14 +434,6 @@ fn type_forall_malformed_retries_binder(
     }
 }
 
-fn type_forall_malformed_retries_binder_outer(i: LexIn) -> Option<(bool, Option<usize>)> {
-    type_forall_malformed_retries_binder(i, true)
-}
-
-fn type_forall_malformed_retries_binder_local(i: LexIn) -> Option<(bool, Option<usize>)> {
-    type_forall_malformed_retries_binder(i, false)
-}
-
 fn type_forall_retry_binder(
     mut i: RewriteIn,
     mut item: Item,
@@ -411,6 +441,7 @@ fn type_forall_retry_binder(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     let leading = std::mem::take(&mut item.leading);
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
@@ -444,9 +475,13 @@ fn type_forall_retry_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
-        if nested_depth == 0 && is_forall_local_separator(&item, outer_separators) {
+        if nested_depth == 0
+            && is_forall_local_separator(&item, outer_separators)
+            && !is_type_caller_boundary(&item, caller_stops)
+        {
             i.state.finish_node();
             i.state.finish_node();
             return type_forall_continuation_separator(
@@ -456,10 +491,12 @@ fn type_forall_retry_binder(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
         if matches!(item.payload, Payload::Eof)
-            || (nested_depth == 0 && is_forall_boundary(&item, baseline, outer_separators))
+            || (nested_depth == 0
+                && is_forall_boundary(&item, baseline, outer_separators, caller_stops))
         {
             i.state.finish_node();
             i.state.finish_node();
@@ -475,6 +512,7 @@ fn type_forall_retry_colon_or_body(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     let leading = std::mem::take(&mut item.leading);
     emit_leading_trivia(&mut i, &leading);
@@ -496,7 +534,10 @@ fn type_forall_retry_colon_or_body(
         }
         let leading = scan_trivia(i.rb());
         item = type_nud_item_after_trivia(i.rb(), leading);
-        if nested_depth == 0 && is_forall_local_separator(&item, outer_separators) {
+        if nested_depth == 0
+            && is_forall_local_separator(&item, outer_separators)
+            && !is_type_caller_boundary(&item, caller_stops)
+        {
             i.state.finish_node();
             return type_forall_continuation_separator(
                 i,
@@ -505,10 +546,12 @@ fn type_forall_retry_colon_or_body(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
         if matches!(item.payload, Payload::Eof)
-            || (nested_depth == 0 && is_forall_boundary(&item, baseline, outer_separators))
+            || (nested_depth == 0
+                && is_forall_boundary(&item, baseline, outer_separators, caller_stops))
         {
             i.state.finish_node();
             return handoff(item);
@@ -522,6 +565,7 @@ fn type_forall_retry_colon_or_body(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
         if nested_depth == 0 && is_type_nud(&item) {
@@ -534,6 +578,7 @@ fn type_forall_retry_colon_or_body(
                 apply_boundary,
                 outer_separators,
                 outer_closes,
+                caller_stops,
             );
         }
     }
@@ -578,6 +623,7 @@ fn type_forall_body(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
+    caller_stops: Stops,
 ) -> TailExit {
     emit_token_item(&mut i, colon);
     let leading = scan_trivia(i.rb());
@@ -586,7 +632,7 @@ fn type_forall_body(
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(body);
     }
-    if is_forall_boundary(&body, baseline, outer_separators) {
+    if is_forall_boundary(&body, baseline, outer_separators, caller_stops) {
         let leading = if is_forall_outer_separator(&body, outer_separators) {
             LeadingTrivia::default()
         } else {
@@ -596,7 +642,10 @@ fn type_forall_body(
         return handoff(body);
     }
     if !is_type_nud(&body) {
-        body = type_forall_retry_body(i.rb(), body, baseline, outer_separators);
+        body = type_forall_retry_body(i.rb(), body, baseline, outer_separators, caller_stops);
+        if is_forall_boundary(&body, baseline, outer_separators, caller_stops) {
+            return handoff(body);
+        }
         if !is_type_nud(&body) {
             return handoff(body);
         }
@@ -611,6 +660,7 @@ fn type_forall_body(
         apply_boundary,
         outer_separators,
         outer_closes,
+        caller_stops,
     )
 }
 
@@ -619,6 +669,7 @@ fn type_forall_retry_body(
     mut item: Item,
     baseline: usize,
     outer_separators: bool,
+    caller_stops: Stops,
 ) -> Item {
     let leading = std::mem::take(&mut item.leading);
     emit_leading_trivia(&mut i, &leading);
@@ -627,16 +678,23 @@ fn type_forall_retry_body(
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = type_nud_item_after_trivia(i.rb(), leading);
-        if is_type_nud(&item) || is_forall_boundary(&item, baseline, outer_separators) {
+        if is_type_nud(&item) || is_forall_boundary(&item, baseline, outer_separators, caller_stops)
+        {
             i.state.finish_node();
             return item;
         }
     }
 }
 
-fn is_forall_boundary(item: &Item, baseline: usize, outer_separators: bool) -> bool {
+fn is_forall_boundary(
+    item: &Item,
+    baseline: usize,
+    outer_separators: bool,
+    caller_stops: Stops,
+) -> bool {
     !type_chain_trivia(&item.leading, baseline)
         || (is_type_rhs_boundary(item) && (outer_separators || !is_type_separator(item)))
+        || is_type_caller_boundary(item, caller_stops)
 }
 
 fn is_forall_outer_separator(item: &Item, outer_separators: bool) -> bool {

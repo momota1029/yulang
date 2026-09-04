@@ -18,6 +18,7 @@ use super::{
     mod_decl::{mod_declaration, mod_declaration_selected},
     operator::stops_for,
     struct_decl::{struct_declaration, struct_declaration_selected},
+    type_decl::{type_declaration, type_declaration_selected},
     use_decl::{use_declaration, use_declaration_selected},
 };
 
@@ -45,6 +46,8 @@ pub(super) fn canonical_statement(
         mod_declaration(i.rb(), item, baseline, stops)
     } else if use_declaration_selected(i.rb(), &item, baseline) {
         use_declaration(i.rb(), item, baseline, stops)
+    } else if type_declaration_selected(i.rb(), &item, baseline) {
+        type_declaration(i.rb(), item, baseline, stops)
     } else if binding_statement_selected(i.rb(), &item, baseline) {
         binding_statement(i.rb(), item, baseline, stops)
     } else {
@@ -60,6 +63,8 @@ pub(super) fn is_canonical_statement_nud(mut i: RewriteIn, item: &Item, baseline
     } else if mod_declaration_selected(i.rb(), item, baseline) {
         true
     } else if use_declaration_selected(i.rb(), item, baseline) {
+        true
+    } else if type_declaration_selected(i.rb(), item, baseline) {
         true
     } else if is_binding_visibility(item) {
         binding_statement_selected(i, item, baseline)
