@@ -242,6 +242,20 @@ Type-attached `impl` addendumも全6 gate完走）
 扱ってた件)は、commit `f4332308`(2026-08-26)で修正・回帰test
 (`qualifying_tag_newline_remains_local_under_an_active_newline_stop`)化済み。
 
+## 確定メモ: Yumark 内 Yulang code cell (2026-09-04)
+
+ユーザ決定: `yulang` fence 本文はraw textだけでなく構文解析・色付け・doctest実行対象として認識する。各 fence は
+**独立した code cell**であり、他の fence が作ったbinding / execution stateを見ない。一方でテスト実行時に渡された
+外部環境は参照できる。`our`を含むroot-level declarationはcell内で許すため、ordinary `{ ... }` blockではなく
+root-style statement entryを使う。syntax phase自身は実行せず、後段doctest runnerが各cellを独立に評価する。
+
+outer Yumark frameはquote prefix・fence opener / close・source offsetをstreamingに所有し続け、nested Yulang parserは
+fence bodyだけを読む。non-Yulang fenceはrawのまま流し、将来のlanguage adapterを妨げない。現行
+`2026-09-01-doc-comment-yumark-addendum.md`はparsed-Yulang fenceを明示的scope外にしており、現実装も
+`YmCodeFenceText`へraw textを置くだけである。実装前にこのdecisionをscopeとgateへ展開する後続
+Authoritative addendumを作ること。command/apply argument用の既存embedded-Yulang delimiter bridgeとは別責務であり、
+fenceのouter delimiter / quote streaming ownershipを崩したりpublic parser再帰で本文を再parseしたりしない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
