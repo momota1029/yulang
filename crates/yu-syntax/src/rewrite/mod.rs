@@ -14,6 +14,7 @@ mod emit;
 mod if_expr;
 mod item;
 mod lexer;
+mod mod_decl;
 mod operator;
 mod pattern;
 mod state;

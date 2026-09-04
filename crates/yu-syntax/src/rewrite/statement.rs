@@ -15,6 +15,7 @@ use super::{
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{scan_trivia, statement_item_after_trivia},
+    mod_decl::{mod_declaration, mod_declaration_selected},
     operator::stops_for,
     use_decl::{use_declaration, use_declaration_selected},
 };
@@ -37,7 +38,9 @@ pub(super) fn canonical_statement(
 ) -> TailExit {
     debug_assert!(is_canonical_statement_nud(i.rb(), &item, baseline));
     i.state.start_node(SyntaxKind::Statement.into());
-    let exit = if use_declaration_selected(i.rb(), &item, baseline) {
+    let exit = if mod_declaration_selected(i.rb(), &item, baseline) {
+        mod_declaration(i.rb(), item, baseline, stops)
+    } else if use_declaration_selected(i.rb(), &item, baseline) {
         use_declaration(i.rb(), item, baseline, stops)
     } else if binding_statement_selected(i.rb(), &item, baseline) {
         binding_statement(i.rb(), item, baseline, stops)
@@ -49,7 +52,9 @@ pub(super) fn canonical_statement(
 }
 
 pub(super) fn is_canonical_statement_nud(mut i: RewriteIn, item: &Item, baseline: usize) -> bool {
-    if use_declaration_selected(i.rb(), item, baseline) {
+    if mod_declaration_selected(i.rb(), item, baseline) {
+        true
+    } else if use_declaration_selected(i.rb(), item, baseline) {
         true
     } else if is_binding_visibility(item) {
         binding_statement_selected(i, item, baseline)
@@ -102,6 +107,24 @@ pub(super) fn braced_nud(
     outer_stops: Stops,
     outer_ml_mode: MlMode,
 ) -> TailExit {
+    let exit = braced_statement_block(i.rb(), open, incoming_baseline);
+    continue_completed_tail(
+        i,
+        threshold,
+        incoming_baseline,
+        outer_stops,
+        outer_ml_mode,
+        exit,
+    )
+}
+
+/// Construct the existing braced canonical-statement owner without attaching
+/// an expression tail. Declaration bodies reuse this exact delimiter scope.
+pub(super) fn braced_statement_block(
+    mut i: RewriteIn,
+    open: Item,
+    incoming_baseline: usize,
+) -> TailExit {
     i.state
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
     emit_token_item(&mut i, open);
@@ -118,14 +141,7 @@ pub(super) fn braced_nud(
         stops,
     );
     i.state.finish_node();
-    continue_completed_tail(
-        i,
-        threshold,
-        incoming_baseline,
-        outer_stops,
-        outer_ml_mode,
-        exit,
-    )
+    exit
 }
 
 fn statement_sequence(

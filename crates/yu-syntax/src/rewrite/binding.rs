@@ -16,6 +16,7 @@ use super::{
         introduced_body_indentation, is_exact_equals_source, pattern_nud_item_after_trivia,
         scan_trivia, source_identifier, statement_item_after_trivia, tail_item_after_trivia,
     },
+    mod_decl::mod_declaration_selected,
     operator::source_after_trivia,
     pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item, pattern_stops_from_owner},
     statement::indented_statement_block,
@@ -27,6 +28,9 @@ pub(super) fn binding_statement_selected(mut i: RewriteIn, item: &Item, baseline
         return false;
     };
     if use_declaration_selected(i.rb(), item, baseline) {
+        return false;
+    }
+    if mod_declaration_selected(i.rb(), item, baseline) {
         return false;
     }
     i.map(
@@ -170,7 +174,7 @@ fn binding_follower(i: LexIn, visibility: &str, baseline: usize) -> bool {
 
     match head {
         "use" => true,
-        "mod" | "struct" | "type" | "role" | "impl" | "cast" => false,
+        "struct" | "type" | "role" | "impl" | "cast" => false,
         "enum" | "error" | "act" => {
             visibility == "my" && !named_declaration_head_candidate(after_head, baseline)
         }

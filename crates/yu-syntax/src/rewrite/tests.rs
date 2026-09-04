@@ -12,7 +12,7 @@ use super::{
     driver::{Either, TailExit, expr, token_kind},
     emit::emit_end,
     item::{OperatorUse, Payload, TokenKind, TriviaKind},
-    operator::{STOP_ARROW, STOP_COLON, scan_operator, stops_for},
+    operator::{STOP_ARROW, STOP_COLON, STOP_ELSE, scan_operator, stops_for},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_with_stops},
     state::Recover,
     statement::statement,
@@ -23,6 +23,7 @@ mod binding;
 mod case_like;
 mod if_expr;
 mod lexical;
+mod mod_decl;
 mod operators;
 mod owners;
 mod pattern;

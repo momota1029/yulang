@@ -1364,6 +1364,23 @@ Use tests 10、Binding 7、tails 11、if 8、case-like 12、Pattern 11、`cargo 
 green。broad package/workspace suite、performance、legacy/public dispatch、AST/HIR/header projection、typed
 diagnostics、Yumark、Gate 4/6 certificationは未実施のままである。
 
+2026-09-05: isolated SCC construction witness C10として、nested canonical `Statement` に source-free direct
+`ModDeclaration`を追加した。optional visibility、exact `ModKw`、ordinary raw nameまたは
+`TestModuleMarker > Identifier(test)`、bodyless semicolon・既存brace block・colon inline one Statement / strict
+indented blockをdirect ownerで構築する。`mod`はbare/visibility-ledともstatement authorityを得るため
+`my mod = value`はBindingへ戻らずtotal Mod recoveryに入り、`my test = value`、`module`、`modular`、`testable`は
+prefix splitしない。accepted introducer時点のbaseを全Gmod gapへ適用し、deeper newlineだけをcontinuationとし、
+shallow/equal newline、caller separator、typed matching close、companion stopはleading triviaごとhandoffする。
+`mod test`はbody starter `;` / `{` / `:`が見えるときだけanonymousで、EOF/boundaryではsecond name Missingとなる。
+body-introducerのnon-matching close / bracketはcaller boundaryでなくMod-local Errorとsame-slot retryであり、brace
+close recoveryは既存brace ownerへ委譲する。brace statement sequenceは`braced_nud`からbody constructionだけを
+`braced_statement_block`へ最小抽出し、braced NUDのouter expression-tail continuationは不変にした。M2の仕様査読が
+unconditional non-matching close/bracket handoffと`testable`/inline Binding coverageを検出し、one bundled repairで
+閉じ、specification / sibling delta reviewerともapprovedした。focused Mod tests 7、Binding 7、Use 10、owners 23、
+tails 11、if 8、case-like 12、Pattern 11、lexical 10、`cargo check -p yu-syntax`、format/diff checkはgreen。
+broad package/workspace suite、performance、legacy/public/root dispatch、AST/HIR/header projection、typed diagnostics、
+Yumark、Gate 4/6 certificationは未実施のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
