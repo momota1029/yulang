@@ -1736,6 +1736,331 @@ fn polymorphic_variant_type_keeps_two_level_boundaries() {
 }
 
 #[test]
+fn polymorphic_variant_type_recovers_outer_tag_positions() {
+    for (source, tags, missing) in [
+        (":{,A}", 1, 1),
+        (":{,,A}", 1, 2),
+        (":{A,,B}", 2, 1),
+        (":{,}", 0, 1),
+        (":{A,}", 1, 0),
+        (":{A,,}", 1, 1),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert_eq!(
+            variant
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+                .count(),
+            tags,
+            "{source:?}"
+        );
+        assert_eq!(
+            variant
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn polymorphic_variant_type_recovers_local_separators_and_closes() {
+    for source in [":{;A}", ":{A;B}", ":{A ; B}"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        let error = variant
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("local semicolon error");
+        assert_eq!(error.text().to_string(), ";", "{source:?}");
+        assert_eq!(
+            error.parent().map(|node| node.kind()),
+            Some(SyntaxKind::PolymorphicVariantType)
+        );
+    }
+
+    for (source, missing) in [(":{]}", 0), (":{]", 1)] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        let error = variant
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("local close error");
+        assert_eq!(error.text().to_string(), "]", "{source:?}");
+        assert_eq!(
+            variant
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
+    let (green, exit) = run_type("(:{A)");
+    assert_eq!(green.to_string(), "(:{A)");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let variant = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(
+        variant
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert!(
+        !variant
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+
+    for source in ["F(:{A])", "F({a: :{A)"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let variant = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert_eq!(
+            variant
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        let errors = variant
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .map(|node| node.text().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors,
+            if source == "F(:{A])" {
+                vec!["]"]
+            } else {
+                vec![]
+            }
+        );
+        if source == "F({a: :{A)" {
+            let record = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+                .expect("named record type");
+            assert_eq!(
+                record
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::Missing)
+                    .count(),
+                1
+            );
+            let call = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+                .expect("type call tail");
+            assert!(
+                !call
+                    .children()
+                    .any(|node| node.kind() == SyntaxKind::Missing)
+            );
+        }
+    }
+
+    for (source, outer) in [
+        ("F(:{A; B)", SyntaxKind::TypeCallTail),
+        ("{a: :{A; b: B}", SyntaxKind::NamedRecordType),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let variant = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert_eq!(variant.text().to_string(), ":{A", "{source:?}");
+        assert_eq!(
+            variant
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !variant
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error)
+        );
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == outer)
+            .expect("outer owner");
+        assert!(owner.text().to_string().contains(';'), "{source:?}");
+    }
+
+    for (source, outer) in [
+        ("F(:{A;B)", SyntaxKind::TypeCallTail),
+        ("{a: :{A;b:B}", SyntaxKind::NamedRecordType),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let variant = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert_eq!(variant.text().to_string(), ":{A", "{source:?}");
+        assert!(
+            !variant
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Semicolon),
+            "{source:?}"
+        );
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == outer)
+            .expect("outer owner");
+        assert!(
+            owner
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Semicolon),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("F(:{A ])");
+    assert_eq!(green.to_string(), "F(:{A ])");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let variant = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    let error = variant
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("local close error");
+    assert_eq!(error.text().to_string(), "]");
+    assert!(
+        variant
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
+    );
+
+    let (green, exit) = run_type("F(:{A )");
+    assert_eq!(green.to_string(), "F(:{A )");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let variant = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(variant.text().to_string(), ":{A");
+    let call = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+        .expect("type call tail");
+    assert!(
+        call.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
+    );
+}
+
+#[test]
+fn polymorphic_variant_type_recovers_newline_and_eof_boundaries() {
+    for (source, tags, missing) in [
+        (":{A\nB}", 2, 0),
+        (":{A\n}", 1, 0),
+        (":{A\n", 1, 2),
+        (":{", 0, 1),
+        (":{A", 1, 1),
+        (":{A,", 1, 2),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert_eq!(
+            variant
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+                .count(),
+            tags,
+            "{source:?}"
+        );
+        assert_eq!(
+            variant
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type(":{A\n  B}");
+    assert_eq!(green.to_string(), ":{A\n  B");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBrace)
+    ));
+    let top = top_type_expression(&green);
+    let variant = top
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(variant.text().to_string(), ":{A");
+    assert_eq!(
+        variant
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+    );
+}
+
+#[test]
 fn polymorphic_variant_type_composes_with_type_tails() {
     let (green, exit) = run_type("F :{A} -> Out");
     assert_eq!(green.to_string(), "F :{A} -> Out");

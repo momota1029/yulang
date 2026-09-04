@@ -1119,6 +1119,16 @@ entry / primary dispatch / fixed tails / shared boundary predicatesだけを残�
 order・テスト契約は変更せず、移動した各4 owner bodyは旧sourceとvisibility修正を除いてbyte一致を機械照合した。
 focused rewrite tests、package check、format/diff checkを実行し、独立delta reviewもclean。
 
+2026-09-04: direct `PolymorphicVariantType`のouter tag-position `NT`を部分実装した。`outer_closes: u8`を
+direct TypeExpressionの再帰引数だけでthreadし、generic delimiter・NamedRecord・PV自身が自身のclose spellingを加える。
+PVはmaskにあるactive closeをleading triviaごとunconsumedで返し、local mismatched closeだけをPV直下のErrorとして
+retryする。このため`F({a: :{A)`はPV Missing close→record Missing close→call `)` consumeの順になる。`NT-1..5/7`
+(actual/local-or-outer close、commaのunfilled/filled slot、local/outer semicolon、qualifying/deeper newline、EOF)を
+`TagPosition`だけでowner-localに処理し、`NT-6/8`と`IT` malformed recoveryは未実装のまま残した。comma / newline / EOF、
+root local close / semicolon、nested active close、space有無を含むcaller-owned semicolon、local Errorとborrowed boundaryの
+leading-trivia direct-CST ownershipをfixture化した。M1 spec reviewはevidence repair後approved、focused rewrite tests 93 passed、
+package check・format・diff check green。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

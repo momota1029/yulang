@@ -14,7 +14,7 @@ use super::super::{
 use super::{
     is_type_deeper_newline, is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
     is_type_separator, missing_bracket_row_close, missing_type_close, missing_type_item,
-    type_chain_trivia, type_delimited_baseline, type_expr_from_nud,
+    type_chain_trivia, type_delimited_baseline, type_expr_from_nud, with_type_outer_close,
 };
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -28,6 +28,7 @@ pub(super) fn type_delimited(
     close: TokenKind,
     incoming_baseline: usize,
     owner: TypeDelimitedOwner,
+    outer_closes: u8,
 ) -> TailExit {
     let opening = scan_trivia(i.rb());
     let baseline = type_delimited_baseline(incoming_baseline, &opening);
@@ -72,7 +73,15 @@ pub(super) fn type_delimited(
             };
             continue;
         }
-        let exit = type_expr_from_nud(i.rb(), item, baseline, false, None, true);
+        let exit = type_expr_from_nud(
+            i.rb(),
+            item,
+            baseline,
+            false,
+            None,
+            true,
+            with_type_outer_close(outer_closes, close),
+        );
         item = match exit {
             Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
             Err(Either::Left(next)) if is_type_separator(&next) => {
