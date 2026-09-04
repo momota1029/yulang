@@ -1052,6 +1052,13 @@ whole-field sequence error、record close / next-field owner queryは未実装�
 M1 specification reviewはnested-close newline修正後clean、focused rewrite testsは78 passed、package check、format/diff checkは
 green。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`のclose Missing recoveryを追加した。opening直後 / accepted field後 / invalid semicolon
+recovery後のEOFまたはouter mismatched closeはrecord-local close Missing一件を置き、outer close tokenはunconsumed handoffする。
+comma-before-boundaryはfield Missingとclose Missingをdistinctにし、actual matching `}`だけがvalid trailing commaを閉じる。
+leading semicolon、whole-field sequence Error、next-field owner queryは未実装。state/source reread/buffer/recovery recordの追加なし。
+M1 specification reviewはclose-cardinality確認を含めclean、focused rewrite testsは79 passed、package check、format/diff checkはgreen。
+production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

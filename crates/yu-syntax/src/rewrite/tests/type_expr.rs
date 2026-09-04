@@ -451,11 +451,43 @@ fn named_record_type_recovers_a_missing_field_before_eof_or_outer_close() {
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::Missing)
             .count(),
-        1
+        2
     );
 
     let (green, exit) = run_type("{a: A,]");
     assert_eq!(green.to_string(), "{a: A,");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBracket)
+    ));
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn named_record_type_recovers_a_missing_close() {
+    for (source, missing) in [("{", 1), ("{a: A", 1), ("{a: A,", 2)] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("{a: A]");
+    assert_eq!(green.to_string(), "{a: A");
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))

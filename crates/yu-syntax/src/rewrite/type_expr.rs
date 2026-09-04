@@ -281,8 +281,10 @@ fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             emit_token_item(&mut i, item);
             return Ok(());
         }
-        if matches!(&item.payload, Payload::Eof) {
-            return handoff(item);
+        if matches!(&item.payload, Payload::Eof)
+            || is_type_mismatched_close(&item, TokenKind::RBrace)
+        {
+            return type_record_missing_close(i, item);
         }
         if token_kind(&item) == Some(TokenKind::Comma) {
             item = missing_type_item(i.rb(), item);
@@ -500,9 +502,13 @@ fn type_record_after_comma(mut i: RewriteIn) -> Result<Item, TailExit> {
     }
     if matches!(&next.payload, Payload::Eof) || is_type_mismatched_close(&next, TokenKind::RBrace) {
         next = missing_type_item(i.rb(), next);
-        return Err(handoff(next));
+        return Err(type_record_missing_close(i, next));
     }
     Ok(next)
+}
+
+fn type_record_missing_close(i: RewriteIn, item: Item) -> TailExit {
+    missing_type_close(i, item)
 }
 
 fn retry_type_record_separator(
@@ -518,7 +524,7 @@ fn retry_type_record_separator(
         item = type_nud_item_after_trivia(i.rb(), leading);
         if matches!(item.payload, Payload::Eof) {
             i.state.finish_node();
-            return Err(handoff(item));
+            return Err(type_record_missing_close(i, item));
         }
         if token_kind(&item) == Some(TokenKind::RBrace) && nested_depth == 0 {
             i.state.finish_node();
@@ -552,10 +558,11 @@ fn retry_type_record_separator(
             }
             _ => {}
         }
-        if nested_depth == 0
-            && (!was_nested && is_type_record_field_boundary(&item)
-                || (!was_nested && is_type_implicit_boundary(baseline, &item.leading)))
-        {
+        if nested_depth == 0 && !was_nested && is_type_mismatched_close(&item, TokenKind::RBrace) {
+            i.state.finish_node();
+            return Err(type_record_missing_close(i, item));
+        }
+        if nested_depth == 0 && !was_nested && is_type_implicit_boundary(baseline, &item.leading) {
             i.state.finish_node();
             return Err(handoff(item));
         }
@@ -581,6 +588,10 @@ fn type_record_successor(
             emit_token_item(&mut i, next);
             Err(Ok(()))
         }
+        Err(Either::Left(next)) if is_type_mismatched_close(&next, TokenKind::RBrace) => {
+            Err(type_record_missing_close(i, next))
+        }
+        Err(Either::Right(end)) => Err(type_record_missing_close(i, end.item)),
         Err(Either::Left(mut next))
             if is_type_record_field_start(&next)
                 && is_type_implicit_boundary(baseline, &next.leading) =>
