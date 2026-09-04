@@ -1296,6 +1296,24 @@ shallow-newline / semicolon gapをone repair roundで閉じてapproved。focused
 `cargo check -p yu-syntax`、format/diff checkはgreen。current direct Statement subset以外のdeclaration / Prefix /
 Nullfix statement、typed diagnostics、AST / production wiring、G4a RB-E / Gate 4は未実装である。
 
+2026-09-05: isolated SCC construction witness C6として、source-free direct NUD `IfExpression`を追加した。`if`は
+maximal exact wordをNUD scannerでdynamic word operatorより先に受理し、pre-`if` triviaはouter `OperatorChain`、
+`IfKw` / `ElsifKw`後のtriviaとcondition-colon間のtriviaはowning `IfArm`へ置く。conditionは必ず
+`Condition > OperatorChain`となり、arm colonはdirect childとしてexactly-one inline expressionまたはstrictly-deeper
+existing `IndentedStatementBlock`を所有して`ColonApplicationTail`やinline comma listを作らない。normal topologyは
+zero-or-more `ElsifKw` sibling `IfArm`、one `ElseArm`、bare `else if`のnested `IfExpression`までを含み、completed
+primaryはouter flat chainへ戻る。accepted `if` / `elsif` / `else`はcondition / colon / bodyのmandatory slotをowner-localに
+total化し、initial Missing、nonempty Errorとsame-slot retry、wrong-indent handoffをdirect CSTで閉じる。
+existing punctuation stop maskだけを`Stops = u16`へ広げ、Colon / LeftBrace / Elsif / Elseはpassed valueとしてcondition /
+body / shared block loopへ渡す。word stopはcomplete `Item`とoperator-backed suffix probeでexact maximal spellingだけを
+判定し、dynamic / MLより先にhandoffする。nested delimiter ownerは従来どおりown close maskへreplaceするためif-local
+word stopを継承しない。raw dynamic-operator followerもlone `:`だけをcondition stopとし、`::`をpath spellingのまま
+保つ。If brace body、case/catch、full Statement/declaration、typed diagnostics、AST / HIR / production wiring、G4a RB-E /
+Gate 4 certificationは未実装である。M1 specification reviewはpre-writeでaccepted-keyword totality、shared companion
+boundary、pre-keyword triviaを補正し、post-writeでcondition wrapper / trivia ownerと`::` raw stopをone repair roundで
+閉じてapproved。focused direct if tests 8 passed、existing tails tests 11 passed、`cargo check -p yu-syntax`、format/diff
+checkはgreen。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

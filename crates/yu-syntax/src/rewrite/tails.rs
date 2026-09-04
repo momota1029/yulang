@@ -5,12 +5,12 @@ use reborrow_generic::Reborrow as _;
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
-    RewriteIn,
+    RewriteIn, Stops,
     delimited::delimited_items,
     driver::{
         Either, MlMode, TailExit, chain_continuation, continue_completed_tail, expr_from_nud,
-        handoff, implicit_delimited_newline, is_close, is_led_operator, is_nud_item, is_separator,
-        is_statement_nud, scan_tail_after_accept, tail, token_kind,
+        handoff, implicit_delimited_newline, is_active_stop, is_close, is_led_operator,
+        is_nud_item, is_separator, is_statement_nud, scan_tail_after_accept, tail, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item, emit_with_keyword},
     item::{Item, LeadingTrivia, Payload, TokenKind},
@@ -29,7 +29,7 @@ pub(super) fn colon_tail(
     mut i: RewriteIn,
     mut colon: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     if matches!(ml_mode, MlMode::None) || !chain_continuation(&colon.leading, baseline) {
@@ -64,7 +64,7 @@ fn inline_colon_argument(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
     missing_on_boundary: bool,
 ) -> TailExit {
@@ -75,7 +75,7 @@ fn inline_colon_argument(
         }
         return inline_colon_successor(i, handoff(item), baseline, stops, ml_mode);
     }
-    if inline_colon_boundary(&item, baseline, stops) {
+    if inline_colon_boundary(i.rb(), &item, baseline, stops) {
         if missing_on_boundary {
             emit_inline_missing(&mut i, &mut item, baseline);
         }
@@ -88,7 +88,7 @@ fn inline_colon_argument(
         if is_colon_owned_comma(&item, stops) {
             return inline_colon_successor(i, handoff(item), baseline, stops, ml_mode);
         }
-        if inline_colon_boundary(&item, baseline, stops) {
+        if inline_colon_boundary(i.rb(), &item, baseline, stops) {
             if !implicit_delimited_newline(baseline, &item.leading) {
                 emit_inline_leading(&mut i, &mut item);
             }
@@ -105,7 +105,7 @@ fn inline_colon_successor(
     mut i: RewriteIn,
     exit: TailExit,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     match exit {
@@ -132,7 +132,7 @@ fn retry_inline_colon_argument(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -146,7 +146,7 @@ fn retry_inline_colon_argument(
             stops | STOP_COMMA,
         );
         if is_colon_owned_comma(&item, stops)
-            || inline_colon_boundary(&item, baseline, stops)
+            || inline_colon_boundary(i.rb(), &item, baseline, stops)
             || is_nud_item(&item)
         {
             i.state.finish_node();
@@ -155,14 +155,14 @@ fn retry_inline_colon_argument(
     }
 }
 
-fn is_colon_owned_comma(item: &Item, stops: u8) -> bool {
+fn is_colon_owned_comma(item: &Item, stops: Stops) -> bool {
     token_kind(item) == Some(TokenKind::Comma) && stops & STOP_COMMA == 0
 }
 
-fn inline_colon_boundary(item: &Item, baseline: usize, stops: u8) -> bool {
+fn inline_colon_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
     matches!(item.payload, Payload::Eof)
         || is_separator(item)
-        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || is_active_stop(i.rb(), item, stops)
         || implicit_delimited_newline(baseline, &item.leading)
 }
 
@@ -191,7 +191,7 @@ pub(super) fn with_tail(
     mut i: RewriteIn,
     mut keyword: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> TailExit {
     emit_leading_trivia(&mut i, &keyword.leading);
     keyword.leading = LeadingTrivia::default();
@@ -234,7 +234,7 @@ pub(super) fn with_tail(
 fn with_inline_body(
     mut i: RewriteIn,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     missing_on_boundary: bool,
     allow_braced: bool,
 ) -> TailExit {
@@ -247,7 +247,7 @@ fn with_inline_item(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     missing_on_boundary: bool,
     allow_braced: bool,
 ) -> TailExit {
@@ -259,7 +259,7 @@ fn with_inline_item(
     {
         return handoff(item);
     }
-    if with_inline_boundary(&item, baseline, stops) {
+    if with_inline_boundary(i.rb(), &item, baseline, stops) {
         if missing_on_boundary {
             emit_with_inline_missing(&mut i, &mut item, baseline);
         }
@@ -279,7 +279,7 @@ fn with_inline_item(
     {
         return handoff(item);
     }
-    if with_inline_boundary(&item, baseline, stops) {
+    if with_inline_boundary(i.rb(), &item, baseline, stops) {
         if !implicit_delimited_newline(baseline, &item.leading) {
             emit_inline_leading(&mut i, &mut item);
         }
@@ -294,7 +294,7 @@ fn retry_with_inline_body(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     allow_braced: bool,
 ) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
@@ -302,7 +302,7 @@ fn retry_with_inline_body(
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-        if with_inline_boundary(&item, baseline, stops)
+        if with_inline_boundary(i.rb(), &item, baseline, stops)
             || (!allow_braced
                 && matches!(
                     token_kind(&item),
@@ -317,10 +317,10 @@ fn retry_with_inline_body(
     }
 }
 
-fn with_inline_boundary(item: &Item, baseline: usize, stops: u8) -> bool {
+fn with_inline_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
     matches!(item.payload, Payload::Eof)
         || is_separator(item)
-        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || is_active_stop(i.rb(), item, stops)
         || implicit_delimited_newline(baseline, &item.leading)
 }
 
@@ -331,7 +331,12 @@ fn emit_with_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize)
     emit_missing(i, LeadingTrivia::default());
 }
 
-fn with_inline_terminal(mut i: RewriteIn, exit: TailExit, baseline: usize, stops: u8) -> TailExit {
+fn with_inline_terminal(
+    mut i: RewriteIn,
+    exit: TailExit,
+    baseline: usize,
+    stops: Stops,
+) -> TailExit {
     let Err(Either::Left(semicolon)) = exit else {
         return exit;
     };
@@ -349,7 +354,7 @@ pub(super) fn call_tail(
     open: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::CallTail.into());
@@ -371,7 +376,7 @@ pub(super) fn index_tail(
     open: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
@@ -393,7 +398,7 @@ pub(super) fn dot_tail(
     dot: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
@@ -418,7 +423,7 @@ fn field_tail(
     mut name: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::FieldTail.into());
@@ -443,7 +448,7 @@ fn projection_tuple_tail(
     open: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::ProjectionTupleTail.into());
@@ -467,7 +472,7 @@ fn projection_record_tail(
     open: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::ProjectionRecordTail.into());
@@ -483,7 +488,7 @@ pub(super) fn path_tail(
     separator: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::PathTail.into());
@@ -508,7 +513,7 @@ pub(super) fn path_tail(
     tail(i, segment, threshold, baseline, stops, ml_mode)
 }
 
-fn retry_fixed_tail_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: u8) -> Item {
+fn retry_fixed_tail_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);

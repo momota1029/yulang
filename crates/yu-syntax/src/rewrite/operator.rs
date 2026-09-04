@@ -8,19 +8,23 @@ use crate::{
 };
 
 use super::{
-    LexIn,
+    LexIn, Stops,
     item::{OperatorToken, OperatorUse},
 };
 
-pub(super) const STOP_COMMA: u8 = 1 << 0;
-const STOP_SEMICOLON: u8 = 1 << 1;
-const STOP_RPAREN: u8 = 1 << 2;
-const STOP_RBRACKET: u8 = 1 << 3;
-const STOP_RBRACE: u8 = 1 << 4;
-pub(super) const STOP_RECORD_SPREAD: u8 = 1 << 5;
-pub(super) const STOP_RECORD_SPREAD_AFTER_OPERATOR: u8 = 1 << 6;
+pub(super) const STOP_COMMA: Stops = 1 << 0;
+const STOP_SEMICOLON: Stops = 1 << 1;
+const STOP_RPAREN: Stops = 1 << 2;
+const STOP_RBRACKET: Stops = 1 << 3;
+const STOP_RBRACE: Stops = 1 << 4;
+pub(super) const STOP_RECORD_SPREAD: Stops = 1 << 5;
+pub(super) const STOP_RECORD_SPREAD_AFTER_OPERATOR: Stops = 1 << 6;
+pub(super) const STOP_COLON: Stops = 1 << 7;
+pub(super) const STOP_LBRACE: Stops = 1 << 8;
+pub(super) const STOP_ELSIF: Stops = 1 << 9;
+pub(super) const STOP_ELSE: Stops = 1 << 10;
 
-pub(super) fn stops_for(close: super::item::TokenKind) -> u8 {
+pub(super) fn stops_for(close: super::item::TokenKind) -> Stops {
     let close = match close {
         super::item::TokenKind::RParen => STOP_RPAREN,
         super::item::TokenKind::RBracket => STOP_RBRACKET,
@@ -35,7 +39,7 @@ pub(super) fn scan_operator(
     site: OperatorSite,
     has_leading_trivia: bool,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Option<OperatorToken> {
     let table = i.recovery().operators();
     let source = i.remainder();
@@ -94,7 +98,7 @@ pub(super) fn scan_dangling_operator(
     mut i: LexIn,
     site: OperatorSite,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Option<OperatorToken> {
     let table = i.recovery().operators();
     let source = i.remainder();
@@ -130,7 +134,7 @@ pub(super) fn scan_dangling_operator(
 /// A dangling role may be followed by a local boundary, EOF, or one invalid
 /// region.  Structural starters stay for their future direct owners, and a
 /// shallow newline stays with the outer statement owner.
-fn dangling_follower(source: &str, baseline: usize, stops: u8) -> Option<()> {
+fn dangling_follower(source: &str, baseline: usize, stops: Stops) -> Option<()> {
     let (trailing, after_trivia) = raw_trivia_suffix(source);
     if matches!(trailing, RawTrailing::Newline { indentation } if indentation <= baseline) {
         return None;
@@ -145,24 +149,28 @@ fn dangling_follower(source: &str, baseline: usize, stops: u8) -> Option<()> {
     .then_some(())
 }
 
-fn active_stop(source: &str, stops: u8) -> bool {
+fn active_stop(source: &str, stops: Stops) -> bool {
     match source.chars().next() {
         Some(',') => stops & STOP_COMMA != 0,
         Some(';') => stops & STOP_SEMICOLON != 0,
         Some(')') => stops & STOP_RPAREN != 0,
         Some(']') => stops & STOP_RBRACKET != 0,
         Some('}') => stops & STOP_RBRACE != 0,
+        Some(':') => stops & STOP_COLON != 0 && !source.starts_with("::"),
+        Some('{') => stops & STOP_LBRACE != 0,
         _ => false,
     }
 }
 
-pub(super) fn active_stop_item(kind: super::item::TokenKind, stops: u8) -> bool {
+pub(super) fn active_stop_item(kind: super::item::TokenKind, stops: Stops) -> bool {
     match kind {
         super::item::TokenKind::Comma => stops & STOP_COMMA != 0,
         super::item::TokenKind::Semicolon => stops & STOP_SEMICOLON != 0,
         super::item::TokenKind::RParen => stops & STOP_RPAREN != 0,
         super::item::TokenKind::RBracket => stops & STOP_RBRACKET != 0,
         super::item::TokenKind::RBrace => stops & STOP_RBRACE != 0,
+        super::item::TokenKind::Colon => stops & STOP_COLON != 0,
+        super::item::TokenKind::LBrace => stops & STOP_LBRACE != 0,
         _ => false,
     }
 }

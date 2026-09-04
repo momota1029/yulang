@@ -5,11 +5,11 @@ use reborrow_generic::Reborrow as _;
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
-    RewriteIn,
+    RewriteIn, Stops,
     driver::{
         Either, MlMode, TailExit, continue_completed_tail, delimited_baseline, expr_from_nud,
-        handoff, implicit_delimited_newline, indentation_after_newline, is_normal_core_item,
-        is_separator, is_statement_nud, token_kind,
+        handoff, implicit_delimited_newline, indentation_after_newline, is_active_stop,
+        is_normal_core_item, is_separator, is_statement_nud, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
@@ -23,7 +23,7 @@ pub(super) fn expression_statement(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> TailExit {
     debug_assert!(is_statement_nud(&item));
     i.state.start_node(SyntaxKind::Statement.into());
@@ -44,7 +44,7 @@ enum StatementSequencePolicy {
 pub(super) fn indented_statement_block(
     mut i: RewriteIn,
     base_indent: usize,
-    stops: u8,
+    stops: Stops,
 ) -> TailExit {
     let opening = scan_trivia(i.rb());
     let block_indent = indentation_after_newline(&opening)
@@ -74,7 +74,7 @@ pub(super) fn braced_nud(
     open: Item,
     threshold: Option<&BindingPower>,
     incoming_baseline: usize,
-    outer_stops: u8,
+    outer_stops: Stops,
     outer_ml_mode: MlMode,
 ) -> TailExit {
     i.state
@@ -108,7 +108,7 @@ fn statement_sequence(
     mut item: Item,
     policy: StatementSequencePolicy,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> TailExit {
     loop {
         match policy {
@@ -140,13 +140,13 @@ fn indented_statement_successor(
     mut i: RewriteIn,
     exit: TailExit,
     block_indent: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Result<Item, TailExit> {
     let Err(Either::Left(mut item)) = exit else {
         return Err(exit);
     };
     if indentation_after_newline(&item.leading) != Some(block_indent)
-        || indented_statement_outer_boundary(&item, block_indent, stops)
+        || indented_statement_outer_boundary(i.rb(), &item, block_indent, stops)
     {
         return Err(handoff(item));
     }
@@ -160,10 +160,10 @@ fn indented_statement_slot(
     mut item: Item,
     baseline: usize,
     block_indent: usize,
-    stops: u8,
+    stops: Stops,
     missing_on_boundary: bool,
 ) -> TailExit {
-    if indented_statement_slot_boundary(&item, block_indent, stops) {
+    if indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
         if missing_on_boundary {
             let leading = std::mem::take(&mut item.leading);
             emit_missing(&mut i, leading);
@@ -175,7 +175,7 @@ fn indented_statement_slot(
     }
 
     item = retry_indented_statement(i.rb(), item, baseline, block_indent, stops);
-    if indented_statement_retry_boundary(&item, block_indent, stops) {
+    if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops) {
         return handoff(item);
     }
     debug_assert!(is_normal_core_item(&item));
@@ -187,14 +187,14 @@ fn retry_indented_statement(
     mut item: Item,
     baseline: usize,
     block_indent: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
-        if indented_statement_retry_boundary(&item, block_indent, stops)
+        if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops)
             || is_normal_core_item(&item)
         {
             i.state.finish_node();
@@ -203,22 +203,37 @@ fn retry_indented_statement(
     }
 }
 
-fn indented_statement_slot_boundary(item: &Item, block_indent: usize, stops: u8) -> bool {
+fn indented_statement_slot_boundary(
+    mut i: RewriteIn,
+    item: &Item,
+    block_indent: usize,
+    stops: Stops,
+) -> bool {
     matches!(item.payload, Payload::Eof)
         || is_separator(item)
-        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || is_active_stop(i.rb(), item, stops)
         || indentation_after_newline(&item.leading)
             .is_some_and(|indentation| indentation < block_indent)
 }
 
-fn indented_statement_retry_boundary(item: &Item, block_indent: usize, stops: u8) -> bool {
-    indented_statement_slot_boundary(item, block_indent, stops)
+fn indented_statement_retry_boundary(
+    mut i: RewriteIn,
+    item: &Item,
+    block_indent: usize,
+    stops: Stops,
+) -> bool {
+    indented_statement_slot_boundary(i.rb(), item, block_indent, stops)
         || indentation_after_newline(&item.leading) == Some(block_indent)
 }
 
-fn indented_statement_outer_boundary(item: &Item, block_indent: usize, stops: u8) -> bool {
+fn indented_statement_outer_boundary(
+    mut i: RewriteIn,
+    item: &Item,
+    block_indent: usize,
+    stops: Stops,
+) -> bool {
     is_separator(item)
-        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || is_active_stop(i.rb(), item, stops)
         || indentation_after_newline(&item.leading)
             .is_some_and(|indentation| indentation < block_indent)
 }
@@ -232,7 +247,7 @@ fn braced_terminal(mut i: RewriteIn, item: Item) -> TailExit {
     missing_brace_close(i, item)
 }
 
-fn braced_statement_slot(mut i: RewriteIn, item: Item, baseline: usize, stops: u8) -> TailExit {
+fn braced_statement_slot(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> TailExit {
     if is_statement_nud(&item) {
         return expression_statement(i, item, baseline, stops);
     }
@@ -247,7 +262,7 @@ fn braced_statement_slot(mut i: RewriteIn, item: Item, baseline: usize, stops: u
     }
 }
 
-fn retry_braced_statement(mut i: RewriteIn, mut item: Item, baseline: usize, stops: u8) -> Item {
+fn retry_braced_statement(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
@@ -271,7 +286,7 @@ fn braced_statement_successor(
     mut i: RewriteIn,
     exit: TailExit,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Result<Item, TailExit> {
     match exit {
         Ok(()) => Err(Ok(())),
@@ -304,7 +319,7 @@ fn braced_explicit_separator(
     mut i: RewriteIn,
     separator: Item,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Item {
     i.state
         .start_node(SyntaxKind::BlockStatementSeparator.into());
@@ -335,7 +350,7 @@ fn statement_item_after_trivia(
     mut i: RewriteIn,
     leading: LeadingTrivia,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Item {
     tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
 }

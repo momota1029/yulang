@@ -5,7 +5,7 @@ use reborrow_generic::Reborrow as _;
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
-    RewriteIn,
+    RewriteIn, Stops,
     driver::{
         Either, MlMode, TailExit, continue_completed_tail, delimited_baseline, expr_from_nud,
         handoff, implicit_delimited_newline, is_close, is_nud_item, is_separator, token_kind,
@@ -24,7 +24,7 @@ pub(super) fn parenthesized_nud(
     open: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     ml_mode: MlMode,
 ) -> TailExit {
     i.state
@@ -107,7 +107,7 @@ fn delimited_successor(
     exit: TailExit,
     close: TokenKind,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     item_ml_mode: MlMode,
 ) -> Result<Item, TailExit> {
     match exit {
@@ -149,7 +149,7 @@ fn delimited_successor(
     }
 }
 
-fn record_spread_item(mut i: RewriteIn, marker: Item, baseline: usize, stops: u8) -> TailExit {
+fn record_spread_item(mut i: RewriteIn, marker: Item, baseline: usize, stops: Stops) -> TailExit {
     i.state
         .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
     emit_token_item(&mut i, marker);
@@ -189,13 +189,13 @@ fn missing_item(mut i: RewriteIn, mut item: Item) -> Item {
     item
 }
 
-fn wrong_close_item(mut i: RewriteIn, item: Item, baseline: usize, stops: u8) -> Item {
+fn wrong_close_item(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> Item {
     emit_error_item(&mut i, item);
     let leading = scan_trivia(i.rb());
     tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
 }
 
-fn retry_nud_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: u8) -> Item {
+fn retry_nud_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         let continues_operator_spelling =

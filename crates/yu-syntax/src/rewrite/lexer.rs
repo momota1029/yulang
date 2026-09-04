@@ -10,7 +10,7 @@ use unicode_ident::{is_xid_continue, is_xid_start};
 use crate::scan::operator::OperatorSite;
 
 use super::{
-    LexIn, RewriteIn,
+    LexIn, RewriteIn, Stops,
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
     operator::{
         STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
@@ -24,7 +24,7 @@ pub(super) fn tail_item_after_trivia(
     leading: LeadingTrivia,
     site: OperatorSite,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Item {
     let has_leading_trivia = !leading.0.is_empty();
     let record_spread = stops & STOP_RECORD_SPREAD != 0;
@@ -54,7 +54,7 @@ pub(super) fn path_segment_item_after_trivia(
     mut i: RewriteIn,
     leading: LeadingTrivia,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
 ) -> Item {
     if let Some(segment) = i.token(scan_path_segment) {
         return Item {
@@ -70,10 +70,14 @@ fn scan_tail_payload(
     site: OperatorSite,
     has_leading_trivia: bool,
     baseline: usize,
-    stops: u8,
+    stops: Stops,
     marker_after_operator: bool,
 ) -> Payload {
-    if let Some(operator) =
+    if matches!(site, OperatorSite::Nud)
+        && let Some(keyword) = i.token(scan_if_keyword)
+    {
+        Payload::Token(keyword)
+    } else if let Some(operator) =
         i.token(|lex| scan_operator(lex, site, has_leading_trivia, baseline, stops))
     {
         Payload::Operator(operator)
@@ -107,10 +111,12 @@ fn scan_token_payload(mut i: RewriteIn) -> Payload {
     .unwrap_or(Payload::Eof)
 }
 
-pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: u8) -> Option<Item> {
+pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
     let has_leading_trivia = !leading.0.is_empty();
-    let payload = if let Some(token) = i.token(scan_lparen) {
+    let payload = if let Some(keyword) = i.token(scan_if_keyword) {
+        Payload::Token(keyword)
+    } else if let Some(token) = i.token(scan_lparen) {
         Payload::Token(token)
     } else if let Some(token) = i.token(scan_lbrace) {
         Payload::Token(token)
@@ -136,9 +142,9 @@ pub(super) fn with_colon_follower(i: LexIn) -> Option<bool> {
     Some(lone_colon_after_trivia(i.remainder()))
 }
 
-/// A dynamic table may recognize the `with` prefix before the word scanner's
-/// optional `?` / `!` suffix. Contextual `with` accepts only the full word.
-pub(super) fn with_word_suffix_follower(i: LexIn) -> Option<bool> {
+/// A dynamic table may recognize a word prefix before the ordinary scanner's
+/// optional `?` / `!` suffix. A contextual word accepts only the full word.
+pub(super) fn contextual_word_suffix_follower(i: LexIn) -> Option<bool> {
     Some(!matches!(i.remainder().chars().next(), Some('?' | '!')))
 }
 
@@ -423,6 +429,35 @@ pub(super) fn scan_identifier(mut i: LexIn) -> Option<Token> {
         let _ = word.next()?;
         while word.token(scan_identifier_continue).is_some() {}
         let _ = word.token(scan_identifier_suffix);
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Identifier,
+        text: text.into(),
+    })
+}
+
+/// Contextual NUD keywords stay identifier-shaped until the accepting owner
+/// chooses their CST kind. This source-only scanner enforces maximal words
+/// before dynamic word operators are considered.
+fn scan_if_keyword(i: LexIn) -> Option<Token> {
+    scan_exact_word(i, "if")
+}
+
+fn scan_exact_word(mut i: LexIn, word: &str) -> Option<Token> {
+    let suffix = i.remainder().strip_prefix(word)?;
+    if suffix
+        .chars()
+        .next()
+        .is_some_and(|character| is_xid_continue(character) || matches!(character, '?' | '!'))
+    {
+        return None;
+    }
+    let (accepted, text) = i.rb().with_str(|mut keyword| {
+        for expected in word.chars() {
+            (keyword.next()? == expected).then_some(())?;
+        }
         Some(())
     });
     accepted?;

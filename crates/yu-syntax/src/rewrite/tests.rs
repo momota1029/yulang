@@ -8,16 +8,17 @@ use crate::{
 };
 
 use super::{
-    RewriteIn,
+    RewriteIn, Stops,
     driver::{Either, TailExit, expr},
     emit::emit_end,
     item::{OperatorUse, Payload, TokenKind, TriviaKind},
-    operator::scan_operator,
+    operator::{STOP_COLON, scan_operator},
     pattern::pattern_with_colon_stop,
     state::Recover,
     type_expr::type_expr,
 };
 
+mod if_expr;
 mod lexical;
 mod operators;
 mod owners;
@@ -100,10 +101,25 @@ fn scan_dynamic_operator<'source>(
     operators: &OperatorTable,
     site: OperatorSite,
 ) -> (Option<OperatorUse>, &'source str) {
+    scan_dynamic_operator_with_stops(source, operators, site, 0)
+}
+
+fn scan_dynamic_operator_with_stops<'source>(
+    source: &'source str,
+    operators: &OperatorTable,
+    site: OperatorSite,
+    stops: Stops,
+) -> (Option<OperatorUse>, &'source str) {
     let mut remaining = source;
     let mut recover = Recover::new(operators);
-    let operator = scan_operator(In::new(&mut remaining, &mut recover, ()), site, false, 0, 0)
-        .map(|operator| operator.use_);
+    let operator = scan_operator(
+        In::new(&mut remaining, &mut recover, ()),
+        site,
+        false,
+        0,
+        stops,
+    )
+    .map(|operator| operator.use_);
     (operator, remaining)
 }
 
