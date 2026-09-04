@@ -13,9 +13,8 @@ use super::{
     LexIn, RewriteIn,
     item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
     operator::{
-        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, inline_normal_nud_after_trivia,
-        lone_colon_after_trivia, normal_statement_indentation_after_trivia, scan_dangling_operator,
-        scan_operator,
+        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
+        newline_indentation_after_trivia, scan_dangling_operator, scan_operator,
     },
     state::Recover,
 };
@@ -137,16 +136,10 @@ pub(super) fn with_colon_follower(i: LexIn) -> Option<bool> {
     Some(lone_colon_after_trivia(i.remainder()))
 }
 
-/// C1's pre-commit eligibility check. It observes source only and leaves the
-/// cursor unchanged; the normal scanner still creates the one logical Item.
-pub(super) fn inline_normal_nud_follower(i: LexIn) -> Option<bool> {
-    Some(inline_normal_nud_after_trivia(i.remainder()))
-}
-
-/// C2's post-colon block-entry evidence. The input remains at the post-colon
-/// cursor; the accepted block later completes the first logical statement.
-pub(super) fn normal_statement_indentation_follower(i: LexIn) -> Option<Option<usize>> {
-    Some(normal_statement_indentation_after_trivia(i.remainder()))
+/// Source-only layout evidence for a colon's mandatory RHS. The accepted
+/// branch later completes the first logical Item itself.
+pub(super) fn newline_indentation_follower(i: LexIn) -> Option<Option<usize>> {
+    Some(newline_indentation_after_trivia(i.remainder()))
 }
 
 pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {

@@ -312,42 +312,169 @@ fn with_colon_is_reserved_for_its_dedicated_tail_owner() {
 }
 
 #[test]
-fn colon_c1_handoffs_before_an_unimplemented_mandatory_slot() {
-    for source in ["f:", "f:\nx", "f:\n  ", "f: @"] {
+fn colon_c4_commits_and_recovers_mandatory_inline_slots() {
+    for (source, expected) in [
+        ("f:", "f:"),
+        ("f:   ", "f:   "),
+        ("f:\nx", "f:"),
+        ("f:\n  ", "f:\n  "),
+    ] {
         let (green, exit) = run(source);
-        assert_eq!(green.to_string(), "f", "{source:?}");
-        assert!(matches!(
-            exit,
-            Some(Err(Either::Left(item)))
-                if matches!(item.payload, Payload::Token(ref token)
-                    if token.kind == TokenKind::Colon)
-        ));
-        assert!(
-            !SyntaxNode::new_root(green)
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::ColonApplicationTail)
-        );
-    }
-
-    for source in ["f: x,", "f: x,\n y", "f: x, @"] {
-        let (green, exit) = run(source);
-        assert_eq!(green.to_string(), "f: x", "{source:?}");
-        assert!(matches!(
-            exit,
-            Some(Err(Either::Left(item)))
-                if matches!(item.payload, Payload::Token(ref token)
-                    if token.kind == TokenKind::Comma)
-        ));
+        assert_eq!(green.to_string(), expected, "{source:?}");
         let root = SyntaxNode::new_root(green);
         let colon = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
-            .expect("completed first argument retains the colon tail");
+            .expect("accepted colon tail");
+        assert_eq!(
+            colon
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
         assert!(
             !colon
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+        if source == "f:\nx" {
+            assert!(matches!(
+                exit,
+                Some(Err(Either::Left(item)))
+                    if matches!(item.payload, Payload::Token(ref token)
+                        if token.kind == TokenKind::Identifier && &*token.text == "x")
+            ));
+            assert!(
+                !colon
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| token.kind() == SyntaxKind::Newline)
+            );
+        } else {
+            assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        }
+    }
+
+    for source in ["f: , x", "f: x,"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let colon = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .expect("colon tail");
+        assert_eq!(
+            colon
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            colon
                 .descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .any(|token| token.kind() == SyntaxKind::Comma)
+                .filter(|token| token.kind() == SyntaxKind::Comma)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run("(f:, y)");
+    assert_eq!(green.to_string(), "(f:, y)");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let colon = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .expect("colon tail");
+    assert_eq!(
+        colon
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert!(
+        !colon
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Comma)
+    );
+
+    let (green, exit) = run("f: @ x");
+    assert_eq!(green.to_string(), "f: @ x");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let colon = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .expect("colon tail");
+    assert_eq!(
+        colon
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+    assert_eq!(
+        colon
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        0
+    );
+    assert_eq!(
+        colon
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run("f: @  ");
+    assert_eq!(green.to_string(), "f: @  ");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let colon = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .expect("colon tail");
+    assert_eq!(
+        colon.last_token().expect("tail trailing trivia").text(),
+        "  "
+    );
+
+    let (green, exit) = run("f: {x}");
+    assert_eq!(green.to_string(), "f: {x}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+    );
+
+    let operators = dynamic_operator_table();
+    for (source, kind) in [
+        ("f: ~x", SyntaxKind::PrefixOperatorUse),
+        ("f: ?", SyntaxKind::NullfixOperatorUse),
+    ] {
+        let (green, exit) = run_with(source, &operators);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let colon = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .expect("colon tail");
+        assert!(
+            colon.descendants().any(|node| node.kind() == kind),
+            "{source:?}"
         );
     }
 }
@@ -427,45 +554,78 @@ fn colon_c2_indented_expression_statement_block_preserves_dedent() {
 }
 
 #[test]
-fn colon_c2_handoffs_unimplemented_block_statement_slots() {
-    for source in ["f:\nx", "f:\n  ", "f:\n  @"] {
-        let (green, exit) = run(source);
-        assert_eq!(green.to_string(), "f", "{source:?}");
-        assert!(matches!(
-            exit,
-            Some(Err(Either::Left(item)))
-                if matches!(item.payload, Payload::Token(ref token)
-                    if token.kind == TokenKind::Colon)
-        ));
-        assert!(
-            !SyntaxNode::new_root(green)
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
-        );
-    }
-
-    let (green, exit) = run("f:\n  x\n  @");
-    assert_eq!(green.to_string(), "f:\n  x");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token)
-                if token.kind == TokenKind::Unknown)
-    ));
+fn colon_c4_recovers_deep_indented_statement_slots() {
+    let (green, exit) = run("f:\n  ");
+    assert_eq!(green.to_string(), "f:\n  ");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let root = SyntaxNode::new_root(green);
     let block = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
-        .expect("completed first block statement");
-    assert!(
-        !block
+        .expect("deep block");
+    assert_eq!(
+        block
             .children()
-            .any(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
     );
-    assert!(
-        !root
+
+    for source in ["f:\n  @", "f:\n  @ x"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let block = root
             .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .expect("deep block");
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            0,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run("f:\n  x\n  @\n  y");
+    assert_eq!(green.to_string(), "f:\n  x\n  @\n  y");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+        .expect("deep block");
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+            .count(),
+        2
+    );
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+    assert_eq!(
+        block
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Statement)
+            .count(),
+        2
     );
 }
 

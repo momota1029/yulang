@@ -1268,6 +1268,20 @@ M1 specification reviewはboundary repair後approved。focused rewrite tails tes
 format/diff checkはgreen。declaration / dynamic Prefix・Nullfix statement start、colon mandatory recovery、AST / diagnostic /
 production wiring、G4a RB-E / Gate 4は未実装のままである。
 
+2026-09-05: isolated SCC construction witness C4として、eligible lone `:`をdirect `ColonApplicationTail`として
+commitした時点でRHS mandatory slotをowner-localにtotal化した。`::`、`with:`、ML-argument reservationは従来どおり
+unconsumedで、post-colon source probeはstrictly-deeper newlineによる`IndentedStatementBlock`選択だけに限定した。
+inlineは既存direct `is_nud_item`（normal core、brace primary、accepted Prefix / Nullfix）を`OperatorChain` RHSとして
+受理し、EOF / horizontal EOF / shallow newline / outer separator・closeにはone `Missing`、nonempty invalid runにはone
+`Error`とsame-slot retryを置く。Error後のhorizontal triviaもtailが所有し、shallow newlineだけはouter Itemに残す。
+colon-owned commaはinitial / trailing argumentともmandatoryであり、outer commaは一RHS後にhandoffする。deep blockは
+EOF・invalid first itemでも開始し、normal-core statementのinitial / equal-indent slotを同じMissing/Error recoveryで処理する。
+nonmatching closeはblock-local Error、active outer close・dedent・outer separatorはunconsumedである。deep blockの
+Prefix / Nullfix statement startは依然deferであり、canonical Statement完了は主張しない。M1 specification reviewは
+pre-write・post-write・owner-boundary deltaともapproved。focused rewrite tails tests 11 passed、`cargo check -p yu-syntax`、
+format/diff checkはgreen。typed diagnostics、AST / production wiring、dynamic Statement variants、G4a RB-E / Gate 4は
+未実装である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

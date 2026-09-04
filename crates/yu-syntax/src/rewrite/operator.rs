@@ -174,36 +174,14 @@ pub(super) fn lone_colon_after_trivia(source: &str) -> bool {
     source.starts_with(':') && !source.starts_with("::")
 }
 
-/// C1 accepts only the direct parser's same-line normal core starts before it
-/// commits a colon or a colon-owned comma. More complete Nud recognition and
-/// all recovery stay with the later expression/statement construction.
-pub(super) fn inline_normal_nud_after_trivia(source: &str) -> bool {
-    let (trailing, source) = raw_trivia_suffix(source);
-    if matches!(trailing, RawTrailing::Newline { .. }) {
-        return false;
-    }
-    normal_direct_core_start(source)
-}
-
-/// C2's source-only block evidence. A caller compares the returned
-/// indentation with its own baseline; no logical item is completed here.
-pub(super) fn normal_statement_indentation_after_trivia(source: &str) -> Option<usize> {
+/// Source-only layout evidence for a colon's mandatory RHS. The caller alone
+/// compares it with its incoming baseline; no logical item is completed here.
+pub(super) fn newline_indentation_after_trivia(source: &str) -> Option<usize> {
     let (trailing, source) = raw_trivia_suffix(source);
     match trailing {
-        RawTrailing::Newline { indentation } if normal_direct_core_start(source) => {
-            Some(indentation)
-        }
+        RawTrailing::Newline { indentation } => Some(indentation),
         RawTrailing::None | RawTrailing::Space | RawTrailing::Newline { .. } => None,
     }
-}
-
-fn normal_direct_core_start(source: &str) -> bool {
-    source.chars().next().is_some_and(|character| {
-        character == '('
-            || character.is_ascii_digit()
-            || character == '_'
-            || is_xid_start(character)
-    })
 }
 
 fn operator_boundary(last: char, following: &str) -> Option<()> {

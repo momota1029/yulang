@@ -9,22 +9,22 @@ use super::{
     delimited::delimited_items,
     driver::{
         Either, MlMode, TailExit, chain_continuation, continue_completed_tail, expr_from_nud,
-        handoff, is_close, is_led_operator, is_nud_item, is_separator, scan_tail_after_accept,
-        tail, token_kind,
+        handoff, implicit_delimited_newline, is_close, is_led_operator, is_nud_item, is_separator,
+        scan_tail_after_accept, tail, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{
-        inline_normal_nud_follower, normal_statement_indentation_follower,
-        path_segment_item_after_trivia, scan_trivia, tail_item_after_trivia,
+        newline_indentation_follower, path_segment_item_after_trivia, scan_trivia,
+        tail_item_after_trivia,
     },
     operator::STOP_COMMA,
     statement::indented_statement_block,
 };
 
-/// C1/C2 construct normal inline arguments and normal indented expression
-/// statements. All mandatory-slot recovery and the remaining canonical
-/// Statement variants still hand the colon back before committing it.
+/// A lone eligible colon is terminal and owns its mandatory RHS, including
+/// recovery. Inline RHSs use the direct expression vocabulary; indented RHSs
+/// retain the narrower direct normal-statement construction.
 pub(super) fn colon_tail(
     mut i: RewriteIn,
     mut colon: Item,
@@ -35,29 +35,24 @@ pub(super) fn colon_tail(
     if matches!(ml_mode, MlMode::None) || !chain_continuation(&colon.leading, baseline) {
         return handoff(colon);
     }
-    let inline = same_line_normal_nud_follows(i.rb());
-    let indented = !inline && indented_normal_statement_follows(i.rb(), baseline);
-    if !inline && !indented {
-        return handoff(colon);
-    }
+    let indented =
+        newline_indentation_follows(i.rb()).is_some_and(|indentation| indentation > baseline);
 
     emit_leading_trivia(&mut i, &colon.leading);
     colon.leading = LeadingTrivia::default();
     i.state.start_node(SyntaxKind::ColonApplicationTail.into());
     emit_token_item(&mut i, colon);
 
-    let exit = if inline {
+    let exit = if !indented {
         let leading = scan_trivia(i.rb());
-        let mut item = tail_item_after_trivia(
+        let item = tail_item_after_trivia(
             i.rb(),
             leading,
             OperatorSite::Nud,
             baseline,
             stops | STOP_COMMA,
         );
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
-        inline_colon_argument(i.rb(), item, baseline, stops, ml_mode)
+        inline_colon_argument(i.rb(), item, baseline, stops, ml_mode, true)
     } else {
         indented_statement_block(i.rb(), baseline, stops)
     };
@@ -67,14 +62,41 @@ pub(super) fn colon_tail(
 
 fn inline_colon_argument(
     mut i: RewriteIn,
-    item: Item,
+    mut item: Item,
     baseline: usize,
     stops: u8,
     ml_mode: MlMode,
+    missing_on_boundary: bool,
 ) -> TailExit {
-    if !is_nud_item(&item) {
+    if is_colon_owned_comma(&item, stops) {
+        emit_inline_leading(&mut i, &mut item);
+        if missing_on_boundary {
+            emit_missing(&mut i, LeadingTrivia::default());
+        }
+        return inline_colon_successor(i, handoff(item), baseline, stops, ml_mode);
+    }
+    if inline_colon_boundary(&item, baseline, stops) {
+        if missing_on_boundary {
+            emit_inline_missing(&mut i, &mut item, baseline);
+        }
         return handoff(item);
     }
+
+    emit_inline_leading(&mut i, &mut item);
+    if !is_nud_item(&item) {
+        item = retry_inline_colon_argument(i.rb(), item, baseline, stops);
+        if is_colon_owned_comma(&item, stops) {
+            return inline_colon_successor(i, handoff(item), baseline, stops, ml_mode);
+        }
+        if inline_colon_boundary(&item, baseline, stops) {
+            if !implicit_delimited_newline(baseline, &item.leading) {
+                emit_inline_leading(&mut i, &mut item);
+            }
+            return handoff(item);
+        }
+        emit_inline_leading(&mut i, &mut item);
+    }
+
     let exit = expr_from_nud(i.rb(), item, None, baseline, stops | STOP_COMMA, ml_mode);
     inline_colon_successor(i, exit, baseline, stops, ml_mode)
 }
@@ -91,36 +113,76 @@ fn inline_colon_successor(
         Err(Either::Left(comma))
             if token_kind(&comma) == Some(TokenKind::Comma) && stops & STOP_COMMA == 0 =>
         {
-            if !same_line_normal_nud_follows(i.rb()) {
-                return handoff(comma);
-            }
             emit_token_item(&mut i, comma);
             let leading = scan_trivia(i.rb());
-            let mut item = tail_item_after_trivia(
+            let item = tail_item_after_trivia(
                 i.rb(),
                 leading,
                 OperatorSite::Nud,
                 baseline,
                 stops | STOP_COMMA,
             );
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
-            inline_colon_argument(i, item, baseline, stops, ml_mode)
+            inline_colon_argument(i, item, baseline, stops, ml_mode, true)
         }
         exit => exit,
     }
 }
 
-fn same_line_normal_nud_follows(i: RewriteIn) -> bool {
-    i.map(inline_normal_nud_follower, |follower| follower)
-        .unwrap_or(false)
+fn retry_inline_colon_argument(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: u8,
+) -> Item {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = tail_item_after_trivia(
+            i.rb(),
+            leading,
+            OperatorSite::Nud,
+            baseline,
+            stops | STOP_COMMA,
+        );
+        if is_colon_owned_comma(&item, stops)
+            || inline_colon_boundary(&item, baseline, stops)
+            || is_nud_item(&item)
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
 }
 
-fn indented_normal_statement_follows(i: RewriteIn, baseline: usize) -> bool {
-    i.map(normal_statement_indentation_follower, |indentation| {
-        indentation.is_some_and(|indentation| indentation > baseline)
-    })
-    .unwrap_or(false)
+fn is_colon_owned_comma(item: &Item, stops: u8) -> bool {
+    token_kind(item) == Some(TokenKind::Comma) && stops & STOP_COMMA == 0
+}
+
+fn inline_colon_boundary(item: &Item, baseline: usize, stops: u8) -> bool {
+    matches!(item.payload, Payload::Eof)
+        || is_separator(item)
+        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || implicit_delimited_newline(baseline, &item.leading)
+}
+
+fn emit_inline_leading(i: &mut RewriteIn, item: &mut Item) {
+    if !item.leading.0.is_empty() {
+        let leading = std::mem::take(&mut item.leading);
+        emit_leading_trivia(i, &leading);
+    }
+}
+
+fn emit_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize) {
+    if !implicit_delimited_newline(baseline, &item.leading) {
+        emit_inline_leading(i, item);
+    }
+    emit_missing(i, LeadingTrivia::default());
+}
+
+fn newline_indentation_follows(i: RewriteIn) -> Option<usize> {
+    i.map(newline_indentation_follower, |indentation| indentation)
+        .flatten()
 }
 
 pub(super) fn call_tail(

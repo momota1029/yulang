@@ -113,11 +113,9 @@ fn statement_sequence(
     loop {
         match policy {
             StatementSequencePolicy::Indented { block_indent } => {
-                if !is_normal_core_item(&item) {
-                    return handoff(item);
-                }
-                let exit = expression_statement(i.rb(), item, baseline, stops);
-                item = match indented_statement_successor(i.rb(), exit, block_indent) {
+                let exit =
+                    indented_statement_slot(i.rb(), item, baseline, block_indent, stops, true);
+                item = match indented_statement_successor(i.rb(), exit, block_indent, stops) {
                     Ok(item) => item,
                     Err(exit) => return exit,
                 };
@@ -142,17 +140,87 @@ fn indented_statement_successor(
     mut i: RewriteIn,
     exit: TailExit,
     block_indent: usize,
+    stops: u8,
 ) -> Result<Item, TailExit> {
     let Err(Either::Left(mut item)) = exit else {
         return Err(exit);
     };
-    if indentation_after_newline(&item.leading) != Some(block_indent) || !is_normal_core_item(&item)
+    if indentation_after_newline(&item.leading) != Some(block_indent)
+        || indented_statement_outer_boundary(&item, block_indent, stops)
     {
         return Err(handoff(item));
     }
 
     emit_separator_leading(&mut i, &mut item);
     Ok(item)
+}
+
+fn indented_statement_slot(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    block_indent: usize,
+    stops: u8,
+    missing_on_boundary: bool,
+) -> TailExit {
+    if indented_statement_slot_boundary(&item, block_indent, stops) {
+        if missing_on_boundary {
+            let leading = std::mem::take(&mut item.leading);
+            emit_missing(&mut i, leading);
+        }
+        return handoff(item);
+    }
+    if is_normal_core_item(&item) {
+        return expression_statement(i, item, baseline, stops);
+    }
+
+    item = retry_indented_statement(i.rb(), item, baseline, block_indent, stops);
+    if indented_statement_retry_boundary(&item, block_indent, stops) {
+        return handoff(item);
+    }
+    debug_assert!(is_normal_core_item(&item));
+    expression_statement(i, item, baseline, stops)
+}
+
+fn retry_indented_statement(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    block_indent: usize,
+    stops: u8,
+) -> Item {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
+        if indented_statement_retry_boundary(&item, block_indent, stops)
+            || is_normal_core_item(&item)
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
+}
+
+fn indented_statement_slot_boundary(item: &Item, block_indent: usize, stops: u8) -> bool {
+    matches!(item.payload, Payload::Eof)
+        || is_separator(item)
+        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || indentation_after_newline(&item.leading)
+            .is_some_and(|indentation| indentation < block_indent)
+}
+
+fn indented_statement_retry_boundary(item: &Item, block_indent: usize, stops: u8) -> bool {
+    indented_statement_slot_boundary(item, block_indent, stops)
+        || indentation_after_newline(&item.leading) == Some(block_indent)
+}
+
+fn indented_statement_outer_boundary(item: &Item, block_indent: usize, stops: u8) -> bool {
+    is_separator(item)
+        || token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, stops))
+        || indentation_after_newline(&item.leading)
+            .is_some_and(|indentation| indentation < block_indent)
 }
 
 fn braced_terminal(mut i: RewriteIn, item: Item) -> TailExit {
