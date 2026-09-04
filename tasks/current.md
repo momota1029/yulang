@@ -993,6 +993,15 @@ reread/buffer/recovery recordの追加なし。M1 specification reviewはcompile
 rewrite testsは70 passed、package check、format/diff checkはgreen。generic mismatched-close retry、complete item後のmalformed
 gap / missing separator、other type owner recovery、production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`でaccepted field name後のmandatory colon / RHS recoveryを追加した。same-line valid
+Type NUD（contextual `for`を含む）はone Missing colonからsame field RHSへretryし、comma / close / EOFはone Missing colonだけで
+fieldを閉じてno-cascadeを守る。accepted colon後のcomma / close / EOF、またはequal-or-shallower record newlineはone Missing
+RHSを置いてpending Itemをsequence ownerへ返す。same-line field triviaはMissing node、shallow newline triviaはrecord sequenceに
+残る。`}`はrecord ownerが引き続きconsumeし、`)` / `]`はhandoffする。malformed colon / RHS retry、missing-name skeleton、
+whole-field sequence error、semicolon、record close / next-field owner queryは未実装。state/source reread/buffer/recovery recordの
+追加なし。M1 specification reviewはclean、focused rewrite testsは71 passed、package check、format/diff checkはgreen。production
+wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

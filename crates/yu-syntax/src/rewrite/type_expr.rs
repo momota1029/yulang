@@ -296,16 +296,44 @@ fn type_record_field(mut i: RewriteIn, name: Item, baseline: usize) -> TailExit 
     i.state.start_node(SyntaxKind::TypeRecordField.into());
     emit_token_item(&mut i, name);
     let leading = scan_trivia(i.rb());
-    let colon = type_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&colon.leading, baseline) || token_kind(&colon) != Some(TokenKind::Colon)
-    {
+    let mut colon = type_nud_item_after_trivia(i.rb(), leading);
+    if !type_chain_trivia(&colon.leading, baseline) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return handoff(colon);
+    }
+    if token_kind(&colon) != Some(TokenKind::Colon) {
+        if is_type_record_field_boundary(&colon) {
+            let leading = std::mem::take(&mut colon.leading);
+            emit_missing(&mut i, leading);
+            i.state.finish_node();
+            return handoff(colon);
+        }
+        if is_type_nud(&colon) {
+            let leading = std::mem::take(&mut colon.leading);
+            emit_missing(&mut i, leading);
+            let exit = type_expr_from_nud(i.rb(), colon, baseline, false);
+            i.state.finish_node();
+            return exit;
+        }
         i.state.finish_node();
         return handoff(colon);
     }
     emit_token_item(&mut i, colon);
     let leading = scan_trivia(i.rb());
     let mut rhs = type_nud_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&rhs.leading, baseline) || !is_type_nud(&rhs) {
+    if !type_chain_trivia(&rhs.leading, baseline) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return handoff(rhs);
+    }
+    if is_type_record_field_boundary(&rhs) {
+        let leading = std::mem::take(&mut rhs.leading);
+        emit_missing(&mut i, leading);
+        i.state.finish_node();
+        return handoff(rhs);
+    }
+    if !is_type_nud(&rhs) {
         i.state.finish_node();
         return handoff(rhs);
     }
@@ -960,6 +988,15 @@ fn is_type_path_boundary(item: &Item) -> bool {
 }
 
 fn is_type_rhs_boundary(item: &Item) -> bool {
+    matches!(&item.payload, Payload::Eof)
+        || is_type_separator(item)
+        || matches!(
+            token_kind(item),
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+        )
+}
+
+fn is_type_record_field_boundary(item: &Item) -> bool {
     matches!(&item.payload, Payload::Eof)
         || is_type_separator(item)
         || matches!(

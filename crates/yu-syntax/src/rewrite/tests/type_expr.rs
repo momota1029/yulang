@@ -407,6 +407,50 @@ fn named_record_type_keeps_field_and_separator_ownership() {
 }
 
 #[test]
+fn named_record_field_recovers_missing_colon_and_type() {
+    for (source, fields) in [
+        ("{a}", 1),
+        ("{a, b: B}", 2),
+        ("{a A}", 1),
+        ("{a:}", 1),
+        ("{a:\nb: B}", 2),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("named record type");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            fields,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("{a for 'x: T}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::ForallType)
+    );
+}
+
+#[test]
 fn named_record_type_accepts_layout_and_type_tails() {
     let layout = "{\n  a: A\n  b: B\n}";
     let (green, exit) = run_type(layout);
