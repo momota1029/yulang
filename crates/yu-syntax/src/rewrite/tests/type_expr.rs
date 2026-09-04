@@ -503,6 +503,80 @@ fn named_record_type_recovers_a_missing_close() {
 }
 
 #[test]
+fn named_record_type_retries_a_malformed_whole_field() {
+    for (source, fields, error_text) in [
+        ("{@ a: A}", 1, "@"),
+        ("{@, b: B}", 1, "@"),
+        ("{..A, b: B}", 1, "..A"),
+        ("{@}", 0, "@"),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let record = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("named record type");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            fields,
+            "{source:?}"
+        );
+        let error = record
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("whole-field error");
+        assert_eq!(error.text(), error_text, "{source:?}");
+        assert!(
+            !error
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeRecordField),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn named_record_whole_field_retry_keeps_qualified_newline_with_the_record() {
+    let source = "{@\n  a: A}";
+    let (green, exit) = run_type(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let record = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+        .expect("named record type");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .count(),
+        1
+    );
+    assert_eq!(
+        record
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("whole-field error")
+            .text(),
+        "@"
+    );
+    assert_eq!(
+        record
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Newline)
+            .map(|token| token.text().to_owned())
+            .collect::<Vec<_>>(),
+        ["\n"]
+    );
+}
+
+#[test]
 fn named_record_field_retries_a_malformed_name_only_with_a_colon_skeleton() {
     for (source, error_text) in [
         ("{@: A}", "@"),
@@ -554,22 +628,6 @@ fn named_record_field_retries_a_malformed_name_only_with_a_colon_skeleton() {
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             0,
-            "{source:?}"
-        );
-    }
-
-    for source in ["{@ a: A}", "{@\n    : A}", "{@ (: A)}"] {
-        let (green, exit) = run_type(source);
-        assert_eq!(green.to_string(), "{", "{source:?}");
-        assert!(matches!(
-            exit,
-            Some(Err(Either::Left(item)))
-                if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Unknown && &*token.text == "@")
-        ));
-        assert!(
-            !SyntaxNode::new_root(green)
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::TypeRecordField),
             "{source:?}"
         );
     }

@@ -1059,6 +1059,16 @@ leading semicolon、whole-field sequence Error、next-field owner queryは未実
 M1 specification reviewはclose-cardinality確認を含めclean、focused rewrite testsは79 passed、package check、format/diff checkはgreen。
 production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`のwhole-field sequence Error retryを追加した。malformed-name local probeが
+colon skeletonを認めないrunはrecord直下のone `Error`として読み、same-lineまたはrecord baselineより深いnewlineを
+挟むcomplete `name:` / literal `:`へretryする。retry gapのtriviaはErrorへ含めずrecordが直接所有し、`{@\n  a: A}`は
+`Error("@")`とone `TypeRecordField`になる。equal-or-shallower newlineはouterへhandoffし、comma / actual `}` / EOF /
+outer closeはそれぞれ既存のsequence / close ownerへ戻す。旧malformed-name unit testに残っていたpre-whole-fieldの
+handoff expectationは、Authoritative field-authority cutと矛盾するため削除した。source/state reread/buffer/recovery
+recordの追加なし。M1 specification reviewはcontinuation policyとtest-contract deltaともclean、focused rewrite testsは81
+passed、package check、format/diff checkはgreen。leading semicolon / next-field owner query、production wiring、Gate 4/G4b
+ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

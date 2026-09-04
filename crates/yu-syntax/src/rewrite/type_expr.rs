@@ -302,15 +302,19 @@ fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
             emit_leading_trivia(&mut i, &leading);
             type_record_missing_name(i.rb(), item, baseline)
         } else {
-            i.rb()
-                .then(type_record_malformed_name_colon, |has_colon, i| {
-                    if has_colon && indentation_after_newline(&item.leading).is_none() {
-                        type_record_malformed_name(i, item, baseline)
-                    } else {
-                        handoff(item)
-                    }
-                })
-                .expect("the malformed-name probe always succeeds")
+            let malformed_name_colon = i
+                .rb()
+                .then(type_record_malformed_name_colon, |has_colon, _| has_colon)
+                .expect("the malformed-name probe always succeeds");
+            if malformed_name_colon && indentation_after_newline(&item.leading).is_none() {
+                type_record_malformed_name(i.rb(), item, baseline)
+            } else {
+                item = match retry_type_record_field(i.rb(), item, baseline) {
+                    Ok(next) => next,
+                    Err(exit) => return exit,
+                };
+                continue;
+            }
         };
         item = match type_record_successor(i.rb(), exit, baseline) {
             Ok(next) => next,
@@ -438,6 +442,95 @@ fn type_record_malformed_name(mut i: RewriteIn, mut item: Item, baseline: usize)
             i.state.finish_node();
             i.state.finish_node();
             return handoff(item);
+        }
+    }
+}
+
+fn type_record_field_head_colon(mut i: LexIn) -> Option<(bool, Option<usize>)> {
+    let mut input = i.remainder();
+    let mut probe: LexIn = chasa_recover::In::new(&mut input, i.recovery(), ());
+    let leading = scan_trivia(probe.rb());
+    let item = type_nud_item_after_trivia(probe, leading);
+    Some((
+        token_kind(&item) == Some(TokenKind::Colon),
+        indentation_after_newline(&item.leading),
+    ))
+}
+
+fn retry_type_record_field(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+) -> Result<Item, TailExit> {
+    let leading = std::mem::take(&mut item.leading);
+    emit_leading_trivia(&mut i, &leading);
+    i.state.start_node(SyntaxKind::Error.into());
+    let mut nested_depth = 0usize;
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_nud_item_after_trivia(i.rb(), leading);
+        if matches!(item.payload, Payload::Eof) {
+            i.state.finish_node();
+            return Err(type_record_missing_close(i, item));
+        }
+        if token_kind(&item) == Some(TokenKind::RBrace) && nested_depth == 0 {
+            i.state.finish_node();
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            emit_token_item(&mut i, item);
+            return Err(Ok(()));
+        }
+        if token_kind(&item) == Some(TokenKind::Comma) && nested_depth == 0 {
+            i.state.finish_node();
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            emit_token_item(&mut i, item);
+            return type_record_after_comma(i);
+        }
+        if token_kind(&item) == Some(TokenKind::Colon)
+            && nested_depth == 0
+            && type_chain_trivia(&item.leading, baseline)
+        {
+            i.state.finish_node();
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            return Ok(item);
+        }
+        if is_type_record_field_name(&item) && nested_depth == 0 {
+            let (has_colon, colon_indentation) = i
+                .rb()
+                .then(type_record_field_head_colon, |head, _| head)
+                .expect("the field-head probe always succeeds");
+            if has_colon
+                && type_chain_trivia(&item.leading, baseline)
+                && colon_indentation.is_none_or(|indentation| indentation > baseline)
+            {
+                i.state.finish_node();
+                let leading = std::mem::take(&mut item.leading);
+                emit_leading_trivia(&mut i, &leading);
+                return Ok(item);
+            }
+        }
+        let was_nested = nested_depth != 0;
+        match token_kind(&item) {
+            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
+                nested_depth += 1;
+            }
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                if nested_depth != 0 =>
+            {
+                nested_depth -= 1;
+            }
+            _ => {}
+        }
+        if nested_depth == 0 && !was_nested && is_type_mismatched_close(&item, TokenKind::RBrace) {
+            i.state.finish_node();
+            return Err(type_record_missing_close(i, item));
+        }
+        if nested_depth == 0 && !was_nested && is_type_implicit_boundary(baseline, &item.leading) {
+            i.state.finish_node();
+            return Err(handoff(item));
         }
     }
 }
