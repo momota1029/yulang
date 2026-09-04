@@ -13,6 +13,7 @@ use super::{
     emit::emit_end,
     item::{OperatorUse, Payload, TokenKind, TriviaKind},
     operator::scan_operator,
+    pattern::pattern_with_colon_stop,
     state::Recover,
     type_expr::type_expr,
 };
@@ -20,6 +21,7 @@ use super::{
 mod lexical;
 mod operators;
 mod owners;
+mod pattern;
 mod tails;
 mod type_expr;
 
@@ -49,6 +51,24 @@ fn run_type(source: &str) -> (GreenNode, Option<TailExit>) {
     builder.start_node(SyntaxKind::Root.into());
     let exit = type_expr(In::new(&mut input, &mut recover, &mut builder));
     if let Some(Err(Either::Right(end))) = &exit {
+        emit_end(&mut builder, end);
+    }
+    builder.finish_node();
+    (builder.finish(), exit)
+}
+
+fn run_pattern(source: &str) -> (GreenNode, TailExit) {
+    run_pattern_with_colon_stop(source, false)
+}
+
+fn run_pattern_with_colon_stop(source: &str, colon_stop: bool) -> (GreenNode, TailExit) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = pattern_with_colon_stop(In::new(&mut input, &mut recover, &mut builder), colon_stop);
+    if let Err(Either::Right(end)) = &exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();

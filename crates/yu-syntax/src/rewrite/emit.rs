@@ -66,10 +66,13 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
                 TokenKind::DotDot => SyntaxKind::DotDot,
                 TokenKind::Arrow => SyntaxKind::Arrow,
                 TokenKind::Colon => SyntaxKind::Colon,
+                TokenKind::Equals => SyntaxKind::Equals,
                 TokenKind::Forall => SyntaxKind::ForKw,
                 TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
                 TokenKind::PolymorphicVariantColon => SyntaxKind::Colon,
+                TokenKind::PatternSymbolColon => SyntaxKind::Colon,
                 TokenKind::PathSeparator => SyntaxKind::ColonColon,
+                TokenKind::Pipe => SyntaxKind::Pipe,
                 TokenKind::Unknown => SyntaxKind::Unknown,
             };
             i.state.token(kind.into(), &token.text);

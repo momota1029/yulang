@@ -12,6 +12,7 @@ mod emit;
 mod item;
 mod lexer;
 mod operator;
+mod pattern;
 mod state;
 mod tails;
 mod type_expr;

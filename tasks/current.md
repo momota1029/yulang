@@ -1166,6 +1166,17 @@ task記録だけで変更できる問題ではないため、恒久解決には�
 approved、focused rewrite tests 96 passed、package check・format・diff check green。production wiring、
 Gate 4/G4b ledgerは未完である。
 
+2026-09-04: standalone direct `Pattern`のnormal constructionを追加した。source/root/cursor・token/event
+buffer・ambient parser stateを持たず、入力`Item`を一方向にhandoffする直接Nud/tailとして、identifier/
+sigil/integer/symbol、parenthesized/list/record、spread・record field/default、`as`・`|`・`:`の固定tailを
+実装した。`PatternSymbolColon`はNudだけで`:identifier`を一tokenとして認識し、tail/callerのbare colonは
+奪わない。newline baseはleading triviaをCSTへ移す前にscalar一個としてcaptureして再帰引数でのみ渡し、
+annotationのpre/post gap、alternation RHS gap、delimiter/field/spread gapはそれぞれのdirect CST ownerへ
+emitする。M1 specification delta reviewでこのtrivia ownerとequal/deeper newline baseを査読し、focused
+Pattern tests 5 passed、`cargo check -p yu-syntax`、format/diff checkはgreen。Pattern recovery P1〜P8・
+RB-P、malformed type RHS、production wiring、AST parity、Gate 5 certificationは未実装であり、この記録は
+normal constructionの途中経過だけを表す。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

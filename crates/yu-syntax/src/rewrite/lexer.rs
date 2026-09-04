@@ -173,6 +173,55 @@ where
     Item { leading, payload }
 }
 
+/// Complete a Pattern primary candidate.  Only a primary position recognizes
+/// the adjacent `:identifier` Symbol spelling.
+pub(super) fn pattern_nud_item_after_trivia<S>(
+    mut i: In<'_, &str, &mut Recover<'_>, S>,
+    leading: LeadingTrivia,
+) -> Item
+where
+    S: Rb,
+{
+    let payload = i
+        .map(
+            choice((
+                token(scan_pattern_symbol_colon),
+                token(scan_pattern_tail_token),
+            )),
+            Payload::Token,
+        )
+        .unwrap_or(Payload::Eof);
+    Item { leading, payload }
+}
+
+/// Complete an already-accepted Pattern's successor.  A colon here belongs to
+/// the Pattern tail judge (or its caller), never to a fresh Symbol primary.
+pub(super) fn pattern_item_after_trivia<S>(
+    i: In<'_, &str, &mut Recover<'_>, S>,
+    leading: LeadingTrivia,
+) -> Item
+where
+    S: Rb,
+{
+    let payload = i
+        .map(token(scan_pattern_tail_token), Payload::Token)
+        .unwrap_or(Payload::Eof);
+    Item { leading, payload }
+}
+
+fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
+    i.check(choice((
+        token(scan_pattern_colon),
+        token(scan_path_segment),
+        token(scan_integer),
+        token(scan_record_spread_marker),
+        token(scan_pattern_equals),
+        token(scan_pattern_pipe),
+        token(scan_punctuation),
+        token(scan_unknown),
+    )))
+}
+
 pub(super) fn scan_operator_shaped_unknown(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut operator| {
         scan_operator_shaped_character(operator.rb())?;
@@ -311,12 +360,12 @@ fn scan_pair(mut i: LexIn, first: char, second: char) -> Option<()> {
     (i.next()? == second).then_some(())
 }
 
-fn scan_identifier(mut i: LexIn) -> Option<Token> {
+pub(super) fn scan_identifier(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut word| {
-        let first = word.next()?;
-        if first != '_' && !is_xid_start(first) {
+        if !identifier_starts(word.remainder()) {
             return None;
         }
+        let _ = word.next()?;
         while word.token(scan_identifier_continue).is_some() {}
         let _ = word.token(scan_identifier_suffix);
         Some(())
@@ -326,6 +375,18 @@ fn scan_identifier(mut i: LexIn) -> Option<Token> {
         kind: TokenKind::Identifier,
         text: text.into(),
     })
+}
+
+/// Classify the next scalar without consuming it.
+///
+/// `:identifier` needs this one-scalar category probe to decide whether its
+/// colon is a composite Pattern token or a caller-owned colon stop.  The
+/// identifier's spelling is still consumed only by [`scan_identifier`].
+fn identifier_starts(remainder: &str) -> bool {
+    remainder
+        .chars()
+        .next()
+        .is_some_and(|first| first == '_' || is_xid_start(first))
 }
 
 pub(super) fn scan_path_segment(mut i: LexIn) -> Option<Token> {
@@ -463,6 +524,58 @@ fn scan_type_colon(mut i: LexIn) -> Option<Token> {
     })
 }
 
+fn scan_pattern_colon(mut i: LexIn) -> Option<Token> {
+    let remainder = i.remainder();
+    (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())?;
+    let (accepted, text) = i
+        .rb()
+        .with_str(|mut colon| (colon.next()? == ':').then_some(()));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Colon,
+        text: text.into(),
+    })
+}
+
+fn scan_pattern_symbol_colon(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut colon| {
+        (colon.next()? == ':').then_some(())?;
+        identifier_starts(colon.remainder()).then_some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::PatternSymbolColon,
+        text: text.into(),
+    })
+}
+
+fn scan_pattern_pipe(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i
+        .rb()
+        .with_str(|mut pipe| (pipe.next()? == '|').then_some(()));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Pipe,
+        text: text.into(),
+    })
+}
+
+/// Record defaults accept only the maximal operator-shaped spelling `=`.
+fn scan_pattern_equals(i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.with_str(|mut equals| {
+        (equals.next()? == '=').then_some(())?;
+        equals
+            .token(scan_operator_shaped_character)
+            .is_none()
+            .then_some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Equals,
+        text: text.into(),
+    })
+}
+
 fn scan_record_spread_marker(i: LexIn) -> Option<Token> {
     let (accepted, text) = i.with_str(|mut marker| {
         scan_pair(marker.rb(), '.', '.')?;
@@ -541,7 +654,7 @@ fn is_operator_shaped_character(character: char) -> bool {
         )
 }
 
-fn scan_unknown(i: LexIn) -> Option<Token> {
+pub(super) fn scan_unknown(i: LexIn) -> Option<Token> {
     let (character, text) = i.with_str(|mut one| one.next());
     character?;
     Some(Token {
