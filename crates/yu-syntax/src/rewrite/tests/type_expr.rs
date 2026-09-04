@@ -1063,6 +1063,343 @@ fn forall_type_recovers_clean_mandatory_slots_without_cascading() {
 }
 
 #[test]
+fn forall_type_recovers_root_separators_as_its_own_malformed_phase() {
+    for (source, separator, binders) in [
+        ("for, 'a: T", ",", 2),
+        ("for; 'a: T", ";", 2),
+        ("for 'a, 'b: T", ",", 3),
+        ("for 'a; 'b: T", ";", 3),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let forall = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        let errors = forall
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors
+                .iter()
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            [separator],
+            "{source:?}"
+        );
+        assert_eq!(
+            errors[0].parent().map(|node| node.kind()),
+            Some(SyntaxKind::ForallTypeBinder),
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            0,
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
+                .count(),
+            binders,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn forall_type_separator_recovery_keeps_first_binder_and_continuation_phases_distinct() {
+    for (source, consumed, separator) in [("for, T", "for,", ","), ("for; T", "for;", ";")] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), consumed, "{source:?}");
+        assert!(matches!(
+            exit,
+            Some(Err(Either::Left(item)))
+                if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Identifier && token.text.as_ref() == "T")
+                    && item.leading.0.iter().any(|trivia| trivia.kind == TriviaKind::Whitespace && trivia.text.as_ref() == " ")
+        ));
+        let forall = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        let error = forall
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("separator error");
+        assert_eq!(error.text().to_string(), separator, "{source:?}");
+        assert_eq!(
+            error.parent().map(|node| node.kind()),
+            Some(SyntaxKind::ForallTypeBinder),
+            "{source:?}"
+        );
+        assert!(
+            !forall
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeExpression),
+            "{source:?}"
+        );
+        assert!(
+            !forall
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    for (source, separator) in [("for 'a, T", ","), ("for 'a; T", ";")] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let forall = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        let error = forall
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("separator error");
+        assert_eq!(error.text().to_string(), separator, "{source:?}");
+        assert_eq!(
+            error.parent().map(|node| node.kind()),
+            Some(SyntaxKind::ForallTypeBinder),
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            forall
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeExpression),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn forall_type_handoffs_active_owner_separators_without_absorbing_trivia() {
+    for source in ["F(for, A)", "F(for; A)", "F(for 'a, B)", "F(for 'a; B)"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let forall = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        assert!(
+            !forall
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !forall
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| { matches!(token.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon) }),
+            "{source:?}"
+        );
+        let call = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+            .expect("type call");
+        assert_eq!(
+            call.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| matches!(token.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon))
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let source = "F(for 'a /* gap */, B)";
+    let (green, exit) = run_type(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let forall = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ForallType)
+        .expect("forall type");
+    let call = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+        .expect("type call");
+    assert!(!forall.text().to_string().contains("/* gap */"));
+    assert!(call.text().to_string().contains("/* gap */"));
+}
+
+#[test]
+fn forall_type_body_separators_follow_the_active_owner() {
+    for (source, separator) in [("for 'a: , T", ","), ("for 'a: ; T", ";")] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let forall = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            [separator],
+            "{source:?}"
+        );
+        assert!(
+            !forall
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    for source in ["F(for 'a: , T)", "F(for 'a: ; T)"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let forall = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        assert!(
+            !forall
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn forall_type_handoffs_record_and_variant_payload_separators() {
+    for (source, separator, record_error) in [
+        ("{a: for 'a, b: B}", ",", None),
+        ("{a: for 'a; b: B}", ";", Some(";")),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let forall = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        assert!(
+            !forall
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !forall
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| { matches!(token.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon) }),
+            "{source:?}"
+        );
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("named record type");
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(),
+            2,
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            record_error.into_iter().collect::<Vec<_>>(),
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| matches!(token.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon))
+                .map(|token| token.text().to_string())
+                .collect::<Vec<_>>(),
+            [separator],
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type(":{A for 'a, B}");
+    assert_eq!(green.to_string(), ":{A for 'a, B}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let forall = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ForallType)
+        .expect("forall type");
+    assert!(
+        !forall
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+    assert_eq!(
+        forall
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn forall_type_recovers_malformed_phase_runs_and_retries() {
     for (source, expected_error, expected_missing, expected_binders) in [
         ("for @", "@", 0, 1),

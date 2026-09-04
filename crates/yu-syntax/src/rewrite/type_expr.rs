@@ -29,7 +29,7 @@ use self::{
 
 pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
     let primary = i.token(scan_type_nud_item)?;
-    Some(type_expr_from_nud(i, primary, 0, false, None))
+    Some(type_expr_from_nud(i, primary, 0, false, None, false))
 }
 
 fn type_expr_from_nud(
@@ -38,14 +38,22 @@ fn type_expr_from_nud(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     if token_kind(&primary) == Some(TokenKind::LBracket) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
-        let exit = type_leading_bracket_row(i.rb(), primary, baseline, type_ml, record_base);
+        let exit = type_leading_bracket_row(
+            i.rb(),
+            primary,
+            baseline,
+            type_ml,
+            record_base,
+            outer_separators,
+        );
         i.state.finish_node();
         return exit;
     }
-    type_expr_from_primary(i, primary, baseline, type_ml, record_base)
+    type_expr_from_primary(i, primary, baseline, type_ml, record_base, outer_separators)
 }
 
 fn type_expr_from_primary(
@@ -54,9 +62,17 @@ fn type_expr_from_primary(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeExpression.into());
-    let exit = type_expr_from_primary_started(i.rb(), primary, baseline, type_ml, record_base);
+    let exit = type_expr_from_primary_started(
+        i.rb(),
+        primary,
+        baseline,
+        type_ml,
+        record_base,
+        outer_separators,
+    );
     i.state.finish_node();
     exit
 }
@@ -67,21 +83,48 @@ fn type_expr_from_primary_started(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     match token_kind(&primary) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Integer) => {
             emit_token_item(&mut i, primary);
-            scan_type_tail(i.rb(), baseline, type_ml, record_base)
+            scan_type_tail(i.rb(), baseline, type_ml, record_base, outer_separators)
         }
-        Some(TokenKind::LParen) => type_group(i.rb(), primary, baseline, type_ml, record_base),
-        Some(TokenKind::LBrace) => type_record(i.rb(), primary, baseline, type_ml, record_base),
-        Some(TokenKind::Forall) => type_forall(i.rb(), primary, baseline, record_base),
-        Some(TokenKind::EffectRowApostrophe) => {
-            type_effect_row(i.rb(), primary, baseline, type_ml, record_base)
+        Some(TokenKind::LParen) => type_group(
+            i.rb(),
+            primary,
+            baseline,
+            type_ml,
+            record_base,
+            outer_separators,
+        ),
+        Some(TokenKind::LBrace) => type_record(
+            i.rb(),
+            primary,
+            baseline,
+            type_ml,
+            record_base,
+            outer_separators,
+        ),
+        Some(TokenKind::Forall) => {
+            type_forall(i.rb(), primary, baseline, record_base, outer_separators)
         }
-        Some(TokenKind::PolymorphicVariantColon) => {
-            type_polymorphic_variant(i.rb(), primary, baseline, type_ml, record_base)
-        }
+        Some(TokenKind::EffectRowApostrophe) => type_effect_row(
+            i.rb(),
+            primary,
+            baseline,
+            type_ml,
+            record_base,
+            outer_separators,
+        ),
+        Some(TokenKind::PolymorphicVariantColon) => type_polymorphic_variant(
+            i.rb(),
+            primary,
+            baseline,
+            type_ml,
+            record_base,
+            outer_separators,
+        ),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     }
 }
@@ -91,10 +134,11 @@ fn scan_type_tail(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = type_item_after_trivia(i.rb(), leading);
-    type_tail(i, item, baseline, type_ml, record_base)
+    type_tail(i, item, baseline, type_ml, record_base, outer_separators)
 }
 
 fn type_tail(
@@ -103,6 +147,7 @@ fn type_tail(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     if !type_chain_trivia(&item.leading, baseline) {
         return handoff(item);
@@ -111,15 +156,31 @@ fn type_tail(
         return handoff(item);
     }
     match token_kind(&item) {
-        Some(TokenKind::Arrow) => return type_arrow_tail(i.rb(), item, baseline, record_base),
+        Some(TokenKind::Arrow) => {
+            return type_arrow_tail(i.rb(), item, baseline, record_base, outer_separators);
+        }
         Some(TokenKind::LParen) if item.leading.0.is_empty() => {
-            return type_call_tail(i.rb(), item, baseline, type_ml, record_base);
+            return type_call_tail(
+                i.rb(),
+                item,
+                baseline,
+                type_ml,
+                record_base,
+                outer_separators,
+            );
         }
         Some(TokenKind::PathSeparator) => {
-            return type_path_tail(i.rb(), item, baseline, type_ml, record_base);
+            return type_path_tail(
+                i.rb(),
+                item,
+                baseline,
+                type_ml,
+                record_base,
+                outer_separators,
+            );
         }
         Some(TokenKind::LBracket) => {
-            return type_bracket_arrow_tail(i.rb(), item, baseline, record_base);
+            return type_bracket_arrow_tail(i.rb(), item, baseline, record_base, outer_separators);
         }
         _ => {}
     }
@@ -127,7 +188,7 @@ fn type_tail(
         return handoff(item);
     }
     if !item.leading.0.is_empty() && is_type_primary(&item) {
-        return type_apply_argument(i, item, baseline, record_base);
+        return type_apply_argument(i, item, baseline, record_base, outer_separators);
     }
     handoff(item)
 }
@@ -138,6 +199,7 @@ fn type_leading_bracket_row(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     let exit = type_bracket_row(i.rb(), open, baseline);
     let Ok(()) = exit else {
@@ -157,7 +219,14 @@ fn type_leading_bracket_row(
         if is_type_primary(&head) {
             let leading = std::mem::take(&mut head.leading);
             emit_leading_trivia(&mut i, &leading);
-            return type_expr_from_primary_started(i, head, baseline, type_ml, record_base);
+            return type_expr_from_primary_started(
+                i,
+                head,
+                baseline,
+                type_ml,
+                record_base,
+                outer_separators,
+            );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
             head = match retry_leading_bracket_row_head(i.rb(), head) {
@@ -173,7 +242,14 @@ fn type_leading_bracket_row(
         }
         let leading = std::mem::take(&mut head.leading);
         emit_leading_trivia(&mut i, &leading);
-        return retry_leading_bracket_row_head_error(i, head, baseline, type_ml, record_base);
+        return retry_leading_bracket_row_head_error(
+            i,
+            head,
+            baseline,
+            type_ml,
+            record_base,
+            outer_separators,
+        );
     }
 }
 
@@ -201,6 +277,7 @@ fn retry_leading_bracket_row_head_error(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -215,7 +292,14 @@ fn retry_leading_bracket_row_head_error(
             i.state.finish_node();
             let leading = std::mem::take(&mut head.leading);
             emit_leading_trivia(&mut i, &leading);
-            return type_expr_from_primary_started(i, head, baseline, type_ml, record_base);
+            return type_expr_from_primary_started(
+                i,
+                head,
+                baseline,
+                type_ml,
+                record_base,
+                outer_separators,
+            );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
             i.state.finish_node();
@@ -229,13 +313,14 @@ fn type_bracket_arrow_tail(
     mut open: Item,
     baseline: usize,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     let leading = std::mem::take(&mut open.leading);
     emit_leading_trivia(&mut i, &leading);
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
     let exit = type_bracket_row(i.rb(), open, baseline);
     let exit = match exit {
-        Ok(()) => type_bracket_arrow_after_row(i.rb(), baseline, record_base),
+        Ok(()) => type_bracket_arrow_after_row(i.rb(), baseline, record_base, outer_separators),
         Err(Either::Right(end)) => {
             emit_missing(&mut i, LeadingTrivia::default());
             Err(Either::Right(end))
@@ -263,6 +348,7 @@ fn type_bracket_arrow_after_row(
     mut i: RewriteIn,
     baseline: usize,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut arrow = type_nud_item_after_trivia(i.rb(), leading);
@@ -271,12 +357,12 @@ fn type_bracket_arrow_after_row(
         return handoff(arrow);
     }
     if token_kind(&arrow) == Some(TokenKind::Arrow) {
-        return type_arrow_rhs(i, arrow, baseline, record_base);
+        return type_arrow_rhs(i, arrow, baseline, record_base, outer_separators);
     }
     if is_type_nud(&arrow) {
         let leading = std::mem::take(&mut arrow.leading);
         emit_missing(&mut i, leading);
-        return type_expr_from_nud(i, arrow, baseline, false, record_base);
+        return type_expr_from_nud(i, arrow, baseline, false, record_base, outer_separators);
     }
     if is_type_rhs_boundary(&arrow) {
         let leading = std::mem::take(&mut arrow.leading);
@@ -291,6 +377,7 @@ fn type_group(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedTypeGroup.into());
@@ -302,7 +389,7 @@ fn type_group(
         TypeDelimitedOwner::Generic,
     );
     i.state.finish_node();
-    continue_type_tail(i, baseline, type_ml, record_base, exit)
+    continue_type_tail(i, baseline, type_ml, record_base, outer_separators, exit)
 }
 
 fn type_call_tail(
@@ -311,6 +398,7 @@ fn type_call_tail(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeCallTail.into());
     emit_token_item(&mut i, open);
@@ -321,7 +409,7 @@ fn type_call_tail(
         TypeDelimitedOwner::Generic,
     );
     i.state.finish_node();
-    continue_type_tail(i, baseline, type_ml, record_base, exit)
+    continue_type_tail(i, baseline, type_ml, record_base, outer_separators, exit)
 }
 
 fn missing_type_item(mut i: RewriteIn, mut item: Item) -> Item {
@@ -350,6 +438,7 @@ fn type_path_tail(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypePathTail.into());
     emit_token_item(&mut i, separator);
@@ -359,18 +448,18 @@ fn type_path_tail(
         let leading = std::mem::take(&mut segment.leading);
         emit_missing(&mut i, leading);
         i.state.finish_node();
-        return type_tail(i, segment, baseline, type_ml, record_base);
+        return type_tail(i, segment, baseline, type_ml, record_base, outer_separators);
     }
     if !is_type_path_segment(&segment) {
         segment = retry_type_path_segment(i.rb(), segment, baseline);
     }
     if !is_type_path_segment(&segment) {
         i.state.finish_node();
-        return type_tail(i, segment, baseline, type_ml, record_base);
+        return type_tail(i, segment, baseline, type_ml, record_base, outer_separators);
     }
     emit_token_item(&mut i, segment);
     i.state.finish_node();
-    scan_type_tail(i, baseline, type_ml, record_base)
+    scan_type_tail(i, baseline, type_ml, record_base, outer_separators)
 }
 
 fn retry_type_path_segment(mut i: RewriteIn, mut item: Item, baseline: usize) -> Item {
@@ -394,13 +483,14 @@ fn type_apply_argument(
     mut argument: Item,
     baseline: usize,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeApplyArgument.into());
     let boundary = std::mem::take(&mut argument.leading);
     emit_leading_trivia(&mut i, &boundary);
-    let exit = type_expr_from_nud(i.rb(), argument, baseline, true, None);
+    let exit = type_expr_from_nud(i.rb(), argument, baseline, true, None, outer_separators);
     i.state.finish_node();
-    continue_type_tail(i, baseline, false, record_base, exit)
+    continue_type_tail(i, baseline, false, record_base, outer_separators, exit)
 }
 
 fn type_arrow_tail(
@@ -408,9 +498,10 @@ fn type_arrow_tail(
     arrow: Item,
     baseline: usize,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
-    let exit = type_arrow_rhs(i.rb(), arrow, baseline, record_base);
+    let exit = type_arrow_rhs(i.rb(), arrow, baseline, record_base, outer_separators);
     i.state.finish_node();
     exit
 }
@@ -420,6 +511,7 @@ fn type_arrow_rhs(
     arrow: Item,
     baseline: usize,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     emit_token_item(&mut i, arrow);
     let trivia = scan_trivia(i.rb());
@@ -435,7 +527,7 @@ fn type_arrow_rhs(
     if !is_type_nud(&rhs) {
         return handoff(rhs);
     }
-    let exit = type_expr_from_nud(i.rb(), rhs, baseline, false, record_base);
+    let exit = type_expr_from_nud(i.rb(), rhs, baseline, false, record_base, outer_separators);
     exit
 }
 
@@ -460,11 +552,14 @@ fn continue_type_tail(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
     exit: TailExit,
 ) -> TailExit {
     match exit {
-        Ok(()) => scan_type_tail(i, baseline, type_ml, record_base),
-        Err(Either::Left(item)) => type_tail(i, item, baseline, type_ml, record_base),
+        Ok(()) => scan_type_tail(i, baseline, type_ml, record_base, outer_separators),
+        Err(Either::Left(item)) => {
+            type_tail(i, item, baseline, type_ml, record_base, outer_separators)
+        }
         Err(Either::Right(end)) => Err(Either::Right(end)),
     }
 }

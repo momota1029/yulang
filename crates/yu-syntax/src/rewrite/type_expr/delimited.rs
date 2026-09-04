@@ -72,7 +72,7 @@ pub(super) fn type_delimited(
             };
             continue;
         }
-        let exit = type_expr_from_nud(i.rb(), item, baseline, false, None);
+        let exit = type_expr_from_nud(i.rb(), item, baseline, false, None, true);
         item = match exit {
             Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
             Err(Either::Left(next)) if is_type_separator(&next) => {

@@ -24,12 +24,13 @@ pub(super) fn type_record(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::NamedRecordType.into());
     emit_token_item(&mut i, open);
     let exit = type_record_fields(i.rb(), baseline);
     i.state.finish_node();
-    continue_type_tail(i, baseline, type_ml, record_base, exit)
+    continue_type_tail(i, baseline, type_ml, record_base, outer_separators, exit)
 }
 
 fn type_record_fields(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
@@ -113,7 +114,7 @@ fn type_record_field(mut i: RewriteIn, name: Item, baseline: usize) -> TailExit 
         if is_type_nud(&colon) {
             let leading = std::mem::take(&mut colon.leading);
             emit_missing(&mut i, leading);
-            let exit = type_expr_from_nud(i.rb(), colon, baseline, false, Some(baseline));
+            let exit = type_expr_from_nud(i.rb(), colon, baseline, false, Some(baseline), true);
             i.state.finish_node();
             return exit;
         }
@@ -331,7 +332,7 @@ fn retry_type_record_colon(mut i: RewriteIn, mut item: Item, baseline: usize) ->
         }
         if is_type_nud(&item) {
             i.state.finish_node();
-            return type_expr_from_nud(i, item, baseline, false, Some(baseline));
+            return type_expr_from_nud(i, item, baseline, false, Some(baseline), true);
         }
     }
 }
@@ -358,7 +359,7 @@ fn type_record_rhs(mut i: RewriteIn, baseline: usize) -> TailExit {
     }
     let leading = std::mem::take(&mut rhs.leading);
     emit_leading_trivia(&mut i, &leading);
-    type_expr_from_nud(i, rhs, baseline, false, Some(baseline))
+    type_expr_from_nud(i, rhs, baseline, false, Some(baseline), true)
 }
 
 fn type_record_after_comma(mut i: RewriteIn) -> Result<Item, TailExit> {

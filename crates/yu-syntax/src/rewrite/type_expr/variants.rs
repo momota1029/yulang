@@ -23,6 +23,7 @@ pub(super) fn type_effect_row(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::EffectRowType.into());
     emit_token_item(&mut i, apostrophe);
@@ -43,7 +44,7 @@ pub(super) fn type_effect_row(
         TypeDelimitedOwner::Generic,
     );
     i.state.finish_node();
-    continue_type_tail(i, baseline, type_ml, record_base, exit)
+    continue_type_tail(i, baseline, type_ml, record_base, outer_separators, exit)
 }
 
 pub(super) fn type_polymorphic_variant(
@@ -52,6 +53,7 @@ pub(super) fn type_polymorphic_variant(
     baseline: usize,
     type_ml: bool,
     record_base: Option<usize>,
+    outer_separators: bool,
 ) -> TailExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantType.into());
@@ -68,7 +70,7 @@ pub(super) fn type_polymorphic_variant(
     );
     let exit = type_polymorphic_variant_tags(i.rb(), baseline);
     i.state.finish_node();
-    continue_type_tail(i, baseline, type_ml, record_base, exit)
+    continue_type_tail(i, baseline, type_ml, record_base, outer_separators, exit)
 }
 
 fn type_polymorphic_variant_tags(mut i: RewriteIn, incoming_baseline: usize) -> TailExit {
@@ -123,7 +125,7 @@ fn type_polymorphic_variant_payload(
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
     let boundary = std::mem::take(&mut primary.leading);
     emit_leading_trivia(&mut i, &boundary);
-    let exit = type_expr_from_nud(i.rb(), primary, baseline, true, None);
+    let exit = type_expr_from_nud(i.rb(), primary, baseline, true, None, true);
     i.state.finish_node();
     exit
 }

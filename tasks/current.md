@@ -1103,11 +1103,14 @@ indentation decisionへ混ぜない。comma / semicolonのown-vs-outer owner dis
 Gate 4/G4b ledgerは未完である。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewは
 two repair delta後clean、focused rewrite testsは84 passed、package check、format/diff checkはgreen。
 
-2026-09-04: Forall punctuation residualを再調査した。rootの`for 'a, 'b: T`とTypeDelimited / NamedRecord RHS内の
-同じsource形はForallへ同じ`Item::Comma`として到達するため、current direct parserだけでouter-ownedかlocal Errorかを
-判別できない。正本の分岐を実装するにはRecover stateやhidden contextを増やさず、caller-owned separator capabilityを
-TypeExpressionのrecursive call pathへ明示で引き回す配線が必要である。この配線はForall local sliceを越えるため未着手、
-後続のbounded structural sliceとして扱う。コード変更なし。
+2026-09-04: Forall punctuation residualを解消した。rootは`outer_separators = false`、generic delimiter item・
+NamedRecord RHS / recovery entry・PolymorphicVariant payloadは`true`をexplicitに渡し、TypeExpressionのtailと
+ML-applicationは受け取ったcapabilityをそのまま伝播する。Forall内部ではactive outer ownerのcomma / semicolonだけを
+zero-width Missingとunconsumed handoffにし、root local separatorはphase別のexact `ForallTypeBinder > Error` recoveryとして
+consumeする。FirstBinderはseparator後のnon-binder NUDをbodyへ昇格させず、BinderOrColonだけが既存colon/body judgeへ戻る。
+leading triviaもouter separatorと一緒にcallerへ返す。global `is_type_rhs_boundary`とRecover stateは変更していない。
+root / delimiter / NamedRecord comma・semicolon / polymorphic-variant payload / body phase / comment handoffのCST fixtureを追加し、
+focused rewrite tests 89 passed、package check・format・diff check green、独立spec review approved。
 
 2026-09-04: standalone direct `TypeExpression`のsource ownerを責務単位で分割した。`type_expr.rs`は
 entry / primary dispatch / fixed tails / shared boundary predicatesだけを残し、`type_expr/record.rs`がNamedRecord、
