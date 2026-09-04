@@ -15,9 +15,9 @@ use super::{
     item::{Item, LeadingTrivia, Payload, Token, TokenKind},
     lexer::{
         pattern_item_after_trivia, pattern_nud_item_after_trivia, scan_identifier, scan_trivia,
-        type_item_after_trivia,
+        type_item_after_trivia, type_nud_item_after_trivia,
     },
-    type_expr::type_expr,
+    type_expr::required_type_expr,
 };
 
 use self::delimited::{list_pattern, parenthesized_pattern, record_pattern};
@@ -280,13 +280,8 @@ fn pattern_type_annotation_rhs(mut i: RewriteIn, baseline: usize) -> TailExit {
         return handoff(type_item_after_trivia(i.rb(), leading));
     };
     emit_leading_trivia(&mut i, &leading);
-    if let Some(exit) = type_expr(i.rb()) {
-        return exit;
-    }
-    i.state.start_node(SyntaxKind::TypeExpression.into());
-    emit_missing(&mut i, LeadingTrivia::default());
-    i.state.finish_node();
-    handoff(type_item_after_trivia(i, LeadingTrivia::default()))
+    let primary = type_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
+    required_type_expr(i, primary, baseline)
 }
 
 fn is_pattern_primary(item: &Item) -> bool {

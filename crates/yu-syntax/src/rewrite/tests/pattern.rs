@@ -14,6 +14,13 @@ fn record_node(green: GreenNode) -> SyntaxNode {
         .expect("RecordPattern")
 }
 
+fn annotation_node(green: &GreenNode) -> SyntaxNode {
+    SyntaxNode::new_root(green.clone())
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+        .expect("PatternTypeAnnotation")
+}
+
 #[test]
 fn standalone_patterns_emit_atomic_primaries_without_operator_chains() {
     for (source, child, token) in [
@@ -296,6 +303,175 @@ fn standalone_patterns_keep_list_record_and_annotation_owners_local() {
             if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
                 && item.leading.0.iter().any(|part| part.kind == TriviaKind::Newline)
     ));
+}
+
+#[test]
+fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
+    let (green, exit) = run_pattern("x: Int");
+    assert_eq!(green.to_string(), "x: Int");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let annotation = annotation_node(&green);
+    assert_eq!(
+        annotation
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::TypeExpression]
+    );
+    assert!(
+        !annotation
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+    );
+
+    for (source, error, retry) in [
+        ("x: @Int", "@", "Int"),
+        ("x: @ Int", "@", " Int"),
+        ("x: @\n  Int", "@", "\n  Int"),
+        ("x: == Int", "==", " Int"),
+    ] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        let annotation = annotation_node(&green);
+        assert_eq!(
+            annotation
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [SyntaxKind::Error, SyntaxKind::TypeExpression],
+            "{source:?}"
+        );
+        let error_node = annotation
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("direct Type-primary Error");
+        assert_eq!(error_node.text().to_string(), error, "{source:?}");
+        let type_expr = annotation
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeExpression)
+            .expect("retried TypeExpression");
+        assert_eq!(type_expr.text().to_string(), retry, "{source:?}");
+        assert!(
+            !annotation
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_pattern("x: @");
+    assert_eq!(green.to_string(), "x: @");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let annotation = annotation_node(&green);
+    assert_eq!(
+        annotation
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Error]
+    );
+    assert_eq!(
+        annotation
+            .children()
+            .next()
+            .expect("Type-primary Error")
+            .text()
+            .to_string(),
+        "@"
+    );
+    assert!(
+        !annotation
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (green, exit) = run_pattern("x: @\nInt");
+    assert_eq!(green.to_string(), "x: @");
+    let Err(Either::Left(item)) = exit else {
+        panic!("shallow newline handoff expected");
+    };
+    assert!(
+        matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Identifier)
+    );
+    assert_eq!(
+        item.leading
+            .0
+            .iter()
+            .map(|trivia| &*trivia.text)
+            .collect::<String>(),
+        "\n"
+    );
+    let annotation = annotation_node(&green);
+    assert_eq!(
+        annotation
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Error]
+    );
+    assert!(
+        !annotation
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    for (source, expected_kind, expected_leading) in [
+        ("x:", None, ""),
+        ("x:,", Some(TokenKind::Comma), ""),
+        ("x:;", Some(TokenKind::Semicolon), ""),
+        ("x:)", Some(TokenKind::RParen), ""),
+        ("x:]", Some(TokenKind::RBracket), ""),
+        ("x:}", Some(TokenKind::RBrace), ""),
+        ("x: =", Some(TokenKind::Equals), ""),
+        ("x:\nInt", Some(TokenKind::Identifier), "\n"),
+    ] {
+        let (green, exit) = run_pattern(source);
+        let item = match exit {
+            Err(Either::Left(item)) => item,
+            Err(Either::Right(end)) if expected_kind.is_none() => end.item,
+            _ => panic!("mandatory Type boundary handoff expected: {source:?}"),
+        };
+        match expected_kind {
+            Some(kind) => assert!(
+                matches!(item.payload, Payload::Token(ref token) if token.kind == kind),
+                "{source:?}"
+            ),
+            None => assert!(matches!(item.payload, Payload::Eof), "{source:?}"),
+        }
+        assert_eq!(
+            item.leading
+                .0
+                .iter()
+                .map(|trivia| &*trivia.text)
+                .collect::<String>(),
+            expected_leading,
+            "{source:?}"
+        );
+        let annotation = annotation_node(&green);
+        assert_eq!(
+            annotation
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [SyntaxKind::TypeExpression],
+            "{source:?}"
+        );
+        assert_eq!(
+            annotation
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !annotation
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+    }
 }
 
 #[test]

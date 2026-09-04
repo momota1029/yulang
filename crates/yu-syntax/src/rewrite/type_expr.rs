@@ -32,6 +32,39 @@ pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
     Some(type_expr_from_nud(i, primary, 0, false, None, false, 0))
 }
 
+/// Build a mandatory TypeExpression slot already introduced by another owner.
+///
+/// The initial item is intentionally scanned by the Type vocabulary so this
+/// module owns both a malformed type-primary Error and the retry. This entry
+/// point has no caller-arrow policy; consumers that make an Arrow active must
+/// own that boundary themselves.
+pub(super) fn required_type_expr(mut i: RewriteIn, mut primary: Item, baseline: usize) -> TailExit {
+    if is_required_type_boundary(&primary, baseline) {
+        i.state.start_node(SyntaxKind::TypeExpression.into());
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return handoff(primary);
+    }
+    if is_type_nud(&primary) {
+        return type_expr_from_nud(i, primary, baseline, false, None, false, 0);
+    }
+
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, primary);
+        let leading = scan_trivia(i.rb());
+        primary = type_nud_item_after_trivia(i.rb(), leading);
+        if is_required_type_boundary(&primary, baseline) {
+            i.state.finish_node();
+            return handoff(primary);
+        }
+        if is_type_nud(&primary) {
+            i.state.finish_node();
+            return type_expr_from_nud(i, primary, baseline, false, None, false, 0);
+        }
+    }
+}
+
 fn type_expr_from_nud(
     mut i: RewriteIn,
     primary: Item,
@@ -817,6 +850,12 @@ fn is_type_rhs_boundary(item: &Item) -> bool {
             token_kind(item),
             Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
         )
+}
+
+fn is_required_type_boundary(item: &Item, baseline: usize) -> bool {
+    !type_chain_trivia(&item.leading, baseline)
+        || is_type_rhs_boundary(item)
+        || token_kind(item) == Some(TokenKind::Equals)
 }
 
 fn is_type_record_field_boundary(item: &Item) -> bool {

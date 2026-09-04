@@ -162,15 +162,26 @@ where
                 token(scan_type_polymorphic_variant_colon),
                 token(scan_path_segment),
                 token(scan_integer),
-                token(scan_type_arrow),
-                token(scan_type_colon),
-                token(scan_punctuation),
-                token(scan_unknown),
+                choice((
+                    token(scan_exact_equals),
+                    token(scan_malformed_equals),
+                    token(scan_type_arrow),
+                    token(scan_type_colon),
+                    token(scan_punctuation),
+                    token(scan_unknown),
+                )),
             )),
             Payload::Token,
         )
         .unwrap_or(Payload::Eof);
     Item { leading, payload }
+}
+
+/// Type's mandatory-primary recovery must hand an exact `=` to its caller,
+/// while a longer operator-shaped spelling is one malformed primary.
+fn scan_malformed_equals(i: LexIn) -> Option<Token> {
+    i.remainder().starts_with('=').then_some(())?;
+    scan_operator_shaped_unknown(i)
 }
 
 /// Complete a Pattern primary candidate.  Only a primary position recognizes
@@ -215,7 +226,7 @@ fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
         token(scan_path_segment),
         token(scan_integer),
         token(scan_record_spread_marker),
-        token(scan_pattern_equals),
+        token(scan_exact_equals),
         token(scan_pattern_pipe),
         choice((
             token(scan_pattern_malformed_fixed_operator),
@@ -571,8 +582,8 @@ fn scan_pattern_pipe(mut i: LexIn) -> Option<Token> {
     })
 }
 
-/// Record defaults accept only the maximal operator-shaped spelling `=`.
-fn scan_pattern_equals(i: LexIn) -> Option<Token> {
+/// Fixed `=` spellings accept only the maximal operator-shaped spelling `=`.
+pub(super) fn scan_exact_equals(i: LexIn) -> Option<Token> {
     let (accepted, text) = i.with_str(|mut equals| {
         (equals.next()? == '=').then_some(())?;
         equals

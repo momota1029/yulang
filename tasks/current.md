@@ -1208,6 +1208,17 @@ direct CSTで固定し、M1 specification reviewはone repair round後approved�
 `cargo fmt --all -- --check`、`cargo check -p yu-syntax`、diff checkはgreen。P8、consumer / outer-arrow recovery、
 production wiring、AST parity、full RB-P/Gate 5 certificationは未完である。
 
+2026-09-04: direct `PatternTypeAnnotation`のisolated P8 mandatory TypeExpression recoveryを追加した。
+annotationはType vocabularyでfirst Itemを一度だけ取り、Type側の`required_type_expr`が正常Nud、mandatory boundary、
+malformed primary Errorとsame-slot retryを直接裁定する。EOF・comma・semicolon・three close・exact `=`・
+equal/shallow newlineは`TypeExpression > Missing`だけを作り、boundary Item（leading triviaを含む）は未消費でhandoffする。
+`==`などlonger `=` spellingはone Type-primary Errorとして読み、valid type Nudがあればsibling TypeExpressionへretryする。
+Error後のretry leading triviaはErrorにもannotationにも移さず、retried TypeExpression自身が所有する。M1 specification
+reviewはこのtrivia owner gapをone repairで検出・修正しapproved。focused Pattern tests 11 passed、
+`cargo fmt --all -- --check`、`cargo check -p yu-syntax`、diff checkはgreen。active outer Arrowをcaller boundaryにする
+consumerはまだ存在しないため、この入口はArrow policyを発明しておらず、consumer / outer-arrow recovery、production wiring、
+AST parity、full RB-P/Gate 5 certificationは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
