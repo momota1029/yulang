@@ -1022,6 +1022,47 @@ fn forall_type_is_contextual_terminal_primary() {
 }
 
 #[test]
+fn forall_type_recovers_clean_mandatory_slots_without_cascading() {
+    for source in ["for", "for 'a", "for 'a:", "for'a: T", "for 'a T", "for: T"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let forall = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForallType)
+            .expect("forall type");
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("for\n");
+    assert_eq!(green.to_string(), "for\n");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let forall = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ForallType)
+        .expect("forall type");
+    assert!(
+        !forall
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Newline)
+    );
+    assert!(
+        root.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Newline && token.text() == "\n")
+    );
+}
+
+#[test]
 fn forall_type_does_not_reclassify_type_apply_for() {
     for source in ["forx 'a", "forall 'a", "for_ 'a"] {
         let (green, exit) = run_type(source);

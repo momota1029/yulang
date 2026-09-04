@@ -785,51 +785,113 @@ fn type_forall(
     i.state.start_node(SyntaxKind::ForallType.into());
     emit_token_item(&mut i, keyword);
     let leading = scan_trivia(i.rb());
-    let mut binder = type_item_after_trivia(i.rb(), leading);
-    if binder.leading.0.is_empty()
-        || !type_chain_trivia(&binder.leading, baseline)
-        || !is_forall_binder(&binder)
-    {
+    let binder = type_item_after_trivia(i.rb(), leading);
+    if !type_chain_trivia(&binder.leading, baseline) {
+        let binder = type_forall_missing_binder(i.rb(), binder, false);
         i.state.finish_node();
         return handoff(binder);
     }
-    loop {
-        type_forall_binder(i.rb(), binder);
-        let leading = scan_trivia(i.rb());
-        let next = type_item_after_trivia(i.rb(), leading);
-        if token_kind(&next) == Some(TokenKind::Colon) && type_chain_trivia(&next.leading, baseline)
-        {
-            emit_token_item(&mut i, next);
-            let leading = scan_trivia(i.rb());
-            let mut body = type_nud_item_after_trivia(i.rb(), leading);
-            if !type_chain_trivia(&body.leading, baseline) || !is_type_nud(&body) {
-                i.state.finish_node();
-                return handoff(body);
-            }
-            let leading = std::mem::take(&mut body.leading);
-            emit_leading_trivia(&mut i, &leading);
-            let exit = type_expr_from_nud(i.rb(), body, baseline, false, record_base);
+    if token_kind(&binder) == Some(TokenKind::Colon) {
+        let binder = type_forall_missing_binder(i.rb(), binder, true);
+        let exit = type_forall_body(i.rb(), binder, baseline, record_base);
+        i.state.finish_node();
+        return exit;
+    }
+    if !is_forall_binder(&binder) {
+        if is_type_rhs_boundary(&binder) {
+            let binder = type_forall_missing_binder(i.rb(), binder, true);
             i.state.finish_node();
-            return exit;
-        }
-        if !next.leading.0.is_empty()
-            && type_chain_trivia(&next.leading, baseline)
-            && is_forall_binder(&next)
-        {
-            binder = next;
-            continue;
+            return handoff(binder);
         }
         i.state.finish_node();
+        return handoff(binder);
+    }
+    let missing_boundary = binder.leading.0.is_empty();
+    type_forall_binder(i.rb(), binder, missing_boundary);
+    let exit = type_forall_after_binder(i.rb(), baseline, record_base);
+    i.state.finish_node();
+    exit
+}
+
+fn type_forall_after_binder(
+    mut i: RewriteIn,
+    baseline: usize,
+    record_base: Option<usize>,
+) -> TailExit {
+    loop {
+        let leading = scan_trivia(i.rb());
+        let mut next = type_item_after_trivia(i.rb(), leading);
+        if !type_chain_trivia(&next.leading, baseline) {
+            emit_missing(&mut i, LeadingTrivia::default());
+            return handoff(next);
+        }
+        if token_kind(&next) == Some(TokenKind::Colon) {
+            return type_forall_body(i, next, baseline, record_base);
+        }
+        if is_forall_binder(&next) {
+            let missing_boundary = next.leading.0.is_empty();
+            type_forall_binder(i.rb(), next, missing_boundary);
+            continue;
+        }
+        if is_type_nud(&next) {
+            let leading = std::mem::take(&mut next.leading);
+            emit_missing(&mut i, leading);
+            return type_expr_from_nud(i, next, baseline, false, record_base);
+        }
+        if is_type_rhs_boundary(&next) {
+            let leading = std::mem::take(&mut next.leading);
+            emit_missing(&mut i, leading);
+        }
         return handoff(next);
     }
 }
 
-fn type_forall_binder(mut i: RewriteIn, mut binder: Item) {
+fn type_forall_missing_binder(mut i: RewriteIn, mut item: Item, own_leading: bool) -> Item {
+    i.state.start_node(SyntaxKind::ForallTypeBinder.into());
+    let leading = own_leading
+        .then(|| std::mem::take(&mut item.leading))
+        .unwrap_or_default();
+    emit_missing(&mut i, leading);
+    i.state.finish_node();
+    item
+}
+
+fn type_forall_binder(mut i: RewriteIn, mut binder: Item, missing_boundary: bool) {
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
     let leading = std::mem::take(&mut binder.leading);
-    emit_leading_trivia(&mut i, &leading);
+    if missing_boundary {
+        emit_missing(&mut i, LeadingTrivia::default());
+    } else {
+        emit_leading_trivia(&mut i, &leading);
+    }
     emit_token_item(&mut i, binder);
     i.state.finish_node();
+}
+
+fn type_forall_body(
+    mut i: RewriteIn,
+    colon: Item,
+    baseline: usize,
+    record_base: Option<usize>,
+) -> TailExit {
+    emit_token_item(&mut i, colon);
+    let leading = scan_trivia(i.rb());
+    let mut body = type_nud_item_after_trivia(i.rb(), leading);
+    if !type_chain_trivia(&body.leading, baseline) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return handoff(body);
+    }
+    if is_type_rhs_boundary(&body) {
+        let leading = std::mem::take(&mut body.leading);
+        emit_missing(&mut i, leading);
+        return handoff(body);
+    }
+    if !is_type_nud(&body) {
+        return handoff(body);
+    }
+    let leading = std::mem::take(&mut body.leading);
+    emit_leading_trivia(&mut i, &leading);
+    type_expr_from_nud(i, body, baseline, false, record_base)
 }
 
 fn type_effect_row(

@@ -1081,8 +1081,17 @@ sink-freeに見つけたときはcandidateをhandoffする。record sequenceがg
 separator一件を置いてnext fieldをretryする。`{a: F b: B}`はtwo fields + one Missing separatorでRHS `F`を止め、
 `{a: F B}`はone fieldのordinary TypeApplyのまま保つ。nested delimiter / ML argumentにはrecord baseを渡さず、
 enclosing continuation後だけouter RHS contextを再開する。production wiring、Gate 4/G4b ledgerは未完である。
-state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはclean、focused rewrite testsは82 passed、
+ state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはclean、focused rewrite testsは82 passed、
 package check、format/diff checkはgreen。
+
+2026-09-04: direct `ForallType`のclean mandatory slot recoveryを追加した。exact `for` cut後、first binder / colon /
+bodyをそれぞれzero-widthまたは同positionのMissing一件で補い、`for` EOFはbinderだけ、`for 'a` EOFはcolonだけ、
+`for 'a:` EOFはbodyだけをMissingにする。colon直前のfirst-binder slotはそのcolonのbounded triviaをbinderへ置き、
+adjacent binder (`for'a`)だけはactual binderと別のMissing boundaryを持つ。non-binder Type NUDはcolon Missingを置いて
+body slotへretryする。equal-or-shallower newlineはfirst-binder Missingより外側へunconsumed handoffし、rootのEndが
+newlineを所有する。malformed binder / colon / body run、punctuation recoveryは後続sliceへ残す。production wiring、Gate
+4/G4b ledgerは未完である。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewは
+first-binder newline-owner delta後clean、focused rewrite testsは83 passed、package check、format/diff checkはgreen。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
