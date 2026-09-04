@@ -47,16 +47,53 @@ fn pattern_from_item(
     baseline: usize,
     colon_stop: bool,
 ) -> TailExit {
-    let accepted_symbol = token_kind(&item) == Some(TokenKind::PatternSymbolColon)
-        || (token_kind(&item) == Some(TokenKind::Colon) && !colon_stop);
-    if !is_pattern_primary(&item) && !accepted_symbol {
-        return handoff(item);
-    }
     let baseline = delimited_baseline(baseline, &item.leading);
     i.state.start_node(SyntaxKind::Pattern.into());
-    let exit = pattern_from_primary(i.rb(), item, minimum, baseline, colon_stop);
+    let exit = if is_pattern_nud(&item, colon_stop) {
+        pattern_from_primary(i.rb(), item, minimum, baseline, colon_stop)
+    } else {
+        recover_pattern_primary(i.rb(), item, minimum, baseline, colon_stop)
+    };
     i.state.finish_node();
     exit
+}
+
+fn recover_pattern_primary(
+    mut i: RewriteIn,
+    mut item: Item,
+    minimum: PatternPrecedence,
+    baseline: usize,
+    colon_stop: bool,
+) -> TailExit {
+    if is_pattern_boundary(&item, baseline, colon_stop) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return handoff(item);
+    }
+    if is_current_pattern_tail(&item, colon_stop) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return pattern_tail(i, item, minimum, baseline, colon_stop);
+    }
+
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = pattern_nud_item_after_trivia(i.rb(), leading);
+        if is_pattern_boundary(&item, baseline, colon_stop) {
+            i.state.finish_node();
+            return handoff(item);
+        }
+        if is_current_pattern_tail(&item, colon_stop) {
+            i.state.finish_node();
+            return pattern_tail(i, item, minimum, baseline, colon_stop);
+        }
+        if is_pattern_nud(&item, colon_stop) {
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            i.state.finish_node();
+            return pattern_from_primary(i, item, minimum, baseline, colon_stop);
+        }
+    }
 }
 
 fn pattern_from_primary(
@@ -133,14 +170,12 @@ fn pattern_tail(
         item = pattern_item_after_trivia(i.rb(), leading);
         if token_kind(&item) == Some(TokenKind::Identifier) {
             emit_token_item(&mut i, item);
+            item = scan_pattern_successor(i.rb());
         } else {
-            let leading = std::mem::take(&mut item.leading);
-            emit_missing(&mut i, leading);
-            i.state.finish_node();
-            return handoff(item);
+            item = recover_pattern_alias_binding(i.rb(), item, baseline, colon_stop);
         }
         i.state.finish_node();
-        return scan_pattern_tail(i, minimum, baseline, colon_stop);
+        return pattern_tail(i, item, minimum, baseline, colon_stop);
     }
     if token_kind(&item) == Some(TokenKind::Pipe) && minimum <= PatternPrecedence::Alternation {
         let leading = std::mem::take(&mut item.leading);
@@ -176,6 +211,47 @@ fn pattern_tail(
         return exit;
     }
     handoff(item)
+}
+
+fn recover_pattern_alias_binding(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    colon_stop: bool,
+) -> Item {
+    if is_pattern_boundary(&item, baseline, colon_stop)
+        || is_current_pattern_tail(&item, colon_stop)
+    {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return item;
+    }
+
+    let leading = std::mem::take(&mut item.leading);
+    emit_leading_trivia(&mut i, &leading);
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = pattern_item_after_trivia(i.rb(), leading);
+        if token_kind(&item) == Some(TokenKind::Identifier) {
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            i.state.finish_node();
+            emit_token_item(&mut i, item);
+            return scan_pattern_successor(i);
+        }
+        if is_pattern_boundary(&item, baseline, colon_stop)
+            || is_current_pattern_tail(&item, colon_stop)
+        {
+            i.state.finish_node();
+            return item;
+        }
+    }
+}
+
+fn scan_pattern_successor(mut i: RewriteIn) -> Item {
+    let leading = scan_trivia(i.rb());
+    pattern_item_after_trivia(i, leading)
 }
 
 fn continue_pattern_tail(
@@ -225,6 +301,35 @@ fn is_pattern_primary(item: &Item) -> bool {
                 | TokenKind::LBrace
         )
     )
+}
+
+fn is_pattern_nud(item: &Item, colon_stop: bool) -> bool {
+    is_pattern_primary(item)
+        || token_kind(item) == Some(TokenKind::PatternSymbolColon)
+        || (token_kind(item) == Some(TokenKind::Colon) && !colon_stop)
+}
+
+fn is_pattern_boundary(item: &Item, baseline: usize, colon_stop: bool) -> bool {
+    implicit_delimited_newline(baseline, &item.leading)
+        || matches!(
+            token_kind(item),
+            None | Some(
+                TokenKind::RParen
+                    | TokenKind::RBracket
+                    | TokenKind::RBrace
+                    | TokenKind::Comma
+                    | TokenKind::Semicolon
+                    | TokenKind::Arrow
+                    | TokenKind::Equals
+            )
+        )
+        || (colon_stop && token_kind(item) == Some(TokenKind::Colon))
+}
+
+fn is_current_pattern_tail(item: &Item, colon_stop: bool) -> bool {
+    is_pattern_alias(item)
+        || token_kind(item) == Some(TokenKind::Pipe)
+        || (!colon_stop && token_kind(item) == Some(TokenKind::Colon))
 }
 
 fn is_pattern_alias(item: &Item) -> bool {

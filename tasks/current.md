@@ -1177,6 +1177,15 @@ Pattern tests 5 passed、`cargo check -p yu-syntax`、format/diff checkはgreen�
 RB-P、malformed type RHS、production wiring、AST parity、Gate 5 certificationは未実装であり、この記録は
 normal constructionの途中経過だけを表す。
 
+2026-09-04: direct `Pattern`のP1〜P4 mandatory recoveryを追加した。primary / alias bindingのnonempty
+malformed runは一個の`Error`でsame slotのnormal Nudだけをretryし、retry gapだけをErrorへ移す。一方、EOF・
+comma・close・active colon stop・qualifying newlineなどcaller boundaryはleading triviaを含むpending `Item`のまま
+handoffし、current `as` / `|` / non-active colon tailへはrecovered Patternを開いたまま再入する。aliasはaccepted
+`as`直後のboundaryだけone `Missing`、nonempty Error後のboundaryはError-onlyで閉じ、same-cause cascadeを作らない。
+M1 specification reviewはtwo repair deltas後approved。focused Pattern testsは7 passed、P1 `Error("@ ")`、P2
+one Missing、P3 initial-Missing/post-Error split、P4 nested Missing/tail、caller gap handoffをexact CSTで固定した。
+P5〜P8、production wiring、AST parity、full RB-P/Gate 5 certificationは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

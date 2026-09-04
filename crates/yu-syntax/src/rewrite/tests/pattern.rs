@@ -292,6 +292,208 @@ fn standalone_patterns_keep_list_record_and_annotation_owners_local() {
 }
 
 #[test]
+fn standalone_patterns_recover_primary_alias_and_alternation_slots_locally() {
+    let (green, exit) = run_pattern("");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    assert_eq!(
+        pattern_node(green)
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("@ x");
+    assert_eq!(green.to_string(), "@ x");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let pattern = pattern_node(green);
+    let errors = pattern
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@ ");
+    assert!(
+        pattern
+            .children()
+            .any(|node| node.kind() == SyntaxKind::IdentifierPattern)
+    );
+    assert_eq!(
+        pattern
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        0
+    );
+
+    let (green, exit) = run_pattern("A as");
+    assert_eq!(green.to_string(), "A as");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let alias = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PatternAliasTail)
+        .expect("PatternAliasTail");
+    assert_eq!(
+        alias
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("A as $x");
+    assert_eq!(green.to_string(), "A as $x");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let alias = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PatternAliasTail)
+        .expect("PatternAliasTail");
+    let errors = alias
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "$x");
+    assert_eq!(
+        alias
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        0
+    );
+
+    let (green, exit) = run_pattern("A |");
+    assert_eq!(green.to_string(), "A |");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let alternation = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PatternAlternationTail)
+        .expect("PatternAlternationTail");
+    assert_eq!(
+        alternation
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("A | | B");
+    assert_eq!(green.to_string(), "A | | B");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let alternation = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PatternAlternationTail)
+        .expect("PatternAlternationTail");
+    let rhs = alternation
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("alternation RHS");
+    assert_eq!(
+        rhs.children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert_eq!(
+        rhs.children()
+            .filter(|node| node.kind() == SyntaxKind::PatternAlternationTail)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern(":");
+    assert_eq!(green.to_string(), ":");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let symbol = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::SymbolPattern)
+        .expect("SymbolPattern");
+    assert_eq!(
+        symbol
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    for (source, tail) in [
+        ("@ as x", SyntaxKind::PatternAliasTail),
+        ("@ : T", SyntaxKind::PatternTypeAnnotation),
+    ] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        let pattern = pattern_node(green);
+        assert!(
+            pattern.children().any(|node| node.kind() == tail),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_pattern("A as @ ,");
+    assert_eq!(green.to_string(), "A as @");
+    let Err(Either::Left(item)) = exit else {
+        panic!("comma handoff expected");
+    };
+    assert!(matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Comma));
+    assert_eq!(
+        item.leading
+            .0
+            .iter()
+            .map(|trivia| &*trivia.text)
+            .collect::<String>(),
+        " "
+    );
+    let alias = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PatternAliasTail)
+        .expect("PatternAliasTail");
+    let errors = alias
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@");
+    assert_eq!(
+        alias
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        0
+    );
+}
+
+#[test]
+fn standalone_pattern_recovery_leaves_caller_boundaries_and_their_gaps_intact() {
+    for (source, kind, leading) in [
+        ("@ ,", TokenKind::Comma, " "),
+        ("@ ]", TokenKind::RBracket, " "),
+        ("@ : T", TokenKind::Colon, " "),
+        ("@\nT", TokenKind::Identifier, "\n"),
+    ] {
+        let colon_stop = kind == TokenKind::Colon;
+        let (green, exit) = run_pattern_with_colon_stop(source, colon_stop);
+        assert_eq!(green.to_string(), "@", "{source:?}");
+        let Err(Either::Left(item)) = exit else {
+            panic!("caller boundary expected: {source:?}");
+        };
+        assert!(
+            matches!(item.payload, Payload::Token(ref token) if token.kind == kind),
+            "{source:?}"
+        );
+        assert_eq!(
+            item.leading
+                .0
+                .iter()
+                .map(|trivia| &*trivia.text)
+                .collect::<String>(),
+            leading,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn standalone_patterns_keep_inter_child_trivia_with_the_introducing_owner() {
     let (green, exit) = run_pattern("A | B");
     assert!(matches!(exit, Err(Either::Right(_))));
