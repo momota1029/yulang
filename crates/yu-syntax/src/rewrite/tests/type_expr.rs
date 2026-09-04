@@ -486,6 +486,40 @@ fn named_record_field_recovers_a_missing_name_before_colon() {
 }
 
 #[test]
+fn named_record_field_retries_a_malformed_colon_slot() {
+    for (source, error_text) in [("{a @ : B}", "@"), ("{a :: B}", "::"), ("{a @ B}", "@")] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let field = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .expect("type record field");
+        assert_eq!(
+            field
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        let error = field
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("colon error");
+        assert_eq!(error.text(), error_text, "{source:?}");
+        assert!(
+            field
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B"),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn named_record_type_accepts_layout_and_type_tails() {
     let layout = "{\n  a: A\n  b: B\n}";
     let (green, exit) = run_type(layout);

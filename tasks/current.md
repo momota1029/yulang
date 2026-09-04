@@ -1010,6 +1010,14 @@ whole-field sequence error、semicolon、record close / next-field owner query�
 追加なし。M1 specification reviewはclean、focused rewrite testsは72 passed、package check、format/diff checkはgreen。production
 wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `NamedRecordType`のaccepted name後にmalformed colon slot retryを追加した。`@` / exact longer `::`
+などはname-to-slot triviaをfield直下へ残したうえでnon-empty one `Error`になり、literal colonならRHS slotへ、valid Type NUD
+ならrecovered-missing colonとしてsame field RHSへretryする。shallow newline / comma / close / EOFへ到達したErrorはboundaryを
+consumeせず、same slotへMissing colonを追加しない。malformed-name / RHS retry、whole-field sequence error、semicolon、record
+close / next-field owner queryは未実装。state/source reread/buffer/recovery recordの追加なし。M1 specification reviewはrange修正を
+含め2巡clean、focused rewrite testsは73 passed、package check、format/diff checkはgreen。production wiring、Gate 4/G4b ledgerは
+未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
