@@ -1154,6 +1154,18 @@ shared head / payload pathへ入り、`:{@123 Int}`相当のprefix Error・TagNa
 fixture化した。M1 spec review approved、focused rewrite tests 95 passed、package check・format・diff check green。
 `IT-4` malformed payload recoveryは引き続きdeferする。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: direct `PolymorphicVariantPayload`の`IT-1`〜`IT-3`と、nonempty same-line boundaryを既に
+受理した場合に限る`IT-4` recoveryを追加した。adjacent canonical payloadはzero-width
+`Missing(PolymorphicVariantPayloadBoundary, TypePayloadBoundary)`を先頭に置き、nonempty boundary後の
+malformed runは`Payload > Error`へmaximalに置く。same-line type candidateの前のgapはPayload直下・
+Error外、newline / comma / semicolon / close / EOFとその前のgapはpending Itemのままouter `NT`またはcallerへ
+返す。`IT-4`の**empty-boundary malformed prefix**（例 `:{A@Int}`）は未実装のまま残す。現在のone-way
+direct runnerでは、既に保持した最初の不正Itemを後続candidateとouter safe pointのどちらへ分類するかを、
+bufferまたは禁止済みmulti-token rollbackなしには決められない。これは既存Authoritative `IT-4`の最終形を
+task記録だけで変更できる問題ではないため、恒久解決にはユーザー承認済み追補が必要である。M1 spec review
+approved、focused rewrite tests 96 passed、package check・format・diff check green。production wiring、
+Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

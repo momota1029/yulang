@@ -2090,6 +2090,243 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
 }
 
 #[test]
+fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
+    fn polymorphic_variant_node(green: GreenNode) -> SyntaxNode {
+        SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type")
+    }
+
+    fn only_payload(variant: &SyntaxNode) -> SyntaxNode {
+        let tag = variant
+            .children()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+            .expect("polymorphic variant tag");
+        tag.children()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload)
+            .expect("polymorphic variant payload")
+    }
+
+    let (green, exit) = run_type(":{A(Int)}");
+    assert_eq!(green.to_string(), ":{A(Int)}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let variant = polymorphic_variant_node(green);
+    let payload = only_payload(&variant);
+    assert_eq!(
+        payload
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Missing, SyntaxKind::TypeExpression]
+    );
+
+    for (source, error_text) in [
+        (":{A @Int}", "@"),
+        (":{A @ Int}", "@"),
+        (":{A @@Int}", "@@"),
+    ] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = polymorphic_variant_node(green);
+        let payload = only_payload(&variant);
+        let error = payload
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("malformed payload error");
+        assert_eq!(error.text().to_string(), error_text, "{source:?}");
+        assert_eq!(
+            error.parent().map(|node| node.kind()),
+            Some(SyntaxKind::PolymorphicVariantPayload),
+            "{source:?}"
+        );
+        assert_eq!(
+            payload
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !variant
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type(":{A @ Int}");
+    assert_eq!(green.to_string(), ":{A @ Int}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let payload = only_payload(&polymorphic_variant_node(green));
+    assert!(
+        payload
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
+    );
+
+    for source in [":{A @}", ":{A @,B}", ":{A @;B}", ":{A @]}"] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = polymorphic_variant_node(green);
+        let payload = only_payload(&variant);
+        assert_eq!(
+            payload
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            ["@"],
+            "{source:?}"
+        );
+        assert!(
+            !payload
+                .children()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type(":{A @,B}");
+    assert_eq!(green.to_string(), ":{A @,B}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let variant = polymorphic_variant_node(green);
+    assert_eq!(
+        variant
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+            .count(),
+        2
+    );
+    assert!(
+        variant
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Comma)
+    );
+
+    for (source, separator) in [(":{A @ }", None), (":{A @ ;B}", Some(";"))] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = polymorphic_variant_node(green);
+        let payload = only_payload(&variant);
+        assert_eq!(payload.text().to_string(), " @", "{source:?}");
+        assert_eq!(
+            variant
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Whitespace)
+                .map(|token| token.text().to_string())
+                .collect::<Vec<_>>(),
+            [" "],
+            "{source:?}"
+        );
+        if let Some(separator) = separator {
+            let error = variant
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Error && node.text() == separator)
+                .expect("local separator error");
+            assert_eq!(
+                error.parent().map(|node| node.kind()),
+                Some(SyntaxKind::PolymorphicVariantType),
+                "{source:?}"
+            );
+        } else {
+            assert!(
+                variant
+                    .children_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| token.kind() == SyntaxKind::RBrace)
+            );
+        }
+    }
+
+    let (green, exit) = run_type(":{A @\nB}");
+    assert_eq!(green.to_string(), ":{A @\nB}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let variant = polymorphic_variant_node(green);
+    assert_eq!(
+        variant
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+            .count(),
+        2
+    );
+
+    let (green, exit) = run_type(":{A @\n B}");
+    assert_eq!(green.to_string(), ":{A @\n B");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBrace)
+    ));
+    let top = top_type_expression(&green);
+    let variant = top
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(variant.text().to_string(), ":{A @");
+    assert!(
+        top.children()
+            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+    );
+
+    for (source, boundary) in [(":{A @;B}", ";"), (":{A @]}", "]")] {
+        let (green, exit) = run_type(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let variant = polymorphic_variant_node(green);
+        let error = variant
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error && node.text() == boundary)
+            .expect("local payload boundary error");
+        assert_eq!(
+            error.parent().map(|node| node.kind()),
+            Some(SyntaxKind::PolymorphicVariantType),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_type("F(:{A @ )");
+    assert_eq!(green.to_string(), "F(:{A @ )");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let variant = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    assert_eq!(variant.text().to_string(), ":{A @");
+    let payload = only_payload(&variant);
+    assert_eq!(
+        payload
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .map(|node| node.text().to_string())
+            .collect::<Vec<_>>(),
+        ["@"]
+    );
+    let call = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+        .expect("outer call");
+    assert!(
+        call.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
+    );
+    assert!(
+        call.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::RParen)
+    );
+}
+
+#[test]
 fn polymorphic_variant_type_recovers_local_separators_and_closes() {
     for source in [":{;A}", ":{A;B}", ":{A ; B}"] {
         let (green, exit) = run_type(source);
