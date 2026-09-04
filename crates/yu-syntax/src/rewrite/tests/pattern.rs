@@ -7,6 +7,13 @@ fn pattern_node(green: GreenNode) -> SyntaxNode {
         .expect("Pattern")
 }
 
+fn record_node(green: GreenNode) -> SyntaxNode {
+    pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPattern)
+        .expect("RecordPattern")
+}
+
 #[test]
 fn standalone_patterns_emit_atomic_primaries_without_operator_chains() {
     for (source, child, token) in [
@@ -635,6 +642,333 @@ fn standalone_patterns_keep_delimiter_and_malformed_list_item_recovery_local() {
             .filter(|token| token.kind() == SyntaxKind::Comma)
             .count(),
         1
+    );
+}
+
+#[test]
+fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() {
+    let (green, exit) = run_pattern("{,a}");
+    assert_eq!(green.to_string(), "{,a}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let record = record_node(green);
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::RecordPatternField)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("{a; b}");
+    assert_eq!(green.to_string(), "{a; b}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let record = record_node(green);
+    let errors = record
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), ";");
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::RecordPatternField)
+            .count(),
+        2
+    );
+    assert!(
+        !record
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (green, exit) = run_pattern("{a:}");
+    assert_eq!(green.to_string(), "{a:}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let record = record_node(green);
+    let field = record
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPatternField)
+        .expect("RecordPatternField");
+    let nested = field
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("nested Pattern");
+    assert_eq!(
+        nested
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("{a =}");
+    assert_eq!(green.to_string(), "{a =}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let record = record_node(green);
+    let field = record
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPatternField)
+        .expect("RecordPatternField");
+    assert!(
+        field
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Equals)
+    );
+    assert_eq!(
+        field
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("{..}");
+    assert_eq!(green.to_string(), "{..}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let record = record_node(green);
+    let spread = record
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPatternSpreadItem)
+        .expect("RecordPatternSpreadItem");
+    let nested = spread
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("spread Pattern");
+    assert_eq!(
+        nested
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("{a b}");
+    assert_eq!(green.to_string(), "{a b}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let record = record_node(green);
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::RecordPatternField)
+            .count(),
+        2
+    );
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("{a");
+    assert_eq!(green.to_string(), "{a");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    assert_eq!(
+        record_node(green)
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let (green, exit) = run_pattern("{a: @}");
+    assert_eq!(green.to_string(), "{a: @}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let field = record_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPatternField)
+        .expect("RecordPatternField");
+    let nested = field
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("nested Pattern");
+    let errors = nested
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@");
+    assert!(
+        !nested
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (green, exit) = run_pattern("{a: = 1}");
+    assert_eq!(green.to_string(), "{a: = 1}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let field = record_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPatternField)
+        .expect("RecordPatternField");
+    let nested = field
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("nested Pattern");
+    assert_eq!(
+        nested
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert!(
+        field
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Equals)
+    );
+    assert!(field.children().any(|node| {
+        node.kind() == SyntaxKind::OperatorChain
+            && node
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::IntegerLiteral)
+    }));
+
+    let (green, exit) = run_pattern("{a: @ p}");
+    assert_eq!(green.to_string(), "{a: @ p}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    assert_eq!(
+        trivia_parents(&green),
+        [SyntaxKind::RecordPatternField, SyntaxKind::Error]
+    );
+    let field = record_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPatternField)
+        .expect("RecordPatternField");
+    let nested = field
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("nested Pattern");
+    let errors = nested
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@ ");
+    assert!(
+        nested
+            .children()
+            .any(|node| node.kind() == SyntaxKind::IdentifierPattern)
+    );
+    assert!(
+        !nested
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (green, exit) = run_pattern("{..@tail}");
+    assert_eq!(green.to_string(), "{..@tail}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let spread = record_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPatternSpreadItem)
+        .expect("RecordPatternSpreadItem");
+    let nested = spread
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("spread Pattern");
+    let errors = nested
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@");
+    assert!(
+        nested
+            .children()
+            .any(|node| node.kind() == SyntaxKind::IdentifierPattern)
+    );
+    assert!(
+        !nested
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (green, exit) = run_pattern("{...a}");
+    assert_eq!(green.to_string(), "{...a}");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let record = record_node(green);
+    let errors = record
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "...");
+    assert!(
+        !record
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::RecordPatternSpreadItem)
+    );
+    assert_eq!(
+        record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::RecordPatternField)
+            .count(),
+        1
+    );
+
+    for spelling in ["==", "=>", "=+"] {
+        let source = format!("{{a {spelling} b}}");
+        let (green, exit) = run_pattern(&source);
+        assert_eq!(green.to_string(), source, "{spelling:?}");
+        assert!(matches!(exit, Err(Either::Right(_))), "{spelling:?}");
+        let record = record_node(green);
+        let errors = record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1, "{spelling:?}");
+        assert_eq!(errors[0].text().to_string(), format!(" {spelling}"));
+        assert_eq!(
+            errors[0].last_token().map(|token| token.kind()),
+            Some(SyntaxKind::Unknown),
+            "{spelling:?}"
+        );
+        assert!(
+            !record
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Equals),
+            "{spelling:?}"
+        );
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::RecordPatternField)
+                .count(),
+            2,
+            "{spelling:?}"
+        );
+        assert!(
+            !record
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{spelling:?}"
+        );
+    }
+
+    let (green, exit) = run_pattern(".");
+    assert_eq!(green.to_string(), ".");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let error = pattern_node(green)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("Pattern Error");
+    assert_eq!(error.text().to_string(), ".");
+    assert_eq!(
+        error.first_token().map(|token| token.kind()),
+        Some(SyntaxKind::Dot)
     );
 }
 

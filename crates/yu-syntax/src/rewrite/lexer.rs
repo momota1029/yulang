@@ -217,9 +217,20 @@ fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
         token(scan_record_spread_marker),
         token(scan_pattern_equals),
         token(scan_pattern_pipe),
-        token(scan_punctuation),
-        token(scan_unknown),
+        choice((
+            token(scan_pattern_malformed_fixed_operator),
+            token(scan_punctuation),
+            token(scan_unknown),
+        )),
     )))
+}
+
+/// Keep a rejected exact record marker or field introducer as one malformed
+/// item.  This comes after their exact scanners, so plain `.` remains a
+/// punctuation token and exact `..` / `=` retain their normal owners.
+fn scan_pattern_malformed_fixed_operator(i: LexIn) -> Option<Token> {
+    (i.remainder().starts_with("..") || i.remainder().starts_with('=')).then_some(())?;
+    scan_operator_shaped_unknown(i)
 }
 
 pub(super) fn scan_operator_shaped_unknown(mut i: LexIn) -> Option<Token> {

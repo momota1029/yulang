@@ -1197,6 +1197,17 @@ P6 `[,a]` / `[a b]` / `[..]` / `[..,a]` / `[..@tail]` / `[a`、`[a, @ b]`、`[..
 `cargo check -p yu-syntax`、diff checkはgreen。P7/P8、consumer / outer-arrow recovery、production wiring、AST parity、
 full RB-P/Gate 5 certificationは未完である。
 
+2026-09-04: direct `Pattern`のP7 Record recoveryを追加した。colon nested-patternとrecord spread RHSは
+直接`Pattern`へ委譲してP1のError/retryを再利用するため、`{a: @}`はone nested Errorのみ、`{a: @ p}` / `{..@tail}`は
+same slotでvalid primaryへretryし、Missing cascadeを作らない。colon RHSのexact `=` handoffはfieldだけがconsumeし、
+`{a: = 1}`はnested Pattern Missing、raw Equals、default `OperatorChain(1)`を同じfieldに保持する。exact `..` / `=`を
+rejectしたoperator-shaped continuationだけは一Unknownにまとめ、`.`の既存Dot分類を変えず、`{...a}`、`==` / `=>` / `=+`を
+prefix splitしないone Errorへ固定した。Record post-item Error後はitem-required phaseへ直接retryするため、`{a; b}`と
+rejected-equals casesはone Error、two fields、zero Missingになる。P7a〜P7gと上記retry / non-split / punctuation controlを
+direct CSTで固定し、M1 specification reviewはone repair round後approved。focused Pattern tests 10 passed、
+`cargo fmt --all -- --check`、`cargo check -p yu-syntax`、diff checkはgreen。P8、consumer / outer-arrow recovery、
+production wiring、AST parity、full RB-P/Gate 5 certificationは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

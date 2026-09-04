@@ -187,6 +187,9 @@ fn pattern_delimited(
         }
         emit_error_item(&mut i, item);
         item = scan_pattern_nud_successor(i.rb());
+        if matches!(owner, Owner::Record) {
+            expect_item = true;
+        }
     }
 }
 
@@ -216,7 +219,7 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
         let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
         let leading = std::mem::take(&mut rhs.leading);
         emit_leading_trivia(&mut i, &leading);
-        let exit = required_pattern_or_missing(i.rb(), rhs, rhs_baseline);
+        let exit = pattern_from_item(i.rb(), rhs, PatternPrecedence::Lowest, rhs_baseline, false);
         i.state.finish_node();
         return exit;
     }
@@ -238,7 +241,13 @@ fn record_item(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
         let nested_baseline = delimited_baseline(baseline, &nested.leading);
         let leading = std::mem::take(&mut nested.leading);
         emit_leading_trivia(&mut i, &leading);
-        let exit = required_pattern_or_missing(i.rb(), nested, nested_baseline);
+        let exit = pattern_from_item(
+            i.rb(),
+            nested,
+            PatternPrecedence::Lowest,
+            nested_baseline,
+            false,
+        );
         record_default_after_pattern(i.rb(), exit, baseline)
     } else if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Equals) {
         record_default_after_equals(i.rb(), item, baseline)
@@ -275,16 +284,6 @@ fn record_default_after_equals(mut i: RewriteIn, equals: Item, baseline: usize) 
     let leading = std::mem::take(&mut rhs.leading);
     emit_missing(&mut i, leading);
     handoff(rhs)
-}
-
-fn required_pattern_or_missing(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
-    if can_start_pattern(&item) {
-        return pattern_from_item(i, item, PatternPrecedence::Lowest, baseline, false);
-    }
-    let mut item = item;
-    let leading = std::mem::take(&mut item.leading);
-    emit_missing(&mut i, leading);
-    handoff(item)
 }
 
 fn scan_pattern_nud_successor(mut i: RewriteIn) -> Item {
