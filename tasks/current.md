@@ -1138,6 +1138,22 @@ numeric / forall / nested PV candidate、comma/newlineのrecovered tag position�
 fixture化した。`NT-8`と`IT` malformed recoveryは未実装のまま残した。M1 spec review approved、focused rewrite
 tests 94 passed。production wiring、Gate 4/G4b ledgerは未完である。
 
+2026-09-04: `NT-8` Error後のsame-slot retry trivia ownerに、Rowanのcontiguous CSTとone recovered tag
+contractが衝突することをM1 spec reviewで発見した。ユーザー承認済みAuthoritative追補
+`2026-09-04-yu-syntax-pv-nt8-same-slot-trivia-amendment.md`が、same-line `NT-6` candidateのleading triviaを
+preceding Errorから除き、既に開いた`PolymorphicVariantTag`のdirect childと定める。他のcomma / close /
+semicolon / EOF / newline safe-point gapはexisting outer `NT` / caller ownerのまま。次はこの追補に従う
+direct `NT-8` implementationであり、`IT-4`は引き続きdeferする。
+
+2026-09-04: direct `PolymorphicVariantType`の`NT-8` malformed tag-prefix recoveryを追加した。one
+`PolymorphicVariantTag > Error`でmaximal prefixを読み、same-line `NT-6` candidateだけをそのtag内へretryする。
+approved same-slot trivia追補どおりcandidate前のgapはError外・Tag直下、comma / semicolon / close / EOF /
+physical newline前のgapはpending Itemのままouter `NT`へ返す。normal Identifier / wrong-kind primaryは同一tagの
+shared head / payload pathへ入り、`:{@123 Int}`相当のprefix Error・TagName Error・payloadにsecond tag / Missingを
+作らない。normal / wrong-kind retry、comma・newline state、local / caller separator・close、deeper newline handoffを
+fixture化した。M1 spec review approved、focused rewrite tests 95 passed、package check・format・diff check green。
+`IT-4` malformed payload recoveryは引き続きdeferする。production wiring、Gate 4/G4b ledgerは未完である。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。

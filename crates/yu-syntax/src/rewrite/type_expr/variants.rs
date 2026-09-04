@@ -174,15 +174,14 @@ fn type_polymorphic_variant_tags(
         if matches!(&item.payload, Payload::Eof) {
             return type_polymorphic_variant_boundary(i, item, position);
         }
-        if !is_type_nud(&item) {
-            return handoff(item);
-        }
         let leading = std::mem::take(&mut item.leading);
         emit_leading_trivia(&mut i, &leading);
         let exit = if is_type_polymorphic_variant_tag_name(&item) {
             type_polymorphic_variant_tag(i.rb(), item, baseline, outer_closes)
-        } else {
+        } else if is_type_nud(&item) {
             type_polymorphic_variant_wrong_kind_tag(i.rb(), item, baseline, outer_closes)
+        } else {
+            type_polymorphic_variant_malformed_tag(i.rb(), item, baseline, outer_closes)
         };
         position = TagPosition::AfterTag;
         item = match exit {
@@ -212,10 +211,7 @@ fn type_polymorphic_variant_tag(
     outer_closes: u8,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
-    emit_token_item(&mut i, name);
-    let leading = scan_trivia(i.rb());
-    let item = type_nud_item_after_trivia(i.rb(), leading);
-    let exit = type_polymorphic_variant_tag_payloads(i.rb(), item, baseline, outer_closes);
+    let exit = type_polymorphic_variant_tag_after_name(i.rb(), name, baseline, outer_closes);
     i.state.finish_node();
     exit
 }
@@ -227,13 +223,68 @@ fn type_polymorphic_variant_wrong_kind_tag(
     outer_closes: u8,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
+    let exit =
+        type_polymorphic_variant_tag_after_wrong_kind(i.rb(), primary, baseline, outer_closes);
+    i.state.finish_node();
+    exit
+}
+
+fn type_polymorphic_variant_tag_after_name(
+    mut i: RewriteIn,
+    name: Item,
+    baseline: usize,
+    outer_closes: u8,
+) -> TailExit {
+    emit_token_item(&mut i, name);
+    let leading = scan_trivia(i.rb());
+    let item = type_nud_item_after_trivia(i.rb(), leading);
+    type_polymorphic_variant_tag_payloads(i, item, baseline, outer_closes)
+}
+
+fn type_polymorphic_variant_tag_after_wrong_kind(
+    mut i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    outer_closes: u8,
+) -> TailExit {
     i.state.start_node(SyntaxKind::Error.into());
     let exit = type_expr_from_nud(i.rb(), primary, baseline, true, None, true, outer_closes);
     i.state.finish_node();
-    let exit =
-        type_polymorphic_variant_tag_payloads_after_head(i.rb(), exit, baseline, outer_closes);
-    i.state.finish_node();
-    exit
+    type_polymorphic_variant_tag_payloads_after_head(i, exit, baseline, outer_closes)
+}
+
+fn type_polymorphic_variant_malformed_tag(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    outer_closes: u8,
+) -> TailExit {
+    i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        let leading = std::mem::take(&mut item.leading);
+        emit_leading_trivia(&mut i, &leading);
+        emit_token_item(&mut i, item);
+        let leading = scan_trivia(i.rb());
+        item = type_nud_item_after_trivia(i.rb(), leading);
+        if !is_type_polymorphic_variant_tag_safe(&item) {
+            continue;
+        }
+        i.state.finish_node();
+        let exit = if is_type_polymorphic_variant_tag_boundary(&item) {
+            handoff(item)
+        } else {
+            let leading = std::mem::take(&mut item.leading);
+            emit_leading_trivia(&mut i, &leading);
+            if is_type_polymorphic_variant_tag_name(&item) {
+                type_polymorphic_variant_tag_after_name(i.rb(), item, baseline, outer_closes)
+            } else {
+                type_polymorphic_variant_tag_after_wrong_kind(i.rb(), item, baseline, outer_closes)
+            }
+        };
+        i.state.finish_node();
+        return exit;
+    }
 }
 
 fn type_polymorphic_variant_tag_payloads_after_head(
@@ -282,4 +333,23 @@ fn type_polymorphic_variant_payload(
     let exit = type_expr_from_nud(i.rb(), primary, baseline, true, None, true, outer_closes);
     i.state.finish_node();
     exit
+}
+
+fn is_type_polymorphic_variant_tag_safe(item: &Item) -> bool {
+    is_type_polymorphic_variant_tag_boundary(item) || is_type_nud(item)
+}
+
+fn is_type_polymorphic_variant_tag_boundary(item: &Item) -> bool {
+    indentation_after_newline(&item.leading).is_some()
+        || matches!(
+            token_kind(item),
+            Some(
+                TokenKind::Comma
+                    | TokenKind::Semicolon
+                    | TokenKind::RParen
+                    | TokenKind::RBracket
+                    | TokenKind::RBrace
+            )
+        )
+        || matches!(&item.payload, Payload::Eof)
 }
