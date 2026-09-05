@@ -11,7 +11,7 @@ use super::{
         implicit_delimited_newline, indentation_after_newline, is_active_stop, is_contextual_word,
         is_nud_item, is_required_operand_boundary, required_expr_item, token_kind,
     },
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{introduced_body_indentation, scan_trivia, tail_item_after_trivia},
     operator::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE},
@@ -152,8 +152,8 @@ fn condition(
     line_handoff: StatementLineHandoff,
 ) -> (TailExit, bool) {
     let leading = scan_trivia(i.rb());
-    emit_leading_trivia(&mut i, &leading);
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
+    item.emit_all_remaining_leading(&mut *i.state);
     let missing = is_required_operand_boundary(i.rb(), &item, stops);
     i.state.start_node(SyntaxKind::Condition.into());
     i.state.start_node(SyntaxKind::OperatorChain.into());

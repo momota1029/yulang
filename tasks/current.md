@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-09-05（Item emission-ownership frontier amendmentのN0a–N0b完了、N0c certificationへ）→
+更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0b完了、N0cは既存grammar test 3件でblock）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
 2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走→
@@ -36,8 +36,13 @@ Type-attached `impl` addendumも全6 gate完走）
   なしで完了した。既知L5a failure
   `decimal_integer_core_keeps_its_direct_tail_chain`も、ordinary fixed ownerが誤ってL5a
   `*_with` ownerへ入ったことを原因として修復済み。ordinaryは既存scanner/recovery ownerへ、
-  L5aはcomplete-Item/`Deferred` ownerへ分岐する。次はN0c physical-prefix certificationの
-  一回だけのfull `cargo test -p yu-syntax`。
+  L5aはcomplete-Item/`Deferred` ownerへ分岐する。N0c full candidateはさらに`if` conditionの
+  旧leading-clearをfrontier consumeへ置換してdirect-rewrite群をgreenにしたが、full
+  `cargo test -p yu-syntax`は独立した旧`grammar/`の3 testで失敗した（903 passed, 3 failed,
+  2 ignored）。失敗は`grammar::declaration::companion::tests::gate3_isolated_companion_form_recovery_and_state_table`、
+  `grammar::declaration::tests::struct_named_field_sequence_owns_leading_and_repeated_empty_comma_slots`、
+  `grammar::expression::tests::if_and_braced_mandatory_rejections_restore_error_sink`。現行direct-rewrite
+  diffとは独立であり、N0c full certificationはこの既存grammar failuresの原因分離・修復または承認済み隔離までblock。
 - tuple・演算子CST・colon application・if/elsif/else・brace statement block・pattern文法・
   case/catch・list/record pattern・call/field/path/ML-application・generic-expression
   WithBodyTail・canonical Statementのbinding/use拡張・`mod`宣言、が実装・push済み。
