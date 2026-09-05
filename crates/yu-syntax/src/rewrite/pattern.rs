@@ -290,10 +290,7 @@ fn pattern_from_primary(
             if let Some(name) = i.token(scan_identifier) {
                 emit_token_item(
                     &mut i,
-                    Item {
-                        leading: LeadingTrivia::default(),
-                        payload: Payload::Token(name),
-                    },
+                    Item::plain(LeadingTrivia::default(), Payload::Token(name)),
                 );
             } else {
                 emit_missing(&mut i, LeadingTrivia::default());

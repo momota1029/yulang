@@ -232,10 +232,7 @@ fn retry_nud_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stop
             while let Some(token) = i.token(scan_operator_shaped_unknown) {
                 emit_token_item(
                     &mut i,
-                    Item {
-                        leading: LeadingTrivia::default(),
-                        payload: Payload::Token(token),
-                    },
+                    Item::plain(LeadingTrivia::default(), Payload::Token(token)),
                 );
             }
         }

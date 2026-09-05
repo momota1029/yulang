@@ -86,10 +86,7 @@ fn case_like_head(
         i.state.start_node(family.label_node().into());
         emit_token_item(
             &mut i,
-            Item {
-                leading: LeadingTrivia::default(),
-                payload: Payload::Token(label),
-            },
+            Item::plain(LeadingTrivia::default(), Payload::Token(label)),
         );
         i.state.finish_node();
         let leading = scan_trivia(i.rb());
@@ -785,5 +782,6 @@ fn emit_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
             i.state.token(kind.into(), &operator.text);
         }
         Payload::Eof => unreachable!("an accepted contextual word is lexical"),
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }

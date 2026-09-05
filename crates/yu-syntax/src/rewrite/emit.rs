@@ -57,6 +57,7 @@ pub(super) fn emit_with_keyword(i: &mut RewriteIn, item: Item) {
             i.state.token(SyntaxKind::WithKw.into(), &operator.text);
         }
         Payload::Eof => unreachable!("an accepted contextual keyword is lexical"),
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries cannot be emitted"),
     }
 }
 
@@ -96,6 +97,7 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
             i.state.token(kind.into(), &token.text);
         }
         Payload::Eof => unreachable!("only a lexical item can be emitted"),
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries cannot be emitted"),
     }
 }
 

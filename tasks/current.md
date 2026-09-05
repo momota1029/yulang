@@ -261,9 +261,15 @@ fenceのouter delimiter / quote streaming ownershipを崩したりpublic parser�
 compiler/recovery・specification・regression・performance査読とscoped deltaを終え、user approvalで`Authoritative`。
 先頭info atomのexact `yulang`選択、`&str`を保つborrowed fence boundary、quoted multiline lexical
 itemのcurrent-item fragment carrier、outer quoteへ戻すdequote/greater-depth規則、direct
-`YmYulangCodeCell`、Gate 4--9の依存順を定めた。Gate 1 authority closureは完了し、次の許可範囲は
-inertなGate 2だけである。full cell closureはrewrite Gates 4--7以後、Yumark integrationはGate 8、
-production cutoverはGate 9まで待つ。この記録自体はRust実装を含まない。
+`YmYulangCodeCell`、Gate 4--9の依存順を定めた。Gate 1 authority closureとinert Gate 2は完了。
+Gate 2はdirect private vocabulary・pure selector/physical-line judge・coordinate-preserving pending
+boundary・item-wide move-only fragment carrierだけを追加し、legacy Yumark/session/production dispatchは
+未接続のまま維持した。fragment carrierはquoted multiline lexical itemの全leading-trivia/payload text
+partsを一つのordered split列で覆い、通常scannerはcarrierを作らない。rareなfence close/transition facts
+だけをbox化し、ordinary Payload sizeを既存OperatorToken envelope内に保つ。focused direct tests、
+`cargo check -p yu-syntax`、fmt/diff checkはgreenで、static allocation reviewは計測不要と結論した。
+次はisolated Gate 3 cell-construction witnessである。full cell closureはrewrite Gates 4--7以後、
+Yumark integrationはGate 8、production cutoverはGate 9まで待つ。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

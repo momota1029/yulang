@@ -36,10 +36,7 @@ pub(super) fn type_effect_row(
         .expect("the effect-row compound probe accepted an adjacent bracket");
     emit_token_item(
         &mut i,
-        Item {
-            leading: LeadingTrivia::default(),
-            payload: Payload::Token(open),
-        },
+        Item::plain(LeadingTrivia::default(), Payload::Token(open)),
     );
     let exit = type_delimited(
         i.rb(),
@@ -82,10 +79,7 @@ pub(super) fn type_polymorphic_variant(
         .expect("the polymorphic-variant compound probe accepted an adjacent brace");
     emit_token_item(
         &mut i,
-        Item {
-            leading: LeadingTrivia::default(),
-            payload: Payload::Token(open),
-        },
+        Item::plain(LeadingTrivia::default(), Payload::Token(open)),
     );
     let exit = type_polymorphic_variant_tags(
         i.rb(),

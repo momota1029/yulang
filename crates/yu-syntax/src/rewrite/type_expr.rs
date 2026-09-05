@@ -588,10 +588,7 @@ fn retry_leading_bracket_row_head(mut i: RewriteIn, head: Item) -> Result<Item, 
     emit_token_item(&mut i, head);
     emit_token_item(
         &mut i,
-        Item {
-            leading: LeadingTrivia::default(),
-            payload: Payload::Token(suffix),
-        },
+        Item::plain(LeadingTrivia::default(), Payload::Token(suffix)),
     );
     i.state.finish_node();
     let leading = scan_trivia(i.rb());

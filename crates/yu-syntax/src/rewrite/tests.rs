@@ -33,6 +33,7 @@ mod tails;
 mod type_decl;
 mod type_expr;
 mod use_decl;
+mod yumark;
 
 fn run(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();

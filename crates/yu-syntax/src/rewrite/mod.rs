@@ -26,6 +26,7 @@ mod tails;
 mod type_decl;
 mod type_expr;
 mod use_decl;
+mod yumark;
 
 #[cfg(test)]
 mod tests;

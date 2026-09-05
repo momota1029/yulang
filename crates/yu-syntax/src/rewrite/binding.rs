@@ -238,6 +238,7 @@ fn visibility_word(item: &Item) -> Option<&str> {
             text,
         }) if matches!(&**text, "my" | "our" | "pub") => Some(text),
         Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }
 

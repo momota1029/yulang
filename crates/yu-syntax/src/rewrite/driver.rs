@@ -21,13 +21,13 @@ use super::{
     tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail, with_tail},
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(super) enum Either<L, R> {
     Left(L),
     Right(R),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(super) struct End {
     pub(super) item: Item,
 }
@@ -535,6 +535,7 @@ pub(super) fn is_contextual_word(mut i: RewriteIn, item: &Item, word: &str) -> b
                     .unwrap_or(false)
         }
         Payload::Eof => false,
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }
 
@@ -547,6 +548,7 @@ fn is_contextual_word_lex(mut i: LexIn, item: &Item, word: &str) -> bool {
                     .expect("contextual suffix observation is total")
         }
         Payload::Eof => false,
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }
 
@@ -579,6 +581,7 @@ pub(super) fn handoff(item: Item) -> TailExit {
     match item.payload {
         Payload::Eof => Err(Either::Right(End { item })),
         Payload::Token(_) | Payload::Operator(_) => Err(Either::Left(item)),
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }
 
@@ -587,6 +590,7 @@ pub(super) fn token_kind(item: &Item) -> Option<TokenKind> {
         Payload::Token(token) => Some(token.kind),
         Payload::Operator(_) => Some(TokenKind::Operator),
         Payload::Eof => None,
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }
 

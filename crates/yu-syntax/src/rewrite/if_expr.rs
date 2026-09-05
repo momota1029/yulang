@@ -332,5 +332,6 @@ fn emit_contextual_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
             i.state.token(kind.into(), &operator.text);
         }
         Payload::Eof => unreachable!("an accepted contextual keyword is lexical"),
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }

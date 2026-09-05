@@ -65,6 +65,7 @@ pub enum SyntaxKind {
     YmCodeFence,
     YmCodeFenceInfo,
     YmCodeFenceText,
+    YmYulangCodeCell,
     YmParagraph,
     YmCommand,
     YmCommandArgs,
@@ -319,6 +320,7 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::YmCodeFence as u16 => SyntaxKind::YmCodeFence,
             value if value == SyntaxKind::YmCodeFenceInfo as u16 => SyntaxKind::YmCodeFenceInfo,
             value if value == SyntaxKind::YmCodeFenceText as u16 => SyntaxKind::YmCodeFenceText,
+            value if value == SyntaxKind::YmYulangCodeCell as u16 => SyntaxKind::YmYulangCodeCell,
             value if value == SyntaxKind::YmParagraph as u16 => SyntaxKind::YmParagraph,
             value if value == SyntaxKind::YmCommand as u16 => SyntaxKind::YmCommand,
             value if value == SyntaxKind::YmCommandArgs as u16 => SyntaxKind::YmCommandArgs,
@@ -552,6 +554,7 @@ mod tests {
             SyntaxKind::DocCommentDeclaration,
             SyntaxKind::YmDoc,
             SyntaxKind::YmCommandBody,
+            SyntaxKind::YmYulangCodeCell,
             SyntaxKind::YmInlineApplyArgs,
             SyntaxKind::YmStrong,
         ] {

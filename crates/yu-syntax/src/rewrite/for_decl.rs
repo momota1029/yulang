@@ -53,10 +53,7 @@ fn emit_optional_label(mut i: RewriteIn, baseline: usize, outer_stops: Stops) {
     i.state.start_node(SyntaxKind::ForLabel.into());
     emit_token_item(
         &mut i,
-        Item {
-            leading: LeadingTrivia::default(),
-            payload: Payload::Token(label),
-        },
+        Item::plain(LeadingTrivia::default(), Payload::Token(label)),
     );
     i.state.finish_node();
     emit_leading_trivia(&mut i, &after);
@@ -384,6 +381,7 @@ fn item_word(item: &Item) -> Option<&str> {
             text,
         }) => Some(text),
         Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
+        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
     }
 }
 

@@ -58,7 +58,7 @@ pub(super) fn tail_item_after_trivia(
         })
         .expect("tail payload scanning is total")
     };
-    Item { leading, payload }
+    Item::plain(leading, payload)
 }
 
 /// Complete one canonical Statement head. Visibility words are reserved here,
@@ -80,7 +80,7 @@ pub(super) fn statement_item_after_trivia(
             ))
         })
         .expect("statement payload scanning is total");
-    Item { leading, payload }
+    Item::plain(leading, payload)
 }
 
 /// Scan one complete canonical Statement item without access to the Rowan
@@ -89,7 +89,7 @@ pub(super) fn statement_item_after_trivia(
 pub(super) fn scan_statement_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
     let payload = scan_statement_payload(i, !leading.0.is_empty(), baseline, stops);
-    Some(Item { leading, payload })
+    Some(Item::plain(leading, payload))
 }
 
 fn scan_statement_payload(
@@ -121,10 +121,7 @@ pub(super) fn path_segment_item_after_trivia(
     stops: Stops,
 ) -> Item {
     if let Some(segment) = i.token(scan_path_segment) {
-        return Item {
-            leading,
-            payload: Payload::Token(segment),
-        };
+        return Item::plain(leading, Payload::Token(segment));
     }
     tail_item_after_trivia(i, leading, OperatorSite::Led, baseline, stops)
 }
@@ -205,7 +202,7 @@ pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: Stops) -> Opti
     } else {
         Payload::Token(i.token(scan_integer)?)
     };
-    Some(Item { leading, payload })
+    Some(Item::plain(leading, payload))
 }
 
 /// Source-only reservation evidence for the second half of an exact `with:`
@@ -246,10 +243,7 @@ pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
         token(scan_lparen),
         token(scan_lbrace),
     )))?;
-    Some(Item {
-        leading: LeadingTrivia::default(),
-        payload: Payload::Token(token),
-    })
+    Some(Item::plain(LeadingTrivia::default(), Payload::Token(token)))
 }
 
 pub(super) fn type_nud_item_after_trivia<S>(
@@ -260,10 +254,7 @@ where
     S: Rb,
 {
     if let Some(token) = i.token(scan_type_forall) {
-        return Item {
-            leading,
-            payload: Payload::Token(token),
-        };
+        return Item::plain(leading, Payload::Token(token));
     }
     type_item_after_trivia(i, leading)
 }
@@ -282,10 +273,7 @@ where
         .token(scan_exact_equals)
         .or_else(|| i.token(scan_identifier))
     {
-        return Item {
-            leading,
-            payload: Payload::Token(token),
-        };
+        return Item::plain(leading, Payload::Token(token));
     }
     type_nud_item_after_trivia(i, leading)
 }
@@ -316,7 +304,7 @@ where
             Payload::Token,
         )
         .unwrap_or(Payload::Eof);
-    Item { leading, payload }
+    Item::plain(leading, payload)
 }
 
 /// Type's mandatory-primary recovery must hand an exact `=` to its caller,
@@ -341,7 +329,7 @@ where
     } else {
         pattern_payload(i, stops)
     };
-    Item { leading, payload }
+    Item::plain(leading, payload)
 }
 
 /// Complete an already-accepted Pattern's successor.  A colon here belongs to
@@ -355,7 +343,7 @@ where
     S: Rb,
 {
     let payload = pattern_payload(i.rb(), stops);
-    Item { leading, payload }
+    Item::plain(leading, payload)
 }
 
 fn pattern_payload<S>(
