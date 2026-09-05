@@ -24,7 +24,7 @@ use super::{
     operator::stops_for,
     struct_decl::{struct_declaration, struct_declaration_selected_normalized},
     type_decl::{type_declaration, type_declaration_selected_normalized},
-    use_decl::{use_declaration, use_declaration_selected_normalized},
+    use_decl::{use_declaration_normalized, use_declaration_selected_normalized},
     yumark::FenceBoundary,
 };
 
@@ -165,7 +165,19 @@ pub(super) fn canonical_statement_normalized(
         Some(DeclarationFamily::Mod) => {
             mod_declaration(i.rb(), item, baseline, stops, line_handoff)
         }
-        Some(DeclarationFamily::Use) => use_declaration(i.rb(), item, baseline, stops),
+        Some(DeclarationFamily::Use) => {
+            let exit = use_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            i.state.finish_node();
+            return exit;
+        }
         Some(DeclarationFamily::Type) => {
             type_declaration(i.rb(), item, baseline, stops, line_handoff)
         }
@@ -253,12 +265,7 @@ fn declaration_family_is_deferred(
     fence.is_some()
         && matches!(
             family,
-            Some(
-                DeclarationFamily::Struct
-                    | DeclarationFamily::Mod
-                    | DeclarationFamily::Use
-                    | DeclarationFamily::Type
-            )
+            Some(DeclarationFamily::Struct | DeclarationFamily::Mod | DeclarationFamily::Type)
         )
 }
 

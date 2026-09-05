@@ -369,7 +369,7 @@ ledgerは未起票のままである。focused lexical 40件、operator 11件、
 `LineEntry`、Rowan/recovery無変更を検査する。
 
 canonical statement normalizationにより旧case/if deeper body、braced、with、colonの五行は削除した。
-Binding/For normalizationによりその二行も削除し、active frontierは以下の四行だけである。visibility headを
+Binding/For/Use normalizationによりその三行も削除し、active frontierは以下の三行だけである。visibility headを
 一括Deferredせず、pureなfence-aware admission observerが実在するdirect childを選んだ後、`Statement`
 nodeを開く前だけDeferredを生成する。
 `my role A`、`my impl A`など未選択headはordinary同様にhandoffする。
@@ -378,10 +378,9 @@ nodeを開く前だけDeferredを生成する。
 | --- | --- | --- | --- | --- |
 | `statement::canonical_statement_normalized` のselected Struct dispatch | `struct_decl::struct_declaration` | canonical statement → direct/indented/braced sequence → case/if・braced Pratt・colon/with・direct caller | bare/visibility head、braced/indented/inline-with、exact Item/suffix/`LineEntry`、zero child effect | Struct declaration normalized owner |
 | 同 Mod dispatch | `mod_decl::mod_declaration` | 同上 | 同上＋ordinary inline Mod body parity | Mod declaration normalized owner |
-| 同 Use dispatch | `use_decl::use_declaration` | 同上 | 同上 | Use declaration normalized owner |
 | 同 Type dispatch | `type_decl::type_declaration` | 同上 | 同上 | Type declaration normalized owner |
 
-全四行でclose/transition/EOF、boundary-first、未emit leading、Error/Missing/separatorなしを検査する。
+全三行でclose/transition/EOF、boundary-first、未emit leading、Error/Missing/separatorなしを検査する。
 braced ownerがboundaryへ達した場合だけ既存のmandatory missing closeを所有し、indented required first slotも
 既存mandatory Missingだけを所有して、同じboundary Itemを上へ返す。新しいstate/context/cursor/wrapper、
 replay、token bufferは導入しない。
@@ -545,6 +544,15 @@ Pattern ownerが取得する。全childはnormalized entryへ直接接続し、F
 伝播だけである。独立specification auditはapproved。regression auditのaccepted-label active-prefix CRLF証拠を
 追加し、delta reviewでclosureを得た。ordinary For 12件、normalized 66件、`cargo check -p yu-syntax`、
 format/diff checkはgreen。broad suiteと性能計測は反復していない。active frontierはStruct/Mod/Use/Typeの四行。
+
+2026-09-06: selected Use ownerのvisibility/header、recursive tree/group・exclusion、path/operator-name、
+alias/without/version/with、local recovery、最終statement successorを一つのordinary/fenced normalized bodyへ
+移行し、Use frontier一行を削除した。group/exclusion openerはowning nodeの内側でemitし、mod target・`without`・
+`as`・`with`の必須slotはboundaryをleading emitより先に返して各owner-local Missingだけを生成する。path separator後の
+`(`は直後のoperator payloadをfence-aware unit-state transactionで観測してからのみ受理し、仮Itemを保持しない。
+独立specification/regression auditはCST opener ownership、boundary-first handoff、strict `a::(` recovery、CRLF
+`my use = value`のBinding admissionをapprovedした。ordinary Use 11件、normalized Use 6件、normalized全体72件、
+`cargo check`、format/diff checkはgreen。broad suiteと性能計測は反復していない。active frontierはStruct/Mod/Typeの三行。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

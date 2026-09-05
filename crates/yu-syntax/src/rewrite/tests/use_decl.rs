@@ -331,6 +331,41 @@ fn use_c9_totalizes_mandatory_slots_and_retries_once() {
 }
 
 #[test]
+fn use_c9_requires_an_immediate_operator_after_a_path_open() {
+    for (source, operator_names, missing, errors) in [
+        ("use a::(", 0, 0, 1),
+        ("use a::(foo", 0, 0, 1),
+        ("use a::(+)", 1, 0, 0),
+    ] {
+        let (green, exit) = run_statement(source);
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::OperatorName)
+                .count(),
+            operator_names,
+            "{source:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
 fn use_c9_leaves_statement_boundaries_for_the_caller() {
     for source in ["use path; next", "use path, next", "use path}next"] {
         let (green, exit) = run_statement(source);

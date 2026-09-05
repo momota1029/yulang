@@ -1,4 +1,4 @@
-//! Direct, source-free `use` declaration and recursive use-tree construction.
+//! Direct, fence-normalized `use` declaration and recursive use-tree construction.
 
 use reborrow_generic::Reborrow as _;
 use unicode_ident::is_xid_continue;
@@ -7,15 +7,15 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
-    current_item::LineEntry,
-    driver::{TailExit, handoff, indentation_after_newline, is_active_stop_lex, token_kind},
-    emit::{emit_leading_trivia, emit_missing},
-    item::{Item, LeadingTrivia, Token, TokenKind},
-    lexer::{
-        scan_identifier, scan_statement_item, scan_trivia, source_identifier,
-        statement_item_after_trivia,
+    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    driver::{
+        NormalizedExit, advanced_origin, complete, handoff, indentation_after_newline,
+        is_active_stop, suffix_marker, token_kind,
     },
-    operator::{TriviaObservation, observe_fenced_trivia, source_after_trivia},
+    emit::emit_missing,
+    item::{Item, LeadingTrivia, Token, TokenKind},
+    lexer::{scan_arm_arrow, scan_identifier, scan_punctuation, scan_unknown, source_identifier},
+    operator::{TriviaObservation, observe_fenced_trivia},
     yumark::FenceBoundary,
 };
 
@@ -32,23 +32,7 @@ enum Separator {
     Slash,
 }
 
-struct Lexeme {
-    text: Box<str>,
-}
-
-struct KeywordPrefix {
-    leading: LeadingTrivia,
-    keyword: Token,
-}
-
-type UseResult<T = ()> = Result<T, Item>;
-
-/// Statement-only, source-backed declaration selection. Bare `use` is
-/// authoritative immediately; visibility-prefixed `use` stays contextual
-/// until its first use-tree starter is visible.
-pub(super) fn use_declaration_selected(i: RewriteIn, item: &Item, _baseline: usize) -> bool {
-    use_declaration_selected_normalized(i, item, 0, None)
-}
+type UseResult<T = Item> = Result<T, Item>;
 
 pub(super) fn use_declaration_selected_normalized(
     i: RewriteIn,
@@ -103,797 +87,1091 @@ fn prefixed_use_candidate_normalized(
     else {
         return false;
     };
-    target.present && target.indentation.is_none() && use_tree_starter(target.source)
+    target.present && target.indentation.is_none() && use_tree_starter_source(target.source)
 }
 
-pub(super) fn use_declaration(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn use_declaration_normalized(
     mut i: RewriteIn,
     intro: Item,
     baseline: usize,
     stops: Stops,
-) -> TailExit {
-    debug_assert!(use_declaration_selected(i.rb(), &intro, baseline));
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    debug_assert!(use_declaration_selected_normalized(
+        i.rb(),
+        &intro,
+        item_origin,
+        fence,
+    ));
     i.state.start_node(SyntaxKind::UseDeclaration.into());
 
     if item_word(&intro) == Some("use") {
-        emit_intro_keyword(&mut i, intro, SyntaxKind::UseKw);
+        emit_item_as(&mut i, intro, SyntaxKind::UseKw);
     } else {
         emit_visibility(&mut i, intro);
-        let gap = i
-            .token(scan_required_inline_trivia)
-            .expect("prefixed use selection proved inline trivia");
-        emit_leading_trivia(&mut i, &gap);
-        let keyword = i
-            .token(|lex| scan_exact_word(lex, "use"))
-            .expect("prefixed use selection proved exact `use`");
-        i.state.token(SyntaxKind::UseKw.into(), &keyword.text);
+        let mut keyword = next_use_item(i.rb(), &mut item_origin, &mut line_entry, fence);
+        debug_assert!(inline_gap(&keyword));
+        debug_assert_eq!(item_word(&keyword), Some("use"));
+        keyword.emit_all_remaining_leading(&mut *i.state);
+        emit_item_as(&mut i, keyword, SyntaxKind::UseKw);
     }
 
-    let after_use = i.token(scan_required_inline_trivia);
-    if let Some(trivia) = &after_use {
-        emit_leading_trivia(&mut i, trivia);
-    } else if observes(i.rb(), use_tree_starter) {
+    let mut item = next_use_item(i.rb(), &mut item_origin, &mut line_entry, fence);
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return complete(handoff(item), line_entry);
+    }
+    let had_inline_gap = inline_gap(&item);
+    if had_inline_gap {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
+    if declaration_boundary(i.rb(), &item, stops, true) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return complete(handoff(item), line_entry);
+    }
+    if use_tree_starter(&item) && !had_inline_gap {
         emit_missing(&mut i, LeadingTrivia::default());
     }
 
-    let result = if observes(i.rb(), use_tree_starter) {
-        parse_use_tree(i.rb(), baseline, stops, None)
-    } else if let Some(boundary) = take_declaration_boundary(i.rb(), baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        Err(boundary)
-    } else {
-        match recover_until(i.rb(), use_tree_starter, |_| false, baseline, stops, true) {
-            Ok(true) => parse_use_tree(i.rb(), baseline, stops, None),
-            Ok(false) => Ok(()),
-            Err(boundary) => Err(boundary),
+    if !use_tree_starter(&item) {
+        match recover_until(
+            i.rb(),
+            item,
+            |_, item, _, _, _| use_tree_starter(item),
+            |_, _, _, _, _| false,
+            baseline,
+            stops,
+            true,
+            &mut item_origin,
+            &mut line_entry,
+            fence,
+        ) {
+            Ok((true, next)) => item = next,
+            Ok((false, next)) | Err(next) => {
+                i.state.finish_node();
+                return complete(handoff(next), line_entry);
+            }
         }
-    };
-
-    i.state.finish_node();
-    if let Err(boundary) = result {
-        return handoff(boundary);
     }
-    let leading = scan_trivia(i.rb());
-    let item = statement_item_after_trivia(i, leading, baseline, stops);
-    handoff(item)
+
+    let item = match parse_use_tree(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        None,
+        &mut item_origin,
+        &mut line_entry,
+        fence,
+    ) {
+        Ok(item) | Err(item) => item,
+    };
+    i.state.finish_node();
+    complete(handoff(item), line_entry)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_use_tree(
     mut i: RewriteIn,
+    item: Item,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
 ) -> UseResult {
-    debug_assert!(observes(i.rb(), use_tree_starter));
+    debug_assert!(use_tree_starter(&item));
     i.state.start_node(SyntaxKind::UseTree.into());
     let result = (|| -> UseResult {
-        let terminal = if observes(i.rb(), |source| source.starts_with('{')) {
-            let open = i
-                .token(|lex| scan_character(lex, '{'))
-                .expect("use-tree starter was an opening brace");
-            parse_group(
+        let (terminal, item) = if exact_char(&item, '{') {
+            (
+                Terminal::Group,
+                parse_group(
+                    i.rb(),
+                    item,
+                    '}',
+                    SyntaxKind::UseGroup,
+                    baseline,
+                    stops,
+                    outer_close,
+                    item_origin,
+                    line_entry,
+                    fence,
+                )?,
+            )
+        } else if exact_char(&item, '(') {
+            i.state.start_node(SyntaxKind::UsePath.into());
+            let item = parse_operator_name(i.rb(), item, item_origin, line_entry, fence);
+            parse_path_tail(
                 i.rb(),
-                open,
-                '}',
-                SyntaxKind::UseGroup,
+                item,
                 baseline,
                 stops,
                 outer_close,
-            )?;
-            Terminal::Group
-        } else if observes(i.rb(), |source| source.starts_with('(')) {
-            i.state.start_node(SyntaxKind::UsePath.into());
-            parse_operator_name(i.rb());
-            parse_path_tail(i.rb(), None, baseline, stops, outer_close)?
+                item_origin,
+                line_entry,
+                fence,
+            )?
         } else {
-            let first = i
-                .token(scan_identifier)
-                .expect("use-tree starter was a word");
-            if &*first.text == "mod" {
-                i.state.token(SyntaxKind::ModKw.into(), &first.text);
-                parse_mod_target(i.rb(), baseline, stops, outer_close)?
+            let word = item_word(&item).expect("use-tree starter was a word");
+            if word == "mod" {
+                emit_item_as(&mut i, item, SyntaxKind::ModKw);
+                let item = next_use_item(i.rb(), item_origin, line_entry, fence);
+                parse_mod_target(
+                    i.rb(),
+                    item,
+                    baseline,
+                    stops,
+                    outer_close,
+                    item_origin,
+                    line_entry,
+                    fence,
+                )?
             } else {
-                let pending = i.token(scan_separator);
-                match (
-                    &*first.text,
-                    pending.as_ref().map(|(separator, _)| *separator),
-                ) {
+                let mut next = next_use_item(i.rb(), item_origin, line_entry, fence);
+                match (word, separator(&next)) {
                     ("realm", Some(Separator::Slash)) => {
-                        i.state.token(SyntaxKind::RealmKw.into(), &first.text);
-                        emit_separator(
-                            &mut i,
-                            pending.expect("realm marker has its slash").1,
-                            Separator::Slash,
-                        );
-                        parse_marker_target(i.rb(), baseline, stops, outer_close)?
+                        emit_item_as(&mut i, item, SyntaxKind::RealmKw);
+                        emit_separator(&mut i, next, Separator::Slash);
+                        next = next_use_item(i.rb(), item_origin, line_entry, fence);
+                        parse_marker_target(
+                            i.rb(),
+                            next,
+                            baseline,
+                            stops,
+                            outer_close,
+                            item_origin,
+                            line_entry,
+                            fence,
+                        )?
                     }
                     ("band", Some(Separator::ColonColon)) => {
-                        i.state.token(SyntaxKind::BandKw.into(), &first.text);
-                        emit_separator(
-                            &mut i,
-                            pending.expect("band marker has its separator").1,
-                            Separator::ColonColon,
-                        );
-                        parse_marker_target(i.rb(), baseline, stops, outer_close)?
+                        emit_item_as(&mut i, item, SyntaxKind::BandKw);
+                        emit_separator(&mut i, next, Separator::ColonColon);
+                        next = next_use_item(i.rb(), item_origin, line_entry, fence);
+                        parse_marker_target(
+                            i.rb(),
+                            next,
+                            baseline,
+                            stops,
+                            outer_close,
+                            item_origin,
+                            line_entry,
+                            fence,
+                        )?
                     }
                     _ => {
                         i.state.start_node(SyntaxKind::UsePath.into());
-                        i.state.token(SyntaxKind::Identifier.into(), &first.text);
-                        parse_path_tail(i.rb(), pending, baseline, stops, outer_close)?
+                        emit_item_as(&mut i, item, SyntaxKind::Identifier);
+                        parse_path_tail(
+                            i.rb(),
+                            next,
+                            baseline,
+                            stops,
+                            outer_close,
+                            item_origin,
+                            line_entry,
+                            fence,
+                        )?
                     }
                 }
             }
         };
 
-        if terminal != Terminal::Glob {
-            parse_aliases(i.rb(), baseline, stops)?;
-        }
-        parse_qualifiers(i.rb(), baseline, stops)?;
-        Ok(())
+        let item = if terminal != Terminal::Glob {
+            parse_aliases(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            )?
+        } else {
+            item
+        };
+        parse_qualifiers(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        )
     })();
     i.state.finish_node();
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_mod_target(
     mut i: RewriteIn,
+    mut item: Item,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
-) -> UseResult<Terminal> {
-    if let Some(trivia) = i.token(scan_required_inline_trivia) {
-        emit_leading_trivia(&mut i, &trivia);
-    } else if observes(i.rb(), word_starter) {
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult<(Terminal, Item)> {
+    i.state.start_node(SyntaxKind::UsePath.into());
+    if declaration_boundary(i.rb(), &item, stops, true) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return Err(item);
+    }
+    if inline_gap(&item) {
+        item.emit_all_remaining_leading(&mut *i.state);
+    } else if word_starter(&item) {
         emit_missing(&mut i, LeadingTrivia::default());
     }
-
-    i.state.start_node(SyntaxKind::UsePath.into());
-    let first = required_word(i.rb(), baseline, stops);
-    if matches!(first, Ok(false)) {
+    let (present, item) = required_word(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    )?;
+    if !present {
         i.state.finish_node();
-        return Ok(Terminal::Single);
+        return Ok((Terminal::Single, item));
     }
-    if let Err(boundary) = first {
-        i.state.finish_node();
-        return Err(boundary);
-    }
-    parse_path_tail(i, None, baseline, stops, outer_close)
+    parse_path_tail(
+        i,
+        item,
+        baseline,
+        stops,
+        outer_close,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_marker_target(
     mut i: RewriteIn,
+    item: Item,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
-) -> UseResult<Terminal> {
-    if observes(i.rb(), |source| source.starts_with('{')) {
-        let open = i
-            .token(|lex| scan_character(lex, '{'))
-            .expect("marker target was a group");
-        parse_group(
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult<(Terminal, Item)> {
+    if exact_char(&item, '{') {
+        let item = parse_group(
             i,
-            open,
+            item,
             '}',
             SyntaxKind::UseGroup,
             baseline,
             stops,
             outer_close,
+            item_origin,
+            line_entry,
+            fence,
         )?;
-        return Ok(Terminal::Group);
+        return Ok((Terminal::Group, item));
     }
-    if observes(i.rb(), |source| source.starts_with('*')) {
-        let star = i
-            .token(|lex| scan_character(lex, '*'))
-            .expect("marker target was a glob");
-        parse_glob(i, star, baseline, stops, outer_close)?;
-        return Ok(Terminal::Glob);
+    if exact_char(&item, '*') {
+        let item = parse_glob(
+            i,
+            item,
+            baseline,
+            stops,
+            outer_close,
+            item_origin,
+            line_entry,
+            fence,
+        )?;
+        return Ok((Terminal::Glob, item));
     }
 
     i.state.start_node(SyntaxKind::UsePath.into());
-    let first = required_path_segment(i.rb(), baseline, stops);
-    if matches!(first, Ok(false)) {
+    let (present, item) = required_path_segment(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    )?;
+    if !present {
         i.state.finish_node();
-        return Ok(Terminal::Single);
+        return Ok((Terminal::Single, item));
     }
-    if let Err(boundary) = first {
-        i.state.finish_node();
-        return Err(boundary);
-    }
-    parse_path_tail(i, None, baseline, stops, outer_close)
+    parse_path_tail(
+        i,
+        item,
+        baseline,
+        stops,
+        outer_close,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-/// `UsePath` is open on entry. A terminal join closes it before the join is
-/// emitted, keeping path separators and terminal joins observably distinct.
+#[allow(clippy::too_many_arguments)]
 fn parse_path_tail(
     mut i: RewriteIn,
-    mut pending: Option<(Separator, Lexeme)>,
+    mut item: Item,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
-) -> UseResult<Terminal> {
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult<(Terminal, Item)> {
     loop {
-        let Some((separator, text)) = pending.take().or_else(|| i.token(scan_separator)) else {
+        let Some(separator_kind) = separator(&item) else {
             i.state.finish_node();
-            return Ok(Terminal::Single);
+            return Ok((Terminal::Single, item));
         };
-        if observes(i.rb(), |source| source.starts_with('{')) {
+        emit_separator(&mut i, item, separator_kind);
+        item = next_use_item(i.rb(), item_origin, line_entry, fence);
+        if exact_char(&item, '{') {
             i.state.finish_node();
-            emit_separator(&mut i, text, separator);
-            let open = i
-                .token(|lex| scan_character(lex, '{'))
-                .expect("terminal group was visible");
-            parse_group(
+            item = parse_group(
                 i,
-                open,
+                item,
                 '}',
                 SyntaxKind::UseGroup,
                 baseline,
                 stops,
                 outer_close,
+                item_origin,
+                line_entry,
+                fence,
             )?;
-            return Ok(Terminal::Group);
+            return Ok((Terminal::Group, item));
         }
-        if observes(i.rb(), |source| source.starts_with('*')) {
+        if exact_char(&item, '*') {
             i.state.finish_node();
-            emit_separator(&mut i, text, separator);
-            let star = i
-                .token(|lex| scan_character(lex, '*'))
-                .expect("terminal glob was visible");
-            parse_glob(i, star, baseline, stops, outer_close)?;
-            return Ok(Terminal::Glob);
+            item = parse_glob(
+                i,
+                item,
+                baseline,
+                stops,
+                outer_close,
+                item_origin,
+                line_entry,
+                fence,
+            )?;
+            return Ok((Terminal::Glob, item));
         }
 
-        emit_separator(&mut i, text, separator);
-        let segment = required_path_segment(i.rb(), baseline, stops);
-        if matches!(segment, Ok(false)) {
+        let (present, next) = required_path_segment(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        )?;
+        item = next;
+        if !present {
             i.state.finish_node();
-            return Ok(Terminal::Single);
-        }
-        if let Err(boundary) = segment {
-            i.state.finish_node();
-            return Err(boundary);
+            return Ok((Terminal::Single, item));
         }
     }
 }
 
-fn required_path_segment(mut i: RewriteIn, baseline: usize, stops: Stops) -> UseResult<bool> {
-    if observes(i.rb(), path_segment_starter) {
-        parse_path_segment(i);
-        return Ok(true);
+#[allow(clippy::too_many_arguments)]
+fn required_path_segment(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult<(bool, Item)> {
+    if path_segment_starter_normalized(i.rb(), &item, *item_origin, *line_entry, fence) {
+        return Ok((
+            true,
+            parse_path_segment(i, item, item_origin, line_entry, fence),
+        ));
     }
-    if use_local_path_boundary(i.rb()) {
+    if path_local_boundary(&item) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return Ok(false);
+        return Ok((false, item));
     }
-    if let Some(boundary) = take_declaration_boundary(i.rb(), baseline, stops) {
+    if declaration_boundary(i.rb(), &item, stops, true) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return Err(boundary);
+        return Err(item);
     }
-    let retry = recover_until(
+    let (retry, item) = recover_until(
         i.rb(),
-        path_segment_starter,
-        path_local_boundary_source,
+        item,
+        path_segment_starter_normalized,
+        |_, item, _, _, _| path_local_boundary(item),
         baseline,
         stops,
         true,
+        item_origin,
+        line_entry,
+        fence,
     )?;
     if retry {
-        parse_path_segment(i);
-    }
-    Ok(retry)
-}
-
-fn required_word(mut i: RewriteIn, baseline: usize, stops: Stops) -> UseResult<bool> {
-    if observes(i.rb(), word_starter) {
-        emit_word(&mut i);
-        return Ok(true);
-    }
-    if observes(i.rb(), reserved_use_atom) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Ok(false);
-    }
-    if let Some(boundary) = take_declaration_boundary(i.rb(), baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(boundary);
-    }
-    let retry = recover_until(
-        i.rb(),
-        word_starter,
-        reserved_use_atom,
-        baseline,
-        stops,
-        true,
-    )?;
-    if retry {
-        emit_word(&mut i);
-    }
-    Ok(retry)
-}
-
-fn parse_path_segment(mut i: RewriteIn) {
-    if observes(i.rb(), operator_name_starter) {
-        parse_operator_name(i);
+        Ok((
+            true,
+            parse_path_segment(i, item, item_origin, line_entry, fence),
+        ))
     } else {
-        emit_word(&mut i);
+        Ok((false, item))
     }
 }
 
-fn emit_word(i: &mut RewriteIn) {
-    let word = i
-        .token(scan_use_identifier)
-        .expect("word starter was checked before emission");
-    i.state.token(SyntaxKind::Identifier.into(), &word.text);
+#[allow(clippy::too_many_arguments)]
+fn required_word(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult<(bool, Item)> {
+    if word_starter(&item) {
+        emit_item_as(&mut i, item, SyntaxKind::Identifier);
+        return Ok((true, next_use_item(i, item_origin, line_entry, fence)));
+    }
+    if reserved_use_atom(&item) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Ok((false, item));
+    }
+    if declaration_boundary(i.rb(), &item, stops, true) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Err(item);
+    }
+    let (retry, item) = recover_until(
+        i.rb(),
+        item,
+        |_, item, _, _, _| word_starter(item),
+        |_, item, _, _, _| reserved_use_atom(item),
+        baseline,
+        stops,
+        true,
+        item_origin,
+        line_entry,
+        fence,
+    )?;
+    if retry {
+        emit_item_as(&mut i, item, SyntaxKind::Identifier);
+        Ok((true, next_use_item(i, item_origin, line_entry, fence)))
+    } else {
+        Ok((false, item))
+    }
 }
 
-fn parse_operator_name(mut i: RewriteIn) {
-    let open = i
-        .token(|lex| scan_character(lex, '('))
-        .expect("operator-name starter has an opening parenthesis");
+fn parse_path_segment(
+    mut i: RewriteIn,
+    item: Item,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Item {
+    if exact_char(&item, '(') {
+        parse_operator_name(i, item, item_origin, line_entry, fence)
+    } else {
+        emit_item_as(&mut i, item, SyntaxKind::Identifier);
+        next_use_item(i, item_origin, line_entry, fence)
+    }
+}
+
+fn parse_operator_name(
+    mut i: RewriteIn,
+    open: Item,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Item {
     i.state.start_node(SyntaxKind::OperatorName.into());
-    i.state.token(SyntaxKind::LParen.into(), &open.text);
-    let Some(operator) = i.token(scan_operator_spelling) else {
+    emit_item_as(&mut i, open, SyntaxKind::LParen);
+    let item = next_use_item(i.rb(), item_origin, line_entry, fence);
+    if !item.leading_view().is_grammar_empty() || !operator_spelling(&item) {
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
-        return;
-    };
-    i.state.token(SyntaxKind::Operator.into(), &operator.text);
-    if let Some(close) = i.token(|lex| scan_character(lex, ')')) {
-        i.state.token(SyntaxKind::RParen.into(), &close.text);
+        return item;
+    }
+    emit_item_as(&mut i, item, SyntaxKind::Operator);
+    let item = next_use_item(i.rb(), item_origin, line_entry, fence);
+    if item.leading_view().is_grammar_empty() && exact_char(&item, ')') {
+        emit_item_as(&mut i, item, SyntaxKind::RParen);
+        let item = next_use_item(i.rb(), item_origin, line_entry, fence);
+        i.state.finish_node();
+        item
     } else {
         emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        item
     }
-    i.state.finish_node();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_group(
     mut i: RewriteIn,
-    open: Lexeme,
+    open: Item,
     close: char,
     kind: SyntaxKind,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
 ) -> UseResult {
     i.state.start_node(kind.into());
-    i.state.token(open_kind(close).into(), &open.text);
-
+    emit_item_as(&mut i, open, open_kind(close));
+    let mut item = next_use_item(i.rb(), item_origin, line_entry, fence);
+    let mut after_child = false;
     loop {
-        if let Some(boundary) = take_group_caller_boundary(i.rb(), close, baseline, stops) {
+        if group_caller_boundary(i.rb(), &item, close, baseline, stops) {
             emit_missing(&mut i, LeadingTrivia::default());
             i.state.finish_node();
-            return Err(boundary);
+            return Err(item);
         }
-        let trivia = scan_trivia(i.rb());
-        emit_leading_trivia(&mut i, &trivia);
-        if emit_matching_close(i.rb(), close) {
+        let newline = item.leading_view().contains_line_break();
+        item.emit_all_remaining_leading(&mut *i.state);
+        if exact_char(&item, close) {
+            emit_item_as(&mut i, item, close_kind(close));
+            let item = next_use_item(i.rb(), item_origin, line_entry, fence);
             i.state.finish_node();
-            return Ok(());
+            return Ok(item);
         }
-        if observes(i.rb(), |source| source.starts_with(',')) {
-            emit_missing(&mut i, LeadingTrivia::default());
-            emit_comma(&mut i);
+        if exact_char(&item, ',') {
+            if !after_child {
+                emit_missing(&mut i, LeadingTrivia::default());
+            }
+            emit_item_as(&mut i, item, SyntaxKind::Comma);
+            item = next_use_item(i.rb(), item_origin, line_entry, fence);
+            after_child = false;
             continue;
         }
-        if observes(i.rb(), |source| mismatched_close(source, close)) {
-            if outer_close.is_some_and(|outer| observes(i.rb(), |source| source.starts_with(outer)))
-            {
+        if mismatched_close(&item, close) {
+            if outer_close.is_some_and(|outer| exact_char(&item, outer)) {
                 emit_missing(&mut i, LeadingTrivia::default());
                 i.state.finish_node();
-                return Ok(());
+                return Ok(item);
             }
-            emit_mismatched_close(&mut i);
+            emit_error_item(&mut i, item);
+            item = next_use_item(i.rb(), item_origin, line_entry, fence);
             continue;
         }
-
-        if observes(i.rb(), use_tree_starter) {
-            if let Err(boundary) = parse_use_tree(i.rb(), baseline, stops, Some(close)) {
-                i.state.finish_node();
-                return Err(boundary);
+        if use_tree_starter(&item) {
+            if after_child && !newline {
+                emit_missing(&mut i, LeadingTrivia::default());
             }
-        } else {
-            let retry = match recover_until(
+            item = match parse_use_tree(
                 i.rb(),
-                use_tree_starter,
-                |source| source.starts_with(',') || source.starts_with(close),
+                item,
                 baseline,
                 stops,
-                false,
+                Some(close),
+                item_origin,
+                line_entry,
+                fence,
             ) {
-                Ok(retry) => retry,
-                Err(boundary) => {
+                Ok(item) => item,
+                Err(item) => {
                     i.state.finish_node();
-                    return Err(boundary);
+                    return Err(item);
                 }
             };
-            if retry {
-                if let Err(boundary) = parse_use_tree(i.rb(), baseline, stops, Some(close)) {
-                    i.state.finish_node();
-                    return Err(boundary);
-                }
-            }
-        }
-
-        if let Some(boundary) = take_group_caller_boundary(i.rb(), close, baseline, stops) {
-            emit_missing(&mut i, LeadingTrivia::default());
-            i.state.finish_node();
-            return Err(boundary);
-        }
-        let trivia = scan_trivia(i.rb());
-        let newline = trivia_has_newline(trivia.view());
-        emit_leading_trivia(&mut i, &trivia);
-        if emit_matching_close(i.rb(), close) {
-            i.state.finish_node();
-            return Ok(());
-        }
-        if observes(i.rb(), |source| source.starts_with(',')) {
-            emit_comma(&mut i);
-            continue;
-        }
-        if newline {
-            continue;
-        }
-        if observes(i.rb(), use_tree_starter) {
-            emit_missing(&mut i, LeadingTrivia::default());
-            continue;
-        }
-        if observes(i.rb(), |source| mismatched_close(source, close)) {
-            if outer_close.is_some_and(|outer| observes(i.rb(), |source| source.starts_with(outer)))
-            {
-                emit_missing(&mut i, LeadingTrivia::default());
-                i.state.finish_node();
-                return Ok(());
-            }
-            emit_mismatched_close(&mut i);
+            after_child = true;
             continue;
         }
 
-        let retry = match recover_until(
+        item = match recover_group(
             i.rb(),
-            |source| use_tree_starter(source) || source.starts_with(','),
-            |source| source.starts_with(close),
+            item,
+            close,
             baseline,
             stops,
-            false,
+            item_origin,
+            line_entry,
+            fence,
         ) {
-            Ok(retry) => retry,
-            Err(boundary) => {
+            Ok(item) => item,
+            Err(item) => {
                 i.state.finish_node();
-                return Err(boundary);
+                return Err(item);
             }
         };
-        if retry && observes(i.rb(), |source| source.starts_with(',')) {
-            emit_comma(&mut i);
+        if exact_char(&item, ',') {
+            emit_item_as(&mut i, item, SyntaxKind::Comma);
+            item = next_use_item(i.rb(), item_origin, line_entry, fence);
+            after_child = false;
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_glob(
     mut i: RewriteIn,
-    star: Lexeme,
+    star: Item,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
 ) -> UseResult {
     i.state.start_node(SyntaxKind::UseGlob.into());
+    emit_item_as(&mut i, star, SyntaxKind::Star);
+    let item = next_use_item(i.rb(), item_origin, line_entry, fence);
     let result = (|| -> UseResult {
-        i.state.token(SyntaxKind::Star.into(), &star.text);
-        parse_aliases(i.rb(), baseline, stops)?;
-
-        if let Some(prefix) = i.token(|lex| scan_keyword_prefix(lex, "without")) {
-            emit_leading_trivia(&mut i, &prefix.leading);
-            i.state
-                .token(SyntaxKind::WithoutKw.into(), &prefix.keyword.text);
-            if let Some(trivia) = i.token(scan_required_inline_trivia) {
-                emit_leading_trivia(&mut i, &trivia);
-            } else if observes(i.rb(), exclusion_starter) {
+        let mut item = parse_aliases(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        )?;
+        if inline_keyword(&item, "without") {
+            item.emit_all_remaining_leading(&mut *i.state);
+            emit_item_as(&mut i, item, SyntaxKind::WithoutKw);
+            item = next_use_item(i.rb(), item_origin, line_entry, fence);
+            if declaration_boundary(i.rb(), &item, stops, true) {
+                emit_missing(&mut i, LeadingTrivia::default());
+                return Err(item);
+            }
+            if inline_gap(&item) {
+                item.emit_all_remaining_leading(&mut *i.state);
+            } else if exclusion_starter(&item) {
                 emit_missing(&mut i, LeadingTrivia::default());
             }
-            required_exclusion(i.rb(), baseline, stops, outer_close)?;
-
-            while observes(i.rb(), |source| source.starts_with(',')) {
-                emit_comma(&mut i);
-                let trivia = scan_trivia(i.rb());
-                emit_leading_trivia(&mut i, &trivia);
-                if !required_exclusion(i.rb(), baseline, stops, outer_close)? {
-                    break;
+            let (present, next) = required_exclusion(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                outer_close,
+                item_origin,
+                line_entry,
+                fence,
+            )?;
+            item = next;
+            if present {
+                while item.leading_view().is_grammar_empty() && exact_char(&item, ',') {
+                    emit_item_as(&mut i, item, SyntaxKind::Comma);
+                    item = next_use_item(i.rb(), item_origin, line_entry, fence);
+                    if declaration_boundary(i.rb(), &item, stops, true) {
+                        emit_missing(&mut i, LeadingTrivia::default());
+                        return Err(item);
+                    }
+                    item.emit_all_remaining_leading(&mut *i.state);
+                    let (present, next) = required_exclusion(
+                        i.rb(),
+                        item,
+                        baseline,
+                        stops,
+                        outer_close,
+                        item_origin,
+                        line_entry,
+                        fence,
+                    )?;
+                    item = next;
+                    if !present {
+                        break;
+                    }
                 }
             }
         }
-        Ok(())
+        Ok(item)
     })();
     i.state.finish_node();
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn required_exclusion(
     mut i: RewriteIn,
+    item: Item,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
-) -> UseResult<bool> {
-    if observes(i.rb(), exclusion_starter) {
-        parse_exclusion(i, baseline, stops, outer_close)?;
-        return Ok(true);
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult<(bool, Item)> {
+    if exclusion_starter(&item) {
+        return Ok((
+            true,
+            parse_exclusion(
+                i,
+                item,
+                baseline,
+                stops,
+                outer_close,
+                item_origin,
+                line_entry,
+                fence,
+            )?,
+        ));
     }
-    if observes(i.rb(), reserved_use_atom) {
+    if reserved_use_atom(&item) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return Ok(false);
+        return Ok((false, item));
     }
-    if let Some(boundary) = take_declaration_boundary(i.rb(), baseline, stops) {
+    if declaration_boundary(i.rb(), &item, stops, true) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return Err(boundary);
+        return Err(item);
     }
-    let retry = recover_until(i.rb(), exclusion_starter, |_| false, baseline, stops, true)?;
+    let (retry, item) = recover_until(
+        i.rb(),
+        item,
+        |_, item, _, _, _| exclusion_starter(item),
+        |_, _, _, _, _| false,
+        baseline,
+        stops,
+        true,
+        item_origin,
+        line_entry,
+        fence,
+    )?;
     if retry {
-        parse_exclusion(i, baseline, stops, outer_close)?;
+        Ok((
+            true,
+            parse_exclusion(
+                i,
+                item,
+                baseline,
+                stops,
+                outer_close,
+                item_origin,
+                line_entry,
+                fence,
+            )?,
+        ))
+    } else {
+        Ok((false, item))
     }
-    Ok(retry)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_exclusion(
     mut i: RewriteIn,
+    item: Item,
     baseline: usize,
     stops: Stops,
     outer_close: Option<char>,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
 ) -> UseResult {
     i.state.start_node(SyntaxKind::UseExclusion.into());
-    let result = (|| -> UseResult {
-        if observes(i.rb(), operator_name_starter) {
-            parse_operator_name(i.rb());
-        } else if observes(i.rb(), |source| {
-            matches!(source.chars().next(), Some('(' | '{'))
-        }) {
-            let opening = if observes(i.rb(), |source| source.starts_with('(')) {
-                '('
-            } else {
-                '{'
-            };
-            let close = if opening == '(' { ')' } else { '}' };
-            let open = i
-                .token(|lex| scan_character(lex, opening))
-                .expect("exclusion group opener was checked");
+    let result = if exact_char(&item, '(') {
+        if operator_name_follows(i.rb(), *item_origin, *line_entry, fence) {
+            Ok(parse_operator_name(
+                i.rb(),
+                item,
+                item_origin,
+                line_entry,
+                fence,
+            ))
+        } else {
             parse_group(
                 i.rb(),
-                open,
-                close,
+                item,
+                ')',
                 SyntaxKind::UseExclusionGroup,
                 baseline,
                 stops,
                 outer_close,
-            )?;
-        } else if observes(i.rb(), |source| source.starts_with('*')) {
-            let star = i
-                .token(|lex| scan_character(lex, '*'))
-                .expect("glob exclusion was checked");
-            i.state.token(SyntaxKind::Star.into(), &star.text);
-        } else {
-            emit_word(&mut i);
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
-        Ok(())
-    })();
+    } else if exact_char(&item, '{') {
+        parse_group(
+            i.rb(),
+            item,
+            '}',
+            SyntaxKind::UseExclusionGroup,
+            baseline,
+            stops,
+            outer_close,
+            item_origin,
+            line_entry,
+            fence,
+        )
+    } else if exact_char(&item, '*') {
+        emit_item_as(&mut i, item, SyntaxKind::Star);
+        Ok(next_use_item(i.rb(), item_origin, line_entry, fence))
+    } else {
+        emit_item_as(&mut i, item, SyntaxKind::Identifier);
+        Ok(next_use_item(i.rb(), item_origin, line_entry, fence))
+    };
     i.state.finish_node();
     result
 }
 
-fn parse_aliases(mut i: RewriteIn, baseline: usize, stops: Stops) -> UseResult {
-    while let Some(prefix) = i.token(|lex| scan_keyword_prefix(lex, "as")) {
-        emit_leading_trivia(&mut i, &prefix.leading);
+#[allow(clippy::too_many_arguments)]
+fn parse_aliases(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult {
+    while inline_keyword(&item, "as") {
+        item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::UseAlias.into());
-        i.state.token(SyntaxKind::AsKw.into(), &prefix.keyword.text);
-        if let Some(trivia) = i.token(scan_required_inline_trivia) {
-            emit_leading_trivia(&mut i, &trivia);
-        } else if observes(i.rb(), word_starter) {
+        emit_item_as(&mut i, item, SyntaxKind::AsKw);
+        item = next_use_item(i.rb(), item_origin, line_entry, fence);
+        if declaration_boundary(i.rb(), &item, stops, true) {
+            emit_missing(&mut i, LeadingTrivia::default());
+            i.state.finish_node();
+            return Err(item);
+        }
+        if inline_gap(&item) {
+            item.emit_all_remaining_leading(&mut *i.state);
+        } else if word_starter(&item) {
             emit_missing(&mut i, LeadingTrivia::default());
         }
-        let name = required_word(i.rb(), baseline, stops);
+        let result = required_word(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
         i.state.finish_node();
-        name?;
+        let (_, next) = result?;
+        item = next;
     }
-    Ok(())
+    Ok(item)
 }
 
-fn parse_qualifiers(mut i: RewriteIn, baseline: usize, stops: Stops) -> UseResult {
-    let version = i.token(scan_version_prefix);
-    let anchor = if version.is_none() {
-        i.token(|lex| scan_keyword_prefix(lex, "with"))
-    } else {
-        None
-    };
-    if version.is_none() && anchor.is_none() {
-        return Ok(());
+#[allow(clippy::too_many_arguments)]
+fn parse_qualifiers(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult {
+    let version = inline_version(&item);
+    let anchor = !version && inline_keyword(&item, "with");
+    if !version && !anchor {
+        return Ok(item);
     }
 
     i.state.start_node(SyntaxKind::UseQualifiers.into());
     let result = (|| -> UseResult {
-        if let Some((leading, version)) = version {
-            emit_leading_trivia(&mut i, &leading);
+        if version {
+            item.emit_all_remaining_leading(&mut *i.state);
             i.state.start_node(SyntaxKind::UseVersion.into());
-            i.state.token(SyntaxKind::Version.into(), &version.text);
+            emit_item_as(&mut i, item, SyntaxKind::Version);
             i.state.finish_node();
-            if let Some(prefix) = i.token(|lex| scan_keyword_prefix(lex, "with")) {
-                parse_anchor(i.rb(), prefix, baseline, stops)?;
+            item = next_use_item(i.rb(), item_origin, line_entry, fence);
+            if inline_keyword(&item, "with") {
+                item = parse_anchor(
+                    i.rb(),
+                    item,
+                    baseline,
+                    stops,
+                    item_origin,
+                    line_entry,
+                    fence,
+                )?;
             }
         } else {
-            parse_anchor(
+            item = parse_anchor(
                 i.rb(),
-                anchor.expect("anchor-only qualifier was selected"),
+                item,
                 baseline,
                 stops,
+                item_origin,
+                line_entry,
+                fence,
             )?;
         }
-        Ok(())
+        Ok(item)
     })();
     i.state.finish_node();
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_anchor(
     mut i: RewriteIn,
-    prefix: KeywordPrefix,
+    mut item: Item,
     baseline: usize,
     stops: Stops,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
 ) -> UseResult {
-    emit_leading_trivia(&mut i, &prefix.leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::UseAnchor.into());
-    i.state
-        .token(SyntaxKind::WithKw.into(), &prefix.keyword.text);
-    if let Some(trivia) = i.token(scan_required_inline_trivia) {
-        emit_leading_trivia(&mut i, &trivia);
-    } else if observes(i.rb(), word_starter) {
+    emit_item_as(&mut i, item, SyntaxKind::WithKw);
+    item = next_use_item(i.rb(), item_origin, line_entry, fence);
+    i.state.start_node(SyntaxKind::UsePath.into());
+    if declaration_boundary(i.rb(), &item, stops, true) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        i.state.finish_node();
+        return Err(item);
+    }
+    if inline_gap(&item) {
+        item.emit_all_remaining_leading(&mut *i.state);
+    } else if word_starter(&item) {
         emit_missing(&mut i, LeadingTrivia::default());
     }
-
-    i.state.start_node(SyntaxKind::UsePath.into());
     let result = (|| -> UseResult {
-        if required_word(i.rb(), baseline, stops)? {
-            while let Some((separator, text)) = i.token(scan_separator) {
-                emit_separator(&mut i, text, separator);
-                if !required_word(i.rb(), baseline, stops)? {
+        let (present, mut item) = required_word(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        )?;
+        if present {
+            while let Some(separator_kind) = separator(&item) {
+                emit_separator(&mut i, item, separator_kind);
+                item = next_use_item(i.rb(), item_origin, line_entry, fence);
+                let (present, next) = required_word(
+                    i.rb(),
+                    item,
+                    baseline,
+                    stops,
+                    item_origin,
+                    line_entry,
+                    fence,
+                )?;
+                item = next;
+                if !present {
                     break;
                 }
             }
         }
-        Ok(())
+        Ok(item)
     })();
     i.state.finish_node();
     i.state.finish_node();
     result
 }
 
-fn emit_matching_close(mut i: RewriteIn, close: char) -> bool {
-    let Some(close_token) = i.token(|lex| scan_character(lex, close)) else {
-        return false;
-    };
-    i.state.token(close_kind(close).into(), &close_token.text);
-    true
-}
-
-fn emit_mismatched_close(i: &mut RewriteIn) {
-    i.state.start_node(SyntaxKind::Error.into());
-    let close = i
-        .token(scan_raw_character)
-        .expect("mismatched close was checked before recovery");
-    i.state.token(SyntaxKind::Unknown.into(), &close.text);
-    i.state.finish_node();
-}
-
-fn emit_comma(i: &mut RewriteIn) {
-    let comma = i
-        .token(|lex| scan_character(lex, ','))
-        .expect("comma was checked before emission");
-    i.state.token(SyntaxKind::Comma.into(), &comma.text);
-}
-
-fn emit_separator(i: &mut RewriteIn, token: Lexeme, separator: Separator) {
-    let kind = match separator {
-        Separator::ColonColon => SyntaxKind::ColonColon,
-        Separator::Slash => SyntaxKind::Slash,
-    };
-    i.state.token(kind.into(), &token.text);
-}
-
-fn emit_intro_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    debug_assert!(item.payload_view().token_kind().is_some());
-    item.emit_remaining(&mut *i.state, kind);
-}
-
-fn emit_visibility(i: &mut RewriteIn, item: Item) {
-    let kind = match item.payload_view().spelling() {
-        Some("my") => SyntaxKind::MyKw,
-        Some("our") => SyntaxKind::OurKw,
-        Some("pub") => SyntaxKind::PubKw,
-        _ => unreachable!("use visibility was selected from exact words"),
-    };
-    item.emit_remaining(&mut *i.state, kind);
-}
-
+#[allow(clippy::too_many_arguments)]
 fn recover_until<C, L>(
     mut i: RewriteIn,
+    mut item: Item,
     candidate: C,
     local_boundary: L,
-    baseline: usize,
+    _baseline: usize,
     stops: Stops,
     newline_boundary: bool,
-) -> UseResult<bool>
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Result<(bool, Item), Item>
 where
-    C: Fn(&str) -> bool,
-    L: Fn(&str) -> bool,
+    C: Fn(RewriteIn, &Item, usize, LineEntry, Option<&FenceBoundary>) -> bool,
+    L: Fn(RewriteIn, &Item, usize, LineEntry, Option<&FenceBoundary>) -> bool,
 {
-    debug_assert!(!observes(i.rb(), |source| candidate(source)));
-    if let Some(boundary) = take_caller_boundary(i.rb(), baseline, stops, newline_boundary) {
-        return Err(boundary);
+    debug_assert!(!candidate(i.rb(), &item, *item_origin, *line_entry, fence,));
+    if declaration_boundary(i.rb(), &item, stops, newline_boundary) {
+        return Err(item);
     }
-    if observes(i.rb(), |source| local_boundary(source)) {
-        return Ok(false);
+    if local_boundary(i.rb(), &item, *item_origin, *line_entry, fence) {
+        return Ok((false, item));
     }
     i.state.start_node(SyntaxKind::Error.into());
     loop {
-        let trivia = scan_trivia(i.rb());
-        if trivia.view().is_grammar_empty() {
-            let raw = i
-                .token(scan_raw_character)
-                .expect("recovery entered only on non-boundary source");
-            i.state.token(SyntaxKind::Unknown.into(), &raw.text);
-        } else {
-            emit_leading_trivia(&mut i, &trivia);
+        if !item.leading_view().is_grammar_empty() {
+            item.emit_all_remaining_leading(&mut *i.state);
+            if candidate(i.rb(), &item, *item_origin, *line_entry, fence) {
+                i.state.finish_node();
+                return Ok((true, item));
+            }
+            if local_boundary(i.rb(), &item, *item_origin, *line_entry, fence) {
+                i.state.finish_node();
+                return Ok((false, item));
+            }
         }
-        if observes(i.rb(), |source| candidate(source)) {
+        emit_item_as(&mut i, item, SyntaxKind::Unknown);
+        item = next_use_item(i.rb(), item_origin, line_entry, fence);
+        if candidate(i.rb(), &item, *item_origin, *line_entry, fence) {
             i.state.finish_node();
-            return Ok(true);
+            return Ok((true, item));
         }
-        if observes(i.rb(), |source| local_boundary(source)) {
+        if local_boundary(i.rb(), &item, *item_origin, *line_entry, fence) {
             i.state.finish_node();
-            return Ok(false);
+            return Ok((false, item));
         }
-        if let Some(boundary) = take_caller_boundary(i.rb(), baseline, stops, newline_boundary) {
+        if declaration_boundary(i.rb(), &item, stops, newline_boundary) {
             i.state.finish_node();
-            return Err(boundary);
+            return Err(item);
         }
     }
 }
 
-fn take_declaration_boundary(mut i: RewriteIn, baseline: usize, stops: Stops) -> Option<Item> {
-    take_caller_boundary(i.rb(), baseline, stops, true)
-}
-
-fn take_group_caller_boundary(
+#[allow(clippy::too_many_arguments)]
+fn recover_group(
     mut i: RewriteIn,
+    mut item: Item,
     close: char,
     baseline: usize,
     stops: Stops,
-) -> Option<Item> {
-    i.token(|mut lex| {
-        let item = scan_statement_item(lex.rb(), baseline, stops)?;
-        if matches!(token_kind(&item), Some(TokenKind::Comma))
-            || token_kind(&item) == Some(close_token_kind(close))
-        {
-            return None;
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        if group_caller_boundary(i.rb(), &item, close, baseline, stops) {
+            i.state.finish_node();
+            emit_missing(&mut i, LeadingTrivia::default());
+            return Err(item);
         }
-        group_caller_boundary(lex, &item, baseline, stops).then_some(item)
-    })
+        if !item.leading_view().is_grammar_empty() {
+            item.emit_all_remaining_leading(&mut *i.state);
+            if use_tree_starter(&item) || exact_char(&item, ',') || exact_char(&item, close) {
+                i.state.finish_node();
+                return Ok(item);
+            }
+        }
+        emit_item_as(&mut i, item, SyntaxKind::Unknown);
+        item = next_use_item(i.rb(), item_origin, line_entry, fence);
+        if use_tree_starter(&item) || exact_char(&item, ',') || exact_char(&item, close) {
+            i.state.finish_node();
+            return Ok(item);
+        }
+    }
 }
 
-fn take_caller_boundary(
-    mut i: RewriteIn,
-    baseline: usize,
-    stops: Stops,
-    newline_boundary: bool,
-) -> Option<Item> {
-    i.token(|mut lex| {
-        let item = scan_statement_item(lex.rb(), baseline, stops)?;
-        declaration_caller_boundary(lex, &item, stops, newline_boundary).then_some(item)
-    })
-}
-
-fn declaration_caller_boundary(
-    mut i: LexIn,
-    item: &Item,
-    stops: Stops,
-    newline_boundary: bool,
-) -> bool {
-    item.payload_view().is_eof()
-        || newline_boundary && trivia_has_newline(item.leading_view())
-        || is_active_stop_lex(i.rb(), item, stops)
+fn declaration_boundary(mut i: RewriteIn, item: &Item, stops: Stops, newline: bool) -> bool {
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || newline && item.leading_view().contains_line_break()
+        || is_active_stop(i.rb(), item, stops)
         || matches!(
             token_kind(item),
             Some(
@@ -907,13 +1185,21 @@ fn declaration_caller_boundary(
         )
 }
 
-fn group_caller_boundary(mut i: LexIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    item.payload_view().is_eof()
-        || is_active_stop_lex(i.rb(), item, stops)
-        || matches!(
-            token_kind(item),
-            Some(TokenKind::Semicolon | TokenKind::LBracket)
-        )
+fn group_caller_boundary(
+    mut i: RewriteIn,
+    item: &Item,
+    close: char,
+    baseline: usize,
+    stops: Stops,
+) -> bool {
+    if exact_char(item, ',') || exact_char(item, close) {
+        return false;
+    }
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || is_active_stop(i.rb(), item, stops)
+        || token_kind(item) == Some(TokenKind::Semicolon)
+        || token_kind(item) == Some(TokenKind::LBracket)
         || indentation_after_newline(item.leading_view())
             .is_some_and(|indentation| indentation <= baseline)
             && is_exact_canonical_statement_intro(item)
@@ -926,192 +1212,55 @@ fn is_exact_canonical_statement_intro(item: &Item) -> bool {
     )
 }
 
-fn observes<F>(i: RewriteIn, predicate: F) -> bool
-where
-    F: FnOnce(&str) -> bool,
-{
-    i.map(
-        |lex: LexIn| Some(predicate(lex.remainder())),
-        |observed| observed,
-    )
-    .expect("a source observation is total")
+fn next_use_item(
+    mut i: RewriteIn,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Item {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(lex, *item_origin, *line_entry, fence, |lex, _, _, _, _| {
+                scan_use_payload(lex)
+            })
+        })
+        .expect("Use raw payload scanning is total");
+    *item_origin = advanced_origin(*item_origin, entry, i);
+    *line_entry = next_line_entry;
+    item
 }
 
-fn item_word(item: &Item) -> Option<&str> {
-    (item.payload_view().token_kind() == Some(TokenKind::Identifier))
-        .then(|| item.payload_view().spelling())
-        .flatten()
+fn scan_use_payload(mut i: LexIn) -> Option<AcceptedPayload> {
+    let token = if let Some(version) = i.token(scan_version_token) {
+        version
+    } else if let Some(identifier) = i.token(scan_identifier) {
+        identifier
+    } else if let Some(arrow) = i.token(scan_arm_arrow) {
+        arrow
+    } else if let Some(separator) =
+        i.token(|lex| scan_pair_token(lex, ':', ':', TokenKind::PathSeparator))
+    {
+        separator
+    } else if let Some(punctuation) = i.token(scan_punctuation) {
+        punctuation
+    } else if let Some(slash) = i.token(|lex| scan_character_token(lex, '/', TokenKind::Operator)) {
+        slash
+    } else if let Some(operator) = i.token(scan_operator_token) {
+        operator
+    } else {
+        i.token(scan_unknown)?
+    };
+    Some(AcceptedPayload {
+        payload: CurrentPayload::Token(token),
+        next_line_entry: LineEntry::InLine,
+    })
 }
 
-fn use_tree_starter(source: &str) -> bool {
-    matches!(source.chars().next(), Some('{' | '('))
-        || source.starts_with("mod")
-            && source_identifier(source).is_some_and(|(word, _)| word == "mod")
-        || word_starter(source)
-}
-
-fn path_segment_starter(source: &str) -> bool {
-    operator_name_starter(source) || word_starter(source)
-}
-
-fn exclusion_starter(source: &str) -> bool {
-    matches!(source.chars().next(), Some('(' | '{' | '*')) || word_starter(source)
-}
-
-fn operator_name_starter(source: &str) -> bool {
-    source.starts_with('(')
-        && source[1..]
-            .chars()
-            .next()
-            .is_some_and(is_use_operator_character)
-}
-
-fn word_starter(source: &str) -> bool {
-    source_identifier(source).is_some_and(|(word, _)| use_identifier_spelling(word))
-}
-
-fn use_local_path_boundary(i: RewriteIn) -> bool {
-    observes(i, path_local_boundary_source)
-}
-
-fn path_local_boundary_source(source: &str) -> bool {
-    source.starts_with('/')
-        || source.starts_with("::")
-        || reserved_use_atom(source)
-        || use_suffix_after_inline_trivia(source)
-}
-
-fn reserved_use_atom(source: &str) -> bool {
-    source_identifier(source).is_some_and(|(word, _)| !use_identifier_spelling(word))
-}
-
-fn mismatched_close(source: &str, close: char) -> bool {
-    matches!(source.chars().next(), Some(')' | '}')) && !source.starts_with(close)
-}
-
-fn use_suffix_after_inline_trivia(source: &str) -> bool {
-    let (next, has_trivia, indentation) = source_after_trivia(source);
-    if !has_trivia || indentation.is_some() {
-        return false;
-    }
-    source_identifier(next)
-        .is_some_and(|(word, _)| matches!(word, "as" | "with") || version_starter(word))
-}
-
-fn version_starter(word: &str) -> bool {
-    word.strip_prefix('v')
-        .and_then(|suffix| suffix.chars().next())
-        .is_some_and(|character| character.is_ascii_digit())
-}
-
-fn trivia_has_newline(trivia: super::item::LeadingView<'_>) -> bool {
-    trivia.contains_line_break()
-}
-
-fn open_kind(close: char) -> SyntaxKind {
-    match close {
-        ')' => SyntaxKind::LParen,
-        '}' => SyntaxKind::LBrace,
-        _ => unreachable!("use groups are parenthesized or braced"),
-    }
-}
-
-fn close_kind(close: char) -> SyntaxKind {
-    match close {
-        ')' => SyntaxKind::RParen,
-        '}' => SyntaxKind::RBrace,
-        _ => unreachable!("use groups are parenthesized or braced"),
-    }
-}
-
-fn close_token_kind(close: char) -> TokenKind {
-    match close {
-        ')' => TokenKind::RParen,
-        '}' => TokenKind::RBrace,
-        _ => unreachable!("use groups are parenthesized or braced"),
-    }
-}
-
-fn scan_keyword_prefix(mut i: LexIn, word: &str) -> Option<KeywordPrefix> {
-    let leading = scan_required_inline_trivia(i.rb())?;
-    let keyword = scan_exact_word(i.rb(), word)?;
-    Some(KeywordPrefix { leading, keyword })
-}
-
-fn scan_version_prefix(mut i: LexIn) -> Option<(LeadingTrivia, Lexeme)> {
-    let leading = scan_required_inline_trivia(i.rb())?;
-    let version = scan_version(i)?;
-    Some((leading, version))
-}
-
-fn scan_required_inline_trivia(mut i: LexIn) -> Option<LeadingTrivia> {
-    let trivia = scan_trivia(i.rb());
-    (!trivia.view().is_grammar_empty() && !trivia_has_newline(trivia.view())).then_some(trivia)
-}
-
-fn scan_exact_word(mut i: LexIn, word: &str) -> Option<Token> {
-    let token = scan_identifier(i.rb())?;
-    (&*token.text == word).then_some(token)
-}
-
-fn scan_use_identifier(mut i: LexIn) -> Option<Token> {
-    let token = scan_identifier(i.rb())?;
-    use_identifier_spelling(&token.text).then_some(token)
-}
-
-fn use_identifier_spelling(word: &str) -> bool {
-    !matches!(word, "mod" | "as" | "with" | "without") && !version_starter(word)
-}
-
-fn scan_separator(mut i: LexIn) -> Option<(Separator, Lexeme)> {
-    if let Some(separator) = i.token(|lex| scan_pair(lex, ':', ':')) {
-        return Some((Separator::ColonColon, separator));
-    }
-    i.token(|lex| scan_character(lex, '/'))
-        .map(|separator| (Separator::Slash, separator))
-}
-
-fn scan_pair(mut i: LexIn, first: char, second: char) -> Option<Lexeme> {
-    let (accepted, text) = i.rb().with_str(|mut pair| {
-        (pair.next()? == first).then_some(())?;
-        (pair.next()? == second).then_some(())
-    });
-    accepted?;
-    Some(Lexeme { text: text.into() })
-}
-
-fn scan_character(mut i: LexIn, expected: char) -> Option<Lexeme> {
-    let (accepted, text) = i
-        .rb()
-        .with_str(|mut one| (one.next()? == expected).then_some(()));
-    accepted?;
-    Some(Lexeme { text: text.into() })
-}
-
-fn scan_raw_character(mut i: LexIn) -> Option<Lexeme> {
-    let (character, text) = i.rb().with_str(|mut one| one.next());
-    character?;
-    Some(Lexeme { text: text.into() })
-}
-
-fn scan_operator_spelling(mut i: LexIn) -> Option<Lexeme> {
-    let (accepted, text) = i.rb().with_str(|mut spelling| {
-        is_use_operator_character(spelling.next()?).then_some(())?;
-        while spelling
-            .remainder()
-            .chars()
-            .next()
-            .is_some_and(is_use_operator_character)
-        {
-            spelling.next()?;
-        }
-        Some(())
-    });
-    accepted?;
-    Some(Lexeme { text: text.into() })
-}
-
-fn scan_version(mut i: LexIn) -> Option<Lexeme> {
+fn scan_version_token(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut version| {
         (version.next()? == 'v').then_some(())?;
         version
@@ -1129,7 +1278,223 @@ fn scan_version(mut i: LexIn) -> Option<Lexeme> {
         Some(())
     });
     accepted?;
-    Some(Lexeme { text: text.into() })
+    Some(Token {
+        kind: TokenKind::Identifier,
+        text: text.into(),
+    })
+}
+
+fn scan_pair_token(mut i: LexIn, first: char, second: char, kind: TokenKind) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut pair| {
+        (pair.next()? == first).then_some(())?;
+        (pair.next()? == second).then_some(())
+    });
+    accepted?;
+    Some(Token {
+        kind,
+        text: text.into(),
+    })
+}
+
+fn scan_character_token(mut i: LexIn, expected: char, kind: TokenKind) -> Option<Token> {
+    let (accepted, text) = i
+        .rb()
+        .with_str(|mut one| (one.next()? == expected).then_some(()));
+    accepted?;
+    Some(Token {
+        kind,
+        text: text.into(),
+    })
+}
+
+fn scan_operator_token(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut spelling| {
+        is_use_operator_character(spelling.next()?).then_some(())?;
+        while spelling
+            .remainder()
+            .chars()
+            .next()
+            .is_some_and(is_use_operator_character)
+        {
+            spelling.next()?;
+        }
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Operator,
+        text: text.into(),
+    })
+}
+
+fn emit_item_as(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
+    item.emit_remaining(&mut *i.state, kind);
+}
+
+fn emit_error_item(i: &mut RewriteIn, item: Item) {
+    i.state.start_node(SyntaxKind::Error.into());
+    emit_item_as(i, item, SyntaxKind::Unknown);
+    i.state.finish_node();
+}
+
+fn emit_separator(i: &mut RewriteIn, item: Item, separator: Separator) {
+    let kind = match separator {
+        Separator::ColonColon => SyntaxKind::ColonColon,
+        Separator::Slash => SyntaxKind::Slash,
+    };
+    emit_item_as(i, item, kind);
+}
+
+fn emit_visibility(i: &mut RewriteIn, item: Item) {
+    let kind = match item.payload_view().spelling() {
+        Some("my") => SyntaxKind::MyKw,
+        Some("our") => SyntaxKind::OurKw,
+        Some("pub") => SyntaxKind::PubKw,
+        _ => unreachable!("use visibility was selected from exact words"),
+    };
+    emit_item_as(i, item, kind);
+}
+
+fn item_word(item: &Item) -> Option<&str> {
+    (item.payload_view().token_kind() == Some(TokenKind::Identifier))
+        .then(|| item.payload_view().spelling())
+        .flatten()
+}
+
+fn exact_char(item: &Item, expected: char) -> bool {
+    item.leading_view().is_grammar_empty()
+        && item
+            .payload_view()
+            .spelling()
+            .is_some_and(|text| text.len() == expected.len_utf8() && text.starts_with(expected))
+}
+
+fn inline_gap(item: &Item) -> bool {
+    !item.leading_view().is_grammar_empty() && !item.leading_view().contains_line_break()
+}
+
+fn inline_keyword(item: &Item, expected: &str) -> bool {
+    inline_gap(item) && item_word(item) == Some(expected)
+}
+
+fn inline_version(item: &Item) -> bool {
+    inline_gap(item) && item_word(item).is_some_and(version_starter)
+}
+
+fn separator(item: &Item) -> Option<Separator> {
+    if !item.leading_view().is_grammar_empty() {
+        return None;
+    }
+    match item.payload_view().spelling() {
+        Some("::") => Some(Separator::ColonColon),
+        Some("/") => Some(Separator::Slash),
+        _ => None,
+    }
+}
+
+fn use_tree_starter(item: &Item) -> bool {
+    exact_char(item, '{')
+        || exact_char(item, '(')
+        || item_word(item).is_some_and(|word| word == "mod" || use_identifier_spelling(word))
+}
+
+fn use_tree_starter_source(source: &str) -> bool {
+    matches!(source.chars().next(), Some('{' | '('))
+        || source.starts_with("mod")
+            && source_identifier(source).is_some_and(|(word, _)| word == "mod")
+        || source_identifier(source).is_some_and(|(word, _)| use_identifier_spelling(word))
+}
+
+fn path_segment_starter_normalized(
+    i: RewriteIn,
+    item: &Item,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    word_starter(item)
+        || exact_char(item, '(') && operator_name_follows(i, item_origin, line_entry, fence)
+}
+
+fn operator_name_follows(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    let mut accepted = false;
+    let _: Option<()> = i.token(|lex| {
+        let CurrentItem { item, .. } =
+            current_item(lex, item_origin, line_entry, fence, |lex, _, _, _, _| {
+                scan_use_payload(lex)
+            })?;
+        accepted = operator_spelling(&item);
+        None
+    });
+    accepted
+}
+
+fn exclusion_starter(item: &Item) -> bool {
+    exact_char(item, '(') || exact_char(item, '{') || exact_char(item, '*') || word_starter(item)
+}
+
+fn word_starter(item: &Item) -> bool {
+    item.leading_view().is_grammar_empty() && item_word(item).is_some_and(use_identifier_spelling)
+}
+
+fn reserved_use_atom(item: &Item) -> bool {
+    item.leading_view().is_grammar_empty()
+        && item_word(item).is_some_and(|word| !use_identifier_spelling(word))
+}
+
+fn path_local_boundary(item: &Item) -> bool {
+    separator(item).is_some()
+        || reserved_use_atom(item)
+        || inline_keyword(item, "as")
+        || inline_keyword(item, "with")
+        || inline_version(item)
+}
+
+fn mismatched_close(item: &Item, close: char) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::RParen | TokenKind::RBrace)
+    ) && !exact_char(item, close)
+}
+
+fn operator_spelling(item: &Item) -> bool {
+    item.leading_view().is_grammar_empty()
+        && item.payload_view().token_kind() == Some(TokenKind::Operator)
+        && item
+            .payload_view()
+            .spelling()
+            .is_some_and(|text| text.chars().all(is_use_operator_character))
+}
+
+fn version_starter(word: &str) -> bool {
+    word.strip_prefix('v')
+        .and_then(|suffix| suffix.chars().next())
+        .is_some_and(|character| character.is_ascii_digit())
+}
+
+fn use_identifier_spelling(word: &str) -> bool {
+    !matches!(word, "mod" | "as" | "with" | "without") && !version_starter(word)
+}
+
+fn close_kind(close: char) -> SyntaxKind {
+    match close {
+        ')' => SyntaxKind::RParen,
+        '}' => SyntaxKind::RBrace,
+        _ => unreachable!("use groups are parenthesized or braced"),
+    }
+}
+
+fn open_kind(close: char) -> SyntaxKind {
+    match close {
+        ')' => SyntaxKind::LParen,
+        '}' => SyntaxKind::LBrace,
+        _ => unreachable!("use groups are parenthesized or braced"),
+    }
 }
 
 fn is_use_operator_character(character: char) -> bool {

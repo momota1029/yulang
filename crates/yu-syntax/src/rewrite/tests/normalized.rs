@@ -57,15 +57,13 @@ fn deferred_head(source: &str, spelling: &str) {
 }
 
 #[test]
-fn normalized_statement_defers_only_the_four_remaining_declaration_families() {
+fn normalized_statement_defers_only_the_three_remaining_declaration_families() {
     let fence = active_fence();
     for (source, spelling, remainder) in [
         ("> > struct A", "struct", " A"),
         ("> > our struct A", "our", " struct A"),
         ("> > mod M", "mod", " M"),
         ("> > pub mod M", "pub", " mod M"),
-        ("> > use foo", "use", " foo"),
-        ("> > my use foo", "my", " use foo"),
         ("> > type T = U", "type", " T = U"),
         ("> > our type T = U", "our", " type T = U"),
     ] {
@@ -619,18 +617,409 @@ fn normalized_for_braced_body_owns_only_its_missing_close_at_a_fence() {
 }
 
 #[test]
+fn normalized_use_streams_bare_visibility_and_nested_statement_sites() {
+    let fence = active_fence();
+    let origin = 5125;
+    for (accepted, line_break) in [
+        ("> > use std::data", "\n"),
+        ("> > my use realm/tools::format", "\r\n"),
+    ] {
+        let source = format!("{accepted}{line_break}> > ```{line_break}outer");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("the Use owner must stream to the exact fence: {accepted:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{accepted:?}");
+        assert_eq!(
+            remainder,
+            format!("> > ```{line_break}outer"),
+            "{accepted:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::UseDeclaration)
+                .count(),
+            1,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::YmQuotePrefix)
+                .count(),
+            1,
+            "{accepted:?}",
+        );
+        assert!(
+            root.descendants()
+                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            "{accepted:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, line_break, "{accepted:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + line_break.len(),
+            "{accepted:?}",
+        );
+    }
+
+    let source = "case x:\n  n ->\n    use foo";
+    let operators = OperatorTable::empty();
+    let (green, exit, remainder) = run_normalized(
+        source,
+        &operators,
+        origin,
+        LineEntry::PhysicalStart,
+        Some(&plain_fence()),
+    );
+    assert!(matches!(
+        exit,
+        Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine))
+            if item.payload_view().is_boundary()
+    ));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), source);
+    assert_eq!(remainder, "");
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::UseDeclaration)
+            .count(),
+        1,
+    );
+
+    let accepted = "> > my use = value";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (green, exit, remainder) =
+        run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+    else {
+        panic!("the rejected Use admission must remain a Binding")
+    };
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+            .count(),
+        1,
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::UseDeclaration)
+            .count(),
+        0,
+    );
+    let (leading, pending) = emit_terminal_leading_text(boundary);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+}
+
+#[test]
+fn normalized_use_streams_recursive_groups_exclusions_and_qualifiers() {
+    let fence = active_fence();
+    let origin = 5225;
+    let accepted = "> > use std::* as all without {foo,\n> >   (*), nested::{x}} v1-alpha+build.2 with program::ui";
+    for (line_break, terminal) in [("\n", "> > ```\nouter"), ("\r\n", "> ]\r\nouter")] {
+        let source = format!("{accepted}{line_break}{terminal}");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("recursive Use tree must stop at its exact boundary: {terminal:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{terminal:?}");
+        assert_eq!(remainder, terminal, "{terminal:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::UseExclusionGroup)
+                .count(),
+            1,
+            "{terminal:?}",
+        );
+        assert!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::UseGroup)
+                .all(|group| group.first_token().is_some_and(|token| {
+                    matches!(token.kind(), SyntaxKind::LBrace | SyntaxKind::LParen)
+                })),
+            "{terminal:?}",
+        );
+        assert!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::UseExclusionGroup)
+                .all(|group| group.first_token().is_some_and(|token| {
+                    matches!(token.kind(), SyntaxKind::LBrace | SyntaxKind::LParen)
+                })),
+            "{terminal:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::UseAlias)
+                .count(),
+            1,
+            "{terminal:?}",
+        );
+        assert!(
+            root.descendants()
+                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            "{terminal:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, line_break, "{terminal:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + line_break.len(),
+            "{terminal:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_use_phase_recovery_hands_exact_boundaries_up() {
+    let fence = active_fence();
+    let origin = 5350;
+    for (source, accepted, remainder, line_entry, missing, errors, leading) in [
+        (
+            "> > use\n> > ```\nouter",
+            "> > use",
+            "> > ```\nouter",
+            LineEntry::PhysicalStart,
+            1,
+            0,
+            "\n",
+        ),
+        (
+            "> > use path::\r\n> ]\r\nouter",
+            "> > use path::",
+            "> ]\r\nouter",
+            LineEntry::PhysicalStart,
+            1,
+            0,
+            "\r\n",
+        ),
+        (
+            "> > use {@ child",
+            "> > use {@ child",
+            "",
+            LineEntry::InLine,
+            1,
+            1,
+            "",
+        ),
+        (
+            "> > use mod ",
+            "> > use mod",
+            "",
+            LineEntry::InLine,
+            1,
+            0,
+            " ",
+        ),
+        (
+            "> > use x::* without ",
+            "> > use x::* without",
+            "",
+            LineEntry::InLine,
+            1,
+            0,
+            " ",
+        ),
+        (
+            "> > use x as ",
+            "> > use x as",
+            "",
+            LineEntry::InLine,
+            1,
+            0,
+            " ",
+        ),
+        (
+            "> > use x with ",
+            "> > use x with",
+            "",
+            LineEntry::InLine,
+            1,
+            0,
+            " ",
+        ),
+    ] {
+        let (green, exit, actual_remainder) =
+            run_statement_normalized(source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), actual_line_entry) = exit else {
+            panic!("the required Use slot must return its exact boundary: {source:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(actual_line_entry, line_entry, "{source:?}");
+        assert_eq!(root.to_string(), accepted, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{source:?}",
+        );
+        let (actual_leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(actual_leading, leading, "{source:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + leading.len(),
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_use_path_operator_probe_is_strict_and_transactional() {
+    let fence = active_fence();
+    let origin = 5425;
+    for (accepted, operator_names, errors) in [
+        ("> > use a::(", 0, 1),
+        ("> > use a::(foo", 0, 1),
+        ("> > use a::(+)", 1, 0),
+    ] {
+        let source = format!("{accepted}\n> > ```\nouter");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("the strict operator probe must preserve the fence: {accepted:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{accepted:?}");
+        assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::OperatorName)
+                .count(),
+            operator_names,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{accepted:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, "\n", "{accepted:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + 1,
+            "{accepted:?}",
+        );
+    }
+
+    let accepted = "> > use x::* without (foo, bar)";
+    let source = format!("{accepted}\n> > ```\nouter");
+    let (green, exit, _) =
+        run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Left(_)), LineEntry::PhysicalStart)
+    ));
+    let root = SyntaxNode::new_root(green);
+    let group = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::UseExclusionGroup)
+        .expect("parenthesized exclusion group");
+    assert_eq!(
+        group.first_token().map(|token| token.kind()),
+        Some(SyntaxKind::LParen)
+    );
+}
+
+#[test]
+fn normalized_use_group_missing_close_hands_equal_indent_declarations_up() {
+    let fence = plain_fence();
+    for (source, spelling, remainder) in [
+        ("use {a\nuse b", "use", " b"),
+        ("use {a\ntype T = A", "type", " T = A"),
+    ] {
+        let (green, exit, actual_remainder) =
+            run_statement_normalized(source, 5475, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("the unclosed Use group must preserve its successor: {source:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), "use {a", "{source:?}");
+        assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), "\n", "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_use_preserves_final_statement_successors() {
+    let fence = active_fence();
+    let source = "> > use path; sibling";
+    let (green, exit, remainder) =
+        run_statement_normalized(source, 5550, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+        panic!("the Use separator must remain pending")
+    };
+    assert_eq!(green.to_string(), "> > use path");
+    assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+    assert_eq!(remainder, " sibling");
+
+    for (source, whitespace) in [
+        ("> > use path\n> > sibling", ""),
+        ("> > use path\n> >   sibling", "  "),
+    ] {
+        let (green, exit, remainder) =
+            run_statement_normalized(source, 5575, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("the newline successor must remain pending: {source:?}")
+        };
+        assert_eq!(green.to_string(), "> > use path", "{source:?}");
+        assert_eq!(
+            item.payload_view().spelling(),
+            Some("sibling"),
+            "{source:?}"
+        );
+        assert_eq!(remainder, "", "{source:?}");
+        let mut expected = vec![
+            (SyntaxKind::Newline, "\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+        ];
+        if !whitespace.is_empty() {
+            expected.push((SyntaxKind::Whitespace, whitespace.to_owned()));
+        }
+        assert_eq!(
+            emit_pending_leading_tokens(&mut item),
+            expected,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn normalized_statement_frontier_propagates_through_existing_callers() {
     let active = active_fence();
     let plain = plain_fence();
     for (source, expected_green, spelling, expected_remainder, fence) in [
         ("> > { mod M", "> > {", "mod", " M", &active),
-        (
-            "case x:\n  n ->\n    use foo",
-            "case x:\n  n ->",
-            "use",
-            " foo",
-            &plain,
-        ),
         ("x:\n  type T = U", "x:", "type", " T = U", &plain),
     ] {
         let operators = OperatorTable::empty();
