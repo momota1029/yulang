@@ -284,8 +284,12 @@ Gate 8、production cutoverはGate 9まで待つ。
 判定後にだけsplitとして記録・消費し、close / transition / EOF lineはuntouched boundaryとして返す。
 opener後はtotal、`None`/later rollbackに外部accumulatorをまたがせない。nested comment depth、prior trivia
 envelope、CRLF/UTF-8、`/x` non-matchもfocused controlに含む。lexer/public/legacy/Yumark production bridgeは
-scope外である。次のmultiline lexical ownerであるstring/rule literalには、literal grammar/CSTが未設計のため
-別のAuthoritative designが要る。Gate 4 expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
+scope外である。次のmultiline lexical ownerであるstring/rule literalは、user-approved
+`notes/design/2026-09-05-direct-literal-cone-addendum.md`がnormal/heredoc String、`%` interpolation、
+`rule {}`、`~"..."`、Pattern route、typed recovery、one-current-Item fence handoffをAuthoritative化した。
+次のauthorized sliceはpublic vocabulary/fragmented emitterだけのisolated L0である。`%{ Statement* }`は
+Gate 6 statement/declaration construction checkpoint後のL6、complete literal/Pattern deltaはL7とjoint
+Gate 4--6 barrierまで完了扱いにしない。Gate 4 expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
