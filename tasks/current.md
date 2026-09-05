@@ -1,6 +1,7 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
+更新: 2026-09-05（Item emission-ownership frontier amendmentをAuthoritative化、N0aへ）→
+2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
 2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走→
 standalone `for`文も全10 gate完走→Act-derives attachment addendumも両gate完走→
@@ -15,6 +16,19 @@ Type-attached `impl` addendumも全6 gate完走）
 `crates/yu-syntax`はchasaベースのrecursive-descent parserとして、2026-08-20の
 `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`を正本に構築中。
 
+- 2026-09-05: fenced current-Itemの旧N0候補は、physical prefix/carrierを保持した
+  `Item`と既存direct grammarの破壊的leading/payload移送が両立しないため、統合前の
+  specification/regression reviewで不採用となった。ユーザ承認済み
+  `2026-09-05-item-emission-ownership-frontier-amendment.md`がこれを置換する。
+  `Item`内の唯一のmutable値は`first_unemitted_leading: usize`だけであり、carrierの
+  active範囲は保存せず毎回これから導出する。N0aではatomic `Item::finish`、sealed
+  physical ownership、`LeadingView`/借用`PayloadView`、central phased emission、Ruleの
+  partial separatorとcarrier/boundary/payload-owning siteの恒久移行を実施する。ordinary
+  prefix-free whole-leading siteだけはN0bまで明名compatibility operationを許す。
+  terminal adapterはopen `YmYulangCodeCell`下でaccepted body-leadingだけをemitし、
+  Yumarkへはunchanged pending factsだけを返す。N0aの次にはN0b有限owner移行、N0c
+  physical-prefix certificationが続く。現在のuncommitted rewrite候補はN0aでreshapeする
+  WIPであり、統合済みgate evidenceではない。
 - tuple・演算子CST・colon application・if/elsif/else・brace statement block・pattern文法・
   case/catch・list/record pattern・call/field/path/ML-application・generic-expression
   WithBodyTail・canonical Statementのbinding/use拡張・`mod`宣言、が実装・push済み。
