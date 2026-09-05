@@ -94,6 +94,10 @@ impl PhysicalLeadingTrivia {
         });
     }
 
+    pub(super) fn into_ordinary(self) -> LeadingTrivia {
+        LeadingTrivia::ordinary(self.0.into_boxed_slice())
+    }
+
     fn into_boxed(self) -> Box<[Trivia]> {
         self.0.into_boxed_slice()
     }
@@ -214,6 +218,10 @@ impl Trivia {
 
     pub(super) fn is_newline(&self) -> bool {
         self.kind == TriviaKind::Newline
+    }
+
+    pub(super) fn has_line_feed(&self) -> bool {
+        self.kind == TriviaKind::Newline && self.text.ends_with('\n')
     }
 }
 

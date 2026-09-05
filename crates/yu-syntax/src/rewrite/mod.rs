@@ -8,6 +8,7 @@ use rowan::GreenNodeBuilder;
 
 mod binding;
 mod case_like;
+mod current_item;
 mod delimited;
 mod derives;
 mod driver;

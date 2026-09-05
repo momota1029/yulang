@@ -1,5 +1,6 @@
 use super::*;
 use crate::rewrite::{
+    current_item::{LineEntry, current_item, scan_identifier_item_witness},
     driver::handoff,
     emit::{emit_identifier_core, emit_literal_item, emit_token_item},
     item::{
@@ -7,8 +8,12 @@ use crate::rewrite::{
         PhysicalLeadingTrivia, StopKind, Token,
     },
     lexer::{
-        FencedBlockComment, scan_block_comment_fenced_witness, scan_fenced_prior_trivia_part,
+        FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part,
         scan_statement_item,
+    },
+    operator::{
+        TriviaObservation, lone_colon_after_fenced_trivia, observe_fenced_trivia,
+        scan_operator_fenced,
     },
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
 };
@@ -34,7 +39,7 @@ fn fenced_boundary_item<'source>(
     let mut recover = Recover::new(&operators);
     let mut input = &root[item_start..];
     let item_origin = checked_source_coordinate(root, input);
-    let mut i = In::new(&mut input, &mut recover, ());
+    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
     let mut leading = Vec::new();
     while let Some(part) = i.token(scan_fenced_prior_trivia_part) {
         leading.push(part);
@@ -46,7 +51,8 @@ fn fenced_boundary_item<'source>(
     assert_eq!(checked_source_coordinate(root, i.remainder()), part_origin);
 
     let mut foreign = None;
-    let scanned = scan_block_comment_fenced_witness(i, part_origin, fence, &mut foreign)
+    let scanned = i
+        .token(|comment| scan_block_comment_fenced(comment, part_origin, fence, &mut foreign))
         .expect("fenced block-comment opener");
     let FencedBlockComment::Boundary { accepted, pending } = scanned else {
         panic!("fenced block-comment boundary fixture")
@@ -157,6 +163,273 @@ fn ordinary_block_comment_scanner_remains_unsplit() {
         Some(TokenKind::Identifier)
     );
     assert_eq!(item.payload_view().spelling(), Some("name"));
+}
+
+#[test]
+fn current_item_applies_prefix_only_at_a_judged_physical_line() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+
+    let source = "> > name";
+    let mut input = source;
+    let mut item = scan_identifier_item_witness(
+        In::new(&mut input, &mut recover, ()),
+        40,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    )
+    .expect("a physical-line prefix leaves an identifier payload");
+    assert_eq!(item.next_line_entry, LineEntry::InLine);
+    assert_eq!(input, "");
+    assert_eq!(
+        emit_pending_leading_tokens(&mut item.item),
+        [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())]
+    );
+    assert_eq!(item.item.payload_view().spelling(), Some("name"));
+
+    let mut input = source;
+    assert!(
+        scan_identifier_item_witness(
+            In::new(&mut input, &mut recover, ()),
+            40,
+            LineEntry::InLine,
+            Some(&fence),
+        )
+        .is_none(),
+        "an in-line > remains ordinary source rather than a quote prefix"
+    );
+    assert_eq!(input, source);
+
+    let source = "> > first\r\n> > second";
+    let mut input = source;
+    let first = scan_identifier_item_witness(
+        In::new(&mut input, &mut recover, ()),
+        40,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    )
+    .expect("the first fenced line has an identifier");
+    assert_eq!(first.next_line_entry, LineEntry::InLine);
+    assert_eq!(input, "\r\n> > second");
+    let mut second = scan_identifier_item_witness(
+        In::new(&mut input, &mut recover, ()),
+        40 + "> > first".len(),
+        first.next_line_entry,
+        Some(&fence),
+    )
+    .expect("a CRLF starts the next physical line for the same constructor");
+    assert_eq!(input, "");
+    assert_eq!(
+        emit_pending_leading_tokens(&mut second.item),
+        [
+            (SyntaxKind::Newline, "\r\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn current_item_owns_one_fenced_block_comment_carrier() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let source = "> > /*x\r\n> > y*/ name";
+    let mut input = source;
+    let current = scan_identifier_item_witness(
+        In::new(&mut input, &mut recover, ()),
+        200,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    )
+    .expect("one current Item accepts a fenced multiline comment and payload");
+    assert_eq!(input, "");
+    let root = SyntaxNode::new_root(emit_accepted_token_item(current.item));
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+            (SyntaxKind::BlockComment, "/*x\r\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+            (SyntaxKind::BlockComment, "y*/".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Identifier, "name".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn ordinary_current_item_keeps_the_existing_plain_scanner_result() {
+    let operators = OperatorTable::empty();
+    let source = " /* ordinary */\nname";
+    let mut ordinary_recover = Recover::new(&operators);
+    let mut ordinary_input = source;
+    let ordinary = scan_statement_item(
+        In::new(&mut ordinary_input, &mut ordinary_recover, ()),
+        0,
+        0,
+    )
+    .expect("ordinary statement scanner item");
+
+    let mut normalized_recover = Recover::new(&operators);
+    let mut normalized_input = source;
+    let normalized = scan_identifier_item_witness(
+        In::new(&mut normalized_input, &mut normalized_recover, ()),
+        0,
+        LineEntry::InLine,
+        None,
+    )
+    .expect("ordinary normalized current Item");
+
+    assert_eq!(ordinary_input, normalized_input);
+    assert_eq!(ordinary, normalized.item);
+}
+
+#[test]
+fn current_item_stops_at_boundary_without_calling_payload_or_consuming_it() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let source = "> > \n> > ```\nouter";
+    let start = source.as_ptr();
+    let mut input = source;
+    let called = std::cell::Cell::new(false);
+    let current = current_item(
+        In::new(&mut input, &mut recover, ()),
+        80,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        |_, _, _, _, _| {
+            called.set(true);
+            None
+        },
+    )
+    .expect("a fence close is an accepted pending boundary Item");
+
+    assert!(!called.get());
+    assert_eq!(current.next_line_entry, LineEntry::PhysicalStart);
+    assert!(current.item.payload_view().is_boundary());
+    assert_eq!(input, "> > ```\nouter");
+    assert_eq!(input.as_ptr(), start.wrapping_add("> > \n".len()));
+}
+
+#[test]
+fn current_item_reports_fenced_eof_as_an_inline_terminal_fact() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = "";
+    let current = current_item(
+        In::new(&mut input, &mut recover, ()),
+        80,
+        LineEntry::InLine,
+        Some(&fence),
+        |_, _, _, _, _| unreachable!("fenced EOF does not call a payload owner"),
+    )
+    .expect("fenced EOF is a leading-only pending boundary");
+    assert_eq!(current.next_line_entry, LineEntry::InLine);
+    assert!(
+        current.item.payload_view().is_boundary(),
+        "the terminal fact is not ordinary Payload::Eof"
+    );
+}
+
+#[test]
+fn current_item_rolls_back_an_optional_payload_after_tentative_leading_scan() {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let source = "  name";
+    let pointer = source.as_ptr();
+    let mut input = source;
+    let result = current_item(
+        In::new(&mut input, &mut recover, ()),
+        0,
+        LineEntry::InLine,
+        None,
+        |mut payload, _, _, _, _| {
+            let _ = payload.token(crate::rewrite::lexer::scan_identifier)?;
+            None
+        },
+    );
+    assert!(result.is_none());
+    assert_eq!(input, source);
+    assert_eq!(input.as_ptr(), pointer);
+}
+
+#[test]
+fn fenced_source_observer_skips_prefixes_and_stops_before_outer_boundary() {
+    let fence = active_fence(2);
+    let visible = observe_fenced_trivia("\r\n> > value", 120, LineEntry::InLine, Some(&fence));
+    let TriviaObservation::Visible(visible) = visible else {
+        panic!("a same-depth body line stays visible");
+    };
+    assert_eq!(visible.source, "value");
+    assert!(visible.present);
+    assert_eq!(visible.indentation, Some(0));
+    assert!(lone_colon_after_fenced_trivia(
+        "\n> > :",
+        120,
+        LineEntry::InLine,
+        Some(&fence),
+    ));
+
+    let source = "\n> > ```\nouter";
+    let pointer = source.as_ptr();
+    assert!(matches!(
+        observe_fenced_trivia(source, 300, LineEntry::InLine, Some(&fence)),
+        TriviaObservation::Boundary
+    ));
+    assert_eq!(source.as_ptr(), pointer);
+}
+
+#[test]
+fn fenced_operator_observation_uses_visible_value_or_boundary_eof_facts() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "?",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+        OperatorDeclaration::new("?", OperatorFixities::new().with_nullfix()),
+        OperatorDeclaration::new(
+            "@",
+            OperatorFixities::new()
+                .with_infix(BindingPower::scalar(40), BindingPower::scalar(40))
+                .with_suffix(BindingPower::scalar(70)),
+        ),
+    ])
+    .expect("fenced operator controls use distinct valid declarations");
+
+    for (source, site, expected) in [
+        ("? value", OperatorSite::Nud, "prefix"),
+        ("? \n> > ```\nouter", OperatorSite::Nud, "nullfix"),
+        ("@value", OperatorSite::Led, "infix"),
+        ("@ \n> > ```\nouter", OperatorSite::Led, "suffix"),
+    ] {
+        let mut input = source;
+        let mut recover = Recover::new(&operators);
+        let operator = scan_operator_fenced(
+            In::new(&mut input, &mut recover, ()),
+            site,
+            false,
+            0,
+            0,
+            600,
+            Some(&fence),
+        )
+        .expect("the current operator remains accepted");
+        assert_eq!(input, &source[1..]);
+        match expected {
+            "prefix" => assert!(matches!(operator.use_, OperatorUse::Prefix(_))),
+            "nullfix" => assert_eq!(operator.use_, OperatorUse::Nullfix),
+            "infix" => assert!(matches!(operator.use_, OperatorUse::Infix { .. })),
+            "suffix" => assert!(matches!(operator.use_, OperatorUse::Suffix(_))),
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[test]
@@ -672,12 +945,9 @@ fn fenced_comment_nonmatch_restores_source_and_preserves_sentinel_splits() {
     let mut input = source;
     let sentinel = ForeignSplit::quote_prefix(900, 1);
     let mut foreign = Some(vec![sentinel]);
-    let result = scan_block_comment_fenced_witness(
-        In::new(&mut input, &mut recover, ()),
-        0,
-        &active_fence(2),
-        &mut foreign,
-    );
+    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
+    let result =
+        i.token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign));
 
     assert_eq!(result, None);
     assert_eq!(input, source);
@@ -692,13 +962,10 @@ fn fenced_comment_can_complete_only_at_zero_nested_depth() {
     let mut recover = Recover::new(&operators);
     let mut input = source;
     let mut foreign = None;
-    let outcome = scan_block_comment_fenced_witness(
-        In::new(&mut input, &mut recover, ()),
-        0,
-        &active_fence(2),
-        &mut foreign,
-    )
-    .expect("complete fenced block comment");
+    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
+    let outcome = i
+        .token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign))
+        .expect("complete fenced block comment");
 
     let FencedBlockComment::Complete(comment) = outcome else {
         panic!("balanced nesting must complete before ordinary tail source")

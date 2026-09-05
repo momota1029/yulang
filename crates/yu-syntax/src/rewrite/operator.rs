@@ -9,7 +9,9 @@ use crate::{
 
 use super::{
     LexIn, Stops,
+    current_item::LineEntry,
     item::{OperatorToken, OperatorUse},
+    yumark::{FenceBoundary, FenceLineDecision, judge_fence_line},
 };
 
 pub(super) const STOP_COMMA: Stops = 1 << 0;
@@ -39,30 +41,55 @@ pub(super) fn stops_for(close: super::item::TokenKind) -> Stops {
 }
 
 pub(super) fn scan_operator(
-    mut i: LexIn,
+    i: LexIn,
     site: OperatorSite,
     has_leading_trivia: bool,
     baseline: usize,
     stops: Stops,
 ) -> Option<OperatorToken> {
+    scan_operator_fenced(i, site, has_leading_trivia, baseline, stops, 0, None)
+}
+
+/// Selects one dynamic operator using only the visible suffix of its current
+/// cell. The caller passes the immediate payload coordinate; nothing is
+/// retained after this source-only lexical probe returns.
+pub(super) fn scan_operator_fenced(
+    mut i: LexIn,
+    site: OperatorSite,
+    has_leading_trivia: bool,
+    baseline: usize,
+    stops: Stops,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<OperatorToken> {
     let table = i.recovery().operators();
     let source = i.remainder();
     let (use_, end) = table.longest_source_match_then(source, |last, entry, end| {
         operator_boundary(last, &source[end..])?;
-
-        let (trailing, after_trivia) = raw_trivia_suffix(&source[end..]);
         let kinds = entry.fixities().kinds();
-        if is_call_or_path_sensitive(kinds)
-            && trailing == RawTrailing::None
-            && matches!(after_trivia.chars().next(), Some('(' | ':'))
-        {
-            return None;
-        }
-
-        let post_whitespace = trailing != RawTrailing::None
-            || after_trivia.is_empty()
-            || active_stop(after_trivia, stops);
-        let value_start = raw_value_start(table, trailing, after_trivia, baseline);
+        let observation = observe_fenced_trivia(
+            &source[end..],
+            payload_origin.checked_add(end)?,
+            LineEntry::InLine,
+            fence,
+        );
+        let (post_whitespace, value_start) = match observation {
+            TriviaObservation::Boundary => (true, false),
+            TriviaObservation::Visible(visible) => {
+                if is_call_or_path_sensitive(kinds)
+                    && !visible.present
+                    && matches!(visible.source.chars().next(), Some('(' | ':'))
+                {
+                    return None;
+                }
+                let post_whitespace = visible.present
+                    || visible.source.is_empty()
+                    || active_stop(visible.source, stops);
+                let value_start =
+                    raw_value_start(table, visible.indentation, visible.source, baseline);
+                (post_whitespace, value_start)
+            }
+        };
         let with_value = judge_operator(site, kinds, has_leading_trivia, post_whitespace, true);
         let without_value = judge_operator(site, kinds, has_leading_trivia, post_whitespace, false);
         let fixity = if is_call_or_path_sensitive(kinds) && post_whitespace && value_start {
@@ -99,10 +126,24 @@ pub(super) fn scan_operator(
 /// accepts the returned token.  In particular, it keeps the ordinary trie
 /// traversal's longer-to-shorter fallback and boundary check intact.
 pub(super) fn scan_dangling_operator(
+    i: LexIn,
+    site: OperatorSite,
+    baseline: usize,
+    stops: Stops,
+) -> Option<OperatorToken> {
+    scan_dangling_operator_fenced(i, site, baseline, stops, 0, None)
+}
+
+/// Fence-aware counterpart of [`scan_dangling_operator`]. A fence boundary
+/// is a local EOF fact for this one spelling; the pending boundary Item stays
+/// for the next current-Item acquisition.
+pub(super) fn scan_dangling_operator_fenced(
     mut i: LexIn,
     site: OperatorSite,
     baseline: usize,
     stops: Stops,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
 ) -> Option<OperatorToken> {
     let table = i.recovery().operators();
     let source = i.remainder();
@@ -118,7 +159,13 @@ pub(super) fn scan_dangling_operator(
             }
             _ => return None,
         };
-        dangling_follower(&source[end..], baseline, stops)?;
+        dangling_follower_fenced(
+            &source[end..],
+            payload_origin.checked_add(end)?,
+            baseline,
+            stops,
+            fence,
+        )?;
         selected_operator_use(fixities, fixity)
     })?;
     let character_count = source[..end].chars().count();
@@ -138,19 +185,32 @@ pub(super) fn scan_dangling_operator(
 /// A dangling role may be followed by a local boundary, EOF, or one invalid
 /// region.  Structural starters stay for their future direct owners, and a
 /// shallow newline stays with the outer statement owner.
-fn dangling_follower(source: &str, baseline: usize, stops: Stops) -> Option<()> {
-    let (trailing, after_trivia) = raw_trivia_suffix(source);
-    if matches!(trailing, RawTrailing::Newline { indentation } if indentation <= baseline) {
-        return None;
+fn dangling_follower_fenced(
+    source: &str,
+    source_origin: usize,
+    baseline: usize,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> Option<()> {
+    match observe_fenced_trivia(source, source_origin, LineEntry::InLine, fence) {
+        TriviaObservation::Boundary => Some(()),
+        TriviaObservation::Visible(visible) => {
+            if visible
+                .indentation
+                .is_some_and(|indentation| indentation <= baseline)
+            {
+                return None;
+            }
+            if visible.source.is_empty() || active_stop(visible.source, stops) {
+                return Some(());
+            }
+            (!matches!(
+                visible.source.chars().next(),
+                Some(':' | '=' | ',' | ';' | ')' | ']' | '}' | '{')
+            ))
+            .then_some(())
+        }
     }
-    if after_trivia.is_empty() || active_stop(after_trivia, stops) {
-        return Some(());
-    }
-    (!matches!(
-        after_trivia.chars().next(),
-        Some(':' | '=' | ',' | ';' | ')' | ']' | '}' | '{')
-    ))
-    .then_some(())
 }
 
 fn active_stop(source: &str, stops: Stops) -> bool {
@@ -184,17 +244,37 @@ pub(super) fn active_stop_item(kind: super::item::TokenKind, stops: Stops) -> bo
 /// Source-only reservation evidence for the second half of an exact `with:`
 /// introducer. No logical item or parser state is completed by this probe.
 pub(super) fn lone_colon_after_trivia(source: &str) -> bool {
-    let (_, source) = raw_trivia_suffix(source);
-    source.starts_with(':') && !source.starts_with("::")
+    lone_colon_after_fenced_trivia(source, 0, LineEntry::InLine, None)
+}
+
+pub(super) fn lone_colon_after_fenced_trivia(
+    source: &str,
+    source_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    matches!(
+        observe_fenced_trivia(source, source_origin, line_entry, fence),
+        TriviaObservation::Visible(VisibleTrivia { source, .. })
+            if source.starts_with(':') && !source.starts_with("::")
+    )
 }
 
 /// Source-only layout evidence for a colon's mandatory RHS. The caller alone
 /// compares it with its incoming baseline; no logical item is completed here.
 pub(super) fn newline_indentation_after_trivia(source: &str) -> Option<usize> {
-    let (trailing, source) = raw_trivia_suffix(source);
-    match trailing {
-        RawTrailing::Newline { indentation } => Some(indentation),
-        RawTrailing::None | RawTrailing::Space | RawTrailing::Newline { .. } => None,
+    newline_indentation_after_fenced_trivia(source, 0, LineEntry::InLine, None)
+}
+
+pub(super) fn newline_indentation_after_fenced_trivia(
+    source: &str,
+    source_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<usize> {
+    match observe_fenced_trivia(source, source_origin, line_entry, fence) {
+        TriviaObservation::Visible(visible) => visible.indentation,
+        TriviaObservation::Boundary => None,
     }
 }
 
@@ -202,13 +282,12 @@ pub(super) fn newline_indentation_after_trivia(source: &str) -> Option<usize> {
 /// reservation uses the same lexical trivia boundary as operator and body
 /// layout probes without completing an Item.
 pub(super) fn source_after_trivia(source: &str) -> (&str, bool, Option<usize>) {
-    let (trailing, source) = raw_trivia_suffix(source);
-    let present = trailing != RawTrailing::None;
-    let indentation = match trailing {
-        RawTrailing::Newline { indentation } => Some(indentation),
-        RawTrailing::None | RawTrailing::Space => None,
+    let TriviaObservation::Visible(visible) =
+        observe_fenced_trivia(source, 0, LineEntry::InLine, None)
+    else {
+        unreachable!("ordinary source observation has no fence boundary");
     };
-    (source, present, indentation)
+    (visible.source, visible.present, visible.indentation)
 }
 
 fn operator_boundary(last: char, following: &str) -> Option<()> {
@@ -222,11 +301,11 @@ fn operator_boundary(last: char, following: &str) -> Option<()> {
 
 fn raw_value_start(
     table: &OperatorTable,
-    trailing: RawTrailing,
+    indentation: Option<usize>,
     source: &str,
     baseline: usize,
 ) -> bool {
-    if matches!(trailing, RawTrailing::Newline { indentation } if indentation <= baseline) {
+    if indentation.is_some_and(|indentation| indentation <= baseline) {
         return false;
     }
 
@@ -263,31 +342,158 @@ fn selected_operator_use(
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum RawTrailing {
-    None,
-    Space,
-    Newline { indentation: usize },
+pub(super) enum TriviaObservation<'source> {
+    Visible(VisibleTrivia<'source>),
+    Boundary,
 }
 
-fn raw_trivia_character(
-    character: char,
-    saw_newline: &mut bool,
-    at_line_start: &mut bool,
-    indentation: &mut usize,
-) {
-    match character {
-        '\r' | '\n' => {
-            *saw_newline = true;
-            *at_line_start = true;
-            *indentation = 0;
+pub(super) struct VisibleTrivia<'source> {
+    pub(super) source: &'source str,
+    pub(super) present: bool,
+    pub(super) indentation: Option<usize>,
+}
+
+/// Reads one maximal trivia suffix without building Items or fence facts.
+/// Under a fence it stops at the first close, transition, or physical EOF and
+/// never reads the next outer line. Accepted quote prefixes are skipped as
+/// foreign physical text, never reclassified as ordinary whitespace.
+pub(super) fn observe_fenced_trivia<'source>(
+    mut source: &'source str,
+    mut source_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> TriviaObservation<'source> {
+    if fence.is_none() {
+        return observe_ordinary_trivia(source);
+    }
+
+    let mut present = false;
+    let mut saw_newline = false;
+    let mut at_line_start = false;
+    let mut indentation = 0usize;
+
+    if !observe_line(
+        &mut source,
+        &mut source_origin,
+        &mut line_entry,
+        fence,
+        &mut at_line_start,
+    ) {
+        return TriviaObservation::Boundary;
+    }
+
+    loop {
+        if source.starts_with([' ', '\t']) {
+            present = true;
+            let character = source
+                .chars()
+                .next()
+                .expect("a nonempty source suffix has one character");
+            raw_trivia_character(
+                character,
+                &mut saw_newline,
+                &mut at_line_start,
+                &mut indentation,
+            );
+            advance_source(&mut source, &mut source_origin, character.len_utf8());
+            continue;
         }
-        ' ' | '\t' if *at_line_start => *indentation += 1,
-        _ => *at_line_start = false,
+
+        if source.starts_with("\r\n") {
+            present = true;
+            raw_trivia_character('\r', &mut saw_newline, &mut at_line_start, &mut indentation);
+            raw_trivia_character('\n', &mut saw_newline, &mut at_line_start, &mut indentation);
+            advance_source(&mut source, &mut source_origin, 2);
+            line_entry = LineEntry::PhysicalStart;
+            if !observe_line(
+                &mut source,
+                &mut source_origin,
+                &mut line_entry,
+                fence,
+                &mut at_line_start,
+            ) {
+                return TriviaObservation::Boundary;
+            }
+            continue;
+        }
+
+        if source.starts_with('\n') {
+            present = true;
+            raw_trivia_character('\n', &mut saw_newline, &mut at_line_start, &mut indentation);
+            advance_source(&mut source, &mut source_origin, 1);
+            line_entry = LineEntry::PhysicalStart;
+            if !observe_line(
+                &mut source,
+                &mut source_origin,
+                &mut line_entry,
+                fence,
+                &mut at_line_start,
+            ) {
+                return TriviaObservation::Boundary;
+            }
+            continue;
+        }
+
+        if source.starts_with('\r') {
+            present = true;
+            raw_trivia_character('\r', &mut saw_newline, &mut at_line_start, &mut indentation);
+            advance_source(&mut source, &mut source_origin, 1);
+            line_entry = LineEntry::InLine;
+            continue;
+        }
+
+        if source.starts_with("//") {
+            present = true;
+            raw_trivia_character('/', &mut saw_newline, &mut at_line_start, &mut indentation);
+            raw_trivia_character('/', &mut saw_newline, &mut at_line_start, &mut indentation);
+            advance_source(&mut source, &mut source_origin, 2);
+            while let Some(character) = source.chars().next() {
+                if matches!(character, '\r' | '\n') {
+                    break;
+                }
+                raw_trivia_character(
+                    character,
+                    &mut saw_newline,
+                    &mut at_line_start,
+                    &mut indentation,
+                );
+                advance_source(&mut source, &mut source_origin, character.len_utf8());
+            }
+            continue;
+        }
+
+        if source.starts_with("/*") {
+            present = true;
+            if !observe_block_comment(
+                &mut source,
+                &mut source_origin,
+                &mut line_entry,
+                fence,
+                &mut saw_newline,
+                &mut at_line_start,
+                &mut indentation,
+            ) {
+                return TriviaObservation::Boundary;
+            }
+            continue;
+        }
+
+        if source.is_empty() && fence.is_some() {
+            return TriviaObservation::Boundary;
+        }
+
+        return TriviaObservation::Visible(VisibleTrivia {
+            source,
+            present,
+            indentation: saw_newline.then_some(indentation),
+        });
     }
 }
 
-fn raw_trivia_suffix(mut source: &str) -> (RawTrailing, &str) {
+/// The `None` mode is the retained ordinary raw scanner. It deliberately
+/// avoids fence coordinates and line classification, preserving the ordinary
+/// operator/follower path's work and result shape.
+fn observe_ordinary_trivia<'source>(mut source: &'source str) -> TriviaObservation<'source> {
     let mut present = false;
     let mut saw_newline = false;
     let mut at_line_start = false;
@@ -330,7 +536,7 @@ fn raw_trivia_suffix(mut source: &str) -> (RawTrailing, &str) {
         if source.starts_with("/*") {
             present = true;
             let comment = source;
-            source = raw_block_comment_suffix(source);
+            source = ordinary_block_comment_suffix(source);
             let consumed = comment.len() - source.len();
             for character in comment[..consumed].chars() {
                 raw_trivia_character(
@@ -343,19 +549,16 @@ fn raw_trivia_suffix(mut source: &str) -> (RawTrailing, &str) {
             continue;
         }
         if source.len() == before.len() {
-            let trailing = if !present {
-                RawTrailing::None
-            } else if saw_newline {
-                RawTrailing::Newline { indentation }
-            } else {
-                RawTrailing::Space
-            };
-            return (trailing, source);
+            return TriviaObservation::Visible(VisibleTrivia {
+                source,
+                present,
+                indentation: saw_newline.then_some(indentation),
+            });
         }
     }
 }
 
-fn raw_block_comment_suffix(mut source: &str) -> &str {
+fn ordinary_block_comment_suffix(mut source: &str) -> &str {
     debug_assert!(source.starts_with("/*"));
     source = &source[2..];
     let mut depth = 1usize;
@@ -376,8 +579,130 @@ fn raw_block_comment_suffix(mut source: &str) -> &str {
         let character = source
             .chars()
             .next()
-            .expect("a non-empty UTF-8 suffix has one character");
+            .expect("a nonempty UTF-8 suffix has one character");
         source = &source[character.len_utf8()..];
     }
     source
+}
+
+fn observe_line(
+    source: &mut &str,
+    source_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+    at_line_start: &mut bool,
+) -> bool {
+    if *line_entry != LineEntry::PhysicalStart {
+        return true;
+    }
+    let Some(fence) = fence else {
+        return true;
+    };
+    match judge_fence_line(source, *source_origin, fence) {
+        FenceLineDecision::Boundary(_) => false,
+        FenceLineDecision::Body { prefix: None, .. } => {
+            *line_entry = LineEntry::InLine;
+            true
+        }
+        FenceLineDecision::Body {
+            prefix: Some(_),
+            content,
+        } => {
+            let length = content
+                .checked_sub(*source_origin)
+                .expect("a judged source prefix remains on its current line");
+            advance_source(source, source_origin, length);
+            *line_entry = LineEntry::InLine;
+            *at_line_start = false;
+            true
+        }
+    }
+}
+
+fn observe_block_comment(
+    source: &mut &str,
+    source_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+    saw_newline: &mut bool,
+    at_line_start: &mut bool,
+    indentation: &mut usize,
+) -> bool {
+    debug_assert!(source.starts_with("/*"));
+    raw_trivia_character('/', saw_newline, at_line_start, indentation);
+    raw_trivia_character('*', saw_newline, at_line_start, indentation);
+    advance_source(source, source_origin, 2);
+    let mut depth = 1usize;
+
+    while !source.is_empty() {
+        if source.starts_with("/*") {
+            raw_trivia_character('/', saw_newline, at_line_start, indentation);
+            raw_trivia_character('*', saw_newline, at_line_start, indentation);
+            advance_source(source, source_origin, 2);
+            depth = depth
+                .checked_add(1)
+                .expect("block-comment depth must fit usize");
+            continue;
+        }
+        if source.starts_with("*/") {
+            raw_trivia_character('*', saw_newline, at_line_start, indentation);
+            raw_trivia_character('/', saw_newline, at_line_start, indentation);
+            advance_source(source, source_origin, 2);
+            depth -= 1;
+            if depth == 0 {
+                return true;
+            }
+            continue;
+        }
+        if source.starts_with("\r\n") {
+            raw_trivia_character('\r', saw_newline, at_line_start, indentation);
+            raw_trivia_character('\n', saw_newline, at_line_start, indentation);
+            advance_source(source, source_origin, 2);
+            *line_entry = LineEntry::PhysicalStart;
+            if !observe_line(source, source_origin, line_entry, fence, at_line_start) {
+                return false;
+            }
+            continue;
+        }
+        if source.starts_with('\n') {
+            raw_trivia_character('\n', saw_newline, at_line_start, indentation);
+            advance_source(source, source_origin, 1);
+            *line_entry = LineEntry::PhysicalStart;
+            if !observe_line(source, source_origin, line_entry, fence, at_line_start) {
+                return false;
+            }
+            continue;
+        }
+        let character = source
+            .chars()
+            .next()
+            .expect("a nonempty source suffix has one character");
+        raw_trivia_character(character, saw_newline, at_line_start, indentation);
+        advance_source(source, source_origin, character.len_utf8());
+    }
+    true
+}
+
+fn advance_source(source: &mut &str, source_origin: &mut usize, length: usize) {
+    *source = &source[length..];
+    *source_origin = source_origin
+        .checked_add(length)
+        .expect("a source-only probe coordinate must fit usize");
+}
+
+fn raw_trivia_character(
+    character: char,
+    saw_newline: &mut bool,
+    at_line_start: &mut bool,
+    indentation: &mut usize,
+) {
+    match character {
+        '\r' | '\n' => {
+            *saw_newline = true;
+            *at_line_start = true;
+            *indentation = 0;
+        }
+        ' ' | '\t' if *at_line_start => *indentation += 1,
+        _ => *at_line_start = false,
+    }
 }

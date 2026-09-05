@@ -30,7 +30,7 @@ use self::expression_list::{ExpressionListExit, expression_list, first_item as f
 #[cfg(test)]
 use super::{
     item::PendingBoundary,
-    lexer::{FencedBlockComment, scan_block_comment_fenced_witness, scan_fenced_prior_trivia_part},
+    lexer::{FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part},
 };
 
 #[derive(Clone, Copy)]
@@ -125,7 +125,7 @@ pub(super) fn scan_rule_introducer_successor_witness(
             let part_origin = origin + suffix_distance(source, i.remainder());
             match i
                 .token(|comment| {
-                    scan_block_comment_fenced_witness(comment, part_origin, fence, &mut foreign)
+                    scan_block_comment_fenced(comment, part_origin, fence, &mut foreign)
                 })
                 .expect("checked fenced block-comment opener")
             {

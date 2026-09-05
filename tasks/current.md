@@ -344,8 +344,14 @@ ordinary/fenced current-Item body、pure fenced source observation、transient l
 temporary `Deferred` frontier ledger をAuthoritative化した。architecture/compiler-recovery/specification
 review と scoped delta review は全てclosed。N0a（physical-prefix representation、sealed
 grammar-inert LeadingTrivia predicates、fragment-aware accepted-Item emission）は完了し、scanner/grammar/
-public reachabilityを変えていない。次はN0b detached-owner inventory、その後N0c certificationである。N1--N3、
-L5/L6/L7/public integrationは未完である。
+public reachabilityを変えていない。N0b inventoryとN0c certificationも完了した。2026-09-06にN1
+isolated normalized lexical kernelを完了: one direct transactional `current_item`、transient
+`LineEntry`、fenced block-comment leading ownership、fence-aware source-only trivia observation、
+operator/dangling/follower evidenceをprivateに追加した。ordinary Itemは`Item::plain`、ordinary raw
+operator observationは既存fast pathのままであり、production fence dispatch / grammar-owner migration /
+Yumark bridgeは未接続である。focused lexical（38）、dynamic operator（11）、Rule（21）と
+`cargo check -p yu-syntax`はgreen。次はN2のPratt core/tails/delimited owner移行であり、N2 ledger
+を起票するまでproduction grammarへのfence branchを増やさない。L5/L6/L7/public integrationは未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

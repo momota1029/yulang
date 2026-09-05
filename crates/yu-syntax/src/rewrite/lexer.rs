@@ -11,17 +11,15 @@ use crate::scan::operator::OperatorSite;
 
 use super::{
     LexIn, RewriteIn, Stops,
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia},
+    item::{
+        ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary, PendingFragments, Token,
+        TokenKind, Trivia,
+    },
     operator::{
         STOP_ARROW, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
         newline_indentation_after_trivia, scan_dangling_operator, scan_operator,
     },
     state::Recover,
-};
-
-#[cfg(test)]
-use super::{
-    item::{ForeignSplit, PendingBoundary, PendingFragments},
     yumark::{FenceBoundary, FenceLineDecision, judge_fence_line},
 };
 
@@ -429,7 +427,7 @@ where
     LeadingTrivia::ordinary(parts.into_boxed_slice())
 }
 
-fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
+pub(super) fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
     i.check(choice((
         token(scan_horizontal_whitespace),
         token(scan_newline),
@@ -518,9 +516,9 @@ fn scan_block_comment(mut i: LexIn) -> Option<Trivia> {
     Some(Trivia::block_comment(text.into()))
 }
 
-/// Isolated construction result for the first fence-aware multiline lexical
-/// owner. The ordinary block-comment scanner and its callers stay unchanged.
-#[cfg(test)]
+/// Fence-aware result for a multiline block-comment leading-trivia owner.
+/// The surrounding current-Item constructor owns its one carrier and final
+/// Item construction; the ordinary scanner and callers remain unchanged.
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum FencedBlockComment {
     Complete(Trivia),
@@ -530,21 +528,9 @@ pub(super) enum FencedBlockComment {
     },
 }
 
-/// Runs the dedicated scanner through its one immediate lexical transaction.
-/// A non-match therefore restores source; the scanner itself leaves `foreign`
-/// unchanged until the complete `/*` opener has been accepted.
-#[cfg(test)]
-pub(super) fn scan_block_comment_fenced_witness(
-    mut i: LexIn,
-    part_origin: usize,
-    fence: &FenceBoundary,
-    foreign: &mut Option<Vec<ForeignSplit>>,
-) -> Option<FencedBlockComment> {
-    i.token(|lex| scan_block_comment_fenced(lex, part_origin, fence, foreign))
-}
-
-#[cfg(test)]
-fn scan_block_comment_fenced(
+/// Scans one accepted fenced block comment. The caller supplies only the
+/// current Item's immediate origin and lazy split accumulator.
+pub(super) fn scan_block_comment_fenced(
     mut i: LexIn,
     part_origin: usize,
     fence: &FenceBoundary,
@@ -571,13 +557,11 @@ fn scan_block_comment_fenced(
     })
 }
 
-#[cfg(test)]
 enum FencedBlockCommentBody {
     Complete,
     Boundary(PendingBoundary),
 }
 
-#[cfg(test)]
 fn scan_fenced_block_comment_body(
     mut i: LexIn,
     part: &str,
@@ -627,7 +611,6 @@ fn scan_fenced_block_comment_body(
     }
 }
 
-#[cfg(test)]
 fn fenced_comment_line_decision(
     mut i: LexIn,
     coordinate: usize,
@@ -660,7 +643,6 @@ fn fenced_comment_line_decision(
     }
 }
 
-#[cfg(test)]
 fn consume_exact_bytes(mut i: LexIn, length: usize) {
     let mut consumed = 0usize;
     while consumed < length {
@@ -687,7 +669,6 @@ pub(super) fn scan_fenced_prior_trivia_part(mut i: LexIn) -> Option<Trivia> {
     )))
 }
 
-#[cfg(test)]
 fn checked_suffix_coordinate(part: &str, part_origin: usize, suffix: &str) -> usize {
     let consumed = part
         .len()
