@@ -57,13 +57,11 @@ fn deferred_head(source: &str, spelling: &str) {
 }
 
 #[test]
-fn normalized_statement_defers_only_the_three_remaining_declaration_families() {
+fn normalized_statement_defers_only_the_two_remaining_declaration_families() {
     let fence = active_fence();
     for (source, spelling, remainder) in [
         ("> > struct A", "struct", " A"),
         ("> > our struct A", "our", " struct A"),
-        ("> > mod M", "mod", " M"),
-        ("> > pub mod M", "pub", " mod M"),
         ("> > type T = U", "type", " T = U"),
         ("> > our type T = U", "our", " type T = U"),
     ] {
@@ -119,7 +117,6 @@ fn normalized_statement_visibility_admission_stops_at_the_fence() {
 
     for (source, spelling, remainder) in [
         ("> > my\r\n> >   struct A", "my", "\r\n> >   struct A"),
-        ("> > our\r\n> >   mod M", "our", "\r\n> >   mod M"),
         ("> > pub\r\n> >   type T = U", "pub", "\r\n> >   type T = U"),
     ] {
         let (green, exit, actual_remainder) =
@@ -133,6 +130,228 @@ fn normalized_statement_visibility_admission_stops_at_the_fence() {
         assert_eq!(
             emit_pending_leading_tokens(&mut item),
             [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())],
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_mod_streams_visibility_gaps_and_all_body_forms() {
+    let fence = active_fence();
+    let origin = 4460;
+    for (accepted, line_break, quote_prefixes, blocks) in [
+        ("> > mod Plain;", "\r\n", 1, (0, 0)),
+        ("> > mod test;", "\n", 1, (0, 0)),
+        (
+            "> > our\r\n> >   mod\r\n> >   test\r\n> >   Suite\r\n> >   ;",
+            "\r\n",
+            5,
+            (0, 0),
+        ),
+        ("> > mod Braced {x;}", "\n", 1, (1, 0)),
+        ("> > mod Inline: x;", "\n", 1, (0, 0)),
+        ("> > mod Indented:\n> >   x", "\n", 2, (0, 1)),
+    ] {
+        let source = format!("{accepted}{line_break}> > ```{line_break}outer");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("Mod must stream to the exact fence: {accepted:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{accepted:?}");
+        assert_eq!(
+            remainder,
+            format!("> > ```{line_break}outer"),
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+                .count(),
+            1,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::YmQuotePrefix)
+                .count(),
+            quote_prefixes,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+                .count(),
+            blocks.0,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+                .count(),
+            blocks.1,
+            "{accepted:?}",
+        );
+        assert!(
+            root.descendants()
+                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            "{accepted:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, line_break, "{accepted:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + line_break.len(),
+            "{accepted:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_mod_test_name_slot_hands_close_transition_and_eof_up() {
+    let fence = active_fence();
+    let origin = 4480;
+    for (source, accepted, remainder, line_entry, terminal_leading) in [
+        (
+            "> > mod test\n> > ```\nouter",
+            "> > mod test",
+            "> > ```\nouter",
+            LineEntry::PhysicalStart,
+            "\n",
+        ),
+        (
+            "> > mod test\r\n> ]\r\nouter",
+            "> > mod test",
+            "> ]\r\nouter",
+            LineEntry::PhysicalStart,
+            "\r\n",
+        ),
+        ("> > mod test", "> > mod test", "", LineEntry::InLine, ""),
+    ] {
+        let (green, exit, actual_remainder) =
+            run_statement_normalized(source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), actual_entry) = exit else {
+            panic!("the second Mod name slot must preserve its exact boundary: {source:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(actual_entry, line_entry, "{source:?}");
+        assert_eq!(root.to_string(), accepted, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, terminal_leading, "{source:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + terminal_leading.len(),
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_mod_phase_recovery_stops_before_fence_boundaries() {
+    let fence = active_fence();
+    let origin = 4500;
+    for (accepted, missing, errors) in [
+        ("> > mod", 1, 0),
+        ("> > mod Name", 1, 0),
+        ("> > mod @", 0, 1),
+        ("> > mod Name @", 0, 1),
+        ("> > mod Name: @", 0, 1),
+    ] {
+        let source = format!("{accepted}\n> > ```\nouter");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("Mod recovery must stop before the fence: {accepted:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{accepted:?}");
+        assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{accepted:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, "\n", "{accepted:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + 1,
+            "{accepted:?}"
+        );
+    }
+}
+
+#[test]
+fn normalized_mod_closes_before_nested_struct_and_type_frontiers() {
+    let fence = active_fence();
+    for (source, accepted, spelling, remainder, pending_leading) in [
+        (
+            "> > mod Outer {struct S",
+            "> > mod Outer {",
+            "struct",
+            " S",
+            "",
+        ),
+        (
+            "> > mod Outer:\n> >   type T = U",
+            "> > mod Outer:",
+            "type",
+            " T = U",
+            "\n> >   ",
+        ),
+        (
+            "> > mod Outer: struct S",
+            "> > mod Outer:",
+            "struct",
+            " S",
+            " ",
+        ),
+    ] {
+        let (green, exit, actual_remainder) =
+            run_statement_normalized(source, 4520, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
+            panic!("Mod must propagate its nested declaration frontier: {source:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{source:?}");
+        assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(
+            emit_pending_leading_text(&mut item),
+            pending_leading,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+                .count(),
+            1,
+            "{source:?}",
+        );
+        assert!(
+            root.descendants()
+                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
             "{source:?}",
         );
     }
@@ -1019,7 +1238,7 @@ fn normalized_statement_frontier_propagates_through_existing_callers() {
     let active = active_fence();
     let plain = plain_fence();
     for (source, expected_green, spelling, expected_remainder, fence) in [
-        ("> > { mod M", "> > {", "mod", " M", &active),
+        ("> > { struct M", "> > {", "struct", " M", &active),
         ("x:\n  type T = U", "x:", "type", " T = U", &plain),
     ] {
         let operators = OperatorTable::empty();
@@ -1090,7 +1309,7 @@ fn normalized_statement_hands_close_transition_and_eof_boundaries_up() {
 fn normalized_braced_explicit_separator_preserves_the_next_frontier() {
     let fence = active_fence();
 
-    let source = "> > { x; mod M";
+    let source = "> > { x; struct M";
     let operators = OperatorTable::empty();
     let (green, exit, remainder) = run_normalized(
         source,
@@ -1104,7 +1323,7 @@ fn normalized_braced_explicit_separator_preserves_the_next_frontier() {
     };
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.to_string(), "> > { x;");
-    assert_eq!(item.payload_view().spelling(), Some("mod"));
+    assert_eq!(item.payload_view().spelling(), Some("struct"));
     assert_eq!(remainder, " M");
     assert_eq!(
         emit_pending_leading_tokens(&mut item),

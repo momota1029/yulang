@@ -20,7 +20,7 @@ use super::{
     for_decl::{for_statement_normalized, for_statement_selected},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::scan_statement_payload,
-    mod_decl::{mod_declaration, mod_declaration_selected_normalized},
+    mod_decl::{mod_declaration_normalized, mod_declaration_selected_normalized},
     operator::stops_for,
     struct_decl::{struct_declaration, struct_declaration_selected_normalized},
     type_decl::{type_declaration, type_declaration_selected_normalized},
@@ -163,7 +163,18 @@ pub(super) fn canonical_statement_normalized(
     let exit = match family {
         Some(DeclarationFamily::Struct) => struct_declaration(i.rb(), item, baseline, stops),
         Some(DeclarationFamily::Mod) => {
-            mod_declaration(i.rb(), item, baseline, stops, line_handoff)
+            let exit = mod_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            i.state.finish_node();
+            return exit;
         }
         Some(DeclarationFamily::Use) => {
             let exit = use_declaration_normalized(
@@ -265,7 +276,7 @@ fn declaration_family_is_deferred(
     fence.is_some()
         && matches!(
             family,
-            Some(DeclarationFamily::Struct | DeclarationFamily::Mod | DeclarationFamily::Type)
+            Some(DeclarationFamily::Struct | DeclarationFamily::Type)
         )
 }
 

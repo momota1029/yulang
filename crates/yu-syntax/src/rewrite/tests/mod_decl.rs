@@ -65,6 +65,31 @@ fn mod_c10_builds_named_and_test_identity_topology() {
 }
 
 #[test]
+fn mod_c10_keeps_dynamic_word_operator_names_raw() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "dynamic",
+        OperatorFixities::new().with_nullfix(),
+    )])
+    .expect("dynamic module-name operator table");
+    let source = "mod dynamic;";
+    let (green, exit) = run_statement_with(source, &operators);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let declaration = mod_declaration(&green);
+    assert_eq!(descendants(&declaration, SyntaxKind::Error), 0);
+    assert_eq!(descendants(&declaration, SyntaxKind::NullfixOperatorUse), 0);
+    assert_eq!(
+        declaration
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Identifier)
+            .map(|token| token.text().to_string())
+            .collect::<Vec<_>>(),
+        ["dynamic"],
+    );
+}
+
+#[test]
 fn mod_c10_dispatch_is_exact_and_irrevocable_after_mod() {
     for source in ["mod A;", "my mod A;", "our mod A;", "pub mod A;"] {
         let (green, _) = run_statement(source);
@@ -256,6 +281,36 @@ fn mod_c10_recovers_identity_once_without_body_cascade() {
             descendants(&declaration, SyntaxKind::Error),
             error,
             "{source:?}"
+        );
+    }
+
+    let (green, _) = run_statement("mod test;");
+    assert_eq!(
+        descendants(&mod_declaration(&green), SyntaxKind::Missing),
+        0
+    );
+}
+
+#[test]
+fn mod_c10_commits_ordinary_eof_trivia_before_the_owned_missing_slot() {
+    for source in ["mod ", "mod A ", "mod test "] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let declaration = mod_declaration(&green);
+        assert_eq!(
+            descendants(&declaration, SyntaxKind::Missing),
+            1,
+            "{source:?}"
+        );
+        let topology = declaration
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            &topology[topology.len() - 2..],
+            [SyntaxKind::Whitespace, SyntaxKind::Missing],
+            "{source:?}",
         );
     }
 }
