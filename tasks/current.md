@@ -1458,8 +1458,9 @@ malformed retry / tail / path は incoming value を保存する。`StatementLin
 へ immediate に渡すが state にはしない。braced / Catch-through-inline は outer handoff、zero-Catch は header の
 existing EqualityRecovery と trailing clause 自身の recovery + outer continuation を分ける。header clause 後の
 `with` / `impl` は Complete / Missing / malformed RoleRef を問わず extra DefinitionIntroducer recovery なしで
-pending Item を返す。compiler/recovery と specification の独立査読は repair 後 approved。ユーザー承認までは
-Rust 実装に着手しない。Gate 6/D11/RB-DRV/public/legacy/AST/diagnostic/Struct/Yumark は scope 外のままである。
+pending Item を返す。compiler/recovery と specification の独立査読は repair 後 approved、2026-09-05に
+ユーザーも承認した。これから Rust 実装へ着手する。Gate 6/D11/RB-DRV/public/legacy/AST/diagnostic/Struct/Yumark
+は scope 外のままである。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

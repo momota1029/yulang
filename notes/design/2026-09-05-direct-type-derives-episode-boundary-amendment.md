@@ -1,6 +1,6 @@
 # Direct Type derives episode-boundary amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Scope: source-free direct rewrite に、`TypeDeclaration` だけの
 `DerivesClause` direct-CST construction を追加する。これは Gate 6 の shared derives
@@ -11,7 +11,7 @@ Drafted-by: primary with architecture review
 
 Reviewed-by: independent compiler/recovery review and specification review, 2026-09-05
 
-Required before implementation: user approval
+Approved-by: user, 2026-09-05
 
 Supersedes: `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の
 `DRV-T` にある rollback-owned episode frame / `ParseLocal` を読む**実装経路だけ**。
