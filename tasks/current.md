@@ -268,8 +268,13 @@ boundary・item-wide move-only fragment carrierだけを追加し、legacy Yumar
 partsを一つのordered split列で覆い、通常scannerはcarrierを作らない。rareなfence close/transition facts
 だけをbox化し、ordinary Payload sizeを既存OperatorToken envelope内に保つ。focused direct tests、
 `cargo check -p yu-syntax`、fmt/diff checkはgreenで、static allocation reviewは計測不要と結論した。
-次はisolated Gate 3 cell-construction witnessである。full cell closureはrewrite Gates 4--7以後、
-Yumark integrationはGate 8、production cutoverはGate 9まで待つ。
+isolated Gate 3 cell-construction witnessも完了した。一つのcaller-owned builderでroot-style
+`Statement*`を`YmYulangCodeCell`に構成し、borrowed close / transition / EOF boundaryを
+leading trivia・fragment carrierごと未消費で返すtest-only witnessを固定した。accepted segmented
+identifierは同じcellの`Statement > IdentifierExpression`でordinary textと`YmQuotePrefix`を物理順に
+emitし、その直後のborrowed closeも返す。lexer、legacy/public dispatch、session、operator state、
+production Yumarkは未接続である。full cell closureはrewrite Gates 4--7以後、Yumark integrationは
+Gate 8、production cutoverはGate 9まで待つ。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

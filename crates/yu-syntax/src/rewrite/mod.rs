@@ -27,6 +27,8 @@ mod type_decl;
 mod type_expr;
 mod use_decl;
 mod yumark;
+#[cfg(test)]
+mod yumark_cell;
 
 #[cfg(test)]
 mod tests;

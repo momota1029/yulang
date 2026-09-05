@@ -11,12 +11,13 @@ use super::{
     RewriteIn, Stops,
     driver::{Either, TailExit, expr, token_kind},
     emit::emit_end,
-    item::{OperatorUse, Payload, TokenKind, TriviaKind},
+    item::{Item, OperatorUse, Payload, TokenKind, TriviaKind},
     operator::{STOP_ARROW, STOP_COLON, STOP_ELSE, scan_operator, stops_for},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_with_stops},
     state::Recover,
     statement::statement,
     type_expr::type_expr,
+    yumark_cell::{accepted_identifier_statement_witness, yulang_code_cell_witness},
 };
 
 mod binding;
@@ -34,6 +35,7 @@ mod type_decl;
 mod type_expr;
 mod use_decl;
 mod yumark;
+mod yumark_cell;
 
 fn run(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();
@@ -79,6 +81,35 @@ fn run_statement_with_stops(
     if let Some(Err(Either::Right(end))) = &exit {
         emit_end(&mut builder, end);
     }
+    builder.finish_node();
+    (builder.finish(), exit)
+}
+
+fn run_yumark_cell<'source>(
+    source: &'source str,
+    terminal: Item,
+) -> (GreenNode, TailExit, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = yulang_code_cell_witness(In::new(&mut input, &mut recover, &mut builder), terminal);
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_fragmented_statement_successor(item: Item, successor: Item) -> (GreenNode, TailExit) {
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = accepted_identifier_statement_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        item,
+        successor,
+    );
     builder.finish_node();
     (builder.finish(), exit)
 }

@@ -580,8 +580,7 @@ pub(super) fn is_close(item: &Item) -> bool {
 pub(super) fn handoff(item: Item) -> TailExit {
     match item.payload {
         Payload::Eof => Err(Either::Right(End { item })),
-        Payload::Token(_) | Payload::Operator(_) => Err(Either::Left(item)),
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
+        Payload::Token(_) | Payload::Operator(_) | Payload::Boundary(_) => Err(Either::Left(item)),
     }
 }
 

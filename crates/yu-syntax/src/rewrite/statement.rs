@@ -45,6 +45,16 @@ impl StatementLineHandoff {
 pub(super) fn statement(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
+    statement_from_item(i, item, baseline, stops)
+}
+
+pub(super) fn statement_from_item(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+) -> TailExit {
+    debug_assert!(!matches!(item.payload, Payload::Boundary(_)));
     if is_canonical_statement_nud(i.rb(), &item, baseline) {
         canonical_statement(
             i,

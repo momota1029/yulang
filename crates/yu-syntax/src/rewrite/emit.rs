@@ -10,6 +10,9 @@ use super::{
     item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
 };
 
+#[cfg(test)]
+use super::item::{ForeignKind, ItemTextPart};
+
 pub(super) fn emit_identifier_core(i: &mut RewriteIn, item: Item) {
     let Payload::Token(token) = item.payload else {
         unreachable!("a core scanner always returns a token")
@@ -68,36 +71,48 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
             i.state.token(SyntaxKind::Operator.into(), &operator.text);
         }
         Payload::Token(token) => {
-            let kind = match token.kind {
-                TokenKind::Identifier => SyntaxKind::Identifier,
-                TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
-                TokenKind::Integer => SyntaxKind::Integer,
-                TokenKind::Operator => unreachable!("operators have a selected dynamic role"),
-                TokenKind::LParen => SyntaxKind::LParen,
-                TokenKind::RParen => SyntaxKind::RParen,
-                TokenKind::LBracket => SyntaxKind::LBracket,
-                TokenKind::RBracket => SyntaxKind::RBracket,
-                TokenKind::LBrace => SyntaxKind::LBrace,
-                TokenKind::RBrace => SyntaxKind::RBrace,
-                TokenKind::Comma => SyntaxKind::Comma,
-                TokenKind::Semicolon => SyntaxKind::Semicolon,
-                TokenKind::Dot => SyntaxKind::Dot,
-                TokenKind::DotDot => SyntaxKind::DotDot,
-                TokenKind::Arrow => SyntaxKind::Arrow,
-                TokenKind::Colon => SyntaxKind::Colon,
-                TokenKind::Equals => SyntaxKind::Equals,
-                TokenKind::Forall => SyntaxKind::ForKw,
-                TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
-                TokenKind::PolymorphicVariantColon => SyntaxKind::Colon,
-                TokenKind::PatternSymbolColon => SyntaxKind::Colon,
-                TokenKind::PathSeparator => SyntaxKind::ColonColon,
-                TokenKind::Pipe => SyntaxKind::Pipe,
-                TokenKind::Unknown => SyntaxKind::Unknown,
-            };
+            let kind = token_syntax_kind(token.kind);
             i.state.token(kind.into(), &token.text);
         }
         Payload::Eof => unreachable!("only a lexical item can be emitted"),
         Payload::Boundary(_) => unreachable!("Gate 2 boundaries cannot be emitted"),
+    }
+}
+
+/// Gate 3's isolated cell fixture emits one already-accepted segmented item
+/// without changing the ordinary canonical emitters before lexical closure.
+#[cfg(test)]
+pub(super) fn emit_fragmented_item(i: &mut RewriteIn, item: &Item) {
+    for part in item
+        .fragmented_parts()
+        .expect("the cell fixture accepts a segmented item")
+    {
+        let ordinary = match part.kind {
+            ItemTextPart::LeadingTrivia(index) => trivia_syntax_kind(item.leading.0[index].kind),
+            ItemTextPart::PayloadToken => {
+                let Payload::Token(token) = &item.payload else {
+                    unreachable!("a token part belongs to a token payload")
+                };
+                token_syntax_kind(token.kind)
+            }
+            ItemTextPart::PayloadOperator => SyntaxKind::Operator,
+        };
+        let mut cursor = 0;
+        for split in part.foreign {
+            let start = split.offset - part.physical.start;
+            let end = start + split.length;
+            if cursor < start {
+                i.state.token(ordinary.into(), &part.text[cursor..start]);
+            }
+            let foreign = match split.kind {
+                ForeignKind::YmQuotePrefix => SyntaxKind::YmQuotePrefix,
+            };
+            i.state.token(foreign.into(), &part.text[start..end]);
+            cursor = end;
+        }
+        if cursor < part.text.len() {
+            i.state.token(ordinary.into(), &part.text[cursor..]);
+        }
     }
 }
 
@@ -130,12 +145,45 @@ fn emit_trivia(i: &mut RewriteIn, trivia: &LeadingTrivia) {
 
 fn emit_trivia_builder(builder: &mut GreenNodeBuilder<'static>, trivia: &LeadingTrivia) {
     for part in &trivia.0 {
-        let kind = match part.kind {
-            TriviaKind::Whitespace => SyntaxKind::Whitespace,
-            TriviaKind::Newline => SyntaxKind::Newline,
-            TriviaKind::LineComment => SyntaxKind::LineComment,
-            TriviaKind::BlockComment => SyntaxKind::BlockComment,
-        };
+        let kind = trivia_syntax_kind(part.kind);
         builder.token(kind.into(), &part.text);
+    }
+}
+
+fn trivia_syntax_kind(kind: TriviaKind) -> SyntaxKind {
+    match kind {
+        TriviaKind::Whitespace => SyntaxKind::Whitespace,
+        TriviaKind::Newline => SyntaxKind::Newline,
+        TriviaKind::LineComment => SyntaxKind::LineComment,
+        TriviaKind::BlockComment => SyntaxKind::BlockComment,
+    }
+}
+
+fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {
+    match kind {
+        TokenKind::Identifier => SyntaxKind::Identifier,
+        TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
+        TokenKind::Integer => SyntaxKind::Integer,
+        TokenKind::Operator => unreachable!("operators have a selected dynamic role"),
+        TokenKind::LParen => SyntaxKind::LParen,
+        TokenKind::RParen => SyntaxKind::RParen,
+        TokenKind::LBracket => SyntaxKind::LBracket,
+        TokenKind::RBracket => SyntaxKind::RBracket,
+        TokenKind::LBrace => SyntaxKind::LBrace,
+        TokenKind::RBrace => SyntaxKind::RBrace,
+        TokenKind::Comma => SyntaxKind::Comma,
+        TokenKind::Semicolon => SyntaxKind::Semicolon,
+        TokenKind::Dot => SyntaxKind::Dot,
+        TokenKind::DotDot => SyntaxKind::DotDot,
+        TokenKind::Arrow => SyntaxKind::Arrow,
+        TokenKind::Colon => SyntaxKind::Colon,
+        TokenKind::Equals => SyntaxKind::Equals,
+        TokenKind::Forall => SyntaxKind::ForKw,
+        TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
+        TokenKind::PolymorphicVariantColon => SyntaxKind::Colon,
+        TokenKind::PatternSymbolColon => SyntaxKind::Colon,
+        TokenKind::PathSeparator => SyntaxKind::ColonColon,
+        TokenKind::Pipe => SyntaxKind::Pipe,
+        TokenKind::Unknown => SyntaxKind::Unknown,
     }
 }
