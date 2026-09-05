@@ -296,6 +296,17 @@ authorized sliceはL5のRuleAtom string/bracketとRule call/indexである。`%{
 statement/declaration construction checkpoint後のL6、complete literal/Pattern deltaはL7とjoint Gate 4--6
 barrierまで完了扱いにしない。Gate 4 expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
 
+2026-09-05: L5 Rule `ExpressionList` の成功 child 後の fence handoff を調査した結果、complete-Item
+scanner一つを braced statement/declaration まで貫通させると、header/Type/Pattern/raw probe を表す大域
+request/context機構が必要になると確定した。user-approved `2026-09-05-direct-expression-successor-acquisition-
+addendum.md` はこれを拒否し、L5a（closed direct Item cone と private `Deferred` frontier）→ L6a（compound
+expression・canonical statement/declaration・Pattern/Type/derives/raw probe の owner-local fenced entry）→ L5b
+（full Rule ExpressionList）の順序をAuthoritative化した。fenced pathは消費だけでなくphysical lineを越える
+lookahead前にもjudgeし、child callごとにsuffix pointer/length差でimmediate originを同期する。fence、cursor、
+source、callback、contextをRecover/Rowan/Item/persistent frameへ置かず、close/transition Itemとleading trivia/
+fragment carrierはunchanged handoffする。現worktreeのL5 repairはuncommittedで、次のimplementation gateは
+L5aのfrontier ledgerとclosed-cone proofである。L5/L6/L7/public integrationは未完である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
