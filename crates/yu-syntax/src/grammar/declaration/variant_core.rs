@@ -1106,6 +1106,7 @@ trait VariantNamedFieldSequenceContext {
         actual: Delimiter,
     );
     fn eof(&mut self) -> bool;
+    fn comma_pending(&mut self) -> bool;
     fn comma(&mut self) -> Option<Range<usize>>;
     fn record_comma(&mut self, range: Range<usize>);
     fn semicolon(&mut self) -> Option<Range<usize>>;
@@ -1162,8 +1163,11 @@ where
             context.record_missing_close(spec);
             break;
         }
-        if let Some(comma) = context.comma() {
+        if context.comma_pending() {
             context.record_missing_item(spec, VariantNamedFieldMissingItemSite::EmptySlot);
+            let comma = context
+                .comma()
+                .expect("a pending named-field empty slot is followed by its comma");
             context.record_comma(comma);
             let trivia = context.consume_trivia();
             context.emit_trivia(&trivia);
@@ -1327,6 +1331,10 @@ where
 
     fn eof(&mut self) -> bool {
         self.i.input.remainder().is_empty()
+    }
+
+    fn comma_pending(&mut self) -> bool {
+        scan_struct_comma_pending(self.i)
     }
 
     fn comma(&mut self) -> Option<Range<usize>> {
@@ -1526,6 +1534,11 @@ where
     fn eof(&mut self) -> bool {
         self.committed
             .probe(|probe| probe.input().input.remainder().is_empty())
+    }
+
+    fn comma_pending(&mut self) -> bool {
+        self.committed
+            .probe(|probe| scan_struct_comma_pending(probe.input()))
     }
 
     fn comma(&mut self) -> Option<Range<usize>> {

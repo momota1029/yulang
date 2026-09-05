@@ -1005,6 +1005,17 @@ impl ParseLocal {
         self.if_expression_companions.pop()
     }
 
+    /// Releases the opaque identity of a recovered initial `if` condition
+    /// after its frame has closed. No AST or direct recovery record retains
+    /// this identity, so a later sibling may reuse it.
+    pub(crate) fn rollback_if_expression_companion_allocation(
+        &mut self,
+        id: IfExpressionCompanionId,
+    ) {
+        assert!(id.0 < self.next_if_expression_companion_id);
+        self.next_if_expression_companion_id = id.0;
+    }
+
     pub(crate) fn if_expression_companion(&self) -> Option<IfExpressionCompanionFrame> {
         self.if_expression_companions.last().copied()
     }

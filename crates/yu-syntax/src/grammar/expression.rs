@@ -1455,6 +1455,30 @@ where
     parse_call_arguments_loop(table, i, BorrowedCallArgumentBoundary(parent_boundary))
 }
 
+/// Publishes the legacy expectation owned by a CallTail retry in a canonical
+/// statement.
+///
+/// The failed chain probe itself is always speculative.  Once a malformed run
+/// has been accepted inside a statement owner, the legacy AST contract retains
+/// the first invalid character. An active embedded Yumark frame publishes the
+/// same recovery through its fact log instead.
+fn emit_statement_call_retry_error<E>(range: &Range<usize>, i: &mut SynIn<'_, '_, '_, E>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let start = range.start;
+    let character = i.input.source()[start..]
+        .chars()
+        .next()
+        .expect("a call-retry range starts at a source character");
+    E::push(
+        E::shorten_mut(&mut i.errors),
+        start..start + character.len_utf8(),
+        Unexpected::Item(character).into(),
+    );
+}
+
 fn parse_call_arguments_loop<'source, E, P>(
     table: &OperatorTable,
     i: &mut SynIn<'_, 'source, '_, E>,
@@ -1497,6 +1521,11 @@ where
             i.errors_rollback(errors_checkpoint);
             if let Some(range) = call_argument_error_retry_ast_with_policy(table, i, &mut boundary)
             {
+                if i.local.ambient_owner_scope().is_some()
+                    && !i.local.yumark_embedded_recovery_active()
+                {
+                    emit_statement_call_retry_error(&range, i);
+                }
                 i.local
                     .record_yumark_embedded_recovery(call_interior_recovery_fact(
                         GrammarRole::Expression(ExpressionRole::CallArgument),
@@ -3007,13 +3036,21 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = keyword.range().start;
-    let mut companion_scope = Some(push_if_expression_companion_scope(base_indent, i));
+    let scope = push_if_expression_companion_scope(base_indent, i);
+    let mut companion_scope = Some(scope);
     let mut arms = vec![parse_if_arm(
         table,
         IfArmKeyword::If(keyword),
         base_indent,
         i,
     )];
+    let initial_condition_incomplete = matches!(
+        arms.as_slice(),
+        [IfArm {
+            condition: Recovered::Incomplete,
+            ..
+        }]
+    );
     let mut else_arm = None;
     while let Some(keyword) = recognize_if_arm_continuation(
         base_indent,
@@ -3045,6 +3082,10 @@ where
     }
     if let Some(scope) = companion_scope {
         pop_if_expression_companion_scope(scope, i);
+    }
+    if initial_condition_incomplete {
+        i.local
+            .rollback_if_expression_companion_allocation(scope.id);
     }
     let end = else_arm.as_ref().map_or_else(
         || arms.last().expect("if has an initial arm").range.end,
@@ -7973,10 +8014,11 @@ fn commit_if_expression<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::IfExpression);
-    let mut companion_scope = Some(
-        committed.probe(|probe| push_if_expression_companion_scope(base_indent, probe.input())),
-    );
-    commit_if_arm(table, IfArmKeyword::If(keyword), base_indent, committed);
+    let scope =
+        committed.probe(|probe| push_if_expression_companion_scope(base_indent, probe.input()));
+    let mut companion_scope = Some(scope);
+    let initial_condition_incomplete =
+        !commit_if_arm(table, IfArmKeyword::If(keyword), base_indent, committed);
     loop {
         let Some(continuation) = committed.probe(|probe| {
             recognize_if_arm_continuation(
@@ -8014,6 +8056,14 @@ fn commit_if_expression<'parse, 'source, 'local, E, O>(
     if let Some(scope) = companion_scope {
         committed.probe(|probe| pop_if_expression_companion_scope(scope, probe.input()));
     }
+    if initial_condition_incomplete {
+        committed.probe(|probe| {
+            probe
+                .input()
+                .local
+                .rollback_if_expression_companion_allocation(scope.id)
+        });
+    }
     committed.finish_node();
 }
 
@@ -8022,7 +8072,8 @@ fn commit_if_arm<'parse, 'source, 'local, E, O>(
     keyword: IfArmKeyword<'source>,
     base_indent: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) where
+) -> bool
+where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
@@ -8070,11 +8121,12 @@ fn commit_if_arm<'parse, 'source, 'local, E, O>(
             );
         }
         committed.finish_node();
-        return;
+        return has_condition;
     };
     committed.token(SyntaxKind::Colon, colon);
     commit_colon_introduced_if_body(table, base_indent, IfExpressionRole::Body, committed);
     committed.finish_node();
+    has_condition
 }
 
 fn commit_else_arm<'parse, 'source, 'local, E, O>(
