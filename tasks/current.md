@@ -256,6 +256,15 @@ fence bodyだけを読む。non-Yulang fenceはrawのまま流し、将来のlan
 Authoritative addendumを作ること。command/apply argument用の既存embedded-Yulang delimiter bridgeとは別責務であり、
 fenceのouter delimiter / quote streaming ownershipを崩したりpublic parser再帰で本文を再parseしたりしない。
 
+2026-09-05: 後続addendum
+`notes/design/2026-09-05-yumark-parsed-yulang-fence-addendum.md`は、M3
+compiler/recovery・specification・regression・performance査読とscoped deltaを終え、user approvalで`Authoritative`。
+先頭info atomのexact `yulang`選択、`&str`を保つborrowed fence boundary、quoted multiline lexical
+itemのcurrent-item fragment carrier、outer quoteへ戻すdequote/greater-depth規則、direct
+`YmYulangCodeCell`、Gate 4--9の依存順を定めた。Gate 1 authority closureは完了し、次の許可範囲は
+inertなGate 2だけである。full cell closureはrewrite Gates 4--7以後、Yumark integrationはGate 8、
+production cutoverはGate 9まで待つ。この記録自体はRust実装を含まない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
