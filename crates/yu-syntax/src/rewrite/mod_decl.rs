@@ -6,6 +6,7 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
+    current_item::LineEntry,
     driver::{
         Either, TailExit, handoff, implicit_delimited_newline, indentation_after_newline,
         is_active_stop, token_kind,
@@ -16,11 +17,12 @@ use super::{
         introduced_body_indentation, scan_identifier, scan_statement_item, scan_trivia,
         source_identifier, statement_item_after_trivia,
     },
-    operator::source_after_trivia,
+    operator::{TriviaObservation, observe_fenced_trivia, source_after_trivia},
     statement::{
         StatementLineHandoff, braced_statement_block, canonical_statement,
         indented_statement_block, is_canonical_statement_nud,
     },
+    yumark::FenceBoundary,
 };
 
 type SlotResult<T> = Result<Option<T>, Item>;
@@ -28,6 +30,16 @@ type SlotResult<T> = Result<Option<T>, Item>;
 /// Exact bare `mod` is authoritative immediately. A visibility-led form is
 /// selected only when the same Gmod rule exposes an exact maximal `mod` word.
 pub(super) fn mod_declaration_selected(i: RewriteIn, item: &Item, baseline: usize) -> bool {
+    mod_declaration_selected_normalized(i, item, baseline, 0, None)
+}
+
+pub(super) fn mod_declaration_selected_normalized(
+    i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("mod") {
         return true;
     }
@@ -35,10 +47,34 @@ pub(super) fn mod_declaration_selected(i: RewriteIn, item: &Item, baseline: usiz
         return false;
     }
     i.map(
-        |lex: LexIn| Some(prefixed_mod_candidate(lex.remainder(), baseline)),
+        |lex: LexIn| {
+            Some(prefixed_mod_candidate_normalized(
+                lex.remainder(),
+                item_origin,
+                fence,
+                baseline,
+            ))
+        },
         |selected| selected,
     )
     .unwrap_or(false)
+}
+
+fn prefixed_mod_candidate_normalized(
+    source: &str,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+) -> bool {
+    let TriviaObservation::Visible(observed) =
+        observe_fenced_trivia(source, item_origin, LineEntry::InLine, fence)
+    else {
+        return false;
+    };
+    observed
+        .indentation
+        .is_none_or(|indentation| indentation > baseline)
+        && source_identifier(observed.source).is_some_and(|(word, _)| word == "mod")
 }
 
 pub(super) fn mod_declaration(
@@ -391,12 +427,6 @@ fn continuation_has_body_starter(i: RewriteIn, baseline: usize) -> bool {
         let (after, _, indentation) = source_after_trivia(source);
         indentation.is_none_or(|indentation| indentation > baseline) && body_starter(after)
     })
-}
-
-fn prefixed_mod_candidate(source: &str, baseline: usize) -> bool {
-    let (source, _, indentation) = source_after_trivia(source);
-    indentation.is_none_or(|indentation| indentation > baseline)
-        && source_identifier(source).is_some_and(|(word, _)| word == "mod")
 }
 
 fn body_starter(source: &str) -> bool {

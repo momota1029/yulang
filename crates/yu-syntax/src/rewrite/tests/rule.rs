@@ -518,7 +518,7 @@ fn rule_atom_string_uses_the_immediate_origin_and_real_fence() {
         assert!(root(&green).to_string().contains("α\r\n> > β\"\r\n"));
     }
 
-    let source = "{a\r\n> > \"β\"\r\n> stop\r\n";
+    let source = "{a\r\n> >   \"β\"\r\n> stop\r\n";
     let boundary_offset = source.find("> stop").unwrap();
     let start = source.as_ptr();
     let (green, exit, remainder) = run_rule_body_fenced(source, source_origin, &fence);
@@ -531,6 +531,7 @@ fn rule_atom_string_uses_the_immediate_origin_and_real_fence() {
     assert_eq!(count(&green, SyntaxKind::StringLiteral), 1);
     assert!(tokens(&green).contains(&(SyntaxKind::StringText, "β".to_owned())));
     assert!(tokens(&green).contains(&(SyntaxKind::YmQuotePrefix, "> > ".to_owned())));
+    assert!(tokens(&green).contains(&(SyntaxKind::Whitespace, "  ".to_owned())));
 }
 
 #[test]

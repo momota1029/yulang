@@ -6,22 +6,25 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 
 use super::{
     RewriteIn, Stops,
+    current_item::LineEntry,
     driver::{
-        CompleteItemSite, Either, L5aExit, MlMode, TailExit, continue_completed_tail,
-        continue_l5a_tail, delimited_baseline, expr_from_nud, expr_from_nud_l5a, handoff,
-        implicit_delimited_newline, is_close, is_nud_item, is_separator, token_kind,
+        Either, MlMode, NormalizedExit, advanced_origin, complete, continue_normalized_tail,
+        expr_from_nud_normalized, expression_item, handoff, implicit_delimited_newline, is_close,
+        is_nud_item, is_separator, suffix_marker, token_kind,
     },
     emit::{emit_error_item, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
-    lexer::{
-        is_operator_shaped_unknown, scan_operator_shaped_unknown, scan_trivia,
-        tail_item_after_trivia,
+    lexer::{is_operator_shaped_unknown, scan_operator_shaped_unknown},
+    operator::{
+        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR,
+        newline_indentation_after_fenced_trivia, stops_for,
     },
-    operator::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, stops_for},
     statement::StatementLineHandoff,
+    yumark::FenceBoundary,
 };
 
-pub(super) fn parenthesized_nud(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn parenthesized_nud_normalized(
     mut i: RewriteIn,
     open: Item,
     threshold: Option<&BindingPower>,
@@ -29,11 +32,15 @@ pub(super) fn parenthesized_nud(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedExpression.into());
     emit_token_item(&mut i, open);
-    let exit = delimited_items(
+    let entry = suffix_marker(i.rb());
+    let exit = delimited_items_normalized(
         i.rb(),
         TokenKind::RParen,
         None,
@@ -41,41 +48,13 @@ pub(super) fn parenthesized_nud(
         baseline,
         MlMode::LayoutOnly,
         line_handoff,
+        item_origin,
+        line_entry,
+        fence,
     );
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_completed_tail(i, threshold, baseline, stops, ml_mode, line_handoff, exit)
-}
-
-pub(super) fn parenthesized_nud_with<F>(
-    mut i: RewriteIn,
-    open: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    debug_assert!(defer_distinct_owner);
-    i.state
-        .start_node(SyntaxKind::ParenthesizedExpression.into());
-    emit_token_item(&mut i, open);
-    let exit = delimited_items_l5a(
-        i.rb(),
-        TokenKind::RParen,
-        None,
-        false,
-        baseline,
-        MlMode::LayoutOnly,
-        line_handoff,
-        acquire,
-    );
-    i.state.finish_node();
-    continue_l5a_tail(
+    continue_normalized_tail(
         i,
         threshold,
         baseline,
@@ -83,11 +62,13 @@ where
         ml_mode,
         line_handoff,
         exit,
-        acquire,
+        item_origin,
+        fence,
     )
 }
 
-pub(super) fn delimited_items_l5a<F>(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn delimited_items_normalized(
     mut i: RewriteIn,
     close: TokenKind,
     item_node: Option<SyntaxKind>,
@@ -95,62 +76,109 @@ pub(super) fn delimited_items_l5a<F>(
     incoming_baseline: usize,
     item_ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let mut stops = stops_for(close);
     if record_spread {
         stops |= STOP_RECORD_SPREAD;
     }
-    let mut item = acquire(&mut i, CompleteItemSite::Nud, incoming_baseline, stops);
-    let baseline = delimited_baseline(incoming_baseline, item.leading_view());
+    let baseline =
+        delimited_baseline_from_source(i.rb(), incoming_baseline, item_origin, line_entry, fence);
+    let (mut item, next_origin, next_line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+    );
+    item_origin = next_origin;
+    line_entry = next_line_entry;
     loop {
         if item.payload_view().is_boundary() {
-            return L5aExit::Complete(missing_close(i, item));
+            return missing_close_normalized(i, item, line_entry);
         }
         if token_kind(&item) == Some(close) {
             emit_token_item(&mut i, item);
-            return L5aExit::Complete(Ok(()));
+            return complete(Ok(()), line_entry);
         }
         if item.payload_view().is_eof() {
-            return L5aExit::Complete(missing_close(i, item));
+            return missing_close_normalized(i, item, line_entry);
         }
         if is_separator(&item) {
             item = missing_item(i.rb(), item);
             emit_token_item(&mut i, item);
-            item = acquire(&mut i, CompleteItemSite::Nud, baseline, stops);
+            (item, item_origin, line_entry) = expression_item(
+                i.rb(),
+                OperatorSite::Nud,
+                item_origin,
+                line_entry,
+                fence,
+                baseline,
+                stops,
+            );
             continue;
         }
         if is_close(&item) {
-            item = wrong_close_item_l5a(i.rb(), item, baseline, stops, acquire);
+            (item, item_origin, line_entry) = wrong_close_item_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
             continue;
         }
         if is_record_spread_item(&item) {
-            let exit = record_spread_item_l5a(i.rb(), item, baseline, stops, line_handoff, acquire);
-            item = match delimited_successor_l5a(
+            let entry = suffix_marker(i.rb());
+            let exit = record_spread_item_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            item_origin = advanced_origin(item_origin, entry, i.rb());
+            match delimited_successor_normalized(
                 i.rb(),
                 exit,
                 close,
                 baseline,
                 stops,
                 item_ml_mode,
-                acquire,
+                item_origin,
+                fence,
             ) {
-                Ok(item) => item,
+                Ok(next) => (item, item_origin, line_entry) = next,
                 Err(exit) => return exit,
-            };
+            }
             continue;
         }
         if !is_nud_item(&item) {
-            item = retry_nud_item_l5a(i.rb(), item, baseline, stops, acquire);
+            (item, item_origin, line_entry) = retry_nud_item_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
             continue;
         }
         if let Some(kind) = item_node {
             i.state.start_node(kind.into());
         }
-        let exit = expr_from_nud_l5a(
+        let entry = suffix_marker(i.rb());
+        let exit = expr_from_nud_normalized(
             i.rb(),
             item,
             None,
@@ -158,210 +186,154 @@ where
             stops,
             item_ml_mode,
             line_handoff,
-            acquire,
+            item_origin,
+            line_entry,
+            fence,
         );
+        item_origin = advanced_origin(item_origin, entry, i.rb());
         if item_node.is_some() {
             i.state.finish_node();
         }
-        if matches!(exit, L5aExit::Deferred(_)) {
-            return exit;
-        }
-        item = match delimited_successor_l5a(
+        match delimited_successor_normalized(
             i.rb(),
             exit,
             close,
             baseline,
             stops,
             item_ml_mode,
-            acquire,
+            item_origin,
+            fence,
         ) {
-            Ok(item) => item,
+            Ok(next) => (item, item_origin, line_entry) = next,
             Err(exit) => return exit,
-        };
+        }
     }
 }
 
-pub(super) fn delimited_items(
+fn delimited_baseline_from_source(
     mut i: RewriteIn,
-    close: TokenKind,
-    item_node: Option<SyntaxKind>,
-    record_spread: bool,
-    incoming_baseline: usize,
-    item_ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let mut stops = stops_for(close);
-    if record_spread {
-        stops |= STOP_RECORD_SPREAD;
-    }
-    let leading = scan_trivia(i.rb());
-    let baseline = delimited_baseline(incoming_baseline, leading.view());
-    let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    loop {
-        if token_kind(&item) == Some(close) {
-            emit_token_item(&mut i, item);
-            return Ok(());
-        }
-        if item.payload_view().is_eof() {
-            return missing_close(i, item);
-        }
-        if is_separator(&item) {
-            item = missing_item(i.rb(), item);
-            emit_token_item(&mut i, item);
-            let leading = scan_trivia(i.rb());
-            item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-            continue;
-        }
-        if is_close(&item) {
-            item = wrong_close_item(i.rb(), item, baseline, stops);
-            continue;
-        }
-        if is_record_spread_item(&item) {
-            let exit = record_spread_item(i.rb(), item, baseline, stops, line_handoff);
-            item = match delimited_successor(i.rb(), exit, close, baseline, stops, item_ml_mode) {
-                Ok(item) => item,
-                Err(exit) => return exit,
-            };
-            continue;
-        }
-        if !is_nud_item(&item) {
-            item = retry_nud_item(i.rb(), item, baseline, stops);
-            continue;
-        }
-        if let Some(kind) = item_node {
-            i.state.start_node(kind.into());
-        }
-        let exit = expr_from_nud(
-            i.rb(),
-            item,
-            None,
-            baseline,
-            stops,
-            item_ml_mode,
-            line_handoff,
-        );
-        if item_node.is_some() {
-            i.state.finish_node();
-        }
-        item = match delimited_successor(i.rb(), exit, close, baseline, stops, item_ml_mode) {
-            Ok(item) => item,
-            Err(exit) => return exit,
-        };
-    }
+    incoming: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> usize {
+    let indentation = i
+        .token(|lex| {
+            Some(newline_indentation_after_fenced_trivia(
+                lex.remainder(),
+                item_origin,
+                line_entry,
+                fence,
+            ))
+        })
+        .expect("the direct delimiter layout probe is total");
+    indentation
+        .filter(|&indentation| indentation > incoming)
+        .unwrap_or(incoming)
 }
 
-fn delimited_successor(
+#[allow(clippy::too_many_arguments)]
+fn delimited_successor_normalized(
     mut i: RewriteIn,
-    exit: TailExit,
+    exit: NormalizedExit,
     close: TokenKind,
     baseline: usize,
     stops: Stops,
     item_ml_mode: MlMode,
-) -> Result<Item, TailExit> {
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     match exit {
-        Err(Either::Left(next)) if is_separator(&next) => {
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
+            if next.payload_view().is_boundary() =>
+        {
+            Err(missing_close_normalized(i, next, line_entry))
+        }
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry) if is_separator(&next) => {
             emit_token_item(&mut i, next);
-            let leading = scan_trivia(i.rb());
-            Ok(tail_item_after_trivia(
-                i.rb(),
-                leading,
+            Ok(expression_item(
+                i,
                 OperatorSite::Nud,
+                item_origin,
+                line_entry,
+                fence,
                 baseline,
                 stops,
             ))
         }
-        Err(Either::Left(next)) if token_kind(&next) == Some(close) => {
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
+            if token_kind(&next) == Some(close) =>
+        {
             emit_token_item(&mut i, next);
-            Err(Ok(()))
+            Err(complete(Ok(()), line_entry))
         }
-        Err(Either::Left(next)) if is_close(&next) => {
-            Ok(wrong_close_item(i.rb(), next, baseline, stops))
-        }
-        Err(Either::Left(next))
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry) if is_close(&next) => Ok(
+            wrong_close_item_normalized(i, next, baseline, stops, item_origin, line_entry, fence),
+        ),
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
             if stops & STOP_RECORD_SPREAD != 0 && is_record_spread_item(&next) =>
         {
-            Ok(missing_item(i.rb(), next))
+            Ok((missing_item(i, next), item_origin, line_entry))
         }
-        Err(Either::Left(next))
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
             if is_nud_item(&next) && implicit_delimited_newline(baseline, next.leading_view()) =>
         {
-            Ok(next)
+            Ok((next, item_origin, line_entry))
         }
-        Err(Either::Left(next))
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
             if matches!(item_ml_mode, MlMode::LayoutOnly) && is_nud_item(&next) =>
         {
-            Ok(missing_item(i.rb(), next))
+            Ok((missing_item(i, next), item_origin, line_entry))
         }
-        Err(Either::Right(end)) => Err(missing_close(i, end.item)),
-        exit => Err(exit),
-    }
-}
-
-fn delimited_successor_l5a<F>(
-    mut i: RewriteIn,
-    exit: L5aExit,
-    close: TokenKind,
-    baseline: usize,
-    stops: Stops,
-    item_ml_mode: MlMode,
-    acquire: &mut F,
-) -> Result<Item, L5aExit>
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    match exit {
-        L5aExit::Deferred(item) => Err(L5aExit::Deferred(item)),
-        L5aExit::Complete(Err(Either::Left(next))) if is_separator(&next) => {
-            emit_token_item(&mut i, next);
-            Ok(acquire(&mut i, CompleteItemSite::Nud, baseline, stops))
-        }
-        L5aExit::Complete(Err(Either::Left(next))) if token_kind(&next) == Some(close) => {
-            emit_token_item(&mut i, next);
-            Err(L5aExit::Complete(Ok(())))
-        }
-        L5aExit::Complete(Err(Either::Left(next))) if is_close(&next) => {
-            Ok(wrong_close_item_l5a(i.rb(), next, baseline, stops, acquire))
-        }
-        L5aExit::Complete(Err(Either::Left(next)))
-            if stops & STOP_RECORD_SPREAD != 0 && is_record_spread_item(&next) =>
-        {
-            Ok(missing_item(i.rb(), next))
-        }
-        L5aExit::Complete(Err(Either::Left(next)))
-            if is_nud_item(&next) && implicit_delimited_newline(baseline, next.leading_view()) =>
-        {
-            Ok(next)
-        }
-        L5aExit::Complete(Err(Either::Left(next)))
-            if matches!(item_ml_mode, MlMode::LayoutOnly) && is_nud_item(&next) =>
-        {
-            Ok(missing_item(i.rb(), next))
-        }
-        L5aExit::Complete(Err(Either::Right(end))) => {
-            Err(L5aExit::Complete(missing_close(i, end.item)))
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            Err(missing_close_normalized(i, end.item, line_entry))
         }
         exit => Err(exit),
     }
 }
 
-fn record_spread_item(
+#[allow(clippy::too_many_arguments)]
+fn record_spread_item_normalized(
     mut i: RewriteIn,
     marker: Item,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
     emit_token_item(&mut i, marker);
-    let leading = scan_trivia(i.rb());
     let rhs_stops = (stops & !STOP_RECORD_SPREAD) | STOP_RECORD_SPREAD_AFTER_OPERATOR;
-    let mut rhs = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, rhs_stops);
-    if !is_nud_item(&rhs) && !is_spread_boundary(&rhs) {
-        rhs = retry_nud_item(i.rb(), rhs, baseline, rhs_stops);
+    let (mut rhs, next_origin, next_line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        rhs_stops,
+    );
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+    if !rhs.payload_view().is_boundary() && !is_nud_item(&rhs) && !is_spread_boundary(&rhs) {
+        (rhs, item_origin, line_entry) = retry_nud_item_normalized(
+            i.rb(),
+            rhs,
+            baseline,
+            rhs_stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
-    let exit = if is_nud_item(&rhs) {
-        expr_from_nud(
+    let exit = if rhs.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        complete(handoff(rhs), line_entry)
+    } else if is_nud_item(&rhs) {
+        expr_from_nud_normalized(
             i.rb(),
             rhs,
             None,
@@ -369,50 +341,14 @@ fn record_spread_item(
             stops,
             MlMode::All,
             line_handoff,
+            item_origin,
+            line_entry,
+            fence,
         )
     } else {
         rhs.emit_all_remaining_leading(&mut *i.state);
         emit_missing(&mut i, LeadingTrivia::default());
-        handoff(rhs)
-    };
-    i.state.finish_node();
-    exit
-}
-
-fn record_spread_item_l5a<F>(
-    mut i: RewriteIn,
-    marker: Item,
-    baseline: usize,
-    stops: Stops,
-    line_handoff: StatementLineHandoff,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    i.state
-        .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
-    emit_token_item(&mut i, marker);
-    let rhs_stops = (stops & !STOP_RECORD_SPREAD) | STOP_RECORD_SPREAD_AFTER_OPERATOR;
-    let mut rhs = acquire(&mut i, CompleteItemSite::Nud, baseline, rhs_stops);
-    if !is_nud_item(&rhs) && !is_spread_boundary(&rhs) {
-        rhs = retry_nud_item_l5a(i.rb(), rhs, baseline, rhs_stops, acquire);
-    }
-    let exit = if is_nud_item(&rhs) {
-        expr_from_nud_l5a(
-            i.rb(),
-            rhs,
-            None,
-            baseline,
-            stops,
-            MlMode::All,
-            line_handoff,
-            acquire,
-        )
-    } else {
-        rhs.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        L5aExit::Complete(handoff(rhs))
+        complete(handoff(rhs), line_entry)
     };
     i.state.finish_node();
     exit
@@ -420,105 +356,99 @@ where
 
 fn is_spread_boundary(item: &Item) -> bool {
     item.payload_view().is_eof()
+        || item.payload_view().is_boundary()
         || is_separator(item)
         || is_close(item)
         || is_record_spread_item(item)
 }
 
-fn missing_close(mut i: RewriteIn, mut end: Item) -> TailExit {
-    end.emit_all_remaining_leading(&mut *i.state);
+fn missing_close_normalized(
+    mut i: RewriteIn,
+    mut end: Item,
+    line_entry: LineEntry,
+) -> NormalizedExit {
+    if !end.payload_view().is_boundary() {
+        end.emit_all_remaining_leading(&mut *i.state);
+    }
     emit_missing(&mut i, LeadingTrivia::default());
-    handoff(end)
+    complete(handoff(end), line_entry)
 }
 
 fn missing_item(mut i: RewriteIn, mut item: Item) -> Item {
+    debug_assert!(!item.payload_view().is_boundary());
     item.emit_all_remaining_leading(&mut *i.state);
     emit_missing(&mut i, LeadingTrivia::default());
     item
 }
 
-fn wrong_close_item(mut i: RewriteIn, item: Item, baseline: usize, stops: Stops) -> Item {
-    emit_error_item(&mut i, item);
-    let leading = scan_trivia(i.rb());
-    tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
-}
-
-fn wrong_close_item_l5a<F>(
+#[allow(clippy::too_many_arguments)]
+fn wrong_close_item_normalized(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
     stops: Stops,
-    acquire: &mut F,
-) -> Item
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    debug_assert!(!item.payload_view().is_boundary());
     emit_error_item(&mut i, item);
-    acquire(&mut i, CompleteItemSite::Nud, baseline, stops)
+    expression_item(
+        i,
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+    )
 }
 
-fn retry_nud_item(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {
+#[allow(clippy::too_many_arguments)]
+fn retry_nud_item_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        debug_assert!(!item.payload_view().is_boundary());
         let continues_operator_spelling =
             stops & (STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR) != 0
                 && is_operator_shaped_unknown(&item);
         emit_token_item(&mut i, item);
         if continues_operator_spelling {
+            let entry = suffix_marker(i.rb());
             while let Some(token) = i.token(scan_operator_shaped_unknown) {
                 emit_token_item(
                     &mut i,
                     Item::plain(LeadingTrivia::default(), Payload::Token(token)),
                 );
             }
+            item_origin = advanced_origin(item_origin, entry, i.rb());
         }
-        let leading = scan_trivia(i.rb());
-        item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-        if is_nud_item(&item)
+        (item, item_origin, line_entry) = expression_item(
+            i.rb(),
+            OperatorSite::Nud,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+        );
+        if item.payload_view().is_boundary()
+            || is_nud_item(&item)
             || is_separator(&item)
             || is_close(&item)
             || is_record_spread_item(&item)
             || item.payload_view().is_eof()
         {
             i.state.finish_node();
-            return item;
-        }
-    }
-}
-
-fn retry_nud_item_l5a<F>(
-    mut i: RewriteIn,
-    mut item: Item,
-    baseline: usize,
-    stops: Stops,
-    acquire: &mut F,
-) -> Item
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        let continues_operator_spelling =
-            stops & (STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR) != 0
-                && is_operator_shaped_unknown(&item);
-        emit_token_item(&mut i, item);
-        if continues_operator_spelling {
-            while let Some(token) = i.token(scan_operator_shaped_unknown) {
-                emit_token_item(
-                    &mut i,
-                    Item::plain(LeadingTrivia::default(), Payload::Token(token)),
-                );
-            }
-        }
-        item = acquire(&mut i, CompleteItemSite::Nud, baseline, stops);
-        if is_nud_item(&item)
-            || is_separator(&item)
-            || is_close(&item)
-            || is_record_spread_item(&item)
-            || (item.payload_view().is_eof() || item.payload_view().is_boundary())
-        {
-            i.state.finish_node();
-            return item;
+            return (item, item_origin, line_entry);
         }
     }
 }

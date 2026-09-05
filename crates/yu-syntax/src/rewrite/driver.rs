@@ -6,22 +6,24 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 
 use super::{
     LexIn, RewriteIn, Stops,
-    case_like::{CaseLikeFamily, case_like_nud},
-    delimited::parenthesized_nud,
+    case_like::{CaseLikeFamily, case_like_nud_normalized},
+    current_item::{CurrentItem, LineEntry, current_item},
+    delimited::parenthesized_nud_normalized,
     emit::{
         emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
     },
-    if_expr::if_nud,
+    if_expr::if_nud_normalized,
     item::{Item, LeadingTrivia, LeadingView, OperatorUse, TokenKind},
-    lexer::{
-        contextual_word_suffix_follower, path_segment_item_after_trivia, scan_nud_item,
-        scan_trivia, tail_item_after_trivia,
-    },
+    lexer::{contextual_word_suffix_follower, scan_expression_payload, scan_nud_payload},
     operator::{
         STOP_LINE_BREAK, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item,
     },
-    statement::{StatementLineHandoff, braced_nud},
-    tails::{call_tail, colon_tail, dot_tail, index_tail, path_tail, with_tail},
+    statement::{StatementLineHandoff, braced_nud_normalized},
+    tails::{
+        call_tail_normalized, colon_tail_normalized, dot_tail_normalized, index_tail_normalized,
+        path_tail_normalized, with_tail_normalized,
+    },
+    yumark::FenceBoundary,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -38,40 +40,6 @@ pub(super) struct End {
 /// `Ok(())` lets the caller scan its successor after it closes its own node.
 pub(super) type TailExit = Result<(), Either<Item, End>>;
 
-/// L5a keeps an unentered owner frontier distinct from an ordinary Pratt
-/// handoff. The deferred Item has not affected Rowan or recovery.
-pub(super) enum L5aExit {
-    Complete(TailExit),
-    Deferred(Item),
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum CompleteItemSite {
-    Nud,
-    Led,
-    PathSegment,
-}
-
-fn ordinary_complete_item(
-    i: &mut RewriteIn,
-    site: CompleteItemSite,
-    baseline: usize,
-    stops: Stops,
-) -> Item {
-    let leading = scan_trivia(i.rb());
-    match site {
-        CompleteItemSite::Nud => {
-            tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops)
-        }
-        CompleteItemSite::Led => {
-            tail_item_after_trivia(i.rb(), leading, OperatorSite::Led, baseline, stops)
-        }
-        CompleteItemSite::PathSegment => {
-            path_segment_item_after_trivia(i.rb(), leading, baseline, stops)
-        }
-    }
-}
-
 #[derive(Clone, Copy)]
 pub(super) enum MlMode {
     All,
@@ -79,27 +47,40 @@ pub(super) enum MlMode {
     None,
 }
 
-pub(super) fn expr(mut i: RewriteIn) -> Option<TailExit> {
-    expr_at(
-        i.rb(),
+pub(super) enum NormalizedExit {
+    Complete(TailExit, LineEntry),
+    Deferred(Item, LineEntry),
+}
+
+pub(super) fn expr(i: RewriteIn) -> Option<TailExit> {
+    expr_normalized(
+        i,
         None,
         0,
         0,
         MlMode::All,
         StatementLineHandoff::OrdinaryLayout,
+        0,
+        LineEntry::InLine,
+        None,
     )
+    .map(ordinary_exit)
 }
 
-fn expr_at(
+pub(super) fn expr_normalized(
     mut i: RewriteIn,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-) -> Option<TailExit> {
-    let nud = i.token(|lex| scan_nud_item(lex, baseline, stops))?;
-    Some(expr_from_nud(
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<NormalizedExit> {
+    let (nud, item_origin, line_entry) =
+        optional_nud_item(i.rb(), item_origin, line_entry, fence, baseline, stops)?;
+    Some(expr_from_nud_normalized(
         i,
         nud,
         threshold,
@@ -107,36 +88,13 @@ fn expr_at(
         stops,
         ml_mode,
         line_handoff,
+        item_origin,
+        line_entry,
+        fence,
     ))
 }
 
 pub(super) fn expr_from_nud(
-    mut i: RewriteIn,
-    nud: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let mut acquire = ordinary_complete_item;
-    match expr_from_nud_with(
-        i,
-        nud,
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        false,
-        &mut acquire,
-    ) {
-        L5aExit::Complete(exit) => exit,
-        L5aExit::Deferred(_) => unreachable!("ordinary expressions enter every existing owner"),
-    }
-}
-
-pub(super) fn expr_from_nud_l5a<F>(
     i: RewriteIn,
     nud: Item,
     threshold: Option<&BindingPower>,
@@ -144,12 +102,8 @@ pub(super) fn expr_from_nud_l5a<F>(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    expr_from_nud_with(
+) -> TailExit {
+    ordinary_exit(expr_from_nud_normalized(
         i,
         nud,
         threshold,
@@ -157,12 +111,13 @@ where
         stops,
         ml_mode,
         line_handoff,
-        true,
-        acquire,
-    )
+        0,
+        LineEntry::InLine,
+        None,
+    ))
 }
 
-fn expr_from_nud_with<F>(
+pub(super) fn expr_from_nud_normalized(
     mut i: RewriteIn,
     nud: Item,
     threshold: Option<&BindingPower>,
@@ -170,17 +125,12 @@ fn expr_from_nud_with<F>(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    if defer_distinct_owner && is_distinct_owner_nud(i.rb(), &nud) {
-        return L5aExit::Deferred(nud);
-    }
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = append_nud_with(
+    let exit = append_nud(
         i.rb(),
         nud,
         threshold,
@@ -188,14 +138,16 @@ where
         stops,
         ml_mode,
         line_handoff,
-        defer_distinct_owner,
-        acquire,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     exit
 }
 
-fn append_nud_with<F>(
+#[allow(clippy::too_many_arguments)]
+fn append_nud(
     mut i: RewriteIn,
     nud: Item,
     threshold: Option<&BindingPower>,
@@ -203,14 +155,12 @@ fn append_nud_with<F>(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     if is_contextual_word(i.rb(), &nud, "case") {
-        return L5aExit::Complete(case_like_nud(
+        return case_like_nud_normalized(
             i,
             CaseLikeFamily::Case,
             nud,
@@ -219,10 +169,13 @@ where
             stops,
             ml_mode,
             line_handoff,
-        ));
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
     if is_contextual_word(i.rb(), &nud, "catch") {
-        return L5aExit::Complete(case_like_nud(
+        return case_like_nud_normalized(
             i,
             CaseLikeFamily::Catch,
             nud,
@@ -231,10 +184,13 @@ where
             stops,
             ml_mode,
             line_handoff,
-        ));
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
     if is_contextual_word(i.rb(), &nud, "if") {
-        return L5aExit::Complete(if_nud(
+        return if_nud_normalized(
             i,
             nud,
             threshold,
@@ -242,157 +198,126 @@ where
             stops,
             ml_mode,
             line_handoff,
-        ));
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
     match token_kind(&nud) {
         Some(TokenKind::Identifier) => {
             emit_identifier_core(&mut i, nud);
-            scan_tail_after_accept_with(
-                i.rb(),
+            scan_tail_after_accept_normalized(
+                i,
                 threshold,
                 baseline,
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
             )
         }
         Some(TokenKind::Integer) => {
             emit_integer_core(&mut i, nud);
-            scan_tail_after_accept_with(
-                i.rb(),
+            scan_tail_after_accept_normalized(
+                i,
                 threshold,
                 baseline,
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
             )
         }
-        Some(TokenKind::LParen) => {
-            if defer_distinct_owner {
-                super::delimited::parenthesized_nud_with(
-                    i.rb(),
-                    nud,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                    true,
-                    acquire,
-                )
-            } else {
-                L5aExit::Complete(parenthesized_nud(
-                    i.rb(),
-                    nud,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                ))
-            }
-        }
-        Some(TokenKind::LBrace) => L5aExit::Complete(braced_nud(
-            i.rb(),
+        Some(TokenKind::LParen) => parenthesized_nud_normalized(
+            i,
             nud,
             threshold,
             baseline,
             stops,
             ml_mode,
             line_handoff,
-        )),
-        Some(TokenKind::Operator) => operator_nud_with(
-            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        Some(TokenKind::LBrace) => braced_nud_normalized(
+            i,
             nud,
             threshold,
             baseline,
             stops,
             ml_mode,
             line_handoff,
-            defer_distinct_owner,
-            acquire,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        Some(TokenKind::Operator) => operator_nud(
+            i,
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
         ),
         _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
     }
 }
 
-/// An accepted prefix or infix always owns its mandatory right operand.  A
-/// pure local absence is Missing; malformed source is one Error sentinel and
-/// never receives a second Missing at the same boundary.
+/// An accepted prefix or infix always owns its mandatory right operand. A pure
+/// local absence is Missing; malformed source is one Error sentinel and never
+/// receives a second Missing at the same boundary.
 pub(super) fn required_expr_after_accept(
-    mut i: RewriteIn,
+    i: RewriteIn,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    let mut acquire = ordinary_complete_item;
-    match required_expr_after_accept_with(
+    ordinary_exit(required_expr_after_accept_normalized(
         i,
         threshold,
         baseline,
         stops,
         ml_mode,
         line_handoff,
-        false,
-        &mut acquire,
-    ) {
-        L5aExit::Complete(exit) => exit,
-        L5aExit::Deferred(_) => unreachable!("ordinary operands enter every existing owner"),
-    }
+        0,
+        LineEntry::InLine,
+        None,
+    ))
 }
 
-pub(super) fn required_expr_item(
-    mut i: RewriteIn,
-    mut item: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let mut acquire = ordinary_complete_item;
-    match required_expr_item_with(
-        i,
-        item,
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        false,
-        &mut acquire,
-    ) {
-        L5aExit::Complete(exit) => exit,
-        L5aExit::Deferred(_) => unreachable!("ordinary operands enter every existing owner"),
-    }
-}
-
-fn required_expr_after_accept_with<F>(
+#[allow(clippy::too_many_arguments)]
+fn required_expr_after_accept_normalized(
     mut i: RewriteIn,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    let item = acquire(
-        &mut i,
-        CompleteItemSite::Nud,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
         baseline,
         stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
     );
-    required_expr_item_with(
+    required_expr_item_normalized(
         i,
         item,
         threshold,
@@ -400,12 +325,37 @@ where
         stops,
         ml_mode,
         line_handoff,
-        defer_distinct_owner,
-        acquire,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn required_expr_item_with<F>(
+pub(super) fn required_expr_item(
+    i: RewriteIn,
+    item: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
+    ordinary_exit(required_expr_item_normalized(
+        i,
+        item,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+        0,
+        LineEntry::InLine,
+        None,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn required_expr_item_normalized(
     mut i: RewriteIn,
     mut item: Item,
     threshold: Option<&BindingPower>,
@@ -413,22 +363,21 @@ fn required_expr_item_with<F>(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    if defer_distinct_owner && is_distinct_owner_nud(i.rb(), &item) {
-        return L5aExit::Deferred(item);
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
     }
     if is_required_operand_boundary(i.rb(), &item, stops) {
         item.emit_all_remaining_leading(&mut *i.state);
         emit_missing(&mut i, LeadingTrivia::default());
-        return L5aExit::Complete(handoff(item));
+        return complete(handoff(item), line_entry);
     }
     if is_nud_item(&item) {
-        return append_nud_with(
+        return append_nud(
             i,
             item,
             threshold,
@@ -436,34 +385,38 @@ where
             stops,
             ml_mode,
             line_handoff,
-            defer_distinct_owner,
-            acquire,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     if is_unread_operand_boundary(&item) {
-        return L5aExit::Complete(handoff(item));
+        return complete(handoff(item), line_entry);
     }
 
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        item = acquire(
-            &mut i,
-            CompleteItemSite::Nud,
+        (item, item_origin, line_entry) = expression_item(
+            i.rb(),
+            OperatorSite::Nud,
+            item_origin,
+            line_entry,
+            fence,
             baseline,
             stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
         );
-        if defer_distinct_owner && is_distinct_owner_nud(i.rb(), &item) {
+        if item.payload_view().is_boundary() {
             i.state.finish_node();
-            return L5aExit::Deferred(item);
+            return complete(handoff(item), line_entry);
         }
         if is_required_operand_boundary(i.rb(), &item, stops) {
             i.state.finish_node();
-            return L5aExit::Complete(handoff(item));
+            return complete(handoff(item), line_entry);
         }
         if is_nud_item(&item) {
             i.state.finish_node();
-            return append_nud_with(
+            return append_nud(
                 i,
                 item,
                 threshold,
@@ -471,13 +424,14 @@ where
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if is_unread_operand_boundary(&item) {
             i.state.finish_node();
-            return L5aExit::Complete(handoff(item));
+            return complete(handoff(item), line_entry);
         }
     }
 }
@@ -497,44 +451,48 @@ fn is_unread_operand_boundary(item: &Item) -> bool {
 }
 
 pub(super) fn scan_tail_after_accept(
-    mut i: RewriteIn,
+    i: RewriteIn,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    let mut acquire = ordinary_complete_item;
-    match scan_tail_after_accept_with(
+    ordinary_exit(scan_tail_after_accept_normalized(
         i,
         threshold,
         baseline,
         stops,
         ml_mode,
         line_handoff,
-        false,
-        &mut acquire,
-    ) {
-        L5aExit::Complete(exit) => exit,
-        L5aExit::Deferred(_) => unreachable!("ordinary tails enter every existing owner"),
-    }
+        0,
+        LineEntry::InLine,
+        None,
+    ))
 }
 
-fn scan_tail_after_accept_with<F>(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn scan_tail_after_accept_normalized(
     mut i: RewriteIn,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    let item = acquire(&mut i, CompleteItemSite::Led, baseline, stops);
-    tail_with(
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Led,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+    );
+    tail_normalized(
         i,
         item,
         threshold,
@@ -542,8 +500,9 @@ where
         stops,
         ml_mode,
         line_handoff,
-        defer_distinct_owner,
-        acquire,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
@@ -563,31 +522,31 @@ pub(super) fn continue_completed_tail(
     }
 }
 
-pub(super) fn continue_l5a_tail<F>(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn continue_normalized_tail(
     i: RewriteIn,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    exit: L5aExit,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    exit: NormalizedExit,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match exit {
-        L5aExit::Complete(Ok(())) => scan_tail_after_accept_with(
+        NormalizedExit::Complete(Ok(()), line_entry) => scan_tail_after_accept_normalized(
             i,
             threshold,
             baseline,
             stops,
             ml_mode,
             line_handoff,
-            true,
-            acquire,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        L5aExit::Complete(Err(Either::Left(item))) => tail_with(
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => tail_normalized(
             i,
             item,
             threshold,
@@ -595,16 +554,19 @@ where
             stops,
             ml_mode,
             line_handoff,
-            true,
-            acquire,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        L5aExit::Complete(Err(Either::Right(end))) => L5aExit::Complete(Err(Either::Right(end))),
-        L5aExit::Deferred(item) => L5aExit::Deferred(item),
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            complete(Err(Either::Right(end)), line_entry)
+        }
+        NormalizedExit::Deferred(item, line_entry) => NormalizedExit::Deferred(item, line_entry),
     }
 }
 
 pub(super) fn tail(
-    mut i: RewriteIn,
+    i: RewriteIn,
     item: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
@@ -612,8 +574,7 @@ pub(super) fn tail(
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    let mut acquire = ordinary_complete_item;
-    match tail_with(
+    ordinary_exit(tail_normalized(
         i,
         item,
         threshold,
@@ -621,41 +582,14 @@ pub(super) fn tail(
         stops,
         ml_mode,
         line_handoff,
-        false,
-        &mut acquire,
-    ) {
-        L5aExit::Complete(exit) => exit,
-        L5aExit::Deferred(_) => unreachable!("ordinary tails enter every existing owner"),
-    }
+        0,
+        LineEntry::InLine,
+        None,
+    ))
 }
 
-pub(super) fn tail_l5a<F>(
-    i: RewriteIn,
-    item: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    tail_with(
-        i,
-        item,
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        true,
-        acquire,
-    )
-}
-
-fn tail_with<F>(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn tail_normalized(
     mut i: RewriteIn,
     item: Item,
     threshold: Option<&BindingPower>,
@@ -663,166 +597,133 @@ fn tail_with<F>(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        return L5aExit::Complete(handoff(item));
+        return complete(handoff(item), line_entry);
     }
     if is_active_stop(i.rb(), &item, stops) || is_line_stop(&item, stops) {
-        return L5aExit::Complete(handoff(item));
+        return complete(handoff(item), line_entry);
     }
     if is_with_tail_item(i.rb(), &item, baseline, ml_mode) {
-        return if defer_distinct_owner {
-            L5aExit::Deferred(item)
-        } else {
-            L5aExit::Complete(with_tail(i, item, baseline, stops, line_handoff))
-        };
+        return with_tail_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
     if item.leading_view().is_grammar_empty() {
         match token_kind(&item) {
             Some(TokenKind::LParen) => {
-                return if defer_distinct_owner {
-                    super::tails::call_tail_with(
-                        i.rb(),
-                        item,
-                        threshold,
-                        baseline,
-                        stops,
-                        ml_mode,
-                        line_handoff,
-                        true,
-                        acquire,
-                    )
-                } else {
-                    L5aExit::Complete(call_tail(
-                        i,
-                        item,
-                        threshold,
-                        baseline,
-                        stops,
-                        ml_mode,
-                        line_handoff,
-                    ))
-                };
+                return call_tail_normalized(
+                    i,
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                    item_origin,
+                    line_entry,
+                    fence,
+                );
             }
             Some(TokenKind::LBracket) => {
-                return if defer_distinct_owner {
-                    super::tails::index_tail_with(
-                        i.rb(),
-                        item,
-                        threshold,
-                        baseline,
-                        stops,
-                        ml_mode,
-                        line_handoff,
-                        true,
-                        acquire,
-                    )
-                } else {
-                    L5aExit::Complete(index_tail(
-                        i,
-                        item,
-                        threshold,
-                        baseline,
-                        stops,
-                        ml_mode,
-                        line_handoff,
-                    ))
-                };
+                return index_tail_normalized(
+                    i,
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                    item_origin,
+                    line_entry,
+                    fence,
+                );
             }
             _ => {}
         }
     }
     match token_kind(&item) {
         Some(TokenKind::Dot) => {
-            return if defer_distinct_owner {
-                super::tails::dot_tail_with(
-                    i.rb(),
-                    item,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                    true,
-                    acquire,
-                )
-            } else {
-                L5aExit::Complete(dot_tail(
-                    i,
-                    item,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                ))
-            };
-        }
-        Some(TokenKind::PathSeparator) => {
-            return if defer_distinct_owner {
-                super::tails::path_tail_with(
-                    i.rb(),
-                    item,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                    true,
-                    acquire,
-                )
-            } else {
-                L5aExit::Complete(path_tail(
-                    i,
-                    item,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                ))
-            };
-        }
-        Some(TokenKind::Operator) if is_led_operator(&item) => {
-            return operator_tail_with(
-                i.rb(),
+            return dot_tail_normalized(
+                i,
                 item,
                 threshold,
                 baseline,
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        Some(TokenKind::PathSeparator) => {
+            return path_tail_normalized(
+                i,
+                item,
+                threshold,
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        Some(TokenKind::Operator) if is_led_operator(&item) => {
+            return operator_tail(
+                i,
+                item,
+                threshold,
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         _ => {}
     }
     if is_ml_argument(&item, baseline, ml_mode) {
-        return ml_argument_with(
-            i.rb(),
+        return ml_argument(
+            i,
             item,
             threshold,
             baseline,
             stops,
             line_handoff,
-            defer_distinct_owner,
-            acquire,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     if token_kind(&item) == Some(TokenKind::Colon) {
-        return if defer_distinct_owner {
-            L5aExit::Deferred(item)
-        } else {
-            L5aExit::Complete(colon_tail(i, item, baseline, stops, ml_mode, line_handoff))
-        };
+        return colon_tail_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
-    L5aExit::Complete(handoff(item))
+    complete(handoff(item), line_entry)
 }
 
 fn is_with_tail_item(mut i: RewriteIn, item: &Item, baseline: usize, ml_mode: MlMode) -> bool {
@@ -855,21 +756,21 @@ pub(super) fn is_led_operator(item: &Item) -> bool {
     )
 }
 
-fn ml_argument_with<F>(
+#[allow(clippy::too_many_arguments)]
+fn ml_argument(
     mut i: RewriteIn,
     argument: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::MlArgument.into());
-    let exit = expr_from_nud_with(
+    let entry = suffix_marker(i.rb());
+    let exit = expr_from_nud_normalized(
         i.rb(),
         argument,
         threshold,
@@ -877,38 +778,27 @@ where
         stops,
         MlMode::None,
         line_handoff,
-        defer_distinct_owner,
-        acquire,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
-    if defer_distinct_owner {
-        continue_l5a_tail(
-            i,
-            threshold,
-            baseline,
-            stops,
-            MlMode::All,
-            line_handoff,
-            exit,
-            acquire,
-        )
-    } else {
-        match exit {
-            L5aExit::Complete(exit) => L5aExit::Complete(continue_completed_tail(
-                i,
-                threshold,
-                baseline,
-                stops,
-                MlMode::All,
-                line_handoff,
-                exit,
-            )),
-            L5aExit::Deferred(_) => unreachable!("ordinary ML arguments enter every owner"),
-        }
-    }
+    let child_origin = advanced_origin(item_origin, entry, i.rb());
+    continue_normalized_tail(
+        i,
+        threshold,
+        baseline,
+        stops,
+        MlMode::All,
+        line_handoff,
+        exit,
+        child_origin,
+        fence,
+    )
 }
 
-fn operator_nud_with<F>(
+#[allow(clippy::too_many_arguments)]
+fn operator_nud(
     mut i: RewriteIn,
     operator: Item,
     threshold: Option<&BindingPower>,
@@ -916,27 +806,28 @@ fn operator_nud_with<F>(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match operator_use(&operator) {
         Some(OperatorUse::Prefix(right)) => {
             let right = right.clone();
             emit_operator_use(&mut i, operator, SyntaxKind::PrefixOperatorUse);
-            let rhs = required_expr_after_accept_with(
+            let entry = suffix_marker(i.rb());
+            let rhs = required_expr_after_accept_normalized(
                 i.rb(),
                 Some(&right),
                 baseline,
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
             );
-            continue_tail_by_mode(
+            let item_origin = advanced_origin(item_origin, entry, i.rb());
+            continue_normalized_tail(
                 i,
                 threshold,
                 baseline,
@@ -944,28 +835,30 @@ where
                 ml_mode,
                 line_handoff,
                 rhs,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                fence,
             )
         }
         Some(OperatorUse::Nullfix) => {
             emit_operator_use(&mut i, operator, SyntaxKind::NullfixOperatorUse);
-            scan_tail_after_accept_with(
+            scan_tail_after_accept_normalized(
                 i,
                 threshold,
                 baseline,
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
             )
         }
         _ => unreachable!("the NUD scanner accepts only prefix and nullfix operators"),
     }
 }
 
-fn operator_tail_with<F>(
+#[allow(clippy::too_many_arguments)]
+fn operator_tail(
     mut i: RewriteIn,
     operator: Item,
     threshold: Option<&BindingPower>,
@@ -973,30 +866,31 @@ fn operator_tail_with<F>(
     stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match operator_use(&operator) {
         Some(OperatorUse::Infix { left, right }) => {
             if threshold.is_some_and(|minimum| left < minimum) {
-                return L5aExit::Complete(handoff(operator));
+                return complete(handoff(operator), line_entry);
             }
             let right = right.clone();
             emit_operator_use(&mut i, operator, SyntaxKind::InfixOperatorUse);
-            let rhs = required_expr_after_accept_with(
+            let entry = suffix_marker(i.rb());
+            let rhs = required_expr_after_accept_normalized(
                 i.rb(),
                 Some(&right),
                 baseline,
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
             );
-            continue_tail_by_mode(
+            let item_origin = advanced_origin(item_origin, entry, i.rb());
+            continue_normalized_tail(
                 i,
                 threshold,
                 baseline,
@@ -1004,77 +898,128 @@ where
                 ml_mode,
                 line_handoff,
                 rhs,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                fence,
             )
         }
         Some(OperatorUse::Suffix(left)) => {
             if threshold.is_some_and(|minimum| left < minimum) {
-                return L5aExit::Complete(handoff(operator));
+                return complete(handoff(operator), line_entry);
             }
             emit_operator_use(&mut i, operator, SyntaxKind::SuffixOperatorUse);
-            scan_tail_after_accept_with(
+            scan_tail_after_accept_normalized(
                 i,
                 threshold,
                 baseline,
                 stops,
                 ml_mode,
                 line_handoff,
-                defer_distinct_owner,
-                acquire,
+                item_origin,
+                line_entry,
+                fence,
             )
         }
         _ => unreachable!("the LED scanner accepts only infix and suffix operators"),
     }
 }
 
-fn continue_tail_by_mode<F>(
-    i: RewriteIn,
-    threshold: Option<&BindingPower>,
+fn optional_nud_item(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
     baseline: usize,
     stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-    exit: L5aExit,
-    defer_distinct_owner: bool,
-    acquire: &mut F,
-) -> L5aExit
-where
-    F: FnMut(&mut RewriteIn, CompleteItemSite, usize, Stops) -> Item,
-{
-    if defer_distinct_owner {
-        continue_l5a_tail(
-            i,
-            threshold,
-            baseline,
-            stops,
-            ml_mode,
-            line_handoff,
-            exit,
-            acquire,
-        )
-    } else {
-        match exit {
-            L5aExit::Complete(exit) => L5aExit::Complete(continue_completed_tail(
-                i,
-                threshold,
-                baseline,
-                stops,
-                ml_mode,
-                line_handoff,
-                exit,
-            )),
-            L5aExit::Deferred(_) => unreachable!("ordinary tails enter every owner"),
+) -> Option<(Item, usize, LineEntry)> {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i.token(|lex| {
+        let current = current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |lex, leading, origin, fence, _| {
+                scan_nud_payload(lex, leading, origin, fence, baseline, stops)
+            },
+        )?;
+        let payload = current.item.payload_view();
+        if payload.is_boundary() || payload.is_eof() || !is_nud_item(&current.item) {
+            return None;
+        }
+        Some(current)
+    })?;
+    let item_origin = advanced_origin(item_origin, entry, i);
+    Some((item, item_origin, next_line_entry))
+}
+
+pub(super) fn expression_item(
+    mut i: RewriteIn,
+    site: OperatorSite,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| {
+                    scan_expression_payload(lex, site, leading, origin, fence, baseline, stops)
+                },
+            )
+        })
+        .expect("expression payload scanning is total");
+    let item_origin = advanced_origin(item_origin, entry, i);
+    (item, item_origin, next_line_entry)
+}
+
+pub(super) fn complete(exit: TailExit, line_entry: LineEntry) -> NormalizedExit {
+    NormalizedExit::Complete(exit, line_entry)
+}
+
+pub(super) fn ordinary_exit(exit: NormalizedExit) -> TailExit {
+    match exit {
+        NormalizedExit::Complete(exit, _) => exit,
+        NormalizedExit::Deferred(_, _) => {
+            unreachable!("ordinary expressions enter every direct-rewrite owner")
         }
     }
 }
 
-pub(super) fn is_distinct_owner_nud(mut i: RewriteIn, item: &Item) -> bool {
-    !(item.payload_view().is_boundary() || item.payload_view().is_eof())
-        && (token_kind(item) == Some(TokenKind::LBrace)
-            || is_contextual_word(i.rb(), item, "case")
-            || is_contextual_word(i.rb(), item, "catch")
-            || is_contextual_word(i, item, "if"))
+pub(super) fn suffix_marker(mut i: RewriteIn) -> (usize, usize) {
+    i.token(|lex| Some((lex.remainder().as_ptr() as usize, lex.remainder().len())))
+        .expect("the live expression suffix probe is total")
+}
+
+pub(super) fn advanced_origin(
+    item_origin: usize,
+    (entry_pointer, entry_length): (usize, usize),
+    i: RewriteIn,
+) -> usize {
+    let (suffix_pointer, suffix_length) = suffix_marker(i);
+    let consumed = entry_length
+        .checked_sub(suffix_length)
+        .expect("a direct expression child cannot lengthen its live suffix");
+    assert_eq!(
+        entry_pointer.wrapping_add(consumed),
+        suffix_pointer,
+        "a direct expression child keeps the input on one source suffix",
+    );
+    item_origin
+        .checked_add(consumed)
+        .expect("a direct expression coordinate must fit usize")
 }
 
 pub(super) fn is_nud_item(item: &Item) -> bool {

@@ -6,145 +6,271 @@ use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
     LexIn, RewriteIn, Stops,
+    current_item::{CurrentItem, LineEntry, current_item},
     driver::{
-        Either, MlMode, TailExit, handoff, implicit_delimited_newline, is_active_stop,
-        is_active_stop_lex, is_separator, required_expr_item, token_kind,
+        Either, MlMode, NormalizedExit, advanced_origin, complete, expression_item, handoff,
+        implicit_delimited_newline, is_active_stop, is_active_stop_lex, is_separator,
+        required_expr_item_normalized, suffix_marker, token_kind,
     },
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    emit::{emit_missing, emit_token_item},
+    item::{Item, LeadingTrivia, TokenKind},
     lexer::{
-        introduced_body_indentation, pattern_nud_item_after_trivia,
-        scan_apostrophe_sigil_identifier, scan_statement_item, scan_trivia,
-        statement_item_after_trivia, tail_item_after_trivia,
+        introduced_body_indentation_normalized, scan_case_label_payload, scan_pattern_nud_payload,
+        scan_statement_payload,
     },
     operator::{STOP_COLON, STOP_COMMA, STOP_LBRACE, STOP_SEMICOLON},
     pattern::{
         PATTERN_STOP_IN, PATTERN_STOP_LBRACE, PATTERN_STOP_PRIMARY_COLON, PatternCompletion,
-        pattern_from_entry_item_with_completion, pattern_stops_from_owner,
+        pattern_from_entry_item_with_completion_normalized, pattern_stops_from_owner,
     },
-    statement::{StatementLineHandoff, braced_statement_block, indented_statement_block},
+    statement::{
+        StatementLineHandoff, braced_statement_block_normalized,
+        indented_statement_block_normalized,
+    },
+    yumark::FenceBoundary,
 };
 
 pub(super) fn for_statement_selected(item: &Item) -> bool {
     item_word(item) == Some("for")
 }
 
-pub(super) fn for_statement(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn for_statement_normalized(
     mut i: RewriteIn,
     keyword: Item,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     debug_assert!(for_statement_selected(&keyword));
     i.state.start_node(SyntaxKind::ForStatement.into());
     emit_keyword(&mut i, keyword, SyntaxKind::ForKw, "for");
-    emit_optional_label(i.rb(), baseline, outer_stops);
-    let exit = pattern_slot(i.rb(), baseline, outer_stops, line_handoff);
+    (item_origin, line_entry) = emit_optional_label_normalized(
+        i.rb(),
+        baseline,
+        outer_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    let exit = pattern_slot_normalized(
+        i.rb(),
+        baseline,
+        outer_stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    );
     i.state.finish_node();
     exit
 }
 
-fn emit_optional_label(mut i: RewriteIn, baseline: usize, outer_stops: Stops) {
-    let Some((before, label, after)) = i.token(|lex| scan_label(lex, baseline, outer_stops)) else {
-        return;
-    };
-    emit_leading_trivia(&mut i, &before);
-    i.state.start_node(SyntaxKind::ForLabel.into());
-    emit_token_item(
-        &mut i,
-        Item::plain(LeadingTrivia::default(), Payload::Token(label)),
-    );
-    i.state.finish_node();
-    emit_leading_trivia(&mut i, &after);
-}
-
-fn scan_label(
-    mut i: LexIn,
+#[allow(clippy::too_many_arguments)]
+fn emit_optional_label_normalized(
+    mut i: RewriteIn,
     baseline: usize,
     outer_stops: Stops,
-) -> Option<(LeadingTrivia, Token, LeadingTrivia)> {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (usize, LineEntry) {
     let mut accepted = false;
-    let rolled_back: Option<()> = i.token(|mut probe| {
-        let before = scan_trivia(probe.rb());
-        if implicit_gap(baseline, before.view()) {
+    let rolled_back: Option<()> = i.token(|mut probe: LexIn| {
+        let (label, text) = probe.rb().with_str(|label| {
+            current_item(label, item_origin, line_entry, fence, |lex, _, _, _, _| {
+                scan_case_label_payload(lex)
+            })
+        });
+        let Some(CurrentItem {
+            item: label,
+            next_line_entry,
+        }) = label
+        else {
+            return None;
+        };
+        if label.payload_view().is_boundary()
+            || label.payload_view().is_eof()
+            || implicit_gap(baseline, label.leading_view())
+        {
             return None;
         }
-        scan_apostrophe_sigil_identifier(probe.rb())?;
-        let after = scan_trivia(probe.rb());
-        if implicit_gap(baseline, after.view()) {
+        let next_origin = item_origin
+            .checked_add(text.len())
+            .expect("a tentative For label coordinate must fit usize");
+        let Some(CurrentItem { item: next, .. }) = current_item(
+            probe.rb(),
+            next_origin,
+            next_line_entry,
+            fence,
+            |lex, leading, origin, fence, _| {
+                scan_statement_payload(lex, leading, origin, fence, baseline, outer_stops)
+            },
+        ) else {
             return None;
-        }
-        let next = scan_statement_item(probe.rb(), baseline, outer_stops)?;
+        };
         accepted = !label_following_boundary(probe.rb(), &next, baseline, outer_stops)
             && item_word(&next) != Some("in");
         None
     });
     debug_assert!(rolled_back.is_none());
-    accepted.then_some(())?;
+    if !accepted {
+        return (item_origin, line_entry);
+    }
 
-    let before = scan_trivia(i.rb());
-    let label = scan_apostrophe_sigil_identifier(i.rb())?;
-    let after = scan_trivia(i.rb());
-    Some((before, label, after))
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        mut item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(lex, item_origin, line_entry, fence, |lex, _, _, _, _| {
+                scan_case_label_payload(lex)
+            })
+        })
+        .expect("an accepted For label must reacquire identically");
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    debug_assert!(!item.payload_view().is_boundary());
+    item.emit_all_remaining_leading(&mut *i.state);
+    i.state.start_node(SyntaxKind::ForLabel.into());
+    emit_token_item(&mut i, item);
+    i.state.finish_node();
+    (item_origin, next_line_entry)
 }
 
-fn pattern_slot(
+#[allow(clippy::too_many_arguments)]
+fn pattern_slot_normalized(
     mut i: RewriteIn,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let stops = pattern_stops_from_owner(outer_stops)
         | PATTERN_STOP_PRIMARY_COLON
         | PATTERN_STOP_LBRACE
         | PATTERN_STOP_IN;
-    let leading = scan_trivia(i.rb());
-    let mut item = pattern_nud_item_after_trivia(i.rb(), leading, stops);
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        mut item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| {
+                    scan_pattern_nud_payload(lex, leading, origin, fence, stops)
+                },
+            )
+        })
+        .expect("For Pattern payload scanning is total");
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    if item.payload_view().is_boundary()
+        || implicit_delimited_newline(baseline, item.leading_view())
+    {
+        i.state.start_node(SyntaxKind::Pattern.into());
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return complete(handoff(item), next_line_entry);
+    }
     let missing_at_in = item_word(&item) == Some("in");
     let missing_at_body = matches!(
         token_kind(&item),
         Some(TokenKind::Colon | TokenKind::LBrace)
     );
-    if implicit_delimited_newline(baseline, item.leading_view()) {
-        i.state.start_node(SyntaxKind::Pattern.into());
-        emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
-        return handoff(item);
-    }
     item.emit_all_remaining_leading(&mut *i.state);
-    let outcome =
-        pattern_from_entry_item_with_completion(i.rb(), item, baseline, stops, line_handoff);
-    match outcome.exit {
-        Err(Either::Left(item)) => match outcome.completion {
-            PatternCompletion::Complete => in_slot(i, item, baseline, outer_stops, line_handoff),
-            PatternCompletion::Incomplete if missing_at_in => {
-                in_slot(i, item, baseline, outer_stops, line_handoff)
-            }
-            PatternCompletion::Incomplete if missing_at_body => {
-                body(i, item, baseline, outer_stops, line_handoff)
-            }
-            PatternCompletion::Incomplete => handoff(item),
+    let child_entry = suffix_marker(i.rb());
+    let (exit, completion) = pattern_from_entry_item_with_completion_normalized(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        next_line_entry,
+        fence,
+    );
+    let item_origin = advanced_origin(item_origin, child_entry, i.rb());
+    match exit {
+        NormalizedExit::Deferred(item, line_entry) => NormalizedExit::Deferred(item, line_entry),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => match completion {
+            PatternCompletion::Complete => in_slot_normalized(
+                i,
+                item,
+                baseline,
+                outer_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            ),
+            PatternCompletion::Incomplete if missing_at_in => in_slot_normalized(
+                i,
+                item,
+                baseline,
+                outer_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            ),
+            PatternCompletion::Incomplete if missing_at_body => body_normalized(
+                i,
+                item,
+                baseline,
+                outer_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            ),
+            PatternCompletion::Incomplete => complete(handoff(item), line_entry),
         },
-        Err(Either::Right(end)) => Err(Either::Right(end)),
-        Ok(()) => unreachable!("a Pattern leaves its successor Item"),
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            complete(Err(Either::Right(end)), line_entry)
+        }
+        NormalizedExit::Complete(Ok(()), _) => {
+            unreachable!("a Pattern leaves its successor Item")
+        }
     }
 }
 
-fn in_slot(
+#[allow(clippy::too_many_arguments)]
+fn in_slot_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    if implicit_delimited_newline(baseline, item.leading_view()) {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary()
+        || implicit_delimited_newline(baseline, item.leading_view())
+    {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if item_word(&item) == Some("in") {
         emit_keyword(&mut i, item, SyntaxKind::InKw, "in");
-        return iterable(i, baseline, outer_stops, line_handoff);
+        return iterable_normalized(
+            i,
+            baseline,
+            outer_stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
 
     if !outer_boundary(i.rb(), &item, baseline, outer_stops)
@@ -160,55 +286,99 @@ fn in_slot(
         token_kind(&item),
         Some(TokenKind::Colon | TokenKind::LBrace)
     ) {
-        return body(i, item, baseline, outer_stops, line_handoff);
+        return body_normalized(
+            i,
+            item,
+            baseline,
+            outer_stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
     if outer_boundary(i.rb(), &item, baseline, outer_stops) {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
-    iterable_from_item(i, item, baseline, outer_stops, false, line_handoff)
+    iterable_from_item_normalized(
+        i,
+        item,
+        baseline,
+        outer_stops,
+        false,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn iterable(
+#[allow(clippy::too_many_arguments)]
+fn iterable_normalized(
     mut i: RewriteIn,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let mut item = tail_item_after_trivia(
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
-        leading,
         OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
         baseline,
         iterable_stops(outer_stops),
     );
     let missing = iterable_boundary(i.rb(), &item, baseline, outer_stops);
-    if !implicit_delimited_newline(baseline, item.leading_view()) {
+    if !item.payload_view().is_boundary()
+        && !implicit_delimited_newline(baseline, item.leading_view())
+    {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    iterable_from_item(i, item, baseline, outer_stops, missing, line_handoff)
+    iterable_from_item_normalized(
+        i,
+        item,
+        baseline,
+        outer_stops,
+        missing,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn iterable_from_item(
+#[allow(clippy::too_many_arguments)]
+fn iterable_from_item_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_stops: Stops,
     missing: bool,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    if !implicit_delimited_newline(baseline, item.leading_view())
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if !item.payload_view().is_boundary()
+        && !implicit_delimited_newline(baseline, item.leading_view())
         && !item.leading_view().is_grammar_empty()
     {
         item.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.start_node(SyntaxKind::ForIterable.into());
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = if implicit_delimited_newline(baseline, item.leading_view()) {
+    let child_entry = suffix_marker(i.rb());
+    let exit = if item.payload_view().is_boundary()
+        || implicit_delimited_newline(baseline, item.leading_view())
+    {
         emit_missing(&mut i, LeadingTrivia::default());
-        handoff(item)
+        complete(handoff(item), line_entry)
     } else {
-        required_expr_item(
+        required_expr_item_normalized(
             i.rb(),
             item,
             None,
@@ -216,87 +386,180 @@ fn iterable_from_item(
             iterable_stops(outer_stops),
             MlMode::All,
             line_handoff,
+            item_origin,
+            line_entry,
+            fence,
         )
     };
+    let item_origin = advanced_origin(item_origin, child_entry, i.rb());
     i.state.finish_node();
     i.state.finish_node();
 
     match exit {
-        Err(Either::Left(item))
-            if matches!(
-                token_kind(&item),
-                Some(TokenKind::Colon | TokenKind::LBrace)
-            ) =>
+        NormalizedExit::Deferred(item, line_entry) => NormalizedExit::Deferred(item, line_entry),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
+            if !item.payload_view().is_boundary()
+                && matches!(
+                    token_kind(&item),
+                    Some(TokenKind::Colon | TokenKind::LBrace)
+                ) =>
         {
-            body(i, item, baseline, outer_stops, line_handoff)
+            body_normalized(
+                i,
+                item,
+                baseline,
+                outer_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
-        Err(Either::Left(item)) if missing => handoff(item),
-        Err(Either::Left(item)) => body(i, item, baseline, outer_stops, line_handoff),
-        Err(Either::Right(end)) if missing => Err(Either::Right(end)),
-        Err(Either::Right(end)) => missing_body_introducer(i, Err(Either::Right(end))),
-        Ok(()) => unreachable!("an iterable leaves its successor Item"),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) if missing => {
+            complete(handoff(item), line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => body_normalized(
+            i,
+            item,
+            baseline,
+            outer_stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) if missing => {
+            complete(Err(Either::Right(end)), line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            emit_missing(&mut i, LeadingTrivia::default());
+            complete(Err(Either::Right(end)), line_entry)
+        }
+        NormalizedExit::Complete(Ok(()), _) => {
+            unreachable!("an iterable leaves its successor Item")
+        }
     }
 }
 
-fn body(
+#[allow(clippy::too_many_arguments)]
+fn body_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    if implicit_delimited_newline(baseline, item.leading_view()) {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary()
+        || implicit_delimited_newline(baseline, item.leading_view())
+    {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     match token_kind(&item) {
         Some(TokenKind::Colon) => {
             emit_token_item(&mut i, item);
-            colon_body(i, baseline, outer_stops, line_handoff)
+            colon_body_normalized(
+                i,
+                baseline,
+                outer_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
         Some(TokenKind::LBrace) => {
             item.emit_all_remaining_leading(&mut *i.state);
-            braced_statement_block(i, item, baseline)
+            braced_statement_block_normalized(i, item, baseline, item_origin, line_entry, fence)
         }
         _ if outer_boundary(i.rb(), &item, baseline, outer_stops) => {
-            missing_body_introducer(i, handoff(item))
+            emit_missing(&mut i, LeadingTrivia::default());
+            complete(handoff(item), line_entry)
         }
-        _ => recover_body_introducer(i, item, baseline, outer_stops, line_handoff),
+        _ => recover_body_introducer_normalized(
+            i,
+            item,
+            baseline,
+            outer_stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        ),
     }
 }
 
-fn colon_body(
+#[allow(clippy::too_many_arguments)]
+fn colon_body_normalized(
     mut i: RewriteIn,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    match introduced_body_indentation(i.rb()) {
-        Some(indentation) if indentation > baseline => {
-            indented_statement_block(i, baseline, outer_stops)
-        }
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
+        Some(indentation) if indentation > baseline => indented_statement_block_normalized(
+            i,
+            baseline,
+            outer_stops,
+            item_origin,
+            line_entry,
+            fence,
+        ),
         Some(_) => {
             emit_missing(&mut i, LeadingTrivia::default());
-            let leading = scan_trivia(i.rb());
-            let item = statement_item_after_trivia(i, leading, baseline, outer_stops);
-            handoff(item)
+            let (item, _, line_entry) = statement_item_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                baseline,
+                outer_stops,
+            );
+            complete(handoff(item), line_entry)
         }
-        None => inline_body(i, baseline, outer_stops, line_handoff),
+        None => inline_body_normalized(
+            i,
+            baseline,
+            outer_stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        ),
     }
 }
 
-fn inline_body(
+#[allow(clippy::too_many_arguments)]
+fn inline_body_normalized(
     mut i: RewriteIn,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let stops = outer_stops | STOP_COMMA | STOP_SEMICOLON;
-    let leading = scan_trivia(i.rb());
-    let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    item.emit_all_remaining_leading(&mut *i.state);
+    let (mut item, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+    );
+    if !item.payload_view().is_boundary() {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = required_expr_item(
+    let exit = required_expr_item_normalized(
         i.rb(),
         item,
         None,
@@ -304,42 +567,93 @@ fn inline_body(
         stops,
         MlMode::All,
         line_handoff,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     exit
 }
 
-fn recover_body_introducer(
+#[allow(clippy::too_many_arguments)]
+fn recover_body_introducer_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        debug_assert!(!item.payload_view().is_boundary());
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = statement_item_after_trivia(i.rb(), leading, baseline, outer_stops);
+        (item, item_origin, line_entry) = statement_item_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            outer_stops,
+        );
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if matches!(
             token_kind(&item),
             Some(TokenKind::Colon | TokenKind::LBrace)
         ) {
             i.state.finish_node();
-            return body(i, item, baseline, outer_stops, line_handoff);
+            return body_normalized(
+                i,
+                item,
+                baseline,
+                outer_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
         if implicit_delimited_newline(baseline, item.leading_view())
             || outer_boundary(i.rb(), &item, baseline, outer_stops)
         {
             i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
     }
 }
 
-fn missing_body_introducer(mut i: RewriteIn, exit: TailExit) -> TailExit {
-    emit_missing(&mut i, LeadingTrivia::default());
-    exit
+fn statement_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| {
+                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                },
+            )
+        })
+        .expect("For recovery Statement payload scanning is total");
+    let item_origin = advanced_origin(item_origin, entry, i);
+    (item, item_origin, next_line_entry)
 }
 
 fn iterable_stops(outer_stops: Stops) -> Stops {
@@ -347,13 +661,15 @@ fn iterable_stops(outer_stops: Stops) -> Stops {
 }
 
 fn iterable_boundary(mut i: RewriteIn, item: &Item, baseline: usize, outer_stops: Stops) -> bool {
-    implicit_delimited_newline(baseline, item.leading_view())
+    item.payload_view().is_boundary()
+        || implicit_delimited_newline(baseline, item.leading_view())
         || item.payload_view().is_eof()
         || is_active_stop(i.rb(), item, iterable_stops(outer_stops))
 }
 
 fn outer_boundary(mut i: RewriteIn, item: &Item, baseline: usize, outer_stops: Stops) -> bool {
-    implicit_delimited_newline(baseline, item.leading_view())
+    item.payload_view().is_boundary()
+        || implicit_delimited_newline(baseline, item.leading_view())
         || item.payload_view().is_eof()
         || is_separator(item)
         || is_active_stop(i.rb(), item, outer_stops)
@@ -365,7 +681,8 @@ fn label_following_boundary(
     baseline: usize,
     outer_stops: Stops,
 ) -> bool {
-    implicit_gap(baseline, item.leading_view())
+    item.payload_view().is_boundary()
+        || implicit_gap(baseline, item.leading_view())
         || item.payload_view().is_eof()
         || is_separator(item)
         || is_active_stop_lex(i.rb(), item, outer_stops)

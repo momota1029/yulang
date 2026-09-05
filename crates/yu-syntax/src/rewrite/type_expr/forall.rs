@@ -6,18 +6,22 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::super::{
     LexIn, RewriteIn, Stops,
-    driver::{TailExit, handoff, token_kind},
+    current_item::{CurrentPayload, LineEntry},
+    driver::{NormalizedExit, complete, handoff, token_kind},
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
-    lexer::{scan_trivia, type_item_after_trivia, type_nud_item_after_trivia},
+    lexer::scan_type_nud_payload,
+    operator::{TriviaObservation, observe_fenced_trivia},
+    yumark::FenceBoundary,
 };
 use super::{
-    TypeApplyBoundary, TypeOuterBoundary, indentation_after_newline, is_forall_binder,
-    is_type_caller_boundary, is_type_nud, is_type_outer_boundary, is_type_rhs_boundary,
-    is_type_separator, type_chain_trivia, type_expr_from_nud,
+    TypeApplyBoundary, TypeOuterBoundary, is_forall_binder, is_type_caller_boundary, is_type_nud,
+    is_type_outer_boundary, is_type_rhs_boundary, is_type_separator, type_chain_trivia,
+    type_expr_from_nud_normalized, type_item_normalized, type_nud_item_normalized,
 };
 
-pub(super) fn type_forall(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn type_forall_normalized(
     mut i: RewriteIn,
     keyword: Item,
     baseline: usize,
@@ -26,36 +30,72 @@ pub(super) fn type_forall(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::ForallType.into());
     emit_token_item(&mut i, keyword);
-    let leading = scan_trivia(i.rb());
-    let binder = type_item_after_trivia(i.rb(), leading);
+    let exit = type_forall_head_normalized(
+        i.rb(),
+        baseline,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    i.state.finish_node();
+    exit
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_forall_head_normalized(
+    mut i: RewriteIn,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (binder, item_origin, line_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    if binder.payload_view().is_boundary() {
+        let binder = type_forall_missing_binder(i.rb(), binder, true);
+        return complete(handoff(binder), line_entry);
+    }
     if !type_chain_trivia(binder.leading_view(), baseline) {
         let binder = type_forall_missing_binder(i.rb(), binder, false);
-        i.state.finish_node();
-        return handoff(binder);
+        return complete(handoff(binder), line_entry);
     }
     if token_kind(&binder) == Some(TokenKind::Colon) {
         let binder = type_forall_missing_binder(i.rb(), binder, true);
-        let exit = type_forall_body(
-            i.rb(),
+        return type_forall_body_normalized(
+            i,
             binder,
             baseline,
             apply_boundary,
             outer_separators,
             outer_closes,
             caller_stops,
+            item_origin,
+            line_entry,
+            fence,
         );
-        i.state.finish_node();
-        return exit;
     }
     if !is_forall_binder(&binder) {
         if is_forall_local_separator(&binder, outer_separators)
             && !is_type_caller_boundary(&binder, caller_stops)
         {
-            let exit = type_forall_first_separator(
-                i.rb(),
+            return type_forall_first_separator_normalized(
+                i,
                 binder,
                 baseline,
                 apply_boundary,
@@ -63,19 +103,16 @@ pub(super) fn type_forall(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
-            i.state.finish_node();
-            return exit;
         }
-        if is_forall_outer_separator(&binder, outer_separators) {
+        if is_forall_outer_separator(&binder, outer_separators)
+            || is_type_outer_boundary(&binder, outer_boundary)
+        {
             let binder = type_forall_missing_binder(i.rb(), binder, false);
-            i.state.finish_node();
-            return handoff(binder);
-        }
-        if is_type_outer_boundary(&binder, outer_boundary) {
-            let binder = type_forall_missing_binder(i.rb(), binder, false);
-            i.state.finish_node();
-            return handoff(binder);
+            return complete(handoff(binder), line_entry);
         }
         if is_forall_boundary(
             &binder,
@@ -85,11 +122,10 @@ pub(super) fn type_forall(
             outer_boundary,
         ) {
             let binder = type_forall_missing_binder(i.rb(), binder, true);
-            i.state.finish_node();
-            return handoff(binder);
+            return complete(handoff(binder), line_entry);
         }
-        let exit = type_forall_first_malformed_binder(
-            i.rb(),
+        return type_forall_first_malformed_binder_normalized(
+            i,
             binder,
             baseline,
             apply_boundary,
@@ -97,26 +133,30 @@ pub(super) fn type_forall(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
-        i.state.finish_node();
-        return exit;
     }
+
     let missing_boundary = binder.leading_view().is_grammar_empty();
     type_forall_binder(i.rb(), binder, missing_boundary);
-    let exit = type_forall_after_binder(
-        i.rb(),
+    type_forall_after_binder_normalized(
+        i,
         baseline,
         apply_boundary,
         outer_separators,
         outer_closes,
         caller_stops,
         outer_boundary,
-    );
-    i.state.finish_node();
-    exit
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn type_forall_after_binder(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_after_binder_normalized(
     mut i: RewriteIn,
     baseline: usize,
     apply_boundary: Option<TypeApplyBoundary>,
@@ -124,16 +164,25 @@ fn type_forall_after_binder(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     loop {
-        let leading = scan_trivia(i.rb());
-        let mut next = type_item_after_trivia(i.rb(), leading);
+        let (mut next, next_origin, next_line_entry) =
+            type_item_normalized(i.rb(), item_origin, line_entry, fence);
+        item_origin = next_origin;
+        line_entry = next_line_entry;
+        if next.payload_view().is_boundary() {
+            emit_missing(&mut i, LeadingTrivia::default());
+            return complete(handoff(next), line_entry);
+        }
         if !type_chain_trivia(next.leading_view(), baseline) {
             emit_missing(&mut i, LeadingTrivia::default());
-            return handoff(next);
+            return complete(handoff(next), line_entry);
         }
         if token_kind(&next) == Some(TokenKind::Colon) {
-            return type_forall_body(
+            return type_forall_body_normalized(
                 i,
                 next,
                 baseline,
@@ -141,6 +190,9 @@ fn type_forall_after_binder(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if is_forall_binder(&next) {
@@ -151,7 +203,7 @@ fn type_forall_after_binder(
         if is_forall_local_separator(&next, outer_separators)
             && !is_type_caller_boundary(&next, caller_stops)
         {
-            return type_forall_continuation_separator(
+            return type_forall_continuation_separator_normalized(
                 i,
                 next,
                 baseline,
@@ -160,11 +212,14 @@ fn type_forall_after_binder(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if is_type_outer_boundary(&next, outer_boundary) {
             emit_missing(&mut i, LeadingTrivia::default());
-            return handoff(next);
+            return complete(handoff(next), line_entry);
         }
         if is_forall_boundary(
             &next,
@@ -173,18 +228,16 @@ fn type_forall_after_binder(
             caller_stops,
             outer_boundary,
         ) {
-            if !is_forall_outer_separator(&next, outer_separators)
-                && !next.payload_view().is_boundary()
-            {
+            if !is_forall_outer_separator(&next, outer_separators) {
                 next.emit_all_remaining_leading(&mut *i.state);
             }
             emit_missing(&mut i, LeadingTrivia::default());
-            return handoff(next);
+            return complete(handoff(next), line_entry);
         }
         if is_type_nud(&next) {
             next.emit_all_remaining_leading(&mut *i.state);
             emit_missing(&mut i, LeadingTrivia::default());
-            return type_expr_from_nud(
+            return type_expr_from_nud_normalized(
                 i,
                 next,
                 baseline,
@@ -193,9 +246,13 @@ fn type_forall_after_binder(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                TypeOuterBoundary::NONE,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
-        return type_forall_malformed_after_binder(
+        return type_forall_malformed_after_binder_normalized(
             i,
             next,
             baseline,
@@ -204,11 +261,15 @@ fn type_forall_after_binder(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
 }
 
-fn type_forall_first_separator(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_first_separator_normalized(
     mut i: RewriteIn,
     separator: Item,
     baseline: usize,
@@ -217,10 +278,16 @@ fn type_forall_first_separator(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     emit_forall_separator_binder(i.rb(), separator);
-    let leading = scan_trivia(i.rb());
-    let next = type_item_after_trivia(i.rb(), leading);
+    let (next, item_origin, line_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    if next.payload_view().is_boundary() {
+        return complete(handoff(next), line_entry);
+    }
     if next.payload_view().is_eof()
         || is_forall_boundary(
             &next,
@@ -230,10 +297,10 @@ fn type_forall_first_separator(
             outer_boundary,
         )
     {
-        return handoff(next);
+        return complete(handoff(next), line_entry);
     }
     if is_forall_local_separator(&next, outer_separators) {
-        return type_forall_first_separator(
+        return type_forall_first_separator_normalized(
             i,
             next,
             baseline,
@@ -242,10 +309,13 @@ fn type_forall_first_separator(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     if token_kind(&next) == Some(TokenKind::Colon) {
-        return type_forall_body(
+        return type_forall_body_normalized(
             i,
             next,
             baseline,
@@ -253,12 +323,15 @@ fn type_forall_first_separator(
             outer_separators,
             outer_closes,
             caller_stops,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     if is_forall_binder(&next) {
         let missing_boundary = next.leading_view().is_grammar_empty();
         type_forall_binder(i.rb(), next, missing_boundary);
-        return type_forall_after_binder(
+        return type_forall_after_binder_normalized(
             i,
             baseline,
             apply_boundary,
@@ -266,12 +339,15 @@ fn type_forall_first_separator(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     if is_type_nud(&next) {
-        return handoff(next);
+        return complete(handoff(next), line_entry);
     }
-    type_forall_first_malformed_binder(
+    type_forall_first_malformed_binder_normalized(
         i,
         next,
         baseline,
@@ -280,10 +356,14 @@ fn type_forall_first_separator(
         outer_closes,
         caller_stops,
         outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn type_forall_continuation_separator(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_continuation_separator_normalized(
     mut i: RewriteIn,
     separator: Item,
     baseline: usize,
@@ -292,9 +372,12 @@ fn type_forall_continuation_separator(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     emit_forall_separator_binder(i.rb(), separator);
-    type_forall_after_binder(
+    type_forall_after_binder_normalized(
         i,
         baseline,
         apply_boundary,
@@ -302,10 +385,14 @@ fn type_forall_continuation_separator(
         outer_closes,
         caller_stops,
         outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn type_forall_first_malformed_binder(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_first_malformed_binder_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
@@ -314,12 +401,23 @@ fn type_forall_first_malformed_binder(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         let kind = token_kind(&item);
         emit_token_item(&mut i, item);
         match kind {
@@ -333,15 +431,20 @@ fn type_forall_first_malformed_binder(
             }
             _ => {}
         }
-        let leading = scan_trivia(i.rb());
-        item = type_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if nested_depth == 0
             && is_forall_local_separator(&item, outer_separators)
             && !is_type_caller_boundary(&item, caller_stops)
         {
             i.state.finish_node();
             i.state.finish_node();
-            return type_forall_first_separator(
+            return type_forall_first_separator_normalized(
                 i,
                 item,
                 baseline,
@@ -350,6 +453,9 @@ fn type_forall_first_malformed_binder(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if item.payload_view().is_eof()
@@ -364,12 +470,12 @@ fn type_forall_first_malformed_binder(
         {
             i.state.finish_node();
             i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if nested_depth == 0 && token_kind(&item) == Some(TokenKind::Colon) {
             i.state.finish_node();
             i.state.finish_node();
-            return type_forall_body(
+            return type_forall_body_normalized(
                 i,
                 item,
                 baseline,
@@ -377,6 +483,9 @@ fn type_forall_first_malformed_binder(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if nested_depth == 0 && is_forall_binder(&item) {
@@ -384,7 +493,7 @@ fn type_forall_first_malformed_binder(
             i.state.finish_node();
             let missing_boundary = item.leading_view().is_grammar_empty();
             type_forall_binder(i.rb(), item, missing_boundary);
-            return type_forall_after_binder(
+            return type_forall_after_binder_normalized(
                 i,
                 baseline,
                 apply_boundary,
@@ -392,12 +501,16 @@ fn type_forall_first_malformed_binder(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
     }
 }
 
-fn type_forall_malformed_after_binder(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_malformed_after_binder_normalized(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
@@ -406,23 +519,29 @@ fn type_forall_malformed_after_binder(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let retry_binder = i
         .rb()
-        .then(
+        .map(
             |lex: LexIn| {
-                type_forall_malformed_retries_binder(
+                Some(type_forall_malformed_retries_binder(
                     lex,
                     outer_separators,
                     caller_stops,
                     outer_boundary,
-                )
+                    item_origin,
+                    line_entry,
+                    fence,
+                ))
             },
-            |(is_binder, indent), _| is_binder && indent.is_none_or(|indent| indent > baseline),
+            |(is_binder, indent)| is_binder && indent.is_none_or(|indent| indent > baseline),
         )
         .expect("the forall malformed-retry probe always succeeds");
     if retry_binder {
-        return type_forall_retry_binder(
+        return type_forall_retry_binder_normalized(
             i,
             item,
             baseline,
@@ -431,9 +550,12 @@ fn type_forall_malformed_after_binder(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
-    type_forall_retry_colon_or_body(
+    type_forall_retry_colon_or_body_normalized(
         i,
         item,
         baseline,
@@ -442,46 +564,72 @@ fn type_forall_malformed_after_binder(
         outer_closes,
         caller_stops,
         outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn type_forall_malformed_retries_binder(
     mut i: LexIn,
     outer_separators: bool,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> Option<(bool, Option<usize>)> {
-    let mut input = i.remainder();
-    let mut probe: LexIn = chasa_recover::In::new(&mut input, i.recovery(), ());
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (bool, Option<usize>) {
+    let mut source = i.remainder();
     let mut minimum_indentation: Option<usize> = None;
     let mut nested_depth = 0usize;
     loop {
-        let leading = scan_trivia(probe.rb());
-        if nested_depth == 0 {
-            if let Some(indentation) = indentation_after_newline(leading.view()) {
-                minimum_indentation =
-                    Some(minimum_indentation.map_or(indentation, |min| min.min(indentation)));
-            }
+        let Some((
+            next,
+            next_origin,
+            next_line_entry,
+            kind,
+            is_binder,
+            caller_boundary,
+            observed_outer_boundary,
+            indentation,
+        )) = observe_type_nud(
+            i.rb(),
+            source,
+            item_origin,
+            line_entry,
+            fence,
+            caller_stops,
+            outer_boundary,
+        )
+        else {
+            return (false, minimum_indentation);
+        };
+        source = next;
+        item_origin = next_origin;
+        line_entry = next_line_entry;
+        if nested_depth == 0
+            && let Some(indentation) = indentation
+        {
+            minimum_indentation =
+                Some(minimum_indentation.map_or(indentation, |min| min.min(indentation)));
         }
-        let item = type_nud_item_after_trivia(probe.rb(), leading);
-        if item.payload_view().is_eof() {
-            return Some((false, minimum_indentation));
-        }
         if nested_depth == 0 {
-            if (is_type_rhs_boundary(&item) && (outer_separators || !is_type_separator(&item)))
-                || is_type_caller_boundary(&item, caller_stops)
-                || is_type_outer_boundary(&item, outer_boundary)
+            if (is_type_rhs_boundary_kind(kind)
+                && (outer_separators || !is_type_separator_kind(kind)))
+                || caller_boundary
+                || observed_outer_boundary
             {
-                return Some((false, minimum_indentation));
+                return (false, minimum_indentation);
             }
-            if is_forall_binder(&item) {
-                return Some((true, minimum_indentation));
+            if is_binder {
+                return (true, minimum_indentation);
             }
-            if token_kind(&item) == Some(TokenKind::Colon) || is_type_nud(&item) {
-                return Some((false, minimum_indentation));
+            if kind == Some(TokenKind::Colon) || is_type_nud_kind(kind) {
+                return (false, minimum_indentation);
             }
         }
-        match token_kind(&item) {
+        match kind {
             Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
                 nested_depth += 1;
             }
@@ -495,7 +643,8 @@ fn type_forall_malformed_retries_binder(
     }
 }
 
-fn type_forall_retry_binder(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_retry_binder_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
@@ -504,12 +653,23 @@ fn type_forall_retry_binder(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         let kind = token_kind(&item);
         emit_token_item(&mut i, item);
         match kind {
@@ -523,14 +683,19 @@ fn type_forall_retry_binder(
             }
             _ => {}
         }
-        let leading = scan_trivia(i.rb());
-        item = type_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if nested_depth == 0 && is_forall_binder(&item) {
             i.state.finish_node();
             i.state.finish_node();
             let missing_boundary = item.leading_view().is_grammar_empty();
             type_forall_binder(i.rb(), item, missing_boundary);
-            return type_forall_after_binder(
+            return type_forall_after_binder_normalized(
                 i,
                 baseline,
                 apply_boundary,
@@ -538,6 +703,9 @@ fn type_forall_retry_binder(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if nested_depth == 0
@@ -546,7 +714,7 @@ fn type_forall_retry_binder(
         {
             i.state.finish_node();
             i.state.finish_node();
-            return type_forall_continuation_separator(
+            return type_forall_continuation_separator_normalized(
                 i,
                 item,
                 baseline,
@@ -555,6 +723,9 @@ fn type_forall_retry_binder(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if item.payload_view().is_eof()
@@ -569,12 +740,13 @@ fn type_forall_retry_binder(
         {
             i.state.finish_node();
             i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
     }
 }
 
-fn type_forall_retry_colon_or_body(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_retry_colon_or_body_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
@@ -583,11 +755,21 @@ fn type_forall_retry_colon_or_body(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         let kind = token_kind(&item);
         emit_token_item(&mut i, item);
         match kind {
@@ -601,14 +783,18 @@ fn type_forall_retry_colon_or_body(
             }
             _ => {}
         }
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if nested_depth == 0
             && is_forall_local_separator(&item, outer_separators)
             && !is_type_caller_boundary(&item, caller_stops)
         {
             i.state.finish_node();
-            return type_forall_continuation_separator(
+            return type_forall_continuation_separator_normalized(
                 i,
                 item,
                 baseline,
@@ -617,6 +803,9 @@ fn type_forall_retry_colon_or_body(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if item.payload_view().is_eof()
@@ -630,11 +819,11 @@ fn type_forall_retry_colon_or_body(
                 ))
         {
             i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if nested_depth == 0 && token_kind(&item) == Some(TokenKind::Colon) {
             i.state.finish_node();
-            return type_forall_body(
+            return type_forall_body_normalized(
                 i,
                 item,
                 baseline,
@@ -642,11 +831,14 @@ fn type_forall_retry_colon_or_body(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if nested_depth == 0 && is_type_nud(&item) {
             i.state.finish_node();
-            return type_expr_from_nud(
+            return type_expr_from_nud_normalized(
                 i,
                 item,
                 baseline,
@@ -655,6 +847,10 @@ fn type_forall_retry_colon_or_body(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                TypeOuterBoundary::NONE,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
     }
@@ -689,7 +885,8 @@ fn type_forall_binder(mut i: RewriteIn, mut binder: Item, missing_boundary: bool
     i.state.finish_node();
 }
 
-fn type_forall_body(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_body_normalized(
     mut i: RewriteIn,
     colon: Item,
     baseline: usize,
@@ -697,13 +894,20 @@ fn type_forall_body(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     emit_token_item(&mut i, colon);
-    let leading = scan_trivia(i.rb());
-    let mut body = type_nud_item_after_trivia(i.rb(), leading);
+    let (mut body, mut item_origin, mut line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    if body.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(body), line_entry);
+    }
     if !type_chain_trivia(body.leading_view(), baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(body);
+        return complete(handoff(body), line_entry);
     }
     if is_forall_boundary(
         &body,
@@ -712,30 +916,39 @@ fn type_forall_body(
         caller_stops,
         TypeOuterBoundary::NONE,
     ) {
-        if !is_forall_outer_separator(&body, outer_separators) && !body.payload_view().is_boundary()
-        {
+        if !is_forall_outer_separator(&body, outer_separators) {
             body.emit_all_remaining_leading(&mut *i.state);
         }
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(body);
+        return complete(handoff(body), line_entry);
     }
     if !is_type_nud(&body) {
-        body = type_forall_retry_body(i.rb(), body, baseline, outer_separators, caller_stops);
+        (body, item_origin, line_entry) = type_forall_retry_body_normalized(
+            i.rb(),
+            body,
+            baseline,
+            outer_separators,
+            caller_stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
+        if body.payload_view().is_boundary() {
+            return complete(handoff(body), line_entry);
+        }
         if is_forall_boundary(
             &body,
             baseline,
             outer_separators,
             caller_stops,
             TypeOuterBoundary::NONE,
-        ) {
-            return handoff(body);
-        }
-        if !is_type_nud(&body) {
-            return handoff(body);
+        ) || !is_type_nud(&body)
+        {
+            return complete(handoff(body), line_entry);
         }
     }
     body.emit_all_remaining_leading(&mut *i.state);
-    type_expr_from_nud(
+    type_expr_from_nud_normalized(
         i,
         body,
         baseline,
@@ -744,23 +957,39 @@ fn type_forall_body(
         outer_separators,
         outer_closes,
         caller_stops,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn type_forall_retry_body(
+#[allow(clippy::too_many_arguments)]
+fn type_forall_retry_body_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_separators: bool,
     caller_stops: Stops,
-) -> Item {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    if item.payload_view().is_boundary() {
+        return (item, item_origin, line_entry);
+    }
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return (item, item_origin, line_entry);
+        }
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
-        if is_type_nud(&item)
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary()
+            || is_type_nud(&item)
             || is_forall_boundary(
                 &item,
                 baseline,
@@ -770,9 +999,133 @@ fn type_forall_retry_body(
             )
         {
             i.state.finish_node();
-            return item;
+            return (item, item_origin, line_entry);
         }
     }
+}
+
+fn observe_type_nud<'source>(
+    mut i: LexIn,
+    source: &'source str,
+    source_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+) -> Option<(
+    &'source str,
+    usize,
+    LineEntry,
+    Option<TokenKind>,
+    bool,
+    bool,
+    bool,
+    Option<usize>,
+)> {
+    let TriviaObservation::Visible(visible) =
+        observe_fenced_trivia(source, source_origin, line_entry, fence)
+    else {
+        return None;
+    };
+    if visible.source.is_empty() {
+        return None;
+    }
+
+    let payload_origin = source_origin + source.len() - visible.source.len();
+    let mut suffix = visible.source;
+    let accepted = scan_type_nud_payload(
+        chasa_recover::In::new(&mut suffix, i.recovery(), ()),
+        visible.present,
+        payload_origin,
+        fence,
+    )?;
+    let (kind, is_binder, caller_boundary, outer_boundary) = match accepted.payload {
+        CurrentPayload::Token(token) => {
+            let kind = token.kind;
+            let spelling = token.text.as_ref();
+            (
+                Some(kind),
+                kind == TokenKind::SigilIdentifier && spelling.starts_with('\''),
+                is_type_caller_boundary_parts(kind, spelling, caller_stops),
+                is_type_outer_boundary_parts(kind, spelling, outer_boundary),
+            )
+        }
+        CurrentPayload::Operator(_) => (None, false, false, false),
+    };
+    let next_origin = payload_origin + visible.source.len() - suffix.len();
+    Some((
+        suffix,
+        next_origin,
+        accepted.next_line_entry,
+        kind,
+        is_binder,
+        caller_boundary,
+        outer_boundary,
+        visible.indentation,
+    ))
+}
+
+fn is_type_nud_kind(kind: Option<TokenKind>) -> bool {
+    matches!(
+        kind,
+        Some(
+            TokenKind::Identifier
+                | TokenKind::SigilIdentifier
+                | TokenKind::Integer
+                | TokenKind::LParen
+                | TokenKind::LBrace
+                | TokenKind::Forall
+                | TokenKind::EffectRowApostrophe
+                | TokenKind::PolymorphicVariantColon
+                | TokenKind::LBracket
+        )
+    )
+}
+
+fn is_type_rhs_boundary_kind(kind: Option<TokenKind>) -> bool {
+    matches!(
+        kind,
+        Some(
+            TokenKind::Comma
+                | TokenKind::Semicolon
+                | TokenKind::RParen
+                | TokenKind::RBracket
+                | TokenKind::RBrace
+        )
+    )
+}
+
+fn is_type_separator_kind(kind: Option<TokenKind>) -> bool {
+    matches!(kind, Some(TokenKind::Comma | TokenKind::Semicolon))
+}
+
+fn is_type_caller_boundary_parts(kind: TokenKind, spelling: &str, caller_stops: Stops) -> bool {
+    if super::super::operator::active_stop_item(kind, caller_stops) {
+        return true;
+    }
+    kind == TokenKind::Identifier
+        && ((caller_stops & super::super::operator::STOP_WITH != 0 && spelling == "with")
+            || (caller_stops & super::super::operator::STOP_IN != 0 && spelling == "in")
+            || (caller_stops & super::super::operator::STOP_ELSIF != 0 && spelling == "elsif")
+            || (caller_stops & super::super::operator::STOP_ELSE != 0 && spelling == "else"))
+}
+
+fn is_type_outer_boundary_parts(
+    kind: TokenKind,
+    spelling: &str,
+    outer_boundary: TypeOuterBoundary,
+) -> bool {
+    if kind == TokenKind::Equals {
+        return outer_boundary.contains(TypeOuterBoundary::EQUALS);
+    }
+    kind == TokenKind::Identifier
+        && match spelling {
+            "derives" => outer_boundary.contains(TypeOuterBoundary::DERIVES),
+            "via" => outer_boundary.contains(TypeOuterBoundary::VIA),
+            "with" => outer_boundary.contains(TypeOuterBoundary::WITH),
+            "impl" => outer_boundary.contains(TypeOuterBoundary::IMPL),
+            _ => false,
+        }
 }
 
 fn is_forall_boundary(

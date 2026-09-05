@@ -148,6 +148,13 @@ where
         return Some(boundary_item(leading, foreign, item_origin, boundary));
     }
 
+    if fence.is_none() && i.remainder().is_empty() {
+        return Some(CurrentItem {
+            item: Item::plain(leading.into_ordinary(), Payload::Eof),
+            next_line_entry: LineEntry::InLine,
+        });
+    }
+
     let payload_origin = suffix_coordinate(source, item_origin, i.remainder());
     let AcceptedPayload {
         payload,

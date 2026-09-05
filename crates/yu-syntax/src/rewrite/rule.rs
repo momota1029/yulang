@@ -455,9 +455,9 @@ fn scan_rule_item_fenced(
             FenceLineDecision::Body { prefix: None, .. } => {}
             FenceLineDecision::Body {
                 prefix: Some(prefix),
-                ..
+                content,
             } => {
-                let length = prefix.facts.extent.end - prefix.facts.extent.start;
+                let length = content - prefix.facts.extent.start;
                 let (_, text) = i.rb().with_str(|prefix| consume_bytes(prefix, length));
                 leading.push_quote_prefix(text.into());
                 PendingFragments::record(

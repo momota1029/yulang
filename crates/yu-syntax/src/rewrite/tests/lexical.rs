@@ -9,7 +9,7 @@ use crate::rewrite::{
     },
     lexer::{
         FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part,
-        scan_statement_item,
+        scan_nud_payload, scan_pattern_nud_payload, scan_statement_item, scan_type_nud_payload,
     },
     operator::{
         TriviaObservation, lone_colon_after_fenced_trivia, observe_fenced_trivia,
@@ -230,6 +230,36 @@ fn current_item_applies_prefix_only_at_a_judged_physical_line() {
 }
 
 #[test]
+fn current_item_leaves_trailing_prefix_horizontal_bytes_as_yulang_whitespace() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::empty();
+
+    for (source, prefix, whitespace) in [("> >   name", "> > ", "  "), ("> >\t name", "> >\t", " ")]
+    {
+        let mut recover = Recover::new(&operators);
+        let mut input = source;
+        let mut current = scan_identifier_item_witness(
+            In::new(&mut input, &mut recover, ()),
+            40,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+        )
+        .expect("residual horizontal bytes remain ordinary identifier trivia");
+
+        assert_eq!(input, "");
+        assert_eq!(
+            emit_pending_leading_tokens(&mut current.item),
+            [
+                (SyntaxKind::YmQuotePrefix, prefix.to_owned()),
+                (SyntaxKind::Whitespace, whitespace.to_owned()),
+            ],
+            "{source:?}"
+        );
+        assert_eq!(current.item.payload_view().spelling(), Some("name"));
+    }
+}
+
+#[test]
 fn current_item_owns_one_fenced_block_comment_carrier() {
     let fence = active_fence(2);
     let operators = OperatorTable::empty();
@@ -338,6 +368,120 @@ fn current_item_reports_fenced_eof_as_an_inline_terminal_fact() {
 }
 
 #[test]
+fn ordinary_current_item_materializes_eof_without_calling_its_payload_owner() {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = " \n";
+    let current = current_item(
+        In::new(&mut input, &mut recover, ()),
+        20,
+        LineEntry::InLine,
+        None,
+        |_, _, _, _, _| unreachable!("ordinary EOF belongs to current_item"),
+    )
+    .expect("ordinary EOF is a complete current Item");
+
+    assert_eq!(input, "");
+    assert_eq!(current.next_line_entry, LineEntry::InLine);
+    assert!(current.item.payload_view().is_eof());
+    assert_eq!(
+        current.item.leading_view().indentation_after_newline(),
+        Some(0)
+    );
+}
+
+#[test]
+fn normalized_nud_operator_observes_a_fence_without_consuming_its_boundary() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "?",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+        OperatorDeclaration::new("?", OperatorFixities::new().with_nullfix()),
+    ])
+    .expect("distinct dynamic operator declarations");
+    let mut recover = Recover::new(&operators);
+    let source = "> > ? \n> > ```\nouter";
+    let mut input = source;
+    let mut current = current_item(
+        In::new(&mut input, &mut recover, ()),
+        400,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        |i, leading, origin, fence, _| scan_nud_payload(i, leading, origin, fence, 0, 0),
+    )
+    .expect("the normalized NUD payload accepts its current operator");
+
+    assert_eq!(input, " \n> > ```\nouter");
+    assert_eq!(current.next_line_entry, LineEntry::InLine);
+    assert_eq!(
+        current.item.payload_view().operator_use(),
+        Some(&OperatorUse::Nullfix)
+    );
+    assert_eq!(
+        emit_pending_leading_tokens(&mut current.item),
+        [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())]
+    );
+}
+
+#[test]
+fn normalized_type_and_pattern_payloads_reuse_their_exact_raw_vocabularies() {
+    let fence = active_fence(2);
+    let operators = OperatorTable::empty();
+
+    let mut type_recover = Recover::new(&operators);
+    let mut type_input = "> > for 'a";
+    let mut type_item = current_item(
+        In::new(&mut type_input, &mut type_recover, ()),
+        500,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        |i, leading, origin, fence, _| scan_type_nud_payload(i, leading, origin, fence),
+    )
+    .expect("the normalized Type NUD vocabulary accepts for")
+    .item;
+    assert_eq!(
+        type_item.payload_view().token_kind(),
+        Some(TokenKind::Forall)
+    );
+    assert_eq!(type_input, " 'a");
+    assert_eq!(
+        emit_pending_leading_tokens(&mut type_item),
+        [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())]
+    );
+
+    let mut pattern_recover = Recover::new(&operators);
+    let mut pattern_input = "> > :tag";
+    let mut pattern_item = current_item(
+        In::new(&mut pattern_input, &mut pattern_recover, ()),
+        700,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        |i, leading, origin, fence, _| {
+            scan_pattern_nud_payload(
+                i,
+                leading,
+                origin,
+                fence,
+                crate::rewrite::pattern::PATTERN_DEFAULT_STOPS,
+            )
+        },
+    )
+    .expect("the normalized Pattern NUD vocabulary accepts a symbol")
+    .item;
+    assert_eq!(
+        pattern_item.payload_view().token_kind(),
+        Some(TokenKind::PatternSymbolColon)
+    );
+    assert_eq!(pattern_input, "tag");
+    assert_eq!(
+        emit_pending_leading_tokens(&mut pattern_item),
+        [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())]
+    );
+}
+
+#[test]
 fn current_item_rolls_back_an_optional_payload_after_tentative_leading_scan() {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new(&operators);
@@ -369,6 +513,14 @@ fn fenced_source_observer_skips_prefixes_and_stops_before_outer_boundary() {
     assert_eq!(visible.source, "value");
     assert!(visible.present);
     assert_eq!(visible.indentation, Some(0));
+
+    let visible = observe_fenced_trivia("\r\n> >   value", 120, LineEntry::InLine, Some(&fence));
+    let TriviaObservation::Visible(visible) = visible else {
+        panic!("residual body indentation stays visible");
+    };
+    assert_eq!(visible.source, "value");
+    assert!(visible.present);
+    assert_eq!(visible.indentation, Some(2));
     assert!(lone_colon_after_fenced_trivia(
         "\n> > :",
         120,
@@ -809,9 +961,9 @@ fn fenced_comment_uses_one_whole_item_carrier_and_one_builder() {
 
 #[test]
 fn fenced_comment_borrows_close_before_consuming_its_prefix() {
-    let source = "/* outer\n> > body\r\n> > ``` \t\r\nfollowing";
+    let source = "/* outer\n> > body\r\n> >   ``` \t\r\nfollowing";
     let accepted = "/* outer\n> > body\r\n";
-    let close = "> > ``` \t\r\nfollowing";
+    let close = "> >   ``` \t\r\nfollowing";
     let (item, remainder) = fenced_boundary_item(source, 0, &active_fence(2));
 
     assert_eq!(remainder, close);
@@ -820,7 +972,7 @@ fn fenced_comment_borrows_close_before_consuming_its_prefix() {
     assert_eq!(green.to_string(), accepted);
     assert_eq!(
         pending.inspected(),
-        &(accepted.len()..accepted.len() + "> > ``` \t\r\n".len())
+        &(accepted.len()..accepted.len() + "> >   ``` \t\r\n".len())
     );
     let Boundary::BorrowedClose(BorrowedTarget::YumarkFence(facts)) = pending.kind() else {
         panic!("legal close must be borrowed")
@@ -828,10 +980,57 @@ fn fenced_comment_borrows_close_before_consuming_its_prefix() {
     let prefix = facts.prefix.as_ref().expect("close prefix facts");
     assert_eq!(
         &source[prefix.extent.clone()],
-        "> > ",
+        "> >   ",
         "close prefix is inspected but never recorded or consumed"
     );
     assert_eq!(&source[facts.marker.clone()], "```");
+}
+
+#[test]
+fn fenced_comment_segments_only_one_post_marker_horizontal_byte_as_prefix() {
+    let source = "/* outer\n> >   body */tail";
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let mut foreign = None;
+    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
+    let outcome = i
+        .token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign))
+        .expect("complete fenced block comment");
+    let FencedBlockComment::Complete(comment) = outcome else {
+        panic!("balanced comment completes before its ordinary tail")
+    };
+
+    assert_eq!(input, "tail");
+    assert_eq!(
+        foreign,
+        Some(vec![ForeignSplit::quote_prefix(
+            "/* outer\n".len(),
+            "> > ".len(),
+        )])
+    );
+    let item = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![comment].into_boxed_slice(),
+        )),
+        Payload::Eof,
+        foreign,
+        0,
+    )
+    .expect("the segmented comment owns one exact prefix split");
+    let root = SyntaxNode::new_root(emit_accepted_end(item));
+    assert_eq!(root.to_string(), "/* outer\n> >   body */");
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::BlockComment, "/* outer\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+            (SyntaxKind::BlockComment, "  body */".to_owned()),
+        ]
+    );
 }
 
 #[test]

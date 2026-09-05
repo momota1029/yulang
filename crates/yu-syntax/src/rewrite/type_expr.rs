@@ -11,20 +11,25 @@ mod variants;
 
 use super::{
     RewriteIn, Stops,
-    driver::{Either, TailExit, handoff, token_kind},
-    emit::{emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, LeadingView, Payload, TokenKind},
-    lexer::{
-        scan_balanced_bracket_suffix, scan_trivia, scan_type_nud_item, type_item_after_trivia,
-        type_nud_item_after_trivia,
+    current_item::{CurrentItem, LineEntry, current_item},
+    driver::{
+        Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, ordinary_exit,
+        suffix_marker, token_kind,
     },
+    emit::{emit_missing, emit_token_item},
+    item::{Item, LeadingTrivia, LeadingView, TokenKind},
+    lexer::{
+        BalancedBracketSuffix, scan_balanced_bracket_suffix_normalized, scan_type_nud_payload,
+        scan_type_payload,
+    },
+    yumark::FenceBoundary,
 };
 
 use self::{
-    delimited::{TypeDelimitedOwner, type_delimited},
-    forall::type_forall,
-    record::{type_record, type_record_next_field},
-    variants::{type_effect_row, type_polymorphic_variant},
+    delimited::{TypeDelimitedOwner, type_delimited_normalized},
+    forall::type_forall_normalized,
+    record::{type_record_next_field_normalized, type_record_normalized},
+    variants::{type_effect_row_normalized, type_polymorphic_variant_normalized},
 };
 
 #[derive(Clone, Copy)]
@@ -58,9 +63,52 @@ impl TypeOuterBoundary {
     }
 }
 
-pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
-    let primary = i.token(scan_type_nud_item)?;
-    Some(type_expr_from_nud(i, primary, 0, false, None, false, 0, 0))
+pub(super) fn type_expr(i: RewriteIn) -> Option<TailExit> {
+    type_expr_normalized(i, 0, LineEntry::InLine, None).map(ordinary_exit)
+}
+
+pub(super) fn type_expr_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<NormalizedExit> {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item: primary,
+        next_line_entry,
+    } = i.token(|lex| {
+        let current = current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |lex, leading, origin, fence, _| scan_type_nud_payload(lex, leading, origin, fence),
+        )?;
+        if current.item.payload_view().is_boundary()
+            || current.item.payload_view().is_eof()
+            || !current.item.leading_view().is_grammar_empty()
+            || !is_type_nud(&current.item)
+        {
+            return None;
+        }
+        Some(current)
+    })?;
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    Some(type_expr_from_nud_normalized(
+        i,
+        primary,
+        0,
+        false,
+        None,
+        false,
+        0,
+        0,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        next_line_entry,
+        fence,
+    ))
 }
 
 /// Build a mandatory TypeExpression slot already introduced by another owner.
@@ -70,7 +118,22 @@ pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
 /// point has no caller-arrow policy; consumers that make an Arrow active must
 /// own that boundary themselves.
 pub(super) fn required_type_expr(i: RewriteIn, primary: Item, baseline: usize) -> TailExit {
-    required_type_expr_inner(i, primary, baseline, None, false, 0, 0)
+    ordinary_exit(
+        required_type_expr_inner_normalized(
+            i,
+            primary,
+            baseline,
+            None,
+            false,
+            0,
+            0,
+            TypeOuterBoundary::NONE,
+            0,
+            LineEntry::InLine,
+            None,
+        )
+        .0,
+    )
 }
 
 pub(super) fn required_type_expr_with_boundary(
@@ -80,7 +143,22 @@ pub(super) fn required_type_expr_with_boundary(
     apply_boundary: Option<TypeApplyBoundary>,
     outer_closes: u8,
 ) -> TailExit {
-    required_type_expr_inner(i, primary, baseline, apply_boundary, true, outer_closes, 0)
+    ordinary_exit(
+        required_type_expr_inner_normalized(
+            i,
+            primary,
+            baseline,
+            apply_boundary,
+            true,
+            outer_closes,
+            0,
+            TypeOuterBoundary::NONE,
+            0,
+            LineEntry::InLine,
+            None,
+        )
+        .0,
+    )
 }
 
 pub(super) fn required_type_expr_with_caller_stops(
@@ -98,7 +176,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion(
     baseline: usize,
     caller_stops: Stops,
 ) -> (TailExit, bool) {
-    required_type_expr_inner_with_completion(
+    let (exit, primary_found) = required_type_expr_inner_normalized(
         i,
         primary,
         baseline,
@@ -107,7 +185,11 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion(
         0,
         caller_stops,
         TypeOuterBoundary::NONE,
-    )
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    (ordinary_exit(exit), primary_found)
 }
 
 pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
@@ -117,7 +199,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> (TailExit, bool) {
-    required_type_expr_inner_with_completion(
+    let (exit, primary_found) = required_type_expr_inner_normalized(
         i,
         primary,
         baseline,
@@ -126,32 +208,63 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
         0,
         caller_stops,
         outer_boundary,
-    )
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    (ordinary_exit(exit), primary_found)
 }
 
-fn required_type_expr_inner(
+pub(super) fn required_type_expr_normalized(
     i: RewriteIn,
     primary: Item,
     baseline: usize,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-) -> TailExit {
-    required_type_expr_inner_with_completion(
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    required_type_expr_inner_normalized(
         i,
         primary,
         baseline,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
+        None,
+        false,
+        0,
+        0,
         TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
     )
     .0
 }
 
-fn required_type_expr_inner_with_completion(
+pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
+    required_type_expr_inner_normalized(
+        i,
+        primary,
+        baseline,
+        None,
+        false,
+        0,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn required_type_expr_inner_normalized(
     mut i: RewriteIn,
     mut primary: Item,
     baseline: usize,
@@ -160,16 +273,25 @@ fn required_type_expr_inner_with_completion(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> (TailExit, bool) {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
+    if primary.payload_view().is_boundary() {
+        i.state.start_node(SyntaxKind::TypeExpression.into());
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return (complete(handoff(primary), line_entry), false);
+    }
     if is_required_type_boundary(&primary, baseline, caller_stops, outer_boundary) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
-        return (handoff(primary), false);
+        return (complete(handoff(primary), line_entry), false);
     }
     if is_type_nud(&primary) {
         return (
-            type_expr_from_nud_with_outer_boundary(
+            type_expr_from_nud_normalized(
                 i,
                 primary,
                 baseline,
@@ -179,6 +301,9 @@ fn required_type_expr_inner_with_completion(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             ),
             true,
         );
@@ -187,16 +312,20 @@ fn required_type_expr_inner_with_completion(
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, primary);
-        let leading = scan_trivia(i.rb());
-        primary = type_nud_item_after_trivia(i.rb(), leading);
+        (primary, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if primary.payload_view().is_boundary() {
+            i.state.finish_node();
+            return (complete(handoff(primary), line_entry), false);
+        }
         if is_required_type_boundary(&primary, baseline, caller_stops, outer_boundary) {
             i.state.finish_node();
-            return (handoff(primary), false);
+            return (complete(handoff(primary), line_entry), false);
         }
         if is_type_nud(&primary) {
             i.state.finish_node();
             return (
-                type_expr_from_nud_with_outer_boundary(
+                type_expr_from_nud_normalized(
                     i,
                     primary,
                     baseline,
@@ -206,6 +335,9 @@ fn required_type_expr_inner_with_completion(
                     outer_closes,
                     caller_stops,
                     outer_boundary,
+                    item_origin,
+                    line_entry,
+                    fence,
                 ),
                 true,
             );
@@ -213,30 +345,8 @@ fn required_type_expr_inner_with_completion(
     }
 }
 
-fn type_expr_from_nud(
-    i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    type_ml: bool,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-) -> TailExit {
-    type_expr_from_nud_with_outer_boundary(
-        i,
-        primary,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        TypeOuterBoundary::NONE,
-    )
-}
-
-fn type_expr_from_nud_with_outer_boundary(
+#[allow(clippy::too_many_arguments)]
+fn type_expr_from_nud_normalized(
     mut i: RewriteIn,
     primary: Item,
     baseline: usize,
@@ -246,10 +356,16 @@ fn type_expr_from_nud_with_outer_boundary(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if primary.payload_view().is_boundary() {
+        return complete(handoff(primary), line_entry);
+    }
     if token_kind(&primary) == Some(TokenKind::LBracket) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
-        let exit = type_leading_bracket_row(
+        let exit = type_leading_bracket_row_normalized(
             i.rb(),
             primary,
             baseline,
@@ -259,11 +375,14 @@ fn type_expr_from_nud_with_outer_boundary(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
         i.state.finish_node();
         return exit;
     }
-    type_expr_from_primary(
+    type_expr_from_primary_normalized(
         i,
         primary,
         baseline,
@@ -273,11 +392,14 @@ fn type_expr_from_nud_with_outer_boundary(
         outer_closes,
         caller_stops,
         outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
 fn type_expr_from_primary(
-    mut i: RewriteIn,
+    i: RewriteIn,
     primary: Item,
     baseline: usize,
     type_ml: bool,
@@ -287,8 +409,39 @@ fn type_expr_from_primary(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
+    ordinary_exit(type_expr_from_primary_normalized(
+        i,
+        primary,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        0,
+        LineEntry::InLine,
+        None,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_expr_from_primary_normalized(
+    mut i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    type_ml: bool,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeExpression.into());
-    let exit = type_expr_from_primary_started(
+    let exit = type_expr_from_primary_started_normalized(
         i.rb(),
         primary,
         baseline,
@@ -298,13 +451,16 @@ fn type_expr_from_primary(
         outer_closes,
         caller_stops,
         outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     exit
 }
 
 fn type_expr_from_primary_started(
-    mut i: RewriteIn,
+    i: RewriteIn,
     primary: Item,
     baseline: usize,
     type_ml: bool,
@@ -314,10 +470,41 @@ fn type_expr_from_primary_started(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
+    ordinary_exit(type_expr_from_primary_started_normalized(
+        i,
+        primary,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        0,
+        LineEntry::InLine,
+        None,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_expr_from_primary_started_normalized(
+    mut i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    type_ml: bool,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match token_kind(&primary) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Integer) => {
             emit_token_item(&mut i, primary);
-            scan_type_tail(
+            scan_type_tail_normalized(
                 i.rb(),
                 baseline,
                 type_ml,
@@ -326,9 +513,12 @@ fn type_expr_from_primary_started(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             )
         }
-        Some(TokenKind::LParen) => type_group(
+        Some(TokenKind::LParen) => type_group_normalized(
             i.rb(),
             primary,
             baseline,
@@ -338,8 +528,11 @@ fn type_expr_from_primary_started(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        Some(TokenKind::LBrace) => type_record(
+        Some(TokenKind::LBrace) => type_record_normalized(
             i.rb(),
             primary,
             baseline,
@@ -349,8 +542,11 @@ fn type_expr_from_primary_started(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        Some(TokenKind::Forall) => type_forall(
+        Some(TokenKind::Forall) => type_forall_normalized(
             i.rb(),
             primary,
             baseline,
@@ -359,19 +555,11 @@ fn type_expr_from_primary_started(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        Some(TokenKind::EffectRowApostrophe) => type_effect_row(
-            i.rb(),
-            primary,
-            baseline,
-            type_ml,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
-            caller_stops,
-            outer_boundary,
-        ),
-        Some(TokenKind::PolymorphicVariantColon) => type_polymorphic_variant(
+        Some(TokenKind::EffectRowApostrophe) => type_effect_row_normalized(
             i.rb(),
             primary,
             baseline,
@@ -381,13 +569,86 @@ fn type_expr_from_primary_started(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        Some(TokenKind::PolymorphicVariantColon) => type_polymorphic_variant_normalized(
+            i.rb(),
+            primary,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         ),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     }
 }
 
-fn scan_type_tail(
+fn type_item_normalized(
     mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| scan_type_payload(lex, leading, origin, fence),
+            )
+        })
+        .expect("type payload scanning is total");
+    (
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    )
+}
+
+pub(super) fn type_nud_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| scan_type_nud_payload(lex, leading, origin, fence),
+            )
+        })
+        .expect("type NUD payload scanning is total");
+    (
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    )
+}
+
+fn scan_type_tail(
+    i: RewriteIn,
     baseline: usize,
     type_ml: bool,
     apply_boundary: Option<TypeApplyBoundary>,
@@ -396,9 +657,38 @@ fn scan_type_tail(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let item = type_item_after_trivia(i.rb(), leading);
-    type_tail(
+    ordinary_exit(scan_type_tail_normalized(
+        i,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        0,
+        LineEntry::InLine,
+        None,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_type_tail_normalized(
+    mut i: RewriteIn,
+    baseline: usize,
+    type_ml: bool,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    type_tail_normalized(
         i,
         item,
         baseline,
@@ -408,11 +698,14 @@ fn scan_type_tail(
         outer_closes,
         caller_stops,
         outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
 fn type_tail(
-    mut i: RewriteIn,
+    i: RewriteIn,
     item: Item,
     baseline: usize,
     type_ml: bool,
@@ -422,19 +715,53 @@ fn type_tail(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
+    ordinary_exit(type_tail_normalized(
+        i,
+        item,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        0,
+        LineEntry::InLine,
+        None,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_tail_normalized(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    type_ml: bool,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     if !type_chain_trivia(item.leading_view(), baseline) {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if is_type_caller_boundary(&item, caller_stops) || is_type_outer_boundary(&item, outer_boundary)
     {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if type_ml && !item.leading_view().is_grammar_empty() {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     match token_kind(&item) {
         Some(TokenKind::Arrow) => {
-            return type_arrow_tail(
+            return type_arrow_tail_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -442,10 +769,13 @@ fn type_tail(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         Some(TokenKind::LParen) if item.leading_view().is_grammar_empty() => {
-            return type_call_tail(
+            return type_call_tail_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -455,10 +785,13 @@ fn type_tail(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         Some(TokenKind::PathSeparator) => {
-            return type_path_tail(
+            return type_path_tail_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -468,10 +801,13 @@ fn type_tail(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         Some(TokenKind::LBracket) => {
-            return type_bracket_arrow_tail(
+            return type_bracket_arrow_tail_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -480,21 +816,26 @@ fn type_tail(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         _ => {}
     }
     if match apply_boundary {
-        Some(TypeApplyBoundary::NamedRecord(base)) => type_record_next_field(i.rb(), &item, base),
+        Some(TypeApplyBoundary::NamedRecord(base)) => {
+            type_record_next_field_normalized(i.rb(), &item, base, item_origin, line_entry, fence)
+        }
         Some(TypeApplyBoundary::StructNamedFields) => {
             super::struct_decl::struct_named_fields_next_field_candidate(i.rb(), &item)
         }
         None => false,
     } {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if !item.leading_view().is_grammar_empty() && is_type_primary(&item) {
-        return type_apply_argument(
+        return type_apply_argument_normalized(
             i,
             item,
             baseline,
@@ -503,12 +844,16 @@ fn type_tail(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
-    handoff(item)
+    complete(handoff(item), line_entry)
 }
 
-fn type_leading_bracket_row(
+#[allow(clippy::too_many_arguments)]
+fn type_leading_bracket_row_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
@@ -518,28 +863,52 @@ fn type_leading_bracket_row(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    let exit = type_bracket_row(i.rb(), open, baseline, outer_closes, caller_stops);
-    let Ok(()) = exit else {
-        if let Err(Either::Right(end)) = exit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let entry = suffix_marker(i.rb());
+    let exit = type_bracket_row_normalized(
+        i.rb(),
+        open,
+        baseline,
+        outer_closes,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
+    match exit {
+        NormalizedExit::Complete(Ok(()), next_line_entry) => line_entry = next_line_entry,
+        NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
             emit_missing(&mut i, LeadingTrivia::default());
-            return Err(Either::Right(end));
+            return complete(Err(Either::Right(end)), next_line_entry);
         }
-        return exit;
-    };
-    let leading = scan_trivia(i.rb());
-    let mut head = type_nud_item_after_trivia(i.rb(), leading);
+        NormalizedExit::Complete(Err(Either::Left(item)), next_line_entry) => {
+            return complete(handoff(item), next_line_entry);
+        }
+        _ => unreachable!("normalized Type owners do not defer"),
+    }
+    let (mut head, next_origin, next_line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    line_entry = next_line_entry;
     loop {
+        if head.payload_view().is_boundary() {
+            emit_missing(&mut i, LeadingTrivia::default());
+            return complete(handoff(head), line_entry);
+        }
         if !type_chain_trivia(head.leading_view(), baseline)
             || is_type_caller_boundary(&head, caller_stops)
             || is_type_outer_boundary(&head, outer_boundary)
         {
             emit_missing(&mut i, LeadingTrivia::default());
-            return handoff(head);
+            return complete(handoff(head), line_entry);
         }
         if is_type_primary(&head) {
             head.emit_all_remaining_leading(&mut *i.state);
-            return type_expr_from_primary_started(
+            return type_expr_from_primary_started_normalized(
                 i,
                 head,
                 baseline,
@@ -549,22 +918,31 @@ fn type_leading_bracket_row(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
-            head = match retry_leading_bracket_row_head(i.rb(), head) {
+            (head, item_origin, line_entry) = match retry_leading_bracket_row_head_normalized(
+                i.rb(),
+                head,
+                item_origin,
+                line_entry,
+                fence,
+            ) {
                 Ok(next) => next,
-                Err(head) => return handoff(head),
+                Err(exit) => return exit,
             };
             continue;
         }
         if is_type_rhs_boundary(&head) {
             head.emit_all_remaining_leading(&mut *i.state);
             emit_missing(&mut i, LeadingTrivia::default());
-            return handoff(head);
+            return complete(handoff(head), line_entry);
         }
         head.emit_all_remaining_leading(&mut *i.state);
-        return retry_leading_bracket_row_head_error(
+        return retry_leading_bracket_row_head_error_normalized(
             i,
             head,
             baseline,
@@ -574,26 +952,57 @@ fn type_leading_bracket_row(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
 }
 
-fn retry_leading_bracket_row_head(mut i: RewriteIn, head: Item) -> Result<Item, Item> {
-    let Some(suffix) = i.token(scan_balanced_bracket_suffix) else {
-        return Err(head);
+fn retry_leading_bracket_row_head_normalized(
+    mut i: RewriteIn,
+    head: Item,
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Result<(Item, usize, LineEntry), NormalizedExit> {
+    let entry = suffix_marker(i.rb());
+    let Some(suffix) = i.token(|lex| {
+        scan_balanced_bracket_suffix_normalized(lex, item_origin, LineEntry::InLine, fence)
+    }) else {
+        return Err(complete(handoff(head), line_entry));
     };
-    i.state.start_node(SyntaxKind::Error.into());
-    emit_token_item(&mut i, head);
-    emit_token_item(
-        &mut i,
-        Item::plain(LeadingTrivia::default(), Payload::Token(suffix)),
-    );
-    i.state.finish_node();
-    let leading = scan_trivia(i.rb());
-    Ok(type_nud_item_after_trivia(i, leading))
+    match suffix {
+        BalancedBracketSuffix::Complete(CurrentItem {
+            item: suffix,
+            next_line_entry,
+        }) => {
+            item_origin = advanced_origin(item_origin, entry, i.rb());
+            i.state.start_node(SyntaxKind::Error.into());
+            emit_token_item(&mut i, head);
+            emit_token_item(&mut i, suffix);
+            i.state.finish_node();
+            Ok(type_nud_item_normalized(
+                i,
+                item_origin,
+                next_line_entry,
+                fence,
+            ))
+        }
+        BalancedBracketSuffix::Boundary { accepted, pending } => {
+            i.state.start_node(SyntaxKind::Error.into());
+            emit_token_item(&mut i, head);
+            if let Some(accepted) = accepted {
+                emit_token_item(&mut i, accepted.item);
+            }
+            i.state.finish_node();
+            Err(complete(handoff(pending.item), pending.next_line_entry))
+        }
+    }
 }
 
-fn retry_leading_bracket_row_head_error(
+#[allow(clippy::too_many_arguments)]
+fn retry_leading_bracket_row_head_error_normalized(
     mut i: RewriteIn,
     mut head: Item,
     baseline: usize,
@@ -603,24 +1012,35 @@ fn retry_leading_bracket_row_head_error(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        if head.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(head), line_entry);
+        }
         emit_token_item(&mut i, head);
-        let leading = scan_trivia(i.rb());
-        head = type_nud_item_after_trivia(i.rb(), leading);
+        (head, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if head.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(head), line_entry);
+        }
         if !type_chain_trivia(head.leading_view(), baseline)
             || is_type_rhs_boundary(&head)
             || is_type_caller_boundary(&head, caller_stops)
             || is_type_outer_boundary(&head, outer_boundary)
         {
             i.state.finish_node();
-            return handoff(head);
+            return complete(handoff(head), line_entry);
         }
         if is_type_primary(&head) {
             i.state.finish_node();
             head.emit_all_remaining_leading(&mut *i.state);
-            return type_expr_from_primary_started(
+            return type_expr_from_primary_started_normalized(
                 i,
                 head,
                 baseline,
@@ -630,16 +1050,20 @@ fn retry_leading_bracket_row_head_error(
                 outer_closes,
                 caller_stops,
                 outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
             i.state.finish_node();
-            return handoff(head);
+            return complete(handoff(head), line_entry);
         }
     }
 }
 
-fn type_bracket_arrow_tail(
+#[allow(clippy::too_many_arguments)]
+fn type_bracket_arrow_tail_normalized(
     mut i: RewriteIn,
     mut open: Item,
     baseline: usize,
@@ -648,12 +1072,26 @@ fn type_bracket_arrow_tail(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     open.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
-    let exit = type_bracket_row(i.rb(), open, baseline, outer_closes, caller_stops);
+    let entry = suffix_marker(i.rb());
+    let exit = type_bracket_row_normalized(
+        i.rb(),
+        open,
+        baseline,
+        outer_closes,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     let exit = match exit {
-        Ok(()) => type_bracket_arrow_after_row(
+        NormalizedExit::Complete(Ok(()), line_entry) => type_bracket_arrow_after_row_normalized(
             i.rb(),
             baseline,
             apply_boundary,
@@ -661,39 +1099,52 @@ fn type_bracket_arrow_tail(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        Err(Either::Right(end)) => {
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
             emit_missing(&mut i, LeadingTrivia::default());
-            Err(Either::Right(end))
+            complete(Err(Either::Right(end)), line_entry)
         }
-        Err(exit) => Err(exit),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
+            complete(handoff(item), line_entry)
+        }
+        _ => unreachable!("normalized Type owners do not defer"),
     };
     i.state.finish_node();
     exit
 }
 
-fn type_bracket_row(
+fn type_bracket_row_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::BracketRow.into());
     emit_token_item(&mut i, open);
-    let exit = type_delimited(
+    let exit = type_delimited_normalized(
         i.rb(),
         TokenKind::RBracket,
         baseline,
         TypeDelimitedOwner::BracketRow,
         outer_closes,
         caller_stops,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     exit
 }
 
-fn type_bracket_arrow_after_row(
+#[allow(clippy::too_many_arguments)]
+fn type_bracket_arrow_after_row_normalized(
     mut i: RewriteIn,
     baseline: usize,
     apply_boundary: Option<TypeApplyBoundary>,
@@ -701,18 +1152,25 @@ fn type_bracket_arrow_after_row(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let mut arrow = type_nud_item_after_trivia(i.rb(), leading);
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (mut arrow, item_origin, line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    if arrow.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(arrow), line_entry);
+    }
     if !type_chain_trivia(arrow.leading_view(), baseline)
         || is_type_caller_boundary(&arrow, caller_stops)
         || is_type_outer_boundary(&arrow, outer_boundary)
     {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(arrow);
+        return complete(handoff(arrow), line_entry);
     }
     if token_kind(&arrow) == Some(TokenKind::Arrow) {
-        return type_arrow_rhs(
+        return type_arrow_rhs_normalized(
             i,
             arrow,
             baseline,
@@ -720,12 +1178,15 @@ fn type_bracket_arrow_after_row(
             outer_separators,
             outer_closes,
             caller_stops,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     if is_type_nud(&arrow) {
         arrow.emit_all_remaining_leading(&mut *i.state);
         emit_missing(&mut i, LeadingTrivia::default());
-        return type_expr_from_nud(
+        return type_expr_from_nud_normalized(
             i,
             arrow,
             baseline,
@@ -734,16 +1195,21 @@ fn type_bracket_arrow_after_row(
             outer_separators,
             outer_closes,
             caller_stops,
+            TypeOuterBoundary::NONE,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     if is_type_rhs_boundary(&arrow) {
         arrow.emit_all_remaining_leading(&mut *i.state);
         emit_missing(&mut i, LeadingTrivia::default());
     }
-    handoff(arrow)
+    complete(handoff(arrow), line_entry)
 }
 
-fn type_group(
+#[allow(clippy::too_many_arguments)]
+fn type_group_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
@@ -753,20 +1219,28 @@ fn type_group(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedTypeGroup.into());
     emit_token_item(&mut i, open);
-    let exit = type_delimited(
+    let entry = suffix_marker(i.rb());
+    let exit = type_delimited_normalized(
         i.rb(),
         TokenKind::RParen,
         baseline,
         TypeDelimitedOwner::Generic,
         outer_closes,
         caller_stops,
+        item_origin,
+        line_entry,
+        fence,
     );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_type_tail(
+    continue_type_tail_normalized(
         i,
         baseline,
         type_ml,
@@ -776,10 +1250,13 @@ fn type_group(
         caller_stops,
         outer_boundary,
         exit,
+        item_origin,
+        fence,
     )
 }
 
-fn type_call_tail(
+#[allow(clippy::too_many_arguments)]
+fn type_call_tail_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
@@ -789,19 +1266,27 @@ fn type_call_tail(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeCallTail.into());
     emit_token_item(&mut i, open);
-    let exit = type_delimited(
+    let entry = suffix_marker(i.rb());
+    let exit = type_delimited_normalized(
         i.rb(),
         TokenKind::RParen,
         baseline,
         TypeDelimitedOwner::Generic,
         outer_closes,
         caller_stops,
+        item_origin,
+        line_entry,
+        fence,
     );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_type_tail(
+    continue_type_tail_normalized(
         i,
         baseline,
         type_ml,
@@ -811,6 +1296,8 @@ fn type_call_tail(
         caller_stops,
         outer_boundary,
         exit,
+        item_origin,
+        fence,
     )
 }
 
@@ -834,161 +1321,8 @@ fn missing_bracket_row_close(mut i: RewriteIn, item: Item, baseline: usize) -> T
     missing_type_close(i, item)
 }
 
-fn type_path_tail(
-    mut i: RewriteIn,
-    separator: Item,
-    baseline: usize,
-    type_ml: bool,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    i.state.start_node(SyntaxKind::TypePathTail.into());
-    emit_token_item(&mut i, separator);
-    let trivia = scan_trivia(i.rb());
-    let mut segment = type_item_after_trivia(i.rb(), trivia);
-    if is_type_outer_boundary(&segment, outer_boundary) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
-        return type_tail(
-            i,
-            segment,
-            baseline,
-            type_ml,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
-            caller_stops,
-            outer_boundary,
-        );
-    }
-    if !type_chain_trivia(segment.leading_view(), baseline) || is_type_path_boundary(&segment) {
-        segment.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
-        return type_tail(
-            i,
-            segment,
-            baseline,
-            type_ml,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
-            caller_stops,
-            outer_boundary,
-        );
-    }
-    if !is_type_path_segment(&segment) {
-        segment = retry_type_path_segment(i.rb(), segment, baseline, caller_stops, outer_boundary);
-        if is_type_caller_boundary(&segment, caller_stops)
-            || is_type_outer_boundary(&segment, outer_boundary)
-        {
-            i.state.finish_node();
-            return type_tail(
-                i,
-                segment,
-                baseline,
-                type_ml,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
-                outer_boundary,
-            );
-        }
-    }
-    if !is_type_path_segment(&segment) {
-        i.state.finish_node();
-        return type_tail(
-            i,
-            segment,
-            baseline,
-            type_ml,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
-            caller_stops,
-            outer_boundary,
-        );
-    }
-    emit_token_item(&mut i, segment);
-    i.state.finish_node();
-    scan_type_tail(
-        i,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-    )
-}
-
-fn retry_type_path_segment(
-    mut i: RewriteIn,
-    mut item: Item,
-    baseline: usize,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> Item {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_item_after_trivia(i.rb(), leading);
-        if is_type_caller_boundary(&item, caller_stops)
-            || is_type_outer_boundary(&item, outer_boundary)
-            || is_type_path_segment(&item)
-            || !type_chain_trivia(item.leading_view(), baseline)
-            || is_type_path_boundary(&item)
-        {
-            i.state.finish_node();
-            return item;
-        }
-    }
-}
-
-fn type_apply_argument(
-    mut i: RewriteIn,
-    mut argument: Item,
-    baseline: usize,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    i.state.start_node(SyntaxKind::TypeApplyArgument.into());
-    argument.emit_all_remaining_leading(&mut *i.state);
-    let exit = type_expr_from_nud(
-        i.rb(),
-        argument,
-        baseline,
-        true,
-        None,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-    );
-    i.state.finish_node();
-    continue_type_tail(
-        i,
-        baseline,
-        false,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-        exit,
-    )
-}
-
-fn type_arrow_tail(
-    mut i: RewriteIn,
+fn type_arrow_rhs(
+    i: RewriteIn,
     arrow: Item,
     baseline: usize,
     apply_boundary: Option<TypeApplyBoundary>,
@@ -996,77 +1330,22 @@ fn type_arrow_tail(
     outer_closes: u8,
     caller_stops: Stops,
 ) -> TailExit {
-    i.state.start_node(SyntaxKind::TypeArrowTail.into());
-    let exit = type_arrow_rhs(
-        i.rb(),
+    ordinary_exit(type_arrow_rhs_normalized(
+        i,
         arrow,
         baseline,
         apply_boundary,
         outer_separators,
         outer_closes,
         caller_stops,
-    );
-    i.state.finish_node();
-    exit
+        0,
+        LineEntry::InLine,
+        None,
+    ))
 }
 
-fn type_arrow_rhs(
-    mut i: RewriteIn,
-    arrow: Item,
-    baseline: usize,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-) -> TailExit {
-    emit_token_item(&mut i, arrow);
-    let trivia = scan_trivia(i.rb());
-    let mut rhs = type_nud_item_after_trivia(i.rb(), trivia);
-    if !type_chain_trivia(rhs.leading_view(), baseline)
-        || is_type_rhs_boundary(&rhs)
-        || is_type_caller_boundary(&rhs, caller_stops)
-    {
-        rhs.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(rhs);
-    }
-    if !is_type_nud(&rhs) {
-        rhs = retry_type_rhs(i.rb(), rhs, baseline, caller_stops);
-    }
-    if is_type_caller_boundary(&rhs, caller_stops) {
-        return handoff(rhs);
-    }
-    if !is_type_nud(&rhs) {
-        return handoff(rhs);
-    }
-    let exit = type_expr_from_nud(
-        i.rb(),
-        rhs,
-        baseline,
-        false,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-    );
-    exit
-}
-
-fn retry_type_rhs(mut i: RewriteIn, mut item: Item, baseline: usize, caller_stops: Stops) -> Item {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
-        if is_type_nud(&item)
-            || !type_chain_trivia(item.leading_view(), baseline)
-            || is_type_rhs_boundary(&item)
-            || is_type_caller_boundary(&item, caller_stops)
-        {
-            i.state.finish_node();
-            return item;
-        }
-    }
+fn retry_type_rhs(i: RewriteIn, item: Item, baseline: usize, caller_stops: Stops) -> Item {
+    retry_type_rhs_normalized(i, item, baseline, caller_stops, 0, LineEntry::InLine, None).0
 }
 
 fn continue_type_tail(
@@ -1080,8 +1359,380 @@ fn continue_type_tail(
     outer_boundary: TypeOuterBoundary,
     exit: TailExit,
 ) -> TailExit {
+    ordinary_exit(continue_type_tail_normalized(
+        i,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        complete(exit, LineEntry::InLine),
+        0,
+        None,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_path_tail_normalized(
+    mut i: RewriteIn,
+    separator: Item,
+    baseline: usize,
+    type_ml: bool,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    i.state.start_node(SyntaxKind::TypePathTail.into());
+    emit_token_item(&mut i, separator);
+    let (mut segment, next_origin, next_line_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+
+    if segment.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return type_tail_normalized(
+            i,
+            segment,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    if is_type_outer_boundary(&segment, outer_boundary) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return type_tail_normalized(
+            i,
+            segment,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    if !type_chain_trivia(segment.leading_view(), baseline) || is_type_path_boundary(&segment) {
+        segment.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return type_tail_normalized(
+            i,
+            segment,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    if !is_type_path_segment(&segment) {
+        (segment, item_origin, line_entry) = retry_type_path_segment_normalized(
+            i.rb(),
+            segment,
+            baseline,
+            caller_stops,
+            outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+        );
+        if is_type_caller_boundary(&segment, caller_stops)
+            || is_type_outer_boundary(&segment, outer_boundary)
+        {
+            i.state.finish_node();
+            return type_tail_normalized(
+                i,
+                segment,
+                baseline,
+                type_ml,
+                apply_boundary,
+                outer_separators,
+                outer_closes,
+                caller_stops,
+                outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+    }
+    if !is_type_path_segment(&segment) {
+        i.state.finish_node();
+        return type_tail_normalized(
+            i,
+            segment,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    emit_token_item(&mut i, segment);
+    i.state.finish_node();
+    scan_type_tail_normalized(
+        i,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_type_path_segment_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return (item, item_origin, line_entry);
+        }
+        emit_token_item(&mut i, item);
+        (item, item_origin, line_entry) =
+            type_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary()
+            || is_type_caller_boundary(&item, caller_stops)
+            || is_type_outer_boundary(&item, outer_boundary)
+            || is_type_path_segment(&item)
+            || !type_chain_trivia(item.leading_view(), baseline)
+            || is_type_path_boundary(&item)
+        {
+            i.state.finish_node();
+            return (item, item_origin, line_entry);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_apply_argument_normalized(
+    mut i: RewriteIn,
+    mut argument: Item,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    i.state.start_node(SyntaxKind::TypeApplyArgument.into());
+    argument.emit_all_remaining_leading(&mut *i.state);
+    let entry = suffix_marker(i.rb());
+    let exit = type_expr_from_nud_normalized(
+        i.rb(),
+        argument,
+        baseline,
+        true,
+        None,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    i.state.finish_node();
+    continue_type_tail_normalized(
+        i,
+        baseline,
+        false,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        exit,
+        item_origin,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_arrow_tail_normalized(
+    mut i: RewriteIn,
+    arrow: Item,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    i.state.start_node(SyntaxKind::TypeArrowTail.into());
+    let exit = type_arrow_rhs_normalized(
+        i.rb(),
+        arrow,
+        baseline,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    i.state.finish_node();
+    exit
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_arrow_rhs_normalized(
+    mut i: RewriteIn,
+    arrow: Item,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    emit_token_item(&mut i, arrow);
+    let (mut rhs, next_origin, next_line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+    if rhs.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(rhs), line_entry);
+    }
+    if !type_chain_trivia(rhs.leading_view(), baseline)
+        || is_type_rhs_boundary(&rhs)
+        || is_type_caller_boundary(&rhs, caller_stops)
+    {
+        rhs.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(rhs), line_entry);
+    }
+    if !is_type_nud(&rhs) {
+        (rhs, item_origin, line_entry) = retry_type_rhs_normalized(
+            i.rb(),
+            rhs,
+            baseline,
+            caller_stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    if is_type_caller_boundary(&rhs, caller_stops) || !is_type_nud(&rhs) {
+        return complete(handoff(rhs), line_entry);
+    }
+    type_expr_from_nud_normalized(
+        i,
+        rhs,
+        baseline,
+        false,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+fn retry_type_rhs_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return (item, item_origin, line_entry);
+        }
+        emit_token_item(&mut i, item);
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary()
+            || is_type_nud(&item)
+            || !type_chain_trivia(item.leading_view(), baseline)
+            || is_type_rhs_boundary(&item)
+            || is_type_caller_boundary(&item, caller_stops)
+        {
+            i.state.finish_node();
+            return (item, item_origin, line_entry);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn continue_type_tail_normalized(
+    i: RewriteIn,
+    baseline: usize,
+    type_ml: bool,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    exit: NormalizedExit,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match exit {
-        Ok(()) => scan_type_tail(
+        NormalizedExit::Complete(Ok(()), line_entry) => scan_type_tail_normalized(
             i,
             baseline,
             type_ml,
@@ -1090,8 +1741,11 @@ fn continue_type_tail(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        Err(Either::Left(item)) => type_tail(
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => type_tail_normalized(
             i,
             item,
             baseline,
@@ -1101,8 +1755,14 @@ fn continue_type_tail(
             outer_closes,
             caller_stops,
             outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
         ),
-        Err(Either::Right(end)) => Err(Either::Right(end)),
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            complete(Err(Either::Right(end)), line_entry)
+        }
+        _ => unreachable!("normalized Type owners do not defer"),
     }
 }
 

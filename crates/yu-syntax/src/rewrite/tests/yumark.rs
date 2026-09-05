@@ -122,7 +122,7 @@ fn unquoted_close_like_text_stays_body() {
 
 #[test]
 fn equivalent_prefix_close_is_borrowed_before_prefix_acceptance() {
-    let source = " \t> \t>\t```\r\nfollowing";
+    let source = " \t> \t>\t  ```\r\nfollowing";
     let decision = judge_fence_line(
         source,
         50,
@@ -143,7 +143,7 @@ fn equivalent_prefix_close_is_borrowed_before_prefix_acceptance() {
     assert!(!prefix.explicit);
     assert_eq!(
         &source[prefix.extent.start - 50..prefix.extent.end - 50],
-        " \t> \t>\t"
+        " \t> \t>\t  "
     );
     assert_eq!(
         &source[facts.marker.start - 50..facts.marker.end - 50],
@@ -155,7 +155,13 @@ fn equivalent_prefix_close_is_borrowed_before_prefix_acceptance() {
 
 #[test]
 fn equivalent_prefix_variations_become_foreign_body_decoration_after_close_fails() {
-    for source in ["> > body\n", " \t>\t> \tbody\n", "> \t> body\n"] {
+    for (source, observed, body_prefix, logical) in [
+        ("> > body\n", "> > ", "> > ", "body\n"),
+        (" \t>\t> \tbody\n", " \t>\t> \t", " \t>\t> ", "\tbody\n"),
+        ("> \t> body\n", "> \t> ", "> \t> ", "body\n"),
+        ("> >   body\n", "> >   ", "> > ", "  body\n"),
+        ("> >\t body\n", "> >\t ", "> >\t", " body\n"),
+    ] {
         let decision = judge_fence_line(
             source,
             70,
@@ -174,7 +180,12 @@ fn equivalent_prefix_variations_become_foreign_body_decoration_after_close_fails
         assert_eq!(prefix.facts.depth, 2);
         assert!(!prefix.facts.explicit);
         assert_eq!(prefix.content, content);
-        assert_eq!(&source[content - 70..], "body\n");
+        assert_eq!(
+            &source[prefix.facts.extent.start - 70..prefix.facts.extent.end - 70],
+            observed
+        );
+        assert_eq!(&source[..content - 70], body_prefix);
+        assert_eq!(&source[content - 70..], logical);
     }
 }
 

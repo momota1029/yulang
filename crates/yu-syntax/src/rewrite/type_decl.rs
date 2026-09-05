@@ -6,6 +6,7 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
+    current_item::LineEntry,
     derives::{derives_clause, is_word},
     driver::{
         Either, TailExit, handoff, implicit_delimited_newline, indentation_after_newline,
@@ -19,24 +20,57 @@ use super::{
         scan_declaration_type_parameter, scan_identifier, scan_trivia, source_identifier,
         statement_item_after_trivia, type_nud_item_after_trivia,
     },
-    operator::{STOP_SEMICOLON, STOP_WITH, source_after_trivia},
+    operator::{
+        STOP_SEMICOLON, STOP_WITH, TriviaObservation, observe_fenced_trivia, source_after_trivia,
+    },
     statement::StatementLineHandoff,
     type_expr::{
         TypeOuterBoundary, is_type_caller_boundary,
         required_type_expr_with_caller_stops_and_outer_boundary,
     },
+    yumark::FenceBoundary,
 };
 
 type NameResult = Result<Option<Item>, Item>;
 
 pub(super) fn type_declaration_selected(i: RewriteIn, item: &Item, baseline: usize) -> bool {
+    type_declaration_selected_normalized(i, item, baseline, 0, None)
+}
+
+pub(super) fn type_declaration_selected_normalized(
+    i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("type") {
         return true;
     }
     if !matches!(item_word(item), Some("my" | "our" | "pub")) {
         return false;
     }
-    observes(i, |source| prefixed_type_candidate(source, baseline))
+    observes(i, |source| {
+        prefixed_type_candidate_normalized(source, item_origin, fence, baseline)
+    })
+}
+
+fn prefixed_type_candidate_normalized(
+    source: &str,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+) -> bool {
+    let TriviaObservation::Visible(observed) =
+        observe_fenced_trivia(source, item_origin, LineEntry::InLine, fence)
+    else {
+        return false;
+    };
+    observed.present
+        && observed
+            .indentation
+            .is_none_or(|indentation| indentation > baseline)
+        && source_identifier(observed.source).is_some_and(|(word, _)| word == "type")
 }
 
 pub(super) fn type_declaration(
@@ -554,13 +588,6 @@ fn raw_name(item: &Item) -> bool {
 fn scan_pending_item(mut i: RewriteIn, baseline: usize, stops: Stops) -> Item {
     let leading = scan_trivia(i.rb());
     statement_item_after_trivia(i, leading, baseline, stops)
-}
-
-fn prefixed_type_candidate(source: &str, baseline: usize) -> bool {
-    let (source, present, indentation) = source_after_trivia(source);
-    present
-        && indentation.is_none_or(|indentation| indentation > baseline)
-        && source_identifier(source).is_some_and(|(word, _)| word == "type")
 }
 
 fn scan_exact_identifier(mut i: LexIn, expected: &str) -> Option<Token> {

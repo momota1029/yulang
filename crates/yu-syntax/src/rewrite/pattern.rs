@@ -10,18 +10,21 @@ mod literal;
 
 use super::{
     RewriteIn, Stops,
+    current_item::{CurrentItem, LineEntry, current_item},
     driver::{
-        Either, TailExit, delimited_baseline, handoff, implicit_delimited_newline, token_kind,
+        Either, NormalizedExit, TailExit, advanced_origin, complete, delimited_baseline, handoff,
+        implicit_delimited_newline, ordinary_exit, suffix_marker, token_kind,
     },
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
-    lexer::{
-        pattern_item_after_trivia, pattern_nud_item_after_trivia, scan_identifier, scan_trivia,
-        type_item_after_trivia, type_nud_item_after_trivia,
-    },
+    lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
     operator::STOP_IN,
     statement::StatementLineHandoff,
-    type_expr::required_type_expr,
+    type_expr::{
+        required_type_expr_normalized,
+        required_type_expr_with_caller_stops_and_completion_normalized, type_nud_item_normalized,
+    },
+    yumark::FenceBoundary,
 };
 
 use self::delimited::{list_pattern, parenthesized_pattern, record_pattern};
@@ -85,28 +88,56 @@ pub(super) fn pattern(i: RewriteIn) -> TailExit {
     pattern_with_stops(i, PATTERN_DEFAULT_STOPS)
 }
 
-pub(super) fn pattern_with_stops(mut i: RewriteIn, stops: PatternStops) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let item = pattern_nud_item_after_trivia(i.rb(), leading, stops);
-    pattern_from_item(
+pub(super) fn pattern_with_stops(i: RewriteIn, stops: PatternStops) -> TailExit {
+    ordinary_exit(pattern_normalized(i, 0, LineEntry::InLine, None, stops))
+}
+
+pub(super) fn pattern_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    stops: PatternStops,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) =
+        pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+    pattern_from_item_normalized(
         i,
         item,
         PatternPrecedence::Lowest,
         0,
         stops,
         StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn pattern_from_item(
+#[allow(clippy::too_many_arguments)]
+fn pattern_from_item_normalized(
     i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    pattern_from_item_with_completion(i, item, minimum, baseline, stops, line_handoff).exit
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    pattern_from_item_with_completion_normalized(
+        i,
+        item,
+        minimum,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
+    .0
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -120,16 +151,20 @@ pub(super) struct PatternOutcome {
     pub(super) completion: PatternCompletion,
 }
 
-fn pattern_from_item_with_completion(
+#[allow(clippy::too_many_arguments)]
+fn pattern_from_item_with_completion_normalized(
     i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
-) -> PatternOutcome {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, PatternCompletion) {
     let mut completion = PatternCompletion::Incomplete;
-    let exit = pattern_from_item_recording(
+    let exit = pattern_from_item_recording_normalized(
         i,
         item,
         minimum,
@@ -137,11 +172,15 @@ fn pattern_from_item_with_completion(
         stops,
         line_handoff,
         &mut completion,
+        item_origin,
+        line_entry,
+        fence,
     );
-    PatternOutcome { exit, completion }
+    (exit, completion)
 }
 
-fn pattern_from_item_recording(
+#[allow(clippy::too_many_arguments)]
+fn pattern_from_item_recording_normalized(
     mut i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
@@ -149,10 +188,13 @@ fn pattern_from_item_recording(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let baseline = delimited_baseline(baseline, item.leading_view());
     i.state.start_node(SyntaxKind::Pattern.into());
-    let exit = pattern_from_item_core(
+    let exit = pattern_from_item_core_normalized(
         i.rb(),
         item,
         minimum,
@@ -160,12 +202,16 @@ fn pattern_from_item_recording(
         stops,
         line_handoff,
         completion,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     exit
 }
 
-fn pattern_from_item_core(
+#[allow(clippy::too_many_arguments)]
+fn pattern_from_item_core_normalized(
     i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
@@ -173,12 +219,43 @@ fn pattern_from_item_core(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        *completion = PatternCompletion::Incomplete;
+        let mut i = i;
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
     if is_pattern_nud(&item, stops) {
         *completion = PatternCompletion::Complete;
-        pattern_from_primary(i, item, minimum, baseline, stops, line_handoff, completion)
+        pattern_from_primary_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        )
     } else {
-        recover_pattern_primary(i, item, minimum, baseline, stops, line_handoff, completion)
+        recover_pattern_primary_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        )
     }
 }
 
@@ -189,14 +266,16 @@ pub(super) fn pattern_from_entry_item(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    pattern_from_item(
+    ordinary_exit(pattern_from_entry_item_normalized(
         i,
         item,
-        PatternPrecedence::Lowest,
         baseline,
         stops,
         line_handoff,
-    )
+        0,
+        LineEntry::InLine,
+        None,
+    ))
 }
 
 pub(super) fn pattern_from_entry_item_with_completion(
@@ -206,17 +285,72 @@ pub(super) fn pattern_from_entry_item_with_completion(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
 ) -> PatternOutcome {
-    pattern_from_item_with_completion(
+    let (exit, completion) = pattern_from_entry_item_with_completion_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    PatternOutcome {
+        exit: ordinary_exit(exit),
+        completion,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn pattern_from_entry_item_normalized(
+    i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    pattern_from_item_normalized(
         i,
         item,
         PatternPrecedence::Lowest,
         baseline,
         stops,
         line_handoff,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn recover_pattern_primary(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn pattern_from_entry_item_with_completion_normalized(
+    i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, PatternCompletion) {
+    pattern_from_item_with_completion_normalized(
+        i,
+        item,
+        PatternPrecedence::Lowest,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recover_pattern_primary_normalized(
     mut i: RewriteIn,
     mut item: Item,
     minimum: PatternPrecedence,
@@ -224,35 +358,51 @@ fn recover_pattern_primary(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     *completion = PatternCompletion::Incomplete;
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
     if is_pattern_primary_boundary(&item, baseline, stops) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if is_current_pattern_tail(&item, stops) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
+        return pattern_tail_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
 
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = pattern_nud_item_after_trivia(i.rb(), leading, stops);
+        (item, item_origin, line_entry) =
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if is_pattern_primary_boundary(&item, baseline, stops) {
             i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if is_current_pattern_tail(&item, stops) {
             i.state.finish_node();
-            return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
-        }
-        if is_pattern_nud(&item, stops) {
-            item.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            *completion = PatternCompletion::Complete;
-            return pattern_from_primary(
+            return pattern_tail_normalized(
                 i,
                 item,
                 minimum,
@@ -260,12 +410,33 @@ fn recover_pattern_primary(
                 stops,
                 line_handoff,
                 completion,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        if is_pattern_nud(&item, stops) {
+            item.emit_all_remaining_leading(&mut *i.state);
+            i.state.finish_node();
+            *completion = PatternCompletion::Complete;
+            return pattern_from_primary_normalized(
+                i,
+                item,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
     }
 }
 
-fn pattern_from_primary(
+#[allow(clippy::too_many_arguments)]
+fn pattern_from_primary_normalized(
     mut i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
@@ -273,62 +444,203 @@ fn pattern_from_primary(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match token_kind(&item) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier) => {
             i.state.start_node(SyntaxKind::IdentifierPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
-            scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion)
+            scan_pattern_tail_normalized(
+                i,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
         Some(TokenKind::Integer) => {
             i.state.start_node(SyntaxKind::IntegerPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
-            scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion)
+            scan_pattern_tail_normalized(
+                i,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
         Some(TokenKind::Colon | TokenKind::PatternSymbolColon) => {
             i.state.start_node(SyntaxKind::SymbolPattern.into());
             emit_token_item(&mut i, item);
+            let entry = suffix_marker(i.rb());
             if let Some(name) = i.token(scan_identifier) {
                 emit_token_item(
                     &mut i,
                     Item::plain(LeadingTrivia::default(), Payload::Token(name)),
                 );
+                item_origin = advanced_origin(item_origin, entry, i.rb());
+                line_entry = LineEntry::InLine;
             } else {
                 emit_missing(&mut i, LeadingTrivia::default());
                 *completion = PatternCompletion::Incomplete;
             }
             i.state.finish_node();
-            scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion)
+            scan_pattern_tail_normalized(
+                i,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
-        Some(TokenKind::LParen) => {
-            parenthesized_pattern(i, item, minimum, baseline, stops, line_handoff, completion)
-        }
-        Some(TokenKind::LBracket) => {
-            list_pattern(i, item, minimum, baseline, stops, line_handoff, completion)
-        }
-        Some(TokenKind::LBrace) => {
-            record_pattern(i, item, minimum, baseline, stops, line_handoff, completion)
-        }
+        Some(TokenKind::LParen) => parenthesized_pattern(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        Some(TokenKind::LBracket) => list_pattern(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        Some(TokenKind::LBrace) => record_pattern(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        ),
         _ => unreachable!("the Pattern NUD judge accepted only Pattern primaries"),
     }
 }
 
-fn scan_pattern_tail(
+fn pattern_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    stops: PatternStops,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| {
+                    scan_pattern_payload(lex, leading, origin, fence, stops)
+                },
+            )
+        })
+        .expect("Pattern payload scanning is total");
+    (
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    )
+}
+
+fn pattern_nud_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    stops: PatternStops,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| {
+                    scan_pattern_nud_payload(lex, leading, origin, fence, stops)
+                },
+            )
+        })
+        .expect("Pattern NUD payload scanning is total");
+    (
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_pattern_tail_normalized(
     mut i: RewriteIn,
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let item = pattern_item_after_trivia(i.rb(), leading, stops);
-    pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion)
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) =
+        pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+    pattern_tail_normalized(
+        i,
+        item,
+        minimum,
+        baseline,
+        stops,
+        line_handoff,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn pattern_tail(
+#[allow(clippy::too_many_arguments)]
+fn pattern_tail_normalized(
     mut i: RewriteIn,
     mut item: Item,
     minimum: PatternPrecedence,
@@ -336,29 +648,59 @@ fn pattern_tail(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     if implicit_delimited_newline(baseline, item.leading_view()) {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if is_pattern_tail_boundary(i.rb(), &item, stops) {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
         *completion = PatternCompletion::Incomplete;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternAliasTail.into());
         emit_pattern_alias_keyword(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = pattern_item_after_trivia(i.rb(), leading, stops);
-        if token_kind(&item) == Some(TokenKind::Identifier) && !is_pattern_word_stop(&item, stops) {
+        (item, item_origin, line_entry) =
+            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        if !item.payload_view().is_boundary()
+            && token_kind(&item) == Some(TokenKind::Identifier)
+            && !is_pattern_word_stop(&item, stops)
+        {
             emit_token_item(&mut i, item);
             *completion = PatternCompletion::Complete;
-            item = scan_pattern_successor(i.rb(), stops);
+            (item, item_origin, line_entry) =
+                pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
         } else {
-            item = recover_pattern_alias_binding(i.rb(), item, baseline, stops, completion);
+            (item, item_origin, line_entry) = recover_pattern_alias_binding_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
         i.state.finish_node();
-        return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
+        return pattern_tail_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
     if token_kind(&item) == Some(TokenKind::Pipe) && minimum <= PatternPrecedence::Alternation {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -366,11 +708,14 @@ fn pattern_tail(
             .start_node(SyntaxKind::PatternAlternationTail.into());
         emit_token_item(&mut i, item);
         *completion = PatternCompletion::Incomplete;
-        let leading = scan_trivia(i.rb());
-        let mut rhs = pattern_nud_item_after_trivia(i.rb(), leading, stops);
+        let (mut rhs, rhs_origin, rhs_line_entry) =
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
         let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
-        rhs.emit_all_remaining_leading(&mut *i.state);
-        let exit = pattern_from_item_recording(
+        if !rhs.payload_view().is_boundary() {
+            rhs.emit_all_remaining_leading(&mut *i.state);
+        }
+        let entry = suffix_marker(i.rb());
+        let exit = pattern_from_item_recording_normalized(
             i.rb(),
             rhs,
             PatternPrecedence::Alternation,
@@ -378,9 +723,23 @@ fn pattern_tail(
             stops,
             line_handoff,
             completion,
+            rhs_origin,
+            rhs_line_entry,
+            fence,
         );
+        item_origin = advanced_origin(rhs_origin, entry, i.rb());
         i.state.finish_node();
-        return continue_pattern_tail(i, exit, minimum, baseline, stops, line_handoff, completion);
+        return continue_pattern_tail_normalized(
+            i,
+            exit,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            fence,
+        );
     }
     if token_kind(&item) == Some(TokenKind::Colon)
         && stops & PATTERN_STOP_COLON == 0
@@ -390,101 +749,145 @@ fn pattern_tail(
         i.state.start_node(SyntaxKind::PatternTypeAnnotation.into());
         emit_token_item(&mut i, item);
         *completion = PatternCompletion::Incomplete;
-        let exit = pattern_type_annotation_rhs(i.rb(), baseline, stops, completion);
+        let exit = pattern_type_annotation_rhs_normalized(
+            i.rb(),
+            baseline,
+            stops,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        );
         i.state.finish_node();
         return exit;
     }
-    handoff(item)
+    complete(handoff(item), line_entry)
 }
 
-fn recover_pattern_alias_binding(
+#[allow(clippy::too_many_arguments)]
+fn recover_pattern_alias_binding_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     stops: PatternStops,
     completion: &mut PatternCompletion,
-) -> Item {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return (item, item_origin, line_entry);
+    }
     if is_pattern_primary_boundary(&item, baseline, stops) || is_current_pattern_tail(&item, stops)
     {
         emit_missing(&mut i, LeadingTrivia::default());
-        return item;
+        return (item, item_origin, line_entry);
     }
 
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = pattern_item_after_trivia(i.rb(), leading, stops);
+        (item, item_origin, line_entry) =
+            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return (item, item_origin, line_entry);
+        }
         if token_kind(&item) == Some(TokenKind::Identifier) && !is_pattern_word_stop(&item, stops) {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             emit_token_item(&mut i, item);
             *completion = PatternCompletion::Complete;
-            return scan_pattern_successor(i, stops);
+            return pattern_item_normalized(i, item_origin, line_entry, fence, stops);
         }
         if is_pattern_primary_boundary(&item, baseline, stops)
             || is_current_pattern_tail(&item, stops)
         {
             i.state.finish_node();
-            return item;
+            return (item, item_origin, line_entry);
         }
     }
 }
 
-fn scan_pattern_successor(mut i: RewriteIn, stops: PatternStops) -> Item {
-    let leading = scan_trivia(i.rb());
-    pattern_item_after_trivia(i, leading, stops)
-}
-
-fn continue_pattern_tail(
+#[allow(clippy::too_many_arguments)]
+fn continue_pattern_tail_normalized(
     i: RewriteIn,
-    exit: TailExit,
+    exit: NormalizedExit,
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match exit {
-        Ok(()) => scan_pattern_tail(i, minimum, baseline, stops, line_handoff, completion),
-        Err(Either::Left(item)) => {
-            pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion)
+        NormalizedExit::Complete(Ok(()), line_entry) => scan_pattern_tail_normalized(
+            i,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => pattern_tail_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            complete(Err(Either::Right(end)), line_entry)
         }
-        Err(Either::Right(end)) => Err(Either::Right(end)),
+        deferred @ NormalizedExit::Deferred(_, _) => deferred,
     }
 }
 
-fn pattern_type_annotation_rhs(
+#[allow(clippy::too_many_arguments)]
+fn pattern_type_annotation_rhs_normalized(
     mut i: RewriteIn,
     baseline: usize,
     stops: PatternStops,
     completion: &mut PatternCompletion,
-) -> TailExit {
-    let Some(leading) = i.token(|lex| {
-        let leading = scan_trivia(lex);
-        (!implicit_delimited_newline(baseline, leading.view())).then_some(leading)
-    }) else {
-        i.state.start_node(SyntaxKind::TypeExpression.into());
-        emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
-        let leading = scan_trivia(i.rb());
-        return handoff(type_item_after_trivia(i.rb(), leading));
-    };
-    emit_leading_trivia(&mut i, &leading);
-    let primary = type_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (mut primary, item_origin, line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    if !primary.payload_view().is_boundary()
+        && !implicit_delimited_newline(baseline, primary.leading_view())
+    {
+        primary.emit_all_remaining_leading(&mut *i.state);
+    }
     if stops & PATTERN_STOP_IN != 0 {
-        let (exit, primary_found) =
-            super::type_expr::required_type_expr_with_caller_stops_and_completion(
-                i, primary, baseline, STOP_IN,
-            );
+        let (exit, primary_found) = required_type_expr_with_caller_stops_and_completion_normalized(
+            i,
+            primary,
+            baseline,
+            STOP_IN,
+            item_origin,
+            line_entry,
+            fence,
+        );
         if primary_found {
             *completion = PatternCompletion::Complete;
         }
         exit
     } else {
         *completion = PatternCompletion::Complete;
-        required_type_expr(i, primary, baseline)
+        required_type_expr_normalized(i, primary, baseline, item_origin, line_entry, fence)
     }
 }
 

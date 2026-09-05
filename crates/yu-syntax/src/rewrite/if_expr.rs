@@ -6,19 +6,47 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 
 use super::{
     RewriteIn, Stops,
+    current_item::LineEntry,
     driver::{
-        Either, MlMode, TailExit, continue_completed_tail, expr_from_nud, handoff,
+        Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
+        continue_normalized_tail, expr_from_nud_normalized, expression_item, handoff,
         implicit_delimited_newline, indentation_after_newline, is_active_stop, is_contextual_word,
-        is_nud_item, is_required_operand_boundary, required_expr_item, token_kind,
+        is_nud_item, is_required_operand_boundary, ordinary_exit, required_expr_item_normalized,
+        suffix_marker, token_kind,
     },
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
-    lexer::{introduced_body_indentation, scan_trivia, tail_item_after_trivia},
+    lexer::introduced_body_indentation_normalized,
     operator::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE},
-    statement::{StatementLineHandoff, indented_statement_block},
+    statement::{StatementLineHandoff, indented_statement_block_normalized},
+    yumark::FenceBoundary,
 };
 
 pub(super) fn if_nud(
+    i: RewriteIn,
+    keyword: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    outer_stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
+    ordinary_exit(if_nud_normalized(
+        i,
+        keyword,
+        threshold,
+        baseline,
+        outer_stops,
+        ml_mode,
+        line_handoff,
+        0,
+        LineEntry::InLine,
+        None,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn if_nud_normalized(
     mut i: RewriteIn,
     mut keyword: Item,
     threshold: Option<&BindingPower>,
@@ -26,20 +54,38 @@ pub(super) fn if_nud(
     outer_stops: Stops,
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::IfExpression.into());
-    let exit = if_arm(
+    let entry = suffix_marker(i.rb());
+    let exit = if_arm_normalized(
         i.rb(),
         keyword,
         SyntaxKind::IfKw,
         baseline,
         outer_stops,
         line_handoff,
+        item_origin,
+        line_entry,
+        fence,
     );
-    let exit = if_continuations(i.rb(), exit, baseline, outer_stops, line_handoff);
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    let entry = suffix_marker(i.rb());
+    let exit = if_continuations_normalized(
+        i.rb(),
+        exit,
+        baseline,
+        outer_stops,
+        line_handoff,
+        item_origin,
+        fence,
+    );
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_completed_tail(
+    continue_normalized_tail(
         i,
         threshold,
         baseline,
@@ -47,36 +93,58 @@ pub(super) fn if_nud(
         ml_mode,
         line_handoff,
         exit,
+        item_origin,
+        fence,
     )
 }
 
-fn if_continuations(
+#[allow(clippy::too_many_arguments)]
+fn if_continuations_normalized(
     mut i: RewriteIn,
-    mut exit: TailExit,
+    mut exit: NormalizedExit,
     if_baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    mut item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     loop {
-        let Err(Either::Left(mut keyword)) = exit else {
+        let NormalizedExit::Complete(Err(Either::Left(mut keyword)), line_entry) = exit else {
             return exit;
         };
+        if keyword.payload_view().is_boundary() {
+            return complete(handoff(keyword), line_entry);
+        }
         let Some(kind) = arm_keyword(i.rb(), &keyword, if_baseline) else {
-            return handoff(keyword);
+            return complete(handoff(keyword), line_entry);
         };
         keyword.emit_all_remaining_leading(&mut *i.state);
+        let entry = suffix_marker(i.rb());
         exit = match kind {
-            SyntaxKind::ElsifKw => if_arm(
+            SyntaxKind::ElsifKw => if_arm_normalized(
                 i.rb(),
                 keyword,
                 kind,
                 if_baseline,
                 outer_stops,
                 line_handoff,
+                item_origin,
+                line_entry,
+                fence,
             ),
-            SyntaxKind::ElseKw => else_arm(i.rb(), keyword, if_baseline, outer_stops, line_handoff),
+            SyntaxKind::ElseKw => else_arm_normalized(
+                i.rb(),
+                keyword,
+                if_baseline,
+                outer_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            ),
             _ => unreachable!("only if-continuation keyword kinds are selected"),
         };
+        item_origin = advanced_origin(item_origin, entry, i.rb());
         if kind == SyntaxKind::ElseKw {
             return exit;
         }
@@ -103,6 +171,9 @@ pub(super) fn active_statement_companion(
     baseline: usize,
     stops: Stops,
 ) -> Option<ActiveStatementCompanion> {
+    if item.payload_view().is_boundary() {
+        return None;
+    }
     let continuation = indentation_after_newline(item.leading_view())
         .is_none_or(|indentation| indentation >= baseline);
     continuation.then_some(())?;
@@ -115,49 +186,90 @@ pub(super) fn active_statement_companion(
     }
 }
 
-fn if_arm(
+#[allow(clippy::too_many_arguments)]
+fn if_arm_normalized(
     mut i: RewriteIn,
     keyword: Item,
     keyword_kind: SyntaxKind,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::IfArm.into());
     emit_contextual_keyword(&mut i, keyword, keyword_kind);
 
     let condition_stops = outer_stops | STOP_COLON | STOP_LBRACE | STOP_ELSIF | STOP_ELSE;
-    let (exit, condition_missing) = condition(i.rb(), baseline, condition_stops, line_handoff);
+    let entry = suffix_marker(i.rb());
+    let (exit, condition_missing) = condition_normalized(
+        i.rb(),
+        baseline,
+        condition_stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
 
     let exit = match exit {
-        Err(Either::Left(colon)) if token_kind(&colon) == Some(TokenKind::Colon) => {
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
+            if item.payload_view().is_boundary() =>
+        {
+            missing_if_arm_normalized(
+                i.rb(),
+                complete(handoff(item), line_entry),
+                condition_missing,
+            )
+        }
+        NormalizedExit::Complete(Err(Either::Left(colon)), line_entry)
+            if token_kind(&colon) == Some(TokenKind::Colon) =>
+        {
             emit_token_item(&mut i, colon);
-            colon_body(
+            colon_body_normalized(
                 i.rb(),
                 baseline,
                 outer_stops | STOP_ELSIF | STOP_ELSE,
                 line_handoff,
+                item_origin,
+                line_entry,
+                fence,
             )
         }
-        exit => missing_if_arm(i.rb(), exit, condition_missing),
+        exit => missing_if_arm_normalized(i.rb(), exit, condition_missing),
     };
     i.state.finish_node();
     exit
 }
 
-fn condition(
+#[allow(clippy::too_many_arguments)]
+fn condition_normalized(
     mut i: RewriteIn,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> (TailExit, bool) {
-    let leading = scan_trivia(i.rb());
-    let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    item.emit_all_remaining_leading(&mut *i.state);
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
+    let (mut item, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+    );
+    if !item.payload_view().is_boundary() {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     let missing = is_required_operand_boundary(i.rb(), &item, stops);
     i.state.start_node(SyntaxKind::Condition.into());
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = required_expr_item(
+    let exit = required_expr_item_normalized(
         i.rb(),
         item,
         None,
@@ -165,126 +277,254 @@ fn condition(
         stops,
         MlMode::All,
         line_handoff,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     i.state.finish_node();
     (exit, missing)
 }
 
-fn missing_if_arm(mut i: RewriteIn, exit: TailExit, condition_missing: bool) -> TailExit {
+fn missing_if_arm_normalized(
+    mut i: RewriteIn,
+    exit: NormalizedExit,
+    condition_missing: bool,
+) -> NormalizedExit {
     if condition_missing {
         return exit;
     }
     match exit {
-        Err(Either::Left(mut item)) => {
-            item.emit_all_remaining_leading(&mut *i.state);
+        NormalizedExit::Complete(Err(Either::Left(mut item)), line_entry) => {
+            if !item.payload_view().is_boundary() {
+                item.emit_all_remaining_leading(&mut *i.state);
+            }
             emit_missing(&mut i, LeadingTrivia::default());
-            handoff(item)
+            complete(handoff(item), line_entry)
         }
-        Err(Either::Right(mut end)) => {
+        NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
             end.item.emit_all_remaining_leading(&mut *i.state);
             emit_missing(&mut i, LeadingTrivia::default());
-            Err(Either::Right(end))
+            complete(Err(Either::Right(end)), line_entry)
         }
-        Ok(()) => unreachable!("a direct condition always returns a boundary item"),
+        NormalizedExit::Complete(Ok(()), _) => {
+            unreachable!("a direct condition always returns a boundary item")
+        }
+        deferred @ NormalizedExit::Deferred(..) => deferred,
     }
 }
 
-fn else_arm(
+#[allow(clippy::too_many_arguments)]
+fn else_arm_normalized(
     mut i: RewriteIn,
     keyword: Item,
     baseline: usize,
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::ElseArm.into());
     emit_contextual_keyword(&mut i, keyword, SyntaxKind::ElseKw);
 
-    let leading = scan_trivia(i.rb());
-    let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, outer_stops);
+    let (item, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        outer_stops,
+    );
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return complete(handoff(item), line_entry);
+    }
     let exit = if token_kind(&item) == Some(TokenKind::Colon) {
         emit_token_item(&mut i, item);
-        colon_body(
+        colon_body_normalized(
             i.rb(),
             baseline,
             outer_stops | STOP_ELSIF | STOP_ELSE,
             line_handoff,
+            item_origin,
+            line_entry,
+            fence,
         )
     } else {
-        inline_body_item(
+        inline_body_item_normalized(
             i.rb(),
             item,
             baseline,
             outer_stops | STOP_ELSIF | STOP_ELSE,
             line_handoff,
+            item_origin,
+            line_entry,
+            fence,
         )
     };
     i.state.finish_node();
     exit
 }
 
-fn colon_body(
+#[allow(clippy::too_many_arguments)]
+fn colon_body_normalized(
     mut i: RewriteIn,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    if introduced_body_indentation(i.rb()).is_some_and(|indentation| indentation > baseline) {
-        indented_statement_block(i, baseline, stops)
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if introduced_body_indentation_normalized(i.rb(), item_origin, fence)
+        .is_some_and(|indentation| indentation > baseline)
+    {
+        indented_statement_block_normalized(i, baseline, stops, item_origin, line_entry, fence)
     } else {
-        inline_body(i, baseline, stops, line_handoff)
+        inline_body_normalized(
+            i,
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        )
     }
 }
 
-fn inline_body(
+#[allow(clippy::too_many_arguments)]
+fn inline_body_normalized(
     mut i: RewriteIn,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    inline_body_item(i, item, baseline, stops, line_handoff)
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+    );
+    inline_body_item_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn inline_body_item(
+#[allow(clippy::too_many_arguments)]
+fn inline_body_item_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
     if inline_boundary(i.rb(), &item, baseline, stops) {
         emit_inline_missing(&mut i, &mut item, baseline);
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
 
     emit_inline_leading(&mut i, &mut item);
     if is_nud_item(&item) {
-        return expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff);
+        return expr_from_nud_normalized(
+            i,
+            item,
+            None,
+            baseline,
+            stops,
+            MlMode::All,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
 
-    item = retry_inline_body(i.rb(), item, baseline, stops);
+    (item, item_origin, line_entry) = retry_inline_body_normalized(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     if inline_boundary(i.rb(), &item, baseline, stops) {
         if !implicit_delimited_newline(baseline, item.leading_view()) {
             emit_inline_leading(&mut i, &mut item);
         }
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     emit_inline_leading(&mut i, &mut item);
     debug_assert!(is_nud_item(&item));
-    expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff)
+    expr_from_nud_normalized(
+        i,
+        item,
+        None,
+        baseline,
+        stops,
+        MlMode::All,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn retry_inline_body(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stops) -> Item {
+#[allow(clippy::too_many_arguments)]
+fn retry_inline_body_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-        if inline_boundary(i.rb(), &item, baseline, stops) || is_nud_item(&item) {
+        (item, item_origin, line_entry) = expression_item(
+            i.rb(),
+            OperatorSite::Nud,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+        );
+        if item.payload_view().is_boundary()
+            || inline_boundary(i.rb(), &item, baseline, stops)
+            || is_nud_item(&item)
+        {
             i.state.finish_node();
-            return item;
+            return (item, item_origin, line_entry);
         }
     }
 }

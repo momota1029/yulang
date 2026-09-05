@@ -613,7 +613,7 @@ fn observe_line(
                 .expect("a judged source prefix remains on its current line");
             advance_source(source, source_origin, length);
             *line_entry = LineEntry::InLine;
-            *at_line_start = false;
+            *at_line_start = true;
             true
         }
     }

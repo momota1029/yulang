@@ -9,14 +9,16 @@ use crate::{
 
 use super::{
     RewriteIn, Stops,
-    driver::{Either, TailExit, expr, token_kind},
+    current_item::LineEntry,
+    driver::{Either, NormalizedExit, TailExit, expr, expr_normalized, token_kind},
     emit::emit_end,
     item::{Item, OperatorUse, PhysicalLeadingTrivia, TokenKind, Trivia, TriviaKind},
     operator::{STOP_ARROW, STOP_COLON, STOP_ELSE, scan_operator, stops_for},
-    pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_with_stops},
+    pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_normalized, pattern_with_stops},
     state::Recover,
-    statement::statement,
-    type_expr::type_expr,
+    statement::{statement, statement_normalized},
+    type_expr::{type_expr, type_expr_normalized},
+    yumark::FenceBoundary,
     yumark_cell::{accepted_identifier_statement_witness, yulang_code_cell_witness},
 };
 
@@ -27,6 +29,7 @@ mod if_expr;
 mod lexical;
 mod literal;
 mod mod_decl;
+mod normalized;
 mod operators;
 mod owners;
 mod pattern;
@@ -82,6 +85,32 @@ fn run_with(source: &str, operators: &OperatorTable) -> (GreenNode, Option<TailE
     (builder.finish(), exit)
 }
 
+fn run_normalized<'source>(
+    source: &'source str,
+    operators: &OperatorTable,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let mut input = source;
+    let mut recover = Recover::new(operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = expr_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        None,
+        0,
+        0,
+        super::driver::MlMode::All,
+        super::statement::StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
 fn run_statement(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();
     run_statement_with(source, &operators)
@@ -110,6 +139,29 @@ fn run_statement_with_stops(
     }
     builder.finish_node();
     (builder.finish(), exit)
+}
+
+fn run_statement_normalized<'source>(
+    source: &'source str,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, NormalizedExit, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = statement_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        0,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
 }
 
 fn run_yumark_cell<'source>(
@@ -190,6 +242,27 @@ fn run_type(source: &str) -> (GreenNode, Option<TailExit>) {
     (builder.finish(), exit)
 }
 
+fn run_type_normalized<'source>(
+    source: &'source str,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = type_expr_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
 fn run_pattern(source: &str) -> (GreenNode, TailExit) {
     run_pattern_with_colon_stop(source, false)
 }
@@ -207,6 +280,29 @@ fn run_pattern_with_colon_stop(source: &str, colon_stop: bool) -> (GreenNode, Ta
     }
     builder.finish_node();
     (builder.finish(), exit)
+}
+
+fn run_pattern_normalized<'source>(
+    source: &'source str,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    stops: super::pattern::PatternStops,
+) -> (GreenNode, NormalizedExit, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = pattern_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        item_origin,
+        line_entry,
+        fence,
+        stops,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
 }
 
 fn dynamic_operator_table() -> OperatorTable {

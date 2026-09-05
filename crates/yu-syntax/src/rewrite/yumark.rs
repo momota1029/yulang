@@ -70,6 +70,7 @@ pub(super) struct YumarkFenceTransition {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct AcceptedQuotePrefix {
     pub(super) facts: QuotePrefixFacts,
+    /// First logical body byte; it can precede the full observed extent end.
     pub(super) content: usize,
 }
 
@@ -124,17 +125,20 @@ pub(super) fn judge_fence_line(
                 && !facts.explicit
                 && facts.depth == depth
             {
-                let prefix_len = indentation + facts.marker_len;
+                let close_prefix_len = indentation + facts.marker_len;
                 if let Some(close) =
-                    strict_close(&physical, prefix_len, Some(facts.clone()), boundary)
+                    strict_close(&physical, close_prefix_len, Some(facts.clone()), boundary)
                 {
                     return borrowed_close(close);
                 }
+                let body_prefix_len = indentation
+                    + facts.marker_end
+                    + usize::from(facts.marker_len > facts.marker_end);
                 return FenceLineDecision::Body {
-                    content: line + prefix_len,
+                    content: line + body_prefix_len,
                     prefix: Some(AcceptedQuotePrefix {
                         facts: facts.clone(),
-                        content: line + prefix_len,
+                        content: line + body_prefix_len,
                     }),
                 };
             }

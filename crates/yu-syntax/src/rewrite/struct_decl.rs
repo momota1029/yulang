@@ -6,6 +6,7 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
+    current_item::LineEntry,
     driver::{
         Either, TailExit, delimited_baseline, handoff, implicit_delimited_newline,
         indentation_after_newline, is_active_stop, token_kind,
@@ -16,18 +17,48 @@ use super::{
         introduced_body_indentation, scan_identifier, scan_statement_item, scan_trivia,
         source_identifier, statement_item_after_trivia, type_nud_item_after_trivia,
     },
-    operator::source_after_trivia,
+    operator::{TriviaObservation, observe_fenced_trivia, source_after_trivia},
     type_expr::{TypeApplyBoundary, required_type_expr_with_boundary, with_type_outer_close},
+    yumark::FenceBoundary,
 };
 
 pub(super) fn struct_declaration_selected(i: RewriteIn, item: &Item, baseline: usize) -> bool {
+    struct_declaration_selected_normalized(i, item, baseline, 0, None)
+}
+
+pub(super) fn struct_declaration_selected_normalized(
+    i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("struct") {
         return true;
     }
     if !matches!(item_word(item), Some("my" | "our" | "pub")) {
         return false;
     }
-    observes(i, |source| prefixed_struct_candidate(source, baseline))
+    observes(i, |source| {
+        prefixed_struct_candidate_normalized(source, item_origin, fence, baseline)
+    })
+}
+
+fn prefixed_struct_candidate_normalized(
+    source: &str,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+) -> bool {
+    let TriviaObservation::Visible(observed) =
+        observe_fenced_trivia(source, item_origin, LineEntry::InLine, fence)
+    else {
+        return false;
+    };
+    observed
+        .indentation
+        .is_none_or(|indentation| indentation > baseline)
+        && source_identifier(observed.source).is_some_and(|(word, _)| word == "struct")
 }
 
 pub(super) fn struct_declaration(
@@ -650,12 +681,6 @@ fn continuation_has_body_starter(i: RewriteIn, baseline: usize) -> bool {
         let (after, _, indentation) = source_after_trivia(source);
         indentation.is_none_or(|indentation| indentation > baseline) && body_starter(after)
     })
-}
-
-fn prefixed_struct_candidate(source: &str, baseline: usize) -> bool {
-    let (source, _, indentation) = source_after_trivia(source);
-    indentation.is_none_or(|indentation| indentation > baseline)
-        && source_identifier(source).is_some_and(|(word, _)| word == "struct")
 }
 
 fn body_starter(source: &str) -> bool {

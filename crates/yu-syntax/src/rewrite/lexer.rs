@@ -11,13 +11,14 @@ use crate::scan::operator::OperatorSite;
 
 use super::{
     LexIn, RewriteIn, Stops,
+    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry},
     item::{
-        ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary, PendingFragments, Token,
-        TokenKind, Trivia,
+        Boundary, ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary, PendingFragments,
+        PhysicalLeadingTrivia, Token, TokenKind, Trivia,
     },
     operator::{
         STOP_ARROW, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
-        newline_indentation_after_trivia, scan_dangling_operator, scan_operator,
+        newline_indentation_after_trivia, scan_dangling_operator_fenced, scan_operator_fenced,
     },
     state::Recover,
     yumark::{FenceBoundary, FenceLineDecision, judge_fence_line},
@@ -31,37 +32,12 @@ pub(super) fn tail_item_after_trivia(
     stops: Stops,
 ) -> Item {
     let has_leading_trivia = !leading.view().is_grammar_empty();
-    let record_spread = stops & STOP_RECORD_SPREAD != 0;
-    let marker_after_operator = stops & STOP_RECORD_SPREAD_AFTER_OPERATOR != 0;
-    let payload = if record_spread && matches!(site, OperatorSite::Nud) {
-        if let Some(marker) = i.token(scan_record_spread_marker) {
-            Payload::Token(marker)
-        } else {
-            i.token(|lex| {
-                Some(scan_tail_payload(
-                    lex,
-                    site,
-                    has_leading_trivia,
-                    baseline,
-                    stops,
-                    false,
-                ))
-            })
-            .expect("tail payload scanning is total")
-        }
-    } else {
-        i.token(|lex| {
-            Some(scan_tail_payload(
-                lex,
-                site,
-                has_leading_trivia,
-                baseline,
-                stops,
-                marker_after_operator || (record_spread && matches!(site, OperatorSite::Led)),
-            ))
+    let payload = i
+        .token(|lex| {
+            scan_expression_payload(lex, site, has_leading_trivia, 0, None, baseline, stops)
         })
-        .expect("tail payload scanning is total")
-    };
+        .map(accepted_payload)
+        .unwrap_or(Payload::Eof);
     Item::plain(leading, payload)
 }
 
@@ -75,15 +51,9 @@ pub(super) fn statement_item_after_trivia(
 ) -> Item {
     let has_leading_trivia = !leading.view().is_grammar_empty();
     let payload = i
-        .token(|lex| {
-            Some(scan_statement_payload(
-                lex,
-                has_leading_trivia,
-                baseline,
-                stops,
-            ))
-        })
-        .expect("statement payload scanning is total");
+        .token(|lex| scan_statement_payload(lex, has_leading_trivia, 0, None, baseline, stops))
+        .map(accepted_payload)
+        .unwrap_or(Payload::Eof);
     Item::plain(leading, payload)
 }
 
@@ -92,26 +62,43 @@ pub(super) fn statement_item_after_trivia(
 /// a rollback-capable lexical transaction.
 pub(super) fn scan_statement_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
-    let payload = scan_statement_payload(i, !leading.view().is_grammar_empty(), baseline, stops);
+    let payload = scan_statement_payload(
+        i,
+        !leading.view().is_grammar_empty(),
+        0,
+        None,
+        baseline,
+        stops,
+    )
+    .map(accepted_payload)
+    .unwrap_or(Payload::Eof);
     Some(Item::plain(leading, payload))
 }
 
-fn scan_statement_payload(
+/// Raw payload vocabulary for one normalized canonical-Statement Item.
+/// Current-Item owns leading trivia, fence boundaries, EOF, and Item assembly.
+pub(super) fn scan_statement_payload(
     mut i: LexIn,
     has_leading_trivia: bool,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
     baseline: usize,
     stops: Stops,
-) -> Payload {
+) -> Option<AcceptedPayload> {
     if let Some(keyword) = i.token(scan_statement_keyword) {
-        Payload::Token(keyword)
+        Some(AcceptedPayload {
+            payload: CurrentPayload::Token(keyword),
+            next_line_entry: LineEntry::InLine,
+        })
     } else {
-        scan_tail_payload(
+        scan_expression_payload(
             i,
             OperatorSite::Nud,
             has_leading_trivia,
+            item_origin,
+            fence,
             baseline,
             stops,
-            false,
         )
     }
 }
@@ -124,88 +111,189 @@ pub(super) fn path_segment_item_after_trivia(
     baseline: usize,
     stops: Stops,
 ) -> Item {
-    if let Some(segment) = i.token(scan_path_segment) {
-        return Item::plain(leading, Payload::Token(segment));
-    }
-    tail_item_after_trivia(i, leading, OperatorSite::Led, baseline, stops)
+    let has_leading_trivia = !leading.view().is_grammar_empty();
+    let payload = i
+        .token(|lex| scan_path_segment_payload(lex, has_leading_trivia, 0, None, baseline, stops))
+        .map(accepted_payload)
+        .unwrap_or(Payload::Eof);
+    Item::plain(leading, payload)
 }
 
-fn scan_tail_payload(
+/// Raw payload vocabulary for one normalized expression Item. Leading trivia,
+/// fence boundaries, EOF, and final Item construction remain owned by
+/// `current_item`.
+pub(super) fn scan_expression_payload(
     mut i: LexIn,
     site: OperatorSite,
     has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
     baseline: usize,
     stops: Stops,
-    marker_after_operator: bool,
-) -> Payload {
-    if stops & STOP_ARROW != 0
+) -> Option<AcceptedPayload> {
+    let record_spread = stops & STOP_RECORD_SPREAD != 0;
+    let marker_after_operator = stops & STOP_RECORD_SPREAD_AFTER_OPERATOR != 0;
+    let payload = if record_spread
+        && matches!(site, OperatorSite::Nud)
+        && let Some(marker) = i.token(scan_record_spread_marker)
+    {
+        CurrentPayload::Token(marker)
+    } else if stops & STOP_ARROW != 0
         && let Some(arrow) = i.token(scan_arm_arrow)
     {
-        Payload::Token(arrow)
+        CurrentPayload::Token(arrow)
     } else if matches!(site, OperatorSite::Nud)
         && let Some(keyword) = i.token(scan_nud_keyword)
     {
-        Payload::Token(keyword)
-    } else if let Some(operator) =
-        i.token(|lex| scan_operator(lex, site, has_leading_trivia, baseline, stops))
-    {
-        Payload::Operator(operator)
+        CurrentPayload::Token(keyword)
+    } else if let Some(operator) = i.token(|lex| {
+        scan_operator_fenced(
+            lex,
+            site,
+            has_leading_trivia,
+            baseline,
+            stops,
+            payload_origin,
+            fence,
+        )
+    }) {
+        CurrentPayload::Operator(operator)
     } else if matches!(site, OperatorSite::Led)
-        && let Some(operator) =
-            i.token(|lex| scan_dangling_operator(lex, OperatorSite::Led, baseline, stops))
+        && let Some(operator) = i.token(|lex| {
+            scan_dangling_operator_fenced(
+                lex,
+                OperatorSite::Led,
+                baseline,
+                stops,
+                payload_origin,
+                fence,
+            )
+        })
     {
-        Payload::Operator(operator)
-    } else if marker_after_operator {
+        CurrentPayload::Operator(operator)
+    } else if marker_after_operator || (record_spread && matches!(site, OperatorSite::Led)) {
         if let Some(marker) = i.token(scan_record_spread_marker) {
-            Payload::Token(marker)
+            CurrentPayload::Token(marker)
         } else {
-            scan_token_payload(i)
+            CurrentPayload::Token(scan_token(i)?)
         }
     } else {
-        scan_token_payload(i)
+        CurrentPayload::Token(scan_token(i)?)
+    };
+    Some(AcceptedPayload {
+        payload,
+        next_line_entry: LineEntry::InLine,
+    })
+}
+
+/// Optional NUD payload vocabulary. The enclosing `current_item` transaction
+/// owns rollback when no expression can start at this Item.
+pub(super) fn scan_nud_payload(
+    mut i: LexIn,
+    has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> Option<AcceptedPayload> {
+    let payload = if stops & STOP_ARROW != 0
+        && let Some(arrow) = i.token(scan_arm_arrow)
+    {
+        CurrentPayload::Token(arrow)
+    } else if let Some(keyword) = i.token(scan_nud_keyword) {
+        CurrentPayload::Token(keyword)
+    } else if let Some(token) = i.token(scan_lparen) {
+        CurrentPayload::Token(token)
+    } else if let Some(token) = i.token(scan_lbrace) {
+        CurrentPayload::Token(token)
+    } else if let Some(operator) = i.token(|lex| {
+        scan_operator_fenced(
+            lex,
+            OperatorSite::Nud,
+            has_leading_trivia,
+            baseline,
+            stops,
+            payload_origin,
+            fence,
+        )
+    }) {
+        CurrentPayload::Operator(operator)
+    } else if let Some(operator) = i.token(|lex| {
+        scan_dangling_operator_fenced(
+            lex,
+            OperatorSite::Nud,
+            baseline,
+            stops,
+            payload_origin,
+            fence,
+        )
+    }) {
+        CurrentPayload::Operator(operator)
+    } else if let Some(token) = i.token(scan_identifier) {
+        CurrentPayload::Token(token)
+    } else {
+        CurrentPayload::Token(i.token(scan_integer)?)
+    };
+    Some(AcceptedPayload {
+        payload,
+        next_line_entry: LineEntry::InLine,
+    })
+}
+
+/// Path tails admit their sigil-aware segment vocabulary before falling back
+/// to the ordinary normalized LED vocabulary.
+pub(super) fn scan_path_segment_payload(
+    mut i: LexIn,
+    has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> Option<AcceptedPayload> {
+    if let Some(segment) = i.token(scan_path_segment) {
+        return Some(AcceptedPayload {
+            payload: CurrentPayload::Token(segment),
+            next_line_entry: LineEntry::InLine,
+        });
     }
+    scan_expression_payload(
+        i,
+        OperatorSite::Led,
+        has_leading_trivia,
+        payload_origin,
+        fence,
+        baseline,
+        stops,
+    )
+}
+
+fn scan_token(mut i: LexIn) -> Option<Token> {
+    i.check(choice((
+        token(scan_identifier),
+        token(scan_integer),
+        token(scan_expression_colon),
+        token(scan_punctuation),
+        token(scan_unknown),
+    )))
 }
 
 fn scan_token_payload(i: LexIn) -> Payload {
-    i.map(
-        choice((
-            token(scan_identifier),
-            token(scan_integer),
-            token(scan_expression_colon),
-            token(scan_punctuation),
-            token(scan_unknown),
-        )),
-        Payload::Token,
-    )
-    .unwrap_or(Payload::Eof)
+    scan_token(i).map(Payload::Token).unwrap_or(Payload::Eof)
+}
+
+fn accepted_payload(accepted: AcceptedPayload) -> Payload {
+    match accepted.payload {
+        CurrentPayload::Token(token) => Payload::Token(token),
+        CurrentPayload::Operator(operator) => Payload::Operator(operator),
+    }
 }
 
 pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
     let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = if stops & STOP_ARROW != 0
-        && let Some(arrow) = i.token(scan_arm_arrow)
-    {
-        Payload::Token(arrow)
-    } else if let Some(keyword) = i.token(scan_nud_keyword) {
-        Payload::Token(keyword)
-    } else if let Some(token) = i.token(scan_lparen) {
-        Payload::Token(token)
-    } else if let Some(token) = i.token(scan_lbrace) {
-        Payload::Token(token)
-    } else if let Some(operator) =
-        i.token(|lex| scan_operator(lex, OperatorSite::Nud, has_leading_trivia, baseline, stops))
-    {
-        Payload::Operator(operator)
-    } else if let Some(operator) =
-        i.token(|lex| scan_dangling_operator(lex, OperatorSite::Nud, baseline, stops))
-    {
-        Payload::Operator(operator)
-    } else if let Some(token) = i.token(scan_identifier) {
-        Payload::Token(token)
-    } else {
-        Payload::Token(i.token(scan_integer)?)
-    };
+    let payload = accepted_payload(
+        i.token(|lex| scan_nud_payload(lex, has_leading_trivia, 0, None, baseline, stops))?,
+    );
     Some(Item::plain(leading, payload))
 }
 
@@ -236,18 +324,63 @@ pub(super) fn introduced_body_indentation(i: RewriteIn) -> Option<usize> {
     .flatten()
 }
 
+pub(super) fn introduced_body_indentation_normalized(
+    i: RewriteIn,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<usize> {
+    i.map(
+        |lex: LexIn| {
+            Some(super::operator::newline_indentation_after_fenced_trivia(
+                lex.remainder(),
+                item_origin,
+                LineEntry::InLine,
+                fence,
+            ))
+        },
+        |indentation| indentation,
+    )
+    .flatten()
+}
+
+pub(super) fn scan_case_label_payload(mut i: LexIn) -> Option<AcceptedPayload> {
+    Some(token_payload(i.token(scan_apostrophe_sigil_identifier)?))
+}
+
 pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
-    let token = i.check(choice((
-        token(scan_type_forall),
-        token(scan_type_effect_row_apostrophe),
-        token(scan_type_polymorphic_variant_colon),
-        token(scan_path_segment),
-        token(scan_integer),
-        token(scan_lbracket),
-        token(scan_lparen),
-        token(scan_lbrace),
-    )))?;
-    Some(Item::plain(LeadingTrivia::default(), Payload::Token(token)))
+    let payload = accepted_payload(i.token(|lex| {
+        let accepted = scan_type_nud_payload(lex, false, 0, None)?;
+        matches!(
+            accepted.payload,
+            CurrentPayload::Token(Token {
+                kind: TokenKind::Forall
+                    | TokenKind::EffectRowApostrophe
+                    | TokenKind::PolymorphicVariantColon
+                    | TokenKind::Identifier
+                    | TokenKind::SigilIdentifier
+                    | TokenKind::Integer
+                    | TokenKind::LBracket
+                    | TokenKind::LParen
+                    | TokenKind::LBrace,
+                ..
+            })
+        )
+        .then_some(accepted)
+    })?);
+    Some(Item::plain(LeadingTrivia::default(), payload))
+}
+
+/// Raw NUD vocabulary for one normalized TypeExpression Item.
+pub(super) fn scan_type_nud_payload(
+    mut i: LexIn,
+    has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<AcceptedPayload> {
+    if let Some(forall) = i.token(scan_type_forall) {
+        return Some(token_payload(forall));
+    }
+    scan_type_payload(i, has_leading_trivia, payload_origin, fence)
 }
 
 pub(super) fn type_nud_item_after_trivia<S>(
@@ -257,10 +390,12 @@ pub(super) fn type_nud_item_after_trivia<S>(
 where
     S: Rb,
 {
-    if let Some(token) = i.token(scan_type_forall) {
-        return Item::plain(leading, Payload::Token(token));
-    }
-    type_item_after_trivia(i, leading)
+    let has_leading_trivia = !leading.view().is_grammar_empty();
+    let payload = i
+        .token(|lex| scan_type_nud_payload(lex, has_leading_trivia, 0, None))
+        .map(accepted_payload)
+        .unwrap_or(Payload::Eof);
+    Item::plain(leading, payload)
 }
 
 /// Type-declaration headers use raw identifiers rather than TypeExpression's
@@ -283,32 +418,42 @@ where
 }
 
 pub(super) fn type_item_after_trivia<S>(
-    i: In<'_, &str, &mut Recover<'_>, S>,
+    mut i: In<'_, &str, &mut Recover<'_>, S>,
     leading: LeadingTrivia,
 ) -> Item
 where
     S: Rb,
 {
+    let has_leading_trivia = !leading.view().is_grammar_empty();
     let payload = i
-        .map(
-            choice((
-                token(scan_type_effect_row_apostrophe),
-                token(scan_type_polymorphic_variant_colon),
-                token(scan_path_segment),
-                token(scan_integer),
-                choice((
-                    token(scan_exact_equals),
-                    token(scan_malformed_equals),
-                    token(scan_type_arrow),
-                    token(scan_type_colon),
-                    token(scan_punctuation),
-                    token(scan_unknown),
-                )),
-            )),
-            Payload::Token,
-        )
+        .token(|lex| scan_type_payload(lex, has_leading_trivia, 0, None))
+        .map(accepted_payload)
         .unwrap_or(Payload::Eof);
     Item::plain(leading, payload)
+}
+
+/// Raw successor vocabulary for one normalized TypeExpression Item.
+pub(super) fn scan_type_payload(
+    mut i: LexIn,
+    _has_leading_trivia: bool,
+    _payload_origin: usize,
+    _fence: Option<&FenceBoundary>,
+) -> Option<AcceptedPayload> {
+    let token = i.check(choice((
+        token(scan_type_effect_row_apostrophe),
+        token(scan_type_polymorphic_variant_colon),
+        token(scan_path_segment),
+        token(scan_integer),
+        choice((
+            token(scan_exact_equals),
+            token(scan_malformed_equals),
+            token(scan_type_arrow),
+            token(scan_type_colon),
+            token(scan_punctuation),
+            token(scan_unknown),
+        )),
+    )))?;
+    Some(token_payload(token))
 }
 
 /// Type's mandatory-primary recovery must hand an exact `=` to its caller,
@@ -328,12 +473,26 @@ pub(super) fn pattern_nud_item_after_trivia<S>(
 where
     S: Rb,
 {
-    let payload = if let Some(symbol) = i.token(scan_pattern_symbol_colon) {
-        Payload::Token(symbol)
-    } else {
-        pattern_payload(i, stops)
-    };
+    let has_leading_trivia = !leading.view().is_grammar_empty();
+    let payload = i
+        .token(|lex| scan_pattern_nud_payload(lex, has_leading_trivia, 0, None, stops))
+        .map(accepted_payload)
+        .unwrap_or(Payload::Eof);
     Item::plain(leading, payload)
+}
+
+/// Raw primary vocabulary for one normalized Pattern Item.
+pub(super) fn scan_pattern_nud_payload(
+    mut i: LexIn,
+    has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+    stops: super::pattern::PatternStops,
+) -> Option<AcceptedPayload> {
+    if let Some(symbol) = i.token(scan_pattern_symbol_colon) {
+        return Some(token_payload(symbol));
+    }
+    scan_pattern_payload(i, has_leading_trivia, payload_origin, fence, stops)
 }
 
 /// Complete an already-accepted Pattern's successor.  A colon here belongs to
@@ -346,24 +505,35 @@ pub(super) fn pattern_item_after_trivia<S>(
 where
     S: Rb,
 {
-    let payload = pattern_payload(i.rb(), stops);
+    let has_leading_trivia = !leading.view().is_grammar_empty();
+    let payload = i
+        .token(|lex| scan_pattern_payload(lex, has_leading_trivia, 0, None, stops))
+        .map(accepted_payload)
+        .unwrap_or(Payload::Eof);
     Item::plain(leading, payload)
 }
 
-fn pattern_payload<S>(
-    mut i: In<'_, &str, &mut Recover<'_>, S>,
+/// Raw successor vocabulary for one normalized Pattern Item.
+pub(super) fn scan_pattern_payload(
+    mut i: LexIn,
+    _has_leading_trivia: bool,
+    _payload_origin: usize,
+    _fence: Option<&FenceBoundary>,
     stops: super::pattern::PatternStops,
-) -> Payload
-where
-    S: Rb,
-{
+) -> Option<AcceptedPayload> {
     if stops & super::pattern::PATTERN_STOP_ARROW != 0
         && let Some(arrow) = i.token(scan_arm_arrow)
     {
-        Payload::Token(arrow)
+        Some(token_payload(arrow))
     } else {
-        i.map(token(scan_pattern_tail_token), Payload::Token)
-            .unwrap_or(Payload::Eof)
+        Some(token_payload(i.token(scan_pattern_tail_token)?))
+    }
+}
+
+fn token_payload(token: Token) -> AcceptedPayload {
+    AcceptedPayload {
+        payload: CurrentPayload::Token(token),
+        next_line_entry: LineEntry::InLine,
     }
 }
 
@@ -624,14 +794,11 @@ fn fenced_comment_line_decision(
             prefix: Some(prefix),
             content,
         } => {
-            let prefix_length = prefix
-                .facts
-                .extent
-                .end
+            let prefix_length = content
                 .checked_sub(prefix.facts.extent.start)
-                .expect("accepted prefix extent must be ordered");
+                .expect("accepted body coordinate follows its prefix start");
             assert_eq!(prefix.facts.extent.start, coordinate);
-            assert_eq!(prefix.facts.extent.end, content);
+            assert!(content <= prefix.facts.extent.end);
             PendingFragments::record(
                 foreign,
                 ForeignSplit::quote_prefix(prefix.facts.extent.start, prefix_length),
@@ -1122,6 +1289,218 @@ pub(super) fn scan_balanced_bracket_suffix(mut i: LexIn) -> Option<Token> {
         kind: TokenKind::Unknown,
         text: text.into(),
     })
+}
+
+/// Result of the dedicated multiline owner for a malformed bracket-head
+/// suffix. The accepted raw token and pending fence boundary are separate
+/// physical Items, so the grammar can emit accepted text before handing the
+/// exact unconsumed boundary upward.
+pub(super) enum BalancedBracketSuffix {
+    Complete(CurrentItem),
+    Boundary {
+        accepted: Option<CurrentItem>,
+        pending: CurrentItem,
+    },
+}
+
+/// Scans the remainder of an already-consumed `[` only when either its
+/// matching `]` or a fenced structural boundary is known. Ordinary callers
+/// retain the exact transactional balanced-suffix behavior.
+pub(super) fn scan_balanced_bracket_suffix_normalized(
+    mut i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<BalancedBracketSuffix> {
+    let Some(fence) = fence else {
+        let token = i.token(scan_balanced_bracket_suffix)?;
+        return Some(BalancedBracketSuffix::Complete(CurrentItem {
+            item: Item::plain(LeadingTrivia::default(), Payload::Token(token)),
+            next_line_entry: LineEntry::InLine,
+        }));
+    };
+
+    i.token(|suffix| scan_fenced_balanced_bracket_suffix(suffix, item_origin, line_entry, fence))
+}
+
+enum FencedBalancedBracketSuffixBody {
+    Complete,
+    Boundary(PendingBoundary),
+}
+
+fn scan_fenced_balanced_bracket_suffix(
+    mut i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: &FenceBoundary,
+) -> Option<BalancedBracketSuffix> {
+    let source = i.remainder();
+    let mut foreign = None;
+
+    let outcome = if line_entry == LineEntry::PhysicalStart
+        && let Some(boundary) =
+            balanced_suffix_line_decision(i.rb(), source, item_origin, fence, &mut foreign)
+    {
+        FencedBalancedBracketSuffixBody::Boundary(boundary)
+    } else {
+        scan_fenced_balanced_bracket_suffix_body(i.rb(), source, item_origin, fence, &mut foreign)
+    };
+
+    let consumed = source
+        .len()
+        .checked_sub(i.remainder().len())
+        .expect("a balanced suffix cannot extend its entry suffix");
+    assert_eq!(
+        source.as_ptr().wrapping_add(consumed),
+        i.remainder().as_ptr()
+    );
+    let accepted = (!source[..consumed].is_empty()).then(|| CurrentItem {
+        item: Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: source[..consumed].into(),
+            }),
+            foreign,
+            item_origin,
+        )
+        .expect("one raw suffix owns ordered in-range quote-prefix splits"),
+        next_line_entry: match &outcome {
+            FencedBalancedBracketSuffixBody::Complete => LineEntry::InLine,
+            FencedBalancedBracketSuffixBody::Boundary(boundary)
+                if matches!(boundary.kind(), Boundary::EofAfterTrivia) =>
+            {
+                LineEntry::InLine
+            }
+            FencedBalancedBracketSuffixBody::Boundary(_) => LineEntry::PhysicalStart,
+        },
+    });
+
+    Some(match outcome {
+        FencedBalancedBracketSuffixBody::Complete => {
+            BalancedBracketSuffix::Complete(accepted.expect("a matching close is nonempty"))
+        }
+        FencedBalancedBracketSuffixBody::Boundary(boundary) => {
+            let next_line_entry = if matches!(boundary.kind(), Boundary::EofAfterTrivia) {
+                LineEntry::InLine
+            } else {
+                LineEntry::PhysicalStart
+            };
+            BalancedBracketSuffix::Boundary {
+                accepted,
+                pending: CurrentItem {
+                    item: Item::finish(
+                        PhysicalLeadingTrivia::default(),
+                        Payload::Boundary(boundary),
+                        None,
+                        item_origin
+                            .checked_add(consumed)
+                            .expect("a balanced-suffix boundary coordinate must fit usize"),
+                    )
+                    .expect("a raw-suffix boundary has an empty physical carrier"),
+                    next_line_entry,
+                },
+            }
+        }
+    })
+}
+
+fn scan_fenced_balanced_bracket_suffix_body(
+    mut i: LexIn,
+    source: &str,
+    item_origin: usize,
+    fence: &FenceBoundary,
+    foreign: &mut Option<Vec<ForeignSplit>>,
+) -> FencedBalancedBracketSuffixBody {
+    let mut depth = 1usize;
+    loop {
+        if i.remainder().is_empty() {
+            return FencedBalancedBracketSuffixBody::Boundary(
+                balanced_suffix_line_decision(i, source, item_origin, fence, foreign)
+                    .unwrap_or_else(|| unreachable!("physical EOF is always a fence boundary")),
+            );
+        }
+        if i.remainder().starts_with("/*") {
+            let part_origin = checked_suffix_coordinate(source, item_origin, i.remainder());
+            match i
+                .token(|comment| scan_block_comment_fenced(comment, part_origin, fence, foreign))
+                .expect("the fenced block-comment opener is already known")
+            {
+                FencedBlockComment::Complete(_) => continue,
+                FencedBlockComment::Boundary { pending, .. } => {
+                    return FencedBalancedBracketSuffixBody::Boundary(pending);
+                }
+            }
+        }
+        if i.remainder().starts_with("//") {
+            let _ = i
+                .token(scan_line_comment)
+                .expect("the line-comment opener is already known");
+            continue;
+        }
+
+        match i
+            .next()
+            .expect("the fenced balanced-suffix cursor is known nonempty")
+        {
+            '[' => {
+                depth = depth
+                    .checked_add(1)
+                    .expect("balanced bracket depth must fit usize");
+            }
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return FencedBalancedBracketSuffixBody::Complete;
+                }
+            }
+            '\n' => {
+                if let Some(boundary) =
+                    balanced_suffix_line_decision(i.rb(), source, item_origin, fence, foreign)
+                {
+                    return FencedBalancedBracketSuffixBody::Boundary(boundary);
+                }
+            }
+            '\r' if i.remainder().starts_with('\n') => {
+                assert_eq!(i.next(), Some('\n'));
+                if let Some(boundary) =
+                    balanced_suffix_line_decision(i.rb(), source, item_origin, fence, foreign)
+                {
+                    return FencedBalancedBracketSuffixBody::Boundary(boundary);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn balanced_suffix_line_decision(
+    mut i: LexIn,
+    source: &str,
+    item_origin: usize,
+    fence: &FenceBoundary,
+    foreign: &mut Option<Vec<ForeignSplit>>,
+) -> Option<PendingBoundary> {
+    let coordinate = checked_suffix_coordinate(source, item_origin, i.remainder());
+    match judge_fence_line(i.remainder(), coordinate, fence) {
+        FenceLineDecision::Boundary(boundary) => Some(boundary),
+        FenceLineDecision::Body { prefix: None, .. } => None,
+        FenceLineDecision::Body {
+            prefix: Some(prefix),
+            content,
+        } => {
+            let length = content
+                .checked_sub(coordinate)
+                .expect("an accepted raw-suffix prefix stays on its physical line");
+            PendingFragments::record(
+                foreign,
+                ForeignSplit::quote_prefix(prefix.facts.extent.start, length),
+            )
+            .expect("accepted raw-suffix prefixes stay ordered in one Item");
+            consume_exact_bytes(i.rb(), length);
+            None
+        }
+    }
 }
 
 fn scan_dot(mut i: LexIn) -> Option<()> {

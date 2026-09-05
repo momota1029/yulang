@@ -6,193 +6,85 @@ use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
     LexIn, RewriteIn, Stops,
+    current_item::{CurrentItem, LineEntry, current_item},
     driver::{
-        Either, MlMode, TailExit, expr_from_nud, handoff, implicit_delimited_newline,
-        is_active_stop, is_line_stop, is_nud_item, is_separator, token_kind,
+        Either, MlMode, NormalizedExit, advanced_origin, complete, expr_from_nud_normalized,
+        expression_item, handoff, implicit_delimited_newline, is_active_stop, is_line_stop,
+        is_nud_item, is_separator, suffix_marker, token_kind,
     },
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
-        introduced_body_indentation, is_exact_equals_source, pattern_nud_item_after_trivia,
-        scan_trivia, source_identifier, statement_item_after_trivia, tail_item_after_trivia,
+        introduced_body_indentation_normalized, is_exact_equals_source, scan_pattern_nud_payload,
+        scan_statement_payload, source_identifier,
     },
-    mod_decl::mod_declaration_selected,
-    operator::source_after_trivia,
-    pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item, pattern_stops_from_owner},
-    statement::{StatementLineHandoff, indented_statement_block},
-    struct_decl::struct_declaration_selected,
-    type_decl::type_declaration_selected,
-    use_decl::use_declaration_selected,
+    mod_decl::mod_declaration_selected_normalized,
+    operator::{TriviaObservation, observe_fenced_trivia},
+    pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item_normalized, pattern_stops_from_owner},
+    statement::{StatementLineHandoff, indented_statement_block_normalized},
+    struct_decl::struct_declaration_selected_normalized,
+    type_decl::type_declaration_selected_normalized,
+    use_decl::use_declaration_selected_normalized,
+    yumark::FenceBoundary,
 };
 
-pub(super) fn binding_statement_selected(mut i: RewriteIn, item: &Item, baseline: usize) -> bool {
+pub(super) fn binding_statement_selected_normalized(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     let Some(visibility) = visibility_word(item) else {
         return false;
     };
-    if use_declaration_selected(i.rb(), item, baseline) {
+    if use_declaration_selected_normalized(i.rb(), item, item_origin, fence) {
         return false;
     }
-    if mod_declaration_selected(i.rb(), item, baseline) {
+    if mod_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
         return false;
     }
-    if struct_declaration_selected(i.rb(), item, baseline) {
+    if struct_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
         return false;
     }
-    if type_declaration_selected(i.rb(), item, baseline) {
+    if type_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
         return false;
     }
     i.map(
-        |i: LexIn| Some(binding_follower(i, visibility, baseline)),
+        |i: LexIn| {
+            Some(binding_follower_normalized(
+                i.remainder(),
+                visibility,
+                baseline,
+                item_origin,
+                fence,
+            ))
+        },
         |selected| selected,
     )
     .unwrap_or(false)
 }
 
-pub(super) fn is_binding_visibility(item: &Item) -> bool {
-    visibility_word(item).is_some()
-}
-
-pub(super) fn binding_statement(
-    mut i: RewriteIn,
-    visibility: Item,
+fn binding_follower_normalized(
+    source: &str,
+    visibility: &str,
     baseline: usize,
-    stops: Stops,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    debug_assert!(binding_statement_selected(i.rb(), &visibility, baseline));
-    i.state.start_node(SyntaxKind::BindingStatement.into());
-    i.state.start_node(SyntaxKind::BindingHeader.into());
-    emit_visibility(&mut i, visibility);
-
-    let exit = binding_target(i.rb(), baseline, stops, line_handoff);
-    let Err(Either::Left(mut item)) = exit else {
-        i.state.finish_node();
-        i.state.finish_node();
-        return exit;
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    let TriviaObservation::Visible(first) =
+        observe_fenced_trivia(source, item_origin, LineEntry::InLine, fence)
+    else {
+        return true;
     };
-    if token_kind(&item) != Some(TokenKind::Equals)
-        || implicit_delimited_newline(baseline, item.leading_view())
+    if !first.present
+        || first
+            .indentation
+            .is_some_and(|indentation| indentation <= baseline)
     {
-        i.state.finish_node();
-        i.state.finish_node();
-        return handoff(item);
-    }
-
-    item.emit_all_remaining_leading(&mut *i.state);
-    emit_token_item(&mut i, item);
-    i.state.finish_node();
-
-    i.state.start_node(SyntaxKind::BindingBody.into());
-    let exit = binding_body(i.rb(), baseline, stops, line_handoff);
-    i.state.finish_node();
-    i.state.finish_node();
-    exit
-}
-
-fn binding_target(
-    mut i: RewriteIn,
-    baseline: usize,
-    owner_stops: Stops,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let indentation = introduced_body_indentation(i.rb());
-    let mut leading = scan_trivia(i.rb());
-    let stops = pattern_stops_from_owner(owner_stops)
-        | super::pattern::PATTERN_STOP_COMMA
-        | super::pattern::PATTERN_STOP_SEMICOLON
-        | PATTERN_STOP_EQUALS;
-    if indentation.is_some_and(|indentation| indentation <= baseline) {
-        let item = pattern_nud_item_after_trivia(i.rb(), leading, stops);
-        i.state.start_node(SyntaxKind::Pattern.into());
-        emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
-        return handoff(item);
-    }
-    emit_leading_trivia(&mut i, &leading);
-    leading = LeadingTrivia::default();
-    let item = pattern_nud_item_after_trivia(i.rb(), leading, stops);
-    pattern_from_entry_item(i, item, baseline, stops, line_handoff)
-}
-
-fn binding_body(
-    mut i: RewriteIn,
-    baseline: usize,
-    stops: Stops,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    match introduced_body_indentation(i.rb()) {
-        Some(indentation) if indentation > baseline => indented_statement_block(i, baseline, stops),
-        Some(_) => {
-            emit_missing(&mut i, LeadingTrivia::default());
-            let leading = scan_trivia(i.rb());
-            let item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
-            handoff(item)
-        }
-        None => inline_binding_body(i, baseline, stops, line_handoff),
-    }
-}
-
-fn inline_binding_body(
-    mut i: RewriteIn,
-    baseline: usize,
-    stops: Stops,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    item.emit_all_remaining_leading(&mut *i.state);
-    if binding_body_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
-    }
-    if is_nud_item(&item) {
-        return expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff);
-    }
-
-    item = retry_inline_binding_body(i.rb(), item, baseline, stops);
-    if binding_body_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, item.leading_view()) {
-            item.emit_all_remaining_leading(&mut *i.state);
-        }
-        return handoff(item);
-    }
-    item.emit_all_remaining_leading(&mut *i.state);
-    debug_assert!(is_nud_item(&item));
-    expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff)
-}
-
-fn retry_inline_binding_body(
-    mut i: RewriteIn,
-    mut item: Item,
-    baseline: usize,
-    stops: Stops,
-) -> Item {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-        if binding_body_boundary(i.rb(), &item, baseline, stops) || is_nud_item(&item) {
-            i.state.finish_node();
-            return item;
-        }
-    }
-}
-
-fn binding_body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    item.payload_view().is_eof()
-        || is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
-        || is_line_stop(item, stops)
-        || implicit_delimited_newline(baseline, item.leading_view())
-}
-
-fn binding_follower(i: LexIn, visibility: &str, baseline: usize) -> bool {
-    let (source, gap, indentation) = source_after_trivia(i.remainder());
-    if !gap || indentation.is_some_and(|indentation| indentation <= baseline) {
         return true;
     }
-    let Some((head, after_head)) = source_identifier(source) else {
+    let Some((head, after_head)) = source_identifier(first.source) else {
         return true;
     };
 
@@ -200,35 +92,404 @@ fn binding_follower(i: LexIn, visibility: &str, baseline: usize) -> bool {
         "use" => true,
         "type" | "role" | "impl" | "cast" => false,
         "enum" | "error" | "act" => {
-            visibility == "my" && !named_declaration_head_candidate(after_head, baseline)
+            visibility == "my"
+                && !named_declaration_head_candidate_normalized(
+                    source,
+                    after_head,
+                    baseline,
+                    item_origin,
+                    fence,
+                )
         }
         "lazy" | "prefix" | "infix" | "suffix" | "nullfix" => {
-            binding_definition_follows(after_head, baseline)
+            binding_definition_follows_normalized(source, after_head, baseline, item_origin, fence)
         }
         _ => true,
     }
 }
 
-fn named_declaration_head_candidate(source: &str, baseline: usize) -> bool {
-    let (source, gap, indentation) = source_after_trivia(source);
-    if !gap || indentation.is_some_and(|indentation| indentation <= baseline) {
+fn observed_after_head<'a>(
+    full_source: &'a str,
+    after_head: &'a str,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> TriviaObservation<'a> {
+    let consumed = full_source.len() - after_head.len();
+    let origin = item_origin
+        .checked_add(consumed)
+        .expect("a declaration admission coordinate must fit usize");
+    observe_fenced_trivia(after_head, origin, LineEntry::InLine, fence)
+}
+
+fn named_declaration_head_candidate_normalized(
+    full_source: &str,
+    after_head: &str,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    let TriviaObservation::Visible(observed) =
+        observed_after_head(full_source, after_head, item_origin, fence)
+    else {
+        return false;
+    };
+    if !observed.present
+        || observed
+            .indentation
+            .is_some_and(|indentation| indentation <= baseline)
+    {
         return false;
     }
-    if source_identifier(source).is_some() {
+    if source_identifier(observed.source).is_some() {
         return true;
     }
-    matches!(source.chars().next(), Some('$' | '&' | '\''))
-        && source
+    matches!(observed.source.chars().next(), Some('$' | '&' | '\''))
+        && observed
+            .source
             .chars()
             .next()
-            .and_then(|sigil| source.get(sigil.len_utf8()..))
+            .and_then(|sigil| observed.source.get(sigil.len_utf8()..))
             .is_some_and(|source| source_identifier(source).is_some())
 }
 
-fn binding_definition_follows(source: &str, baseline: usize) -> bool {
-    let (source, gap, indentation) = source_after_trivia(source);
-    gap && indentation.is_none_or(|indentation| indentation > baseline)
-        && is_exact_equals_source(source)
+fn binding_definition_follows_normalized(
+    full_source: &str,
+    after_head: &str,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    let TriviaObservation::Visible(observed) =
+        observed_after_head(full_source, after_head, item_origin, fence)
+    else {
+        return false;
+    };
+    observed.present
+        && observed
+            .indentation
+            .is_none_or(|indentation| indentation > baseline)
+        && is_exact_equals_source(observed.source)
+}
+
+pub(super) fn is_binding_visibility(item: &Item) -> bool {
+    visibility_word(item).is_some()
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn binding_statement_normalized(
+    mut i: RewriteIn,
+    visibility: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    debug_assert!(binding_statement_selected_normalized(
+        i.rb(),
+        &visibility,
+        baseline,
+        item_origin,
+        fence,
+    ));
+    i.state.start_node(SyntaxKind::BindingStatement.into());
+    i.state.start_node(SyntaxKind::BindingHeader.into());
+    emit_visibility(&mut i, visibility);
+
+    let entry = suffix_marker(i.rb());
+    let exit = binding_target_normalized(
+        i.rb(),
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
+    let mut item = match exit {
+        NormalizedExit::Complete(Err(Either::Left(item)), next_line_entry) => {
+            line_entry = next_line_entry;
+            item
+        }
+        exit => {
+            i.state.finish_node();
+            i.state.finish_node();
+            return exit;
+        }
+    };
+    if item.payload_view().is_boundary() {
+        i.state.finish_node();
+        i.state.finish_node();
+        return complete(handoff(item), line_entry);
+    }
+    if token_kind(&item) != Some(TokenKind::Equals)
+        || implicit_delimited_newline(baseline, item.leading_view())
+    {
+        i.state.finish_node();
+        i.state.finish_node();
+        return complete(handoff(item), line_entry);
+    }
+
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_token_item(&mut i, item);
+    i.state.finish_node();
+
+    i.state.start_node(SyntaxKind::BindingBody.into());
+    let exit = binding_body_normalized(
+        i.rb(),
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    i.state.finish_node();
+    i.state.finish_node();
+    exit
+}
+
+#[allow(clippy::too_many_arguments)]
+fn binding_target_normalized(
+    mut i: RewriteIn,
+    baseline: usize,
+    owner_stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let stops = pattern_stops_from_owner(owner_stops)
+        | super::pattern::PATTERN_STOP_COMMA
+        | super::pattern::PATTERN_STOP_SEMICOLON
+        | PATTERN_STOP_EQUALS;
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        mut item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| {
+                    scan_pattern_nud_payload(lex, leading, origin, fence, stops)
+                },
+            )
+        })
+        .expect("binding Pattern payload scanning is total");
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    if item.payload_view().is_boundary()
+        || item
+            .leading_view()
+            .indentation_after_newline()
+            .is_some_and(|indentation| indentation <= baseline)
+    {
+        i.state.start_node(SyntaxKind::Pattern.into());
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return complete(handoff(item), next_line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    pattern_from_entry_item_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        next_line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn binding_body_normalized(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
+        Some(indentation) if indentation > baseline => {
+            indented_statement_block_normalized(i, baseline, stops, item_origin, line_entry, fence)
+        }
+        Some(_) => {
+            emit_missing(&mut i, LeadingTrivia::default());
+            let (item, _, line_entry) = binding_statement_item_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                baseline,
+                stops,
+            );
+            complete(handoff(item), line_entry)
+        }
+        None => inline_binding_body_normalized(
+            i,
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn inline_binding_body_normalized(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (mut item, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+    );
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    if binding_body_boundary(i.rb(), &item, baseline, stops) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
+    if is_nud_item(&item) {
+        return expr_from_nud_normalized(
+            i,
+            item,
+            None,
+            baseline,
+            stops,
+            MlMode::All,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+
+    let (mut item, item_origin, line_entry) = retry_inline_binding_body_normalized(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if binding_body_boundary(i.rb(), &item, baseline, stops) {
+        if !item.payload_view().is_boundary()
+            && !implicit_delimited_newline(baseline, item.leading_view())
+        {
+            item.emit_all_remaining_leading(&mut *i.state);
+        }
+        return complete(handoff(item), line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    debug_assert!(is_nud_item(&item));
+    expr_from_nud_normalized(
+        i,
+        item,
+        None,
+        baseline,
+        stops,
+        MlMode::All,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_inline_binding_body_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    i.state.start_node(SyntaxKind::Error.into());
+    loop {
+        emit_token_item(&mut i, item);
+        (item, item_origin, line_entry) = expression_item(
+            i.rb(),
+            OperatorSite::Nud,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+        );
+        if binding_body_boundary(i.rb(), &item, baseline, stops) || is_nud_item(&item) {
+            i.state.finish_node();
+            return (item, item_origin, line_entry);
+        }
+    }
+}
+
+fn binding_body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || is_separator(item)
+        || is_active_stop(i.rb(), item, stops)
+        || is_line_stop(item, stops)
+        || implicit_delimited_newline(baseline, item.leading_view())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn binding_statement_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |lex, leading, origin, fence, _| {
+                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                },
+            )
+        })
+        .expect("statement payload scanning is total");
+    (
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    )
 }
 
 fn visibility_word(item: &Item) -> Option<&str> {

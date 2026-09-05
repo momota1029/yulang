@@ -6,19 +6,24 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::super::{
     RewriteIn, Stops,
-    driver::{Either, TailExit, handoff, token_kind},
-    emit::{emit_error_item, emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, TokenKind},
-    lexer::{scan_lbrace, scan_lbracket, scan_trivia, type_nud_item_after_trivia},
+    current_item::LineEntry,
+    driver::{
+        Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
+    },
+    emit::{emit_error_item, emit_missing, emit_token_item},
+    item::{Item, LeadingTrivia, TokenKind},
+    yumark::FenceBoundary,
 };
 use super::{
-    TypeApplyBoundary, TypeDelimitedOwner, TypeOuterBoundary, continue_type_tail,
+    TypeApplyBoundary, TypeDelimitedOwner, TypeOuterBoundary, continue_type_tail_normalized,
     indentation_after_newline, is_type_caller_boundary, is_type_mismatched_close, is_type_nud,
     is_type_outer_close, is_type_payload_boundary, is_type_polymorphic_variant_tag_name,
-    type_delimited, type_delimited_baseline, type_expr_from_nud, with_type_outer_close,
+    type_delimited_baseline, type_delimited_normalized, type_expr_from_nud_normalized,
+    type_nud_item_normalized, with_type_outer_close,
 };
 
-pub(super) fn type_effect_row(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn type_effect_row_normalized(
     mut i: RewriteIn,
     apostrophe: Item,
     baseline: usize,
@@ -28,26 +33,33 @@ pub(super) fn type_effect_row(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::EffectRowType.into());
     emit_token_item(&mut i, apostrophe);
-    let open = i
-        .token(scan_lbracket)
-        .expect("the effect-row compound probe accepted an adjacent bracket");
-    emit_token_item(
-        &mut i,
-        Item::plain(LeadingTrivia::default(), Payload::Token(open)),
-    );
-    let exit = type_delimited(
+    let (open, next_origin, next_line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    debug_assert_eq!(token_kind(&open), Some(TokenKind::LBracket));
+    debug_assert!(open.leading_view().is_grammar_empty());
+    emit_token_item(&mut i, open);
+    let entry = suffix_marker(i.rb());
+    let exit = type_delimited_normalized(
         i.rb(),
         TokenKind::RBracket,
         baseline,
         TypeDelimitedOwner::Generic,
         outer_closes,
         caller_stops,
+        item_origin,
+        next_line_entry,
+        fence,
     );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_type_tail(
+    continue_type_tail_normalized(
         i,
         baseline,
         type_ml,
@@ -57,10 +69,13 @@ pub(super) fn type_effect_row(
         caller_stops,
         outer_boundary,
         exit,
+        item_origin,
+        fence,
     )
 }
 
-pub(super) fn type_polymorphic_variant(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn type_polymorphic_variant_normalized(
     mut i: RewriteIn,
     colon: Item,
     baseline: usize,
@@ -70,26 +85,35 @@ pub(super) fn type_polymorphic_variant(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantType.into());
     emit_token_item(&mut i, colon);
-    let open = i
-        .token(scan_lbrace)
-        .expect("the polymorphic-variant compound probe accepted an adjacent brace");
-    emit_token_item(
-        &mut i,
-        Item::plain(LeadingTrivia::default(), Payload::Token(open)),
-    );
-    let exit = type_polymorphic_variant_tags(
+
+    let (open, next_origin, next_line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    debug_assert_eq!(token_kind(&open), Some(TokenKind::LBrace));
+    debug_assert!(open.leading_view().is_grammar_empty());
+    emit_token_item(&mut i, open);
+
+    let entry = suffix_marker(i.rb());
+    let exit = type_polymorphic_variant_tags_normalized(
         i.rb(),
         baseline,
         outer_separators,
         with_type_outer_close(outer_closes, TokenKind::RBrace),
         caller_stops,
+        item_origin,
+        next_line_entry,
+        fence,
     );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_type_tail(
+    continue_type_tail_normalized(
         i,
         baseline,
         type_ml,
@@ -99,6 +123,8 @@ pub(super) fn type_polymorphic_variant(
         caller_stops,
         outer_boundary,
         exit,
+        item_origin,
+        fence,
     )
 }
 
@@ -110,22 +136,36 @@ enum TagPosition {
     Filled,
 }
 
-fn type_polymorphic_variant_tags(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_tags_normalized(
     mut i: RewriteIn,
     incoming_baseline: usize,
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
-    let opening = scan_trivia(i.rb());
-    let baseline = type_delimited_baseline(incoming_baseline, opening.view());
-    emit_leading_trivia(&mut i, &opening);
-    let mut item = type_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (mut item, next_origin, next_line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+    let baseline = type_delimited_baseline(incoming_baseline, item.leading_view());
     let mut position = TagPosition::Open;
+
+    if item.payload_view().is_boundary() {
+        return type_polymorphic_variant_boundary(i, item, position, line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+
     loop {
+        if item.payload_view().is_boundary() {
+            return type_polymorphic_variant_boundary(i, item, position, line_entry);
+        }
         if let Some(indentation) = indentation_after_newline(item.leading_view()) {
             if indentation > baseline {
-                return type_polymorphic_variant_boundary(i, item, position);
+                return type_polymorphic_variant_boundary(i, item, position, line_entry);
             }
             item.emit_all_remaining_leading(&mut *i.state);
             if matches!(position, TagPosition::AfterTag) {
@@ -136,21 +176,21 @@ fn type_polymorphic_variant_tags(
         if token_kind(&item) == Some(TokenKind::RBrace) {
             item.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, item);
-            return Ok(());
+            return complete(Ok(()), line_entry);
         }
         if is_type_caller_boundary(&item, caller_stops)
             && !is_type_polymorphic_variant_tag_name(&item)
         {
-            return type_polymorphic_variant_boundary(i, item, position);
+            return type_polymorphic_variant_boundary(i, item, position, line_entry);
         }
         if is_type_mismatched_close(&item, TokenKind::RBrace) {
             if is_type_outer_close(&item, outer_closes) {
-                return type_polymorphic_variant_boundary(i, item, position);
+                return type_polymorphic_variant_boundary(i, item, position, line_entry);
             }
             item.emit_all_remaining_leading(&mut *i.state);
             emit_error_item(&mut i, item);
-            let leading = scan_trivia(i.rb());
-            item = type_nud_item_after_trivia(i.rb(), leading);
+            (item, item_origin, line_entry) =
+                type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
             continue;
         }
         if token_kind(&item) == Some(TokenKind::Comma) {
@@ -162,48 +202,79 @@ fn type_polymorphic_variant_tags(
                 position = TagPosition::Unfilled;
             }
             emit_token_item(&mut i, item);
-            let leading = scan_trivia(i.rb());
-            item = type_nud_item_after_trivia(i.rb(), leading);
+            (item, item_origin, line_entry) =
+                type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
             continue;
         }
         if token_kind(&item) == Some(TokenKind::Semicolon) {
             if outer_separators {
-                return type_polymorphic_variant_boundary(i, item, position);
+                return type_polymorphic_variant_boundary(i, item, position, line_entry);
             }
             item.emit_all_remaining_leading(&mut *i.state);
             emit_error_item(&mut i, item);
-            let leading = scan_trivia(i.rb());
-            item = type_nud_item_after_trivia(i.rb(), leading);
+            (item, item_origin, line_entry) =
+                type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
             continue;
         }
         if item.payload_view().is_eof() {
-            return type_polymorphic_variant_boundary(i, item, position);
+            return type_polymorphic_variant_boundary(i, item, position, line_entry);
         }
+
         item.emit_all_remaining_leading(&mut *i.state);
+        let entry = suffix_marker(i.rb());
         let exit = if is_type_polymorphic_variant_tag_name(&item) {
-            type_polymorphic_variant_tag(i.rb(), item, baseline, outer_closes, caller_stops)
-        } else if is_type_nud(&item) {
-            type_polymorphic_variant_wrong_kind_tag(
+            type_polymorphic_variant_tag_normalized(
                 i.rb(),
                 item,
                 baseline,
                 outer_closes,
                 caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            )
+        } else if is_type_nud(&item) {
+            type_polymorphic_variant_wrong_kind_tag_normalized(
+                i.rb(),
+                item,
+                baseline,
+                outer_closes,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
             )
         } else {
-            type_polymorphic_variant_malformed_tag(
+            type_polymorphic_variant_malformed_tag_normalized(
                 i.rb(),
                 item,
                 baseline,
                 outer_closes,
                 caller_stops,
+                item_origin,
+                line_entry,
+                fence,
             )
         };
+        item_origin = advanced_origin(item_origin, entry, i.rb());
         position = TagPosition::AfterTag;
+        let NormalizedExit::Complete(exit, next_line_entry) = exit else {
+            unreachable!("normalized Type owners do not defer")
+        };
+        line_entry = next_line_entry;
         item = match exit {
-            Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
+            Ok(()) => {
+                let (next, next_origin, next_line_entry) =
+                    type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+                item_origin = next_origin;
+                line_entry = next_line_entry;
+                next
+            }
+            Err(Either::Left(next)) if next.payload_view().is_boundary() => {
+                return type_polymorphic_variant_boundary(i, next, position, line_entry);
+            }
             Err(Either::Left(next)) if is_type_caller_boundary(&next, caller_stops) => {
-                return type_polymorphic_variant_boundary(i, next, position);
+                return type_polymorphic_variant_boundary(i, next, position, line_entry);
             }
             Err(Either::Left(next)) => next,
             Err(Either::Right(end)) => end.item,
@@ -215,39 +286,33 @@ fn type_polymorphic_variant_boundary(
     mut i: RewriteIn,
     item: Item,
     position: TagPosition,
-) -> TailExit {
+    line_entry: LineEntry,
+) -> NormalizedExit {
     if matches!(position, TagPosition::Unfilled) {
         emit_missing(&mut i, LeadingTrivia::default());
     }
     emit_missing(&mut i, LeadingTrivia::default());
-    handoff(item)
+    complete(handoff(item), line_entry)
 }
 
-fn type_polymorphic_variant_tag(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_tag_normalized(
     mut i: RewriteIn,
     name: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
-    let exit =
-        type_polymorphic_variant_tag_after_name(i.rb(), name, baseline, outer_closes, caller_stops);
-    i.state.finish_node();
-    exit
-}
-
-fn type_polymorphic_variant_wrong_kind_tag(
-    mut i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    outer_closes: u8,
-    caller_stops: Stops,
-) -> TailExit {
-    i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
-    let exit = type_polymorphic_variant_tag_after_wrong_kind(
+    let exit = type_polymorphic_variant_tag_after_name_normalized(
         i.rb(),
-        primary,
+        item_origin,
+        line_entry,
+        fence,
+        name,
         baseline,
         outer_closes,
         caller_stops,
@@ -256,28 +321,73 @@ fn type_polymorphic_variant_wrong_kind_tag(
     exit
 }
 
-fn type_polymorphic_variant_tag_after_name(
-    mut i: RewriteIn,
-    name: Item,
-    baseline: usize,
-    outer_closes: u8,
-    caller_stops: Stops,
-) -> TailExit {
-    emit_token_item(&mut i, name);
-    let leading = scan_trivia(i.rb());
-    let item = type_nud_item_after_trivia(i.rb(), leading);
-    type_polymorphic_variant_tag_payloads(i, item, baseline, outer_closes, caller_stops, false)
-}
-
-fn type_polymorphic_variant_tag_after_wrong_kind(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_wrong_kind_tag_normalized(
     mut i: RewriteIn,
     primary: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
+    let exit = type_polymorphic_variant_tag_after_wrong_kind_normalized(
+        i.rb(),
+        primary,
+        baseline,
+        outer_closes,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    i.state.finish_node();
+    exit
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_tag_after_name_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    name: Item,
+    baseline: usize,
+    outer_closes: u8,
+    caller_stops: Stops,
+) -> NormalizedExit {
+    emit_token_item(&mut i, name);
+    let (item, item_origin, line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    type_polymorphic_variant_tag_payloads_normalized(
+        i,
+        item,
+        baseline,
+        outer_closes,
+        caller_stops,
+        false,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
+    mut i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    outer_closes: u8,
+    caller_stops: Stops,
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
-    let exit = type_expr_from_nud(
+    let entry = suffix_marker(i.rb());
+    let exit = type_expr_from_nud_normalized(
         i.rb(),
         primary,
         baseline,
@@ -286,48 +396,78 @@ fn type_polymorphic_variant_tag_after_wrong_kind(
         true,
         outer_closes,
         caller_stops,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
     );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    type_polymorphic_variant_tag_payloads_after_head(i, exit, baseline, outer_closes, caller_stops)
+    type_polymorphic_variant_tag_payloads_after_head_normalized(
+        i,
+        exit,
+        baseline,
+        outer_closes,
+        caller_stops,
+        item_origin,
+        fence,
+    )
 }
 
-fn type_polymorphic_variant_malformed_tag(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_malformed_tag_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         item.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
         if !is_type_polymorphic_variant_tag_safe(&item) {
             continue;
         }
         i.state.finish_node();
-        let exit = if is_type_polymorphic_variant_tag_boundary(&item) {
-            handoff(item)
+        let exit = if item.payload_view().is_boundary()
+            || is_type_polymorphic_variant_tag_boundary(&item)
+        {
+            complete(handoff(item), line_entry)
         } else {
             item.emit_all_remaining_leading(&mut *i.state);
             if is_type_polymorphic_variant_tag_name(&item) {
-                type_polymorphic_variant_tag_after_name(
+                type_polymorphic_variant_tag_after_name_normalized(
                     i.rb(),
+                    item_origin,
+                    line_entry,
+                    fence,
                     item,
                     baseline,
                     outer_closes,
                     caller_stops,
                 )
             } else {
-                type_polymorphic_variant_tag_after_wrong_kind(
+                type_polymorphic_variant_tag_after_wrong_kind_normalized(
                     i.rb(),
                     item,
                     baseline,
                     outer_closes,
                     caller_stops,
+                    item_origin,
+                    line_entry,
+                    fence,
                 )
             }
         };
@@ -336,83 +476,146 @@ fn type_polymorphic_variant_malformed_tag(
     }
 }
 
-fn type_polymorphic_variant_tag_payloads_after_head(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_tag_payloads_after_head_normalized(
     mut i: RewriteIn,
-    exit: TailExit,
+    exit: NormalizedExit,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
-    let item = match exit {
-        Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
-        Err(Either::Left(item)) if is_type_caller_boundary(&item, caller_stops) => {
-            return handoff(item);
-        }
-        Err(Either::Left(item)) => item,
-        Err(Either::Right(end)) => return handoff(end.item),
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let NormalizedExit::Complete(exit, line_entry) = exit else {
+        unreachable!("normalized Type owners do not defer")
     };
-    type_polymorphic_variant_tag_payloads(i, item, baseline, outer_closes, caller_stops, true)
+    let (item, item_origin, line_entry) = match exit {
+        Ok(()) => type_nud_item_normalized(i.rb(), item_origin, line_entry, fence),
+        Err(Either::Left(item)) if item.payload_view().is_boundary() => {
+            return complete(handoff(item), line_entry);
+        }
+        Err(Either::Left(item)) if is_type_caller_boundary(&item, caller_stops) => {
+            return complete(handoff(item), line_entry);
+        }
+        Err(Either::Left(item)) => (item, item_origin, line_entry),
+        Err(Either::Right(end)) => return complete(handoff(end.item), line_entry),
+    };
+    type_polymorphic_variant_tag_payloads_normalized(
+        i,
+        item,
+        baseline,
+        outer_closes,
+        caller_stops,
+        true,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn type_polymorphic_variant_tag_payloads(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_tag_payloads_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
     mut completed_payload: bool,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     loop {
+        if item.payload_view().is_boundary() {
+            return complete(handoff(item), line_entry);
+        }
         if completed_payload && is_type_caller_boundary(&item, caller_stops) {
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if is_type_polymorphic_variant_payload_boundary(&item) {
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if is_type_nud(&item) {
-            let exit = type_polymorphic_variant_payload(
+            let entry = suffix_marker(i.rb());
+            let exit = type_polymorphic_variant_payload_normalized(
                 i.rb(),
                 item,
                 baseline,
                 outer_closes,
                 caller_stops,
+                item_origin,
+                line_entry,
+                fence,
             );
+            item_origin = advanced_origin(item_origin, entry, i.rb());
+            let NormalizedExit::Complete(exit, next_line_entry) = exit else {
+                unreachable!("normalized Type owners do not defer")
+            };
+            line_entry = next_line_entry;
             item = match exit {
-                Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
+                Ok(()) => {
+                    let (next, next_origin, next_line_entry) =
+                        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+                    item_origin = next_origin;
+                    line_entry = next_line_entry;
+                    next
+                }
                 Err(Either::Left(next)) => next,
-                Err(Either::Right(end)) => return handoff(end.item),
+                Err(Either::Right(end)) => return complete(handoff(end.item), line_entry),
             };
             completed_payload = true;
             continue;
         }
         if !is_type_payload_boundary(item.leading_view()) {
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
-        let exit = type_polymorphic_variant_malformed_payload(
+        let entry = suffix_marker(i.rb());
+        let exit = type_polymorphic_variant_malformed_payload_normalized(
             i.rb(),
             item,
             baseline,
             outer_closes,
             caller_stops,
+            item_origin,
+            line_entry,
+            fence,
         );
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        let NormalizedExit::Complete(exit, next_line_entry) = exit else {
+            unreachable!("normalized Type owners do not defer")
+        };
+        line_entry = next_line_entry;
         item = match exit {
-            Ok(()) => type_nud_item_after_trivia(i.rb(), LeadingTrivia::default()),
+            Ok(()) => {
+                let (next, next_origin, next_line_entry) =
+                    type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+                item_origin = next_origin;
+                line_entry = next_line_entry;
+                next
+            }
+            Err(Either::Left(next)) if next.payload_view().is_boundary() => {
+                return complete(handoff(next), line_entry);
+            }
             Err(Either::Left(next)) if is_type_caller_boundary(&next, caller_stops) => {
-                return handoff(next);
+                return complete(handoff(next), line_entry);
             }
             Err(Either::Left(next)) => next,
-            Err(Either::Right(end)) => return handoff(end.item),
+            Err(Either::Right(end)) => return complete(handoff(end.item), line_entry),
         };
     }
 }
 
-fn type_polymorphic_variant_payload(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_payload_normalized(
     mut i: RewriteIn,
     mut primary: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
     if primary.leading_view().is_grammar_empty() {
@@ -420,7 +623,7 @@ fn type_polymorphic_variant_payload(
     } else {
         primary.emit_all_remaining_leading(&mut *i.state);
     }
-    let exit = type_expr_from_nud(
+    let exit = type_expr_from_nud_normalized(
         i.rb(),
         primary,
         baseline,
@@ -429,45 +632,62 @@ fn type_polymorphic_variant_payload(
         true,
         outer_closes,
         caller_stops,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     exit
 }
 
-fn type_polymorphic_variant_malformed_payload(
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_malformed_payload_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
+    if item.payload_view().is_boundary() {
+        i.state.finish_node();
+        return complete(handoff(item), line_entry);
+    }
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         item.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
-        if is_type_polymorphic_variant_payload_boundary(&item) {
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
             i.state.finish_node();
-            let exit = handoff(item);
             i.state.finish_node();
-            return exit;
+            return complete(handoff(item), line_entry);
         }
-        if is_type_caller_boundary(&item, caller_stops) {
+        if is_type_polymorphic_variant_payload_boundary(&item)
+            || is_type_caller_boundary(&item, caller_stops)
+        {
             i.state.finish_node();
-            let exit = handoff(item);
             i.state.finish_node();
-            return exit;
+            return complete(handoff(item), line_entry);
         }
         if !is_type_nud(&item) {
             continue;
         }
         i.state.finish_node();
         item.emit_all_remaining_leading(&mut *i.state);
-        let exit = type_expr_from_nud(
+        let exit = type_expr_from_nud_normalized(
             i.rb(),
             item,
             baseline,
@@ -476,6 +696,10 @@ fn type_polymorphic_variant_malformed_payload(
             true,
             outer_closes,
             caller_stops,
+            TypeOuterBoundary::NONE,
+            item_origin,
+            line_entry,
+            fence,
         );
         i.state.finish_node();
         return exit;
@@ -498,7 +722,9 @@ fn is_type_polymorphic_variant_payload_boundary(item: &Item) -> bool {
 }
 
 fn is_type_polymorphic_variant_tag_safe(item: &Item) -> bool {
-    is_type_polymorphic_variant_tag_boundary(item) || is_type_nud(item)
+    item.payload_view().is_boundary()
+        || is_type_polymorphic_variant_tag_boundary(item)
+        || is_type_nud(item)
 }
 
 fn is_type_polymorphic_variant_tag_boundary(item: &Item) -> bool {

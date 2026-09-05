@@ -314,8 +314,8 @@ fn multiline_text_keeps_utf8_crlf_coordinates_and_direct_close_unconsumed() {
 
 #[test]
 fn prefixed_body_records_one_split_and_prefixed_close_stays_unconsumed() {
-    let source = "α\n> > β\r\n> > ```\nrest";
-    let accepted_text = "α\n> > β\r\n";
+    let source = "α\n> >   β\r\n> >   ```\nrest";
+    let accepted_text = "α\n> >   β\r\n";
     let boundary = active_fence(2);
     let (piece, remainder) = scan_text(source, 0, &boundary, StringMode::Normal);
     let LiteralPiece::Boundary {
@@ -327,7 +327,7 @@ fn prefixed_body_records_one_split_and_prefixed_close_stays_unconsumed() {
     };
 
     assert_eq!(token_text(&accepted), accepted_text);
-    assert_eq!(remainder, "> > ```\nrest");
+    assert_eq!(remainder, "> >   ```\nrest");
     assert_eq!(remainder.as_ptr(), source[accepted_text.len()..].as_ptr());
     assert_eq!(
         pending,
@@ -345,7 +345,7 @@ fn prefixed_body_records_one_split_and_prefixed_close_stays_unconsumed() {
         [
             (SyntaxKind::StringText, "α\n".to_owned()),
             (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
-            (SyntaxKind::StringText, "β\r\n".to_owned()),
+            (SyntaxKind::StringText, "  β\r\n".to_owned()),
         ]
     );
 }

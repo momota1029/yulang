@@ -6,20 +6,28 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::super::{
     LexIn, RewriteIn, Stops,
-    driver::{Either, TailExit, handoff, token_kind},
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    current_item::{CurrentPayload, LineEntry},
+    driver::{
+        Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, suffix_marker,
+        token_kind,
+    },
+    emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
-    lexer::{scan_trivia, type_item_after_trivia, type_nud_item_after_trivia},
+    lexer::scan_type_nud_payload,
+    operator::{TriviaObservation, observe_fenced_trivia},
+    yumark::FenceBoundary,
 };
 use super::{
-    TypeApplyBoundary, TypeOuterBoundary, continue_type_tail, indentation_after_newline,
-    is_type_caller_boundary, is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
+    TypeApplyBoundary, TypeOuterBoundary, continue_type_tail_normalized, is_type_caller_boundary,
+    is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
     is_type_record_field_boundary, is_type_record_field_name, is_type_record_field_start,
-    missing_type_close, missing_type_item, retry_type_rhs, type_chain_trivia,
-    type_delimited_baseline, type_expr_from_nud, with_type_outer_close,
+    missing_type_close, missing_type_item, retry_type_rhs_normalized, type_chain_trivia,
+    type_delimited_baseline, type_expr_from_nud_normalized, type_item_normalized,
+    type_nud_item_normalized, with_type_outer_close,
 };
 
-pub(super) fn type_record(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn type_record_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
@@ -29,17 +37,25 @@ pub(super) fn type_record(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-) -> TailExit {
+    mut item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::NamedRecordType.into());
     emit_token_item(&mut i, open);
-    let exit = type_record_fields(
+    let entry = suffix_marker(i.rb());
+    let exit = type_record_fields_normalized(
         i.rb(),
         baseline,
         with_type_outer_close(outer_closes, TokenKind::RBrace),
         caller_stops,
+        item_origin,
+        line_entry,
+        fence,
     );
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_type_tail(
+    continue_type_tail_normalized(
         i,
         baseline,
         type_ml,
@@ -49,37 +65,69 @@ pub(super) fn type_record(
         caller_stops,
         outer_boundary,
         exit,
+        item_origin,
+        fence,
     )
 }
 
-fn type_record_fields(
+#[allow(clippy::too_many_arguments)]
+fn type_record_fields_normalized(
     mut i: RewriteIn,
     incoming_baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
-    let opening = scan_trivia(i.rb());
-    let baseline = type_delimited_baseline(incoming_baseline, opening.view());
-    emit_leading_trivia(&mut i, &opening);
-    let mut item = type_item_after_trivia(i.rb(), LeadingTrivia::default());
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (mut item, next_origin, next_line_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+    let baseline = type_delimited_baseline(incoming_baseline, item.leading_view());
+
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+
     loop {
+        if item.payload_view().is_boundary() {
+            emit_missing(&mut i, LeadingTrivia::default());
+            return complete(handoff(item), line_entry);
+        }
         if token_kind(&item) == Some(TokenKind::RBrace) {
             emit_token_item(&mut i, item);
-            return Ok(());
+            return complete(Ok(()), line_entry);
         }
         if is_type_caller_boundary(&item, caller_stops)
-            && !type_record_next_field(i.rb(), &item, baseline)
+            && !type_record_next_field_normalized(
+                i.rb(),
+                &item,
+                baseline,
+                item_origin,
+                line_entry,
+                fence,
+            )
         {
             emit_missing(&mut i, LeadingTrivia::default());
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if item.payload_view().is_eof() || is_type_mismatched_close(&item, TokenKind::RBrace) {
-            return type_record_missing_close(i, item);
+            return complete(type_record_missing_close(i, item), line_entry);
         }
         if token_kind(&item) == Some(TokenKind::Comma) {
             item = missing_type_item(i.rb(), item);
             emit_token_item(&mut i, item);
-            item = match type_record_after_comma(i.rb(), baseline, caller_stops) {
+            (item, item_origin, line_entry) = match type_record_after_comma_normalized(
+                i.rb(),
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
             };
@@ -87,66 +135,135 @@ fn type_record_fields(
         }
         if token_kind(&item) == Some(TokenKind::Semicolon) {
             item.emit_all_remaining_leading(&mut *i.state);
-            item = match retry_type_record_separator(i.rb(), item, baseline, caller_stops) {
+            (item, item_origin, line_entry) = match retry_type_record_separator_normalized(
+                i.rb(),
+                item,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
             };
             continue;
         }
+
+        let child_entry = suffix_marker(i.rb());
         let exit = if is_type_record_field_name(&item) {
-            type_record_field(i.rb(), item, baseline, outer_closes, caller_stops)
+            type_record_field_normalized(
+                i.rb(),
+                item,
+                baseline,
+                outer_closes,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            )
         } else if token_kind(&item) == Some(TokenKind::Colon) {
             item.emit_all_remaining_leading(&mut *i.state);
-            type_record_missing_name(i.rb(), item, baseline, outer_closes, caller_stops)
+            type_record_missing_name_normalized(
+                i.rb(),
+                item,
+                baseline,
+                outer_closes,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            )
+        } else if type_record_malformed_name_colon_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+        ) && item.leading_view().indentation_after_newline().is_none()
+        {
+            type_record_malformed_name_normalized(
+                i.rb(),
+                item,
+                baseline,
+                outer_closes,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            )
         } else {
-            let malformed_name_colon = i
-                .rb()
-                .then(type_record_malformed_name_colon, |has_colon, _| has_colon)
-                .expect("the malformed-name probe always succeeds");
-            if malformed_name_colon && indentation_after_newline(item.leading_view()).is_none() {
-                type_record_malformed_name(i.rb(), item, baseline, outer_closes, caller_stops)
-            } else {
-                item = match retry_type_record_field(i.rb(), item, baseline, caller_stops) {
-                    Ok(next) => next,
-                    Err(exit) => return exit,
-                };
-                continue;
-            }
+            (item, item_origin, line_entry) = match retry_type_record_field_normalized(
+                i.rb(),
+                item,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            ) {
+                Ok(next) => next,
+                Err(exit) => return exit,
+            };
+            continue;
         };
-        item = match type_record_successor(i.rb(), exit, baseline, caller_stops) {
+
+        item_origin = advanced_origin(item_origin, child_entry, i.rb());
+        let successor_entry = suffix_marker(i.rb());
+        let successor = type_record_successor_normalized(
+            i.rb(),
+            exit,
+            baseline,
+            caller_stops,
+            item_origin,
+            fence,
+        );
+        item_origin = advanced_origin(item_origin, successor_entry, i.rb());
+        (item, line_entry) = match successor {
             Ok(next) => next,
             Err(exit) => return exit,
         };
     }
 }
 
-fn type_record_field(
+#[allow(clippy::too_many_arguments)]
+fn type_record_field_normalized(
     mut i: RewriteIn,
     name: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeRecordField.into());
     emit_token_item(&mut i, name);
-    let leading = scan_trivia(i.rb());
-    let mut colon = type_nud_item_after_trivia(i.rb(), leading);
+    let (mut colon, next_origin, next_line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+
+    if colon.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return complete(handoff(colon), line_entry);
+    }
     if !type_chain_trivia(colon.leading_view(), baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
-        return handoff(colon);
+        return complete(handoff(colon), line_entry);
     }
     if token_kind(&colon) != Some(TokenKind::Colon) {
         if is_type_record_field_boundary(&colon) {
             colon.emit_all_remaining_leading(&mut *i.state);
             emit_missing(&mut i, LeadingTrivia::default());
             i.state.finish_node();
-            return handoff(colon);
+            return complete(handoff(colon), line_entry);
         }
         if is_type_nud(&colon) {
             colon.emit_all_remaining_leading(&mut *i.state);
             emit_missing(&mut i, LeadingTrivia::default());
-            let exit = type_expr_from_nud(
+            let exit = type_expr_from_nud_normalized(
                 i.rb(),
                 colon,
                 baseline,
@@ -155,48 +272,112 @@ fn type_record_field(
                 true,
                 outer_closes,
                 caller_stops,
+                TypeOuterBoundary::NONE,
+                item_origin,
+                line_entry,
+                fence,
             );
             i.state.finish_node();
             return exit;
         }
         colon.emit_all_remaining_leading(&mut *i.state);
-        let exit = retry_type_record_colon(i.rb(), colon, baseline, outer_closes, caller_stops);
+        let exit = retry_type_record_colon_normalized(
+            i.rb(),
+            colon,
+            baseline,
+            outer_closes,
+            caller_stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
         i.state.finish_node();
         return exit;
     }
+
     emit_token_item(&mut i, colon);
-    let exit = type_record_rhs(i.rb(), baseline, outer_closes, caller_stops);
+    let exit = type_record_rhs_normalized(
+        i.rb(),
+        baseline,
+        outer_closes,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
     i.state.finish_node();
     exit
 }
 
-fn type_record_missing_name(
+#[allow(clippy::too_many_arguments)]
+fn type_record_missing_name_normalized(
     mut i: RewriteIn,
     colon: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeRecordField.into());
     emit_missing(&mut i, LeadingTrivia::default());
     emit_token_item(&mut i, colon);
-    let exit = type_record_rhs(i.rb(), baseline, outer_closes, caller_stops);
+    let exit = type_record_rhs_normalized(
+        i.rb(),
+        baseline,
+        outer_closes,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
     i.state.finish_node();
     exit
 }
 
-fn type_record_malformed_name_colon(mut i: LexIn) -> Option<bool> {
-    let mut input = i.remainder();
-    let mut probe: LexIn = chasa_recover::In::new(&mut input, i.recovery(), ());
+fn type_record_malformed_name_colon_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    i.rb()
+        .map(
+            |lex: LexIn| {
+                Some(type_record_malformed_name_colon_probe(
+                    lex,
+                    item_origin,
+                    line_entry,
+                    fence,
+                ))
+            },
+            |has_colon| has_colon,
+        )
+        .expect("the malformed-name probe always succeeds")
+}
+
+fn type_record_malformed_name_colon_probe(
+    mut i: LexIn,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    let mut source = i.remainder();
     let mut nested_depth = 0usize;
     loop {
-        let leading = scan_trivia(probe.rb());
-        let item = type_nud_item_after_trivia(probe.rb(), leading);
-        if indentation_after_newline(item.leading_view()).is_some() || item.payload_view().is_eof()
-        {
-            return Some(false);
+        let Some((next, next_origin, next_line_entry, kind, indentation)) =
+            observe_type_item(i.rb(), source, item_origin, line_entry, fence)
+        else {
+            return false;
+        };
+        source = next;
+        item_origin = next_origin;
+        line_entry = next_line_entry;
+        if indentation.is_some() {
+            return false;
         }
-        match token_kind(&item) {
+        match kind {
             Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
                 nested_depth += 1;
                 continue;
@@ -209,36 +390,56 @@ fn type_record_malformed_name_colon(mut i: LexIn) -> Option<bool> {
             }
             _ => {}
         }
-        if nested_depth == 0 && token_kind(&item) == Some(TokenKind::Colon) {
-            return Some(true);
+        if nested_depth == 0 && kind == Some(TokenKind::Colon) {
+            return true;
         }
-        if nested_depth == 0
-            && (is_type_record_field_name(&item) || is_type_record_field_boundary(&item))
-        {
-            return Some(false);
+        if nested_depth == 0 && is_type_record_probe_boundary(kind) {
+            return false;
         }
     }
 }
 
-fn type_record_malformed_name(
+#[allow(clippy::too_many_arguments)]
+fn type_record_malformed_name_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::TypeRecordField.into());
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if token_kind(&item) == Some(TokenKind::Colon) && nested_depth == 0 {
             i.state.finish_node();
             emit_token_item(&mut i, item);
-            let exit = type_record_rhs(i.rb(), baseline, outer_closes, caller_stops);
+            let exit = type_record_rhs_normalized(
+                i.rb(),
+                baseline,
+                outer_closes,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
             i.state.finish_node();
             return exit;
         }
@@ -262,64 +463,97 @@ fn type_record_malformed_name(
         {
             i.state.finish_node();
             i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
     }
 }
 
-fn type_record_field_head_colon(mut i: LexIn) -> Option<(bool, Option<usize>)> {
-    let mut input = i.remainder();
-    let mut probe: LexIn = chasa_recover::In::new(&mut input, i.recovery(), ());
-    let leading = scan_trivia(probe.rb());
-    let item = type_nud_item_after_trivia(probe, leading);
-    Some((
-        token_kind(&item) == Some(TokenKind::Colon),
-        indentation_after_newline(item.leading_view()),
-    ))
+fn type_record_field_head_after_normalized(
+    mut i: RewriteIn,
+    baseline: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    i.rb()
+        .map(
+            |mut lex: LexIn| {
+                let source = lex.remainder();
+                Some(
+                    observe_type_item(lex.rb(), source, item_origin, line_entry, fence)
+                        .is_some_and(|(_, _, _, kind, indentation)| {
+                            kind == Some(TokenKind::Colon)
+                                && indentation.is_none_or(|indentation| indentation > baseline)
+                        }),
+                )
+            },
+            |has_colon| has_colon,
+        )
+        .expect("the field-head probe always succeeds")
 }
 
-fn type_record_field_head_after(mut i: RewriteIn, baseline: usize) -> bool {
-    let (has_colon, colon_indentation) = i
-        .rb()
-        .then(type_record_field_head_colon, |head, _| head)
-        .expect("the field-head probe always succeeds");
-    has_colon && colon_indentation.is_none_or(|indentation| indentation > baseline)
-}
-
-pub(super) fn type_record_next_field(mut i: RewriteIn, item: &Item, baseline: usize) -> bool {
+pub(super) fn type_record_next_field_normalized(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     is_type_record_field_name(item)
-        && indentation_after_newline(item.leading_view()).is_none()
-        && type_record_field_head_after(i.rb(), baseline)
+        && item.leading_view().indentation_after_newline().is_none()
+        && type_record_field_head_after_normalized(i.rb(), baseline, item_origin, line_entry, fence)
 }
 
-fn retry_type_record_field(
+#[allow(clippy::too_many_arguments)]
+fn retry_type_record_field_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     caller_stops: Stops,
-) -> Result<Item, TailExit> {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            emit_missing(&mut i, LeadingTrivia::default());
+            return Err(complete(handoff(item), line_entry));
+        }
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            emit_missing(&mut i, LeadingTrivia::default());
+            return Err(complete(handoff(item), line_entry));
+        }
         if item.payload_view().is_eof() {
             i.state.finish_node();
-            return Err(type_record_missing_close(i, item));
+            return Err(complete(type_record_missing_close(i, item), line_entry));
         }
         if token_kind(&item) == Some(TokenKind::RBrace) && nested_depth == 0 {
             i.state.finish_node();
             item.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, item);
-            return Err(Ok(()));
+            return Err(complete(Ok(()), line_entry));
         }
         if token_kind(&item) == Some(TokenKind::Comma) && nested_depth == 0 {
             i.state.finish_node();
             item.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, item);
-            return type_record_after_comma(i, baseline, caller_stops);
+            return type_record_after_comma_normalized(
+                i,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
         if token_kind(&item) == Some(TokenKind::Colon)
             && nested_depth == 0
@@ -327,21 +561,27 @@ fn retry_type_record_field(
         {
             i.state.finish_node();
             item.emit_all_remaining_leading(&mut *i.state);
-            return Ok(item);
+            return Ok((item, item_origin, line_entry));
         }
-        if is_type_record_field_name(&item) && nested_depth == 0 {
-            if type_chain_trivia(item.leading_view(), baseline)
-                && type_record_field_head_after(i.rb(), baseline)
-            {
-                i.state.finish_node();
-                item.emit_all_remaining_leading(&mut *i.state);
-                return Ok(item);
-            }
+        if is_type_record_field_name(&item)
+            && nested_depth == 0
+            && type_chain_trivia(item.leading_view(), baseline)
+            && type_record_field_head_after_normalized(
+                i.rb(),
+                baseline,
+                item_origin,
+                line_entry,
+                fence,
+            )
+        {
+            i.state.finish_node();
+            item.emit_all_remaining_leading(&mut *i.state);
+            return Ok((item, item_origin, line_entry));
         }
         if nested_depth == 0 && is_type_caller_boundary(&item, caller_stops) {
             i.state.finish_node();
             emit_missing(&mut i, LeadingTrivia::default());
-            return Err(handoff(item));
+            return Err(complete(handoff(item), line_entry));
         }
         let was_nested = nested_depth != 0;
         match token_kind(&item) {
@@ -357,47 +597,65 @@ fn retry_type_record_field(
         }
         if nested_depth == 0 && !was_nested && is_type_mismatched_close(&item, TokenKind::RBrace) {
             i.state.finish_node();
-            return Err(type_record_missing_close(i, item));
+            return Err(complete(type_record_missing_close(i, item), line_entry));
         }
         if nested_depth == 0
             && !was_nested
             && is_type_implicit_boundary(baseline, item.leading_view())
         {
             i.state.finish_node();
-            return Err(handoff(item));
+            return Err(complete(handoff(item), line_entry));
         }
     }
 }
 
-fn retry_type_record_colon(
+#[allow(clippy::too_many_arguments)]
+fn retry_type_record_colon_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if token_kind(&item) == Some(TokenKind::Colon) {
             i.state.finish_node();
             emit_token_item(&mut i, item);
-            return type_record_rhs(i, baseline, outer_closes, caller_stops);
+            return type_record_rhs_normalized(
+                i,
+                baseline,
+                outer_closes,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
-        if !type_chain_trivia(item.leading_view(), baseline) || is_type_record_field_boundary(&item)
+        if !type_chain_trivia(item.leading_view(), baseline)
+            || is_type_record_field_boundary(&item)
+            || is_type_caller_boundary(&item, caller_stops)
         {
             i.state.finish_node();
-            return handoff(item);
-        }
-        if is_type_caller_boundary(&item, caller_stops) {
-            i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if is_type_nud(&item) {
             i.state.finish_node();
-            return type_expr_from_nud(
+            return type_expr_from_nud_normalized(
                 i,
                 item,
                 baseline,
@@ -406,40 +664,65 @@ fn retry_type_record_colon(
                 true,
                 outer_closes,
                 caller_stops,
+                TypeOuterBoundary::NONE,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
     }
 }
 
-fn type_record_rhs(
+#[allow(clippy::too_many_arguments)]
+fn type_record_rhs_normalized(
     mut i: RewriteIn,
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
-) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let mut rhs = type_nud_item_after_trivia(i.rb(), leading);
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (mut rhs, next_origin, next_line_entry) =
+        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+    if rhs.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(rhs), line_entry);
+    }
     if !type_chain_trivia(rhs.leading_view(), baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(rhs);
+        return complete(handoff(rhs), line_entry);
     }
     if is_type_record_field_boundary(&rhs) {
         rhs.emit_all_remaining_leading(&mut *i.state);
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(rhs);
+        return complete(handoff(rhs), line_entry);
     }
     if !is_type_nud(&rhs) {
         rhs.emit_all_remaining_leading(&mut *i.state);
-        rhs = retry_type_rhs(i.rb(), rhs, baseline, caller_stops);
+        (rhs, item_origin, line_entry) = retry_type_rhs_normalized(
+            i.rb(),
+            rhs,
+            baseline,
+            caller_stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
+        if rhs.payload_view().is_boundary() {
+            return complete(handoff(rhs), line_entry);
+        }
         if !type_chain_trivia(rhs.leading_view(), baseline)
             || is_type_caller_boundary(&rhs, caller_stops)
             || !is_type_nud(&rhs)
         {
-            return handoff(rhs);
+            return complete(handoff(rhs), line_entry);
         }
     }
     rhs.emit_all_remaining_leading(&mut *i.state);
-    type_expr_from_nud(
+    type_expr_from_nud_normalized(
         i,
         rhs,
         baseline,
@@ -448,77 +731,117 @@ fn type_record_rhs(
         true,
         outer_closes,
         caller_stops,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn type_record_after_comma(
+fn type_record_after_comma_normalized(
     mut i: RewriteIn,
     baseline: usize,
     caller_stops: Stops,
-) -> Result<Item, TailExit> {
-    let leading = scan_trivia(i.rb());
-    let mut next = type_item_after_trivia(i.rb(), leading);
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Result<(Item, usize, LineEntry), NormalizedExit> {
+    let (mut next, item_origin, line_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    if next.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Err(complete(handoff(next), line_entry));
+    }
     if token_kind(&next) == Some(TokenKind::RBrace) || is_type_record_field_start(&next) {
         next.emit_all_remaining_leading(&mut *i.state);
     }
     if token_kind(&next) == Some(TokenKind::RBrace) {
         emit_token_item(&mut i, next);
-        return Err(Ok(()));
+        return Err(complete(Ok(()), line_entry));
     }
     if is_type_caller_boundary(&next, caller_stops)
-        && !type_record_next_field(i.rb(), &next, baseline)
+        && !type_record_next_field_normalized(
+            i.rb(),
+            &next,
+            baseline,
+            item_origin,
+            line_entry,
+            fence,
+        )
     {
         emit_missing(&mut i, LeadingTrivia::default());
-        return Err(handoff(next));
+        return Err(complete(handoff(next), line_entry));
     }
     if next.payload_view().is_eof() || is_type_mismatched_close(&next, TokenKind::RBrace) {
         next = missing_type_item(i.rb(), next);
-        return Err(type_record_missing_close(i, next));
+        return Err(complete(type_record_missing_close(i, next), line_entry));
     }
-    Ok(next)
+    Ok((next, item_origin, line_entry))
 }
 
 fn type_record_missing_close(i: RewriteIn, item: Item) -> TailExit {
     missing_type_close(i, item)
 }
 
-fn retry_type_record_separator(
+#[allow(clippy::too_many_arguments)]
+fn retry_type_record_separator_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
     caller_stops: Stops,
-) -> Result<Item, TailExit> {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            emit_missing(&mut i, LeadingTrivia::default());
+            return Err(complete(handoff(item), line_entry));
+        }
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
+        (item, item_origin, line_entry) =
+            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            emit_missing(&mut i, LeadingTrivia::default());
+            return Err(complete(handoff(item), line_entry));
+        }
         if item.payload_view().is_eof() {
             i.state.finish_node();
-            return Err(type_record_missing_close(i, item));
+            return Err(complete(type_record_missing_close(i, item), line_entry));
         }
         if token_kind(&item) == Some(TokenKind::RBrace) && nested_depth == 0 {
             i.state.finish_node();
             item.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, item);
-            return Err(Ok(()));
+            return Err(complete(Ok(()), line_entry));
         }
         if token_kind(&item) == Some(TokenKind::Comma) && nested_depth == 0 {
             i.state.finish_node();
             item.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, item);
-            return type_record_after_comma(i, baseline, caller_stops);
+            return type_record_after_comma_normalized(
+                i,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
         if is_type_record_field_start(&item) && nested_depth == 0 {
             i.state.finish_node();
             item.emit_all_remaining_leading(&mut *i.state);
-            return Ok(item);
+            return Ok((item, item_origin, line_entry));
         }
         if nested_depth == 0 && is_type_caller_boundary(&item, caller_stops) {
             i.state.finish_node();
             emit_missing(&mut i, LeadingTrivia::default());
-            return Err(handoff(item));
+            return Err(complete(handoff(item), line_entry));
         }
         let was_nested = nested_depth != 0;
         match token_kind(&item) {
@@ -534,57 +857,166 @@ fn retry_type_record_separator(
         }
         if nested_depth == 0 && !was_nested && is_type_mismatched_close(&item, TokenKind::RBrace) {
             i.state.finish_node();
-            return Err(type_record_missing_close(i, item));
+            return Err(complete(type_record_missing_close(i, item), line_entry));
         }
         if nested_depth == 0
             && !was_nested
             && is_type_implicit_boundary(baseline, item.leading_view())
         {
             i.state.finish_node();
-            return Err(handoff(item));
+            return Err(complete(handoff(item), line_entry));
         }
     }
 }
 
-fn type_record_successor(
+fn type_record_successor_normalized(
     mut i: RewriteIn,
-    exit: TailExit,
+    exit: NormalizedExit,
     baseline: usize,
     caller_stops: Stops,
-) -> Result<Item, TailExit> {
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Result<(Item, LineEntry), NormalizedExit> {
     match exit {
-        Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::Comma) => {
-            emit_token_item(&mut i, next);
-            type_record_after_comma(i, baseline, caller_stops)
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
+            if next.payload_view().is_boundary() =>
+        {
+            emit_missing(&mut i, LeadingTrivia::default());
+            Err(complete(handoff(next), line_entry))
         }
-        Err(Either::Left(next)) if token_kind(&next) == Some(TokenKind::RBrace) => {
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
+            if token_kind(&next) == Some(TokenKind::Comma) =>
+        {
             emit_token_item(&mut i, next);
-            Err(Ok(()))
+            match type_record_after_comma_normalized(
+                i,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            ) {
+                Ok((next, _, line_entry)) => Ok((next, line_entry)),
+                Err(exit) => Err(exit),
+            }
         }
-        Err(Either::Left(mut next)) if type_record_next_field(i.rb(), &next, baseline) => {
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
+            if token_kind(&next) == Some(TokenKind::RBrace) =>
+        {
+            emit_token_item(&mut i, next);
+            Err(complete(Ok(()), line_entry))
+        }
+        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
+            if type_record_next_field_normalized(
+                i.rb(),
+                &next,
+                baseline,
+                item_origin,
+                line_entry,
+                fence,
+            ) =>
+        {
             next.emit_all_remaining_leading(&mut *i.state);
             emit_missing(&mut i, LeadingTrivia::default());
-            Ok(next)
+            Ok((next, line_entry))
         }
-        Err(Either::Left(next)) if is_type_caller_boundary(&next, caller_stops) => {
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
+            if is_type_caller_boundary(&next, caller_stops) =>
+        {
             emit_missing(&mut i, LeadingTrivia::default());
-            Err(handoff(next))
+            Err(complete(handoff(next), line_entry))
         }
-        Err(Either::Left(mut next)) if token_kind(&next) == Some(TokenKind::Semicolon) => {
+        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
+            if token_kind(&next) == Some(TokenKind::Semicolon) =>
+        {
             next.emit_all_remaining_leading(&mut *i.state);
-            retry_type_record_separator(i, next, baseline, caller_stops)
+            match retry_type_record_separator_normalized(
+                i,
+                next,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+            ) {
+                Ok((next, _, line_entry)) => Ok((next, line_entry)),
+                Err(exit) => Err(exit),
+            }
         }
-        Err(Either::Left(next)) if is_type_mismatched_close(&next, TokenKind::RBrace) => {
-            Err(type_record_missing_close(i, next))
+        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
+            if is_type_mismatched_close(&next, TokenKind::RBrace) =>
+        {
+            Err(complete(type_record_missing_close(i, next), line_entry))
         }
-        Err(Either::Right(end)) => Err(type_record_missing_close(i, end.item)),
-        Err(Either::Left(mut next))
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            Err(complete(type_record_missing_close(i, end.item), line_entry))
+        }
+        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
             if is_type_record_field_start(&next)
                 && is_type_implicit_boundary(baseline, next.leading_view()) =>
         {
             next.emit_all_remaining_leading(&mut *i.state);
-            Ok(next)
+            Ok((next, line_entry))
         }
-        exit => Err(exit),
+        NormalizedExit::Complete(exit, line_entry) => Err(complete(exit, line_entry)),
+        _ => unreachable!("normalized Type owners do not defer"),
     }
+}
+
+fn observe_type_item<'source>(
+    mut i: LexIn,
+    source: &'source str,
+    source_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<(
+    &'source str,
+    usize,
+    LineEntry,
+    Option<TokenKind>,
+    Option<usize>,
+)> {
+    let TriviaObservation::Visible(visible) =
+        observe_fenced_trivia(source, source_origin, line_entry, fence)
+    else {
+        return None;
+    };
+    if visible.source.is_empty() {
+        return None;
+    }
+
+    let payload_origin = source_origin + source.len() - visible.source.len();
+    let mut suffix = visible.source;
+    let accepted = scan_type_nud_payload(
+        chasa_recover::In::new(&mut suffix, i.recovery(), ()),
+        visible.present,
+        payload_origin,
+        fence,
+    )?;
+    let kind = match accepted.payload {
+        CurrentPayload::Token(token) => Some(token.kind),
+        CurrentPayload::Operator(_) => None,
+    };
+    let next_origin = payload_origin + visible.source.len() - suffix.len();
+    Some((
+        suffix,
+        next_origin,
+        accepted.next_line_entry,
+        kind,
+        visible.indentation,
+    ))
+}
+
+fn is_type_record_probe_boundary(kind: Option<TokenKind>) -> bool {
+    matches!(
+        kind,
+        Some(
+            TokenKind::Identifier
+                | TokenKind::Comma
+                | TokenKind::Semicolon
+                | TokenKind::RBrace
+                | TokenKind::RParen
+                | TokenKind::RBracket
+        )
+    )
 }

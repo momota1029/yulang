@@ -353,6 +353,199 @@ Yumark bridgeは未接続である。focused lexical（38）、dynamic operator�
 `cargo check -p yu-syntax`はgreen。次はN2のPratt core/tails/delimited owner移行であり、N2 ledger
 を起票するまでproduction grammarへのfence branchを増やさない。L5/L6/L7/public integrationは未完である。
 
+2026-09-06: N2のowner移行に先立ち、`current_item`へexpression NUD/LED/path segmentのraw payload
+vocabularyを接続した。dynamic operator/followerはpayloadのimmediate originとfence capabilityを直接受け、
+boundaryを観測してもcurrent operator以外を消費しない。ordinary EOFはpayload callbackではなく
+`current_item`自身が構築するよう補完した。既存ordinary scannerも同じraw vocabularyを使い、重複した
+token/operator分岐は残していない。これはproduction fence branchをまだ増やさないため、N2 frontier
+ledgerは未起票のままである。focused lexical 40件、operator 11件、owner 23件と
+`cargo check -p yu-syntax`はgreen。このpreparationに続くPratt migrationで同じseamへ直結し、旧
+`L5aExit` / `CompleteItemSite` callback層を削除した。
+
+### N2 temporary normalized-owner frontier ledger
+
+以下の各行だけが`None`で既存direct-rewrite childへ入り、`Some(fence)`でそのchildを開く前に
+`Deferred(Item, LineEntry)`を返してよい。全行でfenced controlは同じItem、同じsuffix、同じ
+`LineEntry`、Rowan/recovery無変更を検査する。
+
+canonical statement normalizationにより旧case/if deeper body、braced、with、colonの五行は削除した。
+Binding/For normalizationによりその二行も削除し、active frontierは以下の四行だけである。visibility headを
+一括Deferredせず、pureなfence-aware admission observerが実在するdirect childを選んだ後、`Statement`
+nodeを開く前だけDeferredを生成する。
+`my role A`、`my impl A`など未選択headはordinary同様にhandoffする。
+
+| normalized owner / exact call site | ordinary direct child | exact Deferred propagation | controls | deletion gate |
+| --- | --- | --- | --- | --- |
+| `statement::canonical_statement_normalized` のselected Struct dispatch | `struct_decl::struct_declaration` | canonical statement → direct/indented/braced sequence → case/if・braced Pratt・colon/with・direct caller | bare/visibility head、braced/indented/inline-with、exact Item/suffix/`LineEntry`、zero child effect | Struct declaration normalized owner |
+| 同 Mod dispatch | `mod_decl::mod_declaration` | 同上 | 同上＋ordinary inline Mod body parity | Mod declaration normalized owner |
+| 同 Use dispatch | `use_decl::use_declaration` | 同上 | 同上 | Use declaration normalized owner |
+| 同 Type dispatch | `type_decl::type_declaration` | 同上 | 同上 | Type declaration normalized owner |
+
+全四行でclose/transition/EOF、boundary-first、未emit leading、Error/Missing/separatorなしを検査する。
+braced ownerがboundaryへ達した場合だけ既存のmandatory missing closeを所有し、indented required first slotも
+既存mandatory Missingだけを所有して、同じboundary Itemを上へ返す。新しいstate/context/cursor/wrapper、
+replay、token bufferは導入しない。
+
+2026-09-06: N2 Pratt coreをnormalized grammar bodyへ移行した。`expr`/required operand/infix・prefix・suffix/
+ML argument/tailは、call-local `item_origin`、`LineEntry`、`Option<&FenceBoundary>`を直接引き回し、child
+return後のlive suffix pointer/length差だけでoriginを同期する。旧`L5aExit`、`CompleteItemSite`、forwarded
+acquisition callbackと、tails/delimitedに残っていたL5a専用duplicate owner群は削除した。fenced tailは
+close/transitionを同じfrontier-zero boundary Itemで返し、accepted prefix/infix RHSを同一cell内で構築する。
+上表のunmigrated direct childだけがopen frontierである。fenced controls 10件、ordinary operator 11件、
+tails 11件、owners 23件、case-like 12件、if 8件と`cargo check -p yu-syntax`はgreen。次はfixed
+call/index/dot/path tailとshared delimited ownerをnormalizeし、対応する二つのledger rowを閉じる。
+M2 phase-boundaryの`cargo test -p yu-syntax --lib`も926 passed / 2 ignoredでgreen。
+commit/pushはsandboxが`.git/index.lock`作成をread-onlyで拒否しているため未実施で、worktree差分は保持中。
+
+2026-09-06: fixed call/index/dot/path tails、tuple/record projection、record-spread recoveryとshared
+delimited ownerを同じnormalized grammar bodyへ移行し、`append_nud`の`(`と`tail`の
+`(`/`[`/`.`/`::`にあった二つのfrontier rowを削除した。ordinary/fencedで別ownerやcallbackを持たず、
+delimiter先頭のbaselineだけ既存のpure fenced-trivia observerで取得し、以後は各Itemを
+`current_item`から一回ずつ受け取る。子ownerおよび隣接operator-shaped recovery後のoriginはlive suffix差で
+同期する。fenced controls 13件はparenthesized、`x[a b(c)]`、field/path、tuple/record projection、
+record spread、複数行quote-prefix streaming、unclosed delimiterのmandatory Missingとexact boundary
+handoffを覆う。ordinary owners 23件、tails 11件、operators 11件と`cargo check -p yu-syntax`もgreen。
+直前のPratt phase-boundaryで全926件を実行済みのため、このdeltaではbroad suiteを反復していない。
+独立spec auditは上記fixed-tail/shared-delimiter coneを指摘ゼロで承認し、Pattern/Type、残るstatement
+owner、multiline literal、terminal Yumark adapterとfull-package regressionを未監査範囲として明記した。
+次はN2順序どおりPatternとTypeExpressionのraw payload seamおよびnormalized owner移行へ進む。
+
+2026-09-06: Pattern/TypeExpressionのraw NUD/successor payload seamを追加し、既存ordinary scannerも
+同じ関数へ集約した。Typeのoptional entryだけはtransaction内で正常NUD token kindへ絞り、mandatory/
+recovery NUDは従来どおりunknown、separator、closeを含むtotal Item vocabularyを保持する。Patternの
+primary-only `:identifier`とactive arrow stopも従来の順序のまま。production grammar branchや
+Deferred siteはまだ増えていないため、frontier ledgerは不変。fenced lexical control、ordinary Pattern
+12件、TypeExpression 49件と`cargo check -p yu-syntax`はgreen。次は依存先であるTypeExpression ownerを
+先にnormalizeし、その後Patternの型注釈を含むconeを移行する。
+
+2026-09-06: TypeExpressionのoptional entry、bare primary、path、spaced application、arrowと各retryを
+同じnormalized grammar bodyへ移行した。各ItemはType専用raw vocabularyから一回だけ受け取り、再帰child
+return後はlive suffix差だけでoriginを同期する。boundaryはtail/retryより先に扱い、path segment / arrow RHS
+のmandatory slotはboundaryをemitせずMissing一つだけを所有する。置換された旧path/application/arrow bodyは
+削除し、未移行compound ownerだけを上表の4 frontier rowへ起票した。ordinary TypeExpression 49件、fenced
+normalized 19件、`cargo check -p yu-syntax`、format/diff checkはgreen。次はshared Type delimiter coneを
+normalizeし、そのrowを閉じる。独立spec auditの唯一の指摘は、Deferred controlがexact suffixと
+recovery-zero-effectを十分に証明していない点だった。全head/tail controlへ完全一致とError/Missing不在を
+追加し、delta re-reviewで指摘ゼロのclosureを得た。
+
+2026-09-06: shared Type delimiter coneをnormalized grammar bodyへ移行し、先頭BracketRow、parenthesized
+group、隣接Type call、postfix bracket-arrow row、effect rowと共有delimiter/retryから五つのDeferred creatorを
+削除した。delimiter内で未移行record/forall/polymorphic-variantを得た場合だけ、Itemのleadingをemitせず既存
+frontierへ伝播する。独立spec auditで、balanced malformed head suffixがfence boundaryを越え得る点と、
+delimiter内の未起票Deferred生成点を発見した。前者はaccepted raw Itemとpending boundary Itemを分ける
+専用algebraへ移し、各physical lineのouter byte前にjudgeする。後者は新規生成を三つのprimary dispatch armの
+`defer_type_primary`だけへ集約し、delimiter内の五つの取得点はeffect前のrouting/propagationだけにした。
+ordinary TypeExpression 49件、fenced normalized 26件、`cargo check -p yu-syntax`、format/diff checkはgreen。
+同じ査読者のdelta reviewは両blockerのclosureを承認した。次はnamed Type record normalizationへ進む。
+
+2026-09-06: named Type recordのfield / separator / malformed-name / colon / RHS / successor
+recovery coneを一つのordinary/fenced normalized grammar bodyへ移行し、`{`のDeferred frontier rowを
+削除した。全logical successor ItemはTypeのnormalized current-Item vocabularyから取得し、recursive recordは
+その場で解析、未移行`for`/`:{`だけはleadingをemitする前に同じItem・`LineEntry`で伝播する。二つの
+source-only probeは局所pure observerとして各physical lineのouter byte前にfenceをjudgeする。実装中の
+fenced coordinate controlがchild後のsuccessor acquisitionに残った古いoriginを発見し、record loopの
+live-suffix同期を所有箇所で修復した。独立spec auditの証拠不足二群には、missing-colon / malformed-colon
+から残存frontierへ入る4例と、multi-item malformed-name probeがtransition外のcolonを読まない例を追加し、
+production変更なしのdelta reviewでapprovedとなった。ordinary TypeExpression 49件、fenced normalized
+31件、`cargo check -p yu-syntax`、format/diff checkはgreen。新しいretained state・carrier・allocationや
+追加traversalはなく既存linear retry/probe bound内なので性能計測は使っていない。次はforall normalization。
+
+2026-09-06: forall Typeのhead / binder / first・continuation separator / colon・body / malformed
+phase recovery coneを一つのordinary/fenced normalized grammar bodyへ移行し、`for`のDeferred frontier rowを
+削除した。全Item取得はTypeのnormalized current-Item vocabularyを通り、nested `for`はその場で再帰解析、
+実際にPV childへ入る四つの経路だけが残存`:{` frontierをleading emit前に伝播する。malformed-binder
+source probeは局所pure observerとして各physical lineのouter byte前にfenceをjudgeする。独立spec auditは、
+`for :{A}`を旧/newともmalformed first-binder、`for, :{A}`をlocal comma recovery後の通常handoffと確認し、
+PV childを開かないためDeferred control不要と裁定した。valid/nested streaming、CRLFを含む8 phase boundary、
+transition probe、四つのPV propagation controlを含むfenced normalized 34件とordinary TypeExpression 49件、
+`cargo check -p yu-syntax`、format/diff checkはgreenで、査読はapproved。retained state・carrier・allocation・
+replay・追加grammar traversalはなく、malformed spanの既存linear source probeだけなので性能計測は使っていない。
+次はpolymorphic-variant normalizationでType frontier ledgerを空にする。
+
+2026-09-06: polymorphic-variant Typeのadjacent open / tag position / separator / payload / wrong-kind・
+malformed tag / malformed payload coneを一つのordinary/fenced normalized grammar bodyへ移行し、最後の`:{`
+Deferred frontier rowを削除した。adjacent `{`を含む全logical ItemはType normalized current-Item vocabularyから
+取得し、nested PVもその場で再帰解析する。これに伴い`defer_type_primary`、`is_deferred_type_primary`、
+`dispatch_deferred_type_primary`とdelimiter/record/forallのfrontier-only分岐を全削除し、Type modules内の
+`NormalizedExit::Deferred`参照もゼロにした。新しいCRLF reduced-quote controlがmalformed payload child後の
+local matcherにあるboundary-first抜けを発見し、boundaryをpayload classification/emissionより先に返すよう
+所有箇所で修復した。独立spec auditはTagPosition Missing、local/outer separator・close、node close、origin
+同期、Type-wide cleanupをapproved。PV-focused 5 tests / 19 casesを含むfenced normalized 35件、ordinary
+TypeExpression 49件、`cargo check -p yu-syntax`、format/diff checkはgreen。retained state・buffer・allocation・
+replay・再走査はなくsingle-pass Item取得を維持するため性能計測は使っていない。TypeExpression normalized
+owner migrationは完了し、N2の次はPattern normalizationへ進む。
+
+2026-09-06: Patternのprimary / recovery / alias / alternation / type annotation / parenthesized・list・
+record delimiter / record-default expression coneを一つのordinary/fenced normalized grammar bodyへ移行した。
+全logical Item取得はPatternのnormalized current-Item vocabularyを通り、ordinary adapterは同じbodyへ
+`None`を渡す。Pattern内で`NormalizedExit::Deferred`を新規生成する箇所はゼロで、record defaultから
+case/if/braced expression ownerへ入る既存三経路だけがchildのDeferredをeffectなしで伝播する。
+PatternCompletionは既存のnon-monotone assignment/merge契約を局所scalar outputのまま保持し、新しい
+context/stateへ移していない。mandatory Type annotationはnormalized TypeExpression entryへ直接接続した。
+独立specification/regression auditはいずれもapproved。fenced normalized 41件、ordinary Pattern 12件、
+TypeExpression 49件、for-statement 12件、binding 7件、case-like 12件、format/diff checkはgreen。
+retained state・buffer・allocation・replay・追加traversalはないため性能計測は使っていない。
+Pattern normalized-owner migrationは完了した。次のcase-like / if owner normalizationに先立ち、両ownerの
+deeper bodyから未移行canonical statement blockへ入る二つの有限frontier rowを上表へ起票した。現在は既存の
+case/catch、if、braced、with、colon五行と合わせて七行であり、次sliceは先頭二行を削除してdeeper-body二行だけを
+N2 canonical statement normalizationまで残す。
+
+2026-09-06: case/catchとifのhead / scrutinee・condition / label / Pattern arm・handler / guard / arrow・
+inline body / elsif・else / Catch brace・separator / recovery coneを一つずつのordinary/fenced normalized grammar
+bodyへ移行し、`driver::append_nud`のcase/catch・if Deferred二行を削除した。全logical Item取得は
+current-Item、normalized expression、normalized Pattern vocabularyを通る。deeper canonical statement bodyだけは
+上表の二行で同じItem・suffix・`LineEntry`をeffectなしでDeferredし、その他の新規frontierはない。
+独立specification/regression auditで、外側elsif/else stopを継承したnested caseがboundaryをcontextual-word判定へ
+渡してpanicし得る点と、Catch handler直後のboundaryがmandatory arrow/body recoveryを飛ばす点を発見した。
+boundary-first short circuitとordinary同等のmandatory-slot routingで修復し、delta reviewでclosureを得た。
+braced Catchの追加evidenceを含むnormalized 48件、ordinary case-like 12件、if 8件、Pattern 12件、
+`cargo check -p yu-syntax`、format/diff checkはgreen。broad suiteと性能計測は反復していない。
+frontier ledgerはdeeper case-like body、deeper if body、braced、with、colonの五行となり、次はcanonical statement
+normalizationでこれらをstatement/declaration frontierへ集約する。active-prefix quote後の字下げ分割だけは
+Authoritative文書間で一意でなく、ユーザ判断待ちの独立blockerとしてコードを変更していない。
+
+2026-09-06: ユーザ承認によりactive-prefix body rowの最終`>`後を、close probeでは全horizontal run、
+accepted body prefixでは最大一byteだけ所有する二extentへ確定し、
+`notes/design/2026-09-06-yumark-prefix-trailing-whitespace-amendment.md`へAuthoritative追補として記録・実装した。
+`QuotePrefixFacts`はfull observed/close-probe extentを保持し、`AcceptedQuotePrefix::content`だけが短いbody
+coordinateを運ぶ。current-Item、block comment/balanced suffix、literal、ruleの全consumerはそのcoordinateで
+split/consumeし、operator observerは残余horizontal bytesが既存trivia経路でindentationになるようline-startを
+維持する。Yumark 19件、lexical 43件、literal 26件、rule 21件、normalized 48件、
+`cargo check -p yu-syntax`、format/diff checkはgreen。独立specification/regression auditはコード欠陥ゼロで
+approved。追加state・allocation・replay・traversalはないため性能計測は使っていない。quote字下げblockerは
+解消し、次はcanonical statement normalizationへ進む。
+
+2026-09-06: canonical statement entry / dispatch / indented・braced sequence / separator・retryと、
+braced NUD、colon、with tail、case/if deeper bodyを一つのordinary/fenced normalized grammar bodyへ移行した。
+旧五frontierとrequired-RHS/retryに残っていたLBraceの旧Deferred分岐を削除し、`NormalizedExit::Deferred`の
+生成は`canonical_statement_normalized`が選択済みStruct/Mod/Use/Type/bare For/Binding childへ入る前の
+一箇所だけになった。visibility admissionはpureなfence-aware observerを共有し、unsupported headはordinary
+同様にhandoffする。初期braced/indented boundaryはleadingをemitせず、owner固有のmandatory Missingだけを
+生成して同じItem/`LineEntry`を返す。独立specification/regression auditで旧LBrace frontier、初期braced
+boundaryの先行emit、dead duplicate admission helperを発見・修復し、delta reviewでclosureを得た。
+normalized 56件、tails 11件、関連ordinary owner 77件、`cargo check -p yu-syntax`、format/diff checkはgreen。
+broad suiteと性能計測は反復していない。frontier ledgerは上表の宣言六familyだけとなり、次は各declaration
+ownerのnormalized migrationへ進める。
+
+2026-09-06: selected Binding ownerのtarget Pattern、`=`、inline RHS/retry、strictly-deeper statement body、
+wrong-indent handoffを一つのordinary/fenced normalized bodyへ移行し、Binding frontier一行を削除した。
+全logical acquisitionは既存current-Item raw vocabularyを使い、Pattern/expression/statement childはnormalized
+entryへ直接接続する。ordinary-only parser bodyやadapterを残さず、child後のoriginはlive suffixで同期する。
+独立specification/regression auditはsemantic/ownershipをapprovedし、no-callerの旧admission/body adapter二つを
+発見したため削除した。active-prefix CRLFのnested Binding controlも追加しdelta reviewでclosureを得た。
+ordinary Binding 7件、normalized 61件、`cargo check -p yu-syntax`、format/diff checkはgreen。broad suiteと
+性能計測は反復していない。active frontierはStruct/Mod/Use/Type/Forの五行で、次はtransactional label probeを
+持つFor ownerをnormalizeする。
+
+2026-09-06: bare For ownerのoptional label / Pattern / exact `in` / iterable / colon inline・deeper body /
+brace body / malformed recoveryを一つのordinary/fenced normalized bodyへ移行し、For frontier一行を削除した。
+optional labelはunit-state lexical transaction内でlabelとsuccessor Itemを仮取得し、accepted boolだけを残して
+必ずinput/Recoverをrollbackする。仮Itemはdropし、成功時もlabelだけを正式に再取得して、post-label gapは
+Pattern ownerが取得する。全childはnormalized entryへ直接接続し、For内のDeferredは残るdeclaration childからの
+伝播だけである。独立specification auditはapproved。regression auditのaccepted-label active-prefix CRLF証拠を
+追加し、delta reviewでclosureを得た。ordinary For 12件、normalized 66件、`cargo check -p yu-syntax`、
+format/diff checkはgreen。broad suiteと性能計測は反復していない。active frontierはStruct/Mod/Use/Typeの四行。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

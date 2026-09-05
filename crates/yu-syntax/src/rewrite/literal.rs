@@ -934,7 +934,8 @@ fn literal_line_transition(
             content,
         } => {
             assert_eq!(prefix.facts.extent.start, coordinate);
-            assert_eq!(prefix.facts.extent.end, content);
+            assert_eq!(prefix.content, content);
+            assert!(content <= prefix.facts.extent.end);
             let content = accepted_prefix_content(i.remainder(), coordinate, &prefix);
             if starts_new_item(content) {
                 LiteralLineTransition::Structural(Some(prefix))
@@ -967,11 +968,9 @@ fn consume_accepted_prefix(
     foreign: &mut Option<Vec<ForeignSplit>>,
 ) {
     let prefix_length = prefix
-        .facts
-        .extent
-        .end
+        .content
         .checked_sub(prefix.facts.extent.start)
-        .expect("accepted prefix extent must be ordered");
+        .expect("accepted body coordinate follows its prefix start");
     PendingFragments::record(
         foreign,
         ForeignSplit::quote_prefix(prefix.facts.extent.start, prefix_length),
@@ -986,7 +985,7 @@ fn accepted_prefix_content<'source>(
     prefix: &AcceptedQuotePrefix,
 ) -> &'source str {
     assert_eq!(prefix.facts.extent.start, coordinate);
-    assert_eq!(prefix.facts.extent.end, prefix.content);
+    assert!(prefix.content <= prefix.facts.extent.end);
     let prefix_length = prefix
         .content
         .checked_sub(coordinate)

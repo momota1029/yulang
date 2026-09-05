@@ -7,6 +7,7 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
+    current_item::LineEntry,
     driver::{TailExit, handoff, indentation_after_newline, is_active_stop_lex, token_kind},
     emit::{emit_leading_trivia, emit_missing},
     item::{Item, LeadingTrivia, Token, TokenKind},
@@ -14,7 +15,8 @@ use super::{
         scan_identifier, scan_statement_item, scan_trivia, source_identifier,
         statement_item_after_trivia,
     },
-    operator::source_after_trivia,
+    operator::{TriviaObservation, observe_fenced_trivia, source_after_trivia},
+    yumark::FenceBoundary,
 };
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -45,6 +47,15 @@ type UseResult<T = ()> = Result<T, Item>;
 /// authoritative immediately; visibility-prefixed `use` stays contextual
 /// until its first use-tree starter is visible.
 pub(super) fn use_declaration_selected(i: RewriteIn, item: &Item, _baseline: usize) -> bool {
+    use_declaration_selected_normalized(i, item, 0, None)
+}
+
+pub(super) fn use_declaration_selected_normalized(
+    i: RewriteIn,
+    item: &Item,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("use") {
         return true;
     }
@@ -52,10 +63,47 @@ pub(super) fn use_declaration_selected(i: RewriteIn, item: &Item, _baseline: usi
         return false;
     }
     i.map(
-        |lex: LexIn| Some(prefixed_use_candidate(lex.remainder())),
+        |lex: LexIn| {
+            Some(prefixed_use_candidate_normalized(
+                lex.remainder(),
+                item_origin,
+                fence,
+            ))
+        },
         |selected| selected,
     )
     .unwrap_or(false)
+}
+
+fn prefixed_use_candidate_normalized(
+    source: &str,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    let TriviaObservation::Visible(first) =
+        observe_fenced_trivia(source, item_origin, LineEntry::InLine, fence)
+    else {
+        return false;
+    };
+    if !first.present || first.indentation.is_some() {
+        return false;
+    }
+    let Some((head, after_head)) = source_identifier(first.source) else {
+        return false;
+    };
+    if head != "use" {
+        return false;
+    }
+    let consumed = source.len() - after_head.len();
+    let Some(after_head_origin) = item_origin.checked_add(consumed) else {
+        return false;
+    };
+    let TriviaObservation::Visible(target) =
+        observe_fenced_trivia(after_head, after_head_origin, LineEntry::InLine, fence)
+    else {
+        return false;
+    };
+    target.present && target.indentation.is_none() && use_tree_starter(target.source)
 }
 
 pub(super) fn use_declaration(
@@ -887,21 +935,6 @@ where
         |observed| observed,
     )
     .expect("a source observation is total")
-}
-
-fn prefixed_use_candidate(source: &str) -> bool {
-    let (source, gap, indentation) = source_after_trivia(source);
-    if !gap || indentation.is_some() {
-        return false;
-    }
-    let Some((head, after_head)) = source_identifier(source) else {
-        return false;
-    };
-    if head != "use" {
-        return false;
-    }
-    let (target, gap, indentation) = source_after_trivia(after_head);
-    gap && indentation.is_none() && use_tree_starter(target)
 }
 
 fn item_word(item: &Item) -> Option<&str> {

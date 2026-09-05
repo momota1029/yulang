@@ -6,21 +6,22 @@ use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
     super::{
+        current_item::LineEntry,
         driver::{
-            Either, MlMode, TailExit, delimited_baseline, handoff, implicit_delimited_newline,
-            is_nud_item, token_kind,
+            Either, MlMode, NormalizedExit, advanced_origin, complete, delimited_baseline,
+            expression_item, handoff, implicit_delimited_newline, is_nud_item, suffix_marker,
+            token_kind,
         },
-        emit::{emit_error_item, emit_leading_trivia, emit_missing, emit_token_item},
+        emit::{emit_error_item, emit_missing, emit_token_item},
         item::{Item, LeadingTrivia, LeadingView, TokenKind},
-        lexer::{
-            pattern_item_after_trivia, pattern_nud_item_after_trivia, scan_trivia,
-            tail_item_after_trivia,
-        },
+        operator::stops_for,
+        statement::StatementLineHandoff,
+        yumark::FenceBoundary,
     },
-    super::{operator::stops_for, statement::StatementLineHandoff},
     PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
     PATTERN_STOP_RPAREN, PatternCompletion, PatternPrecedence, PatternStops, RewriteIn,
-    pattern_from_item_recording, scan_pattern_tail,
+    pattern_from_item_recording_normalized, pattern_item_normalized, pattern_nud_item_normalized,
+    scan_pattern_tail_normalized,
 };
 
 #[derive(Clone, Copy)]
@@ -57,6 +58,7 @@ impl Owner {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn parenthesized_pattern(
     i: RewriteIn,
     open: Item,
@@ -65,7 +67,10 @@ pub(super) fn parenthesized_pattern(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     pattern_delimited(
         i,
         open,
@@ -75,9 +80,13 @@ pub(super) fn parenthesized_pattern(
         outer_stops,
         line_handoff,
         completion,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn list_pattern(
     i: RewriteIn,
     open: Item,
@@ -86,7 +95,10 @@ pub(super) fn list_pattern(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     pattern_delimited(
         i,
         open,
@@ -96,9 +108,13 @@ pub(super) fn list_pattern(
         outer_stops,
         line_handoff,
         completion,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn record_pattern(
     i: RewriteIn,
     open: Item,
@@ -107,7 +123,10 @@ pub(super) fn record_pattern(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     pattern_delimited(
         i,
         open,
@@ -117,9 +136,13 @@ pub(super) fn record_pattern(
         outer_stops,
         line_handoff,
         completion,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn pattern_delimited(
     mut i: RewriteIn,
     open: Item,
@@ -129,18 +152,28 @@ fn pattern_delimited(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(owner.node().into());
     emit_token_item(&mut i, open);
-    let opening = scan_trivia(i.rb());
-    let baseline = delimited_baseline(incoming_baseline, opening.view());
-    emit_leading_trivia(&mut i, &opening);
     let local_stops = owner.local_stops();
-    let mut item = pattern_nud_item_after_trivia(i.rb(), LeadingTrivia::default(), local_stops);
+    let (mut item, mut item_origin, mut line_entry) =
+        pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+    let baseline = delimited_baseline(incoming_baseline, item.leading_view());
+    if !item.payload_view().is_boundary() {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     let mut expect_item = true;
     let mut contents_completion = PatternCompletion::Complete;
 
     loop {
+        if item.payload_view().is_boundary() {
+            *completion = PatternCompletion::Incomplete;
+            return missing_close(i, item, line_entry);
+        }
+
         if expect_item {
             if token_kind(&item) == Some(owner.close()) {
                 emit_token_item(&mut i, item);
@@ -153,6 +186,9 @@ fn pattern_delimited(
                     contents_completion,
                     line_handoff,
                     completion,
+                    item_origin,
+                    line_entry,
+                    fence,
                 );
             }
             if matches!(owner, Owner::Record) && token_kind(&item) == Some(TokenKind::Comma) {
@@ -160,28 +196,47 @@ fn pattern_delimited(
                 emit_missing(&mut i, LeadingTrivia::default());
                 contents_completion = PatternCompletion::Incomplete;
                 emit_token_item(&mut i, item);
-                item = scan_pattern_nud_successor(i.rb(), local_stops);
+                (item, item_origin, line_entry) = pattern_nud_item_normalized(
+                    i.rb(),
+                    item_origin,
+                    line_entry,
+                    fence,
+                    local_stops,
+                );
                 continue;
             }
             if token_kind(&item).is_none() {
                 *completion = PatternCompletion::Incomplete;
-                return missing_close(i, item);
+                return missing_close(i, item, line_entry);
             }
             if is_other_close(owner, &item) {
                 emit_error_item(&mut i, item);
-                item = scan_pattern_nud_successor(i.rb(), local_stops);
+                (item, item_origin, line_entry) = pattern_nud_item_normalized(
+                    i.rb(),
+                    item_origin,
+                    line_entry,
+                    fence,
+                    local_stops,
+                );
                 continue;
             }
             if matches!(owner, Owner::Record) && !is_item_start(owner, &item) {
                 emit_error_item(&mut i, item);
-                item = scan_pattern_nud_successor(i.rb(), local_stops);
+                (item, item_origin, line_entry) = pattern_nud_item_normalized(
+                    i.rb(),
+                    item_origin,
+                    line_entry,
+                    fence,
+                    local_stops,
+                );
                 continue;
             }
             let item_baseline = delimited_baseline(baseline, item.leading_view());
             item.emit_all_remaining_leading(&mut *i.state);
             let mut item_completion = PatternCompletion::Incomplete;
+            let entry = suffix_marker(i.rb());
             let exit = match owner {
-                Owner::Parenthesized => pattern_from_item_recording(
+                Owner::Parenthesized => pattern_from_item_recording_normalized(
                     i.rb(),
                     item,
                     PatternPrecedence::Lowest,
@@ -189,6 +244,9 @@ fn pattern_delimited(
                     local_stops,
                     line_handoff,
                     &mut item_completion,
+                    item_origin,
+                    line_entry,
+                    fence,
                 ),
                 Owner::List => list_item(
                     i.rb(),
@@ -196,6 +254,9 @@ fn pattern_delimited(
                     item_baseline,
                     line_handoff,
                     &mut item_completion,
+                    item_origin,
+                    line_entry,
+                    fence,
                 ),
                 Owner::Record => record_item(
                     i.rb(),
@@ -203,24 +264,44 @@ fn pattern_delimited(
                     item_baseline,
                     line_handoff,
                     &mut item_completion,
+                    item_origin,
+                    line_entry,
+                    fence,
                 ),
             };
+            item_origin = advanced_origin(item_origin, entry, i.rb());
             merge_completion(&mut contents_completion, item_completion);
-            item = match exit {
-                Ok(()) => scan_pattern_nud_successor(i.rb(), local_stops),
-                Err(Either::Left(next)) => next,
-                Err(Either::Right(end)) => {
-                    *completion = PatternCompletion::Incomplete;
-                    return missing_close(i, end.item);
+            match exit {
+                NormalizedExit::Complete(Ok(()), next_line_entry) => {
+                    (item, item_origin, line_entry) = pattern_nud_item_normalized(
+                        i.rb(),
+                        item_origin,
+                        next_line_entry,
+                        fence,
+                        local_stops,
+                    );
                 }
-            };
+                NormalizedExit::Complete(Err(Either::Left(next)), next_line_entry) => {
+                    item = next;
+                    line_entry = next_line_entry;
+                }
+                NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
+                    *completion = PatternCompletion::Incomplete;
+                    return missing_close(i, end.item, next_line_entry);
+                }
+                deferred @ NormalizedExit::Deferred(_, _) => {
+                    i.state.finish_node();
+                    return deferred;
+                }
+            }
             expect_item = false;
             continue;
         }
 
         if token_kind(&item) == Some(TokenKind::Comma) {
             emit_token_item(&mut i, item);
-            item = scan_pattern_nud_successor(i.rb(), local_stops);
+            (item, item_origin, line_entry) =
+                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
             expect_item = true;
             continue;
         }
@@ -235,35 +316,40 @@ fn pattern_delimited(
                 contents_completion,
                 line_handoff,
                 completion,
+                item_origin,
+                line_entry,
+                fence,
             );
         }
         if token_kind(&item).is_none() {
             *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item);
+            return missing_close(i, item, line_entry);
         }
         if is_other_close(owner, &item) {
             emit_error_item(&mut i, item);
-            item = scan_pattern_nud_successor(i.rb(), local_stops);
+            (item, item_origin, line_entry) =
+                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
             continue;
         }
         if is_item_start(owner, &item) {
-            if implicit_delimited_newline(baseline, item.leading_view()) {
-                item.emit_all_remaining_leading(&mut *i.state);
-            } else {
-                item.emit_all_remaining_leading(&mut *i.state);
+            let separated_by_layout = implicit_delimited_newline(baseline, item.leading_view());
+            item.emit_all_remaining_leading(&mut *i.state);
+            if !separated_by_layout {
                 emit_missing(&mut i, LeadingTrivia::default());
             }
             expect_item = true;
             continue;
         }
         emit_error_item(&mut i, item);
-        item = scan_pattern_nud_successor(i.rb(), local_stops);
+        (item, item_origin, line_entry) =
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
         if matches!(owner, Owner::Record) {
             expect_item = true;
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn finish_delimited_pattern(
     i: RewriteIn,
     minimum: PatternPrecedence,
@@ -272,15 +358,21 @@ fn finish_delimited_pattern(
     contents_completion: PatternCompletion,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let mut tail_completion = PatternCompletion::Complete;
-    let exit = scan_pattern_tail(
+    let exit = scan_pattern_tail_normalized(
         i,
         minimum,
         incoming_baseline,
         outer_stops,
         line_handoff,
         &mut tail_completion,
+        item_origin,
+        line_entry,
+        fence,
     );
     *completion = contents_completion;
     merge_completion(completion, tail_completion);
@@ -293,15 +385,19 @@ fn merge_completion(completion: &mut PatternCompletion, nested: PatternCompletio
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn list_item(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     if token_kind(&item) != Some(TokenKind::DotDot) {
-        return pattern_from_item_recording(
+        return pattern_from_item_recording_normalized(
             i,
             item,
             PatternPrecedence::Lowest,
@@ -309,16 +405,25 @@ fn list_item(
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
             line_handoff,
             completion,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     i.state.start_node(SyntaxKind::ListPatternSpreadItem.into());
     emit_token_item(&mut i, item);
-    let leading = scan_trivia(i.rb());
-    let mut rhs =
-        pattern_nud_item_after_trivia(i.rb(), leading, PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET);
+    let (mut rhs, item_origin, line_entry) = pattern_nud_item_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+    );
     let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
-    rhs.emit_all_remaining_leading(&mut *i.state);
-    let exit = pattern_from_item_recording(
+    if !rhs.payload_view().is_boundary() {
+        rhs.emit_all_remaining_leading(&mut *i.state);
+    }
+    let exit = pattern_from_item_recording_normalized(
         i.rb(),
         rhs,
         PatternPrecedence::Lowest,
@@ -326,31 +431,41 @@ fn list_item(
         PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
         line_handoff,
         completion,
+        item_origin,
+        line_entry,
+        fence,
     );
     i.state.finish_node();
     exit
 }
 
+#[allow(clippy::too_many_arguments)]
 fn record_item(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     if token_kind(&item) == Some(TokenKind::DotDot) {
         i.state
             .start_node(SyntaxKind::RecordPatternSpreadItem.into());
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        let mut rhs = pattern_nud_item_after_trivia(
+        let (mut rhs, item_origin, line_entry) = pattern_nud_item_normalized(
             i.rb(),
-            leading,
+            item_origin,
+            line_entry,
+            fence,
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
         );
         let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
-        rhs.emit_all_remaining_leading(&mut *i.state);
-        let exit = pattern_from_item_recording(
+        if !rhs.payload_view().is_boundary() {
+            rhs.emit_all_remaining_leading(&mut *i.state);
+        }
+        let exit = pattern_from_item_recording_normalized(
             i.rb(),
             rhs,
             PatternPrecedence::Lowest,
@@ -358,6 +473,9 @@ fn record_item(
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
             line_handoff,
             completion,
+            item_origin,
+            line_entry,
+            fence,
         );
         i.state.finish_node();
         return exit;
@@ -367,22 +485,28 @@ fn record_item(
         let mut item = item;
         item.emit_all_remaining_leading(&mut *i.state);
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
 
     *completion = PatternCompletion::Complete;
     i.state.start_node(SyntaxKind::RecordPatternField.into());
     emit_token_item(&mut i, item);
-    let leading = scan_trivia(i.rb());
     let record_stops = PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE | PATTERN_STOP_EQUALS;
-    let item = pattern_item_after_trivia(i.rb(), leading, record_stops);
-    let exit = if !has_newline(item.leading_view()) && token_kind(&item) == Some(TokenKind::Colon) {
+    let (item, mut item_origin, line_entry) =
+        pattern_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops);
+    let exit = if !item.payload_view().is_boundary()
+        && !has_newline(item.leading_view())
+        && token_kind(&item) == Some(TokenKind::Colon)
+    {
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        let mut nested = pattern_nud_item_after_trivia(i.rb(), leading, record_stops);
+        let (mut nested, nested_origin, nested_line_entry) =
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops);
         let nested_baseline = delimited_baseline(baseline, nested.leading_view());
-        nested.emit_all_remaining_leading(&mut *i.state);
-        let exit = pattern_from_item_recording(
+        if !nested.payload_view().is_boundary() {
+            nested.emit_all_remaining_leading(&mut *i.state);
+        }
+        let entry = suffix_marker(i.rb());
+        let exit = pattern_from_item_recording_normalized(
             i.rb(),
             nested,
             PatternPrecedence::Lowest,
@@ -390,75 +514,128 @@ fn record_item(
             record_stops,
             line_handoff,
             completion,
+            nested_origin,
+            nested_line_entry,
+            fence,
         );
-        record_default_after_pattern(i.rb(), exit, baseline, line_handoff)
-    } else if !has_newline(item.leading_view()) && token_kind(&item) == Some(TokenKind::Equals) {
-        record_default_after_equals(i.rb(), item, baseline, line_handoff)
+        item_origin = advanced_origin(nested_origin, entry, i.rb());
+        record_default_after_pattern(i.rb(), exit, baseline, line_handoff, item_origin, fence)
+    } else if !item.payload_view().is_boundary()
+        && !has_newline(item.leading_view())
+        && token_kind(&item) == Some(TokenKind::Equals)
+    {
+        record_default_after_equals(
+            i.rb(),
+            item,
+            baseline,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        )
     } else {
-        handoff(item)
+        complete(handoff(item), line_entry)
     };
     i.state.finish_node();
     exit
 }
 
+#[allow(clippy::too_many_arguments)]
 fn record_default_after_pattern(
     mut i: RewriteIn,
-    exit: TailExit,
+    exit: NormalizedExit,
     baseline: usize,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let item = match exit {
-        Ok(()) => scan_pattern_nud_successor(
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) = match exit {
+        NormalizedExit::Complete(Ok(()), line_entry) => pattern_nud_item_normalized(
             i.rb(),
+            item_origin,
+            line_entry,
+            fence,
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE | PATTERN_STOP_EQUALS,
         ),
-        Err(Either::Left(item)) => item,
-        Err(Either::Right(end)) => return Err(Either::Right(end)),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
+            (item, item_origin, line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            return complete(Err(Either::Right(end)), line_entry);
+        }
+        deferred @ NormalizedExit::Deferred(_, _) => return deferred,
     };
-    if !has_newline(item.leading_view()) && token_kind(&item) == Some(TokenKind::Equals) {
-        record_default_after_equals(i, item, baseline, line_handoff)
+    if !item.payload_view().is_boundary()
+        && !has_newline(item.leading_view())
+        && token_kind(&item) == Some(TokenKind::Equals)
+    {
+        record_default_after_equals(
+            i,
+            item,
+            baseline,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        )
     } else {
-        handoff(item)
+        complete(handoff(item), line_entry)
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn record_default_after_equals(
     mut i: RewriteIn,
     equals: Item,
     baseline: usize,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     emit_token_item(&mut i, equals);
-    let leading = scan_trivia(i.rb());
-    let mut rhs = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, 0);
+    let expression_stops = stops_for(TokenKind::RBrace);
+    let (mut rhs, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        expression_stops,
+    );
+    if rhs.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(rhs), line_entry);
+    }
     if is_nud_item(&rhs) {
         let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
         rhs.emit_all_remaining_leading(&mut *i.state);
-        return super::super::driver::expr_from_nud(
+        return super::super::driver::expr_from_nud_normalized(
             i,
             rhs,
             None,
             rhs_baseline,
-            stops_for(TokenKind::RBrace),
+            expression_stops,
             MlMode::All,
             line_handoff,
+            item_origin,
+            line_entry,
+            fence,
         );
     }
     rhs.emit_all_remaining_leading(&mut *i.state);
     emit_missing(&mut i, LeadingTrivia::default());
-    handoff(rhs)
+    complete(handoff(rhs), line_entry)
 }
 
-fn scan_pattern_nud_successor(mut i: RewriteIn, stops: PatternStops) -> Item {
-    let leading = scan_trivia(i.rb());
-    pattern_nud_item_after_trivia(i, leading, stops)
-}
-
-fn missing_close(mut i: RewriteIn, mut item: Item) -> TailExit {
-    item.emit_all_remaining_leading(&mut *i.state);
+fn missing_close(mut i: RewriteIn, mut item: Item, line_entry: LineEntry) -> NormalizedExit {
+    if !item.payload_view().is_boundary() {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     emit_missing(&mut i, LeadingTrivia::default());
     i.state.finish_node();
-    handoff(item)
+    complete(handoff(item), line_entry)
 }
 
 fn is_item_start(owner: Owner, item: &Item) -> bool {
