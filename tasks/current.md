@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-09-05（Item emission-ownership frontier amendmentのN0a–N0b完了、N0cは既知L5a修復待ち）→
+更新: 2026-09-05（Item emission-ownership frontier amendmentのN0a–N0b完了、N0c certificationへ）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
 2026-08-29（standalone `error`宣言 Gate 6完了、Gate 7へ→Gate 7〜10も完了、10 gate完走→
@@ -29,15 +29,15 @@ Type-attached `impl` addendumも全6 gate完走）
   Yumarkへはunchanged pending factsだけを返す。layoutは`Item` 104→112 bytes（許可済み
   frontier一つ）、`LeadingTrivia` 16→16 bytes。N0a focused controls（prefix placement、
   partial→remaining→payload、Rule repeated newline、terminal close/transition/EOF、
-  accepted construction failure）はgreen。full lexicalの唯一の失敗
-  `decimal_integer_core_keeps_its_direct_tail_chain`は`tails.rs`の既知L5a
-  `defer_distinct_owner` assertionでありN0aから分離する。full `cargo test -p yu-syntax`は
-  N0cまで保留。N0b inventoryも完了: compatibility caller、`with_fragments`、raw Item
+  accepted construction failure）はgreen。N0b inventoryも完了: compatibility caller、`with_fragments`、raw Item
   leading/payload mutation、detached Item-owned emitter、manual fragment walkerはいずれもzero。
   `emit_leading_trivia`の42 call / 15 filesはopaque ordinary `LeadingTrivia`だけを受け、
   physical prefix/carrierを表現できないためN0b対象ではない。したがってN0bはmigration batch
-  なしで完了し、次はN0c physical-prefix certificationとなる。ただしfull suiteを必要とする
-  N0cは既知L5a lexical assertionの修復または明確な隔離まで開始しない。
+  なしで完了した。既知L5a failure
+  `decimal_integer_core_keeps_its_direct_tail_chain`も、ordinary fixed ownerが誤ってL5a
+  `*_with` ownerへ入ったことを原因として修復済み。ordinaryは既存scanner/recovery ownerへ、
+  L5aはcomplete-Item/`Deferred` ownerへ分岐する。次はN0c physical-prefix certificationの
+  一回だけのfull `cargo test -p yu-syntax`。
 - tuple・演算子CST・colon application・if/elsif/else・brace statement block・pattern文法・
   case/catch・list/record pattern・call/field/path/ML-application・generic-expression
   WithBodyTail・canonical Statementのbinding/use拡張・`mod`宣言、が実装・push済み。

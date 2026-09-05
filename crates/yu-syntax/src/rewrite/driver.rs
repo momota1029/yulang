@@ -271,17 +271,31 @@ where
                 acquire,
             )
         }
-        Some(TokenKind::LParen) => super::delimited::parenthesized_nud_with(
-            i.rb(),
-            nud,
-            threshold,
-            baseline,
-            stops,
-            ml_mode,
-            line_handoff,
-            defer_distinct_owner,
-            acquire,
-        ),
+        Some(TokenKind::LParen) => {
+            if defer_distinct_owner {
+                super::delimited::parenthesized_nud_with(
+                    i.rb(),
+                    nud,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                    true,
+                    acquire,
+                )
+            } else {
+                L5aExit::Complete(parenthesized_nud(
+                    i.rb(),
+                    nud,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                ))
+            }
+        }
         Some(TokenKind::LBrace) => L5aExit::Complete(braced_nud(
             i.rb(),
             nud,
@@ -671,60 +685,108 @@ where
     if item.leading_view().is_grammar_empty() {
         match token_kind(&item) {
             Some(TokenKind::LParen) => {
-                return super::tails::call_tail_with(
-                    i.rb(),
-                    item,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                    defer_distinct_owner,
-                    acquire,
-                );
+                return if defer_distinct_owner {
+                    super::tails::call_tail_with(
+                        i.rb(),
+                        item,
+                        threshold,
+                        baseline,
+                        stops,
+                        ml_mode,
+                        line_handoff,
+                        true,
+                        acquire,
+                    )
+                } else {
+                    L5aExit::Complete(call_tail(
+                        i,
+                        item,
+                        threshold,
+                        baseline,
+                        stops,
+                        ml_mode,
+                        line_handoff,
+                    ))
+                };
             }
             Some(TokenKind::LBracket) => {
-                return super::tails::index_tail_with(
-                    i.rb(),
-                    item,
-                    threshold,
-                    baseline,
-                    stops,
-                    ml_mode,
-                    line_handoff,
-                    defer_distinct_owner,
-                    acquire,
-                );
+                return if defer_distinct_owner {
+                    super::tails::index_tail_with(
+                        i.rb(),
+                        item,
+                        threshold,
+                        baseline,
+                        stops,
+                        ml_mode,
+                        line_handoff,
+                        true,
+                        acquire,
+                    )
+                } else {
+                    L5aExit::Complete(index_tail(
+                        i,
+                        item,
+                        threshold,
+                        baseline,
+                        stops,
+                        ml_mode,
+                        line_handoff,
+                    ))
+                };
             }
             _ => {}
         }
     }
     match token_kind(&item) {
         Some(TokenKind::Dot) => {
-            return super::tails::dot_tail_with(
-                i.rb(),
-                item,
-                threshold,
-                baseline,
-                stops,
-                ml_mode,
-                line_handoff,
-                defer_distinct_owner,
-                acquire,
-            );
+            return if defer_distinct_owner {
+                super::tails::dot_tail_with(
+                    i.rb(),
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                    true,
+                    acquire,
+                )
+            } else {
+                L5aExit::Complete(dot_tail(
+                    i,
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                ))
+            };
         }
         Some(TokenKind::PathSeparator) => {
-            return super::tails::path_tail_with(
-                i.rb(),
-                item,
-                threshold,
-                baseline,
-                stops,
-                ml_mode,
-                line_handoff,
-                defer_distinct_owner,
-                acquire,
-            );
+            return if defer_distinct_owner {
+                super::tails::path_tail_with(
+                    i.rb(),
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                    true,
+                    acquire,
+                )
+            } else {
+                L5aExit::Complete(path_tail(
+                    i,
+                    item,
+                    threshold,
+                    baseline,
+                    stops,
+                    ml_mode,
+                    line_handoff,
+                ))
+            };
         }
         Some(TokenKind::Operator) if is_led_operator(&item) => {
             return operator_tail_with(
