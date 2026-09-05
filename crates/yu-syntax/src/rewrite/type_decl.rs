@@ -6,9 +6,10 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
+    derives::{derives_clause, is_word},
     driver::{
-        TailExit, handoff, implicit_delimited_newline, indentation_after_newline, is_active_stop,
-        token_kind,
+        Either, TailExit, handoff, implicit_delimited_newline, indentation_after_newline,
+        is_active_stop, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     if_expr::{ActiveStatementCompanion, active_statement_companion},
@@ -20,7 +21,10 @@ use super::{
     },
     operator::{STOP_SEMICOLON, STOP_WITH, source_after_trivia},
     statement::StatementLineHandoff,
-    type_expr::{is_type_caller_boundary, required_type_expr_with_caller_stops},
+    type_expr::{
+        TypeOuterBoundary, is_type_caller_boundary,
+        required_type_expr_with_caller_stops_and_outer_boundary,
+    },
 };
 
 type NameResult = Result<Option<Item>, Item>;
@@ -134,9 +138,48 @@ fn definition(
     stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    let already_scanned = pending.is_some();
-    let mut item = pending.unwrap_or_else(|| definition_item(i.rb()));
-    let companion = (!already_scanned)
+    let name_was_incomplete = pending.is_some();
+    let item = pending.unwrap_or_else(|| definition_item(i.rb()));
+    definition_from_item(
+        i,
+        item,
+        name_was_incomplete,
+        false,
+        baseline,
+        stops,
+        line_handoff,
+    )
+}
+
+fn definition_from_item(
+    mut i: RewriteIn,
+    mut item: Item,
+    name_was_incomplete: bool,
+    header_clause_seen: bool,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
+    if !name_was_incomplete
+        && derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff)
+    {
+        let next = derives_clause(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            line_handoff,
+            header_role_boundary(),
+        );
+        return definition_from_item(i, next, false, true, baseline, stops, line_handoff);
+    }
+    if header_clause_seen
+        && (is_word(&item, "with") || is_word(&item, "impl"))
+        && attachment_gap_continues(i.rb(), &item, baseline, stops, line_handoff)
+    {
+        return handoff(item);
+    }
+    let companion = (!name_was_incomplete)
         .then(|| active_statement_companion(i.rb(), &item, baseline, stops))
         .flatten();
     match type_form(
@@ -146,11 +189,11 @@ fn definition(
         stops,
         line_handoff,
         companion,
-        already_scanned,
+        name_was_incomplete,
     ) {
         TypeDeclarationForm::Equality => {
             emit_token_item(&mut i, item);
-            return rhs(i, baseline, stops);
+            return rhs(i, baseline, stops, line_handoff);
         }
         TypeDeclarationForm::Nominal(boundary) => {
             if boundary.type_owns_leading() {
@@ -160,10 +203,10 @@ fn definition(
         }
         TypeDeclarationForm::EqualityRecovery => {}
     }
-    if !already_scanned && gtype_item_allowed(&item, baseline) {
+    if !name_was_incomplete && gtype_item_allowed(&item, baseline) {
         emit_item_leading(&mut i, &mut item);
     }
-    if !already_scanned && !gtype_item_allowed(&item, baseline) {
+    if !name_was_incomplete && !gtype_item_allowed(&item, baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
@@ -173,7 +216,7 @@ fn definition(
     }
     if type_starter(&item) {
         emit_missing(&mut i, std::mem::take(&mut item.leading));
-        return rhs_item(i, item, baseline, stops);
+        return rhs_item(i, item, baseline, stops, line_handoff);
     }
 
     i.state.start_node(SyntaxKind::Error.into());
@@ -191,32 +234,94 @@ fn definition(
             emit_item_leading(&mut i, &mut item);
             i.state.finish_node();
             emit_token_item(&mut i, item);
-            return rhs(i, baseline, stops);
+            return rhs(i, baseline, stops, line_handoff);
         }
         if type_starter(&item) {
             emit_item_leading(&mut i, &mut item);
             i.state.finish_node();
-            return rhs_item(i, item, baseline, stops);
+            return rhs_item(i, item, baseline, stops, line_handoff);
         }
     }
 }
 
-fn rhs(mut i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
+fn rhs(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut primary = type_nud_item_after_trivia(i.rb(), leading);
     let caller_stops = stops | STOP_SEMICOLON | STOP_WITH;
-    if !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
+    if !is_word(&primary, "derives") && !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
         emit_item_leading(&mut i, &mut primary);
     }
-    required_type_expr_with_caller_stops(i, primary, baseline, caller_stops)
+    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary(
+        i.rb(),
+        primary,
+        baseline,
+        caller_stops,
+        TypeOuterBoundary::DERIVES,
+    );
+    trailing_after_type(i, exit, baseline, caller_stops, line_handoff)
 }
 
-fn rhs_item(mut i: RewriteIn, mut primary: Item, baseline: usize, stops: Stops) -> TailExit {
+fn rhs_item(
+    mut i: RewriteIn,
+    mut primary: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
     let caller_stops = stops | STOP_SEMICOLON | STOP_WITH;
-    if !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
+    if !is_word(&primary, "derives") && !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
         emit_item_leading(&mut i, &mut primary);
     }
-    required_type_expr_with_caller_stops(i, primary, baseline, caller_stops)
+    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary(
+        i.rb(),
+        primary,
+        baseline,
+        caller_stops,
+        TypeOuterBoundary::DERIVES,
+    );
+    trailing_after_type(i, exit, baseline, caller_stops, line_handoff)
+}
+
+fn trailing_after_type(
+    i: RewriteIn,
+    exit: TailExit,
+    baseline: usize,
+    caller_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
+    match exit {
+        Ok(()) => Ok(()),
+        Err(Either::Left(item)) => {
+            trailing_from_item(i, item, baseline, caller_stops, line_handoff)
+        }
+        Err(Either::Right(end)) => Err(Either::Right(end)),
+    }
+}
+
+fn trailing_from_item(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> TailExit {
+    if !derives_attachment_start(i.rb(), &item, baseline, caller_stops, line_handoff) {
+        return handoff(item);
+    }
+    let next = derives_clause(
+        i.rb(),
+        item,
+        baseline,
+        caller_stops & !STOP_WITH,
+        line_handoff,
+        trailing_role_boundary(),
+    );
+    trailing_from_item(i, next, baseline, caller_stops, line_handoff)
 }
 
 fn definition_item(mut i: RewriteIn) -> Item {
@@ -306,6 +411,45 @@ fn rhs_gap_is_outer_owned(item: &Item, baseline: usize, caller_stops: Stops) -> 
     implicit_delimited_newline(baseline, &item.leading)
         || (is_type_caller_boundary(item, caller_stops)
             && token_kind(item) != Some(TokenKind::Semicolon))
+}
+
+fn derives_attachment_start(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> bool {
+    is_word(item, "derives")
+        && attachment_gap_continues(i.rb(), item, baseline, stops, line_handoff)
+}
+
+fn attachment_gap_continues(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> bool {
+    !is_active_stop(i.rb(), item, stops)
+        && active_statement_companion(i.rb(), item, baseline, stops).is_none()
+        && indentation_after_newline(&item.leading).is_none_or(|indentation| {
+            matches!(line_handoff, StatementLineHandoff::OrdinaryLayout) && indentation > baseline
+        })
+}
+
+fn header_role_boundary() -> TypeOuterBoundary {
+    TypeOuterBoundary::DERIVES
+        .with(TypeOuterBoundary::VIA)
+        .with(TypeOuterBoundary::WITH)
+        .with(TypeOuterBoundary::IMPL)
+        .with(TypeOuterBoundary::EQUALS)
+}
+
+fn trailing_role_boundary() -> TypeOuterBoundary {
+    TypeOuterBoundary::DERIVES
+        .with(TypeOuterBoundary::VIA)
+        .with(TypeOuterBoundary::WITH)
 }
 
 fn header_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {

@@ -33,6 +33,31 @@ pub(super) enum TypeApplyBoundary {
     StructNamedFields,
 }
 
+/// Contextual boundaries owned by precisely one logical TypeExpression.
+///
+/// This is deliberately an immediate value rather than a `Stops` bit: a
+/// nested TypeExpression receives `NONE`, while a same-episode tail/retry
+/// retains the caller's value.
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+pub(super) struct TypeOuterBoundary(u8);
+
+impl TypeOuterBoundary {
+    pub(super) const NONE: Self = Self(0);
+    pub(super) const DERIVES: Self = Self(1 << 0);
+    pub(super) const VIA: Self = Self(1 << 1);
+    pub(super) const WITH: Self = Self(1 << 2);
+    pub(super) const IMPL: Self = Self(1 << 3);
+    pub(super) const EQUALS: Self = Self(1 << 4);
+
+    pub(super) const fn with(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+}
+
 pub(super) fn type_expr(mut i: RewriteIn) -> Option<TailExit> {
     let primary = i.token(scan_type_nud_item)?;
     Some(type_expr_from_nud(i, primary, 0, false, None, false, 0, 0))
@@ -73,7 +98,35 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion(
     baseline: usize,
     caller_stops: Stops,
 ) -> (TailExit, bool) {
-    required_type_expr_inner_with_completion(i, primary, baseline, None, false, 0, caller_stops)
+    required_type_expr_inner_with_completion(
+        i,
+        primary,
+        baseline,
+        None,
+        false,
+        0,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+    )
+}
+
+pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+) -> (TailExit, bool) {
+    required_type_expr_inner_with_completion(
+        i,
+        primary,
+        baseline,
+        None,
+        false,
+        0,
+        caller_stops,
+        outer_boundary,
+    )
 }
 
 fn required_type_expr_inner(
@@ -93,6 +146,7 @@ fn required_type_expr_inner(
         outer_separators,
         outer_closes,
         caller_stops,
+        TypeOuterBoundary::NONE,
     )
     .0
 }
@@ -105,8 +159,9 @@ fn required_type_expr_inner_with_completion(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> (TailExit, bool) {
-    if is_required_type_boundary(&primary, baseline, caller_stops) {
+    if is_required_type_boundary(&primary, baseline, caller_stops, outer_boundary) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
@@ -114,7 +169,7 @@ fn required_type_expr_inner_with_completion(
     }
     if is_type_nud(&primary) {
         return (
-            type_expr_from_nud(
+            type_expr_from_nud_with_outer_boundary(
                 i,
                 primary,
                 baseline,
@@ -123,6 +178,7 @@ fn required_type_expr_inner_with_completion(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             ),
             true,
         );
@@ -133,14 +189,14 @@ fn required_type_expr_inner_with_completion(
         emit_token_item(&mut i, primary);
         let leading = scan_trivia(i.rb());
         primary = type_nud_item_after_trivia(i.rb(), leading);
-        if is_required_type_boundary(&primary, baseline, caller_stops) {
+        if is_required_type_boundary(&primary, baseline, caller_stops, outer_boundary) {
             i.state.finish_node();
             return (handoff(primary), false);
         }
         if is_type_nud(&primary) {
             i.state.finish_node();
             return (
-                type_expr_from_nud(
+                type_expr_from_nud_with_outer_boundary(
                     i,
                     primary,
                     baseline,
@@ -149,6 +205,7 @@ fn required_type_expr_inner_with_completion(
                     outer_separators,
                     outer_closes,
                     caller_stops,
+                    outer_boundary,
                 ),
                 true,
             );
@@ -157,6 +214,29 @@ fn required_type_expr_inner_with_completion(
 }
 
 fn type_expr_from_nud(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    type_ml: bool,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+) -> TailExit {
+    type_expr_from_nud_with_outer_boundary(
+        i,
+        primary,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+    )
+}
+
+fn type_expr_from_nud_with_outer_boundary(
     mut i: RewriteIn,
     primary: Item,
     baseline: usize,
@@ -165,6 +245,7 @@ fn type_expr_from_nud(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     if token_kind(&primary) == Some(TokenKind::LBracket) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
@@ -177,6 +258,7 @@ fn type_expr_from_nud(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         );
         i.state.finish_node();
         return exit;
@@ -190,6 +272,7 @@ fn type_expr_from_nud(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
     )
 }
 
@@ -202,6 +285,7 @@ fn type_expr_from_primary(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeExpression.into());
     let exit = type_expr_from_primary_started(
@@ -213,6 +297,7 @@ fn type_expr_from_primary(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
     );
     i.state.finish_node();
     exit
@@ -227,6 +312,7 @@ fn type_expr_from_primary_started(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     match token_kind(&primary) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Integer) => {
@@ -239,6 +325,7 @@ fn type_expr_from_primary_started(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             )
         }
         Some(TokenKind::LParen) => type_group(
@@ -250,6 +337,7 @@ fn type_expr_from_primary_started(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         Some(TokenKind::LBrace) => type_record(
             i.rb(),
@@ -260,6 +348,7 @@ fn type_expr_from_primary_started(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         Some(TokenKind::Forall) => type_forall(
             i.rb(),
@@ -269,6 +358,7 @@ fn type_expr_from_primary_started(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         Some(TokenKind::EffectRowApostrophe) => type_effect_row(
             i.rb(),
@@ -279,6 +369,7 @@ fn type_expr_from_primary_started(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         Some(TokenKind::PolymorphicVariantColon) => type_polymorphic_variant(
             i.rb(),
@@ -289,6 +380,7 @@ fn type_expr_from_primary_started(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     }
@@ -302,6 +394,7 @@ fn scan_type_tail(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let item = type_item_after_trivia(i.rb(), leading);
@@ -314,6 +407,7 @@ fn scan_type_tail(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
     )
 }
 
@@ -326,11 +420,13 @@ fn type_tail(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     if !type_chain_trivia(&item.leading, baseline) {
         return handoff(item);
     }
-    if is_type_caller_boundary(&item, caller_stops) {
+    if is_type_caller_boundary(&item, caller_stops) || is_type_outer_boundary(&item, outer_boundary)
+    {
         return handoff(item);
     }
     if type_ml && !item.leading.0.is_empty() {
@@ -358,6 +454,7 @@ fn type_tail(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             );
         }
         Some(TokenKind::PathSeparator) => {
@@ -370,6 +467,7 @@ fn type_tail(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             );
         }
         Some(TokenKind::LBracket) => {
@@ -381,6 +479,7 @@ fn type_tail(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             );
         }
         _ => {}
@@ -403,6 +502,7 @@ fn type_tail(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         );
     }
     handoff(item)
@@ -417,6 +517,7 @@ fn type_leading_bracket_row(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     let exit = type_bracket_row(i.rb(), open, baseline, outer_closes, caller_stops);
     let Ok(()) = exit else {
@@ -431,6 +532,7 @@ fn type_leading_bracket_row(
     loop {
         if !type_chain_trivia(&head.leading, baseline)
             || is_type_caller_boundary(&head, caller_stops)
+            || is_type_outer_boundary(&head, outer_boundary)
         {
             emit_missing(&mut i, LeadingTrivia::default());
             return handoff(head);
@@ -447,6 +549,7 @@ fn type_leading_bracket_row(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
@@ -472,6 +575,7 @@ fn type_leading_bracket_row(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         );
     }
 }
@@ -503,6 +607,7 @@ fn retry_leading_bracket_row_head_error(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -512,6 +617,7 @@ fn retry_leading_bracket_row_head_error(
         if !type_chain_trivia(&head.leading, baseline)
             || is_type_rhs_boundary(&head)
             || is_type_caller_boundary(&head, caller_stops)
+            || is_type_outer_boundary(&head, outer_boundary)
         {
             i.state.finish_node();
             return handoff(head);
@@ -529,6 +635,7 @@ fn retry_leading_bracket_row_head_error(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
@@ -546,6 +653,7 @@ fn type_bracket_arrow_tail(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     let leading = std::mem::take(&mut open.leading);
     emit_leading_trivia(&mut i, &leading);
@@ -559,6 +667,7 @@ fn type_bracket_arrow_tail(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         Err(Either::Right(end)) => {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -598,10 +707,13 @@ fn type_bracket_arrow_after_row(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut arrow = type_nud_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&arrow.leading, baseline) || is_type_caller_boundary(&arrow, caller_stops)
+    if !type_chain_trivia(&arrow.leading, baseline)
+        || is_type_caller_boundary(&arrow, caller_stops)
+        || is_type_outer_boundary(&arrow, outer_boundary)
     {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(arrow);
@@ -647,6 +759,7 @@ fn type_group(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedTypeGroup.into());
@@ -668,6 +781,7 @@ fn type_group(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
         exit,
     )
 }
@@ -681,6 +795,7 @@ fn type_call_tail(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeCallTail.into());
     emit_token_item(&mut i, open);
@@ -701,6 +816,7 @@ fn type_call_tail(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
         exit,
     )
 }
@@ -734,11 +850,27 @@ fn type_path_tail(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypePathTail.into());
     emit_token_item(&mut i, separator);
     let trivia = scan_trivia(i.rb());
     let mut segment = type_item_after_trivia(i.rb(), trivia);
+    if is_type_outer_boundary(&segment, outer_boundary) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        i.state.finish_node();
+        return type_tail(
+            i,
+            segment,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+        );
+    }
     if !type_chain_trivia(&segment.leading, baseline) || is_type_path_boundary(&segment) {
         let leading = std::mem::take(&mut segment.leading);
         emit_missing(&mut i, leading);
@@ -752,11 +884,14 @@ fn type_path_tail(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         );
     }
     if !is_type_path_segment(&segment) {
-        segment = retry_type_path_segment(i.rb(), segment, baseline, caller_stops);
-        if is_type_caller_boundary(&segment, caller_stops) {
+        segment = retry_type_path_segment(i.rb(), segment, baseline, caller_stops, outer_boundary);
+        if is_type_caller_boundary(&segment, caller_stops)
+            || is_type_outer_boundary(&segment, outer_boundary)
+        {
             i.state.finish_node();
             return type_tail(
                 i,
@@ -767,6 +902,7 @@ fn type_path_tail(
                 outer_separators,
                 outer_closes,
                 caller_stops,
+                outer_boundary,
             );
         }
     }
@@ -781,6 +917,7 @@ fn type_path_tail(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         );
     }
     emit_token_item(&mut i, segment);
@@ -793,6 +930,7 @@ fn type_path_tail(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
     )
 }
 
@@ -801,6 +939,7 @@ fn retry_type_path_segment(
     mut item: Item,
     baseline: usize,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> Item {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -808,6 +947,7 @@ fn retry_type_path_segment(
         let leading = scan_trivia(i.rb());
         item = type_item_after_trivia(i.rb(), leading);
         if is_type_caller_boundary(&item, caller_stops)
+            || is_type_outer_boundary(&item, outer_boundary)
             || is_type_path_segment(&item)
             || !type_chain_trivia(&item.leading, baseline)
             || is_type_path_boundary(&item)
@@ -826,6 +966,7 @@ fn type_apply_argument(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeApplyArgument.into());
     let boundary = std::mem::take(&mut argument.leading);
@@ -849,6 +990,7 @@ fn type_apply_argument(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
         exit,
     )
 }
@@ -943,6 +1085,7 @@ fn continue_type_tail(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
     exit: TailExit,
 ) -> TailExit {
     match exit {
@@ -954,6 +1097,7 @@ fn continue_type_tail(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         Err(Either::Left(item)) => type_tail(
             i,
@@ -964,6 +1108,7 @@ fn continue_type_tail(
             outer_separators,
             outer_closes,
             caller_stops,
+            outer_boundary,
         ),
         Err(Either::Right(end)) => Err(Either::Right(end)),
     }
@@ -1041,11 +1186,17 @@ fn is_type_rhs_boundary(item: &Item) -> bool {
         )
 }
 
-fn is_required_type_boundary(item: &Item, baseline: usize, caller_stops: Stops) -> bool {
+fn is_required_type_boundary(
+    item: &Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+) -> bool {
     !type_chain_trivia(&item.leading, baseline)
         || is_type_rhs_boundary(item)
         || token_kind(item) == Some(TokenKind::Equals)
         || is_type_caller_boundary(item, caller_stops)
+        || is_type_outer_boundary(item, outer_boundary)
 }
 
 fn is_type_record_field_boundary(item: &Item) -> bool {
@@ -1097,6 +1248,25 @@ pub(super) fn is_type_caller_boundary(item: &Item, caller_stops: Stops) -> bool 
         || (caller_stops & super::operator::STOP_IN != 0 && &*token.text == "in")
         || (caller_stops & super::operator::STOP_ELSIF != 0 && &*token.text == "elsif")
         || (caller_stops & super::operator::STOP_ELSE != 0 && &*token.text == "else")
+}
+
+fn is_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> bool {
+    if token_kind(item) == Some(TokenKind::Equals) {
+        return outer_boundary.contains(TypeOuterBoundary::EQUALS);
+    }
+    let Payload::Token(token) = &item.payload else {
+        return false;
+    };
+    if token.kind != TokenKind::Identifier {
+        return false;
+    }
+    match &*token.text {
+        "derives" => outer_boundary.contains(TypeOuterBoundary::DERIVES),
+        "via" => outer_boundary.contains(TypeOuterBoundary::VIA),
+        "with" => outer_boundary.contains(TypeOuterBoundary::WITH),
+        "impl" => outer_boundary.contains(TypeOuterBoundary::IMPL),
+        _ => false,
+    }
 }
 
 fn is_type_separator(item: &Item) -> bool {

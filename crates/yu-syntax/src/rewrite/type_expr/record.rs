@@ -12,8 +12,8 @@ use super::super::{
     lexer::{scan_trivia, type_item_after_trivia, type_nud_item_after_trivia},
 };
 use super::{
-    TypeApplyBoundary, continue_type_tail, indentation_after_newline, is_type_caller_boundary,
-    is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
+    TypeApplyBoundary, TypeOuterBoundary, continue_type_tail, indentation_after_newline,
+    is_type_caller_boundary, is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
     is_type_record_field_boundary, is_type_record_field_name, is_type_record_field_start,
     missing_type_close, missing_type_item, retry_type_rhs, type_chain_trivia,
     type_delimited_baseline, type_expr_from_nud, with_type_outer_close,
@@ -28,6 +28,7 @@ pub(super) fn type_record(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::NamedRecordType.into());
     emit_token_item(&mut i, open);
@@ -46,6 +47,7 @@ pub(super) fn type_record(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
         exit,
     )
 }

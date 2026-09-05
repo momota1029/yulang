@@ -1,4 +1,5 @@
 use super::*;
+use reborrow_generic::Reborrow as _;
 
 fn type_declaration_node(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
@@ -11,6 +12,77 @@ fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
     node.descendants()
         .filter(|descendant| descendant.kind() == kind)
         .count()
+}
+
+fn token_count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    node.descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == kind)
+        .count()
+}
+
+fn identifier_count(node: &SyntaxNode, spelling: &str) -> usize {
+    node.descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Identifier && token.text() == spelling)
+        .count()
+}
+
+fn assert_pending_word(exit: Option<TailExit>, word: &str) {
+    let Some(Err(Either::Left(item))) = exit else {
+        panic!("{word:?} must remain pending")
+    };
+    assert!(
+        matches!(
+            item.payload,
+            Payload::Token(ref token)
+                if token.kind == TokenKind::Identifier && token.text.as_ref() == word
+        ),
+        "expected pending {word:?}, got {item:?}"
+    );
+}
+
+fn assert_pending_word_with_leading(exit: Option<TailExit>, word: &str, leading: &str) {
+    let Some(Err(Either::Left(item))) = exit else {
+        panic!("{word:?} must remain pending")
+    };
+    assert!(
+        matches!(
+            item.payload,
+            Payload::Token(ref token)
+                if token.kind == TokenKind::Identifier && token.text.as_ref() == word
+        ),
+        "expected pending {word:?}, got {item:?}"
+    );
+    assert_eq!(
+        item.leading
+            .0
+            .iter()
+            .map(|part| &*part.text)
+            .collect::<String>(),
+        leading,
+        "pending {word:?} must retain its complete leading trivia"
+    );
+}
+
+fn run_type_declaration_with_handoff(
+    source: &str,
+    line_handoff: super::super::statement::StatementLineHandoff,
+) -> (GreenNode, Option<TailExit>) {
+    let operators = OperatorTable::empty();
+    let mut source_input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let mut i = In::new(&mut source_input, &mut recover, &mut builder);
+    let leading = super::super::lexer::scan_trivia(i.rb());
+    let intro = super::super::lexer::statement_item_after_trivia(i.rb(), leading, 0, 0);
+    let exit = super::super::type_decl::type_declaration(i, intro, 0, 0, line_handoff);
+    if let Err(Either::Right(end)) = &exit {
+        emit_end(&mut builder, end);
+    }
+    builder.finish_node();
+    (builder.finish(), Some(exit))
 }
 
 #[test]
@@ -962,4 +1034,630 @@ fn type_c14_preserves_handoff_through_record_pattern_defaults() {
             .any(|node| node.kind() == SyntaxKind::TypeDeclaration),
         "a zero-inline Catch arm must not enter canonical TypeDeclaration parsing"
     );
+}
+
+#[test]
+fn type_c15_builds_direct_header_and_trailing_derives_clauses() {
+    for (source, clauses, via) in [
+        ("type Nominal derives Eq", 1, 0),
+        ("type Generic 'a derives Eq", 1, 0),
+        ("type Value derives Eq = Body derives Debug", 2, 0),
+        (
+            "type Value derives Eq, Debug via display = Body derives Show",
+            2,
+            1,
+        ),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source);
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            clauses,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::DerivesKw),
+            clauses,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::ViaKw),
+            via,
+            "{source:?}"
+        );
+        assert_eq!(
+            declaration
+                .children()
+                .filter(|child| child.kind() == SyntaxKind::DerivesClause)
+                .count(),
+            clauses,
+            "C15 clauses must be direct TypeDeclaration children: {source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+    }
+
+    let (green, _) = run_statement("type Value derives Eq = Body derives Debug");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(
+        declaration
+            .children()
+            .filter(|child| {
+                matches!(
+                    child.kind(),
+                    SyntaxKind::DerivesClause | SyntaxKind::TypeExpression
+                )
+            })
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::TypeExpression,
+            SyntaxKind::DerivesClause,
+        ]
+    );
+}
+
+#[test]
+fn type_c15_fresh_type_expression_edges_fence_contextual_words() {
+    for source in [
+        "type T = (Inner derives Inside) derives Outer",
+        "type T = Call(Inner derives Inside) derives Outer",
+        "type T = Head (Inner derives Inside) derives Outer",
+        "type T = (Left -> Inner derives Inside) derives Outer",
+        "type T = (for 'a: Inner derives Inside) derives Outer",
+        "type T = ({field: Inner derives Inside}) derives Outer",
+        "type T = ([Inner derives Inside] Result) derives Outer",
+        "type T = ('[Inner derives Inside]) derives Outer",
+        "type T = (:{Tag Inner derives Inside}) derives Outer",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::DerivesKw),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            identifier_count(&declaration, "derives"),
+            1,
+            "the nested spelling remains an ordinary Identifier: {source:?}"
+        );
+    }
+}
+
+#[test]
+fn type_c15_preserves_header_boundaries_and_nested_suspension() {
+    for (source, committed, word, missing, errors) in [
+        ("type T derives Eq with", "type T derives Eq", "with", 0, 0),
+        (
+            "type T derives Eq impl P",
+            "type T derives Eq",
+            "impl",
+            0,
+            0,
+        ),
+        ("type T derives with", "type T derives", "with", 1, 0),
+        ("type T derives impl P", "type T derives", "impl", 1, 0),
+        ("type T derives @ with", "type T derives @", "with", 0, 1),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), committed, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
+        assert_pending_word(exit, word);
+    }
+
+    for (source, equals) in [
+        ("type Id derives Eq::@ = Int", 1),
+        ("type Id derives (Eq::@ = Int) = Body", 2),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::Equals),
+            equals,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
+    }
+}
+
+#[test]
+fn type_c15_recovers_clause_slots_without_consuming_successors() {
+    for (source, clauses, via, missing, errors) in [
+        ("type Id = derives Eq", 1, 0, 1, 0),
+        ("type T derives Eq,", 1, 0, 1, 0),
+        ("type T derives Eq, via key", 1, 1, 1, 0),
+        ("type T derives Eq via @ key", 1, 1, 0, 1),
+        ("type T derives Eq, derives Debug", 2, 0, 1, 0),
+        ("type T derives Eq via derives Debug", 2, 1, 1, 0),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            clauses,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::ViaKw),
+            via,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
+    }
+
+    for source in [
+        "type T = Int derives Eq with",
+        "type T = Int derives (Eq with Inner) with",
+        "type T derives Eq via with",
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(
+            green.to_string(),
+            source.strip_suffix(" with").expect("with suffix"),
+            "{source:?}"
+        );
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_pending_word(exit, "with");
+    }
+}
+
+#[test]
+fn type_c15_threads_clause_gaps_only_through_ordinary_deeper_layout() {
+    for source in [
+        "type T\n  derives Eq",
+        "type T derives\n  Eq",
+        "type T derives Eq,\n  Debug",
+        "type T derives Eq\n  via key",
+        "type T derives Eq via\n  key",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+    }
+
+    let (green, exit) = run_statement("type T derives\nEq");
+    assert_eq!(green.to_string(), "type T derives");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 1);
+    assert_pending_word(exit, "Eq");
+
+    for source in [
+        "{type T derives\n next}",
+        "catch action { A -> value with: type T derives\n B -> fallback }",
+        "{type T = Value derives\n next}",
+        "catch action { A -> value with: type T = Value derives\n B -> fallback }",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn type_c15_contextual_words_remain_exact() {
+    for (source, clauses) in [
+        ("type T derivesx = viax", 0),
+        ("type T = derivesx viax withx implx", 0),
+        ("type T derives Eq viax", 1),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            clauses,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::DerivesKw),
+            clauses,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::ViaKw),
+            0,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn type_c15_keeps_with_outer_only_for_derives_roles() {
+    for source in [
+        "type T = Body derives (Eq with Inner) with",
+        "type T = Body derives Call(Eq with Inner) with",
+        "type T = Body derives Head (Eq with Inner) with",
+        "type T = Body derives (Left -> Eq with Inner) with",
+        "type T = Body derives (for 'a: Eq with Inner) with",
+        "type T = Body derives ({field: Eq with Inner}) with",
+        "type T = Body derives ([Eq with Inner] Result) with",
+        "type T = Body derives ('[Eq with Inner]) with",
+        "type T = Body derives (:{Tag Eq with Inner}) with",
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(
+            green.to_string(),
+            source.strip_suffix(" with").expect("outer with suffix"),
+            "{source:?}"
+        );
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+        assert_eq!(identifier_count(&declaration, "with"), 1, "{source:?}");
+        assert_pending_word(exit, "with");
+    }
+}
+
+#[test]
+fn type_c15_keeps_existing_name_and_terminal_ownership() {
+    let (green, _) = run_statement("type derives Eq");
+    assert_eq!(green.to_string(), "type derives Eq");
+    assert_eq!(
+        count(&type_declaration_node(&green), SyntaxKind::DerivesClause),
+        0
+    );
+
+    let (green, _) = run_statement("type = derives Eq");
+    assert_eq!(green.to_string(), "type = derives Eq");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 2);
+
+    let (green, exit) = run_statement("type T derives Eq;");
+    assert_eq!(green.to_string(), "type T derives Eq");
+    assert_eq!(
+        count(&type_declaration_node(&green), SyntaxKind::Missing),
+        0
+    );
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(ref item))) if token_kind(item) == Some(TokenKind::Semicolon)
+    ));
+
+    let (green, _) = run_statement("{type T derives Eq}");
+    assert_eq!(green.to_string(), "{type T derives Eq}");
+    assert_eq!(
+        count(&type_declaration_node(&green), SyntaxKind::DerivesClause),
+        1
+    );
+
+    let (green, exit) = run_statement_with_stops(
+        "type T derives Eq]",
+        &OperatorTable::empty(),
+        stops_for(TokenKind::RBracket),
+    );
+    assert_eq!(green.to_string(), "type T derives Eq");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(ref item))) if token_kind(item) == Some(TokenKind::RBracket)
+    ));
+}
+
+#[test]
+fn type_c15_preserves_boundaries_in_path_and_forall_binder_recovery() {
+    let (green, _) = run_statement("type T derives Eq::= Body");
+    assert_eq!(green.to_string(), "type T derives Eq::= Body");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(token_count(&declaration, SyntaxKind::Equals), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Error), 0);
+
+    for (source, missing, errors) in [
+        ("type T derives for derives Eq", 1, 0),
+        ("type T derives for @ derives Eq", 0, 1),
+        ("type T derives for 'a derives Eq", 1, 0),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            2,
+            "{source:?}"
+        );
+        assert_eq!(
+            token_count(&declaration, SyntaxKind::DerivesKw),
+            2,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
+    }
+
+    let source = "type T derives for 'a: Inner derives Inside = Body";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(token_count(&declaration, SyntaxKind::DerivesKw), 1);
+    assert_eq!(identifier_count(&declaration, "derives"), 1);
+}
+
+#[test]
+fn type_c15_clause_gaps_preserve_outer_owned_items_for_every_handoff() {
+    use super::super::statement::StatementLineHandoff;
+
+    let positions = [
+        ("type T derives", "Role", 1),
+        ("type T derives Eq,", "Role", 1),
+        ("type T derives Eq", "via", 0),
+        ("type T derives Eq via", "target", 1),
+    ];
+    for (handoff, gap) in [
+        (StatementLineHandoff::OrdinaryLayout, "\n"),
+        (StatementLineHandoff::BracedStatementSequence, "\n  "),
+        (
+            StatementLineHandoff::CatchArmSequenceThroughInlineCanonicalStatement,
+            "\n  ",
+        ),
+    ] {
+        for (prefix, pending, missing) in positions {
+            let source = format!("{prefix}{gap}{pending}");
+            let (green, exit) = run_type_declaration_with_handoff(&source, handoff);
+            assert_eq!(green.to_string(), prefix, "{handoff:?}, {source:?}");
+            let declaration = type_declaration_node(&green);
+            assert_eq!(
+                count(&declaration, SyntaxKind::DerivesClause),
+                1,
+                "{handoff:?}, {source:?}"
+            );
+            assert_eq!(
+                count(&declaration, SyntaxKind::Missing),
+                missing,
+                "{handoff:?}, {source:?}"
+            );
+            assert_eq!(
+                count(&declaration, SyntaxKind::Error),
+                0,
+                "{handoff:?}, {source:?}"
+            );
+            assert_pending_word_with_leading(exit, pending, gap);
+        }
+    }
+}
+
+#[test]
+fn type_c15_zero_catch_distinguishes_header_and_trailing_clause_recovery() {
+    use super::super::statement::StatementLineHandoff;
+
+    let header_positions = [
+        ("type T derives", "Role", 2),
+        ("type T derives Eq,", "Role", 2),
+        ("type T derives Eq", "via", 1),
+        ("type T derives Eq via", "target", 2),
+    ];
+    for (prefix, successor, missing) in header_positions {
+        let source = format!("{prefix}\n  {successor}");
+        let (green, exit) =
+            run_type_declaration_with_handoff(&source, StatementLineHandoff::CatchBracedArm);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+    }
+
+    let trailing_positions = [
+        ("type T = Body derives", "Role", 1),
+        ("type T = Body derives Eq,", "Role", 1),
+        ("type T = Body derives Eq", "via", 0),
+        ("type T = Body derives Eq via", "target", 1),
+    ];
+    for (prefix, pending, missing) in trailing_positions {
+        let source = format!("{prefix}\n  {pending}");
+        let (green, exit) =
+            run_type_declaration_with_handoff(&source, StatementLineHandoff::CatchBracedArm);
+        assert_eq!(green.to_string(), prefix, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+        assert_pending_word_with_leading(exit, pending, "\n  ");
+    }
+}
+
+#[test]
+fn type_c15_retains_outer_boundary_trivia_through_rhs_path_and_forall() {
+    let (green, _) = run_statement("{type T =\n  derives Eq}");
+    assert_eq!(green.to_string(), "{type T =\n  derives Eq}");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 0);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 1);
+
+    for source in [
+        "{type T derives Eq::\n  derives Show}",
+        "{type T derives for\n  derives Eq}",
+        "{type T derives for 'a\n  derives Eq}",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "the newline successor belongs to the braced statement owner: {source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn type_c15_header_handoff_and_rhs_retry_keep_single_owners() {
+    use super::super::statement::StatementLineHandoff;
+
+    for (source, committed, missing, errors) in [
+        ("type T derives Eq with:", "type T derives Eq", 0, 0),
+        ("type T derives with:", "type T derives", 1, 0),
+        ("type T derives @ with:", "type T derives @", 0, 1),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), committed, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
+        assert_pending_word_with_leading(exit, "with", " ");
+    }
+
+    let source = "type T derives Eq\n  with";
+    let (green, exit) =
+        run_type_declaration_with_handoff(source, StatementLineHandoff::CatchBracedArm);
+    assert_eq!(green.to_string(), "type T derives Eq\n  ");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Error), 0);
+    assert_pending_word_with_leading(exit, "with", "");
+
+    let source = "type T derives Eq\n  impl";
+    let (green, exit) =
+        run_type_declaration_with_handoff(source, StatementLineHandoff::CatchBracedArm);
+    assert_eq!(green.to_string(), "type T derives Eq\n  ");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Error), 0);
+    assert_pending_word_with_leading(exit, "impl", "");
+
+    for (source, missing, errors) in [
+        ("type T = @ derives Eq", 0, 1),
+        ("type T = @ Body derives Eq", 0, 1),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
+    }
+}
+
+#[test]
+fn type_c15_contextual_via_and_adjacent_roles_stay_type_syntax() {
+    let (green, _) = run_statement("type T = via");
+    assert_eq!(green.to_string(), "type T = via");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(token_count(&declaration, SyntaxKind::ViaKw), 0);
+    assert_eq!(identifier_count(&declaration, "via"), 1);
+
+    let (green, _) = run_statement("type T derives Eq Show");
+    assert_eq!(green.to_string(), "type T derives Eq Show");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::TypeExpression), 2);
+    assert_eq!(count(&declaration, SyntaxKind::TypeApplyArgument), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 0);
+    assert_eq!(count(&declaration, SyntaxKind::Error), 0);
+}
+
+#[test]
+fn type_c15_keeps_active_else_companion_outside_a_completed_clause() {
+    let source = "if c: value with: type T derives Eq else: fallback";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 0);
+    assert_eq!(count(&declaration, SyntaxKind::Error), 0);
+
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(count(&root, SyntaxKind::IfExpression), 1);
+    assert_eq!(count(&root, SyntaxKind::ElseArm), 1);
 }

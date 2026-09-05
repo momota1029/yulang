@@ -1459,8 +1459,13 @@ malformed retry / tail / path は incoming value を保存する。`StatementLin
 existing EqualityRecovery と trailing clause 自身の recovery + outer continuation を分ける。header clause 後の
 `with` / `impl` は Complete / Missing / malformed RoleRef を問わず extra DefinitionIntroducer recovery なしで
 pending Item を返す。compiler/recovery と specification の独立査読は repair 後 approved、2026-09-05に
-ユーザーも承認した。これから Rust 実装へ着手する。Gate 6/D11/RB-DRV/public/legacy/AST/diagnostic/Struct/Yumark
-は scope 外のままである。
+ユーザーも承認した。C15 は実装・査読完了した。direct `DerivesClause` を `TypeDeclaration` の直下へ
+構築し、header / Equality trailing のownerだけが immediate `TypeOuterBoundary` を渡す。reviewで見つかった
+RHS / path / forall binderのouter-boundary trivia移譲とCatchBracedの`with` / `impl` handoffは、いずれも
+pending Itemを保持するowner側で修復した。focused C15 fixture 15、`cargo check -p yu-syntax`、format / diff
+checkはgreen。C15はnew state / Stops / Item / public dispatch / AST / HIR / Struct / Yumarkを増やしていない。
+次のshared derives owner / Gate 6採用には別途の設計・承認が必要であり、C15から自動で進めない。Gate
+6/D11/RB-DRV/public/legacy/AST/diagnostic/Struct/Yumarkは scope 外のままである。
 
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern

@@ -12,10 +12,10 @@ use super::super::{
     lexer::{scan_lbrace, scan_lbracket, scan_trivia, type_nud_item_after_trivia},
 };
 use super::{
-    TypeApplyBoundary, TypeDelimitedOwner, continue_type_tail, indentation_after_newline,
-    is_type_caller_boundary, is_type_mismatched_close, is_type_nud, is_type_outer_close,
-    is_type_payload_boundary, is_type_polymorphic_variant_tag_name, type_delimited,
-    type_delimited_baseline, type_expr_from_nud, with_type_outer_close,
+    TypeApplyBoundary, TypeDelimitedOwner, TypeOuterBoundary, continue_type_tail,
+    indentation_after_newline, is_type_caller_boundary, is_type_mismatched_close, is_type_nud,
+    is_type_outer_close, is_type_payload_boundary, is_type_polymorphic_variant_tag_name,
+    type_delimited, type_delimited_baseline, type_expr_from_nud, with_type_outer_close,
 };
 
 pub(super) fn type_effect_row(
@@ -27,6 +27,7 @@ pub(super) fn type_effect_row(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::EffectRowType.into());
     emit_token_item(&mut i, apostrophe);
@@ -57,6 +58,7 @@ pub(super) fn type_effect_row(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
         exit,
     )
 }
@@ -70,6 +72,7 @@ pub(super) fn type_polymorphic_variant(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantType.into());
@@ -100,6 +103,7 @@ pub(super) fn type_polymorphic_variant(
         outer_separators,
         outer_closes,
         caller_stops,
+        outer_boundary,
         exit,
     )
 }
