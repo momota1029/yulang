@@ -25,6 +25,7 @@ mod case_like;
 mod for_statement;
 mod if_expr;
 mod lexical;
+mod literal;
 mod mod_decl;
 mod operators;
 mod owners;

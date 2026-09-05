@@ -37,9 +37,11 @@ the frozen opaque scanner are operational evidence only.
 This is M3 language/CST/recovery work. LC-1 through LC-12 in §7 are
 user-approved on 2026-09-05. Isolated L0 completed on 2026-09-05: it appended
 the public literal vocabulary and added the literal-private fragmented emitter
-without parsing reachability or changes to existing Item emitters. L1 is the
-next authorized implementation; all later gates retain the stated construction
-and joint-certification dependencies.
+without parsing reachability or changes to existing Item emitters. Isolated L1
+also completed on 2026-09-05: its literal lexical Item scanner and one
+fence-line transition primitive preserve the one-current-Item handoff without
+NUD dispatch. L2 is the next authorized implementation; all later gates retain
+the stated construction and joint-certification dependencies.
 
 ## 1. Current lexical Item and fence handoff
 

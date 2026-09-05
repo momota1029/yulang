@@ -16,6 +16,7 @@ mod for_decl;
 mod if_expr;
 mod item;
 mod lexer;
+mod literal;
 mod mod_decl;
 mod operator;
 mod pattern;
