@@ -1,7 +1,10 @@
 use super::*;
 use crate::rewrite::{
     emit::emit_literal_item,
-    item::{BorrowedTarget, Boundary, ForeignSplit, Item, LeadingTrivia, Payload, StopKind},
+    item::{
+        BorrowedTarget, Boundary, ForeignSplit, Item, LeadingTrivia, Payload, StopKind, Token,
+        Trivia,
+    },
     literal::{
         LiteralPiece, StringLiteralExit, StringMode, scan_string_close_witness,
         scan_string_opener_witness, scan_string_text_witness, string_literal_witness,
@@ -11,6 +14,7 @@ use crate::rewrite::{
         judge_fence_line,
     },
 };
+use reborrow_generic::Reborrow as _;
 
 fn fence(prefix_policy: FencePrefixPolicy) -> FenceBoundary {
     FenceBoundary {
@@ -109,9 +113,43 @@ fn run_string<'source>(
         mode,
         interior_origin,
         boundary,
+        injected_empty_interpolation_body,
     );
     builder.finish_node();
     (builder.finish(), exit, input)
+}
+
+fn injected_empty_interpolation_body(mut i: RewriteIn) -> Item {
+    let leading = i
+        .token(|mut lex| {
+            let (_, text) = lex.rb().with_str(|mut trivia| {
+                while trivia.remainder().starts_with([' ', '\t']) {
+                    assert!(trivia.next().is_some());
+                }
+            });
+            Some(text)
+        })
+        .expect("the interpolation child trivia scanner is total");
+    let close = i
+        .token(|mut lex| {
+            (lex.next()? == '}').then(|| Token {
+                kind: TokenKind::RBrace,
+                text: "}".into(),
+            })
+        })
+        .expect("the injected interpolation child expects its borrowed close");
+    let leading = if leading.is_empty() {
+        LeadingTrivia::default()
+    } else {
+        LeadingTrivia(
+            vec![Trivia {
+                kind: TriviaKind::Whitespace,
+                text: leading.into(),
+            }]
+            .into_boxed_slice(),
+        )
+    };
+    Item::plain(leading, Payload::Token(close))
 }
 
 fn syntax_tokens(green: &GreenNode) -> Vec<(SyntaxKind, String)> {
@@ -694,19 +732,19 @@ fn unicode_terminator_percent_and_eof_sentinels_remain_unconsumed() {
         },
         Case {
             source: "\"\\u{%fmt",
-            remainder: "%fmt",
-            missing: 2,
+            remainder: "",
+            missing: 4,
             error: None,
-            exit: 1,
-            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Missing(),Missing())))"#,
+            exit: 2,
+            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Missing(),Missing()),StringInterpolation(StringInterpolationPercent("%"),StringInterpolationFormatText("fmt"),Missing()),Missing()))"#,
         },
         Case {
             source: "\"\\u{1%fmt",
-            remainder: "%fmt",
-            missing: 1,
+            remainder: "",
+            missing: 3,
             error: None,
-            exit: 1,
-            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),StringEscapeUnicodeHex("1"),Missing())))"#,
+            exit: 2,
+            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),StringEscapeUnicodeHex("1"),Missing()),StringInterpolation(StringInterpolationPercent("%"),StringInterpolationFormatText("fmt"),Missing()),Missing()))"#,
         },
         Case {
             source: "\"\\u{g\"tail",
@@ -718,11 +756,11 @@ fn unicode_terminator_percent_and_eof_sentinels_remain_unconsumed() {
         },
         Case {
             source: "\"\\u{g%fmt",
-            remainder: "%fmt",
-            missing: 1,
+            remainder: "",
+            missing: 3,
             error: Some("g"),
-            exit: 1,
-            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g")),Missing())))"#,
+            exit: 2,
+            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g")),Missing()),StringInterpolation(StringInterpolationPercent("%"),StringInterpolationFormatText("fmt"),Missing()),Missing()))"#,
         },
         Case {
             source: "\"\\u{",
@@ -769,22 +807,8 @@ fn unicode_terminator_percent_and_eof_sentinels_remain_unconsumed() {
         assert_eq!(syntax_shape(&green), case.shape, "{:?}", case.source);
         match case.exit {
             0 => assert_eq!(exit, StringLiteralExit::Complete, "{:?}", case.source),
-            1 => assert_eq!(
-                exit,
-                StringLiteralExit::InterpolationStop,
-                "{:?}",
-                case.source
-            ),
             2 => assert!(matches!(exit, StringLiteralExit::Boundary(_))),
             _ => unreachable!(),
-        }
-        if case.exit == 1 {
-            assert_eq!(node_count(&green, SyntaxKind::StringInterpolation), 0);
-            assert!(
-                syntax_tokens(&green)
-                    .iter()
-                    .all(|(kind, _)| *kind != SyntaxKind::StringEnd)
-            );
         }
     }
 }
@@ -827,20 +851,301 @@ fn multiline_unicode_error_emits_prefix_outside_error_text_and_hands_off_close()
 }
 
 #[test]
-fn raw_percent_after_text_is_an_unconsumed_l2_stop_without_recovery() {
-    let source = "\"α%format {body}";
+fn percent_after_text_builds_an_empty_interpolation_and_resumes_the_string() {
+    let source = "\"α%format {}β\"tail";
     let (green, exit, remainder) = run_string(source, 0, &active_fence(2));
-    assert_eq!(exit, StringLiteralExit::InterpolationStop);
-    assert_eq!(remainder, "%format {body}");
-    assert_eq!(remainder.as_ptr(), source["\"α".len()..].as_ptr());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "tail");
     assert_eq!(node_count(&green, SyntaxKind::Missing), 0);
-    assert_eq!(node_count(&green, SyntaxKind::StringInterpolation), 0);
+    assert_eq!(node_count(&green, SyntaxKind::StringInterpolation), 1);
+    assert_eq!(node_count(&green, SyntaxKind::StringInterpolationBody), 1);
     assert_eq!(
         syntax_tokens(&green),
         [
             (SyntaxKind::StringStart, "\"".to_owned()),
             (SyntaxKind::StringText, "α".to_owned()),
+            (SyntaxKind::StringInterpolationPercent, "%".to_owned()),
+            (
+                SyntaxKind::StringInterpolationFormatText,
+                "format ".to_owned()
+            ),
+            (SyntaxKind::StringInterpolationOpenBrace, "{".to_owned()),
+            (SyntaxKind::StringInterpolationCloseBrace, "}".to_owned()),
+            (SyntaxKind::StringText, "β".to_owned()),
+            (SyntaxKind::StringEnd, "\"".to_owned()),
         ]
+    );
+}
+
+#[test]
+fn empty_interpolation_has_no_format_item_and_keeps_close_trivia_inside() {
+    let source = "\"%{ \t}後\"tail";
+    let (green, exit, remainder) = run_string(source, 0, &fence(FencePrefixPolicy::None));
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "tail");
+    assert_eq!(
+        syntax_shape(&green),
+        r#"Root(StringLiteral(StringStart("\""),StringInterpolation(StringInterpolationPercent("%"),StringInterpolationOpenBrace("{"),StringInterpolationBody(),Whitespace(" \t"),StringInterpolationCloseBrace("}")),StringText("後"),StringEnd("\"")))"#
+    );
+    assert!(
+        syntax_tokens(&green)
+            .iter()
+            .all(|(kind, _)| *kind != SyntaxKind::StringInterpolationFormatText)
+    );
+}
+
+#[test]
+fn interpolation_format_is_raw_through_quote_escape_close_newlines_and_utf8() {
+    let source = "\"%fmt\"\\}\r\n🌱{}後\"tail";
+    let (green, exit, remainder) = run_string(source, 0, &fence(FencePrefixPolicy::None));
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "tail");
+    assert_eq!(
+        syntax_tokens(&green),
+        [
+            (SyntaxKind::StringStart, "\"".to_owned()),
+            (SyntaxKind::StringInterpolationPercent, "%".to_owned()),
+            (
+                SyntaxKind::StringInterpolationFormatText,
+                "fmt\"\\}\r\n🌱".to_owned()
+            ),
+            (SyntaxKind::StringInterpolationOpenBrace, "{".to_owned()),
+            (SyntaxKind::StringInterpolationCloseBrace, "}".to_owned()),
+            (SyntaxKind::StringText, "後".to_owned()),
+            (SyntaxKind::StringEnd, "\"".to_owned()),
+        ]
+    );
+    assert_eq!(node_count(&green, SyntaxKind::StringEscape), 0);
+}
+
+#[test]
+fn interpolation_missing_open_preserves_eof_or_fence_and_orders_both_missing_nodes() {
+    for (source, boundary, expected_remainder, format) in [
+        ("\"%書式🌱", active_fence(2), "", "書式🌱"),
+        (
+            "\"%書式🌱\r\n```\nrest",
+            fence(FencePrefixPolicy::None),
+            "```\nrest",
+            "書式🌱\r\n",
+        ),
+    ] {
+        let (green, exit, remainder) = run_string(source, 0, &boundary);
+        let StringLiteralExit::Boundary(pending) = exit else {
+            panic!("format sentinel must return the exact pending Item")
+        };
+        assert_eq!(remainder, expected_remainder, "{source:?}");
+        assert_eq!(
+            remainder.as_ptr(),
+            source[source.len() - remainder.len()..].as_ptr(),
+            "{source:?}"
+        );
+        assert_eq!(
+            pending,
+            expected_pending(remainder, source.len() - remainder.len(), &boundary),
+            "{source:?}"
+        );
+        assert_eq!(node_count(&green, SyntaxKind::Missing), 2, "{source:?}");
+        assert_eq!(
+            syntax_shape(&green),
+            format!(
+                r#"Root(StringLiteral(StringStart("\""),StringInterpolation(StringInterpolationPercent("%"),StringInterpolationFormatText({format:?}),Missing()),Missing()))"#
+            ),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn interpolation_prefix_belongs_to_percent_format_or_open_item_at_each_site() {
+    let boundary = active_fence(2);
+    for (source, expected) in [
+        (
+            "\"前\n> > %{}\"tail",
+            vec![
+                (SyntaxKind::StringText, "前\n"),
+                (SyntaxKind::YmQuotePrefix, "> > "),
+                (SyntaxKind::StringInterpolationPercent, "%"),
+                (SyntaxKind::StringInterpolationOpenBrace, "{"),
+            ],
+        ),
+        (
+            "\"%a\n> > b{}\"tail",
+            vec![
+                (SyntaxKind::StringInterpolationPercent, "%"),
+                (SyntaxKind::StringInterpolationFormatText, "a\n"),
+                (SyntaxKind::YmQuotePrefix, "> > "),
+                (SyntaxKind::StringInterpolationFormatText, "b"),
+                (SyntaxKind::StringInterpolationOpenBrace, "{"),
+            ],
+        ),
+        (
+            "\"%a\n> > {}\"tail",
+            vec![
+                (SyntaxKind::StringInterpolationPercent, "%"),
+                (SyntaxKind::StringInterpolationFormatText, "a\n"),
+                (SyntaxKind::YmQuotePrefix, "> > "),
+                (SyntaxKind::StringInterpolationOpenBrace, "{"),
+            ],
+        ),
+    ] {
+        let (green, exit, remainder) = run_string(source, 0, &boundary);
+        assert_eq!(exit, StringLiteralExit::Complete, "{source:?}");
+        assert_eq!(remainder, "tail", "{source:?}");
+        let actual = syntax_tokens(&green)
+            .into_iter()
+            .filter(|(kind, _)| {
+                !matches!(
+                    kind,
+                    SyntaxKind::StringStart
+                        | SyntaxKind::StringInterpolationCloseBrace
+                        | SyntaxKind::StringEnd
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual,
+            expected
+                .into_iter()
+                .map(|(kind, text)| (kind, text.to_owned()))
+                .collect::<Vec<_>>(),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn raw_backslash_line_in_format_uses_the_shared_fence_transition() {
+    for newline in ["\n", "\r\n"] {
+        let source = format!("\"%\\{newline}> > 本文{{}}\"tail");
+        let boundary = active_fence(2);
+        let (green, exit, remainder) = run_string(&source, 0, &boundary);
+        assert_eq!(exit, StringLiteralExit::Complete, "{newline:?}");
+        assert_eq!(remainder, "tail", "{newline:?}");
+        assert_eq!(
+            syntax_tokens(&green)
+                .into_iter()
+                .filter(|(kind, _)| {
+                    matches!(
+                        kind,
+                        SyntaxKind::StringInterpolationFormatText | SyntaxKind::YmQuotePrefix
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                (
+                    SyntaxKind::StringInterpolationFormatText,
+                    format!("\\{newline}")
+                ),
+                (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+                (SyntaxKind::StringInterpolationFormatText, "本文".to_owned()),
+            ],
+            "{newline:?}"
+        );
+
+        let source = format!("\"%\\{newline}> > ```\nrest");
+        let (green, exit, remainder) = run_string(&source, 0, &boundary);
+        let StringLiteralExit::Boundary(pending) = exit else {
+            panic!("raw backslash EOL must return the strict fence close")
+        };
+        assert_eq!(remainder, "> > ```\nrest", "{newline:?}");
+        assert_eq!(
+            pending,
+            expected_pending(remainder, source.len() - remainder.len(), &boundary),
+            "{newline:?}"
+        );
+        assert_eq!(node_count(&green, SyntaxKind::Missing), 2);
+    }
+
+    for newline in ["\n", "\r\n"] {
+        for (line, depth, expected) in [
+            ("> body\nnext", 2, QuoteTransitionKind::Reduced),
+            ("> > > body\nnext", 2, QuoteTransitionKind::Greater),
+            ("body\nnext", 2, QuoteTransitionKind::NonPrefix),
+            (">>>\nnext", 3, QuoteTransitionKind::Explicit),
+        ] {
+            let source = format!("\"%\\{newline}{line}");
+            let boundary = active_fence(depth);
+            let (green, exit, remainder) = run_string(&source, 0, &boundary);
+            let StringLiteralExit::Boundary(pending) = exit else {
+                panic!("raw format transition must return {expected:?}")
+            };
+            assert_eq!(remainder, line, "{newline:?} {expected:?}");
+            assert_eq!(
+                remainder.as_ptr(),
+                source[source.len() - line.len()..].as_ptr(),
+                "{newline:?} {expected:?}"
+            );
+            assert_eq!(
+                pending,
+                expected_pending(remainder, source.len() - line.len(), &boundary),
+                "{newline:?} {expected:?}"
+            );
+            let Payload::Boundary(ref pending_boundary) = pending.payload else {
+                panic!("raw format transition remains a typed pending Item")
+            };
+            let Boundary::Stop(StopKind::YumarkFence(transition)) = pending_boundary.kind() else {
+                panic!("raw format transition remains a Yumark stop")
+            };
+            assert_eq!(transition.kind, expected, "{newline:?}");
+            assert_eq!(node_count(&green, SyntaxKind::Missing), 2);
+        }
+    }
+}
+
+#[test]
+fn source_rbrace_after_open_is_raw_text_unless_the_child_returns_it() {
+    let source = "\"%{}raw\"tail";
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let (opener, mode) =
+        scan_string_opener_witness(In::new(&mut input, &mut recover, ())).expect("string opener");
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let mut child_called = false;
+    let exit = string_literal_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        opener,
+        mode,
+        1,
+        &fence(FencePrefixPolicy::None),
+        |mut child| {
+            child_called = true;
+            let remainder = child
+                .token(|lex| Some(lex.remainder()))
+                .expect("the child source probe is total");
+            assert_eq!(remainder, "}raw\"tail");
+            assert_eq!(remainder.as_ptr(), source["\"%{".len()..].as_ptr());
+            let close = injected_empty_interpolation_body(child.rb());
+            let remainder = child
+                .token(|lex| Some(lex.remainder()))
+                .expect("the child source probe is total");
+            assert_eq!(remainder, "raw\"tail");
+            assert_eq!(remainder.as_ptr(), source["\"%{}".len()..].as_ptr());
+            close
+        },
+    );
+    builder.finish_node();
+    let green = builder.finish();
+    assert!(child_called);
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(input, "tail");
+    let tokens = syntax_tokens(&green);
+    assert_eq!(
+        tokens
+            .iter()
+            .filter(|(kind, _)| *kind == SyntaxKind::StringText)
+            .map(|(_, text)| text.as_str())
+            .collect::<Vec<_>>(),
+        ["raw"]
+    );
+    assert_eq!(
+        tokens
+            .iter()
+            .filter(|(kind, _)| *kind == SyntaxKind::StringInterpolationCloseBrace)
+            .map(|(_, text)| text.as_str())
+            .collect::<Vec<_>>(),
+        ["}"]
     );
 }
 
@@ -867,25 +1172,23 @@ fn structural_item_after_body_prefix_owns_that_prefix() {
         r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g\n")),YmQuotePrefix("> > "),StringEscapeUnicodeEnd("}")),StringEnd("\"")))"#
     );
 
-    let source = "\"α\n> > %format {body}";
+    let source = "\"α\n> > %format {}\"tail";
     let (green, exit, remainder) = run_string(source, 0, &boundary);
-    assert_eq!(exit, StringLiteralExit::InterpolationStop);
-    assert_eq!(remainder, "> > %format {body}");
-    assert_eq!(remainder.as_ptr(), source["\"α\n".len()..].as_ptr());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "tail");
     assert_eq!(
         syntax_shape(&green),
-        r#"Root(StringLiteral(StringStart("\""),StringText("α\n")))"#
+        r#"Root(StringLiteral(StringStart("\""),StringText("α\n"),StringInterpolation(YmQuotePrefix("> > "),StringInterpolationPercent("%"),StringInterpolationFormatText("format "),StringInterpolationOpenBrace("{"),StringInterpolationBody(),StringInterpolationCloseBrace("}")),StringEnd("\"")))"#
     );
 
-    let source = "\"\\u{g\n> > %format {body}";
+    let source = "\"\\u{g\n> > %format {}\"tail";
     let (green, exit, remainder) = run_string(source, 0, &boundary);
-    assert_eq!(exit, StringLiteralExit::InterpolationStop);
-    assert_eq!(remainder, "> > %format {body}");
-    assert_eq!(remainder.as_ptr(), source["\"\\u{g\n".len()..].as_ptr());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "tail");
     assert_eq!(node_texts(&green, SyntaxKind::Error), ["g\n"]);
     assert_eq!(
         syntax_shape(&green),
-        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g\n")),Missing())))"#
+        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g\n")),Missing()),StringInterpolation(YmQuotePrefix("> > "),StringInterpolationPercent("%"),StringInterpolationFormatText("format "),StringInterpolationOpenBrace("{"),StringInterpolationBody(),StringInterpolationCloseBrace("}")),StringEnd("\"")))"#
     );
 }
 

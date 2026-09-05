@@ -288,10 +288,10 @@ scope外である。次のmultiline lexical ownerであるstring/rule literalは
 `notes/design/2026-09-05-direct-literal-cone-addendum.md`がnormal/heredoc String、`%` interpolation、
 `rule {}`、`~"..."`、Pattern route、typed recovery、one-current-Item fence handoffをAuthoritative化した。
 isolated L0はpublic vocabulary/fragmented emitterだけを完了し、L1はliteral lexical Item scannerと
-fence transition primitive、L2はnormal/heredoc text・escape・terminator・non-interpolation recoveryを
-完了した。いずれもparsing reachabilityや既存Item emitterを変えず、NUD dispatchを含まない。次の
-authorized sliceはStringInterpolationのpercent/format/open-brace constructionとmissing-open-brace pathだけの
-L3であり、full child grammarを主張しない。`%{ Statement* }`はGate 6 statement/declaration construction
+fence transition primitive、L2はnormal/heredoc text・escape・terminator・non-interpolation recovery、L3は
+StringInterpolationのpercent/format/open-braceとmissing-open-brace pathを完了した。いずれもparsing
+reachabilityや既存Item emitterを変えず、NUD dispatchやfull child grammarを含まない。次のauthorized sliceは
+isolated RuleSequenceCore witnessのL4である。`%{ Statement* }`はGate 6 statement/declaration construction
 checkpoint後のL6、complete literal/Pattern deltaはL7とjoint Gate 4--6 barrierまで完了扱いにしない。Gate 4
 expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
 

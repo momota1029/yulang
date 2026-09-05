@@ -6,7 +6,7 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn,
-    emit::{emit_literal_item, emit_missing},
+    emit::{emit_leading_trivia, emit_literal_item, emit_missing},
     item::{ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, Token, TokenKind},
     yumark::{AcceptedQuotePrefix, FenceBoundary, FenceLineDecision, judge_fence_line},
 };
@@ -30,7 +30,6 @@ pub(super) enum StringMode {
 pub(super) enum StringLiteralExit {
     Complete,
     Boundary(Item),
-    InterpolationStop,
 }
 
 struct LiteralScan {
@@ -85,20 +84,29 @@ pub(super) fn scan_string_text_witness(
     fence: &FenceBoundary,
     mode: StringMode,
 ) -> LiteralPiece {
-    scan_multiline_literal_item(i, part_origin, fence, mode, false, string_text_stop)
-        .piece
-        .expect("a text witness is entered only after ruling out a structural starter")
+    scan_multiline_literal_item(i, part_origin, fence, false, |source| {
+        string_text_stop(source, mode)
+    })
+    .piece
+    .expect("a text witness is entered only after ruling out a structural starter")
 }
 
-/// Builds one isolated non-interpolating StringLiteral. A percent sign is a
-/// borrowed construction stop for L3 and causes no terminator recovery here.
-pub(super) fn string_literal_witness(
-    mut i: RewriteIn,
+/// Builds one isolated StringLiteral through an injected interpolation-body
+/// witness. The witness is the sole source of a successful borrowed `RBrace`;
+/// full virtual-statement construction remains deferred to L6.
+pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'builder>(
+    mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
     opener: Item,
     mode: StringMode,
     mut part_origin: usize,
     fence: &FenceBoundary,
-) -> StringLiteralExit {
+    mut interpolation_body: impl for<'a> FnMut(
+        RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
+    ) -> Item,
+) -> StringLiteralExit
+where
+    'operators: 'recover,
+{
     i.state.start_node(SyntaxKind::StringLiteral.into());
     emit_literal_item(&mut i, opener, SyntaxKind::StringStart);
     let mut next_prefix = None;
@@ -126,8 +134,16 @@ pub(super) fn string_literal_witness(
                     return StringLiteralExit::Complete;
                 }
                 '%' => {
-                    i.state.finish_node();
-                    return StringLiteralExit::InterpolationStop;
+                    match emit_string_interpolation(
+                        i.rb(),
+                        Some(prefix),
+                        &mut part_origin,
+                        fence,
+                        &mut interpolation_body,
+                    ) {
+                        Ok(()) => continue,
+                        Err(pending) => return finish_string_boundary(i, pending),
+                    }
                 }
                 '\\' => Some(
                     i.token(|lex| {
@@ -145,8 +161,16 @@ pub(super) fn string_literal_witness(
             .token(|lex| Some(lex.remainder().starts_with('%')))
             .expect("the literal source probe is total")
         {
-            i.state.finish_node();
-            return StringLiteralExit::InterpolationStop;
+            match emit_string_interpolation(
+                i.rb(),
+                None,
+                &mut part_origin,
+                fence,
+                &mut interpolation_body,
+            ) {
+                Ok(()) => continue,
+                Err(pending) => return finish_string_boundary(i, pending),
+            }
         } else {
             i.token(scan_escape_lead)
         };
@@ -161,9 +185,8 @@ pub(super) fn string_literal_witness(
                                 lex,
                                 part_origin,
                                 fence,
-                                mode,
                                 true,
-                                string_text_stop,
+                                |source| string_text_stop(source, mode),
                             ))
                         })
                         .expect("the post-line literal scanner is total");
@@ -189,9 +212,8 @@ pub(super) fn string_literal_witness(
                     lex,
                     part_origin,
                     fence,
-                    mode,
                     false,
-                    string_text_stop,
+                    |source| string_text_stop(source, mode),
                 ))
             })
             .expect("the committed literal text scanner is total");
@@ -202,13 +224,101 @@ pub(super) fn string_literal_witness(
     }
 }
 
+fn emit_string_interpolation<'source, 'recover, 'operators, 'builder>(
+    mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
+    prefix: Option<AcceptedQuotePrefix>,
+    part_origin: &mut usize,
+    fence: &FenceBoundary,
+    interpolation_body: &mut impl for<'a> FnMut(
+        RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
+    ) -> Item,
+) -> Result<(), Item>
+where
+    'operators: 'recover,
+{
+    i.state.start_node(SyntaxKind::StringInterpolation.into());
+
+    let percent = if let Some(prefix) = prefix {
+        i.token(|lex| {
+            scan_prefixed_literal_token(lex, *part_origin, &prefix, accept_interpolation_percent)
+        })
+        .expect("a deferred interpolation prefix has a percent successor")
+    } else {
+        i.token(scan_interpolation_percent)
+            .expect("an interpolation starts at a percent sign")
+    };
+    advance_item_origin(part_origin, &percent);
+    emit_literal_item(&mut i, percent, SyntaxKind::StringInterpolationPercent);
+
+    let scan = i
+        .token(|lex| {
+            Some(scan_multiline_literal_item(
+                lex,
+                *part_origin,
+                fence,
+                false,
+                interpolation_format_stop,
+            ))
+        })
+        .expect("the committed interpolation format scanner is total");
+    let next_prefix = match emit_literal_scan(
+        &mut i,
+        scan,
+        part_origin,
+        SyntaxKind::StringInterpolationFormatText,
+    ) {
+        Ok(prefix) => prefix,
+        Err(pending) => {
+            emit_missing(&mut i, LeadingTrivia::default());
+            i.state.finish_node();
+            return Err(pending);
+        }
+    };
+
+    let open = if let Some(prefix) = next_prefix {
+        i.token(|lex| {
+            scan_prefixed_literal_token(lex, *part_origin, &prefix, accept_interpolation_open)
+        })
+        .expect("a deferred interpolation prefix has an open-brace successor")
+    } else {
+        i.token(scan_interpolation_open)
+            .expect("a completed interpolation format is followed by an open brace")
+    };
+    advance_item_origin(part_origin, &open);
+    emit_literal_item(&mut i, open, SyntaxKind::StringInterpolationOpenBrace);
+
+    let child_start = i
+        .token(|lex| Some(lex.remainder()))
+        .expect("the interpolation child source probe is total");
+    i.state
+        .start_node(SyntaxKind::StringInterpolationBody.into());
+    let close = interpolation_body(i.rb());
+    i.state.finish_node();
+    let child_end = i
+        .token(|lex| Some(lex.remainder()))
+        .expect("the interpolation child source probe is total");
+    advance_suffix_origin(part_origin, child_start, child_end);
+
+    debug_assert!(close.fragments().is_none());
+    emit_leading_trivia(&mut i, &close.leading);
+    let Payload::Token(close) = close.payload else {
+        unreachable!("the interpolation child witness returns one borrowed close token")
+    };
+    assert_eq!(close.kind, TokenKind::RBrace);
+    i.state.token(
+        SyntaxKind::StringInterpolationCloseBrace.into(),
+        &close.text,
+    );
+    i.state.finish_node();
+    Ok(())
+}
+
 fn scan_multiline_literal_item(
     mut i: LexIn,
     part_origin: usize,
     fence: &FenceBoundary,
-    mode: StringMode,
     after_line: bool,
-    stop: fn(&str, StringMode) -> bool,
+    stop: impl Copy + Fn(&str) -> bool,
 ) -> LiteralScan {
     let part = i.remainder();
     let mut foreign = None;
@@ -216,7 +326,7 @@ fn scan_multiline_literal_item(
         if after_line {
             let coordinate = checked_suffix_coordinate(part, part_origin, text.remainder());
             match literal_line_transition(text.rb(), coordinate, fence, &mut foreign, |source| {
-                stop(source, mode)
+                stop(source)
             }) {
                 LiteralLineTransition::Continue => {}
                 transition => return transition,
@@ -228,11 +338,11 @@ fn scan_multiline_literal_item(
             if remainder.is_empty() {
                 let coordinate = checked_suffix_coordinate(part, part_origin, remainder);
                 break literal_line_transition(text, coordinate, fence, &mut foreign, |source| {
-                    stop(source, mode)
+                    stop(source)
                 });
             }
 
-            if stop(remainder, mode) {
+            if stop(remainder) {
                 break LiteralLineTransition::Structural(None);
             }
             if remainder.starts_with('"') {
@@ -254,13 +364,7 @@ fn scan_multiline_literal_item(
             };
             if transitioned {
                 let coordinate = checked_suffix_coordinate(part, part_origin, text.remainder());
-                match literal_line_transition(
-                    text.rb(),
-                    coordinate,
-                    fence,
-                    &mut foreign,
-                    |source| stop(source, mode),
-                ) {
+                match literal_line_transition(text.rb(), coordinate, fence, &mut foreign, stop) {
                     LiteralLineTransition::Continue => {}
                     transition => break transition,
                 }
@@ -295,6 +399,15 @@ fn emit_text_scan(
     scan: LiteralScan,
     part_origin: &mut usize,
 ) -> Result<Option<AcceptedQuotePrefix>, Item> {
+    emit_literal_scan(i, scan, part_origin, SyntaxKind::StringText)
+}
+
+fn emit_literal_scan(
+    i: &mut RewriteIn,
+    scan: LiteralScan,
+    part_origin: &mut usize,
+    kind: SyntaxKind,
+) -> Result<Option<AcceptedQuotePrefix>, Item> {
     let Some(piece) = scan.piece else {
         return Ok(scan.next_prefix);
     };
@@ -303,7 +416,7 @@ fn emit_text_scan(
             *part_origin = part_origin
                 .checked_add(literal_item_length(&item))
                 .expect("literal source coordinate must fit usize");
-            emit_literal_item(i, item, SyntaxKind::StringText);
+            emit_literal_item(i, item, kind);
             Ok(scan.next_prefix)
         }
         LiteralPiece::Boundary { accepted, pending } => {
@@ -311,7 +424,7 @@ fn emit_text_scan(
                 *part_origin = part_origin
                     .checked_add(literal_item_length(&item))
                     .expect("literal source coordinate must fit usize");
-                emit_literal_item(i, item, SyntaxKind::StringText);
+                emit_literal_item(i, item, kind);
             }
             Err(pending)
         }
@@ -422,9 +535,8 @@ fn emit_unicode_escape(
                 lex,
                 *part_origin,
                 fence,
-                mode,
                 false,
-                unicode_error_stop,
+                |source| unicode_error_stop(source, mode),
             ))
         })
         .expect("the committed unicode error scanner is total");
@@ -515,6 +627,26 @@ fn scan_escape_lead(mut i: LexIn) -> Option<Item> {
     Some(literal_token(text))
 }
 
+fn scan_interpolation_percent(mut i: LexIn) -> Option<Item> {
+    let (accepted, text) = i.rb().with_str(accept_interpolation_percent);
+    accepted?;
+    Some(literal_token(text))
+}
+
+fn accept_interpolation_percent(mut i: LexIn) -> Option<()> {
+    (i.next()? == '%').then_some(())
+}
+
+fn scan_interpolation_open(mut i: LexIn) -> Option<Item> {
+    let (accepted, text) = i.rb().with_str(accept_interpolation_open);
+    accepted?;
+    Some(literal_token(text))
+}
+
+fn accept_interpolation_open(mut i: LexIn) -> Option<()> {
+    (i.next()? == '{').then_some(())
+}
+
 fn accept_escape_lead(mut i: LexIn) -> Option<()> {
     (i.next()? == '\\').then_some(())
 }
@@ -579,6 +711,10 @@ fn is_string_close_source(source: &str, mode: StringMode) -> bool {
         StringMode::Normal => run != 0,
         StringMode::Heredoc { quotes } => run == quotes,
     }
+}
+
+fn interpolation_format_stop(source: &str) -> bool {
+    source.starts_with('{')
 }
 
 /// The sole literal physical-line transition: classify without advancing,
@@ -723,4 +859,19 @@ fn checked_suffix_coordinate(part: &str, part_origin: usize, suffix: &str) -> us
     part_origin
         .checked_add(consumed)
         .expect("physical literal coordinate must fit usize")
+}
+
+fn advance_suffix_origin(origin: &mut usize, start: &str, end: &str) {
+    let consumed = start
+        .len()
+        .checked_sub(end.len())
+        .expect("an interpolation child cannot lengthen its live suffix");
+    assert_eq!(
+        start.as_ptr().wrapping_add(consumed),
+        end.as_ptr(),
+        "an interpolation child keeps the live input on one source suffix"
+    );
+    *origin = origin
+        .checked_add(consumed)
+        .expect("literal source coordinate must fit usize");
 }
