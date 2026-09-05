@@ -307,6 +307,18 @@ source、callback、contextをRecover/Rowan/Item/persistent frameへ置かず、
 fragment carrierはunchanged handoffする。現worktreeのL5 repairはuncommittedで、次のimplementation gateは
 L5aのfrontier ledgerとclosed-cone proofである。L5/L6/L7/public integrationは未完である。
 
+2026-09-05: L5a seam の実装調査で、ordinary identifier/operator 前の accepted Yumark prefix が既存
+`Item` constituent を持てず、`ForeignSplit` validation と `Whitespace` 偽装禁止が両立しないこと、さらに
+operator/contextual/layout raw probe が fence 後の outer source を読むことを確認した。user-approved
+`notes/design/2026-09-05-fenced-current-item-normalization-addendum.md` は旧 owner-local L5a/L6a/L5b
+mechanism をその範囲だけ supersede し、private `TriviaKind::YmQuotePrefix` physical part、one direct
+ordinary/fenced current-Item body、pure fenced source observation、transient line-entry handoff、有限の
+temporary `Deferred` frontier ledger をAuthoritative化した。architecture/compiler-recovery/specification
+review と scoped delta review は全てclosed。現worktreeのL5/L5a repair は未committedのまま保留であり、
+次のimplementation gateは N0（physical-prefix representation、grammar-inert LeadingTrivia predicates、
+fragment-aware accepted-Item emission）である。N0はscanner/grammar/public reachabilityを変えない。N1--N3、
+L5/L6/L7/public integrationは未完である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
