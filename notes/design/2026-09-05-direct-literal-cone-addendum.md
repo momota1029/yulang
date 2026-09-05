@@ -45,8 +45,23 @@ normal/heredoc String construction, escape/recovery, and structural-prefix
 handoff remain unreachable from production dispatch. Isolated L3 also completed
 on 2026-09-05: percent/format/open-brace construction uses only an injected
 borrowed-close witness, without virtual child grammar or production dispatch.
-L4 is the next authorized implementation; all later gates retain the stated
-construction and joint-certification dependencies.
+Isolated L4 also completed on 2026-09-05: its normally compiled private
+RuleSequenceCore constructs `RuleBody`/alternations/sequences/items, core atoms,
+quantifiers, captures, field/path recovery, and matching paren ownership without
+production reachability. Its fence-aware RuleIntroducerTrivia construction remains
+private/test-only, but proves the same fragmented opener enters RuleBody once in
+physical order. L5 is next; all later gates retain the stated construction and
+joint-certification dependencies.
+
+For the isolated L4 construction, `RuleAlternation` owns the whole list of
+alternatives, rather than each branch. `RuleBody` owns its existing brace tokens
+around one `RuleAlternation`; that node owns each `RuleSequence` and the
+intervening body separators. A parenthesized RuleAtom is one `RuleItem`
+containing its existing `LParen`/`RParen` tokens around one `RuleAlternation`;
+no `RuleParen` syntax kind is added. Empty, trailing, and adjacent separators
+are represented by empty `RuleSequence` children. A local Error or Missing
+stays under the immediate `RuleSequence`, `RuleItem`, or `RuleBody` owner that
+recovers it.
 
 ## 1. Current lexical Item and fence handoff
 
@@ -470,7 +485,7 @@ boundary controls.
 | L1 | literal lexical Item scanner and fence transition primitive, with no NUD dispatch | complete `LiteralPiece`/fragment/boundary topology, 1/3/4 quote and exact-close matrix, LF/CRLF/UTF-8, all transition controls |
 | L2 | normal/heredoc text, escapes, terminator, and all non-interpolation §4.1 recovery | closed/EOF/fence/tail continuation and no speculative emission; `%` is a construction stop, not a claim that valid interpolation is complete |
 | L3 | StringInterpolation percent/format/open-brace construction and its missing-open-brace path | raw-through-quote format, EOF/fence format boundary, escaped-line fences, borrowed `}` witness with an injected child Item; no full child grammar claim |
-| L4 | isolated `RuleSequenceCore` witness: RuleIdentifier/SigilIdentifier/integer/`..`, RuleParenBody, quantifier, capture, field, and path only | `rule\n{}`, `rule /*…*/ {}`, empty/trailing/double separators, stop-keyword controls, active lazy quantifiers, terminal-capture, field/path recovery, and multiline lexical controls. Its explicit non-core successors (`StringLiteral`, `[` atom, `(` tail, `[` tail) return their exact unconsumed Item to the witness harness; no RuleExpression production entry exists at L4 |
+| L4 | isolated `RuleSequenceCore` witness: RuleIdentifier/SigilIdentifier/integer/`..`, RuleParenBody, quantifier, capture, field, and path only | `rule\n{}`, `rule /*…*/ {}`, empty/trailing/double separators, stop-keyword controls, active lazy quantifiers, terminal-capture, field/path recovery, and multiline lexical controls. Its explicit non-core successors (`StringLiteral`, `[` atom, `(` tail, `[` tail) return their exact unconsumed Item to the witness harness; no RuleExpression production entry exists at L4. A private/test-only fence-aware `RuleIntroducerTrivia` witness uses the existing judge and one-current-Item handoff; it neither changes the ordinary lexer nor creates RuleExpression reachability. |
 | L5 | add RuleAtom string/bracket and Rule call/index through the Gate-4 direct expression/list checkpoint; add Pattern literal construction witnesses through the Gate-5 Pattern checkpoint | bracket/call close, ExpressionList recovery, one-quote Pattern `RuleLiteralStart`, and all non-interpolation cases; a nested StringInterpolation remains deferred |
 | L6 | VirtualStatementBlock and all StringInterpolation-reachable literal positions | only after the Gate-6 root statement/declaration construction checkpoint; child error, separator, borrowed `}`, and fence propagation |
 | L7 | complete literal delta closure, including RuleAtom `StringLiteral` and Pattern literal routes | after L6; direct expression/pattern delta ledgers, all nested literal/fence matrices, and no legacy/direct crossing |

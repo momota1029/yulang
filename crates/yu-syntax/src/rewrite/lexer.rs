@@ -440,6 +440,16 @@ fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
     )))
 }
 
+/// One ordinary trivia part that cannot claim a physical newline token.
+/// Multiline block comments remain one part, as in the canonical scanner.
+pub(super) fn scan_ordinary_trivia_part(mut i: LexIn) -> Option<Trivia> {
+    i.check(choice((
+        token(scan_horizontal_whitespace),
+        token(scan_line_comment),
+        token(scan_block_comment),
+    )))
+}
+
 fn scan_horizontal_whitespace(mut i: LexIn) -> Option<Trivia> {
     let (accepted, text) = i.rb().with_str(|mut whitespace| {
         scan_horizontal_whitespace_unit(whitespace.rb())?;

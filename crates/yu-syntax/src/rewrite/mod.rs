@@ -20,6 +20,7 @@ mod literal;
 mod mod_decl;
 mod operator;
 mod pattern;
+mod rule;
 mod state;
 mod statement;
 mod struct_decl;

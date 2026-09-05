@@ -289,11 +289,12 @@ scope外である。次のmultiline lexical ownerであるstring/rule literalは
 `rule {}`、`~"..."`、Pattern route、typed recovery、one-current-Item fence handoffをAuthoritative化した。
 isolated L0はpublic vocabulary/fragmented emitterだけを完了し、L1はliteral lexical Item scannerと
 fence transition primitive、L2はnormal/heredoc text・escape・terminator・non-interpolation recovery、L3は
-StringInterpolationのpercent/format/open-braceとmissing-open-brace pathを完了した。いずれもparsing
-reachabilityや既存Item emitterを変えず、NUD dispatchやfull child grammarを含まない。次のauthorized sliceは
-isolated RuleSequenceCore witnessのL4である。`%{ Statement* }`はGate 6 statement/declaration construction
-checkpoint後のL6、complete literal/Pattern deltaはL7とjoint Gate 4--6 barrierまで完了扱いにしない。Gate 4
-expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
+StringInterpolationのpercent/format/open-braceとmissing-open-brace path、L4はnormally compiled private
+RuleSequenceCore witnessを完了した。L4はRuleBody/alternation/sequence/item、core atom、quantifier、capture、
+field/path recovery、paren ownership、fragmented introducer openerをproduction dispatchなしで固定した。次の
+authorized sliceはL5のRuleAtom string/bracketとRule call/indexである。`%{ Statement* }`はGate 6
+statement/declaration construction checkpoint後のL6、complete literal/Pattern deltaはL7とjoint Gate 4--6
+barrierまで完了扱いにしない。Gate 4 expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

@@ -30,6 +30,7 @@ mod mod_decl;
 mod operators;
 mod owners;
 mod pattern;
+mod rule;
 mod struct_decl;
 mod tails;
 mod type_decl;
