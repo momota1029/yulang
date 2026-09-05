@@ -1450,6 +1450,17 @@ zero-inline Catch controlのfocused fixtureを追加し、compiler-referee / spe
 (198 passed)、format / diff checkはgreen。broad package/workspace suite、performance、production/public/root parser、
 AST/HIR/header projection、typed diagnostics、Yumark、Gate 4/6/9 certificationは未実施のままである。
 
+2026-09-05: 次の construction slice C15 として、direct `TypeDeclaration` の既存 `DerivesClause` を
+isolated direct-CST だけで構築する設計を Reviewed 化した。`derives` / `via` / derives RoleRef の `with`、
+header RoleRef の `impl` / `=` は flat `Stops` ではなく immediate `TypeOuterBoundary` で current logical
+TypeExpression episode にだけ見せる。fresh nested TypeExpression edge は `NONE`、same episode の candidate /
+malformed retry / tail / path は incoming value を保存する。`StatementLineHandoff` は clause の全 trivia gap
+へ immediate に渡すが state にはしない。braced / Catch-through-inline は outer handoff、zero-Catch は header の
+existing EqualityRecovery と trailing clause 自身の recovery + outer continuation を分ける。header clause 後の
+`with` / `impl` は Complete / Missing / malformed RoleRef を問わず extra DefinitionIntroducer recovery なしで
+pending Item を返す。compiler/recovery と specification の独立査読は repair 後 approved。ユーザー承認までは
+Rust 実装に着手しない。Gate 6/D11/RB-DRV/public/legacy/AST/diagnostic/Struct/Yumark は scope 外のままである。
+
 1. **standalone `TypeExpression`の残りuse-site(where節)**: role signature・act
    signatureは上記で解決(role method signatureはexisting Binding Pattern
    TypeAnnotationを再利用、act operationも同じくexisting Patternを再利用)。
