@@ -7,11 +7,11 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     RewriteIn,
     driver::End,
-    item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
+    item::{ForeignKind, Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
 };
 
 #[cfg(test)]
-use super::item::{ForeignKind, ItemTextPart};
+use super::item::ItemTextPart;
 
 pub(super) fn emit_identifier_core(i: &mut RewriteIn, item: Item) {
     let Payload::Token(token) = item.payload else {
@@ -76,6 +76,39 @@ pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
         }
         Payload::Eof => unreachable!("only a lexical item can be emitted"),
         Payload::Boundary(_) => unreachable!("Gate 2 boundaries cannot be emitted"),
+    }
+}
+
+/// Emits one committed interior literal Item while keeping accepted Yumark
+/// quote prefixes outside the literal token kind.
+pub(super) fn emit_literal_item(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
+    debug_assert!(item.leading.0.is_empty());
+    let Payload::Token(token) = &item.payload else {
+        unreachable!("a literal lexical item always owns a token payload")
+    };
+
+    let Some(parts) = item.fragmented_parts() else {
+        i.state.token(kind.into(), &token.text);
+        return;
+    };
+
+    for part in parts {
+        let mut cursor = 0;
+        for split in part.foreign {
+            let start = split.offset - part.physical.start;
+            let end = start + split.length;
+            if cursor < start {
+                i.state.token(kind.into(), &part.text[cursor..start]);
+            }
+            let foreign = match split.kind {
+                ForeignKind::YmQuotePrefix => SyntaxKind::YmQuotePrefix,
+            };
+            i.state.token(foreign.into(), &part.text[start..end]);
+            cursor = end;
+        }
+        if cursor < part.text.len() {
+            i.state.token(kind.into(), &part.text[cursor..]);
+        }
     }
 }
 

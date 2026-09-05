@@ -35,9 +35,11 @@ they do not define this literal grammar, CST, or literal recovery. Yulang2 and
 the frozen opaque scanner are operational evidence only.
 
 This is M3 language/CST/recovery work. LC-1 through LC-12 in §7 are
-user-approved on 2026-09-05. The next authorized implementation is isolated
-L0 only; all later gates retain the stated construction and joint-certification
-dependencies.
+user-approved on 2026-09-05. Isolated L0 completed on 2026-09-05: it appended
+the public literal vocabulary and added the literal-private fragmented emitter
+without parsing reachability or changes to existing Item emitters. L1 is the
+next authorized implementation; all later gates retain the stated construction
+and joint-certification dependencies.
 
 ## 1. Current lexical Item and fence handoff
 

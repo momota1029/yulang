@@ -1,10 +1,10 @@
 use super::*;
 use crate::rewrite::{
     driver::handoff,
-    emit::emit_fragmented_item,
+    emit::{emit_fragmented_item, emit_literal_item},
     item::{
         BorrowedTarget, Boundary, ForeignKind, ForeignSplit, Item, ItemTextPart, LeadingTrivia,
-        Payload, PendingFragments, StopKind,
+        Payload, PendingFragments, StopKind, Token,
     },
     lexer::{
         FencedBlockComment, scan_block_comment_fenced_witness, scan_fenced_prior_trivia_part,
@@ -93,6 +93,28 @@ fn emit_accepted_fragmented_item(item: &Item) -> GreenNode {
     builder.finish()
 }
 
+fn emit_accepted_literal_item(item: Item, kind: SyntaxKind) -> GreenNode {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = "";
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let mut i = In::new(&mut input, &mut recover, &mut builder);
+    emit_literal_item(&mut i, item, kind);
+    builder.finish_node();
+    builder.finish()
+}
+
+fn literal_item(text: &str) -> Item {
+    Item::plain(
+        LeadingTrivia::default(),
+        Payload::Token(Token {
+            kind: TokenKind::Unknown,
+            text: text.into(),
+        }),
+    )
+}
+
 fn leading_text(item: &Item) -> String {
     item.leading.0.iter().map(|part| &*part.text).collect()
 }
@@ -121,6 +143,57 @@ fn ordinary_block_comment_scanner_remains_unsplit() {
         Payload::Token(ref token)
             if token.kind == TokenKind::Identifier && &*token.text == "name"
     ));
+}
+
+#[test]
+fn unsplit_literal_item_emits_one_supplied_literal_token() {
+    let green = emit_accepted_literal_item(literal_item("α\r\nβ"), SyntaxKind::StringText);
+    let root = SyntaxNode::new_root(green);
+
+    assert_eq!(root.to_string(), "α\r\nβ");
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [(SyntaxKind::StringText, "α\r\nβ".to_owned())]
+    );
+}
+
+#[test]
+fn fragmented_literal_item_preserves_source_order_and_quote_prefix_kind() {
+    let text = "α\n> > β\r\n> > γ";
+    let origin = 17;
+    let mut item = literal_item(text);
+    let fragments = PendingFragments::finish(
+        Some(vec![
+            ForeignSplit::quote_prefix(origin + "α\n".len(), "> > ".len()),
+            ForeignSplit::quote_prefix(origin + "α\n> > β\r\n".len(), "> > ".len()),
+        ]),
+        origin,
+        text.len(),
+    )
+    .expect("valid literal carrier")
+    .expect("two quote-prefix splits");
+    item.with_fragments(fragments)
+        .expect("carrier covers the literal item");
+
+    let green = emit_accepted_literal_item(item, SyntaxKind::RuleLiteralText);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), text);
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::RuleLiteralText, "α\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+            (SyntaxKind::RuleLiteralText, "β\r\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
+            (SyntaxKind::RuleLiteralText, "γ".to_owned()),
+        ]
+    );
 }
 
 #[test]

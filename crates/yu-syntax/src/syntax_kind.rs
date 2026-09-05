@@ -234,6 +234,44 @@ pub enum SyntaxKind {
     LineComment,
     BlockComment,
     Unknown,
+    StringLiteral,
+    StringEscape,
+    StringInterpolation,
+    StringInterpolationBody,
+    RuleExpression,
+    RuleBody,
+    RuleAlternation,
+    RuleSequence,
+    RuleItem,
+    RuleCapture,
+    RuleQuantifier,
+    RuleField,
+    RulePath,
+    RuleCall,
+    RuleIndex,
+    RuleLiteral,
+    RuleLiteralInterpolation,
+    RuleLazyCapture,
+    StringStart,
+    StringEnd,
+    StringText,
+    StringEscapeLead,
+    StringEscapeSimple,
+    StringEscapeUnicodeStart,
+    StringEscapeUnicodeHex,
+    StringEscapeUnicodeEnd,
+    StringInterpolationPercent,
+    StringInterpolationFormatText,
+    StringInterpolationOpenBrace,
+    StringInterpolationCloseBrace,
+    RuleKw,
+    RuleQuantifierToken,
+    RuleLiteralStart,
+    RuleLiteralEnd,
+    RuleLiteralText,
+    RuleLiteralOpenBrace,
+    RuleLiteralCloseBrace,
+    RuleLiteralColon,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -532,6 +570,72 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::Newline as u16 => SyntaxKind::Newline,
             value if value == SyntaxKind::LineComment as u16 => SyntaxKind::LineComment,
             value if value == SyntaxKind::BlockComment as u16 => SyntaxKind::BlockComment,
+            value if value == SyntaxKind::StringLiteral as u16 => SyntaxKind::StringLiteral,
+            value if value == SyntaxKind::StringEscape as u16 => SyntaxKind::StringEscape,
+            value if value == SyntaxKind::StringInterpolation as u16 => {
+                SyntaxKind::StringInterpolation
+            }
+            value if value == SyntaxKind::StringInterpolationBody as u16 => {
+                SyntaxKind::StringInterpolationBody
+            }
+            value if value == SyntaxKind::RuleExpression as u16 => SyntaxKind::RuleExpression,
+            value if value == SyntaxKind::RuleBody as u16 => SyntaxKind::RuleBody,
+            value if value == SyntaxKind::RuleAlternation as u16 => SyntaxKind::RuleAlternation,
+            value if value == SyntaxKind::RuleSequence as u16 => SyntaxKind::RuleSequence,
+            value if value == SyntaxKind::RuleItem as u16 => SyntaxKind::RuleItem,
+            value if value == SyntaxKind::RuleCapture as u16 => SyntaxKind::RuleCapture,
+            value if value == SyntaxKind::RuleQuantifier as u16 => SyntaxKind::RuleQuantifier,
+            value if value == SyntaxKind::RuleField as u16 => SyntaxKind::RuleField,
+            value if value == SyntaxKind::RulePath as u16 => SyntaxKind::RulePath,
+            value if value == SyntaxKind::RuleCall as u16 => SyntaxKind::RuleCall,
+            value if value == SyntaxKind::RuleIndex as u16 => SyntaxKind::RuleIndex,
+            value if value == SyntaxKind::RuleLiteral as u16 => SyntaxKind::RuleLiteral,
+            value if value == SyntaxKind::RuleLiteralInterpolation as u16 => {
+                SyntaxKind::RuleLiteralInterpolation
+            }
+            value if value == SyntaxKind::RuleLazyCapture as u16 => SyntaxKind::RuleLazyCapture,
+            value if value == SyntaxKind::StringStart as u16 => SyntaxKind::StringStart,
+            value if value == SyntaxKind::StringEnd as u16 => SyntaxKind::StringEnd,
+            value if value == SyntaxKind::StringText as u16 => SyntaxKind::StringText,
+            value if value == SyntaxKind::StringEscapeLead as u16 => SyntaxKind::StringEscapeLead,
+            value if value == SyntaxKind::StringEscapeSimple as u16 => {
+                SyntaxKind::StringEscapeSimple
+            }
+            value if value == SyntaxKind::StringEscapeUnicodeStart as u16 => {
+                SyntaxKind::StringEscapeUnicodeStart
+            }
+            value if value == SyntaxKind::StringEscapeUnicodeHex as u16 => {
+                SyntaxKind::StringEscapeUnicodeHex
+            }
+            value if value == SyntaxKind::StringEscapeUnicodeEnd as u16 => {
+                SyntaxKind::StringEscapeUnicodeEnd
+            }
+            value if value == SyntaxKind::StringInterpolationPercent as u16 => {
+                SyntaxKind::StringInterpolationPercent
+            }
+            value if value == SyntaxKind::StringInterpolationFormatText as u16 => {
+                SyntaxKind::StringInterpolationFormatText
+            }
+            value if value == SyntaxKind::StringInterpolationOpenBrace as u16 => {
+                SyntaxKind::StringInterpolationOpenBrace
+            }
+            value if value == SyntaxKind::StringInterpolationCloseBrace as u16 => {
+                SyntaxKind::StringInterpolationCloseBrace
+            }
+            value if value == SyntaxKind::RuleKw as u16 => SyntaxKind::RuleKw,
+            value if value == SyntaxKind::RuleQuantifierToken as u16 => {
+                SyntaxKind::RuleQuantifierToken
+            }
+            value if value == SyntaxKind::RuleLiteralStart as u16 => SyntaxKind::RuleLiteralStart,
+            value if value == SyntaxKind::RuleLiteralEnd as u16 => SyntaxKind::RuleLiteralEnd,
+            value if value == SyntaxKind::RuleLiteralText as u16 => SyntaxKind::RuleLiteralText,
+            value if value == SyntaxKind::RuleLiteralOpenBrace as u16 => {
+                SyntaxKind::RuleLiteralOpenBrace
+            }
+            value if value == SyntaxKind::RuleLiteralCloseBrace as u16 => {
+                SyntaxKind::RuleLiteralCloseBrace
+            }
+            value if value == SyntaxKind::RuleLiteralColon as u16 => SyntaxKind::RuleLiteralColon,
             _ => SyntaxKind::Unknown,
         }
     }
@@ -561,5 +665,57 @@ mod tests {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
         }
+    }
+
+    #[test]
+    fn literal_syntax_kinds_round_trip_through_rowan() {
+        for kind in [
+            SyntaxKind::StringLiteral,
+            SyntaxKind::StringEscape,
+            SyntaxKind::StringInterpolation,
+            SyntaxKind::StringInterpolationBody,
+            SyntaxKind::RuleExpression,
+            SyntaxKind::RuleBody,
+            SyntaxKind::RuleAlternation,
+            SyntaxKind::RuleSequence,
+            SyntaxKind::RuleItem,
+            SyntaxKind::RuleCapture,
+            SyntaxKind::RuleQuantifier,
+            SyntaxKind::RuleField,
+            SyntaxKind::RulePath,
+            SyntaxKind::RuleCall,
+            SyntaxKind::RuleIndex,
+            SyntaxKind::RuleLiteral,
+            SyntaxKind::RuleLiteralInterpolation,
+            SyntaxKind::RuleLazyCapture,
+            SyntaxKind::StringStart,
+            SyntaxKind::StringEnd,
+            SyntaxKind::StringText,
+            SyntaxKind::StringEscapeLead,
+            SyntaxKind::StringEscapeSimple,
+            SyntaxKind::StringEscapeUnicodeStart,
+            SyntaxKind::StringEscapeUnicodeHex,
+            SyntaxKind::StringEscapeUnicodeEnd,
+            SyntaxKind::StringInterpolationPercent,
+            SyntaxKind::StringInterpolationFormatText,
+            SyntaxKind::StringInterpolationOpenBrace,
+            SyntaxKind::StringInterpolationCloseBrace,
+            SyntaxKind::RuleKw,
+            SyntaxKind::RuleQuantifierToken,
+            SyntaxKind::RuleLiteralStart,
+            SyntaxKind::RuleLiteralEnd,
+            SyntaxKind::RuleLiteralText,
+            SyntaxKind::RuleLiteralOpenBrace,
+            SyntaxKind::RuleLiteralCloseBrace,
+            SyntaxKind::RuleLiteralColon,
+        ] {
+            let raw = <YulangLanguage as Language>::kind_to_raw(kind);
+            assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
+        }
+    }
+
+    #[test]
+    fn appending_literal_kinds_preserves_the_old_unknown_discriminant() {
+        assert_eq!(SyntaxKind::Unknown as u16, 229);
     }
 }

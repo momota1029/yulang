@@ -287,9 +287,11 @@ envelope、CRLF/UTF-8、`/x` non-matchもfocused controlに含む。lexer/public
 scope外である。次のmultiline lexical ownerであるstring/rule literalは、user-approved
 `notes/design/2026-09-05-direct-literal-cone-addendum.md`がnormal/heredoc String、`%` interpolation、
 `rule {}`、`~"..."`、Pattern route、typed recovery、one-current-Item fence handoffをAuthoritative化した。
-次のauthorized sliceはpublic vocabulary/fragmented emitterだけのisolated L0である。`%{ Statement* }`は
-Gate 6 statement/declaration construction checkpoint後のL6、complete literal/Pattern deltaはL7とjoint
-Gate 4--6 barrierまで完了扱いにしない。Gate 4 expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
+isolated L0はpublic vocabulary/fragmented emitterだけを完了し、parsing reachabilityや既存Item emitterを
+変えていない。次のauthorized sliceはliteral lexical Item scannerとfence transition primitiveだけのL1であり、
+NUD dispatchは含まない。`%{ Statement* }`はGate 6 statement/declaration construction checkpoint後のL6、
+complete literal/Pattern deltaはL7とjoint Gate 4--6 barrierまで完了扱いにしない。Gate 4 expression/recovery、
+Gate 5--7、Yumark integration/cutoverも未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
