@@ -40,8 +40,11 @@ the public literal vocabulary and added the literal-private fragmented emitter
 without parsing reachability or changes to existing Item emitters. Isolated L1
 also completed on 2026-09-05: its literal lexical Item scanner and one
 fence-line transition primitive preserve the one-current-Item handoff without
-NUD dispatch. L2 is the next authorized implementation; all later gates retain
-the stated construction and joint-certification dependencies.
+NUD dispatch. Isolated L2 also completed on 2026-09-05: its test-only
+normal/heredoc String construction, escape/recovery, and structural-prefix
+handoff remain unreachable from production dispatch. L3 is the next authorized
+implementation; all later gates retain the stated construction and
+joint-certification dependencies.
 
 ## 1. Current lexical Item and fence handoff
 
