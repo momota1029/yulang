@@ -1,4 +1,35 @@
 use super::*;
+use crate::rewrite::{
+    literal::{NonInterpolatingStringExit, RuleLiteralExit},
+    pattern::{PatternLiteralWitnessExit, pattern_literal_witness},
+    yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
+};
+
+fn run_pattern_literal<'source>(
+    source: &'source str,
+) -> (GreenNode, PatternLiteralWitnessExit, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = pattern_literal_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        &FenceBoundary {
+            opener: FenceOpener {
+                line: 0,
+                marker: 0..0,
+                marker_width: 0,
+            },
+            prefix_policy: FencePrefixPolicy::None,
+            close_column: 0,
+        },
+    )
+    .expect("Pattern quote witness");
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
 
 fn pattern_node(green: GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green)
@@ -152,7 +183,7 @@ fn standalone_patterns_keep_fixed_tail_order_and_colon_handoffs() {
     assert!(matches!(
         exit,
         Err(Either::Left(item))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
+            if item.payload_view().token_kind() == Some(TokenKind::Colon)
     ));
 
     let (green, exit) = run_pattern_with_colon_stop(": body", true);
@@ -160,7 +191,7 @@ fn standalone_patterns_keep_fixed_tail_order_and_colon_handoffs() {
     assert!(matches!(
         exit,
         Err(Either::Left(item))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
+            if item.payload_view().token_kind() == Some(TokenKind::Colon)
     ));
 }
 
@@ -283,7 +314,7 @@ fn standalone_patterns_keep_list_record_and_annotation_owners_local() {
     assert!(matches!(
         exit,
         Err(Either::Left(item))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
+            if item.payload_view().token_kind() == Some(TokenKind::Colon)
     ));
 
     let (green, exit) = run_pattern("x\n  : Int");
@@ -300,8 +331,8 @@ fn standalone_patterns_keep_list_record_and_annotation_owners_local() {
     assert!(matches!(
         exit,
         Err(Either::Left(item))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
-                && item.leading.0.iter().any(|part| part.kind == TriviaKind::Newline)
+            if item.payload_view().token_kind() == Some(TokenKind::Colon)
+                && item.leading_view().has_ordinary_newline()
     ));
 }
 
@@ -388,20 +419,14 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
 
     let (green, exit) = run_pattern("x: @\nInt");
     assert_eq!(green.to_string(), "x: @");
-    let Err(Either::Left(item)) = exit else {
+    let Err(Either::Left(mut item)) = exit else {
         panic!("shallow newline handoff expected");
     };
-    assert!(
-        matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Identifier)
-    );
     assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|trivia| &*trivia.text)
-            .collect::<String>(),
-        "\n"
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
     );
+    assert_eq!(emit_pending_leading_text(&mut item), "\n");
     let annotation = annotation_node(&green);
     assert_eq!(
         annotation
@@ -427,24 +452,17 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
         ("x:\nInt", Some(TokenKind::Identifier), "\n"),
     ] {
         let (green, exit) = run_pattern(source);
-        let item = match exit {
+        let mut item = match exit {
             Err(Either::Left(item)) => item,
             Err(Either::Right(end)) if expected_kind.is_none() => end.item,
             _ => panic!("mandatory Type boundary handoff expected: {source:?}"),
         };
         match expected_kind {
-            Some(kind) => assert!(
-                matches!(item.payload, Payload::Token(ref token) if token.kind == kind),
-                "{source:?}"
-            ),
-            None => assert!(matches!(item.payload, Payload::Eof), "{source:?}"),
+            Some(kind) => assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}"),
+            None => assert!(item.payload_view().is_eof(), "{source:?}"),
         }
         assert_eq!(
-            item.leading
-                .0
-                .iter()
-                .map(|trivia| &*trivia.text)
-                .collect::<String>(),
+            emit_pending_leading_text(&mut item),
             expected_leading,
             "{source:?}"
         );
@@ -615,18 +633,11 @@ fn standalone_patterns_recover_primary_alias_and_alternation_slots_locally() {
 
     let (green, exit) = run_pattern("A as @ ,");
     assert_eq!(green.to_string(), "A as @");
-    let Err(Either::Left(item)) = exit else {
+    let Err(Either::Left(mut item)) = exit else {
         panic!("comma handoff expected");
     };
-    assert!(matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Comma));
-    assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|trivia| &*trivia.text)
-            .collect::<String>(),
-        " "
-    );
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Comma));
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
     let alias = pattern_node(green)
         .children()
         .find(|node| node.kind() == SyntaxKind::PatternAliasTail)
@@ -657,22 +668,11 @@ fn standalone_pattern_recovery_leaves_caller_boundaries_and_their_gaps_intact() 
         let colon_stop = kind == TokenKind::Colon;
         let (green, exit) = run_pattern_with_colon_stop(source, colon_stop);
         assert_eq!(green.to_string(), "@", "{source:?}");
-        let Err(Either::Left(item)) = exit else {
+        let Err(Either::Left(mut item)) = exit else {
             panic!("caller boundary expected: {source:?}");
         };
-        assert!(
-            matches!(item.payload, Payload::Token(ref token) if token.kind == kind),
-            "{source:?}"
-        );
-        assert_eq!(
-            item.leading
-                .0
-                .iter()
-                .map(|trivia| &*trivia.text)
-                .collect::<String>(),
-            leading,
-            "{source:?}"
-        );
+        assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), leading, "{source:?}");
     }
 }
 
@@ -1232,4 +1232,68 @@ fn trivia_parents(green: &GreenNode) -> Vec<SyntaxKind> {
         .filter(|token| matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
         .map(|token| token.parent().expect("trivia parent").kind())
         .collect()
+}
+
+#[test]
+fn pattern_literal_checkpoint_splits_one_quote_from_three_quote_string() {
+    let (green, exit, remainder) = run_pattern_literal("\"a\\b:name\"tail");
+    assert_eq!(remainder, "tail");
+    assert_eq!(
+        exit,
+        PatternLiteralWitnessExit::Rule(RuleLiteralExit::Complete)
+    );
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::StringLiteral)
+            .count(),
+        0
+    );
+    assert_eq!(
+        root.first_token().map(|token| token.kind()),
+        Some(SyntaxKind::RuleLiteralStart)
+    );
+
+    let (green, exit, remainder) = run_pattern_literal("\"\"\"α\"\"\"tail");
+    assert_eq!(remainder, "tail");
+    assert_eq!(
+        exit,
+        PatternLiteralWitnessExit::String(NonInterpolatingStringExit::Complete)
+    );
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::StringLiteral)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .count(),
+        0
+    );
+
+    let (green, exit, remainder) = run_pattern_literal("\"\"\"a%{x}\"\"\"tail");
+    let PatternLiteralWitnessExit::String(NonInterpolatingStringExit::DeferredInterpolation(
+        percent,
+    )) = exit
+    else {
+        panic!("nested Pattern StringInterpolation stays deferred")
+    };
+    assert_eq!(percent.payload_view().spelling(), Some("%"));
+    assert_eq!(remainder, "{x}\"\"\"tail");
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::StringInterpolation)
+            .count(),
+        0
+    );
 }

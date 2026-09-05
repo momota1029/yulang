@@ -12,7 +12,7 @@ use super::{
         is_nud_item, is_required_operand_boundary, required_expr_item, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, TokenKind},
+    item::{Item, LeadingTrivia, TokenKind},
     lexer::{introduced_body_indentation, scan_trivia, tail_item_after_trivia},
     operator::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE},
     statement::{StatementLineHandoff, indented_statement_block},
@@ -27,8 +27,7 @@ pub(super) fn if_nud(
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    emit_leading_trivia(&mut i, &keyword.leading);
-    keyword.leading = LeadingTrivia::default();
+    keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::IfExpression.into());
     let exit = if_arm(
         i.rb(),
@@ -65,8 +64,7 @@ fn if_continuations(
         let Some(kind) = arm_keyword(i.rb(), &keyword, if_baseline) else {
             return handoff(keyword);
         };
-        emit_leading_trivia(&mut i, &keyword.leading);
-        keyword.leading = LeadingTrivia::default();
+        keyword.emit_all_remaining_leading(&mut *i.state);
         exit = match kind {
             SyntaxKind::ElsifKw => if_arm(
                 i.rb(),
@@ -105,8 +103,8 @@ pub(super) fn active_statement_companion(
     baseline: usize,
     stops: Stops,
 ) -> Option<ActiveStatementCompanion> {
-    let continuation =
-        indentation_after_newline(&item.leading).is_none_or(|indentation| indentation >= baseline);
+    let continuation = indentation_after_newline(item.leading_view())
+        .is_none_or(|indentation| indentation >= baseline);
     continuation.then_some(())?;
     if stops & STOP_ELSIF != 0 && is_contextual_word(i.rb(), item, "elsif") {
         Some(ActiveStatementCompanion::Elsif)
@@ -156,7 +154,6 @@ fn condition(
     let leading = scan_trivia(i.rb());
     emit_leading_trivia(&mut i, &leading);
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    item.leading = LeadingTrivia::default();
     let missing = is_required_operand_boundary(i.rb(), &item, stops);
     i.state.start_node(SyntaxKind::Condition.into());
     i.state.start_node(SyntaxKind::OperatorChain.into());
@@ -180,13 +177,13 @@ fn missing_if_arm(mut i: RewriteIn, exit: TailExit, condition_missing: bool) -> 
     }
     match exit {
         Err(Either::Left(mut item)) => {
-            let leading = std::mem::take(&mut item.leading);
-            emit_missing(&mut i, leading);
+            item.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
             handoff(item)
         }
         Err(Either::Right(mut end)) => {
-            let leading = std::mem::take(&mut end.item.leading);
-            emit_missing(&mut i, leading);
+            end.item.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
             Err(Either::Right(end))
         }
         Ok(()) => unreachable!("a direct condition always returns a boundary item"),
@@ -269,7 +266,7 @@ fn inline_body_item(
 
     item = retry_inline_body(i.rb(), item, baseline, stops);
     if inline_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, &item.leading) {
+        if !implicit_delimited_newline(baseline, item.leading_view()) {
             emit_inline_leading(&mut i, &mut item);
         }
         return handoff(item);
@@ -293,21 +290,21 @@ fn retry_inline_body(mut i: RewriteIn, mut item: Item, baseline: usize, stops: S
 }
 
 fn inline_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || super::driver::is_separator(item)
         || is_active_stop(i.rb(), item, stops)
-        || implicit_delimited_newline(baseline, &item.leading)
+        || implicit_delimited_newline(baseline, item.leading_view())
         || token_kind(item) == Some(TokenKind::LBrace)
 }
 
 fn emit_inline_leading(i: &mut RewriteIn, item: &mut Item) {
-    if !item.leading.0.is_empty() {
-        emit_leading_trivia(i, &std::mem::take(&mut item.leading));
+    if !item.leading_view().is_grammar_empty() {
+        item.emit_all_remaining_leading(&mut *i.state);
     }
 }
 
 fn emit_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize) {
-    if !implicit_delimited_newline(baseline, &item.leading) {
+    if !implicit_delimited_newline(baseline, item.leading_view()) {
         emit_inline_leading(i, item);
     }
     emit_missing(i, LeadingTrivia::default());
@@ -320,18 +317,6 @@ fn emit_contextual_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
         SyntaxKind::ElseKw => "else",
         _ => unreachable!("only if-expression keyword kinds are emitted here"),
     };
-    emit_leading_trivia(i, &item.leading);
-    match item.payload {
-        Payload::Token(token) => {
-            debug_assert_eq!(token.kind, TokenKind::Identifier);
-            debug_assert_eq!(&*token.text, spelling);
-            i.state.token(kind.into(), &token.text);
-        }
-        Payload::Operator(operator) => {
-            debug_assert_eq!(&*operator.text, spelling);
-            i.state.token(kind.into(), &operator.text);
-        }
-        Payload::Eof => unreachable!("an accepted contextual keyword is lexical"),
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
-    }
+    debug_assert_eq!(item.payload_view().spelling(), Some(spelling));
+    item.emit_remaining(&mut *i.state, kind);
 }

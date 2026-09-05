@@ -98,8 +98,8 @@ fn dynamic_operator_candidate_fallback_is_site_aware() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token)
-                if token.kind == TokenKind::Unknown && &*token.text == "+")
+            if item.payload_view().token_kind() == Some(TokenKind::Unknown)
+                && item.payload_view().spelling() == Some("+")
     ));
 }
 

@@ -13,7 +13,7 @@ use super::{
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     if_expr::{ActiveStatementCompanion, active_statement_companion},
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    item::{Item, LeadingTrivia, Token, TokenKind},
     lexer::{
         declaration_type_header_item_after_trivia, is_declaration_starter_word,
         scan_declaration_type_parameter, scan_identifier, scan_trivia, source_identifier,
@@ -215,7 +215,8 @@ fn definition_from_item(
         return handoff(item);
     }
     if type_starter(&item) {
-        emit_missing(&mut i, std::mem::take(&mut item.leading));
+        item.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
         return rhs_item(i, item, baseline, stops, line_handoff);
     }
 
@@ -372,7 +373,7 @@ fn type_form(
     if token_kind(item) == Some(TokenKind::Equals) && gtype_item_allowed(item, baseline) {
         return TypeDeclarationForm::Equality;
     }
-    if let Some(indentation) = indentation_after_newline(&item.leading) {
+    if let Some(indentation) = indentation_after_newline(item.leading_view()) {
         return match line_handoff {
             StatementLineHandoff::OrdinaryLayout if indentation <= baseline => {
                 TypeDeclarationForm::Nominal(NominalBoundary::OrdinaryLayoutNewline)
@@ -385,7 +386,7 @@ fn type_form(
                     NominalBoundary::CatchArmSequenceNewlineThroughInlineCanonicalStatement,
                 )
             }
-            StatementLineHandoff::OrdinaryLayout if matches!(item.payload, Payload::Eof) => {
+            StatementLineHandoff::OrdinaryLayout if item.payload_view().is_eof() => {
                 TypeDeclarationForm::Nominal(NominalBoundary::EofOwnedTrivia)
             }
             StatementLineHandoff::CatchBracedArm | StatementLineHandoff::OrdinaryLayout => {
@@ -393,7 +394,7 @@ fn type_form(
             }
         };
     }
-    if matches!(item.payload, Payload::Eof) || token_kind(item) == Some(TokenKind::Semicolon) {
+    if item.payload_view().is_eof() || token_kind(item) == Some(TokenKind::Semicolon) {
         return TypeDeclarationForm::Nominal(NominalBoundary::SameLineTerminal);
     }
     if is_active_stop(i.rb(), item, stops)
@@ -408,7 +409,7 @@ fn type_form(
 }
 
 fn rhs_gap_is_outer_owned(item: &Item, baseline: usize, caller_stops: Stops) -> bool {
-    implicit_delimited_newline(baseline, &item.leading)
+    implicit_delimited_newline(baseline, item.leading_view())
         || (is_type_caller_boundary(item, caller_stops)
             && token_kind(item) != Some(TokenKind::Semicolon))
 }
@@ -433,7 +434,7 @@ fn attachment_gap_continues(
 ) -> bool {
     !is_active_stop(i.rb(), item, stops)
         && active_statement_companion(i.rb(), item, baseline, stops).is_none()
-        && indentation_after_newline(&item.leading).is_none_or(|indentation| {
+        && indentation_after_newline(item.leading_view()).is_none_or(|indentation| {
             matches!(line_handoff, StatementLineHandoff::OrdinaryLayout) && indentation > baseline
         })
 }
@@ -453,8 +454,8 @@ fn trailing_role_boundary() -> TypeOuterBoundary {
 }
 
 fn header_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
-        || implicit_delimited_newline(baseline, &item.leading)
+    item.payload_view().is_eof()
+        || implicit_delimited_newline(baseline, item.leading_view())
         || is_active_stop(i.rb(), item, stops)
         || matches!(
             token_kind(item),
@@ -483,17 +484,12 @@ fn emit_gtype(mut i: RewriteIn, baseline: usize, required: bool) -> bool {
 }
 
 fn gtype_item_allowed(item: &Item, baseline: usize) -> bool {
-    !implicit_delimited_newline(baseline, &item.leading)
+    !implicit_delimited_newline(baseline, item.leading_view())
 }
 
 fn scan_parameter(mut i: LexIn) -> Option<(LeadingTrivia, Token)> {
     let leading = scan_trivia(i.rb());
-    if leading.0.is_empty()
-        || leading
-            .0
-            .iter()
-            .any(|trivia| trivia.text.contains(['\r', '\n']))
-    {
+    if leading.view().is_grammar_empty() || leading.view().contains_line_break() {
         return None;
     }
     let parameter = scan_declaration_type_parameter(i.rb())?;
@@ -573,40 +569,28 @@ fn scan_exact_identifier(mut i: LexIn, expected: &str) -> Option<Token> {
 }
 
 fn item_word(item: &Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) => Some(text),
-        _ => None,
-    }
+    (item.payload_view().token_kind() == Some(TokenKind::Identifier))
+        .then(|| item.payload_view().spelling())
+        .flatten()
 }
 
 fn emit_intro(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("accepted Type intro is lexical")
-    };
-    emit_leading_trivia(i, &item.leading);
-    i.state.token(kind.into(), &token.text);
+    debug_assert!(item.payload_view().token_kind().is_some());
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn emit_visibility(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("accepted Type visibility is lexical")
-    };
-    emit_leading_trivia(i, &item.leading);
-    let kind = match &*token.text {
-        "my" => SyntaxKind::MyKw,
-        "our" => SyntaxKind::OurKw,
-        "pub" => SyntaxKind::PubKw,
+    let kind = match item.payload_view().spelling() {
+        Some("my") => SyntaxKind::MyKw,
+        Some("our") => SyntaxKind::OurKw,
+        Some("pub") => SyntaxKind::PubKw,
         _ => unreachable!("Type visibility uses exact declaration words"),
     };
-    i.state.token(kind.into(), &token.text);
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn emit_item_leading(i: &mut RewriteIn, item: &mut Item) {
-    let leading = std::mem::take(&mut item.leading);
-    emit_leading_trivia(i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
 }
 
 fn observes<F>(i: RewriteIn, predicate: F) -> bool

@@ -11,7 +11,7 @@ use super::{
         indentation_after_newline, is_active_stop, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    item::{Item, LeadingTrivia, Token, TokenKind},
     lexer::{
         introduced_body_indentation, scan_identifier, scan_statement_item, scan_trivia,
         source_identifier, statement_item_after_trivia, type_nud_item_after_trivia,
@@ -196,7 +196,7 @@ fn parse_delimited_fields(
 ) -> TailExit {
     emit_token_item(&mut i, open);
     let opening = scan_trivia(i.rb());
-    let list_base = delimited_baseline(baseline, &opening);
+    let list_base = delimited_baseline(baseline, opening.view());
     emit_leading_trivia(&mut i, &opening);
     let item = field_item_after_trivia(
         i.rb(),
@@ -241,15 +241,11 @@ fn field_sequence(
                 emit_token_item(&mut i, item);
                 return scan_after_completed(i, owner_baseline, stops);
             }
-            if matches!(item.payload, Payload::Eof) || is_active_stop(i.rb(), &item, stops) {
+            if item.payload_view().is_eof() || is_active_stop(i.rb(), &item, stops) {
                 if after_comma
-                    || (!need_field && implicit_delimited_newline(baseline, &item.leading))
+                    || (!need_field && implicit_delimited_newline(baseline, item.leading_view()))
                 {
-                    emit_missing_field(
-                        &mut i,
-                        std::mem::take(&mut item.leading),
-                        list == FieldList::Tuple,
-                    );
+                    emit_missing_field_item(&mut i, &mut item, list == FieldList::Tuple);
                 }
                 emit_missing(&mut i, LeadingTrivia::default());
                 return handoff(item);
@@ -272,11 +268,7 @@ fn field_sequence(
 
         if token_kind(&item) == Some(TokenKind::Comma) {
             if need_field {
-                emit_missing_field(
-                    &mut i,
-                    std::mem::take(&mut item.leading),
-                    delimited == Some(FieldList::Tuple),
-                );
+                emit_missing_field_item(&mut i, &mut item, delimited == Some(FieldList::Tuple));
             }
             emit_token_item(&mut i, item);
             let leading = scan_trivia(i.rb());
@@ -285,8 +277,8 @@ fn field_sequence(
             after_comma = true;
             continue;
         }
-        if !need_field && implicit_delimited_newline(baseline, &item.leading) {
-            emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+        if !need_field && implicit_delimited_newline(baseline, item.leading_view()) {
+            item.emit_all_remaining_leading(&mut *i.state);
             need_field = true;
         }
         if token_kind(&item) == Some(TokenKind::Semicolon) {
@@ -296,11 +288,12 @@ fn field_sequence(
             continue;
         }
         if !need_field {
-            emit_missing(&mut i, std::mem::take(&mut item.leading));
+            item.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
             need_field = true;
         }
-        if need_field && !item.leading.0.is_empty() {
-            emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+        if need_field && !item.leading_view().is_grammar_empty() {
+            item.emit_all_remaining_leading(&mut *i.state);
         }
 
         let valid_start = match delimited {
@@ -353,31 +346,36 @@ fn named_field(
         let leading = scan_trivia(i.rb());
         item = statement_item_after_trivia(i.rb(), leading, baseline, 0);
     } else {
-        emit_missing(&mut i, std::mem::take(&mut item.leading));
+        item.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
     }
 
     if token_kind(&item) == Some(TokenKind::Colon)
-        && indentation_after_newline(&item.leading).is_none()
+        && indentation_after_newline(item.leading_view()).is_none()
     {
         emit_token_item(&mut i, item);
         return named_field_rhs(i, baseline, delimited);
     }
 
-    if indentation_after_newline(&item.leading).is_some() {
+    if indentation_after_newline(item.leading_view()).is_some() {
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
         return handoff(item);
     }
 
     if type_starter(&item) {
-        emit_missing(&mut i, std::mem::take(&mut item.leading));
+        item.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
         let exit = named_type(i.rb(), item, baseline, delimited);
         i.state.finish_node();
         return exit;
     }
 
     if field_boundary(i.rb(), &item, baseline, stops, delimited) {
-        emit_missing(&mut i, std::mem::take(&mut item.leading));
+        if !item.payload_view().is_boundary() {
+            item.emit_all_remaining_leading(&mut *i.state);
+        }
+        emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
         return handoff(item);
     }
@@ -388,14 +386,14 @@ fn named_field(
         let leading = scan_trivia(i.rb());
         item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
         if token_kind(&item) == Some(TokenKind::Colon)
-            && indentation_after_newline(&item.leading).is_none()
+            && indentation_after_newline(item.leading_view()).is_none()
         {
             i.state.finish_node();
             emit_token_item(&mut i, item);
             return named_field_rhs(i, baseline, delimited);
         }
         if type_starter(&item)
-            && indentation_after_newline(&item.leading).is_none_or(|indent| indent > baseline)
+            && indentation_after_newline(item.leading_view()).is_none_or(|indent| indent > baseline)
         {
             i.state.finish_node();
             let exit = named_type(i.rb(), item, baseline, delimited);
@@ -424,7 +422,7 @@ fn recover_named_field(
         let leading = scan_trivia(i.rb());
         item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
         if token_kind(&item) == Some(TokenKind::Colon)
-            && indentation_after_newline(&item.leading).is_none()
+            && indentation_after_newline(item.leading_view()).is_none()
         {
             i.state.finish_node();
             emit_token_item(&mut i, item);
@@ -441,8 +439,8 @@ fn recover_named_field(
 fn named_field_rhs(mut i: RewriteIn, baseline: usize, delimited: Option<FieldList>) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut primary = type_nud_item_after_trivia(i.rb(), leading);
-    if indentation_after_newline(&primary.leading).is_none_or(|indent| indent > baseline) {
-        emit_leading_trivia(&mut i, &std::mem::take(&mut primary.leading));
+    if indentation_after_newline(primary.leading_view()).is_none_or(|indent| indent > baseline) {
+        primary.emit_all_remaining_leading(&mut *i.state);
     }
     let exit = named_type(i.rb(), primary, baseline, delimited);
     i.state.finish_node();
@@ -472,9 +470,9 @@ fn field_boundary(
     stops: Stops,
     delimited: Option<FieldList>,
 ) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_active_stop(i.rb(), item, stops)
-        || implicit_delimited_newline(baseline, &item.leading)
+        || implicit_delimited_newline(baseline, item.leading_view())
         || matches!(
             token_kind(item),
             Some(TokenKind::Comma | TokenKind::Semicolon)
@@ -511,9 +509,9 @@ fn recover_separator(
             || token_kind(&item) == Some(TokenKind::Colon)
             || raw_name(&item)
             || delimited == Some(FieldList::Tuple) && type_starter(&item)
-            || matches!(item.payload, Payload::Eof)
+            || item.payload_view().is_eof()
             || is_active_stop(i.rb(), &item, stops)
-            || implicit_delimited_newline(baseline, &item.leading)
+            || implicit_delimited_newline(baseline, item.leading_view())
         {
             i.state.finish_node();
             return item;
@@ -540,8 +538,8 @@ fn field_item_after_trivia(
 /// already consumed the candidate name; only the live same-line suffix is
 /// inspected, and tuple fields never enable this hook.
 pub(super) fn struct_named_fields_next_field_candidate(i: RewriteIn, item: &Item) -> bool {
-    if item.leading.0.is_empty()
-        || indentation_after_newline(&item.leading).is_some()
+    if item.leading_view().is_grammar_empty()
+        || indentation_after_newline(item.leading_view()).is_some()
         || !raw_name(item)
     {
         return false;
@@ -553,8 +551,8 @@ pub(super) fn struct_named_fields_next_field_candidate(i: RewriteIn, item: &Item
 }
 
 fn indented_end(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
-        || indentation_after_newline(&item.leading).is_some_and(|indent| indent < baseline)
+    item.payload_view().is_eof()
+        || indentation_after_newline(item.leading_view()).is_some_and(|indent| indent < baseline)
         || is_active_stop(i.rb(), item, stops)
 }
 
@@ -564,6 +562,21 @@ fn emit_missing_field(i: &mut RewriteIn, leading: LeadingTrivia, tuple: bool) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
     }
     emit_missing(i, leading);
+    if tuple {
+        i.state.finish_node();
+    }
+    i.state.finish_node();
+}
+
+fn emit_missing_field_item(i: &mut RewriteIn, item: &mut Item, tuple: bool) {
+    i.state.start_node(SyntaxKind::StructField.into());
+    if tuple {
+        i.state.start_node(SyntaxKind::TypeExpression.into());
+    }
+    if !item.payload_view().is_boundary() {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
+    emit_missing(i, LeadingTrivia::default());
     if tuple {
         i.state.finish_node();
     }
@@ -588,8 +601,8 @@ fn take_boundary(mut i: RewriteIn, baseline: usize, stops: Stops) -> Option<Item
 }
 
 fn struct_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
-        || implicit_delimited_newline(baseline, &item.leading)
+    item.payload_view().is_eof()
+        || implicit_delimited_newline(baseline, item.leading_view())
         || is_active_stop(i.rb(), item, stops)
         || matches!(
             token_kind(item),
@@ -598,8 +611,8 @@ fn struct_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops)
 }
 
 fn struct_boundary_lex(mut i: LexIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
-        || implicit_delimited_newline(baseline, &item.leading)
+    item.payload_view().is_eof()
+        || implicit_delimited_newline(baseline, item.leading_view())
         || super::driver::is_active_stop_lex(i.rb(), item, stops)
         || matches!(
             token_kind(item),
@@ -693,35 +706,24 @@ fn scan_exact_identifier(mut i: LexIn, expected: &str) -> Option<Token> {
 }
 
 fn item_word(item: &Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) => Some(text),
-        _ => None,
-    }
+    (item.payload_view().token_kind() == Some(TokenKind::Identifier))
+        .then(|| item.payload_view().spelling())
+        .flatten()
 }
 
 fn emit_intro(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!()
-    };
-    emit_leading_trivia(i, &item.leading);
-    i.state.token(kind.into(), &token.text);
+    debug_assert!(item.payload_view().token_kind().is_some());
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn emit_visibility(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!()
-    };
-    emit_leading_trivia(i, &item.leading);
-    let kind = match &*token.text {
-        "my" => SyntaxKind::MyKw,
-        "our" => SyntaxKind::OurKw,
-        "pub" => SyntaxKind::PubKw,
+    let kind = match item.payload_view().spelling() {
+        Some("my") => SyntaxKind::MyKw,
+        Some("our") => SyntaxKind::OurKw,
+        Some("pub") => SyntaxKind::PubKw,
         _ => unreachable!(),
     };
-    i.state.token(kind.into(), &token.text);
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn observes<F>(i: RewriteIn, predicate: F) -> bool

@@ -1,12 +1,15 @@
 use chasa_recover::In;
+use rowan::GreenNodeBuilder;
 
-use crate::operator::OperatorTable;
+use crate::{SyntaxKind, SyntaxNode, operator::OperatorTable};
+
+use super::{ordinary_trivia, physical_leading};
 
 use super::super::{
     item::{
-        BorrowedTarget, Boundary, Delimiter, ForeignKind, ForeignSplit, FragmentError, Item,
-        ItemTextPart, LayoutEvidence, LeadingTrivia, OperatorToken, OperatorUse, Payload,
-        PendingBoundary, PendingFragments, StopKind, Token, TokenKind, Trivia, TriviaKind,
+        BorrowedTarget, Boundary, Delimiter, ForeignSplit, FragmentError, Item, LayoutEvidence,
+        LeadingTrivia, OperatorToken, OperatorUse, Payload, PendingBoundary, PendingFragments,
+        PhysicalLeadingTrivia, StopKind, Token, TokenKind, TriviaKind,
     },
     lexer::scan_statement_item,
     state::Recover,
@@ -28,37 +31,16 @@ fn boundary(prefix_policy: FencePrefixPolicy, close_column: usize) -> FenceBound
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
-enum Reconstructed<'text> {
-    Ordinary(ItemTextPart, &'text str),
-    QuotePrefix(ItemTextPart, &'text str),
-}
-
-fn reconstruct(item: &Item) -> Vec<Reconstructed<'_>> {
-    let mut reconstructed = Vec::new();
-    for part in item.fragmented_parts().expect("fragmented item parts") {
-        let mut cursor = 0;
-        for split in part.foreign {
-            let start = split.offset - part.physical.start;
-            let end = start + split.length;
-            if cursor < start {
-                reconstructed.push(Reconstructed::Ordinary(
-                    part.kind,
-                    &part.text[cursor..start],
-                ));
-            }
-            assert_eq!(split.kind, ForeignKind::YmQuotePrefix);
-            reconstructed.push(Reconstructed::QuotePrefix(
-                part.kind,
-                &part.text[start..end],
-            ));
-            cursor = end;
-        }
-        if cursor < part.text.len() {
-            reconstructed.push(Reconstructed::Ordinary(part.kind, &part.text[cursor..]));
-        }
-    }
-    reconstructed
+fn emit_item(item: Item, payload_kind: SyntaxKind) -> Vec<(SyntaxKind, String)> {
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    item.emit_remaining(&mut builder, payload_kind);
+    builder.finish_node();
+    SyntaxNode::new_root(builder.finish())
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .map(|token| (token.kind(), token.text().to_owned()))
+        .collect()
 }
 
 #[test]
@@ -234,31 +216,16 @@ fn non_equivalent_prefixes_stop_with_the_whole_line_unconsumed() {
 
 #[test]
 fn fragment_carrier_is_absent_until_the_first_split_and_preserves_order() {
-    assert_eq!(PendingFragments::finish(None, 4, 11), Ok(None));
-    assert_eq!(PendingFragments::finish(Some(Vec::new()), 4, 11), Ok(None));
-
     let mut pending = None;
     PendingFragments::record(&mut pending, ForeignSplit::quote_prefix(4, 2)).unwrap();
     assert_eq!(pending.as_ref().map(Vec::len), Some(1));
     PendingFragments::record(&mut pending, ForeignSplit::quote_prefix(12, 3)).unwrap();
-    let fragments = PendingFragments::finish(pending, 4, 11)
-        .unwrap()
-        .expect("split carrier");
-    assert_eq!(fragments.physical(), &(4..15));
     assert_eq!(
-        fragments.foreign(),
-        &[
-            ForeignSplit {
-                offset: 4,
-                length: 2,
-                kind: ForeignKind::YmQuotePrefix,
-            },
-            ForeignSplit {
-                offset: 12,
-                length: 3,
-                kind: ForeignKind::YmQuotePrefix,
-            },
-        ]
+        pending,
+        Some(vec![
+            ForeignSplit::quote_prefix(4, 2),
+            ForeignSplit::quote_prefix(12, 3),
+        ])
     );
 }
 
@@ -291,68 +258,38 @@ fn item_wide_utf8_crlf_splits_reconstruct_all_parts_after_move_only_handoff() {
         ForeignSplit::quote_prefix(payload_origin + "γ\r\n".len(), 2),
     )
     .unwrap();
-    let fragments = PendingFragments::finish(pending, origin, total)
-        .unwrap()
-        .expect("split carrier");
-    let pointer = fragments.foreign().as_ptr();
-    let mut item = Item::plain(
-        LeadingTrivia(
+    let item = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
             vec![
-                Trivia {
-                    kind: TriviaKind::BlockComment,
-                    text: first.into(),
-                },
-                Trivia {
-                    kind: TriviaKind::BlockComment,
-                    text: second.into(),
-                },
+                ordinary_trivia(TriviaKind::BlockComment, first),
+                ordinary_trivia(TriviaKind::BlockComment, second),
             ]
             .into_boxed_slice(),
-        ),
+        )),
         Payload::Token(Token {
             kind: TokenKind::Unknown,
             text: payload.into(),
         }),
-    );
-    item.with_fragments(fragments).unwrap();
-    let mut item = handoff(item);
+        pending,
+        origin,
+    )
+    .unwrap();
+    let item = handoff(item);
     assert_eq!(
-        item.fragments().expect("moved carrier").foreign().as_ptr(),
-        pointer
-    );
-    assert_eq!(
-        reconstruct(&item),
+        emit_item(item, SyntaxKind::Unknown),
         [
-            Reconstructed::Ordinary(ItemTextPart::LeadingTrivia(0), "/*α\r\n"),
-            Reconstructed::QuotePrefix(ItemTextPart::LeadingTrivia(0), "> "),
-            Reconstructed::Ordinary(ItemTextPart::LeadingTrivia(0), "a*/"),
-            Reconstructed::Ordinary(ItemTextPart::LeadingTrivia(1), "/*β\r\n"),
-            Reconstructed::QuotePrefix(ItemTextPart::LeadingTrivia(1), "> "),
-            Reconstructed::Ordinary(ItemTextPart::LeadingTrivia(1), "b*/"),
-            Reconstructed::Ordinary(ItemTextPart::PayloadToken, "γ\r\n"),
-            Reconstructed::QuotePrefix(ItemTextPart::PayloadToken, "> "),
-            Reconstructed::Ordinary(ItemTextPart::PayloadToken, "c"),
+            (SyntaxKind::BlockComment, "/*α\r\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::BlockComment, "a*/".to_owned()),
+            (SyntaxKind::BlockComment, "/*β\r\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::BlockComment, "b*/".to_owned()),
+            (SyntaxKind::Unknown, "γ\r\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::Unknown, "c".to_owned()),
         ]
     );
-
-    let second_carrier = PendingFragments::finish(
-        Some(vec![ForeignSplit::quote_prefix(origin + 1, 1)]),
-        origin,
-        total,
-    )
-    .unwrap()
-    .expect("second carrier");
-    assert_eq!(
-        item.with_fragments(second_carrier),
-        Err(FragmentError::AlreadyAttached)
-    );
-    assert_eq!(
-        item.fragments()
-            .expect("original carrier")
-            .foreign()
-            .as_ptr(),
-        pointer
-    );
+    assert_eq!(total, first.len() + second.len() + payload.len());
 }
 
 #[test]
@@ -380,92 +317,110 @@ fn fragment_validation_rejects_empty_overflow_order_overlap_and_bad_extent() {
     );
 
     assert_eq!(
-        PendingFragments::finish(Some(vec![ForeignSplit::quote_prefix(3, 2)]), 4, 4),
+        Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "four".into(),
+            }),
+            Some(vec![ForeignSplit::quote_prefix(3, 2)]),
+            4,
+        ),
         Err(FragmentError::OutsidePhysicalText)
     );
     assert_eq!(
-        PendingFragments::finish(Some(vec![ForeignSplit::quote_prefix(4, 0)]), 4, 4),
+        Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "four".into(),
+            }),
+            Some(vec![ForeignSplit::quote_prefix(4, 0)]),
+            4,
+        ),
         Err(FragmentError::Empty)
     );
     assert_eq!(
-        PendingFragments::finish(
+        Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "four".into(),
+            }),
             Some(vec![
                 ForeignSplit::quote_prefix(4, 2),
                 ForeignSplit::quote_prefix(5, 1),
             ]),
             4,
-            4,
         ),
         Err(FragmentError::Overlap)
     );
     assert_eq!(
-        PendingFragments::finish(
+        Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "four".into(),
+            }),
             Some(vec![ForeignSplit::quote_prefix(usize::MAX, 1)]),
             0,
-            usize::MAX,
         ),
         Err(FragmentError::Overflow)
     );
-    let invalid_utf8 =
-        PendingFragments::finish(Some(vec![ForeignSplit::quote_prefix(5, 1)]), 4, "αb".len())
-            .unwrap()
-            .expect("numerically valid carrier");
-    let mut invalid_utf8_item = Item::plain(
-        LeadingTrivia::default(),
-        Payload::Token(Token {
-            kind: TokenKind::Unknown,
-            text: "αb".into(),
-        }),
-    );
     assert_eq!(
-        invalid_utf8_item.with_fragments(invalid_utf8),
+        Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "αb".into(),
+            }),
+            Some(vec![ForeignSplit::quote_prefix(5, 1)]),
+            4,
+        ),
         Err(FragmentError::InvalidTextBoundary)
     );
     assert_eq!(
-        PendingFragments::finish(
+        Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "abcdef".into(),
+            }),
             Some(vec![
                 ForeignSplit::quote_prefix(7, 1),
                 ForeignSplit::quote_prefix(6, 1),
             ]),
             4,
-            6,
         ),
         Err(FragmentError::OutOfOrder)
     );
 
-    let wrong_length = PendingFragments::finish(Some(vec![ForeignSplit::quote_prefix(4, 1)]), 4, 5)
-        .unwrap()
-        .expect("numerically valid carrier");
-    let mut wrong_length_item = Item::plain(
-        LeadingTrivia::default(),
-        Payload::Token(Token {
-            kind: TokenKind::Unknown,
-            text: "four".into(),
-        }),
-    );
-    assert_eq!(
-        wrong_length_item.with_fragments(wrong_length),
-        Err(FragmentError::PhysicalLengthMismatch)
+    assert!(
+        Item::finish(
+            PhysicalLeadingTrivia::default(),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "four".into(),
+            }),
+            Some(vec![ForeignSplit::quote_prefix(4, 1)]),
+            4,
+        )
+        .is_ok(),
+        "atomic construction derives the physical length"
     );
 
-    let crossing = PendingFragments::finish(Some(vec![ForeignSplit::quote_prefix(5, 2)]), 4, 4)
-        .unwrap()
-        .expect("numerically valid carrier");
-    let mut crossing_item = Item::plain(
-        LeadingTrivia(
-            vec![Trivia {
-                kind: TriviaKind::Whitespace,
-                text: "ab".into(),
-            }]
-            .into_boxed_slice(),
-        ),
-        Payload::Token(Token {
-            kind: TokenKind::Unknown,
-            text: "cd".into(),
-        }),
-    );
     assert_eq!(
-        crossing_item.with_fragments(crossing),
+        Item::finish(
+            PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+                vec![ordinary_trivia(TriviaKind::Whitespace, "ab")].into_boxed_slice(),
+            )),
+            Payload::Token(Token {
+                kind: TokenKind::Unknown,
+                text: "cd".into(),
+            }),
+            Some(vec![ForeignSplit::quote_prefix(5, 2)]),
+            4,
+        ),
         Err(FragmentError::CrossesPartBoundary)
     );
 }
@@ -477,7 +432,10 @@ fn ordinary_scanner_items_have_no_fragment_carrier() {
     let mut remaining = "α";
     let item = scan_statement_item(In::new(&mut remaining, &mut recover, ()), 0, 0)
         .expect("ordinary scanned item");
-    assert!(item.fragments().is_none());
+    assert_eq!(
+        emit_item(item, SyntaxKind::Identifier),
+        [(SyntaxKind::Identifier, "α".to_owned())]
+    );
 }
 
 #[test]
@@ -485,68 +443,42 @@ fn item_wide_extent_includes_operator_payload_and_eof_contributes_zero_text() {
     let origin = 80;
     let leading = "> ";
     let operator = "++";
-    let fragments = PendingFragments::finish(
-        Some(vec![ForeignSplit::quote_prefix(origin, leading.len())]),
-        origin,
-        leading.len() + operator.len(),
-    )
-    .unwrap()
-    .expect("operator item carrier");
-    let mut operator_item = Item::plain(
-        LeadingTrivia(
-            vec![Trivia {
-                kind: TriviaKind::Whitespace,
-                text: leading.into(),
-            }]
-            .into_boxed_slice(),
-        ),
+    let operator_item = Item::finish(
+        physical_leading([(TriviaKind::YmQuotePrefix, leading.into())]),
         Payload::Operator(OperatorToken {
             text: operator.into(),
             use_: OperatorUse::Nullfix,
         }),
-    );
-    operator_item.with_fragments(fragments).unwrap();
+        Some(vec![ForeignSplit::quote_prefix(origin, leading.len())]),
+        origin,
+    )
+    .unwrap();
     assert_eq!(
-        operator_item
-            .fragmented_parts()
-            .expect("operator item parts")
-            .map(|part| (part.kind, part.physical, part.text))
-            .collect::<Vec<_>>(),
+        emit_item(operator_item, SyntaxKind::Operator),
         [
-            (ItemTextPart::LeadingTrivia(0), origin..origin + 2, leading),
-            (
-                ItemTextPart::PayloadOperator,
-                origin + 2..origin + 4,
-                operator,
-            ),
+            (SyntaxKind::YmQuotePrefix, leading.to_owned()),
+            (SyntaxKind::Operator, operator.to_owned()),
         ]
     );
 
-    let eof_fragments = PendingFragments::finish(
+    let mut eof_item = Item::finish(
+        physical_leading([(TriviaKind::YmQuotePrefix, leading.into())]),
+        Payload::Eof,
         Some(vec![ForeignSplit::quote_prefix(origin, leading.len())]),
         origin,
-        leading.len(),
     )
-    .unwrap()
-    .expect("EOF item carrier");
-    let mut eof_item = Item::plain(
-        LeadingTrivia(
-            vec![Trivia {
-                kind: TriviaKind::Whitespace,
-                text: leading.into(),
-            }]
-            .into_boxed_slice(),
-        ),
-        Payload::Eof,
-    );
-    eof_item.with_fragments(eof_fragments).unwrap();
+    .unwrap();
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    eof_item.emit_eof_leading(&mut builder);
+    builder.finish_node();
     assert_eq!(
-        eof_item
-            .fragmented_parts()
-            .expect("EOF item parts")
-            .map(|part| (part.kind, part.physical, part.text))
+        SyntaxNode::new_root(builder.finish())
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
             .collect::<Vec<_>>(),
-        [(ItemTextPart::LeadingTrivia(0), origin..origin + 2, leading)]
+        [(SyntaxKind::YmQuotePrefix, leading.to_owned())]
     );
 }
 
@@ -560,12 +492,8 @@ fn pending_boundary_fits_the_existing_operator_payload_envelope() {
 
 #[test]
 fn boundary_payload_keeps_its_leading_trivia() {
-    let leading = LeadingTrivia(
-        vec![Trivia {
-            kind: TriviaKind::Newline,
-            text: "\n".into(),
-        }]
-        .into_boxed_slice(),
+    let leading = LeadingTrivia::ordinary(
+        vec![ordinary_trivia(TriviaKind::Newline, "\n")].into_boxed_slice(),
     );
     let item = Item::plain(
         leading.clone(),
@@ -574,8 +502,8 @@ fn boundary_payload_keeps_its_leading_trivia() {
             Boundary::BorrowedClose(BorrowedTarget::Delimiter(Delimiter::Bracket)),
         )),
     );
-    assert_eq!(item.leading, leading);
-    assert!(item.fragments().is_none());
+    assert!(item.leading_view().has_ordinary_newline());
+    assert!(item.payload_view().is_boundary());
 
     let vocabulary = [
         PendingBoundary::new(20..21, Boundary::Close(Delimiter::Parenthesis)),

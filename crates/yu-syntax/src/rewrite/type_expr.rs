@@ -12,8 +12,8 @@ mod variants;
 use super::{
     RewriteIn, Stops,
     driver::{Either, TailExit, handoff, token_kind},
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
+    emit::{emit_missing, emit_token_item},
+    item::{Item, LeadingTrivia, LeadingView, Payload, TokenKind},
     lexer::{
         scan_balanced_bracket_suffix, scan_trivia, scan_type_nud_item, type_item_after_trivia,
         type_nud_item_after_trivia,
@@ -422,14 +422,14 @@ fn type_tail(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
-    if !type_chain_trivia(&item.leading, baseline) {
+    if !type_chain_trivia(item.leading_view(), baseline) {
         return handoff(item);
     }
     if is_type_caller_boundary(&item, caller_stops) || is_type_outer_boundary(&item, outer_boundary)
     {
         return handoff(item);
     }
-    if type_ml && !item.leading.0.is_empty() {
+    if type_ml && !item.leading_view().is_grammar_empty() {
         return handoff(item);
     }
     match token_kind(&item) {
@@ -444,7 +444,7 @@ fn type_tail(
                 caller_stops,
             );
         }
-        Some(TokenKind::LParen) if item.leading.0.is_empty() => {
+        Some(TokenKind::LParen) if item.leading_view().is_grammar_empty() => {
             return type_call_tail(
                 i.rb(),
                 item,
@@ -493,7 +493,7 @@ fn type_tail(
     } {
         return handoff(item);
     }
-    if !item.leading.0.is_empty() && is_type_primary(&item) {
+    if !item.leading_view().is_grammar_empty() && is_type_primary(&item) {
         return type_apply_argument(
             i,
             item,
@@ -530,7 +530,7 @@ fn type_leading_bracket_row(
     let leading = scan_trivia(i.rb());
     let mut head = type_nud_item_after_trivia(i.rb(), leading);
     loop {
-        if !type_chain_trivia(&head.leading, baseline)
+        if !type_chain_trivia(head.leading_view(), baseline)
             || is_type_caller_boundary(&head, caller_stops)
             || is_type_outer_boundary(&head, outer_boundary)
         {
@@ -538,8 +538,7 @@ fn type_leading_bracket_row(
             return handoff(head);
         }
         if is_type_primary(&head) {
-            let leading = std::mem::take(&mut head.leading);
-            emit_leading_trivia(&mut i, &leading);
+            head.emit_all_remaining_leading(&mut *i.state);
             return type_expr_from_primary_started(
                 i,
                 head,
@@ -560,12 +559,11 @@ fn type_leading_bracket_row(
             continue;
         }
         if is_type_rhs_boundary(&head) {
-            let leading = std::mem::take(&mut head.leading);
-            emit_missing(&mut i, leading);
+            head.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
             return handoff(head);
         }
-        let leading = std::mem::take(&mut head.leading);
-        emit_leading_trivia(&mut i, &leading);
+        head.emit_all_remaining_leading(&mut *i.state);
         return retry_leading_bracket_row_head_error(
             i,
             head,
@@ -611,7 +609,7 @@ fn retry_leading_bracket_row_head_error(
         emit_token_item(&mut i, head);
         let leading = scan_trivia(i.rb());
         head = type_nud_item_after_trivia(i.rb(), leading);
-        if !type_chain_trivia(&head.leading, baseline)
+        if !type_chain_trivia(head.leading_view(), baseline)
             || is_type_rhs_boundary(&head)
             || is_type_caller_boundary(&head, caller_stops)
             || is_type_outer_boundary(&head, outer_boundary)
@@ -621,8 +619,7 @@ fn retry_leading_bracket_row_head_error(
         }
         if is_type_primary(&head) {
             i.state.finish_node();
-            let leading = std::mem::take(&mut head.leading);
-            emit_leading_trivia(&mut i, &leading);
+            head.emit_all_remaining_leading(&mut *i.state);
             return type_expr_from_primary_started(
                 i,
                 head,
@@ -652,8 +649,7 @@ fn type_bracket_arrow_tail(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
-    let leading = std::mem::take(&mut open.leading);
-    emit_leading_trivia(&mut i, &leading);
+    open.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
     let exit = type_bracket_row(i.rb(), open, baseline, outer_closes, caller_stops);
     let exit = match exit {
@@ -708,7 +704,7 @@ fn type_bracket_arrow_after_row(
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut arrow = type_nud_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&arrow.leading, baseline)
+    if !type_chain_trivia(arrow.leading_view(), baseline)
         || is_type_caller_boundary(&arrow, caller_stops)
         || is_type_outer_boundary(&arrow, outer_boundary)
     {
@@ -727,8 +723,8 @@ fn type_bracket_arrow_after_row(
         );
     }
     if is_type_nud(&arrow) {
-        let leading = std::mem::take(&mut arrow.leading);
-        emit_missing(&mut i, leading);
+        arrow.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
         return type_expr_from_nud(
             i,
             arrow,
@@ -741,8 +737,8 @@ fn type_bracket_arrow_after_row(
         );
     }
     if is_type_rhs_boundary(&arrow) {
-        let leading = std::mem::take(&mut arrow.leading);
-        emit_missing(&mut i, leading);
+        arrow.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
     }
     handoff(arrow)
 }
@@ -819,19 +815,19 @@ fn type_call_tail(
 }
 
 fn missing_type_item(mut i: RewriteIn, mut item: Item) -> Item {
-    let leading = std::mem::take(&mut item.leading);
-    emit_missing(&mut i, leading);
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_missing(&mut i, LeadingTrivia::default());
     item
 }
 
 fn missing_type_close(mut i: RewriteIn, mut item: Item) -> TailExit {
-    let leading = std::mem::take(&mut item.leading);
-    emit_missing(&mut i, leading);
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_missing(&mut i, LeadingTrivia::default());
     handoff(item)
 }
 
 fn missing_bracket_row_close(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
-    if is_type_implicit_boundary(baseline, &item.leading) {
+    if is_type_implicit_boundary(baseline, item.leading_view()) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
@@ -868,9 +864,9 @@ fn type_path_tail(
             outer_boundary,
         );
     }
-    if !type_chain_trivia(&segment.leading, baseline) || is_type_path_boundary(&segment) {
-        let leading = std::mem::take(&mut segment.leading);
-        emit_missing(&mut i, leading);
+    if !type_chain_trivia(segment.leading_view(), baseline) || is_type_path_boundary(&segment) {
+        segment.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
         return type_tail(
             i,
@@ -946,7 +942,7 @@ fn retry_type_path_segment(
         if is_type_caller_boundary(&item, caller_stops)
             || is_type_outer_boundary(&item, outer_boundary)
             || is_type_path_segment(&item)
-            || !type_chain_trivia(&item.leading, baseline)
+            || !type_chain_trivia(item.leading_view(), baseline)
             || is_type_path_boundary(&item)
         {
             i.state.finish_node();
@@ -966,8 +962,7 @@ fn type_apply_argument(
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
     i.state.start_node(SyntaxKind::TypeApplyArgument.into());
-    let boundary = std::mem::take(&mut argument.leading);
-    emit_leading_trivia(&mut i, &boundary);
+    argument.emit_all_remaining_leading(&mut *i.state);
     let exit = type_expr_from_nud(
         i.rb(),
         argument,
@@ -1027,12 +1022,12 @@ fn type_arrow_rhs(
     emit_token_item(&mut i, arrow);
     let trivia = scan_trivia(i.rb());
     let mut rhs = type_nud_item_after_trivia(i.rb(), trivia);
-    if !type_chain_trivia(&rhs.leading, baseline)
+    if !type_chain_trivia(rhs.leading_view(), baseline)
         || is_type_rhs_boundary(&rhs)
         || is_type_caller_boundary(&rhs, caller_stops)
     {
-        let leading = std::mem::take(&mut rhs.leading);
-        emit_missing(&mut i, leading);
+        rhs.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
         return handoff(rhs);
     }
     if !is_type_nud(&rhs) {
@@ -1064,7 +1059,7 @@ fn retry_type_rhs(mut i: RewriteIn, mut item: Item, baseline: usize, caller_stop
         let leading = scan_trivia(i.rb());
         item = type_nud_item_after_trivia(i.rb(), leading);
         if is_type_nud(&item)
-            || !type_chain_trivia(&item.leading, baseline)
+            || !type_chain_trivia(item.leading_view(), baseline)
             || is_type_rhs_boundary(&item)
             || is_type_caller_boundary(&item, caller_stops)
         {
@@ -1144,11 +1139,11 @@ fn is_type_polymorphic_variant_tag_name(item: &Item) -> bool {
 }
 
 fn is_forall_binder(item: &Item) -> bool {
-    matches!(
-        &item.payload,
-        Payload::Token(token)
-            if token.kind == TokenKind::SigilIdentifier && token.text.starts_with('\'')
-    )
+    item.payload_view().token_kind() == Some(TokenKind::SigilIdentifier)
+        && item
+            .payload_view()
+            .spelling()
+            .is_some_and(|text| text.starts_with('\''))
 }
 
 fn is_type_path_segment(item: &Item) -> bool {
@@ -1159,7 +1154,7 @@ fn is_type_path_segment(item: &Item) -> bool {
 }
 
 fn is_type_path_boundary(item: &Item) -> bool {
-    matches!(&item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_type_separator(item)
         || matches!(
             token_kind(item),
@@ -1175,7 +1170,7 @@ fn is_type_path_boundary(item: &Item) -> bool {
 }
 
 fn is_type_rhs_boundary(item: &Item) -> bool {
-    matches!(&item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_type_separator(item)
         || matches!(
             token_kind(item),
@@ -1189,7 +1184,7 @@ fn is_required_type_boundary(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> bool {
-    !type_chain_trivia(&item.leading, baseline)
+    !type_chain_trivia(item.leading_view(), baseline)
         || is_type_rhs_boundary(item)
         || token_kind(item) == Some(TokenKind::Equals)
         || is_type_caller_boundary(item, caller_stops)
@@ -1197,7 +1192,7 @@ fn is_required_type_boundary(
 }
 
 fn is_type_record_field_boundary(item: &Item) -> bool {
-    matches!(&item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_type_separator(item)
         || matches!(
             token_kind(item),
@@ -1235,33 +1230,28 @@ pub(super) fn is_type_caller_boundary(item: &Item, caller_stops: Stops) -> bool 
     if token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, caller_stops)) {
         return true;
     }
-    let Payload::Token(token) = &item.payload else {
-        return false;
-    };
-    if token.kind != TokenKind::Identifier {
+    if item.payload_view().token_kind() != Some(TokenKind::Identifier) {
         return false;
     }
-    (caller_stops & super::operator::STOP_WITH != 0 && &*token.text == "with")
-        || (caller_stops & super::operator::STOP_IN != 0 && &*token.text == "in")
-        || (caller_stops & super::operator::STOP_ELSIF != 0 && &*token.text == "elsif")
-        || (caller_stops & super::operator::STOP_ELSE != 0 && &*token.text == "else")
+    let text = item.payload_view().spelling();
+    (caller_stops & super::operator::STOP_WITH != 0 && text == Some("with"))
+        || (caller_stops & super::operator::STOP_IN != 0 && text == Some("in"))
+        || (caller_stops & super::operator::STOP_ELSIF != 0 && text == Some("elsif"))
+        || (caller_stops & super::operator::STOP_ELSE != 0 && text == Some("else"))
 }
 
 fn is_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> bool {
     if token_kind(item) == Some(TokenKind::Equals) {
         return outer_boundary.contains(TypeOuterBoundary::EQUALS);
     }
-    let Payload::Token(token) = &item.payload else {
-        return false;
-    };
-    if token.kind != TokenKind::Identifier {
+    if item.payload_view().token_kind() != Some(TokenKind::Identifier) {
         return false;
     }
-    match &*token.text {
-        "derives" => outer_boundary.contains(TypeOuterBoundary::DERIVES),
-        "via" => outer_boundary.contains(TypeOuterBoundary::VIA),
-        "with" => outer_boundary.contains(TypeOuterBoundary::WITH),
-        "impl" => outer_boundary.contains(TypeOuterBoundary::IMPL),
+    match item.payload_view().spelling() {
+        Some("derives") => outer_boundary.contains(TypeOuterBoundary::DERIVES),
+        Some("via") => outer_boundary.contains(TypeOuterBoundary::VIA),
+        Some("with") => outer_boundary.contains(TypeOuterBoundary::WITH),
+        Some("impl") => outer_boundary.contains(TypeOuterBoundary::IMPL),
         _ => false,
     }
 }
@@ -1273,42 +1263,28 @@ fn is_type_separator(item: &Item) -> bool {
     )
 }
 
-fn type_chain_trivia(leading: &LeadingTrivia, baseline: usize) -> bool {
+fn type_chain_trivia(leading: LeadingView<'_>, baseline: usize) -> bool {
     indentation_after_newline(leading).is_none_or(|indentation| indentation > baseline)
 }
 
-fn is_type_implicit_boundary(baseline: usize, leading: &LeadingTrivia) -> bool {
+fn is_type_implicit_boundary(baseline: usize, leading: LeadingView<'_>) -> bool {
     indentation_after_newline(leading).is_some_and(|indentation| indentation <= baseline)
 }
 
-fn is_type_deeper_newline(baseline: usize, leading: &LeadingTrivia) -> bool {
+fn is_type_deeper_newline(baseline: usize, leading: LeadingView<'_>) -> bool {
     indentation_after_newline(leading).is_some_and(|indentation| indentation > baseline)
 }
 
-fn is_type_payload_boundary(leading: &LeadingTrivia) -> bool {
-    !leading.0.is_empty() && indentation_after_newline(leading).is_none()
+fn is_type_payload_boundary(leading: LeadingView<'_>) -> bool {
+    !leading.is_grammar_empty() && indentation_after_newline(leading).is_none()
 }
 
-fn type_delimited_baseline(incoming: usize, opening: &LeadingTrivia) -> usize {
+fn type_delimited_baseline(incoming: usize, opening: LeadingView<'_>) -> usize {
     indentation_after_newline(opening)
         .filter(|&indentation| indentation > incoming)
         .unwrap_or(incoming)
 }
 
-fn indentation_after_newline(leading: &LeadingTrivia) -> Option<usize> {
-    let mut saw_newline = false;
-    let mut at_line_start = false;
-    let mut indentation = 0usize;
-    for part in &leading.0 {
-        match part.kind {
-            TriviaKind::Newline => {
-                saw_newline = true;
-                at_line_start = true;
-                indentation = 0;
-            }
-            TriviaKind::Whitespace if at_line_start => indentation += part.text.chars().count(),
-            _ => at_line_start = false,
-        }
-    }
-    saw_newline.then_some(indentation)
+fn indentation_after_newline(leading: LeadingView<'_>) -> Option<usize> {
+    leading.indentation_after_newline()
 }

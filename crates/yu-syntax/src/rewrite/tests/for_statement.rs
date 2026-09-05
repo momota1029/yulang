@@ -430,9 +430,7 @@ fn for_c13_use_group_and_header_layout_preserve_the_pending_item() {
 }
 
 fn item_word_for_test(item: &super::super::item::Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(token) if token.kind == TokenKind::Identifier => Some(&token.text),
-        Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
-    }
+    (item.payload_view().token_kind() == Some(TokenKind::Identifier))
+        .then(|| item.payload_view().spelling())
+        .flatten()
 }

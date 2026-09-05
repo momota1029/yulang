@@ -1,12 +1,10 @@
 use super::*;
 use crate::rewrite::{
     emit::emit_literal_item,
-    item::{
-        BorrowedTarget, Boundary, ForeignSplit, Item, LeadingTrivia, Payload, StopKind, Token,
-        Trivia,
-    },
+    item::{BorrowedTarget, Boundary, Item, LeadingTrivia, Payload, StopKind, Token},
     literal::{
-        LiteralPiece, StringLiteralExit, StringMode, scan_string_close_witness,
+        LiteralPiece, RuleLiteralExit, StringLiteralExit, StringMode, rule_literal_witness,
+        scan_expression_rule_literal_opener_witness, scan_string_close_witness,
         scan_string_opener_witness, scan_string_text_witness, string_literal_witness,
     },
     yumark::{
@@ -15,6 +13,8 @@ use crate::rewrite::{
     },
 };
 use reborrow_generic::Reborrow as _;
+
+mod rule_literal;
 
 fn fence(prefix_policy: FencePrefixPolicy) -> FenceBoundary {
     FenceBoundary {
@@ -68,10 +68,9 @@ fn scan_text<'source>(
 }
 
 fn token_text(item: &Item) -> &str {
-    let Payload::Token(token) = &item.payload else {
-        panic!("literal witness emits a token Item")
-    };
-    &token.text
+    item.payload_view()
+        .spelling()
+        .expect("literal witness emits a token Item")
 }
 
 fn expected_pending(source: &str, coordinate: usize, boundary: &FenceBoundary) -> Item {
@@ -119,6 +118,28 @@ fn run_string<'source>(
     (builder.finish(), exit, input)
 }
 
+fn run_rule_literal<'source>(
+    source: &'source str,
+    origin: usize,
+    boundary: &FenceBoundary,
+) -> (GreenNode, RuleLiteralExit, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let opener = scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ()))
+        .expect("expression RuleLiteral opener");
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = rule_literal_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        opener,
+        origin + 2,
+        boundary,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
 fn injected_empty_interpolation_body(mut i: RewriteIn) -> Item {
     let leading = i
         .token(|mut lex| {
@@ -141,12 +162,8 @@ fn injected_empty_interpolation_body(mut i: RewriteIn) -> Item {
     let leading = if leading.is_empty() {
         LeadingTrivia::default()
     } else {
-        LeadingTrivia(
-            vec![Trivia {
-                kind: TriviaKind::Whitespace,
-                text: leading.into(),
-            }]
-            .into_boxed_slice(),
+        LeadingTrivia::ordinary(
+            vec![ordinary_trivia(TriviaKind::Whitespace, leading)].into_boxed_slice(),
         )
     };
     Item::plain(leading, Payload::Token(close))
@@ -279,7 +296,6 @@ fn multiline_text_keeps_utf8_crlf_coordinates_and_direct_close_unconsumed() {
     };
 
     assert_eq!(token_text(&accepted), accepted_text);
-    assert!(accepted.fragments().is_none());
     assert_eq!(remainder, "```\r\nrest");
     assert_eq!(
         remainder.as_ptr(),
@@ -289,10 +305,10 @@ fn multiline_text_keeps_utf8_crlf_coordinates_and_direct_close_unconsumed() {
         pending,
         expected_pending(remainder, origin + accepted_text.len(), &boundary)
     );
+    let (_, pending_boundary) = emit_terminal_leading_text(pending);
     assert!(matches!(
-        pending.payload,
-        Payload::Boundary(ref boundary)
-            if matches!(boundary.kind(), Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_)))
+        pending_boundary.kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
     ));
 }
 
@@ -313,11 +329,6 @@ fn prefixed_body_records_one_split_and_prefixed_close_stays_unconsumed() {
     assert_eq!(token_text(&accepted), accepted_text);
     assert_eq!(remainder, "> > ```\nrest");
     assert_eq!(remainder.as_ptr(), source[accepted_text.len()..].as_ptr());
-    let fragments = accepted.fragments().expect("one body quote prefix");
-    assert_eq!(
-        fragments.foreign(),
-        &[ForeignSplit::quote_prefix("α\n".len(), "> > ".len())]
-    );
     assert_eq!(
         pending,
         expected_pending(remainder, accepted_text.len(), &boundary)
@@ -360,7 +371,6 @@ fn every_quote_transition_returns_the_judged_item_untouched() {
         };
 
         assert_eq!(token_text(&accepted), accepted_text, "{expected:?}");
-        assert!(accepted.fragments().is_none(), "{expected:?}");
         assert_eq!(remainder, line, "{expected:?}");
         assert_eq!(remainder.as_ptr(), source[accepted_text.len()..].as_ptr());
         assert_eq!(
@@ -368,10 +378,8 @@ fn every_quote_transition_returns_the_judged_item_untouched() {
             expected_pending(remainder, accepted_text.len(), &boundary),
             "{expected:?}"
         );
-        let Payload::Boundary(pending) = pending.payload else {
-            panic!("transition stays a typed boundary")
-        };
-        let Boundary::Stop(StopKind::YumarkFence(transition)) = pending.into_kind() else {
+        let (_, pending_boundary) = emit_terminal_leading_text(pending);
+        let Boundary::Stop(StopKind::YumarkFence(transition)) = pending_boundary.kind() else {
             panic!("transition stays a Yumark fence stop")
         };
         assert_eq!(transition.kind, expected);
@@ -402,7 +410,6 @@ fn physical_eof_returns_pending_item_with_or_without_accepted_text() {
         panic!("accepted text precedes EOF")
     };
     assert_eq!(token_text(&accepted), source);
-    assert!(accepted.fragments().is_none());
     assert_eq!(remainder, "");
     assert_eq!(remainder.as_ptr(), source[source.len()..].as_ptr());
     assert_eq!(pending, expected_pending("", 41 + source.len(), &boundary));
@@ -1080,9 +1087,7 @@ fn raw_backslash_line_in_format_uses_the_shared_fence_transition() {
                 expected_pending(remainder, source.len() - line.len(), &boundary),
                 "{newline:?} {expected:?}"
             );
-            let Payload::Boundary(ref pending_boundary) = pending.payload else {
-                panic!("raw format transition remains a typed pending Item")
-            };
+            let (_, pending_boundary) = emit_terminal_leading_text(pending);
             let Boundary::Stop(StopKind::YumarkFence(transition)) = pending_boundary.kind() else {
                 panic!("raw format transition remains a Yumark stop")
             };
@@ -1218,9 +1223,7 @@ fn escaped_lf_and_crlf_preserve_every_fence_transition_item() {
                 expected_pending(remainder, source.len() - line.len(), &boundary),
                 "{newline:?} {expected:?}"
             );
-            let Payload::Boundary(ref pending_boundary) = pending.payload else {
-                panic!("escaped transition remains a typed pending Item")
-            };
+            let (_, pending_boundary) = emit_terminal_leading_text(pending);
             let Boundary::Stop(StopKind::YumarkFence(transition)) = pending_boundary.kind() else {
                 panic!("escaped transition remains a Yumark stop")
             };

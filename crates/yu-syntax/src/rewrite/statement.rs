@@ -14,7 +14,7 @@ use super::{
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
     for_decl::{for_statement, for_statement_selected},
-    item::{Item, LeadingTrivia, Payload, TokenKind},
+    item::{Item, LeadingTrivia, TokenKind},
     lexer::{scan_trivia, statement_item_after_trivia},
     mod_decl::{mod_declaration, mod_declaration_selected},
     operator::stops_for,
@@ -54,7 +54,7 @@ pub(super) fn statement_from_item(
     baseline: usize,
     stops: Stops,
 ) -> TailExit {
-    debug_assert!(!matches!(item.payload, Payload::Boundary(_)));
+    debug_assert!(!item.payload_view().is_boundary());
     if is_canonical_statement_nud(i.rb(), &item, baseline) {
         canonical_statement(
             i,
@@ -136,7 +136,7 @@ pub(super) fn indented_statement_block(
     stops: Stops,
 ) -> TailExit {
     let opening = scan_trivia(i.rb());
-    let block_indent = indentation_after_newline(&opening)
+    let block_indent = indentation_after_newline(opening.view())
         .filter(|&indentation| indentation > base_indent)
         .expect("C2 admission proved a strictly indented block opening");
 
@@ -190,7 +190,7 @@ pub(super) fn braced_statement_block(
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
     emit_token_item(&mut i, open);
     let opening = scan_trivia(i.rb());
-    let baseline = delimited_baseline(incoming_baseline, &opening);
+    let baseline = delimited_baseline(incoming_baseline, opening.view());
     emit_leading_trivia(&mut i, &opening);
     let stops = stops_for(TokenKind::RBrace);
     let item = statement_item_after_trivia(i.rb(), LeadingTrivia::default(), baseline, stops);
@@ -223,9 +223,7 @@ fn statement_sequence(
                 };
             }
             StatementSequencePolicy::Braced => {
-                if matches!(item.payload, Payload::Eof)
-                    || token_kind(&item) == Some(TokenKind::RBrace)
-                {
+                if item.payload_view().is_eof() || token_kind(&item) == Some(TokenKind::RBrace) {
                     return braced_terminal(i, item);
                 }
                 let exit = braced_statement_slot(i.rb(), item, baseline, stops);
@@ -247,7 +245,7 @@ fn indented_statement_successor(
     let Err(Either::Left(mut item)) = exit else {
         return Err(exit);
     };
-    if indentation_after_newline(&item.leading) != Some(block_indent)
+    if indentation_after_newline(item.leading_view()) != Some(block_indent)
         || indented_statement_outer_boundary(i.rb(), &item, block_indent, stops)
     {
         return Err(handoff(item));
@@ -267,8 +265,8 @@ fn indented_statement_slot(
 ) -> TailExit {
     if indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
         if missing_on_boundary {
-            let leading = std::mem::take(&mut item.leading);
-            emit_missing(&mut i, leading);
+            item.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
         }
         return handoff(item);
     }
@@ -323,10 +321,10 @@ fn indented_statement_slot_boundary(
     block_indent: usize,
     stops: Stops,
 ) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_separator(item)
         || is_active_stop(i.rb(), item, stops)
-        || indentation_after_newline(&item.leading)
+        || indentation_after_newline(item.leading_view())
             .is_some_and(|indentation| indentation < block_indent)
 }
 
@@ -337,7 +335,7 @@ fn indented_statement_retry_boundary(
     stops: Stops,
 ) -> bool {
     indented_statement_slot_boundary(i.rb(), item, block_indent, stops)
-        || indentation_after_newline(&item.leading) == Some(block_indent)
+        || indentation_after_newline(item.leading_view()) == Some(block_indent)
 }
 
 fn indented_statement_outer_boundary(
@@ -348,7 +346,7 @@ fn indented_statement_outer_boundary(
 ) -> bool {
     is_separator(item)
         || is_active_stop(i.rb(), item, stops)
-        || indentation_after_newline(&item.leading)
+        || indentation_after_newline(item.leading_view())
             .is_some_and(|indentation| indentation < block_indent)
 }
 
@@ -357,7 +355,7 @@ fn braced_terminal(mut i: RewriteIn, item: Item) -> TailExit {
         emit_token_item(&mut i, item);
         return Ok(());
     }
-    debug_assert!(matches!(item.payload, Payload::Eof));
+    debug_assert!(item.payload_view().is_eof());
     missing_brace_close(i, item)
 }
 
@@ -404,10 +402,10 @@ fn retry_braced_statement(mut i: RewriteIn, mut item: Item, baseline: usize, sto
 }
 
 fn braced_statement_boundary(item: &Item, baseline: usize) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_separator(item)
         || token_kind(item) == Some(TokenKind::RBrace)
-        || implicit_delimited_newline(baseline, &item.leading)
+        || implicit_delimited_newline(baseline, item.leading_view())
 }
 
 fn braced_statement_successor(
@@ -419,12 +417,14 @@ fn braced_statement_successor(
     match exit {
         Ok(()) => Err(Ok(())),
         Err(Either::Right(mut end)) => {
-            if implicit_delimited_newline(baseline, &end.item.leading) {
+            if implicit_delimited_newline(baseline, end.item.leading_view()) {
                 emit_separator_leading(&mut i, &mut end.item);
             }
             Err(missing_brace_close(i, end.item))
         }
-        Err(Either::Left(mut item)) if implicit_delimited_newline(baseline, &item.leading) => {
+        Err(Either::Left(mut item))
+            if implicit_delimited_newline(baseline, item.leading_view()) =>
+        {
             emit_separator_leading(&mut i, &mut item);
             Ok(item)
         }
@@ -454,8 +454,7 @@ fn braced_explicit_separator(
     emit_token_item(&mut i, separator);
     let leading = scan_trivia(i.rb());
     let mut item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
-    let leading = std::mem::take(&mut item.leading);
-    emit_leading_trivia(&mut i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.finish_node();
     item
 }
@@ -463,13 +462,12 @@ fn braced_explicit_separator(
 fn emit_separator_leading(i: &mut RewriteIn, item: &mut Item) {
     i.state
         .start_node(SyntaxKind::BlockStatementSeparator.into());
-    let leading = std::mem::take(&mut item.leading);
-    emit_leading_trivia(i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.finish_node();
 }
 
 fn missing_brace_close(mut i: RewriteIn, mut item: Item) -> TailExit {
-    let leading = std::mem::take(&mut item.leading);
-    emit_missing(&mut i, leading);
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_missing(&mut i, LeadingTrivia::default());
     handoff(item)
 }

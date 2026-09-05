@@ -118,25 +118,23 @@ fn type_polymorphic_variant_tags(
     caller_stops: Stops,
 ) -> TailExit {
     let opening = scan_trivia(i.rb());
-    let baseline = type_delimited_baseline(incoming_baseline, &opening);
+    let baseline = type_delimited_baseline(incoming_baseline, opening.view());
     emit_leading_trivia(&mut i, &opening);
     let mut item = type_nud_item_after_trivia(i.rb(), LeadingTrivia::default());
     let mut position = TagPosition::Open;
     loop {
-        if let Some(indentation) = indentation_after_newline(&item.leading) {
+        if let Some(indentation) = indentation_after_newline(item.leading_view()) {
             if indentation > baseline {
                 return type_polymorphic_variant_boundary(i, item, position);
             }
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             if matches!(position, TagPosition::AfterTag) {
                 position = TagPosition::Unfilled;
             }
             continue;
         }
         if token_kind(&item) == Some(TokenKind::RBrace) {
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, item);
             return Ok(());
         }
@@ -149,16 +147,14 @@ fn type_polymorphic_variant_tags(
             if is_type_outer_close(&item, outer_closes) {
                 return type_polymorphic_variant_boundary(i, item, position);
             }
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             emit_error_item(&mut i, item);
             let leading = scan_trivia(i.rb());
             item = type_nud_item_after_trivia(i.rb(), leading);
             continue;
         }
         if token_kind(&item) == Some(TokenKind::Comma) {
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             if !matches!(position, TagPosition::AfterTag) {
                 emit_missing(&mut i, LeadingTrivia::default());
                 position = TagPosition::Filled;
@@ -174,18 +170,16 @@ fn type_polymorphic_variant_tags(
             if outer_separators {
                 return type_polymorphic_variant_boundary(i, item, position);
             }
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             emit_error_item(&mut i, item);
             let leading = scan_trivia(i.rb());
             item = type_nud_item_after_trivia(i.rb(), leading);
             continue;
         }
-        if matches!(&item.payload, Payload::Eof) {
+        if item.payload_view().is_eof() {
             return type_polymorphic_variant_boundary(i, item, position);
         }
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
+        item.emit_all_remaining_leading(&mut *i.state);
         let exit = if is_type_polymorphic_variant_tag_name(&item) {
             type_polymorphic_variant_tag(i.rb(), item, baseline, outer_closes, caller_stops)
         } else if is_type_nud(&item) {
@@ -307,8 +301,7 @@ fn type_polymorphic_variant_malformed_tag(
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
     i.state.start_node(SyntaxKind::Error.into());
     loop {
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
+        item.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = type_nud_item_after_trivia(i.rb(), leading);
@@ -319,8 +312,7 @@ fn type_polymorphic_variant_malformed_tag(
         let exit = if is_type_polymorphic_variant_tag_boundary(&item) {
             handoff(item)
         } else {
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             if is_type_polymorphic_variant_tag_name(&item) {
                 type_polymorphic_variant_tag_after_name(
                     i.rb(),
@@ -393,7 +385,7 @@ fn type_polymorphic_variant_tag_payloads(
             completed_payload = true;
             continue;
         }
-        if !is_type_payload_boundary(&item.leading) {
+        if !is_type_payload_boundary(item.leading_view()) {
             return handoff(item);
         }
         let exit = type_polymorphic_variant_malformed_payload(
@@ -423,11 +415,10 @@ fn type_polymorphic_variant_payload(
 ) -> TailExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
-    let boundary = std::mem::take(&mut primary.leading);
-    if boundary.0.is_empty() {
+    if primary.leading_view().is_grammar_empty() {
         emit_missing(&mut i, LeadingTrivia::default());
     } else {
-        emit_leading_trivia(&mut i, &boundary);
+        primary.emit_all_remaining_leading(&mut *i.state);
     }
     let exit = type_expr_from_nud(
         i.rb(),
@@ -452,12 +443,10 @@ fn type_polymorphic_variant_malformed_payload(
 ) -> TailExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
-    let boundary = std::mem::take(&mut item.leading);
-    emit_leading_trivia(&mut i, &boundary);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     loop {
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
+        item.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = type_nud_item_after_trivia(i.rb(), leading);
@@ -477,8 +466,7 @@ fn type_polymorphic_variant_malformed_payload(
             continue;
         }
         i.state.finish_node();
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
+        item.emit_all_remaining_leading(&mut *i.state);
         let exit = type_expr_from_nud(
             i.rb(),
             item,
@@ -495,7 +483,7 @@ fn type_polymorphic_variant_malformed_payload(
 }
 
 fn is_type_polymorphic_variant_payload_boundary(item: &Item) -> bool {
-    indentation_after_newline(&item.leading).is_some()
+    indentation_after_newline(item.leading_view()).is_some()
         || matches!(
             token_kind(item),
             Some(
@@ -506,7 +494,7 @@ fn is_type_polymorphic_variant_payload_boundary(item: &Item) -> bool {
                     | TokenKind::RBrace
             )
         )
-        || matches!(&item.payload, Payload::Eof)
+        || item.payload_view().is_eof()
 }
 
 fn is_type_polymorphic_variant_tag_safe(item: &Item) -> bool {
@@ -514,7 +502,7 @@ fn is_type_polymorphic_variant_tag_safe(item: &Item) -> bool {
 }
 
 fn is_type_polymorphic_variant_tag_boundary(item: &Item) -> bool {
-    indentation_after_newline(&item.leading).is_some()
+    indentation_after_newline(item.leading_view()).is_some()
         || matches!(
             token_kind(item),
             Some(
@@ -525,5 +513,5 @@ fn is_type_polymorphic_variant_tag_boundary(item: &Item) -> bool {
                     | TokenKind::RBrace
             )
         )
-        || matches!(&item.payload, Payload::Eof)
+        || item.payload_view().is_eof()
 }

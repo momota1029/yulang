@@ -5,6 +5,8 @@ use reborrow_generic::Reborrow as _;
 use crate::syntax_kind::SyntaxKind;
 
 mod delimited;
+#[cfg(test)]
+mod literal;
 
 use super::{
     RewriteIn, Stops,
@@ -12,7 +14,7 @@ use super::{
         Either, TailExit, delimited_baseline, handoff, implicit_delimited_newline, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{
         pattern_item_after_trivia, pattern_nud_item_after_trivia, scan_identifier, scan_trivia,
         type_item_after_trivia, type_nud_item_after_trivia,
@@ -23,6 +25,8 @@ use super::{
 };
 
 use self::delimited::{list_pattern, parenthesized_pattern, record_pattern};
+#[cfg(test)]
+pub(super) use self::literal::{PatternLiteralWitnessExit, pattern_literal_witness};
 
 /// Caller-owned Pattern boundaries. This is a passed capability, never a
 /// parser state: nested Pattern delimiters replace it with their own local
@@ -146,7 +150,7 @@ fn pattern_from_item_recording(
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
-    let baseline = delimited_baseline(baseline, &item.leading);
+    let baseline = delimited_baseline(baseline, item.leading_view());
     i.state.start_node(SyntaxKind::Pattern.into());
     let exit = pattern_from_item_core(
         i.rb(),
@@ -245,8 +249,7 @@ fn recover_pattern_primary(
             return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
         }
         if is_pattern_nud(&item, stops) {
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             *completion = PatternCompletion::Complete;
             return pattern_from_primary(
@@ -334,7 +337,7 @@ fn pattern_tail(
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
 ) -> TailExit {
-    if implicit_delimited_newline(baseline, &item.leading) {
+    if implicit_delimited_newline(baseline, item.leading_view()) {
         return handoff(item);
     }
     if is_pattern_tail_boundary(i.rb(), &item, stops) {
@@ -342,8 +345,7 @@ fn pattern_tail(
     }
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
         *completion = PatternCompletion::Incomplete;
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
+        item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternAliasTail.into());
         emit_pattern_alias_keyword(&mut i, item);
         let leading = scan_trivia(i.rb());
@@ -359,17 +361,15 @@ fn pattern_tail(
         return pattern_tail(i, item, minimum, baseline, stops, line_handoff, completion);
     }
     if token_kind(&item) == Some(TokenKind::Pipe) && minimum <= PatternPrecedence::Alternation {
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
+        item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternAlternationTail.into());
         emit_token_item(&mut i, item);
         *completion = PatternCompletion::Incomplete;
         let leading = scan_trivia(i.rb());
         let mut rhs = pattern_nud_item_after_trivia(i.rb(), leading, stops);
-        let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
-        let leading = std::mem::take(&mut rhs.leading);
-        emit_leading_trivia(&mut i, &leading);
+        let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
+        rhs.emit_all_remaining_leading(&mut *i.state);
         let exit = pattern_from_item_recording(
             i.rb(),
             rhs,
@@ -386,8 +386,7 @@ fn pattern_tail(
         && stops & PATTERN_STOP_COLON == 0
         && minimum <= PatternPrecedence::TypeAnnotation
     {
-        let leading = std::mem::take(&mut item.leading);
-        emit_leading_trivia(&mut i, &leading);
+        item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternTypeAnnotation.into());
         emit_token_item(&mut i, item);
         *completion = PatternCompletion::Incomplete;
@@ -411,16 +410,14 @@ fn recover_pattern_alias_binding(
         return item;
     }
 
-    let leading = std::mem::take(&mut item.leading);
-    emit_leading_trivia(&mut i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = pattern_item_after_trivia(i.rb(), leading, stops);
         if token_kind(&item) == Some(TokenKind::Identifier) && !is_pattern_word_stop(&item, stops) {
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             emit_token_item(&mut i, item);
             *completion = PatternCompletion::Complete;
@@ -466,7 +463,7 @@ fn pattern_type_annotation_rhs(
 ) -> TailExit {
     let Some(leading) = i.token(|lex| {
         let leading = scan_trivia(lex);
-        (!implicit_delimited_newline(baseline, &leading)).then_some(leading)
+        (!implicit_delimited_newline(baseline, leading.view())).then_some(leading)
     }) else {
         i.state.start_node(SyntaxKind::TypeExpression.into());
         emit_missing(&mut i, LeadingTrivia::default());
@@ -515,8 +512,8 @@ pub(super) fn is_pattern_nud(item: &Item, stops: PatternStops) -> bool {
 }
 
 fn is_pattern_primary_boundary(item: &Item, baseline: usize, stops: PatternStops) -> bool {
-    implicit_delimited_newline(baseline, &item.leading)
-        || matches!(item.payload, Payload::Eof)
+    implicit_delimited_newline(baseline, item.leading_view())
+        || item.payload_view().is_eof()
         || is_pattern_word_stop(item, stops)
         || token_kind(item).is_some_and(|kind| pattern_primary_stop_token(kind, stops))
 }
@@ -531,13 +528,9 @@ fn is_pattern_tail_boundary(mut i: RewriteIn, item: &Item, stops: PatternStops) 
 }
 
 fn is_pattern_word_stop(item: &Item, stops: PatternStops) -> bool {
-    matches!(
-        &item.payload,
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) if stops & PATTERN_STOP_IN != 0 && &**text == "in"
-    )
+    stops & PATTERN_STOP_IN != 0
+        && item.payload_view().token_kind() == Some(TokenKind::Identifier)
+        && item.payload_view().spelling() == Some("in")
 }
 
 fn pattern_primary_stop_token(kind: TokenKind, stops: PatternStops) -> bool {
@@ -570,23 +563,11 @@ fn is_current_pattern_tail(item: &Item, stops: PatternStops) -> bool {
 }
 
 fn is_pattern_alias(item: &Item) -> bool {
-    matches!(
-        &item.payload,
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) if &**text == "as"
-    )
+    item.payload_view().token_kind() == Some(TokenKind::Identifier)
+        && item.payload_view().spelling() == Some("as")
 }
 
 fn emit_pattern_alias_keyword(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(Token {
-        kind: TokenKind::Identifier,
-        text,
-    }) = item.payload
-    else {
-        unreachable!("the Pattern alias judge accepted only `as`");
-    };
-    debug_assert_eq!(&*text, "as");
-    i.state.token(SyntaxKind::AsKw.into(), &text);
+    debug_assert_eq!(item.payload_view().spelling(), Some("as"));
+    item.emit_payload(&mut *i.state, SyntaxKind::AsKw);
 }

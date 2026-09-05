@@ -7,9 +7,9 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     RewriteIn, Stops,
     driver::{Either, TailExit, indentation_after_newline, is_active_stop, token_kind},
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    emit::{emit_missing, emit_token_item},
     if_expr::active_statement_companion,
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    item::{Item, LeadingTrivia, TokenKind},
     lexer::{scan_trivia, type_nud_item_after_trivia},
     statement::StatementLineHandoff,
     type_expr::{TypeOuterBoundary, required_type_expr_with_caller_stops_and_outer_boundary},
@@ -123,7 +123,7 @@ fn via_target_boundary(item: &Item) -> bool {
                 | TokenKind::RBracket
                 | TokenKind::RBrace
         )
-    ) || matches!(item.payload, Payload::Eof)
+    ) || item.payload_view().is_eof()
         || matches!(item_word(item), Some("derives" | "via" | "with" | "impl"))
 }
 
@@ -155,7 +155,7 @@ fn clause_gap_continues(
     {
         return false;
     }
-    let Some(indentation) = indentation_after_newline(&item.leading) else {
+    let Some(indentation) = indentation_after_newline(item.leading_view()) else {
         return true;
     };
     matches!(line_handoff, StatementLineHandoff::OrdinaryLayout) && indentation > baseline
@@ -168,15 +168,11 @@ fn emit_missing_type_expression(i: &mut RewriteIn) {
 }
 
 fn emit_contextual_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    let Payload::Token(Token {
-        kind: TokenKind::Identifier,
-        text,
-    }) = item.payload
-    else {
-        unreachable!("accepted derives contextual words are raw identifiers")
-    };
-    emit_leading_trivia(i, &item.leading);
-    i.state.token(kind.into(), &text);
+    debug_assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn raw_identifier(item: &Item) -> bool {
@@ -184,21 +180,12 @@ fn raw_identifier(item: &Item) -> bool {
 }
 
 pub(super) fn is_word(item: &Item, word: &str) -> bool {
-    matches!(
-        &item.payload,
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) if &**text == word
-    )
+    item.payload_view().token_kind() == Some(TokenKind::Identifier)
+        && item.payload_view().spelling() == Some(word)
 }
 
 fn item_word(item: &Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) => Some(text),
-        _ => None,
-    }
+    (item.payload_view().token_kind() == Some(TokenKind::Identifier))
+        .then(|| item.payload_view().spelling())
+        .flatten()
 }

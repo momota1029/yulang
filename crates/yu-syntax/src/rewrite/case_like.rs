@@ -56,8 +56,7 @@ pub(super) fn case_like_nud(
     ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    emit_leading_trivia(&mut i, &keyword.leading);
-    keyword.leading = LeadingTrivia::default();
+    keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(family.expression_node().into());
     emit_keyword(&mut i, keyword, family.keyword_node());
     let exit = case_like_head(i.rb(), family, baseline, outer_stops, line_handoff);
@@ -194,13 +193,13 @@ fn missing_block(mut i: RewriteIn, family: CaseLikeFamily, exit: TailExit) -> Ta
     i.state.start_node(family.block_node().into());
     let exit = match exit {
         Err(Either::Left(mut item)) => {
-            let leading = std::mem::take(&mut item.leading);
-            emit_missing(&mut i, leading);
+            item.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
             handoff(item)
         }
         Err(Either::Right(mut end)) => {
-            let leading = std::mem::take(&mut end.item.leading);
-            emit_missing(&mut i, leading);
+            end.item.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
             Err(Either::Right(end))
         }
         Ok(()) => unreachable!("a direct scrutinee always leaves a boundary item"),
@@ -220,7 +219,7 @@ fn arm_sequence(
     let mut item = scan_arm_item(i.rb(), first_stops);
     loop {
         if policy.accepts_arm_entry(i.rb(), &item, outer_stops) {
-            emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+            item.emit_all_remaining_leading(&mut *i.state);
         }
         let exit = arm(
             i.rb(),
@@ -237,7 +236,8 @@ fn arm_sequence(
             Err(Either::Right(mut end))
                 if matches!(policy, ArmSequencePolicy::CatchBraced { .. }) =>
             {
-                emit_missing(&mut i, std::mem::take(&mut end.item.leading));
+                end.item.emit_all_remaining_leading(&mut *i.state);
+                emit_missing(&mut i, LeadingTrivia::default());
                 return Err(Either::Right(end));
             }
             exit => return exit,
@@ -269,7 +269,7 @@ fn arm(
     let item =
         if matches!(family, CaseLikeFamily::Catch) && token_kind(&item) == Some(TokenKind::Comma) {
             let mut comma = item;
-            emit_leading_trivia(&mut i, &std::mem::take(&mut comma.leading));
+            comma.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, comma);
             let handler_stops = family.handler_pattern_stops(outer_stops);
             let handler = scan_arm_item(i.rb(), handler_stops);
@@ -303,8 +303,9 @@ fn arm(
 
     let exit = if token_kind(&item) == Some(TokenKind::Arrow) {
         let mut arrow = item;
-        let arrow_baseline = indentation_after_newline(&arrow.leading).unwrap_or(arm_baseline);
-        emit_leading_trivia(&mut i, &std::mem::take(&mut arrow.leading));
+        let arrow_baseline =
+            indentation_after_newline(arrow.leading_view()).unwrap_or(arm_baseline);
+        arrow.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, arrow);
         arm_body(
             i.rb(),
@@ -354,7 +355,7 @@ fn guard(
     kind: SyntaxKind,
     line_handoff: StatementLineHandoff,
 ) -> Result<Item, TailExit> {
-    emit_leading_trivia(&mut i, &std::mem::take(&mut keyword.leading));
+    keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(family.guard_node().into());
     emit_keyword(&mut i, keyword, kind);
     let leading = scan_trivia(i.rb());
@@ -388,8 +389,8 @@ fn missing_arrow_then_body(
     body_stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    if !implicit_delimited_newline(arm_baseline, &item.leading) {
-        emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    if !implicit_delimited_newline(arm_baseline, item.leading_view()) {
+        item.emit_all_remaining_leading(&mut *i.state);
     }
     emit_missing(&mut i, LeadingTrivia::default());
     arm_inline_body_item(i, item, arm_baseline, body_stops, line_handoff)
@@ -424,26 +425,26 @@ fn arm_inline_body_item(
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
     if arm_body_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, &item.leading) {
-            emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+        if !implicit_delimited_newline(baseline, item.leading_view()) {
+            item.emit_all_remaining_leading(&mut *i.state);
         }
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
-    emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    item.emit_all_remaining_leading(&mut *i.state);
     if is_nud_item(&item) {
         return expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff);
     }
 
     item = retry_arm_body(i.rb(), item, baseline, stops);
     if arm_body_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, &item.leading) {
-            emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+        if !implicit_delimited_newline(baseline, item.leading_view()) {
+            item.emit_all_remaining_leading(&mut *i.state);
         }
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
-    emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    item.emit_all_remaining_leading(&mut *i.state);
     debug_assert!(is_nud_item(&item));
     expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff)
 }
@@ -462,11 +463,11 @@ fn retry_arm_body(mut i: RewriteIn, mut item: Item, baseline: usize, stops: Stop
 }
 
 fn arm_body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_separator(item)
         || is_active_stop(i.rb(), item, stops)
         || is_line_stop(item, stops)
-        || implicit_delimited_newline(baseline, &item.leading)
+        || implicit_delimited_newline(baseline, item.leading_view())
 }
 
 fn arm_terminal(mut i: RewriteIn, exit: TailExit, first_stops: PatternStops) -> TailExit {
@@ -558,9 +559,9 @@ impl ArmSequencePolicy {
         }
         match self {
             Self::CaseInline | Self::CatchInline => {
-                indentation_after_newline(&item.leading).is_none()
+                indentation_after_newline(item.leading_view()).is_none()
             }
-            Self::Indented { arm_indent, .. } => indentation_after_newline(&item.leading)
+            Self::Indented { arm_indent, .. } => indentation_after_newline(item.leading_view())
                 .is_none_or(|indentation| indentation == arm_indent),
             Self::CatchBraced { .. } => true,
         }
@@ -571,9 +572,9 @@ impl ArmSequencePolicy {
             return true;
         }
         match self {
-            Self::CaseInline => indentation_after_newline(&item.leading).is_some(),
+            Self::CaseInline => indentation_after_newline(item.leading_view()).is_some(),
             Self::CatchInline => true,
-            Self::Indented { arm_indent, .. } => indentation_after_newline(&item.leading)
+            Self::Indented { arm_indent, .. } => indentation_after_newline(item.leading_view())
                 .is_some_and(|indentation| indentation != arm_indent),
             Self::CatchBraced { .. } => false,
         }
@@ -591,7 +592,7 @@ fn inline_successor(
         return separator_successor(i, policy, item, first_stops, outer_stops);
     }
     if sequence_outer_boundary(i.rb(), &item, outer_stops)
-        || indentation_after_newline(&item.leading).is_some()
+        || indentation_after_newline(item.leading_view()).is_some()
     {
         return Err(handoff(item));
     }
@@ -616,7 +617,7 @@ fn indented_successor(
     if sequence_outer_boundary(i.rb(), &item, outer_stops) {
         return Err(handoff(item));
     }
-    if indentation_after_newline(&item.leading) == Some(arm_indent)
+    if indentation_after_newline(item.leading_view()) == Some(arm_indent)
         && is_pattern_nud(&item, first_stops)
     {
         return Ok(item);
@@ -635,9 +636,10 @@ fn braced_successor(
         emit_token_item(&mut i, item);
         return Err(Ok(()));
     }
-    if matches!(item.payload, Payload::Eof) {
+    if item.payload_view().is_eof() {
         let mut item = item;
-        emit_missing(&mut i, std::mem::take(&mut item.leading));
+        item.emit_eof_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
         return Err(handoff(item));
     }
     if token_kind(&item) == Some(TokenKind::Comma) {
@@ -646,7 +648,9 @@ fn braced_successor(
     if sequence_outer_boundary(i.rb(), &item, outer_stops) {
         return Err(handoff(item));
     }
-    if indentation_after_newline(&item.leading).is_some() && is_pattern_nud(&item, first_stops) {
+    if indentation_after_newline(item.leading_view()).is_some()
+        && is_pattern_nud(&item, first_stops)
+    {
         return Ok(item);
     }
     if is_pattern_nud(&item, first_stops) {
@@ -674,7 +678,7 @@ fn separator_successor(
 }
 
 fn sequence_outer_boundary(i: RewriteIn, item: &Item, outer_stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || matches!(
             token_kind(item),
             Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
@@ -771,17 +775,6 @@ fn emit_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
         SyntaxKind::WhereKw => "where",
         _ => unreachable!("case-like owners accept only their fixed words"),
     };
-    match item.payload {
-        Payload::Token(token) => {
-            debug_assert_eq!(token.kind, TokenKind::Identifier);
-            debug_assert_eq!(&*token.text, spelling);
-            i.state.token(kind.into(), &token.text);
-        }
-        Payload::Operator(operator) => {
-            debug_assert_eq!(&*operator.text, spelling);
-            i.state.token(kind.into(), &operator.text);
-        }
-        Payload::Eof => unreachable!("an accepted contextual word is lexical"),
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
-    }
+    debug_assert_eq!(item.payload_view().spelling(), Some(spelling));
+    item.emit_remaining(&mut *i.state, kind);
 }

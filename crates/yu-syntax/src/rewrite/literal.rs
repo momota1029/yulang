@@ -1,14 +1,24 @@
 //! Isolated literal Item construction before expression or Pattern dispatch.
 
-use reborrow_generic::Reborrow as _;
-
 use crate::syntax_kind::SyntaxKind;
+use reborrow_generic::Reborrow as _;
 
 use super::{
     LexIn, RewriteIn,
-    emit::{emit_leading_trivia, emit_literal_item, emit_missing},
-    item::{ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, Token, TokenKind},
+    emit::{emit_literal_item, emit_missing},
+    item::{
+        ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, PhysicalLeadingTrivia, Token,
+        TokenKind,
+    },
     yumark::{AcceptedQuotePrefix, FenceBoundary, FenceLineDecision, judge_fence_line},
+};
+
+mod rule_literal;
+
+#[cfg(test)]
+pub(super) use rule_literal::{
+    PatternLiteralOpener, RuleLiteralExit, rule_literal_witness,
+    scan_expression_rule_literal_opener_witness, scan_pattern_literal_opener_witness,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -32,6 +42,13 @@ pub(super) enum StringLiteralExit {
     Boundary(Item),
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum NonInterpolatingStringExit {
+    Complete,
+    Boundary(Item),
+    DeferredInterpolation(Item),
+}
+
 struct LiteralScan {
     piece: Option<LiteralPiece>,
     next_prefix: Option<AcceptedQuotePrefix>,
@@ -47,6 +64,14 @@ enum LiteralLineTransition {
 /// the opener and terminator of one normal string; three or more form one
 /// heredoc opener.
 pub(super) fn scan_string_opener_witness(mut i: LexIn) -> Option<(Item, StringMode)> {
+    let (token, mode) = i.token(scan_string_opener_token)?;
+    Some((
+        Item::plain(LeadingTrivia::default(), Payload::Token(token)),
+        mode,
+    ))
+}
+
+pub(super) fn scan_string_opener_token(mut i: LexIn) -> Option<(Token, StringMode)> {
     let run = quote_run(i.remainder());
     let (width, mode) = match run {
         0 => return None,
@@ -54,7 +79,13 @@ pub(super) fn scan_string_opener_witness(mut i: LexIn) -> Option<(Item, StringMo
         quotes => (quotes, StringMode::Heredoc { quotes }),
     };
     let (_, text) = i.rb().with_str(|opener| consume_exact_bytes(opener, width));
-    Some((literal_token(text), mode))
+    Some((
+        Token {
+            kind: TokenKind::Unknown,
+            text: text.into(),
+        },
+        mode,
+    ))
 }
 
 /// Accepts the mode's terminator without partially consuming a heredoc quote
@@ -63,6 +94,22 @@ pub(super) fn scan_string_close_witness(mut i: LexIn, mode: StringMode) -> Optio
     let (accepted, text) = i.rb().with_str(|close| accept_string_close(close, mode));
     accepted?;
     Some(literal_token(text))
+}
+
+pub(super) fn string_mode_from_opener(item: &Item) -> Option<StringMode> {
+    if item.payload_view().token_kind().is_none() {
+        return None;
+    }
+    let text = item.payload_view().spelling()?;
+    let quotes = quote_run(text);
+    if quotes != text.len() {
+        return None;
+    }
+    match quotes {
+        1 => Some(StringMode::Normal),
+        3.. => Some(StringMode::Heredoc { quotes }),
+        _ => None,
+    }
 }
 
 fn accept_string_close(mut i: LexIn, mode: StringMode) -> Option<()> {
@@ -224,6 +271,153 @@ where
     }
 }
 
+/// The RuleAtom/Pattern L5 checkpoint commits every non-interpolation string
+/// piece, but hands the first interpolation percent to the later L6 owner.
+pub(super) fn non_interpolating_string_literal_witness(
+    mut i: RewriteIn,
+    opener: Item,
+    mode: StringMode,
+    part_origin: usize,
+    fence: &FenceBoundary,
+) -> NonInterpolatingStringExit {
+    i.state.start_node(SyntaxKind::StringLiteral.into());
+    emit_literal_item(&mut i, opener, SyntaxKind::StringStart);
+    non_interpolating_string_body_witness(i, mode, part_origin, fence)
+}
+
+/// Completes an already-open StringLiteral whose caller emitted its outer
+/// current Item, including any ordinary leading trivia or Yumark carrier.
+pub(super) fn non_interpolating_string_body_witness(
+    mut i: RewriteIn,
+    mode: StringMode,
+    mut part_origin: usize,
+    fence: &FenceBoundary,
+) -> NonInterpolatingStringExit {
+    let mut next_prefix = None;
+
+    loop {
+        let lead = if let Some(prefix) = next_prefix.take() {
+            let structural = i
+                .token(|lex| {
+                    accepted_prefix_content(lex.remainder(), part_origin, &prefix)
+                        .chars()
+                        .next()
+                })
+                .expect("a deferred prefix has a structural successor");
+            match structural {
+                '"' => {
+                    let close = i
+                        .token(|lex| {
+                            scan_prefixed_literal_token(lex, part_origin, &prefix, |token| {
+                                accept_string_close(token, mode)
+                            })
+                        })
+                        .expect("a judged prefixed terminator is accepted");
+                    emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
+                    i.state.finish_node();
+                    return NonInterpolatingStringExit::Complete;
+                }
+                '%' => {
+                    let percent = i
+                        .token(|lex| {
+                            scan_prefixed_literal_token(
+                                lex,
+                                part_origin,
+                                &prefix,
+                                accept_interpolation_percent,
+                            )
+                        })
+                        .expect("a judged interpolation prefix has a percent successor");
+                    i.state.finish_node();
+                    return NonInterpolatingStringExit::DeferredInterpolation(percent);
+                }
+                '\\' => Some(
+                    i.token(|lex| {
+                        scan_prefixed_literal_token(lex, part_origin, &prefix, accept_escape_lead)
+                    })
+                    .expect("a judged prefixed escape lead is accepted"),
+                ),
+                _ => unreachable!("only a structural literal starter defers a prefix"),
+            }
+        } else if let Some(close) = i.token(|lex| scan_string_close_witness(lex, mode)) {
+            emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
+            i.state.finish_node();
+            return NonInterpolatingStringExit::Complete;
+        } else if i
+            .token(|lex| Some(lex.remainder().starts_with('%')))
+            .expect("the literal source probe is total")
+        {
+            let percent = i
+                .token(scan_interpolation_percent)
+                .expect("checked interpolation percent");
+            i.state.finish_node();
+            return NonInterpolatingStringExit::DeferredInterpolation(percent);
+        } else {
+            i.token(scan_escape_lead)
+        };
+
+        if let Some(lead) = lead {
+            match emit_string_escape(i.rb(), lead, &mut part_origin, fence, mode) {
+                EscapeExit::Continue => continue,
+                EscapeExit::AfterLine => {
+                    let scan = i
+                        .token(|lex| {
+                            Some(scan_multiline_literal_item(
+                                lex,
+                                part_origin,
+                                fence,
+                                true,
+                                |source| string_text_stop(source, mode),
+                            ))
+                        })
+                        .expect("the post-line literal scanner is total");
+                    match emit_text_scan(&mut i, scan, &mut part_origin) {
+                        Ok(prefix) => {
+                            next_prefix = prefix;
+                            continue;
+                        }
+                        Err(pending) => {
+                            return finish_non_interpolating_string_boundary(i, pending);
+                        }
+                    }
+                }
+                EscapeExit::NextPrefix(prefix) => {
+                    next_prefix = Some(prefix);
+                    continue;
+                }
+                EscapeExit::Boundary(pending) => {
+                    return finish_non_interpolating_string_boundary(i, pending);
+                }
+            }
+        }
+
+        let scan = i
+            .token(|lex| {
+                Some(scan_multiline_literal_item(
+                    lex,
+                    part_origin,
+                    fence,
+                    false,
+                    |source| string_text_stop(source, mode),
+                ))
+            })
+            .expect("the committed literal text scanner is total");
+        match emit_text_scan(&mut i, scan, &mut part_origin) {
+            Ok(prefix) => next_prefix = prefix,
+            Err(pending) => return finish_non_interpolating_string_boundary(i, pending),
+        }
+    }
+}
+
+fn finish_non_interpolating_string_boundary(
+    mut i: RewriteIn,
+    pending: Item,
+) -> NonInterpolatingStringExit {
+    emit_missing(&mut i, LeadingTrivia::default());
+    i.state.finish_node();
+    NonInterpolatingStringExit::Boundary(pending)
+}
+
 fn emit_string_interpolation<'source, 'recover, 'operators, 'builder>(
     mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
     prefix: Option<AcceptedQuotePrefix>,
@@ -292,23 +486,16 @@ where
         .expect("the interpolation child source probe is total");
     i.state
         .start_node(SyntaxKind::StringInterpolationBody.into());
-    let close = interpolation_body(i.rb());
+    let mut close = interpolation_body(i.rb());
     i.state.finish_node();
     let child_end = i
         .token(|lex| Some(lex.remainder()))
         .expect("the interpolation child source probe is total");
     advance_suffix_origin(part_origin, child_start, child_end);
 
-    debug_assert!(close.fragments().is_none());
-    emit_leading_trivia(&mut i, &close.leading);
-    let Payload::Token(close) = close.payload else {
-        unreachable!("the interpolation child witness returns one borrowed close token")
-    };
-    assert_eq!(close.kind, TokenKind::RBrace);
-    i.state.token(
-        SyntaxKind::StringInterpolationCloseBrace.into(),
-        &close.text,
-    );
+    close.emit_all_remaining_leading(&mut *i.state);
+    assert_eq!(close.payload_view().token_kind(), Some(TokenKind::RBrace));
+    close.emit_payload(&mut *i.state, SyntaxKind::StringInterpolationCloseBrace);
     i.state.finish_node();
     Ok(())
 }
@@ -699,10 +886,10 @@ fn advance_item_origin(origin: &mut usize, item: &Item) {
 }
 
 fn literal_item_length(item: &Item) -> usize {
-    let Payload::Token(token) = &item.payload else {
-        unreachable!("a literal lexical Item has a token payload")
-    };
-    token.text.len()
+    item.payload_view()
+        .spelling()
+        .expect("a literal lexical Item has a token payload")
+        .len()
 }
 
 fn is_string_close_source(source: &str, mode: StringMode) -> bool {
@@ -808,14 +995,16 @@ fn accepted_prefix_content<'source>(
 }
 
 fn literal_text_item(text: &str, part_origin: usize, foreign: Option<Vec<ForeignSplit>>) -> Item {
-    let fragments = PendingFragments::finish(foreign, part_origin, text.len())
-        .expect("literal fragment coordinates derive from one live suffix");
-    let mut item = literal_token(text);
-    if let Some(fragments) = fragments {
-        item.with_fragments(fragments)
-            .expect("one literal carrier covers its complete token payload");
-    }
-    item
+    Item::finish(
+        PhysicalLeadingTrivia::default(),
+        Payload::Token(Token {
+            kind: TokenKind::Unknown,
+            text: text.into(),
+        }),
+        foreign,
+        part_origin,
+    )
+    .expect("literal fragment coordinates derive from one live suffix")
 }
 
 fn literal_token(text: &str) -> Item {

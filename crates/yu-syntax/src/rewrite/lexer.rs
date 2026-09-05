@@ -11,7 +11,7 @@ use crate::scan::operator::OperatorSite;
 
 use super::{
     LexIn, RewriteIn, Stops,
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia, TriviaKind},
+    item::{Item, LeadingTrivia, Payload, Token, TokenKind, Trivia},
     operator::{
         STOP_ARROW, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
         newline_indentation_after_trivia, scan_dangling_operator, scan_operator,
@@ -32,7 +32,7 @@ pub(super) fn tail_item_after_trivia(
     baseline: usize,
     stops: Stops,
 ) -> Item {
-    let has_leading_trivia = !leading.0.is_empty();
+    let has_leading_trivia = !leading.view().is_grammar_empty();
     let record_spread = stops & STOP_RECORD_SPREAD != 0;
     let marker_after_operator = stops & STOP_RECORD_SPREAD_AFTER_OPERATOR != 0;
     let payload = if record_spread && matches!(site, OperatorSite::Nud) {
@@ -75,7 +75,7 @@ pub(super) fn statement_item_after_trivia(
     baseline: usize,
     stops: Stops,
 ) -> Item {
-    let has_leading_trivia = !leading.0.is_empty();
+    let has_leading_trivia = !leading.view().is_grammar_empty();
     let payload = i
         .token(|lex| {
             Some(scan_statement_payload(
@@ -94,7 +94,7 @@ pub(super) fn statement_item_after_trivia(
 /// a rollback-capable lexical transaction.
 pub(super) fn scan_statement_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
-    let payload = scan_statement_payload(i, !leading.0.is_empty(), baseline, stops);
+    let payload = scan_statement_payload(i, !leading.view().is_grammar_empty(), baseline, stops);
     Some(Item::plain(leading, payload))
 }
 
@@ -184,7 +184,7 @@ fn scan_token_payload(i: LexIn) -> Payload {
 
 pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
-    let has_leading_trivia = !leading.0.is_empty();
+    let has_leading_trivia = !leading.view().is_grammar_empty();
     let payload = if stops & STOP_ARROW != 0
         && let Some(arrow) = i.token(scan_arm_arrow)
     {
@@ -411,13 +411,11 @@ pub(super) fn scan_operator_shaped_unknown(mut i: LexIn) -> Option<Token> {
 }
 
 pub(super) fn is_operator_shaped_unknown(item: &Item) -> bool {
-    matches!(
-        &item.payload,
-        Payload::Token(Token {
-            kind: TokenKind::Unknown,
-            text,
-        }) if text.chars().all(is_operator_shaped_character)
-    )
+    item.payload_view().token_kind() == Some(TokenKind::Unknown)
+        && item
+            .payload_view()
+            .spelling()
+            .is_some_and(|text| text.chars().all(is_operator_shaped_character))
 }
 
 pub(super) fn scan_trivia<S>(mut i: In<'_, &str, &mut Recover<'_>, S>) -> LeadingTrivia
@@ -428,7 +426,7 @@ where
     while let Some(part) = i.token(scan_trivia_part) {
         parts.push(part);
     }
-    LeadingTrivia(parts.into_boxed_slice())
+    LeadingTrivia::ordinary(parts.into_boxed_slice())
 }
 
 fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
@@ -457,10 +455,7 @@ fn scan_horizontal_whitespace(mut i: LexIn) -> Option<Trivia> {
         Some(())
     });
     accepted?;
-    Some(Trivia {
-        kind: TriviaKind::Whitespace,
-        text: text.into(),
-    })
+    Some(Trivia::whitespace(text.into()))
 }
 
 fn scan_horizontal_whitespace_unit(mut i: LexIn) -> Option<()> {
@@ -477,10 +472,7 @@ fn scan_newline(mut i: LexIn) -> Option<Trivia> {
         _ => None,
     });
     accepted?;
-    Some(Trivia {
-        kind: TriviaKind::Newline,
-        text: text.into(),
-    })
+    Some(Trivia::newline(text.into()))
 }
 
 fn scan_line_feed(mut i: LexIn) -> Option<()> {
@@ -494,10 +486,7 @@ fn scan_line_comment(mut i: LexIn) -> Option<Trivia> {
         Some(())
     });
     accepted?;
-    Some(Trivia {
-        kind: TriviaKind::LineComment,
-        text: text.into(),
-    })
+    Some(Trivia::line_comment(text.into()))
 }
 
 fn scan_line_comment_character(mut i: LexIn) -> Option<()> {
@@ -526,10 +515,7 @@ fn scan_block_comment(mut i: LexIn) -> Option<Trivia> {
         }
     });
     accepted?;
-    Some(Trivia {
-        kind: TriviaKind::BlockComment,
-        text: text.into(),
-    })
+    Some(Trivia::block_comment(text.into()))
 }
 
 /// Isolated construction result for the first fence-aware multiline lexical
@@ -576,10 +562,7 @@ fn scan_block_comment_fenced(
         ))
     });
     let outcome = outcome?;
-    let accepted = Trivia {
-        kind: TriviaKind::BlockComment,
-        text: text.into(),
-    };
+    let accepted = Trivia::block_comment(text.into());
     Some(match outcome {
         FencedBlockCommentBody::Complete => FencedBlockComment::Complete(accepted),
         FencedBlockCommentBody::Boundary(pending) => {

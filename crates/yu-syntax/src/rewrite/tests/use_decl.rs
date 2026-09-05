@@ -268,7 +268,7 @@ fn use_c9_classifies_reserved_use_atoms_before_identifier_slots() {
             assert!(matches!(
                 exit,
                 Some(Err(Either::Left(item)))
-                    if matches!(item.payload, Payload::Token(ref token) if &*token.text == pending)
+                    if item.payload_view().spelling() == Some(pending)
             ));
         }
     }
@@ -343,16 +343,22 @@ fn use_c9_leaves_statement_boundaries_for_the_caller() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if item.leading.0.iter().any(|part| part.kind == TriviaKind::Newline)
+            if item.leading_view().has_ordinary_newline()
     ));
 
     let (green, exit) = run_statement("use /* boundary\n */ next");
     assert_eq!(green.to_string(), "use");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if item.leading.0.iter().any(|part| part.kind == TriviaKind::BlockComment)
-    ));
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("block-comment boundary must remain pending")
+    };
+    assert_eq!(
+        emit_pending_leading_tokens(&mut item),
+        [
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::BlockComment, "/* boundary\n */".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned())
+        ]
+    );
     assert_eq!(
         descendants_of_kind(&use_declaration(&green), SyntaxKind::Missing),
         1
@@ -381,12 +387,11 @@ fn use_c9_leaves_statement_boundaries_for_the_caller() {
     let operators = OperatorTable::empty();
     let (green, exit) = run_statement_with_stops("use @  -> next", &operators, STOP_ARROW);
     assert_eq!(green.to_string(), "use @");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if token_kind(&item) == Some(TokenKind::Arrow)
-                && item.leading.0.iter().map(|part| &*part.text).collect::<Vec<_>>().concat() == "  "
-    ));
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("arrow must remain pending")
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::Arrow));
+    assert_eq!(emit_pending_leading_text(&mut item), "  ");
 
     let (green, exit) = run_statement("use  [next");
     assert_eq!(green.to_string(), "use  ");
@@ -404,16 +409,15 @@ fn use_c9_missing_group_close_hands_equal_indent_statement_intro_to_caller() {
         descendants_of_kind(&use_declaration(&green), SyntaxKind::Missing),
         1
     );
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if matches!(
-                    item.payload,
-                    Payload::Token(ref token)
-                        if token.kind == TokenKind::Identifier && &*token.text == "use"
-                )
-                && item.leading.0.iter().map(|part| &*part.text).collect::<Vec<_>>().concat() == "\n"
-    ));
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("use intro must remain pending")
+    };
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    assert_eq!(item.payload_view().spelling(), Some("use"));
+    assert_eq!(emit_pending_leading_text(&mut item), "\n");
 
     let (green, exit) = run_statement("use {a\ntype T = A");
     assert_eq!(green.to_string(), "use {a");
@@ -421,16 +425,15 @@ fn use_c9_missing_group_close_hands_equal_indent_statement_intro_to_caller() {
         descendants_of_kind(&use_declaration(&green), SyntaxKind::Missing),
         1
     );
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if matches!(
-                    item.payload,
-                    Payload::Token(ref token)
-                        if token.kind == TokenKind::Identifier && &*token.text == "type"
-                )
-                && item.leading.0.iter().map(|part| &*part.text).collect::<Vec<_>>().concat() == "\n"
-    ));
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("type intro must remain pending")
+    };
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    assert_eq!(item.payload_view().spelling(), Some("type"));
+    assert_eq!(emit_pending_leading_text(&mut item), "\n");
 
     for source in ["use {a\n  use b}", "use {a\nuseful}"] {
         let (green, exit) = run_statement(source);
@@ -473,12 +476,11 @@ fn use_c9_recovers_local_group_mismatches_without_stealing_outer_closes() {
     let (green, exit) =
         run_statement_with_stops("use {a  )next", &operators, stops_for(TokenKind::RParen));
     assert_eq!(green.to_string(), "use {a");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if token_kind(&item) == Some(TokenKind::RParen)
-                && item.leading.0.iter().map(|part| &*part.text).collect::<Vec<_>>().concat() == "  "
-    ));
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("caller close must remain pending")
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::RParen));
+    assert_eq!(emit_pending_leading_text(&mut item), "  ");
 }
 
 #[test]

@@ -21,14 +21,19 @@ Type-attached `impl` addendumも全6 gate完走）
   specification/regression reviewで不採用となった。ユーザ承認済み
   `2026-09-05-item-emission-ownership-frontier-amendment.md`がこれを置換する。
   `Item`内の唯一のmutable値は`first_unemitted_leading: usize`だけであり、carrierの
-  active範囲は保存せず毎回これから導出する。N0aではatomic `Item::finish`、sealed
+  active範囲は保存せず毎回これから導出する。N0aは完了: atomic `Item::finish`、sealed
   physical ownership、`LeadingView`/借用`PayloadView`、central phased emission、Ruleの
-  partial separatorとcarrier/boundary/payload-owning siteの恒久移行を実施する。ordinary
-  prefix-free whole-leading siteだけはN0bまで明名compatibility operationを許す。
+  partial separatorとcarrier/boundary/payload-owning siteの恒久移行を実施した。ordinary
+  prefix-free whole-leading compatibility operationは不要となり、そのcallerはzeroである。
   terminal adapterはopen `YmYulangCodeCell`下でaccepted body-leadingだけをemitし、
-  Yumarkへはunchanged pending factsだけを返す。N0aの次にはN0b有限owner移行、N0c
-  physical-prefix certificationが続く。現在のuncommitted rewrite候補はN0aでreshapeする
-  WIPであり、統合済みgate evidenceではない。
+  Yumarkへはunchanged pending factsだけを返す。layoutは`Item` 104→112 bytes（許可済み
+  frontier一つ）、`LeadingTrivia` 16→16 bytes。N0a focused controls（prefix placement、
+  partial→remaining→payload、Rule repeated newline、terminal close/transition/EOF、
+  accepted construction failure）はgreen。full lexicalの唯一の失敗
+  `decimal_integer_core_keeps_its_direct_tail_chain`は`tails.rs`の既知L5a
+  `defer_distinct_owner` assertionでありN0aから分離する。full `cargo test -p yu-syntax`は
+  N0cまで保留。次はN0bの有限owner migrationだが、現在はcompat callerがzeroであるため、
+  N0bを実行する前に残るdetached-owner inventoryをtaskへ明記する。
 - tuple・演算子CST・colon application・if/elsif/else・brace statement block・pattern文法・
   case/catch・list/record pattern・call/field/path/ML-application・generic-expression
   WithBodyTail・canonical Statementのbinding/use拡張・`mod`宣言、が実装・push済み。
@@ -318,8 +323,9 @@ expression・canonical statement/declaration・Pattern/Type/derives/raw probe �
 （full Rule ExpressionList）の順序をAuthoritative化した。fenced pathは消費だけでなくphysical lineを越える
 lookahead前にもjudgeし、child callごとにsuffix pointer/length差でimmediate originを同期する。fence、cursor、
 source、callback、contextをRecover/Rowan/Item/persistent frameへ置かず、close/transition Itemとleading trivia/
-fragment carrierはunchanged handoffする。現worktreeのL5 repairはuncommittedで、次のimplementation gateは
-L5aのfrontier ledgerとclosed-cone proofである。L5/L6/L7/public integrationは未完である。
+fragment carrierはunchanged handoffする。L5 repairのisolated WIPはN0a Item ownership migrationと
+同じdirect-rewrite commitに載るが、L5/L6/L7/public integrationの完了を意味しない。L5aの
+frontier ledgerとclosed-cone proof、L5/L6/L7/public integrationは未完である。
 
 2026-09-05: L5a seam の実装調査で、ordinary identifier/operator 前の accepted Yumark prefix が既存
 `Item` constituent を持てず、`ForeignSplit` validation と `Whitespace` 偽装禁止が両立しないこと、さらに
@@ -328,9 +334,9 @@ operator/contextual/layout raw probe が fence 後の outer source を読むこ�
 mechanism をその範囲だけ supersede し、private `TriviaKind::YmQuotePrefix` physical part、one direct
 ordinary/fenced current-Item body、pure fenced source observation、transient line-entry handoff、有限の
 temporary `Deferred` frontier ledger をAuthoritative化した。architecture/compiler-recovery/specification
-review と scoped delta review は全てclosed。現worktreeのL5/L5a repair は未committedのまま保留であり、
-次のimplementation gateは N0（physical-prefix representation、grammar-inert LeadingTrivia predicates、
-fragment-aware accepted-Item emission）である。N0はscanner/grammar/public reachabilityを変えない。N1--N3、
+review と scoped delta review は全てclosed。N0a（physical-prefix representation、sealed
+grammar-inert LeadingTrivia predicates、fragment-aware accepted-Item emission）は完了し、scanner/grammar/
+public reachabilityを変えていない。次はN0b detached-owner inventory、その後N0c certificationである。N1--N3、
 L5/L6/L7/public integrationは未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)

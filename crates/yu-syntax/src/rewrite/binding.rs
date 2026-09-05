@@ -11,7 +11,7 @@ use super::{
         is_active_stop, is_line_stop, is_nud_item, is_separator, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    item::{Item, LeadingTrivia, TokenKind},
     lexer::{
         introduced_body_indentation, is_exact_equals_source, pattern_nud_item_after_trivia,
         scan_trivia, source_identifier, statement_item_after_trivia, tail_item_after_trivia,
@@ -71,14 +71,14 @@ pub(super) fn binding_statement(
         return exit;
     };
     if token_kind(&item) != Some(TokenKind::Equals)
-        || implicit_delimited_newline(baseline, &item.leading)
+        || implicit_delimited_newline(baseline, item.leading_view())
     {
         i.state.finish_node();
         i.state.finish_node();
         return handoff(item);
     }
 
-    emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    item.emit_all_remaining_leading(&mut *i.state);
     emit_token_item(&mut i, item);
     i.state.finish_node();
 
@@ -140,7 +140,7 @@ fn inline_binding_body(
 ) -> TailExit {
     let leading = scan_trivia(i.rb());
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    item.emit_all_remaining_leading(&mut *i.state);
     if binding_body_boundary(i.rb(), &item, baseline, stops) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
@@ -151,12 +151,12 @@ fn inline_binding_body(
 
     item = retry_inline_binding_body(i.rb(), item, baseline, stops);
     if binding_body_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, &item.leading) {
-            emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+        if !implicit_delimited_newline(baseline, item.leading_view()) {
+            item.emit_all_remaining_leading(&mut *i.state);
         }
         return handoff(item);
     }
-    emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    item.emit_all_remaining_leading(&mut *i.state);
     debug_assert!(is_nud_item(&item));
     expr_from_nud(i, item, None, baseline, stops, MlMode::All, line_handoff)
 }
@@ -180,11 +180,11 @@ fn retry_inline_binding_body(
 }
 
 fn binding_body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_separator(item)
         || is_active_stop(i.rb(), item, stops)
         || is_line_stop(item, stops)
-        || implicit_delimited_newline(baseline, &item.leading)
+        || implicit_delimited_newline(baseline, item.leading_view())
 }
 
 fn binding_follower(i: LexIn, visibility: &str, baseline: usize) -> bool {
@@ -232,30 +232,29 @@ fn binding_definition_follows(source: &str, baseline: usize) -> bool {
 }
 
 fn visibility_word(item: &Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) if matches!(&**text, "my" | "our" | "pub") => Some(text),
-        Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
+    let payload = item.payload_view();
+    assert!(
+        !payload.is_boundary(),
+        "a boundary is not a visibility word"
+    );
+    match (payload.token_kind(), payload.spelling()) {
+        (Some(TokenKind::Identifier), Some(text)) if matches!(text, "my" | "our" | "pub") => {
+            Some(text)
+        }
+        _ => None,
     }
 }
 
 fn emit_visibility(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(Token {
-        kind: TokenKind::Identifier,
-        text,
-    }) = item.payload
-    else {
-        unreachable!("the Statement head scanner accepted a visibility word")
-    };
-    emit_leading_trivia(i, &item.leading);
-    let kind = match &*text {
-        "my" => SyntaxKind::MyKw,
-        "our" => SyntaxKind::OurKw,
-        "pub" => SyntaxKind::PubKw,
+    debug_assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    let kind = match item.payload_view().spelling() {
+        Some("my") => SyntaxKind::MyKw,
+        Some("our") => SyntaxKind::OurKw,
+        Some("pub") => SyntaxKind::PubKw,
         _ => unreachable!("the binding judge accepted only visibility words"),
     };
-    i.state.token(kind.into(), &text);
+    item.emit_remaining(&mut *i.state, kind);
 }

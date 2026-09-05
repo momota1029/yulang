@@ -167,17 +167,10 @@ fn struct_c11_gstruct_and_body_handoff_are_lossless() {
 
     let (green, exit) = run_statement("struct S\nnext");
     assert_eq!(green.to_string(), "struct S");
-    let Err(Either::Left(item)) = exit.expect("statement exit") else {
+    let Err(Either::Left(mut item)) = exit.expect("statement exit") else {
         panic!("pending item")
     };
-    assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| &*part.text)
-            .collect::<String>(),
-        "\n"
-    );
+    assert_eq!(emit_pending_leading_text(&mut item), "\n");
 
     let (green, exit) = run_statement("struct S:\nnext");
     assert_eq!(count(&declaration(&green), SyntaxKind::StructField), 1);
@@ -194,11 +187,11 @@ fn struct_c11_body_colon_does_not_capture_polymorphic_variant_type() {
     let Some(Err(Either::Left(item))) = exit else {
         panic!("polymorphic variant type must remain pending")
     };
-    assert!(matches!(
-        item.payload,
-        Payload::Token(ref token)
-            if token.kind == TokenKind::PolymorphicVariantColon && token.text.as_ref() == ":"
-    ));
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::PolymorphicVariantColon)
+    );
+    assert_eq!(item.payload_view().spelling(), Some(":"));
 
     let source = "struct S:\n  x: T";
     let (green, _) = run_statement(source);

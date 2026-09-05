@@ -11,7 +11,7 @@ use super::{
         is_active_stop, token_kind,
     },
     emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    item::{Item, LeadingTrivia, Token, TokenKind},
     lexer::{
         introduced_body_indentation, scan_identifier, scan_statement_item, scan_trivia,
         source_identifier, statement_item_after_trivia,
@@ -211,7 +211,7 @@ fn recover_body_introducer(
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         item = statement_item_after_trivia(i.rb(), leading, baseline, stops);
-        if implicit_delimited_newline(baseline, &item.leading) {
+        if implicit_delimited_newline(baseline, item.leading_view()) {
             i.state.finish_node();
             return handoff(item);
         }
@@ -335,8 +335,8 @@ fn take_boundary(mut i: RewriteIn, baseline: usize, stops: Stops) -> Option<Item
 }
 
 fn mod_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
-        || implicit_delimited_newline(baseline, &item.leading)
+    item.payload_view().is_eof()
+        || implicit_delimited_newline(baseline, item.leading_view())
         || is_active_stop(i.rb(), item, stops)
         || matches!(
             token_kind(item),
@@ -345,8 +345,8 @@ fn mod_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) ->
 }
 
 fn mod_boundary_lex(mut i: LexIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
-        || implicit_delimited_newline(baseline, &item.leading)
+    item.payload_view().is_eof()
+        || implicit_delimited_newline(baseline, item.leading_view())
         || super::driver::is_active_stop_lex(i.rb(), item, stops)
         || matches!(
             token_kind(item),
@@ -414,7 +414,7 @@ fn is_body_starter_item(item: &Item) -> bool {
 
 fn inline_terminal_semicolon(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Semicolon)
-        && indentation_after_newline(&item.leading).is_none()
+        && indentation_after_newline(item.leading_view()).is_none()
 }
 
 fn scan_exact_identifier(mut i: LexIn, expected: &str) -> Option<Token> {
@@ -423,36 +423,26 @@ fn scan_exact_identifier(mut i: LexIn, expected: &str) -> Option<Token> {
 }
 
 fn item_word(item: &Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) => Some(text),
-        Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
-    }
+    let payload = item.payload_view();
+    assert!(!payload.is_boundary(), "a boundary is not a word");
+    (payload.token_kind() == Some(TokenKind::Identifier))
+        .then(|| payload.spelling())
+        .flatten()
 }
 
 fn emit_intro(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("an accepted Mod intro is a token")
-    };
-    emit_leading_trivia(i, &item.leading);
-    i.state.token(kind.into(), &token.text);
+    debug_assert!(item.payload_view().token_kind().is_some());
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn emit_visibility(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("an accepted Mod visibility is a token")
-    };
-    emit_leading_trivia(i, &item.leading);
-    let kind = match &*token.text {
-        "my" => SyntaxKind::MyKw,
-        "our" => SyntaxKind::OurKw,
-        "pub" => SyntaxKind::PubKw,
+    let kind = match item.payload_view().spelling() {
+        Some("my") => SyntaxKind::MyKw,
+        Some("our") => SyntaxKind::OurKw,
+        Some("pub") => SyntaxKind::PubKw,
         _ => unreachable!("Mod visibility was selected from exact words"),
     };
-    i.state.token(kind.into(), &token.text);
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn observes<F>(i: RewriteIn, predicate: F) -> bool

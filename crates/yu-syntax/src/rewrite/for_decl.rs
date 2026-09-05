@@ -67,12 +67,12 @@ fn scan_label(
     let mut accepted = false;
     let rolled_back: Option<()> = i.token(|mut probe| {
         let before = scan_trivia(probe.rb());
-        if implicit_gap(baseline, &before) {
+        if implicit_gap(baseline, before.view()) {
             return None;
         }
         scan_apostrophe_sigil_identifier(probe.rb())?;
         let after = scan_trivia(probe.rb());
-        if implicit_gap(baseline, &after) {
+        if implicit_gap(baseline, after.view()) {
             return None;
         }
         let next = scan_statement_item(probe.rb(), baseline, outer_stops)?;
@@ -106,13 +106,13 @@ fn pattern_slot(
         token_kind(&item),
         Some(TokenKind::Colon | TokenKind::LBrace)
     );
-    if implicit_delimited_newline(baseline, &item.leading) {
+    if implicit_delimited_newline(baseline, item.leading_view()) {
         i.state.start_node(SyntaxKind::Pattern.into());
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
         return handoff(item);
     }
-    emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    item.emit_all_remaining_leading(&mut *i.state);
     let outcome =
         pattern_from_entry_item_with_completion(i.rb(), item, baseline, stops, line_handoff);
     match outcome.exit {
@@ -138,7 +138,7 @@ fn in_slot(
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    if implicit_delimited_newline(baseline, &item.leading) {
+    if implicit_delimited_newline(baseline, item.leading_view()) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
@@ -153,7 +153,7 @@ fn in_slot(
             Some(TokenKind::Colon | TokenKind::LBrace)
         )
     {
-        emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+        item.emit_all_remaining_leading(&mut *i.state);
     }
     emit_missing(&mut i, LeadingTrivia::default());
     if matches!(
@@ -183,8 +183,8 @@ fn iterable(
         iterable_stops(outer_stops),
     );
     let missing = iterable_boundary(i.rb(), &item, baseline, outer_stops);
-    if !implicit_delimited_newline(baseline, &item.leading) {
-        emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    if !implicit_delimited_newline(baseline, item.leading_view()) {
+        item.emit_all_remaining_leading(&mut *i.state);
     }
     iterable_from_item(i, item, baseline, outer_stops, missing, line_handoff)
 }
@@ -197,12 +197,14 @@ fn iterable_from_item(
     missing: bool,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    if !implicit_delimited_newline(baseline, &item.leading) && !item.leading.0.is_empty() {
-        emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    if !implicit_delimited_newline(baseline, item.leading_view())
+        && !item.leading_view().is_grammar_empty()
+    {
+        item.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.start_node(SyntaxKind::ForIterable.into());
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    let exit = if implicit_delimited_newline(baseline, &item.leading) {
+    let exit = if implicit_delimited_newline(baseline, item.leading_view()) {
         emit_missing(&mut i, LeadingTrivia::default());
         handoff(item)
     } else {
@@ -243,7 +245,7 @@ fn body(
     outer_stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> TailExit {
-    if implicit_delimited_newline(baseline, &item.leading) {
+    if implicit_delimited_newline(baseline, item.leading_view()) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
@@ -253,7 +255,7 @@ fn body(
             colon_body(i, baseline, outer_stops, line_handoff)
         }
         Some(TokenKind::LBrace) => {
-            emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+            item.emit_all_remaining_leading(&mut *i.state);
             braced_statement_block(i, item, baseline)
         }
         _ if outer_boundary(i.rb(), &item, baseline, outer_stops) => {
@@ -292,7 +294,7 @@ fn inline_body(
     let stops = outer_stops | STOP_COMMA | STOP_SEMICOLON;
     let leading = scan_trivia(i.rb());
     let mut item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, stops);
-    emit_leading_trivia(&mut i, &std::mem::take(&mut item.leading));
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::OperatorChain.into());
     let exit = required_expr_item(
         i.rb(),
@@ -326,7 +328,7 @@ fn recover_body_introducer(
             i.state.finish_node();
             return body(i, item, baseline, outer_stops, line_handoff);
         }
-        if implicit_delimited_newline(baseline, &item.leading)
+        if implicit_delimited_newline(baseline, item.leading_view())
             || outer_boundary(i.rb(), &item, baseline, outer_stops)
         {
             i.state.finish_node();
@@ -345,14 +347,14 @@ fn iterable_stops(outer_stops: Stops) -> Stops {
 }
 
 fn iterable_boundary(mut i: RewriteIn, item: &Item, baseline: usize, outer_stops: Stops) -> bool {
-    implicit_delimited_newline(baseline, &item.leading)
-        || matches!(item.payload, Payload::Eof)
+    implicit_delimited_newline(baseline, item.leading_view())
+        || item.payload_view().is_eof()
         || is_active_stop(i.rb(), item, iterable_stops(outer_stops))
 }
 
 fn outer_boundary(mut i: RewriteIn, item: &Item, baseline: usize, outer_stops: Stops) -> bool {
-    implicit_delimited_newline(baseline, &item.leading)
-        || matches!(item.payload, Payload::Eof)
+    implicit_delimited_newline(baseline, item.leading_view())
+        || item.payload_view().is_eof()
         || is_separator(item)
         || is_active_stop(i.rb(), item, outer_stops)
 }
@@ -363,37 +365,30 @@ fn label_following_boundary(
     baseline: usize,
     outer_stops: Stops,
 ) -> bool {
-    implicit_gap(baseline, &item.leading)
-        || matches!(item.payload, Payload::Eof)
+    implicit_gap(baseline, item.leading_view())
+        || item.payload_view().is_eof()
         || is_separator(item)
         || is_active_stop_lex(i.rb(), item, outer_stops)
         || matches!(token_kind(item), Some(TokenKind::Colon | TokenKind::LBrace))
 }
 
-fn implicit_gap(baseline: usize, leading: &LeadingTrivia) -> bool {
+fn implicit_gap(baseline: usize, leading: super::item::LeadingView<'_>) -> bool {
     implicit_delimited_newline(baseline, leading)
 }
 
 fn item_word(item: &Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) => Some(text),
-        Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
-    }
+    let payload = item.payload_view();
+    assert!(!payload.is_boundary(), "a boundary is not a word");
+    (payload.token_kind() == Some(TokenKind::Identifier))
+        .then(|| payload.spelling())
+        .flatten()
 }
 
 fn emit_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind, spelling: &str) {
-    emit_leading_trivia(i, &item.leading);
-    let Payload::Token(Token {
-        kind: TokenKind::Identifier,
-        text,
-    }) = item.payload
-    else {
-        unreachable!("a For keyword is an identifier-shaped token")
-    };
-    debug_assert_eq!(&*text, spelling);
-    i.state.token(kind.into(), &text);
+    debug_assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    debug_assert_eq!(item.payload_view().spelling(), Some(spelling));
+    item.emit_remaining(&mut *i.state, kind);
 }

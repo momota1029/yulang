@@ -214,7 +214,7 @@ fn mod_c10_applies_gmod_to_every_header_gap() {
         assert!(matches!(
             exit,
             Some(Err(Either::Left(item)))
-                if item.leading.0.iter().any(|part| part.kind == TriviaKind::Newline)
+                if item.leading_view().has_ordinary_newline()
         ));
     }
 
@@ -315,15 +315,15 @@ fn mod_c10_recovers_body_slots_and_preserves_boundaries() {
     let operators = OperatorTable::empty();
     let (green, exit) = run_statement_with_stops("mod A:  else", &operators, STOP_ELSE);
     assert_eq!(green.to_string(), "mod A:");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if matches!(
-                item.payload,
-                Payload::Token(ref token)
-                    if token.kind == TokenKind::Identifier && &*token.text == "else"
-            ) && item.leading.0.iter().map(|part| &*part.text).collect::<Vec<_>>().concat() == "  "
-    ));
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("else must remain pending")
+    };
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    assert_eq!(item.payload_view().spelling(), Some("else"));
+    assert_eq!(emit_pending_leading_text(&mut item), "  ");
 
     let (green, exit) = run_statement("mod A @\n;");
     assert_eq!(green.to_string(), "mod A @");
@@ -331,7 +331,7 @@ fn mod_c10_recovers_body_slots_and_preserves_boundaries() {
         exit,
         Some(Err(Either::Left(item)))
             if token_kind(&item) == Some(TokenKind::Semicolon)
-                && item.leading.0.iter().any(|part| part.kind == TriviaKind::Newline)
+                && item.leading_view().has_ordinary_newline()
     ));
 }
 

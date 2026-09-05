@@ -170,8 +170,8 @@ fn double_dot_is_not_a_field_tail() {
             matches!(
                 exit,
                 Some(Err(Either::Left(item)))
-                    if matches!(item.payload, Payload::Token(ref token)
-                        if token.kind == TokenKind::Unknown && &*token.text == ".")
+                    if item.payload_view().token_kind() == Some(TokenKind::Unknown)
+                        && item.payload_view().spelling() == Some(".")
             ),
             "{source:?}"
         );
@@ -290,7 +290,7 @@ fn lone_colon_tail_is_terminal_and_preserves_outer_comma_ownership() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
+            if item.payload_view().token_kind() == Some(TokenKind::Colon)
     ));
 }
 
@@ -388,8 +388,8 @@ fn with_c5_is_a_terminal_direct_body_tail() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token)
-                if token.kind == TokenKind::Identifier && &*token.text == "x")
+            if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                && item.payload_view().spelling() == Some("x")
     ));
     let tail = SyntaxNode::new_root(green)
         .descendants()
@@ -407,8 +407,8 @@ fn with_c5_is_a_terminal_direct_body_tail() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token)
-                if token.kind == TokenKind::Identifier && &*token.text == "x")
+            if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                && item.payload_view().spelling() == Some("x")
     ));
     let tail = SyntaxNode::new_root(green)
         .descendants()
@@ -432,7 +432,7 @@ fn with_c5_is_a_terminal_direct_body_tail() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Semicolon)
+            if item.payload_view().token_kind() == Some(TokenKind::Semicolon)
     ));
     let tail = SyntaxNode::new_root(green)
         .descendants()
@@ -483,7 +483,7 @@ fn with_c5_is_a_terminal_direct_body_tail() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::LBrace)
+            if item.payload_view().token_kind() == Some(TokenKind::LBrace)
     ));
     let tail = SyntaxNode::new_root(green)
         .descendants()
@@ -544,8 +544,8 @@ fn colon_c4_commits_and_recovers_mandatory_inline_slots() {
             assert!(matches!(
                 exit,
                 Some(Err(Either::Left(item)))
-                    if matches!(item.payload, Payload::Token(ref token)
-                        if token.kind == TokenKind::Identifier && &*token.text == "x")
+                    if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                        && item.payload_view().spelling() == Some("x")
             ));
             assert!(
                 !colon
@@ -720,8 +720,8 @@ fn colon_c2_indented_expression_statement_block_preserves_dedent() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token)
-                if token.kind == TokenKind::Identifier && &*token.text == "z")
+            if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                && item.payload_view().spelling() == Some("z")
     ));
     assert_eq!(
         SyntaxNode::new_root(green)

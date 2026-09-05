@@ -7,145 +7,84 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     RewriteIn,
     driver::End,
-    item::{ForeignKind, Item, LeadingTrivia, Payload, TokenKind, TriviaKind},
+    item::{Item, LeadingTrivia, TokenKind},
 };
 
-#[cfg(test)]
-use super::item::ItemTextPart;
-
 pub(super) fn emit_identifier_core(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("a core scanner always returns a token")
-    };
-    debug_assert_eq!(token.kind, TokenKind::Identifier);
+    debug_assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
     i.state.start_node(SyntaxKind::IdentifierExpression.into());
-    emit_trivia(i, &item.leading);
-    i.state.token(SyntaxKind::Identifier.into(), &token.text);
+    item.emit_remaining(&mut *i.state, SyntaxKind::Identifier);
     i.state.finish_node();
 }
 
 pub(super) fn emit_integer_core(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("a core scanner always returns a token")
-    };
-    debug_assert_eq!(token.kind, TokenKind::Integer);
+    debug_assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Integer));
     i.state.start_node(SyntaxKind::IntegerLiteral.into());
-    emit_trivia(i, &item.leading);
-    i.state.token(SyntaxKind::Integer.into(), &token.text);
+    item.emit_remaining(&mut *i.state, SyntaxKind::Integer);
     i.state.finish_node();
 }
 
 pub(super) fn emit_operator_use(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    let Payload::Operator(operator) = item.payload else {
-        unreachable!("an operator use always owns an operator token")
-    };
+    debug_assert!(item.payload_view().operator_use().is_some());
     i.state.start_node(kind.into());
-    emit_trivia(i, &item.leading);
-    i.state.token(SyntaxKind::Operator.into(), &operator.text);
+    item.emit_remaining(&mut *i.state, SyntaxKind::Operator);
     i.state.finish_node();
 }
 
 /// An accepted contextual `with` outranks an otherwise selected dynamic word
 /// operator, but remains a single already-owned Item.
 pub(super) fn emit_with_keyword(i: &mut RewriteIn, item: Item) {
-    emit_trivia(i, &item.leading);
-    match item.payload {
-        Payload::Token(token) => {
-            debug_assert_eq!(token.kind, TokenKind::Identifier);
-            debug_assert_eq!(&*token.text, "with");
-            i.state.token(SyntaxKind::WithKw.into(), &token.text);
-        }
-        Payload::Operator(operator) => {
-            debug_assert_eq!(&*operator.text, "with");
-            i.state.token(SyntaxKind::WithKw.into(), &operator.text);
-        }
-        Payload::Eof => unreachable!("an accepted contextual keyword is lexical"),
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries cannot be emitted"),
-    }
+    let payload = item.payload_view();
+    debug_assert!(
+        payload.token_kind() == Some(TokenKind::Identifier) || payload.operator_use().is_some()
+    );
+    debug_assert_eq!(payload.spelling(), Some("with"));
+    item.emit_remaining(&mut *i.state, SyntaxKind::WithKw);
 }
 
 pub(super) fn emit_token_item(i: &mut RewriteIn, item: Item) {
-    emit_trivia(i, &item.leading);
-    match item.payload {
-        Payload::Operator(operator) => {
-            i.state.token(SyntaxKind::Operator.into(), &operator.text);
-        }
-        Payload::Token(token) => {
-            let kind = token_syntax_kind(token.kind);
-            i.state.token(kind.into(), &token.text);
-        }
-        Payload::Eof => unreachable!("only a lexical item can be emitted"),
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries cannot be emitted"),
-    }
+    let payload = item.payload_view();
+    let kind = if payload.operator_use().is_some() {
+        SyntaxKind::Operator
+    } else {
+        token_syntax_kind(
+            payload
+                .token_kind()
+                .expect("only a lexical item can be emitted"),
+        )
+    };
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 /// Emits one committed interior literal Item while keeping accepted Yumark
 /// quote prefixes outside the literal token kind.
 pub(super) fn emit_literal_item(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    debug_assert!(item.leading.0.is_empty());
-    let Payload::Token(token) = &item.payload else {
-        unreachable!("a literal lexical item always owns a token payload")
-    };
-
-    let Some(parts) = item.fragmented_parts() else {
-        i.state.token(kind.into(), &token.text);
-        return;
-    };
-
-    for part in parts {
-        let mut cursor = 0;
-        for split in part.foreign {
-            let start = split.offset - part.physical.start;
-            let end = start + split.length;
-            if cursor < start {
-                i.state.token(kind.into(), &part.text[cursor..start]);
-            }
-            let foreign = match split.kind {
-                ForeignKind::YmQuotePrefix => SyntaxKind::YmQuotePrefix,
-            };
-            i.state.token(foreign.into(), &part.text[start..end]);
-            cursor = end;
-        }
-        if cursor < part.text.len() {
-            i.state.token(kind.into(), &part.text[cursor..]);
-        }
-    }
+    debug_assert!(item.leading_view().is_grammar_empty());
+    debug_assert!(item.payload_view().token_kind().is_some());
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 /// Gate 3's isolated cell fixture emits one already-accepted segmented item
 /// without changing the ordinary canonical emitters before lexical closure.
 #[cfg(test)]
-pub(super) fn emit_fragmented_item(i: &mut RewriteIn, item: &Item) {
-    for part in item
-        .fragmented_parts()
-        .expect("the cell fixture accepts a segmented item")
-    {
-        let ordinary = match part.kind {
-            ItemTextPart::LeadingTrivia(index) => trivia_syntax_kind(item.leading.0[index].kind),
-            ItemTextPart::PayloadToken => {
-                let Payload::Token(token) = &item.payload else {
-                    unreachable!("a token part belongs to a token payload")
-                };
-                token_syntax_kind(token.kind)
-            }
-            ItemTextPart::PayloadOperator => SyntaxKind::Operator,
-        };
-        let mut cursor = 0;
-        for split in part.foreign {
-            let start = split.offset - part.physical.start;
-            let end = start + split.length;
-            if cursor < start {
-                i.state.token(ordinary.into(), &part.text[cursor..start]);
-            }
-            let foreign = match split.kind {
-                ForeignKind::YmQuotePrefix => SyntaxKind::YmQuotePrefix,
-            };
-            i.state.token(foreign.into(), &part.text[start..end]);
-            cursor = end;
+pub(super) fn emit_fragmented_item(i: &mut RewriteIn, item: Item) {
+    let payload = item.payload_view();
+    let kind = if payload.operator_use().is_some() {
+        Some(SyntaxKind::Operator)
+    } else {
+        payload.token_kind().map(token_syntax_kind)
+    };
+    let is_eof = payload.is_eof();
+    match kind {
+        Some(kind) => item.emit_remaining(&mut *i.state, kind),
+        None if is_eof => {
+            let mut item = item;
+            item.emit_eof_leading(&mut *i.state);
         }
-        if cursor < part.text.len() {
-            i.state.token(ordinary.into(), &part.text[cursor..]);
-        }
+        None => unreachable!("a boundary has a dedicated terminal adapter"),
     }
 }
 
@@ -168,8 +107,8 @@ pub(super) fn emit_error_item(i: &mut RewriteIn, item: Item) {
 }
 
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
-pub(super) fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &End) {
-    emit_trivia_builder(builder, &end.item.leading);
+pub(super) fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &mut End) {
+    end.item.emit_eof_leading(builder);
 }
 
 fn emit_trivia(i: &mut RewriteIn, trivia: &LeadingTrivia) {
@@ -177,19 +116,7 @@ fn emit_trivia(i: &mut RewriteIn, trivia: &LeadingTrivia) {
 }
 
 fn emit_trivia_builder(builder: &mut GreenNodeBuilder<'static>, trivia: &LeadingTrivia) {
-    for part in &trivia.0 {
-        let kind = trivia_syntax_kind(part.kind);
-        builder.token(kind.into(), &part.text);
-    }
-}
-
-fn trivia_syntax_kind(kind: TriviaKind) -> SyntaxKind {
-    match kind {
-        TriviaKind::Whitespace => SyntaxKind::Whitespace,
-        TriviaKind::Newline => SyntaxKind::Newline,
-        TriviaKind::LineComment => SyntaxKind::LineComment,
-        TriviaKind::BlockComment => SyntaxKind::BlockComment,
-    }
+    trivia.emit(builder);
 }
 
 fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {

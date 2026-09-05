@@ -9,7 +9,7 @@ use super::{
     LexIn, RewriteIn, Stops,
     driver::{TailExit, handoff, indentation_after_newline, is_active_stop_lex, token_kind},
     emit::{emit_leading_trivia, emit_missing},
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+    item::{Item, LeadingTrivia, Token, TokenKind},
     lexer::{
         scan_identifier, scan_statement_item, scan_trivia, source_identifier,
         statement_item_after_trivia,
@@ -471,7 +471,7 @@ fn parse_group(
             return Err(boundary);
         }
         let trivia = scan_trivia(i.rb());
-        let newline = trivia_has_newline(&trivia);
+        let newline = trivia_has_newline(trivia.view());
         emit_leading_trivia(&mut i, &trivia);
         if emit_matching_close(i.rb(), close) {
             i.state.finish_node();
@@ -745,25 +745,18 @@ fn emit_separator(i: &mut RewriteIn, token: Lexeme, separator: Separator) {
 }
 
 fn emit_intro_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("reserved statement keyword is a token")
-    };
-    emit_leading_trivia(i, &item.leading);
-    i.state.token(kind.into(), &token.text);
+    debug_assert!(item.payload_view().token_kind().is_some());
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn emit_visibility(i: &mut RewriteIn, item: Item) {
-    let Payload::Token(token) = item.payload else {
-        unreachable!("reserved visibility is a token")
-    };
-    emit_leading_trivia(i, &item.leading);
-    let kind = match &*token.text {
-        "my" => SyntaxKind::MyKw,
-        "our" => SyntaxKind::OurKw,
-        "pub" => SyntaxKind::PubKw,
+    let kind = match item.payload_view().spelling() {
+        Some("my") => SyntaxKind::MyKw,
+        Some("our") => SyntaxKind::OurKw,
+        Some("pub") => SyntaxKind::PubKw,
         _ => unreachable!("use visibility was selected from exact words"),
     };
-    i.state.token(kind.into(), &token.text);
+    item.emit_remaining(&mut *i.state, kind);
 }
 
 fn recover_until<C, L>(
@@ -788,7 +781,7 @@ where
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         let trivia = scan_trivia(i.rb());
-        if trivia.0.is_empty() {
+        if trivia.view().is_grammar_empty() {
             let raw = i
                 .token(scan_raw_character)
                 .expect("recovery entered only on non-boundary source");
@@ -850,8 +843,8 @@ fn declaration_caller_boundary(
     stops: Stops,
     newline_boundary: bool,
 ) -> bool {
-    matches!(item.payload, Payload::Eof)
-        || newline_boundary && trivia_has_newline(&item.leading)
+    item.payload_view().is_eof()
+        || newline_boundary && trivia_has_newline(item.leading_view())
         || is_active_stop_lex(i.rb(), item, stops)
         || matches!(
             token_kind(item),
@@ -867,13 +860,13 @@ fn declaration_caller_boundary(
 }
 
 fn group_caller_boundary(mut i: LexIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    matches!(item.payload, Payload::Eof)
+    item.payload_view().is_eof()
         || is_active_stop_lex(i.rb(), item, stops)
         || matches!(
             token_kind(item),
             Some(TokenKind::Semicolon | TokenKind::LBracket)
         )
-        || indentation_after_newline(&item.leading)
+        || indentation_after_newline(item.leading_view())
             .is_some_and(|indentation| indentation <= baseline)
             && is_exact_canonical_statement_intro(item)
 }
@@ -912,14 +905,9 @@ fn prefixed_use_candidate(source: &str) -> bool {
 }
 
 fn item_word(item: &Item) -> Option<&str> {
-    match &item.payload {
-        Payload::Token(Token {
-            kind: TokenKind::Identifier,
-            text,
-        }) => Some(text),
-        Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
-        Payload::Boundary(_) => unreachable!("Gate 2 boundaries are not emitted by a scanner"),
-    }
+    (item.payload_view().token_kind() == Some(TokenKind::Identifier))
+        .then(|| item.payload_view().spelling())
+        .flatten()
 }
 
 fn use_tree_starter(source: &str) -> bool {
@@ -983,8 +971,8 @@ fn version_starter(word: &str) -> bool {
         .is_some_and(|character| character.is_ascii_digit())
 }
 
-fn trivia_has_newline(trivia: &LeadingTrivia) -> bool {
-    trivia.0.iter().any(|part| part.text.contains(['\r', '\n']))
+fn trivia_has_newline(trivia: super::item::LeadingView<'_>) -> bool {
+    trivia.contains_line_break()
 }
 
 fn open_kind(close: char) -> SyntaxKind {
@@ -1025,7 +1013,7 @@ fn scan_version_prefix(mut i: LexIn) -> Option<(LeadingTrivia, Lexeme)> {
 
 fn scan_required_inline_trivia(mut i: LexIn) -> Option<LeadingTrivia> {
     let trivia = scan_trivia(i.rb());
-    (!trivia.0.is_empty() && !trivia_has_newline(&trivia)).then_some(trivia)
+    (!trivia.view().is_grammar_empty() && !trivia_has_newline(trivia.view())).then_some(trivia)
 }
 
 fn scan_exact_word(mut i: LexIn, word: &str) -> Option<Token> {

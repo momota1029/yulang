@@ -33,33 +33,23 @@ fn assert_pending_word(exit: Option<TailExit>, word: &str) {
         panic!("{word:?} must remain pending")
     };
     assert!(
-        matches!(
-            item.payload,
-            Payload::Token(ref token)
-                if token.kind == TokenKind::Identifier && token.text.as_ref() == word
-        ),
+        item.payload_view().token_kind() == Some(TokenKind::Identifier)
+            && item.payload_view().spelling() == Some(word),
         "expected pending {word:?}, got {item:?}"
     );
 }
 
 fn assert_pending_word_with_leading(exit: Option<TailExit>, word: &str, leading: &str) {
-    let Some(Err(Either::Left(item))) = exit else {
+    let Some(Err(Either::Left(mut item))) = exit else {
         panic!("{word:?} must remain pending")
     };
     assert!(
-        matches!(
-            item.payload,
-            Payload::Token(ref token)
-                if token.kind == TokenKind::Identifier && token.text.as_ref() == word
-        ),
+        item.payload_view().token_kind() == Some(TokenKind::Identifier)
+            && item.payload_view().spelling() == Some(word),
         "expected pending {word:?}, got {item:?}"
     );
     assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| &*part.text)
-            .collect::<String>(),
+        emit_pending_leading_text(&mut item),
         leading,
         "pending {word:?} must retain its complete leading trivia"
     );
@@ -77,8 +67,8 @@ fn run_type_declaration_with_handoff(
     let mut i = In::new(&mut source_input, &mut recover, &mut builder);
     let leading = super::super::lexer::scan_trivia(i.rb());
     let intro = super::super::lexer::statement_item_after_trivia(i.rb(), leading, 0, 0);
-    let exit = super::super::type_decl::type_declaration(i, intro, 0, 0, line_handoff);
-    if let Err(Either::Right(end)) = &exit {
+    let mut exit = super::super::type_decl::type_declaration(i, intro, 0, 0, line_handoff);
+    if let Err(Either::Right(end)) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();
@@ -230,17 +220,10 @@ fn type_c12_parameters_are_same_line_raw_identifiers_only() {
 
     let (green, exit) = run_statement("type T\n'a = R");
     assert_eq!(green.to_string(), "type T");
-    let Some(Err(Either::Left(item))) = exit else {
+    let Some(Err(Either::Left(mut item))) = exit else {
         panic!("shallow header continuation must remain pending")
     };
-    assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| &*part.text)
-            .collect::<String>(),
-        "\n"
-    );
+    assert_eq!(emit_pending_leading_text(&mut item), "\n");
 
     for tail in [
         "use", "mod", "struct", "type", "enum", "error", "role", "impl", "cast", "act", "my",
@@ -407,22 +390,15 @@ fn type_c12_rhs_boundaries_remain_exact_pending_items() {
 
     let (green, exit) = run_statement("type T = A with");
     assert_eq!(green.to_string(), "type T = A");
-    let Some(Err(Either::Left(item))) = exit else {
+    let Some(Err(Either::Left(mut item))) = exit else {
         panic!("With must remain pending")
     };
-    assert!(matches!(
-        item.payload,
-        Payload::Token(ref token)
-            if token.kind == TokenKind::Identifier && token.text.as_ref() == "with"
-    ));
     assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| &*part.text)
-            .collect::<String>(),
-        " "
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
     );
+    assert_eq!(item.payload_view().spelling(), Some("with"));
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
 
     for source in [
         "type T = A -> B with",
@@ -443,11 +419,8 @@ fn type_c12_rhs_boundaries_remain_exact_pending_items() {
             matches!(
                 exit,
                 Some(Err(Either::Left(ref item)))
-                    if matches!(
-                        item.payload,
-                        Payload::Token(ref token)
-                            if token.kind == TokenKind::Identifier && token.text.as_ref() == "with"
-                    )
+                    if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                        && item.payload_view().spelling() == Some("with")
             ),
             "{source:?}"
         );
@@ -488,10 +461,11 @@ fn type_c12_nested_type_owners_preserve_outer_boundaries() {
                 exit,
                 Some(Err(Either::Left(ref item)))
                     if matches!(
-                        item.payload,
-                        Payload::Token(ref token)
-                            if token.kind == TokenKind::Identifier && token.text.as_ref() == "with"
-                    ) && item.leading.0.iter().map(|part| &*part.text).collect::<String>() == " "
+                        item.payload_view().token_kind(),
+                        Some(TokenKind::Identifier)
+                    ) && item.payload_view().spelling() == Some("with")
+                        && item.leading_view().has_ordinary_trivia()
+                        && !item.leading_view().has_ordinary_newline()
             ),
             "{source:?}"
         );
@@ -513,10 +487,9 @@ fn type_c12_nested_type_owners_preserve_outer_boundaries() {
                 exit,
                 Some(Err(Either::Left(ref item)))
                     if matches!(
-                        item.payload,
-                        Payload::Token(ref token)
-                            if token.kind == TokenKind::Identifier && token.text.as_ref() == "with"
-                    )
+                        item.payload_view().token_kind(),
+                        Some(TokenKind::Identifier)
+                    ) && item.payload_view().spelling() == Some("with")
             ),
             "{source:?}: {:?}",
             green.to_string()
@@ -559,10 +532,11 @@ fn type_c12_nested_type_owners_preserve_outer_boundaries() {
         exit,
         Some(Err(Either::Left(ref item)))
             if matches!(
-                item.payload,
-                Payload::Token(ref token)
-                    if token.kind == TokenKind::Identifier && token.text.as_ref() == "else"
-            ) && item.leading.0.iter().map(|part| &*part.text).collect::<String>() == " "
+                item.payload_view().token_kind(),
+                Some(TokenKind::Identifier)
+            ) && item.payload_view().spelling() == Some("else")
+                && item.leading_view().has_ordinary_trivia()
+                && !item.leading_view().has_ordinary_newline()
     ));
 }
 
@@ -599,26 +573,19 @@ fn type_c12_malformed_path_retry_preserves_caller_stops() {
             errors[0].parent().map(|node| node.kind()),
             Some(SyntaxKind::TypePathTail)
         );
-        let Some(Err(Either::Left(item))) = exit else {
+        let Some(Err(Either::Left(mut item))) = exit else {
             panic!("caller boundary must remain pending: {source:?}")
         };
-        assert_eq!(
-            item.leading
-                .0
-                .iter()
-                .map(|part| &*part.text)
-                .collect::<String>(),
-            " "
-        );
+        assert_eq!(emit_pending_leading_text(&mut item), " ");
         if let Some(kind) = expected_kind {
             assert_eq!(token_kind(&item), Some(kind), "{source:?}");
         }
         if let Some(word) = expected_word {
-            assert!(matches!(
-                item.payload,
-                Payload::Token(ref token)
-                    if token.kind == TokenKind::Identifier && token.text.as_ref() == word
-            ));
+            assert_eq!(
+                item.payload_view().token_kind(),
+                Some(TokenKind::Identifier)
+            );
+            assert_eq!(item.payload_view().spelling(), Some(word));
         }
     }
 
@@ -744,7 +711,8 @@ fn type_c12_completes_the_header_and_rhs_recovery_rows() {
                 exit,
                 Some(Err(Either::Left(ref item)))
                     if token_kind(item) == Some(kind)
-                        && item.leading.0.iter().map(|part| &*part.text).collect::<String>() == " "
+                        && item.leading_view().has_ordinary_trivia()
+                        && !item.leading_view().has_ordinary_newline()
             ));
         }
     }
@@ -784,22 +752,15 @@ fn type_c12_completes_the_header_and_rhs_recovery_rows() {
             Some(SyntaxKind::TypeExpression),
             "{source:?}"
         );
-        let Some(Err(Either::Left(item))) = exit else {
+        let Some(Err(Either::Left(mut item))) = exit else {
             panic!("ambient boundary must remain pending: {source:?}")
         };
-        assert!(matches!(
-            item.payload,
-            Payload::Token(ref token)
-                if token.kind == TokenKind::Identifier && token.text.as_ref() == word
-        ));
         assert_eq!(
-            item.leading
-                .0
-                .iter()
-                .map(|part| &*part.text)
-                .collect::<String>(),
-            " "
+            item.payload_view().token_kind(),
+            Some(TokenKind::Identifier)
         );
+        assert_eq!(item.payload_view().spelling(), Some(word));
+        assert_eq!(emit_pending_leading_text(&mut item), " ");
     }
 }
 
@@ -808,17 +769,10 @@ fn type_c12_inherits_active_stops_and_outer_separator_ownership() {
     let operators = OperatorTable::empty();
     let (green, exit) = run_statement_with_stops("type T = A else", &operators, STOP_ELSE);
     assert_eq!(green.to_string(), "type T = A");
-    let Some(Err(Either::Left(item))) = exit else {
+    let Some(Err(Either::Left(mut item))) = exit else {
         panic!("active Else must remain pending")
     };
-    assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| &*part.text)
-            .collect::<String>(),
-        " "
-    );
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
 
     let (green, exit) =
         run_statement_with_stops("type T = A]", &operators, stops_for(TokenKind::RBracket));
@@ -942,7 +896,7 @@ fn type_c14_commits_complete_nominal_headers_at_the_owned_terminal() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(ref item)))
-            if matches!(&item.payload, Payload::Token(token) if token.text.as_ref() == "else")
+            if item.payload_view().spelling() == Some("else")
     ));
 }
 
@@ -953,8 +907,8 @@ fn type_c14_threads_only_statement_line_provenance() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(ref item)))
-            if matches!(&item.payload, Payload::Token(token) if token.text.as_ref() == "next")
-                && item.leading.0.iter().map(|part| &*part.text).collect::<String>() == "\n"
+            if item.payload_view().spelling() == Some("next")
+                && item.leading_view().has_ordinary_newline()
     ));
     assert_eq!(
         count(&type_declaration_node(&green), SyntaxKind::Missing),

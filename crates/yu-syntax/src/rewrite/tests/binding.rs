@@ -146,9 +146,8 @@ fn binding_c8_reuses_full_current_pattern_surface_and_exact_equals_stop() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token)
-                if token.kind == TokenKind::Equals)
-                && item.leading.0.iter().any(|part| part.kind == TriviaKind::Newline)
+            if item.payload_view().token_kind() == Some(TokenKind::Equals)
+                && item.leading_view().has_ordinary_newline()
     ));
     let declaration = binding(&green);
     assert!(
@@ -276,8 +275,7 @@ fn binding_c8_totalizes_target_and_accepted_body_slots_once() {
         assert!(matches!(
             exit,
             Some(Err(Either::Left(item)))
-                if matches!(item.payload, Payload::Token(ref token)
-                    if token.kind == TokenKind::Semicolon)
+                if item.payload_view().token_kind() == Some(TokenKind::Semicolon)
         ));
         let declaration = binding(&green);
         assert_eq!(
@@ -303,7 +301,7 @@ fn binding_c8_totalizes_target_and_accepted_body_slots_once() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if item.leading.0.iter().any(|part| part.kind == TriviaKind::Newline)
+            if item.leading_view().has_ordinary_newline()
     ));
     assert_eq!(
         binding(&green)

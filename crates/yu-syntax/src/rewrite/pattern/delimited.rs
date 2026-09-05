@@ -11,7 +11,7 @@ use super::{
             is_nud_item, token_kind,
         },
         emit::{emit_error_item, emit_leading_trivia, emit_missing, emit_token_item},
-        item::{Item, LeadingTrivia, TokenKind, TriviaKind},
+        item::{Item, LeadingTrivia, LeadingView, TokenKind},
         lexer::{
             pattern_item_after_trivia, pattern_nud_item_after_trivia, scan_trivia,
             tail_item_after_trivia,
@@ -133,7 +133,7 @@ fn pattern_delimited(
     i.state.start_node(owner.node().into());
     emit_token_item(&mut i, open);
     let opening = scan_trivia(i.rb());
-    let baseline = delimited_baseline(incoming_baseline, &opening);
+    let baseline = delimited_baseline(incoming_baseline, opening.view());
     emit_leading_trivia(&mut i, &opening);
     let local_stops = owner.local_stops();
     let mut item = pattern_nud_item_after_trivia(i.rb(), LeadingTrivia::default(), local_stops);
@@ -156,8 +156,8 @@ fn pattern_delimited(
                 );
             }
             if matches!(owner, Owner::Record) && token_kind(&item) == Some(TokenKind::Comma) {
-                let leading = std::mem::take(&mut item.leading);
-                emit_missing(&mut i, leading);
+                item.emit_all_remaining_leading(&mut *i.state);
+                emit_missing(&mut i, LeadingTrivia::default());
                 contents_completion = PatternCompletion::Incomplete;
                 emit_token_item(&mut i, item);
                 item = scan_pattern_nud_successor(i.rb(), local_stops);
@@ -177,9 +177,8 @@ fn pattern_delimited(
                 item = scan_pattern_nud_successor(i.rb(), local_stops);
                 continue;
             }
-            let item_baseline = delimited_baseline(baseline, &item.leading);
-            let leading = std::mem::take(&mut item.leading);
-            emit_leading_trivia(&mut i, &leading);
+            let item_baseline = delimited_baseline(baseline, item.leading_view());
+            item.emit_all_remaining_leading(&mut *i.state);
             let mut item_completion = PatternCompletion::Incomplete;
             let exit = match owner {
                 Owner::Parenthesized => pattern_from_item_recording(
@@ -248,12 +247,11 @@ fn pattern_delimited(
             continue;
         }
         if is_item_start(owner, &item) {
-            if implicit_delimited_newline(baseline, &item.leading) {
-                let leading = std::mem::take(&mut item.leading);
-                emit_leading_trivia(&mut i, &leading);
+            if implicit_delimited_newline(baseline, item.leading_view()) {
+                item.emit_all_remaining_leading(&mut *i.state);
             } else {
-                let leading = std::mem::take(&mut item.leading);
-                emit_missing(&mut i, leading);
+                item.emit_all_remaining_leading(&mut *i.state);
+                emit_missing(&mut i, LeadingTrivia::default());
             }
             expect_item = true;
             continue;
@@ -318,9 +316,8 @@ fn list_item(
     let leading = scan_trivia(i.rb());
     let mut rhs =
         pattern_nud_item_after_trivia(i.rb(), leading, PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET);
-    let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
-    let leading = std::mem::take(&mut rhs.leading);
-    emit_leading_trivia(&mut i, &leading);
+    let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
+    rhs.emit_all_remaining_leading(&mut *i.state);
     let exit = pattern_from_item_recording(
         i.rb(),
         rhs,
@@ -351,9 +348,8 @@ fn record_item(
             leading,
             PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
         );
-        let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
-        let leading = std::mem::take(&mut rhs.leading);
-        emit_leading_trivia(&mut i, &leading);
+        let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
+        rhs.emit_all_remaining_leading(&mut *i.state);
         let exit = pattern_from_item_recording(
             i.rb(),
             rhs,
@@ -369,8 +365,8 @@ fn record_item(
     if !is_pattern_name(&item) {
         *completion = PatternCompletion::Incomplete;
         let mut item = item;
-        let leading = std::mem::take(&mut item.leading);
-        emit_missing(&mut i, leading);
+        item.emit_all_remaining_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
         return handoff(item);
     }
 
@@ -380,13 +376,12 @@ fn record_item(
     let leading = scan_trivia(i.rb());
     let record_stops = PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE | PATTERN_STOP_EQUALS;
     let item = pattern_item_after_trivia(i.rb(), leading, record_stops);
-    let exit = if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Colon) {
+    let exit = if !has_newline(item.leading_view()) && token_kind(&item) == Some(TokenKind::Colon) {
         emit_token_item(&mut i, item);
         let leading = scan_trivia(i.rb());
         let mut nested = pattern_nud_item_after_trivia(i.rb(), leading, record_stops);
-        let nested_baseline = delimited_baseline(baseline, &nested.leading);
-        let leading = std::mem::take(&mut nested.leading);
-        emit_leading_trivia(&mut i, &leading);
+        let nested_baseline = delimited_baseline(baseline, nested.leading_view());
+        nested.emit_all_remaining_leading(&mut *i.state);
         let exit = pattern_from_item_recording(
             i.rb(),
             nested,
@@ -397,7 +392,7 @@ fn record_item(
             completion,
         );
         record_default_after_pattern(i.rb(), exit, baseline, line_handoff)
-    } else if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Equals) {
+    } else if !has_newline(item.leading_view()) && token_kind(&item) == Some(TokenKind::Equals) {
         record_default_after_equals(i.rb(), item, baseline, line_handoff)
     } else {
         handoff(item)
@@ -420,7 +415,7 @@ fn record_default_after_pattern(
         Err(Either::Left(item)) => item,
         Err(Either::Right(end)) => return Err(Either::Right(end)),
     };
-    if !has_newline(&item.leading) && token_kind(&item) == Some(TokenKind::Equals) {
+    if !has_newline(item.leading_view()) && token_kind(&item) == Some(TokenKind::Equals) {
         record_default_after_equals(i, item, baseline, line_handoff)
     } else {
         handoff(item)
@@ -437,9 +432,8 @@ fn record_default_after_equals(
     let leading = scan_trivia(i.rb());
     let mut rhs = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, baseline, 0);
     if is_nud_item(&rhs) {
-        let rhs_baseline = delimited_baseline(baseline, &rhs.leading);
-        let leading = std::mem::take(&mut rhs.leading);
-        emit_leading_trivia(&mut i, &leading);
+        let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
+        rhs.emit_all_remaining_leading(&mut *i.state);
         return super::super::driver::expr_from_nud(
             i,
             rhs,
@@ -450,8 +444,8 @@ fn record_default_after_equals(
             line_handoff,
         );
     }
-    let leading = std::mem::take(&mut rhs.leading);
-    emit_missing(&mut i, leading);
+    rhs.emit_all_remaining_leading(&mut *i.state);
+    emit_missing(&mut i, LeadingTrivia::default());
     handoff(rhs)
 }
 
@@ -461,8 +455,8 @@ fn scan_pattern_nud_successor(mut i: RewriteIn, stops: PatternStops) -> Item {
 }
 
 fn missing_close(mut i: RewriteIn, mut item: Item) -> TailExit {
-    let leading = std::mem::take(&mut item.leading);
-    emit_missing(&mut i, leading);
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_missing(&mut i, LeadingTrivia::default());
     i.state.finish_node();
     handoff(item)
 }
@@ -505,9 +499,6 @@ fn is_other_close(owner: Owner, item: &Item) -> bool {
     ) && token_kind(item) != Some(owner.close())
 }
 
-fn has_newline(leading: &LeadingTrivia) -> bool {
-    leading
-        .0
-        .iter()
-        .any(|part| matches!(part.kind, TriviaKind::Newline))
+fn has_newline(leading: LeadingView<'_>) -> bool {
+    leading.has_ordinary_newline()
 }

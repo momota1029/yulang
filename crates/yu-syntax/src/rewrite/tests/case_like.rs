@@ -10,17 +10,12 @@ fn assert_handoff_identifier(exit: &Option<TailExit>, spelling: &str) {
     let Some(Err(Either::Left(item))) = exit else {
         panic!("expected an unconsumed identifier handoff");
     };
-    let Payload::Token(token) = &item.payload else {
-        panic!("expected an identifier token handoff");
-    };
-    assert_eq!(token.kind, TokenKind::Identifier);
-    assert_eq!(&*token.text, spelling);
-    assert!(
-        item.leading
-            .0
-            .iter()
-            .any(|trivia| trivia.kind == TriviaKind::Newline)
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
     );
+    assert_eq!(item.payload_view().spelling(), Some(spelling));
+    assert!(item.leading_view().has_ordinary_newline());
 }
 
 #[test]

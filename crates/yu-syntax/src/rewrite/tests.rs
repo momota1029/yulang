@@ -11,7 +11,7 @@ use super::{
     RewriteIn, Stops,
     driver::{Either, TailExit, expr, token_kind},
     emit::emit_end,
-    item::{Item, OperatorUse, Payload, TokenKind, TriviaKind},
+    item::{Item, OperatorUse, PhysicalLeadingTrivia, TokenKind, Trivia, TriviaKind},
     operator::{STOP_ARROW, STOP_COLON, STOP_ELSE, scan_operator, stops_for},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_with_stops},
     state::Recover,
@@ -39,6 +39,31 @@ mod use_decl;
 mod yumark;
 mod yumark_cell;
 
+fn ordinary_trivia(kind: TriviaKind, text: impl Into<Box<str>>) -> Trivia {
+    let text = text.into();
+    match kind {
+        TriviaKind::Whitespace => Trivia::whitespace(text),
+        TriviaKind::Newline => Trivia::newline(text),
+        TriviaKind::LineComment => Trivia::line_comment(text),
+        TriviaKind::BlockComment => Trivia::block_comment(text),
+        TriviaKind::YmQuotePrefix => panic!("quote prefixes require physical Item construction"),
+    }
+}
+
+fn physical_leading(
+    parts: impl IntoIterator<Item = (TriviaKind, Box<str>)>,
+) -> PhysicalLeadingTrivia {
+    let mut leading = PhysicalLeadingTrivia::default();
+    for (kind, text) in parts {
+        if kind == TriviaKind::YmQuotePrefix {
+            leading.push_quote_prefix(text);
+        } else {
+            leading.push_ordinary(ordinary_trivia(kind, text));
+        }
+    }
+    leading
+}
+
 fn run(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();
     run_with(source, &operators)
@@ -49,8 +74,8 @@ fn run_with(source: &str, operators: &OperatorTable) -> (GreenNode, Option<TailE
     let mut recover = Recover::new(operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let exit = expr(In::new(&mut input, &mut recover, &mut builder));
-    if let Some(Err(Either::Right(end))) = &exit {
+    let mut exit = expr(In::new(&mut input, &mut recover, &mut builder));
+    if let Some(Err(Either::Right(end))) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();
@@ -75,12 +100,12 @@ fn run_statement_with_stops(
     let mut recover = Recover::new(operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let exit = Some(statement(
+    let mut exit = Some(statement(
         In::new(&mut input, &mut recover, &mut builder),
         0,
         stops,
     ));
-    if let Some(Err(Either::Right(end))) = &exit {
+    if let Some(Err(Either::Right(end))) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();
@@ -90,7 +115,11 @@ fn run_statement_with_stops(
 fn run_yumark_cell<'source>(
     source: &'source str,
     terminal: Item,
-) -> (GreenNode, TailExit, &'source str) {
+) -> (
+    GreenNode,
+    Result<super::item::PendingBoundary, TailExit>,
+    &'source str,
+) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new(&operators);
@@ -101,7 +130,10 @@ fn run_yumark_cell<'source>(
     (builder.finish(), exit, input)
 }
 
-fn run_fragmented_statement_successor(item: Item, successor: Item) -> (GreenNode, TailExit) {
+fn run_fragmented_statement_successor(
+    item: Item,
+    successor: Item,
+) -> (GreenNode, Result<super::item::PendingBoundary, TailExit>) {
     let operators = OperatorTable::empty();
     let mut input = "";
     let mut recover = Recover::new(&operators);
@@ -116,14 +148,42 @@ fn run_fragmented_statement_successor(item: Item, successor: Item) -> (GreenNode
     (builder.finish(), exit)
 }
 
+fn emit_pending_leading_text(item: &mut Item) -> String {
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    item.emit_all_remaining_leading(&mut builder);
+    builder.finish_node();
+    builder.finish().to_string()
+}
+
+fn emit_pending_leading_tokens(item: &mut Item) -> Vec<(SyntaxKind, String)> {
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    item.emit_all_remaining_leading(&mut builder);
+    builder.finish_node();
+    SyntaxNode::new_root(builder.finish())
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .map(|token| (token.kind(), token.text().to_owned()))
+        .collect()
+}
+
+fn emit_terminal_leading_text(item: Item) -> (String, super::item::PendingBoundary) {
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let boundary = item.emit_terminal_boundary(&mut builder);
+    builder.finish_node();
+    (builder.finish().to_string(), boundary)
+}
+
 fn run_type(source: &str) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let exit = type_expr(In::new(&mut input, &mut recover, &mut builder));
-    if let Some(Err(Either::Right(end))) = &exit {
+    let mut exit = type_expr(In::new(&mut input, &mut recover, &mut builder));
+    if let Some(Err(Either::Right(end))) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();
@@ -141,8 +201,8 @@ fn run_pattern_with_colon_stop(source: &str, colon_stop: bool) -> (GreenNode, Ta
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let stops = PATTERN_DEFAULT_STOPS | colon_stop.then_some(PATTERN_STOP_COLON).unwrap_or(0);
-    let exit = pattern_with_stops(In::new(&mut input, &mut recover, &mut builder), stops);
-    if let Err(Either::Right(end)) = &exit {
+    let mut exit = pattern_with_stops(In::new(&mut input, &mut recover, &mut builder), stops);
+    if let Err(Either::Right(end)) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();

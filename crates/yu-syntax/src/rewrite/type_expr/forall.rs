@@ -7,8 +7,8 @@ use crate::syntax_kind::SyntaxKind;
 use super::super::{
     LexIn, RewriteIn, Stops,
     driver::{TailExit, handoff, token_kind},
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Payload, TokenKind},
+    emit::{emit_missing, emit_token_item},
+    item::{Item, LeadingTrivia, TokenKind},
     lexer::{scan_trivia, type_item_after_trivia, type_nud_item_after_trivia},
 };
 use super::{
@@ -31,7 +31,7 @@ pub(super) fn type_forall(
     emit_token_item(&mut i, keyword);
     let leading = scan_trivia(i.rb());
     let binder = type_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&binder.leading, baseline) {
+    if !type_chain_trivia(binder.leading_view(), baseline) {
         let binder = type_forall_missing_binder(i.rb(), binder, false);
         i.state.finish_node();
         return handoff(binder);
@@ -101,7 +101,7 @@ pub(super) fn type_forall(
         i.state.finish_node();
         return exit;
     }
-    let missing_boundary = binder.leading.0.is_empty();
+    let missing_boundary = binder.leading_view().is_grammar_empty();
     type_forall_binder(i.rb(), binder, missing_boundary);
     let exit = type_forall_after_binder(
         i.rb(),
@@ -128,7 +128,7 @@ fn type_forall_after_binder(
     loop {
         let leading = scan_trivia(i.rb());
         let mut next = type_item_after_trivia(i.rb(), leading);
-        if !type_chain_trivia(&next.leading, baseline) {
+        if !type_chain_trivia(next.leading_view(), baseline) {
             emit_missing(&mut i, LeadingTrivia::default());
             return handoff(next);
         }
@@ -144,7 +144,7 @@ fn type_forall_after_binder(
             );
         }
         if is_forall_binder(&next) {
-            let missing_boundary = next.leading.0.is_empty();
+            let missing_boundary = next.leading_view().is_grammar_empty();
             type_forall_binder(i.rb(), next, missing_boundary);
             continue;
         }
@@ -173,17 +173,17 @@ fn type_forall_after_binder(
             caller_stops,
             outer_boundary,
         ) {
-            let leading = if is_forall_outer_separator(&next, outer_separators) {
-                LeadingTrivia::default()
-            } else {
-                std::mem::take(&mut next.leading)
-            };
-            emit_missing(&mut i, leading);
+            if !is_forall_outer_separator(&next, outer_separators)
+                && !next.payload_view().is_boundary()
+            {
+                next.emit_all_remaining_leading(&mut *i.state);
+            }
+            emit_missing(&mut i, LeadingTrivia::default());
             return handoff(next);
         }
         if is_type_nud(&next) {
-            let leading = std::mem::take(&mut next.leading);
-            emit_missing(&mut i, leading);
+            next.emit_all_remaining_leading(&mut *i.state);
+            emit_missing(&mut i, LeadingTrivia::default());
             return type_expr_from_nud(
                 i,
                 next,
@@ -221,7 +221,7 @@ fn type_forall_first_separator(
     emit_forall_separator_binder(i.rb(), separator);
     let leading = scan_trivia(i.rb());
     let next = type_item_after_trivia(i.rb(), leading);
-    if matches!(next.payload, Payload::Eof)
+    if next.payload_view().is_eof()
         || is_forall_boundary(
             &next,
             baseline,
@@ -256,7 +256,7 @@ fn type_forall_first_separator(
         );
     }
     if is_forall_binder(&next) {
-        let missing_boundary = next.leading.0.is_empty();
+        let missing_boundary = next.leading_view().is_grammar_empty();
         type_forall_binder(i.rb(), next, missing_boundary);
         return type_forall_after_binder(
             i,
@@ -315,9 +315,8 @@ fn type_forall_first_malformed_binder(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
-    let leading = std::mem::take(&mut item.leading);
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
-    emit_leading_trivia(&mut i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
@@ -353,7 +352,7 @@ fn type_forall_first_malformed_binder(
                 outer_boundary,
             );
         }
-        if matches!(item.payload, Payload::Eof)
+        if item.payload_view().is_eof()
             || (nested_depth == 0
                 && is_forall_boundary(
                     &item,
@@ -383,7 +382,7 @@ fn type_forall_first_malformed_binder(
         if nested_depth == 0 && is_forall_binder(&item) {
             i.state.finish_node();
             i.state.finish_node();
-            let missing_boundary = item.leading.0.is_empty();
+            let missing_boundary = item.leading_view().is_grammar_empty();
             type_forall_binder(i.rb(), item, missing_boundary);
             return type_forall_after_binder(
                 i,
@@ -459,13 +458,13 @@ fn type_forall_malformed_retries_binder(
     loop {
         let leading = scan_trivia(probe.rb());
         if nested_depth == 0 {
-            if let Some(indentation) = indentation_after_newline(&leading) {
+            if let Some(indentation) = indentation_after_newline(leading.view()) {
                 minimum_indentation =
                     Some(minimum_indentation.map_or(indentation, |min| min.min(indentation)));
             }
         }
         let item = type_nud_item_after_trivia(probe.rb(), leading);
-        if matches!(item.payload, Payload::Eof) {
+        if item.payload_view().is_eof() {
             return Some((false, minimum_indentation));
         }
         if nested_depth == 0 {
@@ -506,9 +505,8 @@ fn type_forall_retry_binder(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
-    let leading = std::mem::take(&mut item.leading);
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
-    emit_leading_trivia(&mut i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
@@ -530,7 +528,7 @@ fn type_forall_retry_binder(
         if nested_depth == 0 && is_forall_binder(&item) {
             i.state.finish_node();
             i.state.finish_node();
-            let missing_boundary = item.leading.0.is_empty();
+            let missing_boundary = item.leading_view().is_grammar_empty();
             type_forall_binder(i.rb(), item, missing_boundary);
             return type_forall_after_binder(
                 i,
@@ -559,7 +557,7 @@ fn type_forall_retry_binder(
                 outer_boundary,
             );
         }
-        if matches!(item.payload, Payload::Eof)
+        if item.payload_view().is_eof()
             || (nested_depth == 0
                 && is_forall_boundary(
                     &item,
@@ -586,8 +584,7 @@ fn type_forall_retry_colon_or_body(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> TailExit {
-    let leading = std::mem::take(&mut item.leading);
-    emit_leading_trivia(&mut i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
     loop {
@@ -622,7 +619,7 @@ fn type_forall_retry_colon_or_body(
                 outer_boundary,
             );
         }
-        if matches!(item.payload, Payload::Eof)
+        if item.payload_view().is_eof()
             || (nested_depth == 0
                 && is_forall_boundary(
                     &item,
@@ -665,18 +662,17 @@ fn type_forall_retry_colon_or_body(
 
 fn type_forall_missing_binder(mut i: RewriteIn, mut item: Item, own_leading: bool) -> Item {
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
-    let leading = own_leading
-        .then(|| std::mem::take(&mut item.leading))
-        .unwrap_or_default();
-    emit_missing(&mut i, leading);
+    if own_leading && !item.payload_view().is_boundary() {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
+    emit_missing(&mut i, LeadingTrivia::default());
     i.state.finish_node();
     item
 }
 
 fn emit_forall_separator_binder(mut i: RewriteIn, mut separator: Item) {
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
-    let leading = std::mem::take(&mut separator.leading);
-    emit_leading_trivia(&mut i, &leading);
+    separator.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     emit_token_item(&mut i, separator);
     i.state.finish_node();
@@ -685,12 +681,10 @@ fn emit_forall_separator_binder(mut i: RewriteIn, mut separator: Item) {
 
 fn type_forall_binder(mut i: RewriteIn, mut binder: Item, missing_boundary: bool) {
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
-    let leading = std::mem::take(&mut binder.leading);
     if missing_boundary {
         emit_missing(&mut i, LeadingTrivia::default());
-    } else {
-        emit_leading_trivia(&mut i, &leading);
     }
+    binder.emit_all_remaining_leading(&mut *i.state);
     emit_token_item(&mut i, binder);
     i.state.finish_node();
 }
@@ -707,7 +701,7 @@ fn type_forall_body(
     emit_token_item(&mut i, colon);
     let leading = scan_trivia(i.rb());
     let mut body = type_nud_item_after_trivia(i.rb(), leading);
-    if !type_chain_trivia(&body.leading, baseline) {
+    if !type_chain_trivia(body.leading_view(), baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
         return handoff(body);
     }
@@ -718,12 +712,11 @@ fn type_forall_body(
         caller_stops,
         TypeOuterBoundary::NONE,
     ) {
-        let leading = if is_forall_outer_separator(&body, outer_separators) {
-            LeadingTrivia::default()
-        } else {
-            std::mem::take(&mut body.leading)
-        };
-        emit_missing(&mut i, leading);
+        if !is_forall_outer_separator(&body, outer_separators) && !body.payload_view().is_boundary()
+        {
+            body.emit_all_remaining_leading(&mut *i.state);
+        }
+        emit_missing(&mut i, LeadingTrivia::default());
         return handoff(body);
     }
     if !is_type_nud(&body) {
@@ -741,8 +734,7 @@ fn type_forall_body(
             return handoff(body);
         }
     }
-    let leading = std::mem::take(&mut body.leading);
-    emit_leading_trivia(&mut i, &leading);
+    body.emit_all_remaining_leading(&mut *i.state);
     type_expr_from_nud(
         i,
         body,
@@ -762,8 +754,7 @@ fn type_forall_retry_body(
     outer_separators: bool,
     caller_stops: Stops,
 ) -> Item {
-    let leading = std::mem::take(&mut item.leading);
-    emit_leading_trivia(&mut i, &leading);
+    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
@@ -791,7 +782,7 @@ fn is_forall_boundary(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
 ) -> bool {
-    !type_chain_trivia(&item.leading, baseline)
+    !type_chain_trivia(item.leading_view(), baseline)
         || (is_type_rhs_boundary(item) && (outer_separators || !is_type_separator(item)))
         || is_type_caller_boundary(item, caller_stops)
         || is_type_outer_boundary(item, outer_boundary)

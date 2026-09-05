@@ -1,10 +1,10 @@
 use super::*;
 use crate::rewrite::{
     driver::handoff,
-    emit::{emit_fragmented_item, emit_literal_item},
+    emit::{emit_identifier_core, emit_literal_item, emit_token_item},
     item::{
-        BorrowedTarget, Boundary, ForeignKind, ForeignSplit, Item, ItemTextPart, LeadingTrivia,
-        Payload, PendingFragments, StopKind, Token,
+        BorrowedTarget, Boundary, ForeignSplit, FragmentError, Item, LeadingTrivia, Payload,
+        PhysicalLeadingTrivia, StopKind, Token,
     },
     lexer::{
         FencedBlockComment, scan_block_comment_fenced_witness, scan_fenced_prior_trivia_part,
@@ -39,10 +39,7 @@ fn fenced_boundary_item<'source>(
     while let Some(part) = i.token(scan_fenced_prior_trivia_part) {
         leading.push(part);
     }
-    let accepted_before_comment = leading
-        .iter()
-        .try_fold(0usize, |length, part| length.checked_add(part.text.len()))
-        .expect("accepted trivia length");
+    let accepted_before_comment = checked_source_coordinate(root, i.remainder()) - item_origin;
     let part_origin = item_origin
         .checked_add(accepted_before_comment)
         .expect("comment coordinate");
@@ -54,21 +51,15 @@ fn fenced_boundary_item<'source>(
     let FencedBlockComment::Boundary { accepted, pending } = scanned else {
         panic!("fenced block-comment boundary fixture")
     };
-    let physical_length = accepted_before_comment
-        .checked_add(accepted.text.len())
-        .expect("whole item length");
     leading.push(accepted);
 
-    let fragments = PendingFragments::finish(foreign, item_origin, physical_length)
-        .expect("one valid whole-item fragment carrier");
-    let mut item = Item::plain(
-        LeadingTrivia(leading.into_boxed_slice()),
+    let item = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(leading.into_boxed_slice())),
         Payload::Boundary(pending),
-    );
-    if let Some(fragments) = fragments {
-        item.with_fragments(fragments)
-            .expect("carrier covers preceding trivia and comment");
-    }
+        foreign,
+        item_origin,
+    )
+    .expect("one valid whole-item fragment carrier");
     (item, input)
 }
 
@@ -79,18 +70,6 @@ fn checked_source_coordinate(root: &str, suffix: &str) -> usize {
         .expect("suffix cannot exceed root");
     assert_eq!(root.as_ptr().wrapping_add(coordinate), suffix.as_ptr());
     coordinate
-}
-
-fn emit_accepted_fragmented_item(item: &Item) -> GreenNode {
-    let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
-    let mut input = "";
-    let mut builder = GreenNodeBuilder::new();
-    builder.start_node(SyntaxKind::Root.into());
-    let mut i = In::new(&mut input, &mut recover, &mut builder);
-    emit_fragmented_item(&mut i, item);
-    builder.finish_node();
-    builder.finish()
 }
 
 fn emit_accepted_literal_item(item: Item, kind: SyntaxKind) -> GreenNode {
@@ -105,6 +84,47 @@ fn emit_accepted_literal_item(item: Item, kind: SyntaxKind) -> GreenNode {
     builder.finish()
 }
 
+fn emit_accepted_token_item(item: Item) -> GreenNode {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = "";
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let mut i = In::new(&mut input, &mut recover, &mut builder);
+    emit_token_item(&mut i, item);
+    builder.finish_node();
+    builder.finish()
+}
+
+fn emit_accepted_identifier(item: Item) -> GreenNode {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = "";
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let mut i = In::new(&mut input, &mut recover, &mut builder);
+    emit_identifier_core(&mut i, item);
+    builder.finish_node();
+    builder.finish()
+}
+
+fn emit_accepted_end(item: Item) -> GreenNode {
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let mut end = crate::rewrite::driver::End { item };
+    emit_end(&mut builder, &mut end);
+    builder.finish_node();
+    builder.finish()
+}
+
+fn emit_accepted_boundary(item: Item) -> (GreenNode, super::super::item::PendingBoundary) {
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let boundary = item.emit_terminal_boundary(&mut builder);
+    builder.finish_node();
+    (builder.finish(), boundary)
+}
+
 fn literal_item(text: &str) -> Item {
     Item::plain(
         LeadingTrivia::default(),
@@ -115,34 +135,28 @@ fn literal_item(text: &str) -> Item {
     )
 }
 
-fn leading_text(item: &Item) -> String {
-    item.leading.0.iter().map(|part| &*part.text).collect()
-}
-
 #[test]
 fn ordinary_block_comment_scanner_remains_unsplit() {
     let source = "/* outer\n> > inner */name";
     let operators = OperatorTable::empty();
     let mut recover = Recover::new(&operators);
     let mut input = source;
-    let item = scan_statement_item(In::new(&mut input, &mut recover, ()), 0, 0)
+    let mut item = scan_statement_item(In::new(&mut input, &mut recover, ()), 0, 0)
         .expect("ordinary statement item");
 
     assert_eq!(input, "");
-    assert_eq!(item.fragments(), None);
     assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| (part.kind, &*part.text))
-            .collect::<Vec<_>>(),
-        [(TriviaKind::BlockComment, "/* outer\n> > inner */")]
+        emit_pending_leading_tokens(&mut item),
+        [(
+            SyntaxKind::BlockComment,
+            "/* outer\n> > inner */".to_owned()
+        )]
     );
-    assert!(matches!(
-        item.payload,
-        Payload::Token(ref token)
-            if token.kind == TokenKind::Identifier && &*token.text == "name"
-    ));
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    assert_eq!(item.payload_view().spelling(), Some("name"));
 }
 
 #[test]
@@ -164,19 +178,19 @@ fn unsplit_literal_item_emits_one_supplied_literal_token() {
 fn fragmented_literal_item_preserves_source_order_and_quote_prefix_kind() {
     let text = "α\n> > β\r\n> > γ";
     let origin = 17;
-    let mut item = literal_item(text);
-    let fragments = PendingFragments::finish(
+    let item = Item::finish(
+        PhysicalLeadingTrivia::default(),
+        Payload::Token(Token {
+            kind: TokenKind::Unknown,
+            text: text.into(),
+        }),
         Some(vec![
             ForeignSplit::quote_prefix(origin + "α\n".len(), "> > ".len()),
             ForeignSplit::quote_prefix(origin + "α\n> > β\r\n".len(), "> > ".len()),
         ]),
         origin,
-        text.len(),
     )
-    .expect("valid literal carrier")
-    .expect("two quote-prefix splits");
-    item.with_fragments(fragments)
-        .expect("carrier covers the literal item");
+    .expect("valid literal carrier");
 
     let green = emit_accepted_literal_item(item, SyntaxKind::RuleLiteralText);
     let root = SyntaxNode::new_root(green);
@@ -197,6 +211,300 @@ fn fragmented_literal_item_preserves_source_order_and_quote_prefix_kind() {
 }
 
 #[test]
+fn standalone_quote_prefix_is_physical_but_grammar_inert() {
+    let item = Item::finish(
+        physical_leading([
+            (TriviaKind::YmQuotePrefix, "> > ".into()),
+            (TriviaKind::Newline, "\r\n".into()),
+            (TriviaKind::YmQuotePrefix, "> > ".into()),
+            (TriviaKind::Whitespace, "  ".into()),
+        ]),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "x".into(),
+        }),
+        Some(vec![
+            ForeignSplit::quote_prefix(0, 4),
+            ForeignSplit::quote_prefix(6, 4),
+        ]),
+        0,
+    )
+    .expect("physical prefixes have exact matching carrier splits");
+    let leading = item.leading_view();
+
+    assert!(leading.has_ordinary_trivia());
+    assert!(!leading.is_grammar_empty());
+    assert!(!leading.is_adjacent());
+    assert!(leading.has_ordinary_newline());
+    assert_eq!(leading.indentation_after_newline(), Some(2));
+    assert_eq!(leading.remaining_physical_parts(), 4);
+
+    let prefix_only = Item::finish(
+        physical_leading([(TriviaKind::YmQuotePrefix, "> ".into())]),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "x".into(),
+        }),
+        Some(vec![ForeignSplit::quote_prefix(0, 2)]),
+        0,
+    )
+    .expect("prefix-only leading is carrier-backed");
+    let prefix_only = prefix_only.leading_view();
+    assert!(!prefix_only.has_ordinary_trivia());
+    assert!(prefix_only.is_grammar_empty());
+    assert!(prefix_only.is_adjacent());
+    assert!(!prefix_only.has_ordinary_newline());
+    assert_eq!(prefix_only.indentation_after_newline(), None);
+}
+
+#[test]
+fn standalone_and_embedded_prefixes_validate_and_emit_exactly_once() {
+    let origin = 50;
+    let prefix = "> ";
+    let whitespace = "  ";
+    let comment = "/*a\n> b*/";
+    let payload = "name";
+    let embedded_offset = origin + prefix.len() + whitespace.len() + "/*a\n".len();
+    let physical_length = prefix.len() + whitespace.len() + comment.len() + payload.len();
+    let item = Item::finish(
+        physical_leading([
+            (TriviaKind::YmQuotePrefix, prefix.into()),
+            (TriviaKind::Whitespace, whitespace.into()),
+            (TriviaKind::BlockComment, comment.into()),
+        ]),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: payload.into(),
+        }),
+        Some(vec![
+            ForeignSplit::quote_prefix(origin, prefix.len()),
+            ForeignSplit::quote_prefix(embedded_offset, "> ".len()),
+        ]),
+        origin,
+    )
+    .expect("standalone and embedded prefixes cover physical parts");
+    assert_eq!(
+        physical_length,
+        prefix.len() + whitespace.len() + comment.len() + payload.len()
+    );
+
+    let green = emit_accepted_token_item(item);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.to_string(),
+        format!("{prefix}{whitespace}{comment}{payload}")
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::Whitespace, "  ".to_owned()),
+            (SyntaxKind::BlockComment, "/*a\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::BlockComment, "b*/".to_owned()),
+            (SyntaxKind::Identifier, "name".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn standalone_prefix_requires_one_exact_matching_split() {
+    let origin = 7;
+    for splits in [
+        vec![ForeignSplit::quote_prefix(origin, 1)],
+        vec![
+            ForeignSplit::quote_prefix(origin, 1),
+            ForeignSplit::quote_prefix(origin + 1, 1),
+        ],
+        vec![ForeignSplit::quote_prefix(origin + 2, 1)],
+    ] {
+        let result = Item::finish(
+            physical_leading([(TriviaKind::YmQuotePrefix, "> ".into())]),
+            Payload::Token(Token {
+                kind: TokenKind::Identifier,
+                text: "x".into(),
+            }),
+            Some(splits),
+            origin,
+        );
+        assert_eq!(result, Err(FragmentError::ForeignPartMismatch));
+    }
+}
+
+#[test]
+fn embedded_prefix_rejects_non_block_leading_trivia_parts() {
+    for (kind, text) in [
+        (TriviaKind::Whitespace, "  "),
+        (TriviaKind::Newline, "\n"),
+        (TriviaKind::LineComment, "// > "),
+    ] {
+        let result = Item::finish(
+            PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+                vec![ordinary_trivia(kind, text)].into_boxed_slice(),
+            )),
+            Payload::Token(Token {
+                kind: TokenKind::Identifier,
+                text: "x".into(),
+            }),
+            Some(vec![ForeignSplit::quote_prefix(0, 1)]),
+            0,
+        );
+        assert_eq!(
+            result,
+            Err(FragmentError::InvalidForeignPlacement),
+            "{kind:?}"
+        );
+    }
+}
+
+#[test]
+fn accepted_construction_invariant_failure_cannot_become_nonmatch() {
+    fn accepted_path() -> Option<Item> {
+        Some(
+            Item::finish(
+                PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+                    vec![ordinary_trivia(TriviaKind::Whitespace, " ")].into_boxed_slice(),
+                )),
+                Payload::Token(Token {
+                    kind: TokenKind::Identifier,
+                    text: "x".into(),
+                }),
+                Some(vec![ForeignSplit::quote_prefix(0, 1)]),
+                0,
+            )
+            .expect("accepted Item construction invariants are internal failures"),
+        )
+    }
+
+    assert!(std::panic::catch_unwind(accepted_path).is_err());
+}
+
+#[test]
+fn fragmented_partial_then_remaining_then_payload_keep_exact_physical_order() {
+    let comment = "/*a\n> b*/";
+    let payload = "z\n> q";
+    let item_origin = 20;
+    let payload_origin = item_origin + comment.len() + "\n ".len();
+    let mut item = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![
+                ordinary_trivia(TriviaKind::BlockComment, comment),
+                ordinary_trivia(TriviaKind::Newline, "\n"),
+                ordinary_trivia(TriviaKind::Whitespace, " "),
+            ]
+            .into_boxed_slice(),
+        )),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: payload.into(),
+        }),
+        Some(vec![
+            ForeignSplit::quote_prefix(item_origin + "/*a\n".len(), 2),
+            ForeignSplit::quote_prefix(payload_origin + "z\n".len(), 2),
+        ]),
+        item_origin,
+    )
+    .expect("embedded splits belong to the block comment and payload");
+
+    let cut = item
+        .leading_view()
+        .cut_after_last_ordinary_newline()
+        .expect("one standalone newline part");
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    item.emit_leading_prefix_with(&mut builder, cut, |_, _| {});
+    assert_eq!(item.leading_view().remaining_physical_parts(), 1);
+    item.emit_all_remaining_leading(&mut builder);
+    item.emit_payload(&mut builder, SyntaxKind::Identifier);
+    builder.finish_node();
+
+    let root = SyntaxNode::new_root(builder.finish());
+    assert_eq!(root.to_string(), format!("{comment}\n {payload}"));
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::BlockComment, "/*a\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::BlockComment, "b*/".to_owned()),
+            (SyntaxKind::Newline, "\n".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Identifier, "z\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::Identifier, "q".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn accepted_core_emitter_splits_prefixes_inside_payload_text() {
+    let origin = 31;
+    let text = "name\n> tail";
+    let item = Item::finish(
+        PhysicalLeadingTrivia::default(),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: text.into(),
+        }),
+        Some(vec![ForeignSplit::quote_prefix(
+            origin + "name\n".len(),
+            "> ".len(),
+        )]),
+        origin,
+    )
+    .expect("embedded payload prefix stays valid");
+
+    let green = emit_accepted_identifier(item);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), text);
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Identifier, "name\n".to_owned()),
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::Identifier, "tail".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn leading_only_end_emits_standalone_prefix_once() {
+    let origin = 9;
+    let item = Item::finish(
+        physical_leading([
+            (TriviaKind::YmQuotePrefix, "> ".into()),
+            (TriviaKind::Newline, "\n".into()),
+        ]),
+        Payload::Eof,
+        Some(vec![ForeignSplit::quote_prefix(origin, 2)]),
+        origin,
+    )
+    .expect("leading-only prefix covers its physical part");
+
+    let green = emit_accepted_end(item);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), "> \n");
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::YmQuotePrefix, "> ".to_owned()),
+            (SyntaxKind::Newline, "\n".to_owned()),
+        ]
+    );
+}
+
+#[test]
 fn fenced_comment_uses_one_whole_item_carrier_and_one_builder() {
     let root = "文書🌱  \n/*α\r\n> > β\n> stop\n";
     let item_start = "文書🌱".len();
@@ -208,45 +516,7 @@ fn fenced_comment_uses_one_whole_item_carrier_and_one_builder() {
         remainder.as_ptr(),
         root[item_start + accepted.len()..].as_ptr()
     );
-    assert_eq!(leading_text(&item), accepted);
-    assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| (part.kind, &*part.text))
-            .collect::<Vec<_>>(),
-        [
-            (TriviaKind::Whitespace, "  "),
-            (TriviaKind::Newline, "\n"),
-            (TriviaKind::BlockComment, "/*α\r\n> > β\n"),
-        ]
-    );
-
-    let fragments = item.fragments().expect("one accepted quote prefix");
-    assert_eq!(
-        fragments.physical(),
-        &(item_start..item_start + accepted.len())
-    );
-    assert_eq!(
-        fragments.foreign(),
-        &[ForeignSplit::quote_prefix(
-            item_start + "  \n/*α\r\n".len(),
-            "> > ".len(),
-        )]
-    );
-    assert_eq!(
-        item.fragmented_parts()
-            .expect("whole item fragments")
-            .map(|part| (part.kind, part.text.to_owned()))
-            .collect::<Vec<_>>(),
-        [
-            (ItemTextPart::LeadingTrivia(0), "  ".to_owned()),
-            (ItemTextPart::LeadingTrivia(1), "\n".to_owned()),
-            (ItemTextPart::LeadingTrivia(2), "/*α\r\n> > β\n".to_owned(),),
-        ]
-    );
-
-    let green = emit_accepted_fragmented_item(&item);
+    let (green, _) = emit_accepted_boundary(item);
     assert_eq!(green.to_string(), accepted);
     assert_eq!(
         SyntaxNode::new_root(green)
@@ -273,20 +543,8 @@ fn fenced_comment_borrows_close_before_consuming_its_prefix() {
 
     assert_eq!(remainder, close);
     assert_eq!(remainder.as_ptr(), source[accepted.len()..].as_ptr());
-    assert_eq!(leading_text(&item), accepted);
-    let fragments = item
-        .fragments()
-        .expect("the earlier body prefix is accepted");
-    assert_eq!(fragments.foreign().len(), 1);
-    assert_eq!(
-        fragments.foreign()[0],
-        ForeignSplit::quote_prefix("/* outer\n".len(), "> > ".len())
-    );
-    assert_eq!(emit_accepted_fragmented_item(&item).to_string(), accepted);
-
-    let Payload::Boundary(pending) = &item.payload else {
-        panic!("fenced comment must return a typed close")
-    };
+    let (green, pending) = emit_accepted_boundary(item);
+    assert_eq!(green.to_string(), accepted);
     assert_eq!(
         pending.inspected(),
         &(accepted.len()..accepted.len() + "> > ``` \t\r\n".len())
@@ -335,11 +593,8 @@ fn fenced_comment_returns_each_quote_transition_untouched() {
 
         assert_eq!(remainder, line, "{expected:?}");
         assert_eq!(remainder.as_ptr(), source[boundary_offset..].as_ptr());
-        assert_eq!(leading_text(&item), accepted);
-        assert_eq!(item.fragments(), None);
-        let Payload::Boundary(pending) = &item.payload else {
-            panic!("transition must remain typed")
-        };
+        let (green, pending) = emit_accepted_boundary(item);
+        assert_eq!(green.to_string(), accepted);
         let line_extent = line.find('\n').map_or(line.len(), |lf| lf + 1);
         assert_eq!(
             pending.inspected(),
@@ -360,20 +615,11 @@ fn fenced_comment_returns_physical_eof_with_partial_trivia() {
 
     assert_eq!(remainder, "");
     assert_eq!(remainder.as_ptr(), source[source.len()..].as_ptr());
-    assert_eq!(leading_text(&item), source);
-    let Payload::Boundary(pending) = &item.payload else {
-        panic!("unterminated comment must return EOF")
-    };
+    let (green, pending) = emit_accepted_boundary(item);
+    assert_eq!(green.to_string(), source);
     assert_eq!(pending.coordinate(), source.len());
     assert_eq!(pending.inspected(), &(source.len()..source.len()));
     assert_eq!(pending.kind(), &Boundary::EofAfterTrivia);
-    assert_eq!(
-        item.fragments()
-            .expect("accepted body prefix")
-            .foreign()
-            .len(),
-        1
-    );
 }
 
 #[test]
@@ -388,19 +634,16 @@ fn fenced_comment_crlf_utf8_offsets_record_one_split_per_prefix() {
         remainder.as_ptr(),
         root[item_start + accepted.len()..].as_ptr()
     );
-    let fragments = item.fragments().expect("two accepted prefixes");
+    let (green, _) = emit_accepted_boundary(item);
+    assert_eq!(green.to_string(), accepted);
     assert_eq!(
-        fragments.foreign(),
-        &[
-            ForeignSplit::quote_prefix(item_start + "/*α\r\n".len(), " \t>\t>".len(),),
-            ForeignSplit::quote_prefix(item_start + "/*α\r\n \t>\t>β\r\n".len(), "> > ".len(),),
-        ]
-    );
-    assert!(
-        fragments
-            .foreign()
-            .iter()
-            .all(|split| split.kind == ForeignKind::YmQuotePrefix)
+        SyntaxNode::new_root(green)
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::YmQuotePrefix)
+            .map(|token| token.text().to_owned())
+            .collect::<Vec<_>>(),
+        [" \t>\t>".to_owned(), "> > ".to_owned()]
     );
 }
 
@@ -412,18 +655,11 @@ fn fenced_comment_keeps_nested_depth_across_prefixes_until_boundary() {
 
     assert_eq!(remainder, "> > ```\nrest");
     assert_eq!(remainder.as_ptr(), source[accepted.len()..].as_ptr());
-    assert_eq!(leading_text(&item), accepted);
-    assert_eq!(
-        item.fragments().expect("two body prefixes").foreign().len(),
-        2
-    );
+    let (green, pending) = emit_accepted_boundary(item);
+    assert_eq!(green.to_string(), accepted);
     assert!(matches!(
-        item.payload,
-        Payload::Boundary(ref pending)
-            if matches!(
-                pending.kind(),
-                Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
-            )
+        pending.kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
     ));
 }
 
@@ -467,7 +703,6 @@ fn fenced_comment_can_complete_only_at_zero_nested_depth() {
     let FencedBlockComment::Complete(comment) = outcome else {
         panic!("balanced nesting must complete before ordinary tail source")
     };
-    assert_eq!(&*comment.text, "/* outer\n> > /* inner */ outer */");
     assert_eq!(input, "tail");
     assert_eq!(
         foreign,
@@ -475,6 +710,19 @@ fn fenced_comment_can_complete_only_at_zero_nested_depth() {
             "/* outer\n".len(),
             "> > ".len(),
         )])
+    );
+    let item = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![comment].into_boxed_slice(),
+        )),
+        Payload::Eof,
+        foreign,
+        0,
+    )
+    .expect("embedded prefix belongs to the accepted block-comment part");
+    assert_eq!(
+        SyntaxNode::new_root(emit_accepted_end(item)).to_string(),
+        "/* outer\n> > /* inner */ outer */"
     );
 }
 
@@ -484,12 +732,12 @@ fn caller_owned_builder_finishes_after_source_drops() {
     let mut recover = Recover::new(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let exit = {
+    let mut exit = {
         let source = String::from("  αβ  ");
         let mut input = source.as_str();
         expr(In::new(&mut input, &mut recover, &mut builder))
     };
-    let Some(Err(Either::Right(end))) = &exit else {
+    let Some(Err(Either::Right(end))) = &mut exit else {
         panic!("the core expression must return EOF trivia to its outer owner")
     };
     emit_end(&mut builder, end);
@@ -508,22 +756,18 @@ fn caller_owned_builder_finishes_after_source_drops() {
 fn post_core_newline_identifier_is_owned_unemitted_handoff() {
     let (green, exit) = run("a\nβ");
     assert_eq!(green.to_string(), "a");
-    let Some(Err(Either::Left(item))) = exit else {
+    let Some(Err(Either::Left(mut item))) = exit else {
         panic!("the next item is handed to the enclosing owner")
     };
     assert_eq!(
-        item.leading
-            .0
-            .iter()
-            .map(|part| (part.kind, &*part.text))
-            .collect::<Vec<_>>(),
-        [(TriviaKind::Newline, "\n")]
+        emit_pending_leading_tokens(&mut item),
+        [(SyntaxKind::Newline, "\n".to_owned())]
     );
-    let Payload::Token(token) = item.payload else {
-        panic!("the handed item is lexical")
-    };
-    assert_eq!(token.kind, TokenKind::Identifier);
-    assert_eq!(&*token.text, "β");
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    assert_eq!(item.payload_view().spelling(), Some("β"));
 }
 
 #[test]
@@ -537,25 +781,18 @@ fn handoff_owns_maximal_comment_trivia_without_source_borrow() {
     ] {
         let (green, exit) = run(source);
         assert_eq!(green.to_string(), "a");
-        let Some(Err(Either::Left(item))) = exit else {
+        let Some(Err(Either::Left(mut item))) = exit else {
             panic!("the next item is handed to the enclosing owner")
         };
         assert_eq!(
-            item.leading
-                .0
-                .iter()
-                .map(|part| (part.kind, &*part.text))
-                .collect::<Vec<_>>(),
+            emit_pending_leading_tokens(&mut item),
             [
-                (TriviaKind::Whitespace, " "),
-                (TriviaKind::BlockComment, comment),
+                (SyntaxKind::Whitespace, " ".to_owned()),
+                (SyntaxKind::BlockComment, comment.to_owned()),
             ]
         );
-        let Payload::Token(token) = item.payload else {
-            panic!("the handed item is lexical")
-        };
-        assert_eq!(token.kind, TokenKind::RBracket);
-        assert_eq!(&*token.text, "]");
+        assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBracket));
+        assert_eq!(item.payload_view().spelling(), Some("]"));
     }
 }
 
@@ -644,12 +881,9 @@ fn non_breaking_space_is_an_unknown_handoff_not_trivia() {
     let Some(Err(Either::Left(item))) = exit else {
         panic!("the non-breaking space is handed to the enclosing owner")
     };
-    assert!(item.leading.0.is_empty());
-    let Payload::Token(token) = item.payload else {
-        panic!("the handed item is lexical")
-    };
-    assert_eq!(token.kind, TokenKind::Unknown);
-    assert_eq!(&*token.text, "\u{a0}");
+    assert!(item.leading_view().is_grammar_empty());
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Unknown));
+    assert_eq!(item.payload_view().spelling(), Some("\u{a0}"));
 }
 
 #[test]

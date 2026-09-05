@@ -527,7 +527,7 @@ fn named_record_type_recovers_a_missing_field_before_eof_or_outer_close() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBracket)
+            if item.payload_view().token_kind() == Some(TokenKind::RBracket)
     ));
     assert_eq!(
         SyntaxNode::new_root(green)
@@ -559,7 +559,7 @@ fn named_record_type_recovers_a_missing_close() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBracket)
+            if item.payload_view().token_kind() == Some(TokenKind::RBracket)
     ));
     assert_eq!(
         SyntaxNode::new_root(green)
@@ -946,7 +946,7 @@ fn named_record_type_accepts_layout_and_type_tails() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::LBrace)
+            if item.payload_view().token_kind() == Some(TokenKind::LBrace)
     ));
     assert!(
         !SyntaxNode::new_root(adjacent)
@@ -1121,8 +1121,10 @@ fn forall_type_separator_recovery_keeps_first_binder_and_continuation_phases_dis
         assert!(matches!(
             exit,
             Some(Err(Either::Left(item)))
-                if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Identifier && token.text.as_ref() == "T")
-                    && item.leading.0.iter().any(|trivia| trivia.kind == TriviaKind::Whitespace && trivia.text.as_ref() == " ")
+                if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                    && item.payload_view().spelling() == Some("T")
+                    && item.leading_view().has_ordinary_trivia()
+                    && !item.leading_view().has_ordinary_newline()
         ));
         let forall = SyntaxNode::new_root(green)
             .descendants()
@@ -1474,8 +1476,9 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Identifier && token.text.as_ref() == "T")
-                && item.leading.0.iter().any(|trivia| trivia.kind == TriviaKind::Newline && trivia.text.as_ref() == "\n")
+            if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                && item.payload_view().spelling() == Some("T")
+                && item.leading_view().has_ordinary_newline()
     ));
     let root = SyntaxNode::new_root(green);
     let forall = root
@@ -1564,7 +1567,7 @@ fn forall_type_does_not_reclassify_type_apply_for() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::Colon)
+            if item.payload_view().token_kind() == Some(TokenKind::Colon)
     ));
     assert!(
         !SyntaxNode::new_root(green)
@@ -2000,7 +2003,7 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBrace)
+            if item.payload_view().token_kind() == Some(TokenKind::RBrace)
     ));
     let top = top_type_expression(&green);
     let variant = top
@@ -2263,7 +2266,7 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBrace)
+            if item.payload_view().token_kind() == Some(TokenKind::RBrace)
     ));
     let top = top_type_expression(&green);
     let variant = top
@@ -2594,7 +2597,7 @@ fn polymorphic_variant_type_recovers_newline_and_eof_boundaries() {
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
-            if matches!(item.payload, Payload::Token(ref token) if token.kind == TokenKind::RBrace)
+            if item.payload_view().token_kind() == Some(TokenKind::RBrace)
     ));
     let top = top_type_expression(&green);
     let variant = top
