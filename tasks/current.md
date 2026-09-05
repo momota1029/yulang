@@ -277,14 +277,15 @@ production Yumarkは未接続である。full cell closureはrewrite Gates 4--7�
 Gate 8、production cutoverはGate 9まで待つ。
 
 2026-09-05: user approvalとM2 compiler/recovery・specification reviewにより
-`2026-09-05-yumark-fenced-block-comment-lexer-amendment.md`をAuthoritativeとした。次sliceは
-ordinary scannerを変えないisolated fenced `BlockComment` lexical ownerである。immediate
+`2026-09-05-yumark-fenced-block-comment-lexer-amendment.md`をAuthoritativeとし、isolated fenced
+`BlockComment` lexical ownerも完了した。ordinary scannerは変えず、immediate
 `part_origin`、`FenceBoundary`、current-Itemが所有するlazy split accumulatorだけを渡し、whole-Itemの
 `item_origin`と全constituent lengthでcarrierを一回だけfinishする。equivalent prefixはstrict close
 判定後にだけsplitとして記録・消費し、close / transition / EOF lineはuntouched boundaryとして返す。
 opener後はtotal、`None`/later rollbackに外部accumulatorをまたがせない。nested comment depth、prior trivia
 envelope、CRLF/UTF-8、`/x` non-matchもfocused controlに含む。lexer/public/legacy/Yumark production bridgeは
-scope外である。
+scope外である。次のmultiline lexical ownerであるstring/rule literalには、literal grammar/CSTが未設計のため
+別のAuthoritative designが要る。Gate 4 expression/recovery、Gate 5--7、Yumark integration/cutoverも未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

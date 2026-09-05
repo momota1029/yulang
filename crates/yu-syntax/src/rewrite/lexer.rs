@@ -19,6 +19,12 @@ use super::{
     state::Recover,
 };
 
+#[cfg(test)]
+use super::{
+    item::{ForeignSplit, PendingBoundary, PendingFragments},
+    yumark::{FenceBoundary, FenceLineDecision, judge_fence_line},
+};
+
 pub(super) fn tail_item_after_trivia(
     mut i: RewriteIn,
     leading: LeadingTrivia,
@@ -514,6 +520,194 @@ fn scan_block_comment(mut i: LexIn) -> Option<Trivia> {
         kind: TriviaKind::BlockComment,
         text: text.into(),
     })
+}
+
+/// Isolated construction result for the first fence-aware multiline lexical
+/// owner. The ordinary block-comment scanner and its callers stay unchanged.
+#[cfg(test)]
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum FencedBlockComment {
+    Complete(Trivia),
+    Boundary {
+        accepted: Trivia,
+        pending: PendingBoundary,
+    },
+}
+
+/// Runs the dedicated scanner through its one immediate lexical transaction.
+/// A non-match therefore restores source; the scanner itself leaves `foreign`
+/// unchanged until the complete `/*` opener has been accepted.
+#[cfg(test)]
+pub(super) fn scan_block_comment_fenced_witness(
+    mut i: LexIn,
+    part_origin: usize,
+    fence: &FenceBoundary,
+    foreign: &mut Option<Vec<ForeignSplit>>,
+) -> Option<FencedBlockComment> {
+    i.token(|lex| scan_block_comment_fenced(lex, part_origin, fence, foreign))
+}
+
+#[cfg(test)]
+fn scan_block_comment_fenced(
+    mut i: LexIn,
+    part_origin: usize,
+    fence: &FenceBoundary,
+    foreign: &mut Option<Vec<ForeignSplit>>,
+) -> Option<FencedBlockComment> {
+    let part = i.remainder();
+    let (outcome, text) = i.rb().with_str(|mut comment| {
+        scan_pair(comment.rb(), '/', '*')?;
+        Some(scan_fenced_block_comment_body(
+            comment,
+            part,
+            part_origin,
+            fence,
+            foreign,
+        ))
+    });
+    let outcome = outcome?;
+    let accepted = Trivia {
+        kind: TriviaKind::BlockComment,
+        text: text.into(),
+    };
+    Some(match outcome {
+        FencedBlockCommentBody::Complete => FencedBlockComment::Complete(accepted),
+        FencedBlockCommentBody::Boundary(pending) => {
+            FencedBlockComment::Boundary { accepted, pending }
+        }
+    })
+}
+
+#[cfg(test)]
+enum FencedBlockCommentBody {
+    Complete,
+    Boundary(PendingBoundary),
+}
+
+#[cfg(test)]
+fn scan_fenced_block_comment_body(
+    mut i: LexIn,
+    part: &str,
+    part_origin: usize,
+    fence: &FenceBoundary,
+    foreign: &mut Option<Vec<ForeignSplit>>,
+) -> FencedBlockCommentBody {
+    let mut depth = 1usize;
+    loop {
+        if i.remainder().is_empty() {
+            let coordinate = checked_suffix_coordinate(part, part_origin, i.remainder());
+            return fenced_comment_line_decision(i, coordinate, fence, foreign)
+                .unwrap_or_else(|| unreachable!("physical EOF is always a fence boundary"));
+        }
+        if i.token(scan_block_open).is_some() {
+            depth = depth
+                .checked_add(1)
+                .expect("block-comment depth must fit usize");
+            continue;
+        }
+        if i.token(scan_block_close).is_some() {
+            depth -= 1;
+            if depth == 0 {
+                return FencedBlockCommentBody::Complete;
+            }
+            continue;
+        }
+
+        let character = i
+            .next()
+            .expect("the fenced block-comment cursor is known nonempty");
+        let transitioned = match character {
+            '\n' => true,
+            '\r' if i.remainder().starts_with('\n') => {
+                assert_eq!(i.next(), Some('\n'));
+                true
+            }
+            _ => false,
+        };
+        if transitioned {
+            let coordinate = checked_suffix_coordinate(part, part_origin, i.remainder());
+            if let Some(boundary) = fenced_comment_line_decision(i.rb(), coordinate, fence, foreign)
+            {
+                return boundary;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+fn fenced_comment_line_decision(
+    mut i: LexIn,
+    coordinate: usize,
+    fence: &FenceBoundary,
+    foreign: &mut Option<Vec<ForeignSplit>>,
+) -> Option<FencedBlockCommentBody> {
+    match judge_fence_line(i.remainder(), coordinate, fence) {
+        FenceLineDecision::Boundary(pending) => Some(FencedBlockCommentBody::Boundary(pending)),
+        FenceLineDecision::Body { prefix: None, .. } => None,
+        FenceLineDecision::Body {
+            prefix: Some(prefix),
+            content,
+        } => {
+            let prefix_length = prefix
+                .facts
+                .extent
+                .end
+                .checked_sub(prefix.facts.extent.start)
+                .expect("accepted prefix extent must be ordered");
+            assert_eq!(prefix.facts.extent.start, coordinate);
+            assert_eq!(prefix.facts.extent.end, content);
+            PendingFragments::record(
+                foreign,
+                ForeignSplit::quote_prefix(prefix.facts.extent.start, prefix_length),
+            )
+            .expect("accepted prefix ranges must stay ordered in one source root");
+            consume_exact_bytes(i.rb(), prefix_length);
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+fn consume_exact_bytes(mut i: LexIn, length: usize) {
+    let mut consumed = 0usize;
+    while consumed < length {
+        consumed = consumed
+            .checked_add(
+                i.next()
+                    .expect("accepted prefix must exist in the live suffix")
+                    .len_utf8(),
+            )
+            .expect("accepted prefix length must fit usize");
+    }
+    assert_eq!(
+        consumed, length,
+        "accepted prefix must end at a UTF-8 boundary"
+    );
+}
+
+#[cfg(test)]
+pub(super) fn scan_fenced_prior_trivia_part(mut i: LexIn) -> Option<Trivia> {
+    i.check(choice((
+        token(scan_horizontal_whitespace),
+        token(scan_newline),
+        token(scan_line_comment),
+    )))
+}
+
+#[cfg(test)]
+fn checked_suffix_coordinate(part: &str, part_origin: usize, suffix: &str) -> usize {
+    let consumed = part
+        .len()
+        .checked_sub(suffix.len())
+        .expect("live comment suffix cannot be longer than its entry suffix");
+    assert_eq!(
+        part.as_ptr().wrapping_add(consumed),
+        suffix.as_ptr(),
+        "live comment suffix must remain within its entry suffix"
+    );
+    part_origin
+        .checked_add(consumed)
+        .expect("physical comment coordinate must fit usize")
 }
 
 fn scan_block_open(i: LexIn) -> Option<()> {

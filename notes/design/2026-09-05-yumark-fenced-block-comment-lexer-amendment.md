@@ -19,6 +19,9 @@ Reviewed-by: independent compiler/recovery review and specification review,
 
 Approved-by: user, 2026-09-05
 
+Implementation: isolated construction completed 2026-09-05; this does not
+claim Gate 4 lexical/Expression closure or production reachability.
+
 Authority: `2026-09-05-yumark-parsed-yulang-fence-addendum.md` §§3, 5, 7–8
 requires every multiline lexical owner to judge a physical line before
 consuming it, keep its current-item fragment carrier move-only, and return
