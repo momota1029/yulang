@@ -22,7 +22,7 @@ use super::{
     lexer::scan_statement_payload,
     mod_decl::{mod_declaration_normalized, mod_declaration_selected_normalized},
     operator::stops_for,
-    struct_decl::{struct_declaration, struct_declaration_selected_normalized},
+    struct_decl::{struct_declaration_normalized, struct_declaration_selected_normalized},
     type_decl::{type_declaration, type_declaration_selected_normalized},
     use_decl::{use_declaration_normalized, use_declaration_selected_normalized},
     yumark::FenceBoundary,
@@ -161,7 +161,19 @@ pub(super) fn canonical_statement_normalized(
     }
     i.state.start_node(SyntaxKind::Statement.into());
     let exit = match family {
-        Some(DeclarationFamily::Struct) => struct_declaration(i.rb(), item, baseline, stops),
+        Some(DeclarationFamily::Struct) => {
+            let exit = struct_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            i.state.finish_node();
+            return exit;
+        }
         Some(DeclarationFamily::Mod) => {
             let exit = mod_declaration_normalized(
                 i.rb(),
@@ -273,11 +285,7 @@ fn declaration_family_is_deferred(
     family: Option<DeclarationFamily>,
     fence: Option<&FenceBoundary>,
 ) -> bool {
-    fence.is_some()
-        && matches!(
-            family,
-            Some(DeclarationFamily::Struct | DeclarationFamily::Type)
-        )
+    fence.is_some() && matches!(family, Some(DeclarationFamily::Type))
 }
 
 fn selected_declaration_family(

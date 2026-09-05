@@ -57,11 +57,9 @@ fn deferred_head(source: &str, spelling: &str) {
 }
 
 #[test]
-fn normalized_statement_defers_only_the_two_remaining_declaration_families() {
+fn normalized_statement_defers_only_the_remaining_type_declaration_family() {
     let fence = active_fence();
     for (source, spelling, remainder) in [
-        ("> > struct A", "struct", " A"),
-        ("> > our struct A", "our", " struct A"),
         ("> > type T = U", "type", " T = U"),
         ("> > our type T = U", "our", " type T = U"),
     ] {
@@ -115,10 +113,9 @@ fn normalized_statement_visibility_admission_stops_at_the_fence() {
         1
     );
 
-    for (source, spelling, remainder) in [
-        ("> > my\r\n> >   struct A", "my", "\r\n> >   struct A"),
-        ("> > pub\r\n> >   type T = U", "pub", "\r\n> >   type T = U"),
-    ] {
+    for (source, spelling, remainder) in
+        [("> > pub\r\n> >   type T = U", "pub", "\r\n> >   type T = U")]
+    {
         let (green, exit, actual_remainder) =
             run_statement_normalized(source, 4450, LineEntry::PhysicalStart, Some(&fence));
         let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
@@ -133,6 +130,253 @@ fn normalized_statement_visibility_admission_stops_at_the_fence() {
             "{source:?}",
         );
     }
+}
+
+#[test]
+fn normalized_struct_streams_visibility_and_all_body_forms() {
+    let fence = active_fence();
+    let origin = 4455;
+    for (accepted, line_break, fields, quote_prefixes, errors, missing) in [
+        ("> > struct Empty;", "\r\n", 0, 1, 0, 0),
+        (
+            "> > my\r\n> >   struct\r\n> >   Point{x: F,\r\n> >     y: Y}",
+            "\r\n",
+            2,
+            4,
+            0,
+            0,
+        ),
+        ("> > struct Pair(F, G)", "\n", 2, 1, 0, 0),
+        ("> > struct Row:\n> >   x: F\n> >   y: Y", "\n", 2, 3, 0, 0),
+    ] {
+        let source = format!("{accepted}{line_break}> > ```{line_break}outer");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("Struct must stream to its exact fence: {accepted:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{accepted:?}");
+        assert_eq!(
+            remainder,
+            format!("> > ```{line_break}outer"),
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
+            fields,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::YmQuotePrefix)
+                .count(),
+            quote_prefixes,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{accepted:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, line_break, "{accepted:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + line_break.len(),
+            "{accepted:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_struct_phase_recovery_stops_before_boundaries() {
+    let fence = active_fence();
+    let origin = 4470;
+    for (accepted, missing, errors) in [
+        ("> > struct", 1, 0),
+        ("> > struct Name", 1, 0),
+        ("> > struct @", 0, 1),
+        ("> > struct Name @", 0, 1),
+        ("> > struct Name{x:", 3, 0),
+        ("> > struct Name(F", 2, 0),
+    ] {
+        let source = format!("{accepted}\n> > ```\nouter");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("Struct recovery must preserve the exact fence: {accepted:?}")
+        };
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{accepted:?}");
+        assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{accepted:?}",
+        );
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, "\n", "{accepted:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + 1,
+            "{accepted:?}"
+        );
+    }
+
+    let source = "> > struct Name\r\n> ]\r\nouter";
+    let (green, exit, remainder) =
+        run_statement_normalized(source, origin, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+    else {
+        panic!("Struct must preserve an outer transition")
+    };
+    assert_eq!(green.to_string(), "> > struct Name");
+    assert_eq!(remainder, "> ]\r\nouter");
+    assert_eq!(emit_terminal_leading_text(boundary).0, "\r\n");
+
+    let source = "> > struct Name";
+    let (green, exit, remainder) =
+        run_statement_normalized(source, origin, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), actual_entry) = exit else {
+        panic!("physical EOF must remain the Struct caller's boundary")
+    };
+    assert_eq!(actual_entry, LineEntry::InLine);
+    assert!(boundary.payload_view().is_boundary());
+    assert_eq!(emit_terminal_leading_text(boundary).0, "");
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+}
+
+#[test]
+fn normalized_struct_named_field_boundary_is_fence_aware() {
+    let fence = active_fence();
+    let origin = 4490;
+    for (accepted, fields, types, missing) in [
+        ("> > struct S{x: F y: Y}", 2, 2, 1),
+        ("> > struct S{x: F Y}", 1, 2, 0),
+    ] {
+        let source = format!("{accepted}\n> > ```\nouter");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+        assert!(matches!(
+            exit,
+            NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)
+                if item.payload_view().is_boundary()
+        ));
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{accepted:?}");
+        assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
+            fields,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .count(),
+            types,
+            "{accepted:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{accepted:?}",
+        );
+    }
+
+    let accepted = "> > struct S{x: F y";
+    let source = format!("{accepted}\n> ]\n: Y");
+    let (green, exit, remainder) =
+        run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+    else {
+        panic!("the named-field observer must stop at the transition")
+    };
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), accepted);
+    assert_eq!(remainder, "> ]\n: Y");
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructField)
+            .count(),
+        2,
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+            .count(),
+        2,
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        2,
+    );
+    assert_eq!(emit_terminal_leading_text(boundary).0, "\n");
+}
+
+#[test]
+fn normalized_struct_preserves_type_openers_and_successor_frontiers() {
+    let fence = active_fence();
+    let source = "> > struct S :{A}";
+    let (green, exit, remainder) =
+        run_statement_normalized(source, 4510, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+        panic!("the polymorphic variant Type opener must remain pending")
+    };
+    assert_eq!(green.to_string(), "> > struct S ");
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::PolymorphicVariantColon)
+    );
+    assert_eq!(remainder, "{A}");
+
+    let source = "> > {struct S; type T = U";
+    let operators = OperatorTable::empty();
+    let (green, exit, remainder) = run_normalized(
+        source,
+        &operators,
+        4520,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    let Some(NormalizedExit::Deferred(mut item, LineEntry::InLine)) = exit else {
+        panic!("Struct completion must preserve the following Type frontier")
+    };
+    assert_eq!(green.to_string(), "> > {struct S;");
+    assert_eq!(item.payload_view().spelling(), Some("type"));
+    assert_eq!(remainder, " T = U");
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
 }
 
 #[test]
@@ -303,31 +547,15 @@ fn normalized_mod_phase_recovery_stops_before_fence_boundaries() {
 }
 
 #[test]
-fn normalized_mod_closes_before_nested_struct_and_type_frontiers() {
+fn normalized_mod_closes_before_the_nested_type_frontier() {
     let fence = active_fence();
-    for (source, accepted, spelling, remainder, pending_leading) in [
-        (
-            "> > mod Outer {struct S",
-            "> > mod Outer {",
-            "struct",
-            " S",
-            "",
-        ),
-        (
-            "> > mod Outer:\n> >   type T = U",
-            "> > mod Outer:",
-            "type",
-            " T = U",
-            "\n> >   ",
-        ),
-        (
-            "> > mod Outer: struct S",
-            "> > mod Outer:",
-            "struct",
-            " S",
-            " ",
-        ),
-    ] {
+    for (source, accepted, spelling, remainder, pending_leading) in [(
+        "> > mod Outer:\n> >   type T = U",
+        "> > mod Outer:",
+        "type",
+        " T = U",
+        "\n> >   ",
+    )] {
         let (green, exit, actual_remainder) =
             run_statement_normalized(source, 4520, LineEntry::PhysicalStart, Some(&fence));
         let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
@@ -779,15 +1007,15 @@ fn normalized_for_recovery_and_nested_declaration_stop_at_their_exact_frontiers(
         assert_eq!(leading, "\n", "{accepted:?}");
     }
 
-    let source = "> > for x in xs:\n> >   struct A";
+    let source = "> > for x in xs:\n> >   type T = U";
     let (green, exit, remainder) =
         run_statement_normalized(source, origin, LineEntry::PhysicalStart, Some(&fence));
     let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
         panic!("the For owner must propagate its nested declaration frontier")
     };
     assert_eq!(green.to_string(), "> > for x in xs:");
-    assert_eq!(item.payload_view().spelling(), Some("struct"));
-    assert_eq!(remainder, " A");
+    assert_eq!(item.payload_view().spelling(), Some("type"));
+    assert_eq!(remainder, " T = U");
     assert_eq!(
         emit_pending_leading_tokens(&mut item),
         [
@@ -1235,12 +1463,10 @@ fn normalized_use_preserves_final_statement_successors() {
 
 #[test]
 fn normalized_statement_frontier_propagates_through_existing_callers() {
-    let active = active_fence();
     let plain = plain_fence();
-    for (source, expected_green, spelling, expected_remainder, fence) in [
-        ("> > { struct M", "> > {", "struct", " M", &active),
-        ("x:\n  type T = U", "x:", "type", " T = U", &plain),
-    ] {
+    for (source, expected_green, spelling, expected_remainder, fence) in
+        [("x:\n  type T = U", "x:", "type", " T = U", &plain)]
+    {
         let operators = OperatorTable::empty();
         let (green, exit, remainder) = run_normalized(
             source,
@@ -1309,7 +1535,7 @@ fn normalized_statement_hands_close_transition_and_eof_boundaries_up() {
 fn normalized_braced_explicit_separator_preserves_the_next_frontier() {
     let fence = active_fence();
 
-    let source = "> > { x; struct M";
+    let source = "> > { x; type T = U";
     let operators = OperatorTable::empty();
     let (green, exit, remainder) = run_normalized(
         source,
@@ -1323,8 +1549,8 @@ fn normalized_braced_explicit_separator_preserves_the_next_frontier() {
     };
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.to_string(), "> > { x;");
-    assert_eq!(item.payload_view().spelling(), Some("struct"));
-    assert_eq!(remainder, " M");
+    assert_eq!(item.payload_view().spelling(), Some("type"));
+    assert_eq!(remainder, " T = U");
     assert_eq!(
         emit_pending_leading_tokens(&mut item),
         [(SyntaxKind::Whitespace, " ".to_owned())]

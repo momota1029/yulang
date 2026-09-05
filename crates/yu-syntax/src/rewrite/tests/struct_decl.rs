@@ -73,6 +73,23 @@ fn struct_c11_dispatch_is_exact_and_irrevocable() {
 }
 
 #[test]
+fn struct_c11_keeps_dynamic_word_operator_names_raw() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new("Dynamic", OperatorFixities::new().with_nullfix()),
+        OperatorDeclaration::new("field", OperatorFixities::new().with_nullfix()),
+    ])
+    .expect("dynamic Struct-name operator table");
+    let source = "struct Dynamic{field: T}";
+    let (green, exit) = run_statement_with(source, &operators);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::NullfixOperatorUse), 0);
+    assert_eq!(count(&node, SyntaxKind::Error), 0);
+    assert_eq!(count(&node, SyntaxKind::StructField), 1);
+}
+
+#[test]
 fn struct_c11_named_boundary_splits_only_complete_next_fields() {
     for (source, fields, types, missing) in [
         ("struct S{x:F y:Y}", 2, 2, 1),
@@ -142,6 +159,35 @@ fn struct_c11_header_and_body_recovery_stays_owner_local() {
         let node = declaration(&green);
         assert_eq!(count(&node, SyntaxKind::Missing), missing, "{source:?}");
         assert_eq!(count(&node, SyntaxKind::Error), errors, "{source:?}");
+    }
+}
+
+#[test]
+fn struct_c11_malformed_recovery_owns_trailing_eof_trivia() {
+    for (source, error_parent, error_text) in [
+        ("struct @ ", SyntaxKind::StructDeclaration, "@ "),
+        ("struct S @ ", SyntaxKind::StructDeclaration, "@ "),
+        ("struct S{x @ ", SyntaxKind::StructField, " @ "),
+        ("struct S{@ ", SyntaxKind::StructField, "@ "),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let trailing = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .last()
+            .expect("trailing EOF trivia token");
+        assert_eq!(trailing.kind(), SyntaxKind::Whitespace, "{source:?}");
+        assert_eq!(trailing.text(), " ", "{source:?}");
+        let error = trailing.parent().expect("trailing EOF trivia owner");
+        assert_eq!(error.kind(), SyntaxKind::Error, "{source:?}");
+        assert_eq!(error.to_string(), error_text, "{source:?}");
+        assert_eq!(
+            error.parent().map(|node| node.kind()),
+            Some(error_parent),
+            "{source:?}",
+        );
     }
 }
 

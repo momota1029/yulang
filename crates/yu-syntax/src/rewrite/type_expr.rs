@@ -161,6 +161,33 @@ pub(super) fn required_type_expr_with_boundary(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(super) fn required_type_expr_with_boundary_normalized(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_closes: u8,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    required_type_expr_inner_normalized(
+        i,
+        primary,
+        baseline,
+        apply_boundary,
+        true,
+        outer_closes,
+        0,
+        TypeOuterBoundary::NONE,
+        item_origin,
+        line_entry,
+        fence,
+    )
+    .0
+}
+
 pub(super) fn required_type_expr_with_caller_stops(
     i: RewriteIn,
     primary: Item,
@@ -828,7 +855,13 @@ fn type_tail_normalized(
             type_record_next_field_normalized(i.rb(), &item, base, item_origin, line_entry, fence)
         }
         Some(TypeApplyBoundary::StructNamedFields) => {
-            super::struct_decl::struct_named_fields_next_field_candidate(i.rb(), &item)
+            super::struct_decl::struct_named_fields_next_field_candidate(
+                i.rb(),
+                &item,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
         None => false,
     } {

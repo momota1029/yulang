@@ -369,17 +369,16 @@ ledgerは未起票のままである。focused lexical 40件、operator 11件、
 `LineEntry`、Rowan/recovery無変更を検査する。
 
 canonical statement normalizationにより旧case/if deeper body、braced、with、colonの五行は削除した。
-Binding/For/Use/Mod normalizationによりその四行も削除し、active frontierは以下の二行だけである。visibility headを
+Binding/For/Use/Mod/Struct normalizationによりその五行も削除し、active frontierは以下の一行だけである。visibility headを
 一括Deferredせず、pureなfence-aware admission observerが実在するdirect childを選んだ後、`Statement`
 nodeを開く前だけDeferredを生成する。
 `my role A`、`my impl A`など未選択headはordinary同様にhandoffする。
 
 | normalized owner / exact call site | ordinary direct child | exact Deferred propagation | controls | deletion gate |
 | --- | --- | --- | --- | --- |
-| `statement::canonical_statement_normalized` のselected Struct dispatch | `struct_decl::struct_declaration` | canonical statement → direct/indented/braced sequence → case/if・braced Pratt・colon/with・direct caller | bare/visibility head、braced/indented/inline-with、exact Item/suffix/`LineEntry`、zero child effect | Struct declaration normalized owner |
 | 同 Type dispatch | `type_decl::type_declaration` | 同上 | 同上 | Type declaration normalized owner |
 
-全二行でclose/transition/EOF、boundary-first、未emit leading、Error/Missing/separatorなしを検査する。
+全一行でclose/transition/EOF、boundary-first、未emit leading、Error/Missing/separatorなしを検査する。
 braced ownerがboundaryへ達した場合だけ既存のmandatory missing closeを所有し、indented required first slotも
 既存mandatory Missingだけを所有して、同じboundary Itemを上へ返す。新しいstate/context/cursor/wrapper、
 replay、token bufferは導入しない。
@@ -560,6 +559,15 @@ leadingをemitせずそのままhandoffする一方、ordinary EOFのheader gap�
 独立specification/regression auditは`mod test`のanonymous/second-name境界、body/close ownership、operator-table
 不変性、ordinary EOF gap、dead legacy adapter削除をapprovedした。ordinary Mod 9件、normalized全体76件、
 `cargo check -p yu-syntax`、format/diff checkはgreen。broad suiteと性能計測は反復していない。active frontierはStruct/Typeの二行。
+
+2026-09-06: selected Struct ownerのvisibility/header、bodyless・named brace・tuple・strict-deeper indent body、
+field/close/retry、final successorを一つのordinary/fenced normalized bodyへ移行し、Struct frontier一行を削除した。
+raw Struct / field nameはdynamic operator tableより先にidentifierとして読み、`:{`はStruct colonへsplitせずType
+polymorphic-variant entryへ渡す。TypeApply直前のStruct next-field probeはimmediate item/origin/line/fenceだけを受ける
+fence-aware observerへし、close/transition外を観測しない。independent reviewでordinary malformed EOF recoveryが
+owner-local whitespaceをError外へ落とす四経路を発見し、ordinary EOFだけをError内でemitする修正とCST topology controlsを
+追加してdelta-approvedとなった。ordinary Struct 13件、normalized全体80件、`cargo check -p yu-syntax`、format/diff
+checkはgreen。broad suiteと性能計測は反復していない。active frontierはTypeの一行だけ。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
