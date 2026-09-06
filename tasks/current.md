@@ -615,6 +615,20 @@ Type episodeはPipe lexical capabilityを保ったままouter boundaryを`NONE`�
 Struct 13件、`cargo check -p yu-syntax`、format/diff checkはgreen。workspace suiteと性能計測はisolated gateのため
 実施していない。次はEnum/Error shellと残るGate 6 declaration ownerであり、L6/L7/public cutoverは未完である。
 
+2026-09-06: Gate 6指定のshared-before-shell順を守り、declaration companionのisolated coreを追加した。normal
+private moduleはcallerが既に選んだexact contextual `with` Itemから始まり、colon inline（Statement一つとoptional
+terminal `;`）、strictly-deeper nonempty colon-indented、emptyを許すbraced formだけをstreamingで構成する。
+direct itemはcanonical `Statement`だけで、`DeclarationCompanion` / `WithKw` / dedicated indented-body CSTだけをemitし、
+`DerivesClause`、generic `WithBodyTail`、generic statement block node、attachment gap、owner/public/legacy dispatchは未接続である。
+initial recovery reviewはline-comment付きmalformed introducerのmaximal Error extentとmissing braced close前のcaller
+stop preservationを検出した。同一current Itemのfirst newline前leadingだけをErrorへemitしてnewline+payloadをpendingのまま
+返し、local `}` / `,` / `;` の後かつStatement slotの前にcaller stop / contextual `else` handoffを置いて一回で修復した。
+contextual `with`はIdentifierとdynamic OperatorUseの双方を受け、`with?`はrollbackする。compiler/recoveryとperformanceの
+delta reviewはapproved。focused companion 7件、shared normalized cone 82件、`cargo check -p yu-syntax`、format/diff
+checkはgreen。ordinary/public call edge、Vec/clone/cache/replay/rescan/extra traversalはなく、static performance auditにより
+timing measurementは不要である。次はGate 4 companion `DerivesClause` itemとowner/episode handoff、その後のdeclaration
+shellへ進む。L6/L7/Yumark/public cutoverは未完である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

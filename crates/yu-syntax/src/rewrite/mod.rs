@@ -9,6 +9,7 @@ use rowan::GreenNodeBuilder;
 mod binding;
 mod case_like;
 mod current_item;
+mod declaration_companion;
 mod declaration_variant;
 mod delimited;
 mod derives;

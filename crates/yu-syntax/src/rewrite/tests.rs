@@ -10,6 +10,7 @@ use crate::{
 use super::{
     RewriteIn, Stops,
     current_item::LineEntry,
+    declaration_companion::declaration_companion_witness,
     declaration_variant::{VariantSequenceForm, declaration_variant_sequence_witness},
     driver::{Either, NormalizedExit, TailExit, expr, expr_normalized, token_kind},
     emit::emit_end,
@@ -25,6 +26,7 @@ use super::{
 
 mod binding;
 mod case_like;
+mod declaration_companion;
 mod declaration_variant;
 mod derives;
 mod for_statement;
@@ -183,6 +185,52 @@ fn run_declaration_variant<'source>(
         In::new(&mut input, &mut recover, &mut builder),
         form,
         0,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_declaration_companion<'source>(
+    source: &'source str,
+    baseline: usize,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    run_declaration_companion_with(
+        source,
+        &operators,
+        baseline,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_declaration_companion_with<'source>(
+    source: &'source str,
+    operators: &OperatorTable,
+    baseline: usize,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let mut input = source;
+    let mut recover = Recover::new(operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = declaration_companion_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        baseline,
+        caller_stops,
         item_origin,
         line_entry,
         fence,

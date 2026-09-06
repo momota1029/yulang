@@ -155,8 +155,44 @@ pub(super) fn canonical_statement_normalized(
         item_origin,
         fence,
     ));
-    let family = selected_declaration_family(i.rb(), &item, baseline, item_origin, fence);
     i.state.start_node(SyntaxKind::Statement.into());
+    let exit = canonical_statement_contents_normalized(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    i.state.finish_node();
+    exit
+}
+
+/// Emit one already-selected canonical Statement inside a caller-owned
+/// `Statement` node.  Recovery owners use this after emitting their local
+/// prefix recovery without adding a nested Statement wrapper.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn canonical_statement_contents_normalized(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    debug_assert!(!item.payload_view().is_boundary());
+    debug_assert!(is_canonical_statement_nud_normalized(
+        i.rb(),
+        &item,
+        baseline,
+        item_origin,
+        fence,
+    ));
+    let family = selected_declaration_family(i.rb(), &item, baseline, item_origin, fence);
     match family {
         Some(DeclarationFamily::Struct) => {
             let exit = struct_declaration_normalized(
@@ -168,7 +204,6 @@ pub(super) fn canonical_statement_normalized(
                 line_entry,
                 fence,
             );
-            i.state.finish_node();
             return exit;
         }
         Some(DeclarationFamily::Mod) => {
@@ -182,7 +217,6 @@ pub(super) fn canonical_statement_normalized(
                 line_entry,
                 fence,
             );
-            i.state.finish_node();
             return exit;
         }
         Some(DeclarationFamily::Use) => {
@@ -195,7 +229,6 @@ pub(super) fn canonical_statement_normalized(
                 line_entry,
                 fence,
             );
-            i.state.finish_node();
             return exit;
         }
         Some(DeclarationFamily::Type) => {
@@ -209,7 +242,6 @@ pub(super) fn canonical_statement_normalized(
                 line_entry,
                 fence,
             );
-            i.state.finish_node();
             return exit;
         }
         Some(DeclarationFamily::For) => {
@@ -223,7 +255,6 @@ pub(super) fn canonical_statement_normalized(
                 line_entry,
                 fence,
             );
-            i.state.finish_node();
             return exit;
         }
         Some(DeclarationFamily::Binding) => {
@@ -237,7 +268,6 @@ pub(super) fn canonical_statement_normalized(
                 line_entry,
                 fence,
             );
-            i.state.finish_node();
             return exit;
         }
         None => {
@@ -253,7 +283,6 @@ pub(super) fn canonical_statement_normalized(
                 line_entry,
                 fence,
             );
-            i.state.finish_node();
             return exit;
         }
     }
