@@ -886,6 +886,24 @@ valid pathのmaterial costなし・timing 0。primary verificationはType/PV 68�
 Pattern caller-close、TypeDeclaration nested-owner、`cargo check -p yu-syntax`、fmt、diff checkがすべて
 green。O4/O7 broad suite、public dispatch、残るType/PV recovery migrationとcutoverは未実施である。
 
+2026-09-07: O3a T1 required Type-primary checkpointを実装完了した。
+`required_type_expr_inner_normalized`のnonempty malformed lexical runだけをsealed
+`emit_recovery_error_run`へ移し、`Type(Primary)` / `TypeExpression` /
+`COMMITTED_RECOVERY_RULE` / primary index 0 の一recordをpublishする。unexpected evidenceはO2の
+closed token-category mappingに従い、各Item extentをlexical順で一つのError recordへ蓄積する。
+初回M3 reviewでPendingBoundaryの誤anchorとshared coreのowner混同が露見したため、legacy oracleと
+Gate3b T1を照合した。結論はcause別である: malformed Errorはcallee-owned `Type(Primary)`のまま
+全current callerでpublishし、zero-width Missingはcaller overrideのP/D/V ownerなので本sliceではraw
+`Missing` CSTのままに戻した。`@ ,A`のfresh/frozen controlはError一件、pending commaのleading、
+remainder、`primary_found == false`を固定し、Pattern annotationでは`x:`がraw/no record、`x: @A`が
+typed T1 Error一件だけとなることを固定した。RB-Tはapproved parenthesized-close frozen recordをseedした
+independent controlでoutput/input/diagnostic state不変を確認する。compiler/recovery・specificationの
+delta reviewはclean。primary verificationはTypeExpression 75、normalized Type 25、Pattern delegation 1、
+`cargo check -p yu-syntax`、`cargo fmt --all -- --check`、`git diff --check`がgreen。Error-runの追加は
+malformed pathのみでvalid pathのallocation/traversal/asymptotic changeなし、static performance budgetを
+満たしtimingは0のまま。O4/O7 broad suite、T2–T7/PV1、caller-owned Missing、public dispatch、legacy
+cutoverは未実施である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

@@ -1,8 +1,17 @@
 //! Standalone source-free direct TypeExpression core.
 
+use std::sync::Arc;
+
 use reborrow_generic::Reborrow as _;
 
-use crate::syntax_kind::SyntaxKind;
+use crate::{
+    session::{
+        Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
+        RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole, UnexpectedCategory,
+        UnexpectedSyntax,
+    },
+    syntax_kind::SyntaxKind,
+};
 
 mod delimited;
 mod forall;
@@ -16,12 +25,13 @@ use super::{
         Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, ordinary_exit,
         suffix_marker, token_kind,
     },
-    emit::{ErrorRunOutput, emit_missing, emit_token_item},
+    emit::{ErrorRunOutput, emit_missing, emit_recovery_error_run, emit_token_item},
     item::{Item, LeadingTrivia, LeadingView, TokenKind},
     lexer::{
-        BalancedBracketSuffix, scan_balanced_bracket_suffix_normalized, scan_exact_pipe,
-        scan_type_nud_payload, scan_type_payload,
+        BalancedBracketSuffix, is_operator_shaped_unknown, scan_balanced_bracket_suffix_normalized,
+        scan_exact_pipe, scan_type_nud_payload, scan_type_payload,
     },
+    output::RecoveryDraft,
     yumark::FenceBoundary,
 };
 
@@ -516,51 +526,163 @@ fn required_type_expr_inner_normalized(
         );
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, primary);
-        (primary, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-        );
-        if primary.payload_view().is_boundary() {
-            i.state.finish_node();
-            return (complete(handoff(primary), line_entry), false);
-        }
-        if is_required_type_boundary(
+    (primary, item_origin, line_entry) = emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let category = required_type_primary_unexpected_category(&primary);
+            let kind = required_type_primary_error_syntax_kind(&primary);
+            let extent = run.emit_item_as(primary, item_origin, kind);
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range: extent.recovery_range(),
+                category,
+            });
+            (primary, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                );
+            if primary.payload_view().is_boundary()
+                || is_required_type_boundary(
+                    &primary,
+                    baseline,
+                    caller_stops,
+                    outer_boundary,
+                    fresh_primary_policy,
+                )
+                || is_type_nud(&primary)
+            {
+                return (primary, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| required_type_primary_error_draft(range, unexpected),
+    );
+    if primary.payload_view().is_boundary()
+        || is_required_type_boundary(
             &primary,
             baseline,
             caller_stops,
             outer_boundary,
             fresh_primary_policy,
-        ) {
-            i.state.finish_node();
-            return (complete(handoff(primary), line_entry), false);
+        )
+    {
+        return (complete(handoff(primary), line_entry), false);
+    }
+    debug_assert!(is_type_nud(&primary));
+    (
+        type_expr_from_nud_normalized(
+            i,
+            primary,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+            pipe_lexical,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        true,
+    )
+}
+
+fn required_type_primary_error_draft(
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::Type(TypeRole::Primary);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        RecoveryKind::Error,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::TypeExpression,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn required_type_primary_unexpected_category(item: &Item) -> UnexpectedCategory {
+    match token_kind(item).expect("a required Type-primary Error contains lexical Items") {
+        TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Forall => {
+            UnexpectedCategory::Word
         }
-        if is_type_nud(&primary) {
-            i.state.finish_node();
-            return (
-                type_expr_from_nud_normalized(
-                    i,
-                    primary,
-                    baseline,
-                    type_ml,
-                    apply_boundary,
-                    outer_separators,
-                    outer_closes,
-                    caller_stops,
-                    outer_boundary,
-                    pipe_lexical,
-                    item_origin,
-                    line_entry,
-                    fence,
-                ),
-                true,
-            );
+        TokenKind::Integer => UnexpectedCategory::DecimalInteger,
+        TokenKind::Operator | TokenKind::DotDot => UnexpectedCategory::OperatorLike,
+        TokenKind::LParen => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis))
         }
+        TokenKind::RParen => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis))
+        }
+        TokenKind::LBracket => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Bracket))
+        }
+        TokenKind::RBracket => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket))
+        }
+        TokenKind::LBrace => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Brace))
+        }
+        TokenKind::RBrace => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
+        }
+        TokenKind::Comma => UnexpectedCategory::Punctuation(PunctuationEvidence::Comma),
+        TokenKind::Semicolon => UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
+        TokenKind::Dot => UnexpectedCategory::Punctuation(PunctuationEvidence::Dot),
+        TokenKind::Arrow => UnexpectedCategory::Punctuation(PunctuationEvidence::Arrow),
+        TokenKind::Colon | TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Colon)
+        }
+        TokenKind::Equals => UnexpectedCategory::Punctuation(PunctuationEvidence::Equals),
+        TokenKind::EffectRowApostrophe => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Apostrophe)
+        }
+        TokenKind::PathSeparator => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::ColonColon)
+        }
+        TokenKind::Pipe => UnexpectedCategory::Punctuation(PunctuationEvidence::Pipe),
+        TokenKind::Unknown if is_operator_shaped_unknown(item) => UnexpectedCategory::OperatorLike,
+        TokenKind::Unknown => UnexpectedCategory::OtherCharacter,
+    }
+}
+
+fn required_type_primary_error_syntax_kind(item: &Item) -> SyntaxKind {
+    match token_kind(item).expect("a required Type-primary Error contains lexical Items") {
+        TokenKind::Identifier => SyntaxKind::Identifier,
+        TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
+        TokenKind::Integer => SyntaxKind::Integer,
+        TokenKind::Operator => SyntaxKind::Operator,
+        TokenKind::LParen => SyntaxKind::LParen,
+        TokenKind::RParen => SyntaxKind::RParen,
+        TokenKind::LBracket => SyntaxKind::LBracket,
+        TokenKind::RBracket => SyntaxKind::RBracket,
+        TokenKind::LBrace => SyntaxKind::LBrace,
+        TokenKind::RBrace => SyntaxKind::RBrace,
+        TokenKind::Comma => SyntaxKind::Comma,
+        TokenKind::Semicolon => SyntaxKind::Semicolon,
+        TokenKind::Dot => SyntaxKind::Dot,
+        TokenKind::DotDot => SyntaxKind::DotDot,
+        TokenKind::Arrow => SyntaxKind::Arrow,
+        TokenKind::Colon => SyntaxKind::Colon,
+        TokenKind::Equals => SyntaxKind::Equals,
+        TokenKind::Forall => SyntaxKind::ForKw,
+        TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
+        TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => SyntaxKind::Colon,
+        TokenKind::PathSeparator => SyntaxKind::ColonColon,
+        TokenKind::Pipe => SyntaxKind::Pipe,
+        TokenKind::Unknown => SyntaxKind::Unknown,
     }
 }
 

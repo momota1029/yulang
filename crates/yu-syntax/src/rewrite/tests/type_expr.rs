@@ -70,6 +70,100 @@ fn expected_parenthesized_close(id: u32, at: usize) -> CommittedRecoveryRecord {
     }
 }
 
+fn expected_required_type_primary_error(
+    id: u32,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> CommittedRecoveryRecord {
+    let role = GrammarRole::Type(TypeRole::Primary);
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Error,
+        unexpected,
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::TypeExpression,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+fn run_pattern_with_recoveries<'frozen>(
+    source: &str,
+    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
+) -> (GreenNode, TailExit, Vec<CommittedRecoveryRecord>) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut output = match frozen {
+        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        None => GreenNodeBuilder::new(),
+    };
+    output.start_node(SyntaxKind::Root.into());
+    let mut exit = pattern_with_stops(
+        In::new(&mut input, &mut recover, &mut output),
+        PATTERN_DEFAULT_STOPS,
+    );
+    if let Err(Either::Right(end)) = &mut exit {
+        emit_end(&mut output, end);
+    }
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    (green, exit, records)
+}
+
+fn run_required_type_with_recoveries<'source, 'frozen>(
+    source: &'source str,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
+) -> (
+    GreenNode,
+    NormalizedExit,
+    bool,
+    &'source str,
+    Vec<CommittedRecoveryRecord>,
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut output = match frozen {
+        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        None => GreenNodeBuilder::new(),
+    };
+    output.start_node(SyntaxKind::Root.into());
+    let (primary, successor_origin, next_line_entry) =
+        super::super::type_expr::type_nud_item_normalized(
+            In::new(&mut input, &mut recover, &mut output),
+            item_origin,
+            line_entry,
+            fence,
+        );
+    let (mut exit, primary_found) =
+        super::super::type_expr::required_type_expr_with_caller_stops_and_completion_normalized(
+            In::new(&mut input, &mut recover, &mut output),
+            primary,
+            0,
+            0,
+            successor_origin,
+            next_line_entry,
+            fence,
+        );
+    if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
+        emit_end(&mut output, end);
+    }
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    (green, exit, primary_found, input, records)
+}
+
 fn commit_record_draft(output: &mut GreenNodeBuilder<'_>, record: &CommittedRecoveryRecord) {
     output.commit_recovery(super::super::output::RecoveryDraft::new(
         record.site.clone(),
@@ -174,6 +268,392 @@ fn assert_local_parenthesized_close(source: &str, emitted: &str) {
             .descendants()
             .any(|node| node.kind() == SyntaxKind::Missing)
     );
+}
+
+#[test]
+fn required_type_primary_publishes_fresh_and_frozen_malformed_records() {
+    let malformed = expected_required_type_primary_error(
+        0,
+        0..1,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 0..1,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    );
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries("@A", 0, LineEntry::InLine, None, None);
+    assert_eq!(green.to_string(), "@A");
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
+    assert!(primary_found);
+    assert_eq!(remainder, "");
+    assert_eq!(records, [malformed.clone()]);
+    let root = SyntaxNode::new_root(green.clone());
+    let error = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("required Type-primary Error");
+    assert_eq!(error.text(), "@");
+    assert_eq!(
+        error
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [(SyntaxKind::Unknown, "@".to_owned())]
+    );
+    let (frozen_green, frozen_exit, frozen_found, frozen_remainder, frozen_records) =
+        run_required_type_with_recoveries(
+            "@A",
+            0,
+            LineEntry::InLine,
+            None,
+            Some(std::slice::from_ref(&malformed)),
+        );
+    assert_eq!(frozen_green, green);
+    assert!(matches!(
+        frozen_exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
+    assert!(frozen_found);
+    assert_eq!(frozen_remainder, "");
+    assert_eq!(frozen_records, [malformed]);
+}
+
+#[test]
+fn required_type_primary_error_run_keeps_item_evidence_and_cst_order() {
+    let expected = expected_required_type_primary_error(
+        0,
+        0..3,
+        Arc::from([
+            UnexpectedSyntax::Token {
+                range: 0..1,
+                category: UnexpectedCategory::OtherCharacter,
+            },
+            UnexpectedSyntax::Token {
+                range: 1..3,
+                category: UnexpectedCategory::Punctuation(PunctuationEvidence::Dot),
+            },
+        ]),
+    );
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries("@ .A", 0, LineEntry::InLine, None, None);
+    assert_eq!(green.to_string(), "@ .A");
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
+    assert!(primary_found);
+    assert_eq!(remainder, "");
+    assert_eq!(records, [expected.clone()]);
+    let error = SyntaxNode::new_root(green.clone())
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("one contiguous required Type Error");
+    assert_eq!(error.text(), "@ .");
+    assert_eq!(
+        error
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Unknown, "@".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Dot, ".".to_owned()),
+        ]
+    );
+    let (frozen_green, _, frozen_found, frozen_remainder, frozen_records) =
+        run_required_type_with_recoveries(
+            "@ .A",
+            0,
+            LineEntry::InLine,
+            None,
+            Some(std::slice::from_ref(&expected)),
+        );
+    assert_eq!(frozen_green, green);
+    assert!(frozen_found);
+    assert_eq!(frozen_remainder, "");
+    assert_eq!(frozen_records, [expected]);
+}
+
+#[test]
+fn required_type_primary_error_stops_before_a_pending_lexical_boundary() {
+    let expected = expected_required_type_primary_error(
+        0,
+        0..1,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 0..1,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    );
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries("@ ,A", 0, LineEntry::InLine, None, None);
+    assert_eq!(green.to_string(), "@");
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+        panic!("required Type Error must preserve its pending comma")
+    };
+    assert!(!primary_found);
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Comma));
+    assert_eq!(item.payload_view().spelling(), Some(","));
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
+    assert_eq!(remainder, "A");
+    assert_eq!(records, [expected.clone()]);
+    let error = SyntaxNode::new_root(green.clone())
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("required Type-primary Error");
+    assert_eq!(error.text(), "@");
+    assert_eq!(
+        error
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [(SyntaxKind::Unknown, "@".to_owned())]
+    );
+
+    let (frozen_green, frozen_exit, frozen_found, frozen_remainder, frozen_records) =
+        run_required_type_with_recoveries(
+            "@ ,A",
+            0,
+            LineEntry::InLine,
+            None,
+            Some(std::slice::from_ref(&expected)),
+        );
+    assert_eq!(frozen_green, green);
+    let NormalizedExit::Complete(Err(Either::Left(mut frozen_item)), LineEntry::InLine) =
+        frozen_exit
+    else {
+        panic!("frozen required Type Error must preserve its pending comma")
+    };
+    assert!(!frozen_found);
+    assert_eq!(
+        frozen_item.payload_view().token_kind(),
+        Some(TokenKind::Comma)
+    );
+    assert_eq!(emit_pending_leading_text(&mut frozen_item), " ");
+    assert_eq!(frozen_remainder, "A");
+    assert_eq!(frozen_records, [expected]);
+}
+
+#[test]
+fn required_type_primary_preserves_boundaries_and_accepts_an_ordinary_primary() {
+    for (source, kind) in [
+        (",A", TokenKind::Comma),
+        (";A", TokenKind::Semicolon),
+        (")A", TokenKind::RParen),
+        ("]A", TokenKind::RBracket),
+        ("}A", TokenKind::RBrace),
+        ("=A", TokenKind::Equals),
+    ] {
+        let (green, exit, primary_found, remainder, records) =
+            run_required_type_with_recoveries(source, 0, LineEntry::InLine, None, None);
+        assert_eq!(green.to_string(), "", "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+            panic!("required Type boundary must remain pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}");
+        assert_eq!(remainder, "A", "{source:?}");
+        assert!(!primary_found, "{source:?}");
+        assert!(records.is_empty(), "{source:?}");
+        let type_expr = SyntaxNode::new_root(green)
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeExpression)
+            .expect("raw missing required TypeExpression");
+        assert_eq!(
+            type_expr
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [SyntaxKind::Missing],
+            "{source:?}"
+        );
+    }
+
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries("A", 0, LineEntry::InLine, None, None);
+    assert_eq!(green.to_string(), "A");
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
+    assert!(primary_found);
+    assert_eq!(remainder, "");
+    assert!(records.is_empty());
+
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries("", 0, LineEntry::InLine, None, None);
+    assert_eq!(green.to_string(), "");
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
+    assert!(!primary_found);
+    assert_eq!(remainder, "");
+    assert!(records.is_empty());
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeExpression)
+            .expect("raw EOF missing TypeExpression")
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Missing]
+    );
+}
+
+#[test]
+fn required_type_primary_abstract_boundary_is_missing_and_unconsumed() {
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let source = "> > \n> > ```\nouter";
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries(source, 0, LineEntry::PhysicalStart, Some(&fence), None);
+    assert_eq!(green.to_string(), "");
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) = exit else {
+        panic!("required Type must preserve the fence boundary")
+    };
+    assert!(item.payload_view().is_boundary());
+    assert!(item.leading_view().has_ordinary_newline());
+    assert!(!primary_found);
+    assert_eq!(remainder, "> > ```\nouter");
+    assert!(records.is_empty());
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeExpression)
+            .expect("raw fence missing TypeExpression")
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Missing]
+    );
+}
+
+#[test]
+fn pattern_annotation_keeps_caller_missing_raw_and_t1_error_typed() {
+    let (missing_green, missing_exit, missing_records) = run_pattern_with_recoveries("x:", None);
+    assert_eq!(missing_green.to_string(), "x:");
+    assert!(matches!(missing_exit, Err(Either::Right(_))));
+    assert!(missing_records.is_empty());
+    let missing_annotation = SyntaxNode::new_root(missing_green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+        .expect("pattern Type annotation");
+    assert_eq!(
+        missing_annotation
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert!(
+        !missing_annotation
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+
+    let expected = expected_required_type_primary_error(
+        0,
+        3..4,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 3..4,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    );
+    let (error_green, error_exit, error_records) = run_pattern_with_recoveries("x: @A", None);
+    assert_eq!(error_green.to_string(), "x: @A");
+    assert!(matches!(error_exit, Err(Either::Right(_))));
+    assert_eq!(error_records, [expected.clone()]);
+    let annotation = SyntaxNode::new_root(error_green.clone())
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+        .expect("pattern Type annotation");
+    let errors = annotation
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text(), "@");
+    assert!(
+        !annotation
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+
+    let (frozen_green, frozen_exit, frozen_records) =
+        run_pattern_with_recoveries("x: @A", Some(std::slice::from_ref(&expected)));
+    assert_eq!(frozen_green, error_green);
+    assert!(matches!(frozen_exit, Err(Either::Right(_))));
+    assert_eq!(frozen_records, [expected]);
+}
+
+#[test]
+fn rb_t_required_type_probe_rejection_preserves_output_and_input() {
+    let operators = OperatorTable::empty();
+    let frozen = [expected_parenthesized_close(7, 0)];
+
+    let mut candidate_input = "@A";
+    let mut candidate_recover = Recover::new(&operators);
+    let candidate_mark = candidate_recover.mark();
+    let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
+    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    candidate_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut candidate_output);
+    candidate_output.start_node(SyntaxKind::Missing.into());
+    candidate_output.finish_node();
+    commit_record_draft(&mut candidate_output, &frozen[0]);
+    let before_slots = candidate_output.recovery_slot_count();
+    let before_diagnostics = candidate_output.diagnostic_position();
+    let exit = super::super::type_expr::type_expr(In::new(
+        &mut candidate_input,
+        &mut candidate_recover,
+        &mut candidate_output,
+    ));
+    assert!(exit.is_none());
+    let candidate_slots = candidate_output.recovery_slot_count();
+    let candidate_diagnostics = candidate_output.diagnostic_position();
+    candidate_output.finish_node();
+    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+
+    let control_input = "@A";
+    let control_recover = Recover::new(&operators);
+    let control_mark = control_recover.mark();
+    let control_operators = std::ptr::eq(control_recover.operators(), &operators);
+    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    control_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut control_output);
+    control_output.start_node(SyntaxKind::Missing.into());
+    control_output.finish_node();
+    commit_record_draft(&mut control_output, &frozen[0]);
+    let control_slots = control_output.recovery_slot_count();
+    let control_diagnostics = control_output.diagnostic_position();
+    control_output.finish_node();
+    let (control_green, control_records) = control_output.finish_with_recoveries();
+
+    assert_eq!(candidate_green, control_green);
+    assert_eq!(candidate_records, control_records);
+    assert_eq!(candidate_slots, control_slots);
+    assert_eq!(candidate_diagnostics, control_diagnostics);
+    assert_eq!(candidate_input, control_input);
+    assert_eq!(candidate_mark, control_mark);
+    assert_eq!(candidate_mark, ());
+    assert!(candidate_operators && control_operators);
+    assert_eq!(candidate_slots, before_slots);
+    assert_eq!(candidate_diagnostics, before_diagnostics);
+    assert_eq!(candidate_diagnostics, (Some(8), 1));
+    assert_eq!(candidate_records, frozen);
 }
 
 #[test]
