@@ -7,20 +7,25 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     LexIn, RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    declaration_companion::declaration_companion_normalized,
+    derives::{derives_clause_normalized, is_word},
     driver::{
         Either, NormalizedExit, advanced_origin, complete, delimited_baseline, handoff,
         implicit_delimited_newline, indentation_after_newline, is_active_stop, suffix_marker,
         token_kind,
     },
     emit::{emit_missing, emit_token_item},
+    if_expr::active_statement_companion,
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
         introduced_body_indentation_normalized, scan_exact_pipe, scan_identifier,
         scan_statement_payload, scan_type_nud_payload, source_identifier,
     },
-    operator::{TriviaObservation, observe_fenced_trivia},
+    operator::{STOP_WITH, TriviaObservation, observe_fenced_trivia},
+    statement::StatementLineHandoff,
     type_expr::{
-        TypeApplyBoundary, required_type_expr_with_boundary_normalized, with_type_outer_close,
+        TypeApplyBoundary, TypeOuterBoundary, required_type_expr_with_boundary_normalized,
+        with_type_outer_close,
     },
     yumark::FenceBoundary,
 };
@@ -75,6 +80,7 @@ pub(super) fn struct_declaration_normalized(
     intro: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -152,17 +158,78 @@ pub(super) fn struct_declaration_normalized(
         }
     };
 
-    let exit = parse_body_item_normalized(
+    let exit = header_from_item_normalized(
         i.rb(),
         body,
         baseline,
         stops,
+        line_handoff,
         item_origin,
         line_entry,
         fence,
     );
     i.state.finish_node();
     exit
+}
+
+#[allow(clippy::too_many_arguments)]
+fn header_from_item_normalized(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if stops & STOP_WITH != 0 && is_word(&item, "with") {
+        return complete(handoff(item), line_entry);
+    }
+    if derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff) {
+        let (next, next_origin, next_entry) = derives_clause_normalized(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            line_handoff,
+            struct_header_role_boundary(),
+            item_origin,
+            line_entry,
+            fence,
+        );
+        return header_from_item_normalized(
+            i,
+            next,
+            baseline,
+            stops,
+            line_handoff,
+            next_origin,
+            next_entry,
+            fence,
+        );
+    }
+    if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
+        return declaration_companion_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    parse_body_item_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
 /// `Ok(Some)` carries a local body starter. `Err` is an unchanged caller
@@ -258,6 +325,7 @@ fn parse_body_item_normalized(
     mut item: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -287,6 +355,7 @@ fn parse_body_item_normalized(
             baseline,
             stops,
             FieldList::NamedBrace,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
@@ -297,6 +366,7 @@ fn parse_body_item_normalized(
             baseline,
             stops,
             FieldList::Tuple,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
@@ -314,6 +384,7 @@ fn parse_body_item_normalized(
             item,
             baseline,
             stops,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
@@ -327,6 +398,7 @@ fn recover_body_introducer_normalized(
     mut item: Item,
     baseline: usize,
     stops: Stops,
+    line_handoff: StatementLineHandoff,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -365,6 +437,7 @@ fn recover_body_introducer_normalized(
                 item,
                 baseline,
                 stops,
+                line_handoff,
                 item_origin,
                 line_entry,
                 fence,
@@ -417,6 +490,7 @@ fn parse_delimited_fields_normalized(
     owner_baseline: usize,
     stops: Stops,
     list: FieldList,
+    line_handoff: StatementLineHandoff,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -434,10 +508,11 @@ fn parse_delimited_fields_normalized(
         fence,
     );
     match result.exit {
-        NormalizedExit::Complete(Ok(()), line_entry) => after_completed_normalized(
+        NormalizedExit::Complete(Ok(()), line_entry) => trailing_normalized(
             i,
             owner_baseline,
             stops,
+            line_handoff,
             result.item_origin,
             line_entry,
             fence,
@@ -1275,6 +1350,86 @@ fn after_completed_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn trailing_normalized(
+    mut i: RewriteIn,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) = struct_item_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+        false,
+        false,
+    );
+    trailing_from_item_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn trailing_from_item_normalized(
+    mut i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff) {
+        let (next, next_origin, next_entry) = derives_clause_normalized(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            line_handoff,
+            struct_trailing_role_boundary(),
+            item_origin,
+            line_entry,
+            fence,
+        );
+        return trailing_from_item_normalized(
+            i,
+            next,
+            baseline,
+            stops,
+            line_handoff,
+            next_origin,
+            next_entry,
+            fence,
+        );
+    }
+    if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
+        return declaration_companion_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    complete(handoff(item), line_entry)
+}
+
+#[allow(clippy::too_many_arguments)]
 fn struct_item_normalized(
     i: RewriteIn,
     item_origin: usize,
@@ -1370,6 +1525,59 @@ fn body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -
             token_kind(item),
             Some(TokenKind::Comma | TokenKind::Semicolon)
         )
+}
+
+fn derives_attachment_start(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> bool {
+    !item.payload_view().is_boundary()
+        && is_word(item, "derives")
+        && attachment_gap_continues(i.rb(), item, baseline, stops, line_handoff)
+}
+
+fn declaration_companion_start(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> bool {
+    is_word(item, "with")
+        && item.leading_view().has_ordinary_trivia()
+        && attachment_gap_continues(i.rb(), item, baseline, stops, line_handoff)
+}
+
+fn attachment_gap_continues(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> bool {
+    !item.payload_view().is_boundary()
+        && !is_active_stop(i.rb(), item, stops)
+        && !(stops & STOP_WITH != 0 && is_word(item, "with"))
+        && active_statement_companion(i.rb(), item, baseline, stops).is_none()
+        && indentation_after_newline(item.leading_view()).is_none_or(|indentation| {
+            matches!(line_handoff, StatementLineHandoff::OrdinaryLayout) && indentation > baseline
+        })
+}
+
+fn struct_header_role_boundary() -> TypeOuterBoundary {
+    TypeOuterBoundary::DERIVES
+        .with(TypeOuterBoundary::VIA)
+        .with(TypeOuterBoundary::WITH)
+        .with(TypeOuterBoundary::STRUCT_BODY)
+}
+
+fn struct_trailing_role_boundary() -> TypeOuterBoundary {
+    TypeOuterBoundary::DERIVES
+        .with(TypeOuterBoundary::VIA)
+        .with(TypeOuterBoundary::WITH)
 }
 
 fn field_boundary(

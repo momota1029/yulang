@@ -54,6 +54,7 @@ impl TypeOuterBoundary {
     pub(super) const IMPL: Self = Self(1 << 3);
     pub(super) const EQUALS: Self = Self(1 << 4);
     pub(super) const PIPE: Self = Self(1 << 5);
+    pub(super) const STRUCT_BODY: Self = Self(1 << 6);
 
     pub(super) const fn with(self, other: Self) -> Self {
         Self(self.0 | other.0)
@@ -2136,7 +2137,18 @@ fn is_required_type_boundary(
         || is_type_rhs_boundary(item)
         || token_kind(item) == Some(TokenKind::Equals)
         || is_type_caller_boundary(item, caller_stops)
-        || is_type_outer_boundary(item, outer_boundary)
+        || is_fresh_type_outer_boundary(item, outer_boundary)
+}
+
+fn is_fresh_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> bool {
+    if outer_boundary.contains(TypeOuterBoundary::STRUCT_BODY) {
+        match token_kind(item) {
+            Some(TokenKind::LBrace | TokenKind::Colon | TokenKind::Semicolon) => return true,
+            Some(TokenKind::LParen) => return false,
+            _ => {}
+        }
+    }
+    is_type_outer_boundary(item, outer_boundary)
 }
 
 fn is_type_record_field_boundary(item: &Item) -> bool {
@@ -2189,6 +2201,14 @@ pub(super) fn is_type_caller_boundary(item: &Item, caller_stops: Stops) -> bool 
 }
 
 fn is_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> bool {
+    if outer_boundary.contains(TypeOuterBoundary::STRUCT_BODY)
+        && matches!(
+            token_kind(item),
+            Some(TokenKind::LBrace | TokenKind::LParen | TokenKind::Colon | TokenKind::Semicolon)
+        )
+    {
+        return true;
+    }
     if token_kind(item) == Some(TokenKind::Pipe) {
         return outer_boundary.contains(TypeOuterBoundary::PIPE);
     }

@@ -200,6 +200,7 @@ pub(super) fn canonical_statement_contents_normalized(
                 item,
                 baseline,
                 stops,
+                line_handoff,
                 item_origin,
                 line_entry,
                 fence,
