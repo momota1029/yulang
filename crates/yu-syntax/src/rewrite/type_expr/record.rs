@@ -18,11 +18,12 @@ use super::super::{
     yumark::FenceBoundary,
 };
 use super::{
-    TypeApplyBoundary, TypeOuterBoundary, continue_type_tail_normalized, is_type_caller_boundary,
-    is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
-    is_type_record_field_boundary, is_type_record_field_name, is_type_record_field_start,
-    missing_type_close, missing_type_item, retry_type_rhs_normalized, type_chain_trivia,
-    type_delimited_baseline, type_expr_from_nud_normalized, type_item_with_pipe_lexical_normalized,
+    TypeApplyBoundary, TypeOuterBoundary, continue_type_tail_normalized,
+    delimited::is_explicit_type_caller_close, is_type_caller_boundary, is_type_implicit_boundary,
+    is_type_mismatched_close, is_type_nud, is_type_record_field_boundary,
+    is_type_record_field_name, is_type_record_field_start, missing_type_close, missing_type_item,
+    retry_type_rhs_normalized, type_chain_trivia, type_delimited_baseline,
+    type_expr_from_nud_normalized, type_item_with_pipe_lexical_normalized,
     type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
 };
 
@@ -99,7 +100,11 @@ fn type_record_fields_normalized(
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
-    item.emit_all_remaining_leading(&mut *i.state);
+    if token_kind(&item) == Some(TokenKind::RBrace)
+        || !is_explicit_type_caller_close(&item, caller_stops)
+    {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
 
     loop {
         if item.payload_view().is_boundary() {
@@ -279,7 +284,11 @@ fn type_record_field_normalized(
     }
     if token_kind(&colon) != Some(TokenKind::Colon) {
         if is_type_record_field_boundary(&colon) {
-            colon.emit_all_remaining_leading(&mut *i.state);
+            if token_kind(&colon) == Some(TokenKind::RBrace)
+                || !is_explicit_type_caller_close(&colon, caller_stops)
+            {
+                colon.emit_all_remaining_leading(&mut *i.state);
+            }
             emit_missing(&mut i, LeadingTrivia::default());
             i.state.finish_node();
             return complete(handoff(colon), line_entry);
@@ -773,7 +782,11 @@ fn type_record_rhs_normalized(
         return complete(handoff(rhs), line_entry);
     }
     if is_type_record_field_boundary(&rhs) {
-        rhs.emit_all_remaining_leading(&mut *i.state);
+        if token_kind(&rhs) == Some(TokenKind::RBrace)
+            || !is_explicit_type_caller_close(&rhs, caller_stops)
+        {
+            rhs.emit_all_remaining_leading(&mut *i.state);
+        }
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(rhs), line_entry);
     }

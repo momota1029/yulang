@@ -19,9 +19,10 @@ use super::{
         yumark::FenceBoundary,
     },
     PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
-    PATTERN_STOP_RPAREN, PatternCompletion, PatternPrecedence, PatternStops, RewriteIn,
-    pattern_from_item_recording_normalized, pattern_item_normalized, pattern_nud_item_normalized,
-    pattern_primary_stop_token, pattern_tail_normalized, scan_pattern_tail_normalized,
+    PATTERN_STOP_RPAREN, PatternCallerCloses, PatternCompletion, PatternMandatorySlotPolicy,
+    PatternPrecedence, PatternStops, RewriteIn, pattern_from_item_recording_with_policy_normalized,
+    pattern_item_normalized, pattern_nud_item_normalized, pattern_primary_stop_token,
+    pattern_tail_normalized, scan_pattern_tail_normalized,
 };
 
 #[derive(Clone, Copy)]
@@ -48,13 +49,14 @@ impl Owner {
         }
     }
 
-    fn local_stops(self) -> PatternStops {
+    fn local_stops(self, caller_closes: PatternCallerCloses) -> PatternStops {
         PATTERN_STOP_COMMA
             | match self {
                 Self::Parenthesized => PATTERN_STOP_RPAREN,
                 Self::List => PATTERN_STOP_RBRACKET,
                 Self::Record => PATTERN_STOP_RBRACE,
             }
+            | caller_closes.pattern_stops()
     }
 }
 
@@ -67,6 +69,7 @@ pub(super) fn parenthesized_pattern(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     recovered_primary_tail_stops: PatternStops,
+    caller_closes: PatternCallerCloses,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -81,6 +84,7 @@ pub(super) fn parenthesized_pattern(
         outer_stops,
         line_handoff,
         recovered_primary_tail_stops,
+        caller_closes,
         completion,
         item_origin,
         line_entry,
@@ -96,6 +100,7 @@ pub(super) fn list_pattern(
     incoming_baseline: usize,
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -110,6 +115,7 @@ pub(super) fn list_pattern(
         outer_stops,
         line_handoff,
         0,
+        caller_closes,
         completion,
         item_origin,
         line_entry,
@@ -125,6 +131,7 @@ pub(super) fn record_pattern(
     incoming_baseline: usize,
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -139,6 +146,7 @@ pub(super) fn record_pattern(
         outer_stops,
         line_handoff,
         0,
+        caller_closes,
         completion,
         item_origin,
         line_entry,
@@ -156,6 +164,7 @@ fn pattern_delimited(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     recovered_primary_tail_stops: PatternStops,
+    caller_closes: PatternCallerCloses,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -163,11 +172,15 @@ fn pattern_delimited(
 ) -> NormalizedExit {
     i.state.start_node(owner.node().into());
     emit_token_item(&mut i, open);
-    let local_stops = owner.local_stops();
+    let local_stops = owner.local_stops(caller_closes);
+    let descendant_caller_closes = caller_closes.with_close(owner.close());
     let (mut item, mut item_origin, mut line_entry) =
         pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
     let baseline = delimited_baseline(incoming_baseline, item.leading_view());
-    if !item.payload_view().is_boundary() {
+    if !item.payload_view().is_boundary()
+        && (token_kind(&item) == Some(owner.close())
+            || !is_carried_caller_close(caller_closes, &item))
+    {
         item.emit_all_remaining_leading(&mut *i.state);
     }
     let mut expect_item = true;
@@ -193,11 +206,16 @@ fn pattern_delimited(
                     own_recovery_consumed_error,
                     recovered_primary_tail_stops,
                     line_handoff,
+                    caller_closes,
                     completion,
                     item_origin,
                     line_entry,
                     fence,
                 );
+            }
+            if is_carried_caller_close(caller_closes, &item) {
+                *completion = PatternCompletion::Incomplete;
+                return missing_close_before_caller(i, item, line_entry);
             }
             if matches!(owner, Owner::Record) && token_kind(&item) == Some(TokenKind::Comma) {
                 item.emit_all_remaining_leading(&mut *i.state);
@@ -246,13 +264,15 @@ fn pattern_delimited(
             let mut item_completion = PatternCompletion::Incomplete;
             let entry = suffix_marker(i.rb());
             let exit = match owner {
-                Owner::Parenthesized => pattern_from_item_recording_normalized(
+                Owner::Parenthesized => pattern_from_item_recording_with_policy_normalized(
                     i.rb(),
                     item,
                     PatternPrecedence::Lowest,
                     item_baseline,
                     local_stops,
                     line_handoff,
+                    PatternMandatorySlotPolicy::default(),
+                    descendant_caller_closes,
                     &mut item_completion,
                     item_origin,
                     line_entry,
@@ -262,7 +282,9 @@ fn pattern_delimited(
                     i.rb(),
                     item,
                     item_baseline,
+                    local_stops,
                     line_handoff,
+                    descendant_caller_closes,
                     &mut item_completion,
                     item_origin,
                     line_entry,
@@ -272,7 +294,9 @@ fn pattern_delimited(
                     i.rb(),
                     item,
                     item_baseline,
+                    local_stops,
                     line_handoff,
+                    descendant_caller_closes,
                     &mut item_completion,
                     item_origin,
                     line_entry,
@@ -308,13 +332,6 @@ fn pattern_delimited(
             continue;
         }
 
-        if token_kind(&item) == Some(TokenKind::Comma) {
-            emit_token_item(&mut i, item);
-            (item, item_origin, line_entry) =
-                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
-            expect_item = true;
-            continue;
-        }
         if token_kind(&item) == Some(owner.close()) {
             emit_token_item(&mut i, item);
             i.state.finish_node();
@@ -327,11 +344,23 @@ fn pattern_delimited(
                 own_recovery_consumed_error,
                 recovered_primary_tail_stops,
                 line_handoff,
+                caller_closes,
                 completion,
                 item_origin,
                 line_entry,
                 fence,
             );
+        }
+        if is_carried_caller_close(caller_closes, &item) {
+            *completion = PatternCompletion::Incomplete;
+            return missing_close_before_caller(i, item, line_entry);
+        }
+        if token_kind(&item) == Some(TokenKind::Comma) {
+            emit_token_item(&mut i, item);
+            (item, item_origin, line_entry) =
+                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+            expect_item = true;
+            continue;
         }
         if token_kind(&item).is_none() {
             *completion = PatternCompletion::Incomplete;
@@ -373,6 +402,7 @@ fn finish_delimited_pattern(
     own_recovery_consumed_error: bool,
     recovered_primary_tail_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -395,6 +425,7 @@ fn finish_delimited_pattern(
                 incoming_baseline,
                 outer_stops,
                 line_handoff,
+                caller_closes,
                 &mut tail_completion,
                 item_origin,
                 line_entry,
@@ -408,6 +439,7 @@ fn finish_delimited_pattern(
             incoming_baseline,
             outer_stops,
             line_handoff,
+            caller_closes,
             &mut tail_completion,
             item_origin,
             line_entry,
@@ -430,20 +462,24 @@ fn list_item(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
+    local_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     if token_kind(&item) != Some(TokenKind::DotDot) {
-        return pattern_from_item_recording_normalized(
+        return pattern_from_item_recording_with_policy_normalized(
             i,
             item,
             PatternPrecedence::Lowest,
             baseline,
-            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+            local_stops,
             line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
             completion,
             item_origin,
             line_entry,
@@ -452,24 +488,21 @@ fn list_item(
     }
     i.state.start_node(SyntaxKind::ListPatternSpreadItem.into());
     emit_token_item(&mut i, item);
-    let (mut rhs, item_origin, line_entry) = pattern_nud_item_normalized(
-        i.rb(),
-        item_origin,
-        line_entry,
-        fence,
-        PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
-    );
+    let (mut rhs, item_origin, line_entry) =
+        pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
     let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
-    if !rhs.payload_view().is_boundary() {
+    if !rhs.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &rhs) {
         rhs.emit_all_remaining_leading(&mut *i.state);
     }
-    let exit = pattern_from_item_recording_normalized(
+    let exit = pattern_from_item_recording_with_policy_normalized(
         i.rb(),
         rhs,
         PatternPrecedence::Lowest,
         rhs_baseline,
-        PATTERN_STOP_COMMA | PATTERN_STOP_RBRACKET,
+        local_stops,
         line_handoff,
+        PatternMandatorySlotPolicy::default(),
+        caller_closes,
         completion,
         item_origin,
         line_entry,
@@ -484,7 +517,9 @@ fn record_item(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
+    local_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -494,24 +529,21 @@ fn record_item(
         i.state
             .start_node(SyntaxKind::RecordPatternSpreadItem.into());
         emit_token_item(&mut i, item);
-        let (mut rhs, item_origin, line_entry) = pattern_nud_item_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
-        );
+        let (mut rhs, item_origin, line_entry) =
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
         let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
-        if !rhs.payload_view().is_boundary() {
+        if !rhs.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &rhs) {
             rhs.emit_all_remaining_leading(&mut *i.state);
         }
-        let exit = pattern_from_item_recording_normalized(
+        let exit = pattern_from_item_recording_with_policy_normalized(
             i.rb(),
             rhs,
             PatternPrecedence::Lowest,
             rhs_baseline,
-            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE,
+            local_stops,
             line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
             completion,
             item_origin,
             line_entry,
@@ -531,7 +563,7 @@ fn record_item(
     *completion = PatternCompletion::Complete;
     i.state.start_node(SyntaxKind::RecordPatternField.into());
     emit_token_item(&mut i, item);
-    let record_stops = PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE | PATTERN_STOP_EQUALS;
+    let record_stops = local_stops | PATTERN_STOP_EQUALS;
     let (item, mut item_origin, line_entry) =
         pattern_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops);
     let exit = if !item.payload_view().is_boundary()
@@ -542,24 +574,35 @@ fn record_item(
         let (mut nested, nested_origin, nested_line_entry) =
             pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops);
         let nested_baseline = delimited_baseline(baseline, nested.leading_view());
-        if !nested.payload_view().is_boundary() {
+        if !nested.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &nested)
+        {
             nested.emit_all_remaining_leading(&mut *i.state);
         }
         let entry = suffix_marker(i.rb());
-        let exit = pattern_from_item_recording_normalized(
+        let exit = pattern_from_item_recording_with_policy_normalized(
             i.rb(),
             nested,
             PatternPrecedence::Lowest,
             nested_baseline,
             record_stops,
             line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
             completion,
             nested_origin,
             nested_line_entry,
             fence,
         );
         item_origin = advanced_origin(nested_origin, entry, i.rb());
-        record_default_after_pattern(i.rb(), exit, baseline, line_handoff, item_origin, fence)
+        record_default_after_pattern(
+            i.rb(),
+            exit,
+            baseline,
+            record_stops,
+            line_handoff,
+            item_origin,
+            fence,
+        )
     } else if !item.payload_view().is_boundary()
         && !has_newline(item.leading_view())
         && token_kind(&item) == Some(TokenKind::Equals)
@@ -585,18 +628,15 @@ fn record_default_after_pattern(
     mut i: RewriteIn,
     exit: NormalizedExit,
     baseline: usize,
+    record_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = match exit {
-        NormalizedExit::Complete(Ok(()), line_entry) => pattern_nud_item_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            PATTERN_STOP_COMMA | PATTERN_STOP_RBRACE | PATTERN_STOP_EQUALS,
-        ),
+        NormalizedExit::Complete(Ok(()), line_entry) => {
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops)
+        }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
             (item, item_origin, line_entry)
         }
@@ -676,6 +716,20 @@ fn missing_close(mut i: RewriteIn, mut item: Item, line_entry: LineEntry) -> Nor
     emit_missing(&mut i, LeadingTrivia::default());
     i.state.finish_node();
     complete(handoff(item), line_entry)
+}
+
+fn missing_close_before_caller(
+    mut i: RewriteIn,
+    item: Item,
+    line_entry: LineEntry,
+) -> NormalizedExit {
+    emit_missing(&mut i, LeadingTrivia::default());
+    i.state.finish_node();
+    complete(handoff(item), line_entry)
+}
+
+fn is_carried_caller_close(caller_closes: PatternCallerCloses, item: &Item) -> bool {
+    token_kind(item).is_some_and(|kind| caller_closes.contains(kind))
 }
 
 fn is_item_start(owner: Owner, item: &Item) -> bool {

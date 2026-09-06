@@ -5,9 +5,9 @@ use crate::rewrite::{
     lexer::scan_pattern_nud_payload,
     literal::{NonInterpolatingStringExit, RuleLiteralExit},
     pattern::{
-        PATTERN_STOP_COLON, PATTERN_STOP_EQUALS, PatternCompletion, PatternLiteralWitnessExit,
-        PatternMandatorySlotPolicy, PatternStops, pattern_literal_witness,
-        required_pattern_from_entry_item_with_policy_normalized,
+        PATTERN_STOP_COLON, PATTERN_STOP_EQUALS, PatternCallerCloses, PatternCompletion,
+        PatternLiteralWitnessExit, PatternMandatorySlotPolicy, PatternStops,
+        pattern_literal_witness, required_pattern_from_entry_item_with_policy_normalized,
     },
     statement::StatementLineHandoff,
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
@@ -17,6 +17,26 @@ fn run_required_pattern_with_policy<'source>(
     source: &'source str,
     stops: PatternStops,
     policy: PatternMandatorySlotPolicy,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, NormalizedExit, PatternCompletion, &'source str) {
+    run_required_pattern_with_context(
+        source,
+        stops,
+        policy,
+        PatternCallerCloses::NONE,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+fn run_required_pattern_with_context<'source>(
+    source: &'source str,
+    stops: PatternStops,
+    policy: PatternMandatorySlotPolicy,
+    caller_closes: PatternCallerCloses,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -49,6 +69,7 @@ fn run_required_pattern_with_policy<'source>(
         stops,
         StatementLineHandoff::OrdinaryLayout,
         policy,
+        caller_closes,
         next_origin,
         next_line_entry,
         fence,
@@ -303,6 +324,501 @@ fn mandatory_pattern_policy_preserves_fenced_boundaries_and_coordinates() {
         pending.into_kind(),
         Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
     ));
+}
+
+#[test]
+fn pattern_caller_closes_keep_own_close_first_and_return_outer_close_unchanged() {
+    for (source, caller_closes, close, green_text, expected_missing, expected_completion) in [
+        (
+            "(x)) tail",
+            PatternCallerCloses::RPAREN,
+            TokenKind::RParen,
+            "(x)",
+            0,
+            PatternCompletion::Complete,
+        ),
+        (
+            "[x ) tail",
+            PatternCallerCloses::RPAREN,
+            TokenKind::RParen,
+            "[x",
+            1,
+            PatternCompletion::Incomplete,
+        ),
+        (
+            "{x ) tail",
+            PatternCallerCloses::RPAREN,
+            TokenKind::RParen,
+            "{x",
+            1,
+            PatternCompletion::Incomplete,
+        ),
+        (
+            "(x ] tail",
+            PatternCallerCloses::RBRACKET,
+            TokenKind::RBracket,
+            "(x",
+            1,
+            PatternCompletion::Incomplete,
+        ),
+        (
+            "(x } tail",
+            PatternCallerCloses::RBRACE,
+            TokenKind::RBrace,
+            "(x",
+            1,
+            PatternCompletion::Incomplete,
+        ),
+    ] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), green_text, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(completion, expected_completion, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::Missing),
+            expected_missing
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("caller close must remain pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(close), "{source:?}");
+        let expected_leading = if source.contains("x ") { " " } else { "" };
+        assert_eq!(
+            emit_pending_leading_text(&mut item),
+            expected_leading,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn pattern_caller_closes_flow_through_nested_patterns_and_recovery() {
+    for (source, expected_errors) in [("((x))", 0), ("((x @))", 1)] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            PatternCallerCloses::NONE,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::Error),
+            expected_errors,
+            "{source:?}"
+        );
+        assert!(
+            matches!(exit, NormalizedExit::Complete(Err(Either::Right(_)), _)),
+            "{source:?}"
+        );
+    }
+
+    for (source, expected_missing) in [
+        ("[x | y) tail", 1),
+        ("[..x) tail", 1),
+        ("{field: [x) tail", 2),
+        ("{..[x) tail", 2),
+    ] {
+        let (green, exit, _, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            PatternCallerCloses::RPAREN,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::Missing),
+            expected_missing
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+            panic!("nested caller close must remain pending: {source:?}")
+        };
+        assert_eq!(
+            item.payload_view().token_kind(),
+            Some(TokenKind::RParen),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn pattern_caller_close_matrix_preserves_recursive_frontiers_and_composed_bits() {
+    let all_closes = PatternCallerCloses::RPAREN
+        .union(PatternCallerCloses::RBRACKET)
+        .union(PatternCallerCloses::RBRACE);
+    assert_eq!(
+        all_closes,
+        PatternCallerCloses::RBRACE
+            .union(PatternCallerCloses::RPAREN)
+            .union(PatternCallerCloses::RBRACKET)
+    );
+
+    for (
+        source,
+        caller_closes,
+        owner_kind,
+        close,
+        green_text,
+        expected_owner_missing,
+        expected_total_missing,
+    ) in [
+        (
+            "[x | ) tail",
+            PatternCallerCloses::RPAREN,
+            SyntaxKind::ListPattern,
+            TokenKind::RParen,
+            "[x |",
+            1,
+            2,
+        ),
+        (
+            "[.. ) tail",
+            PatternCallerCloses::RPAREN,
+            SyntaxKind::ListPattern,
+            TokenKind::RParen,
+            "[..",
+            1,
+            2,
+        ),
+        (
+            "[.. } tail",
+            PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACE),
+            SyntaxKind::ListPattern,
+            TokenKind::RBrace,
+            "[..",
+            1,
+            2,
+        ),
+        (
+            "[(x ] ] tail",
+            PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACKET),
+            SyntaxKind::ListPattern,
+            TokenKind::RBracket,
+            "[(x ]",
+            0,
+            1,
+        ),
+        (
+            "{.. ) tail",
+            PatternCallerCloses::RPAREN,
+            SyntaxKind::RecordPattern,
+            TokenKind::RParen,
+            "{..",
+            1,
+            2,
+        ),
+        (
+            "{field: ) tail",
+            PatternCallerCloses::RPAREN,
+            SyntaxKind::RecordPattern,
+            TokenKind::RParen,
+            "{field:",
+            1,
+            2,
+        ),
+        (
+            "{field: ] tail",
+            PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACKET),
+            SyntaxKind::RecordPattern,
+            TokenKind::RBracket,
+            "{field:",
+            1,
+            2,
+        ),
+        (
+            "{field: (x } } tail",
+            PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACE),
+            SyntaxKind::RecordPattern,
+            TokenKind::RBrace,
+            "{field: (x }",
+            0,
+            1,
+        ),
+    ] {
+        let (green, exit, _, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), green_text, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::Missing),
+            expected_total_missing,
+            "{source:?}"
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        let owner = SyntaxNode::new_root(green.clone())
+            .descendants()
+            .find(|node| node.kind() == owner_kind)
+            .expect("Pattern delimiter owner");
+        assert_eq!(
+            owner
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            expected_owner_missing,
+            "{source:?}"
+        );
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("composed caller close must remain pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(close), "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
+}
+
+#[test]
+fn pattern_caller_closes_map_to_annotation_type_without_leaking_other_stops() {
+    let source = "x: '[A) tail";
+    let (green, exit, completion, remainder) = run_required_pattern_with_context(
+        source,
+        0,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::RPAREN,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "x: '[A");
+    assert_eq!(remainder, " tail");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 0);
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+        panic!("annotation Type must return the Pattern caller close")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RParen));
+
+    let source = "x: ) tail";
+    let (green, exit, _, remainder) = run_required_pattern_with_context(
+        source,
+        0,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::RPAREN,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "x:");
+    assert_eq!(remainder, " tail");
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1);
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+        panic!("missing annotation Type must preserve the caller close")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RParen));
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
+
+    for source in ["[x: T]", "{x = 1}"] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            PATTERN_STOP_COLON | PATTERN_STOP_EQUALS,
+            PatternMandatorySlotPolicy::default(),
+            PatternCallerCloses::NONE,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert!(
+            matches!(exit, NormalizedExit::Complete(Err(Either::Right(_)), _)),
+            "{source:?}"
+        );
+    }
+
+    let source = "(a]";
+    let (green, _, completion, remainder) = run_required_pattern_with_context(
+        source,
+        0,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    assert_eq!(completion, PatternCompletion::Incomplete);
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 1);
+}
+
+#[test]
+fn pattern_annotation_type_caller_close_matrix_preserves_pending_leading() {
+    for (source, caller_closes, close, green_text) in [
+        (
+            "x: '[A ) tail",
+            PatternCallerCloses::RPAREN,
+            TokenKind::RParen,
+            "x: '[A",
+        ),
+        (
+            "x: (A ] tail",
+            PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACKET),
+            TokenKind::RBracket,
+            "x: (A",
+        ),
+        (
+            "x: '[A } tail",
+            PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACE),
+            TokenKind::RBrace,
+            "x: '[A",
+        ),
+    ] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), green_text, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("annotation Type caller close must remain pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(close), "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
+}
+
+#[test]
+fn pattern_annotation_named_record_type_preserves_caller_close_frontiers() {
+    for (source, green_text, expected_missing) in [
+        ("x: { ) tail", "x: {", 1),
+        ("x: {field ) tail", "x: {field", 2),
+        ("x: {field: ) tail", "x: {field:", 2),
+    ] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            PatternCallerCloses::RPAREN,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), green_text, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::Missing),
+            expected_missing,
+            "{source:?}"
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("named-record Type caller close must remain pending: {source:?}")
+        };
+        assert_eq!(
+            item.payload_view().token_kind(),
+            Some(TokenKind::RParen),
+            "{source:?}"
+        );
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
+}
+
+#[test]
+fn pattern_annotation_named_record_type_owns_its_first_same_kind_close() {
+    for (source, green_text, field_kinds) in [
+        (
+            "x: {field } } tail",
+            "x: {field }",
+            vec![
+                SyntaxKind::Identifier,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Missing,
+            ],
+        ),
+        (
+            "x: {field: } } tail",
+            "x: {field: }",
+            vec![
+                SyntaxKind::Identifier,
+                SyntaxKind::Colon,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Missing,
+            ],
+        ),
+    ] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACE),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), green_text, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+
+        let root = SyntaxNode::new_root(green.clone());
+        let field = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .expect("annotation named-record field");
+        assert_eq!(
+            field
+                .children_with_tokens()
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            field_kinds,
+            "{source:?}"
+        );
+        let record = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordType)
+            .expect("annotation named-record Type");
+        assert_eq!(
+            record.last_token().map(|token| token.kind()),
+            Some(SyntaxKind::RBrace),
+            "{source:?}"
+        );
+
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("outer caller close must remain pending: {source:?}")
+        };
+        assert_eq!(
+            item.payload_view().token_kind(),
+            Some(TokenKind::RBrace),
+            "{source:?}"
+        );
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
 }
 
 #[test]

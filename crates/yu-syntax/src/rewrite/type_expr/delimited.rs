@@ -59,7 +59,9 @@ pub(super) fn type_delimited_normalized(
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
-    item.emit_all_remaining_leading(&mut *i.state);
+    if token_kind(&item) == Some(close) || !is_explicit_type_caller_close(&item, caller_stops) {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     if owner == TypeDelimitedOwner::BracketRow && item.payload_view().is_eof() {
         item = missing_type_item(i.rb(), item);
         return complete(missing_bracket_row_close(i, item, baseline), line_entry);
@@ -491,4 +493,11 @@ fn type_after_separator_normalized(
         next.emit_all_remaining_leading(&mut *i.state);
     }
     Ok((next, item_origin, line_entry))
+}
+
+pub(super) fn is_explicit_type_caller_close(item: &Item, caller_stops: Stops) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+    ) && is_type_caller_boundary(item, caller_stops)
 }

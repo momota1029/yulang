@@ -702,6 +702,19 @@ green。allocation/state/replay/traversal追加はなくtiming measurementは不
 caller-right-close capability、その後にisolated direct Cast shellである。A+B closure時に一度だけfull
 `cargo test -p yu-syntax`を実行する。
 
+2026-09-06: Cast Pattern prerequisite Sub-gate Bを完了した。sealed
+`PatternCallerCloses`はactual `RParen | RBracket | RBrace`だけを運び、owner自身のmatching closeを
+最優先、その次にcarried caller closeをsame Item/leadingのまま返し、その後だけ既存recoveryへ進む。
+capabilityは一般`PatternStops`から導出せず、explicit `union`でCast-local closeとambient closeを合成する。
+alternation、List/Record item・spread・nested field、Pattern annotation内TypeExpressionへthreadし、Type
+delimiter/recordのleading emission frontierもown-close-firstへ揃えた。既存entryは`NONE` wrapperのままで、
+standalone `(a]`などの既存所有は不変。M2 compiler/recovery・specification reviewでは初回にcapability
+composition、recursive frontier、三close evidence matrix、同種`RBrace` owner priorityを検出し、二回の
+bounded repair/delta review後にclean。focused Pattern 22件、TypeExpression 50件、`cargo check -p
+yu-syntax`、scoped rustfmt、diff check、A+B closureのfull `cargo test -p yu-syntax` 1140 passed / 0 failed /
+2 ignoredがgreen。固定bit/scalar transportだけでperformance measurementは不要。次はisolated direct Cast
+shellであり、typed recovery/full Gate 6 certification、L6/L7/Yumark/public cutoverは未完である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
