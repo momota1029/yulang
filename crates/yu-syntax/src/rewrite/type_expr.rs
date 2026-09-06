@@ -55,6 +55,7 @@ impl TypeOuterBoundary {
     pub(super) const EQUALS: Self = Self(1 << 4);
     pub(super) const PIPE: Self = Self(1 << 5);
     pub(super) const STRUCT_BODY: Self = Self(1 << 6);
+    pub(super) const VARIANT_BODY: Self = Self(1 << 7);
 
     pub(super) const fn with(self, other: Self) -> Self {
         Self(self.0 | other.0)
@@ -2148,6 +2149,14 @@ fn is_fresh_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) 
             _ => {}
         }
     }
+    if outer_boundary.contains(TypeOuterBoundary::VARIANT_BODY)
+        && matches!(
+            token_kind(item),
+            Some(TokenKind::LBrace | TokenKind::Colon | TokenKind::Semicolon)
+        )
+    {
+        return true;
+    }
     is_type_outer_boundary(item, outer_boundary)
 }
 
@@ -2205,6 +2214,14 @@ fn is_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> boo
         && matches!(
             token_kind(item),
             Some(TokenKind::LBrace | TokenKind::LParen | TokenKind::Colon | TokenKind::Semicolon)
+        )
+    {
+        return true;
+    }
+    if outer_boundary.contains(TypeOuterBoundary::VARIANT_BODY)
+        && matches!(
+            token_kind(item),
+            Some(TokenKind::LBrace | TokenKind::Colon | TokenKind::Semicolon)
         )
     {
         return true;

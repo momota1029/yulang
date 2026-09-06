@@ -16,6 +16,7 @@ use super::{
     lexer::{
         introduced_body_indentation_normalized, scan_exact_pipe, scan_identifier, scan_type_payload,
     },
+    operator::STOP_WITH,
     struct_decl::{FieldList, FieldOuterClose, declaration_fields_normalized},
     type_expr::{TypeOuterBoundary, required_variant_payload_type_normalized},
     yumark::FenceBoundary,
@@ -64,6 +65,7 @@ pub(super) fn declaration_variant_sequence_normalized(
     mut i: RewriteIn,
     form: VariantSequenceForm,
     introducer: Item,
+    yield_with: bool,
     declaration_baseline: usize,
     stops: Stops,
     item_origin: usize,
@@ -105,6 +107,7 @@ pub(super) fn declaration_variant_sequence_normalized(
         i,
         form,
         item,
+        yield_with,
         sequence_baseline,
         stops,
         item_origin,
@@ -125,6 +128,7 @@ fn drive_variant_sequence(
     mut i: RewriteIn,
     form: VariantSequenceForm,
     mut item: Item,
+    yield_with: bool,
     sequence_baseline: usize,
     stops: Stops,
     mut item_origin: usize,
@@ -151,6 +155,13 @@ fn drive_variant_sequence(
 
         if sequence_ends(i.rb(), form, &item, sequence_baseline, stops) {
             finish_incomplete_sequence(&mut i, form, slot);
+            return complete(handoff(item), line_entry);
+        }
+
+        if yields_with(form, yield_with, &item, sequence_baseline) {
+            if slot == Slot::Initial || slot == Slot::Required {
+                emit_missing_variant(&mut i);
+            }
             return complete(handoff(item), line_entry);
         }
 
@@ -194,6 +205,7 @@ fn drive_variant_sequence(
             i.rb(),
             item,
             form,
+            yield_with,
             sequence_baseline,
             stops,
             item_origin,
@@ -231,6 +243,9 @@ fn sequence_ends(
     stops: Stops,
 ) -> bool {
     if is_active_stop(i.rb(), item, stops) {
+        return true;
+    }
+    if stops & STOP_WITH != 0 && is_exact_with(item) {
         return true;
     }
     if matches!(
@@ -272,6 +287,7 @@ fn parse_variant(
     mut i: RewriteIn,
     mut item: Item,
     form: VariantSequenceForm,
+    yield_with: bool,
     sequence_baseline: usize,
     stops: Stops,
     mut item_origin: usize,
@@ -290,7 +306,7 @@ fn parse_variant(
                 variant_item_normalized(i.rb(), item_origin, line_entry, fence);
             if item.payload_view().is_boundary()
                 || item.payload_view().is_eof()
-                || is_variant_boundary(i.rb(), form, &item, sequence_baseline, stops)
+                || is_variant_boundary(i.rb(), form, yield_with, &item, sequence_baseline, stops)
             {
                 i.state.finish_node();
                 i.state.finish_node();
@@ -317,7 +333,9 @@ fn parse_variant(
         item.emit_remaining(&mut *i.state, SyntaxKind::FromKw);
         (item, item_origin, line_entry) =
             variant_item_normalized(i.rb(), item_origin, line_entry, fence);
-        if !item.payload_view().is_boundary() {
+        if !item.payload_view().is_boundary()
+            && !yields_with(form, yield_with, &item, sequence_baseline)
+        {
             item.emit_all_remaining_leading(&mut *i.state);
         }
         let parsed = parse_payload_type(
@@ -326,6 +344,7 @@ fn parse_variant(
             sequence_baseline,
             false,
             form.allows_pipe(),
+            yield_with && form == VariantSequenceForm::EqualsInline,
             item_origin,
             line_entry,
             fence,
@@ -386,7 +405,9 @@ fn parse_variant(
         };
     }
 
-    while positional_payload_candidate(form, &item, sequence_baseline) {
+    while !yields_with(form, yield_with, &item, sequence_baseline)
+        && positional_payload_candidate(form, &item, sequence_baseline)
+    {
         item.emit_all_remaining_leading(&mut *i.state);
         let parsed = parse_payload_type(
             i.rb(),
@@ -394,6 +415,7 @@ fn parse_variant(
             sequence_baseline,
             true,
             form.allows_pipe(),
+            yield_with && form == VariantSequenceForm::EqualsInline,
             item_origin,
             line_entry,
             fence,
@@ -441,6 +463,7 @@ fn parse_payload_type(
     baseline: usize,
     type_ml: bool,
     pipe_boundary: bool,
+    with_boundary: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -451,11 +474,16 @@ fn parse_payload_type(
         primary,
         baseline,
         type_ml,
-        if pipe_boundary {
+        (if pipe_boundary {
             TypeOuterBoundary::PIPE
         } else {
             TypeOuterBoundary::NONE
-        },
+        })
+        .with(if with_boundary {
+            TypeOuterBoundary::WITH
+        } else {
+            TypeOuterBoundary::NONE
+        }),
         item_origin,
         line_entry,
         fence,
@@ -488,14 +516,30 @@ fn parse_payload_type(
 fn is_variant_boundary(
     i: RewriteIn,
     form: VariantSequenceForm,
+    yield_with: bool,
     item: &Item,
     baseline: usize,
     stops: Stops,
 ) -> bool {
     sequence_ends(i, form, item, baseline, stops)
+        || yields_with(form, yield_with, item, baseline)
         || is_implicit_separator(form, item, baseline)
         || token_kind(item) == Some(TokenKind::Pipe) && form.allows_pipe()
         || token_kind(item) == Some(TokenKind::Comma) && form.allows_comma()
+}
+
+fn yields_with(form: VariantSequenceForm, enabled: bool, item: &Item, baseline: usize) -> bool {
+    enabled
+        && form == VariantSequenceForm::EqualsInline
+        && item.leading_view().has_ordinary_trivia()
+        && indentation_after_newline(item.leading_view())
+            .is_none_or(|indentation| indentation > baseline)
+        && is_exact_with(item)
+}
+
+fn is_exact_with(item: &Item) -> bool {
+    item.payload_view().token_kind() == Some(TokenKind::Identifier)
+        && item.payload_view().spelling() == Some("with")
 }
 
 fn is_raw_variant_name(item: &Item) -> bool {
@@ -560,6 +604,7 @@ pub(super) fn declaration_variant_sequence_witness(
             i,
             form,
             introducer,
+            false,
             baseline,
             0,
             item_origin,

@@ -14,6 +14,8 @@ use super::{
     declaration_variant::{VariantSequenceForm, declaration_variant_sequence_witness},
     driver::{Either, NormalizedExit, TailExit, expr, expr_normalized, token_kind},
     emit::emit_end,
+    enum_decl::enum_declaration_witness,
+    error_decl::error_declaration_witness,
     item::{Item, OperatorUse, PhysicalLeadingTrivia, TokenKind, Trivia, TriviaKind},
     operator::{STOP_ARROW, STOP_COLON, STOP_ELSE, scan_operator, stops_for},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_normalized, pattern_with_stops},
@@ -29,6 +31,8 @@ mod case_like;
 mod declaration_companion;
 mod declaration_variant;
 mod derives;
+mod enum_decl;
+mod error_decl;
 mod for_statement;
 mod if_expr;
 mod lexical;
@@ -211,6 +215,56 @@ fn run_declaration_companion<'source>(
         line_entry,
         fence,
     )
+}
+
+fn run_enum_declaration<'source>(
+    source: &'source str,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = enum_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        caller_stops,
+        super::statement::StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_error_declaration<'source>(
+    source: &'source str,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = error_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        caller_stops,
+        super::statement::StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
 }
 
 #[allow(clippy::too_many_arguments)]

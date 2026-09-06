@@ -15,6 +15,8 @@ mod delimited;
 mod derives;
 mod driver;
 mod emit;
+mod enum_decl;
+mod error_decl;
 mod for_decl;
 mod if_expr;
 mod item;
