@@ -1,6 +1,6 @@
 # Successor typed output and recovery amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-06
 
@@ -10,6 +10,10 @@ rollback, frozen-header reconciliation, and ordered public cutover
 Drafted-by: architect
 
 Reviewed-by: compiler_referee, spec_auditor, performance_auditor
+
+Approved-by: user
+
+Approved-at: 2026-09-06
 
 Supersedes: `2026-09-03-yu-syntax-minimal-rewrite-token-transaction-amendment.md`
 only for the narrow conflicts declared in §1

@@ -781,6 +781,11 @@ entrypoint removal、borrowed frozen sliceの`O(F) + O(1)/record`を閉じた。
 timing measurementはない。現在の唯一のblockerはuser approvalであり、承認後の次gateはO1 output
 shell。承認前にcompiler実装やpublic cutoverへ進まない。
 
+2026-09-06: ユーザがsuccessor typed-output/recovery amendmentを承認した。設計statusを
+`Authoritative`へ移し、O0 authority gateを完了。次はO1 output shellであり、single
+`RewriteOutput`へ既存Rowan builderを包み、全builder操作をforwarding surface経由へ移す一方、CSTと
+recovery node形状はbyte-identicalに保つ。typed recovery publicationそのものはO2まで開始しない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
