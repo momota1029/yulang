@@ -4,7 +4,6 @@
 //! boundaries, and accepted trivia own every retained byte.
 
 use chasa_recover::In;
-use rowan::GreenNodeBuilder;
 
 mod act_decl;
 mod binding;
@@ -27,6 +26,7 @@ mod lexer;
 mod literal;
 mod mod_decl;
 mod operator;
+mod output;
 mod pattern;
 mod role_decl;
 mod rule;
@@ -49,7 +49,7 @@ type RewriteIn<'a, 'source, 'recover, 'operators, 'builder> = In<
     'a,
     &'source str,
     &'recover mut state::Recover<'operators>,
-    &'builder mut GreenNodeBuilder<'static>,
+    &'builder mut output::RewriteOutput,
 >;
 
 type LexIn<'a, 'source, 'recover, 'operators> =

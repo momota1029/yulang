@@ -48,7 +48,7 @@ fn pending_word_tokens(
     };
     assert_eq!(item.payload_view().spelling(), Some(word));
 
-    let mut builder = rowan::GreenNodeBuilder::new();
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     item.emit_all_remaining_leading(&mut builder);
     item.emit_payload(&mut builder, SyntaxKind::Identifier);

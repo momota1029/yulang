@@ -1,13 +1,12 @@
 //! Direct Rowan emission for already-accepted rewrite items.
 
-use rowan::GreenNodeBuilder;
-
 use crate::syntax_kind::SyntaxKind;
 
 use super::{
     RewriteIn,
     driver::End,
     item::{Item, LeadingTrivia, TokenKind},
+    output::RewriteOutput,
 };
 
 pub(super) fn emit_identifier_core(i: &mut RewriteIn, item: Item) {
@@ -107,16 +106,16 @@ pub(super) fn emit_error_item(i: &mut RewriteIn, item: Item) {
 }
 
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
-pub(super) fn emit_end(builder: &mut GreenNodeBuilder<'static>, end: &mut End) {
-    end.item.emit_eof_leading(builder);
+pub(super) fn emit_end(output: &mut RewriteOutput, end: &mut End) {
+    end.item.emit_eof_leading(output);
 }
 
 fn emit_trivia(i: &mut RewriteIn, trivia: &LeadingTrivia) {
     emit_trivia_builder(&mut *i.state, trivia);
 }
 
-fn emit_trivia_builder(builder: &mut GreenNodeBuilder<'static>, trivia: &LeadingTrivia) {
-    trivia.emit(builder);
+fn emit_trivia_builder(output: &mut RewriteOutput, trivia: &LeadingTrivia) {
+    trivia.emit(output);
 }
 
 fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {

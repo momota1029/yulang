@@ -1,5 +1,7 @@
 use chasa_recover::In;
-use rowan::{GreenNode, GreenNodeBuilder};
+use rowan::GreenNode;
+
+use super::output::RewriteOutput as GreenNodeBuilder;
 
 use crate::{
     SyntaxKind, SyntaxNode,
@@ -47,6 +49,7 @@ mod literal;
 mod mod_decl;
 mod normalized;
 mod operators;
+mod output;
 mod owners;
 mod pattern;
 mod role_decl;

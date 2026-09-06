@@ -1,5 +1,4 @@
 use chasa_recover::In;
-use rowan::GreenNodeBuilder;
 
 use crate::{SyntaxKind, SyntaxNode, operator::OperatorTable};
 
@@ -12,6 +11,7 @@ use super::super::{
         PhysicalLeadingTrivia, StopKind, Token, TokenKind, TriviaKind,
     },
     lexer::scan_statement_item,
+    output::RewriteOutput as GreenNodeBuilder,
     state::Recover,
     yumark::{
         FenceBoundary, FenceLineDecision, FenceOpener, FencePrefixPolicy, QuoteTransitionKind,

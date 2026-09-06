@@ -1,6 +1,6 @@
-use rowan::GreenNodeBuilder;
-
 use crate::{operator::BindingPower, syntax_kind::SyntaxKind};
+
+use super::output::RewriteOutput;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(super) struct LeadingTrivia(Box<[Trivia]>);
@@ -61,9 +61,9 @@ impl LeadingTrivia {
         saw_newline.then_some(indentation)
     }
 
-    pub(super) fn emit(&self, builder: &mut GreenNodeBuilder<'static>) {
+    pub(super) fn emit(&self, output: &mut RewriteOutput) {
         for part in &self.0 {
-            builder.token(trivia_syntax_kind(part.kind).into(), &part.text);
+            output.token(trivia_syntax_kind(part.kind).into(), &part.text);
         }
     }
 
@@ -605,55 +605,48 @@ impl Item {
         }
     }
 
-    pub(super) fn emit_all_remaining_leading(&mut self, builder: &mut GreenNodeBuilder<'static>) {
+    pub(super) fn emit_all_remaining_leading(&mut self, output: &mut RewriteOutput) {
         assert!(!self.payload_view().is_boundary());
-        self.emit_leading_range(builder, self.physical_leading.len(), |_, _| {});
+        self.emit_leading_range(output, self.physical_leading.len(), |_, _| {});
     }
 
     pub(super) fn emit_leading_prefix_with(
         &mut self,
-        builder: &mut GreenNodeBuilder<'static>,
+        output: &mut RewriteOutput,
         end_part: usize,
-        before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder<'static>),
+        before_part: impl FnMut(TriviaKind, &mut RewriteOutput),
     ) {
         assert!(!self.payload_view().is_boundary());
-        self.emit_leading_range(builder, end_part, before_part);
+        self.emit_leading_range(output, end_part, before_part);
     }
 
-    pub(super) fn emit_payload(self, builder: &mut GreenNodeBuilder<'static>, kind: SyntaxKind) {
+    pub(super) fn emit_payload(self, output: &mut RewriteOutput, kind: SyntaxKind) {
         assert_eq!(self.first_unemitted_leading, self.physical_leading.len());
         let mut cursor = self.payload_fragment_cursor();
-        self.emit_payload_with_cursor(builder, kind, &mut cursor);
+        self.emit_payload_with_cursor(output, kind, &mut cursor);
     }
 
-    pub(super) fn emit_remaining(
-        mut self,
-        builder: &mut GreenNodeBuilder<'static>,
-        payload_kind: SyntaxKind,
-    ) {
+    pub(super) fn emit_remaining(mut self, output: &mut RewriteOutput, payload_kind: SyntaxKind) {
         assert!(payload_text(&self.payload).is_some());
         let mut cursor = self.fragment_cursor();
         self.emit_leading_range_with_cursor(
-            builder,
+            output,
             self.physical_leading.len(),
             |_, _| {},
             &mut cursor,
         );
-        self.emit_payload_with_cursor(builder, payload_kind, &mut cursor);
+        self.emit_payload_with_cursor(output, payload_kind, &mut cursor);
     }
 
-    pub(super) fn emit_eof_leading(&mut self, builder: &mut GreenNodeBuilder<'static>) {
+    pub(super) fn emit_eof_leading(&mut self, output: &mut RewriteOutput) {
         assert!(self.payload_view().is_eof());
-        self.emit_leading_range(builder, self.physical_leading.len(), |_, _| {});
+        self.emit_leading_range(output, self.physical_leading.len(), |_, _| {});
     }
 
-    pub(super) fn emit_terminal_boundary(
-        mut self,
-        builder: &mut GreenNodeBuilder<'static>,
-    ) -> PendingBoundary {
+    pub(super) fn emit_terminal_boundary(mut self, output: &mut RewriteOutput) -> PendingBoundary {
         assert_eq!(self.first_unemitted_leading, 0);
         assert!(self.payload_view().is_boundary());
-        self.emit_leading_range_unchecked(builder, self.physical_leading.len(), |_, _| {});
+        self.emit_leading_range_unchecked(output, self.physical_leading.len(), |_, _| {});
         match self.payload {
             Payload::Boundary(boundary) => boundary,
             Payload::Token(_) | Payload::Operator(_) | Payload::Eof => unreachable!(),
@@ -662,38 +655,38 @@ impl Item {
 
     fn emit_leading_range(
         &mut self,
-        builder: &mut GreenNodeBuilder<'static>,
+        output: &mut RewriteOutput,
         end_part: usize,
-        before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder<'static>),
+        before_part: impl FnMut(TriviaKind, &mut RewriteOutput),
     ) {
         assert!(!self.payload_view().is_boundary());
-        self.emit_leading_range_unchecked(builder, end_part, before_part);
+        self.emit_leading_range_unchecked(output, end_part, before_part);
     }
 
     fn emit_leading_range_unchecked(
         &mut self,
-        builder: &mut GreenNodeBuilder<'static>,
+        output: &mut RewriteOutput,
         end_part: usize,
-        before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder<'static>),
+        before_part: impl FnMut(TriviaKind, &mut RewriteOutput),
     ) {
         let mut cursor = self.fragment_cursor();
-        self.emit_leading_range_with_cursor(builder, end_part, before_part, &mut cursor);
+        self.emit_leading_range_with_cursor(output, end_part, before_part, &mut cursor);
     }
 
     fn emit_leading_range_with_cursor(
         &mut self,
-        builder: &mut GreenNodeBuilder<'static>,
+        output: &mut RewriteOutput,
         end_part: usize,
-        mut before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder<'static>),
+        mut before_part: impl FnMut(TriviaKind, &mut RewriteOutput),
         cursor: &mut Option<FragmentCursor>,
     ) {
         assert!(end_part >= self.first_unemitted_leading);
         assert!(end_part <= self.physical_leading.len());
         for index in self.first_unemitted_leading..end_part {
             let part = &self.physical_leading[index];
-            before_part(part.kind, builder);
+            before_part(part.kind, output);
             emit_physical_text(
-                builder,
+                output,
                 self.fragments.as_ref(),
                 cursor,
                 trivia_syntax_kind(part.kind),
@@ -705,12 +698,12 @@ impl Item {
 
     fn emit_payload_with_cursor(
         &self,
-        builder: &mut GreenNodeBuilder<'static>,
+        output: &mut RewriteOutput,
         kind: SyntaxKind,
         cursor: &mut Option<FragmentCursor>,
     ) {
         let (_, text) = payload_text(&self.payload).expect("a lexical Item has payload text");
-        emit_physical_text(builder, self.fragments.as_ref(), cursor, kind, text);
+        emit_physical_text(output, self.fragments.as_ref(), cursor, kind, text);
     }
 
     fn fragment_cursor(&self) -> Option<FragmentCursor> {
@@ -870,7 +863,7 @@ struct FragmentCursor {
 }
 
 fn emit_physical_text(
-    builder: &mut GreenNodeBuilder<'static>,
+    output: &mut RewriteOutput,
     fragments: Option<&PendingFragments>,
     cursor: &mut Option<FragmentCursor>,
     ordinary: SyntaxKind,
@@ -878,7 +871,7 @@ fn emit_physical_text(
 ) {
     let Some(fragments) = fragments else {
         debug_assert!(cursor.is_none());
-        builder.token(ordinary.into(), text);
+        output.token(ordinary.into(), text);
         return;
     };
     let cursor = cursor
@@ -895,7 +888,7 @@ fn emit_physical_text(
         cursor.split_index += 1;
     }
     emit_fragmented_part(
-        builder,
+        output,
         ordinary,
         part_start,
         text,
@@ -905,7 +898,7 @@ fn emit_physical_text(
 }
 
 fn emit_fragmented_part(
-    builder: &mut GreenNodeBuilder<'static>,
+    output: &mut RewriteOutput,
     ordinary: SyntaxKind,
     physical_start: usize,
     text: &str,
@@ -916,15 +909,15 @@ fn emit_fragmented_part(
         let start = split.offset - physical_start;
         let end = start + split.length;
         if cursor < start {
-            builder.token(ordinary.into(), &text[cursor..start]);
+            output.token(ordinary.into(), &text[cursor..start]);
         }
         let kind = match split.kind {
             ForeignKind::YmQuotePrefix => SyntaxKind::YmQuotePrefix,
         };
-        builder.token(kind.into(), &text[start..end]);
+        output.token(kind.into(), &text[start..end]);
         cursor = end;
     }
     if cursor < text.len() {
-        builder.token(ordinary.into(), &text[cursor..]);
+        output.token(ordinary.into(), &text[cursor..]);
     }
 }

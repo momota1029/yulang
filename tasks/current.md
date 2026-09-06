@@ -786,6 +786,17 @@ shell。承認前にcompiler実装やpublic cutoverへ進まない。
 `RewriteOutput`へ既存Rowan builderを包み、全builder操作をforwarding surface経由へ移す一方、CSTと
 recovery node形状はbyte-identicalに保つ。typed recovery publicationそのものはO2まで開始しない。
 
+2026-09-07: O1 output shellを完了した。`rewrite/output.rs`のprivate `RewriteOutput`だけが一つの
+`GreenNodeBuilder`を所有し、checkpoint / node start・finish / token emissionを`#[inline]` forwarding
+methodへ限定した。`RewriteIn`、Item/trivia/fragment emit、全isolated harnessを同じshellへ移し、Deref、
+raw builder accessor、O2 recovery stateは追加していない。23個の`Option`-returning `RewriteIn` entryを
+14 focused rejection witnessと9 source-only/lexical transaction proofへ全列挙し、seeded controlとの完全
+`GreenNode`比較でempty-node mutationも検出する。compiler/recovery・performance reviewは一回のrepairと
+delta review後にclean。producer focused 195件と追加primary output 4件、`cargo check -p yu-syntax`、full
+fmt、diff checkはgreen。full package/workspace suiteはO4/O7 barrierまでdefer、timing budgetは0。次はO2
+evidence kernelであり、typed publication、DiagnosticSequence、ItemExtent、sealed ErrorRunOutput、literal
+vocabularyを追加する。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
