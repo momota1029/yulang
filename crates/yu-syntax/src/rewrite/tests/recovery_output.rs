@@ -5,6 +5,7 @@ use std::{
 };
 
 use chasa_recover::In;
+use reborrow_generic::Reborrow as _;
 
 use crate::{
     SyntaxKind, SyntaxNode,
@@ -22,7 +23,10 @@ use super::super::{
         Boundary, ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary,
         PhysicalLeadingTrivia, StopKind, Token, TokenKind, Trivia,
     },
-    output::{RecoveryDraft, RewriteOutput},
+    output::{
+        RecoveryDraft, RewriteOutput, StructuredRecoverySpec,
+        emit_structured_recovery_error_from_item,
+    },
     rule::rule_item_unexpected_category,
     state::Recover,
     statement::classify_statement_item_normalized,
@@ -90,6 +94,36 @@ fn frozen_record(
         expectations,
         primary_expectation,
     }
+}
+
+fn structured_spec(slot: LiteralRole) -> StructuredRecoverySpec {
+    StructuredRecoverySpec::new(
+        role(slot),
+        UnexpectedCategory::OtherCharacter,
+        ExpectedSyntax::Identifier,
+        ExpectationSources::COMMITTED_RECOVERY_RULE,
+        0,
+    )
+}
+
+fn structured_record(id: u32, slot: LiteralRole, range: Range<usize>) -> CommittedRecoveryRecord {
+    frozen_record(
+        id,
+        slot,
+        RecoveryKind::Error,
+        range.clone(),
+        Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+        Arc::from([expectation(
+            role(slot),
+            ExpectedSyntax::Identifier,
+            range,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+        )]),
+        0,
+    )
 }
 
 fn finish_empty_root(
@@ -368,7 +402,7 @@ fn reconciliation_mismatch_and_overflow_do_not_advance_or_publish() {
     }));
     assert!(mismatch.is_err());
     assert_eq!(output.diagnostic_position(), (None, 0));
-    assert!(output.recoveries().is_empty());
+    assert_eq!(output.recovery_slot_count(), 0);
 
     output.commit_recovery(singleton_draft(
         LiteralRole::StringTerminator,
@@ -389,7 +423,7 @@ fn reconciliation_mismatch_and_overflow_do_not_advance_or_publish() {
     }));
     assert!(overflow.is_err());
     assert_eq!(output.diagnostic_position(), (None, 1));
-    assert_eq!(output.recoveries().len(), 1);
+    assert_eq!(output.recovery_slot_count(), 1);
     let (_, records) = finish_empty_root(output);
     assert_eq!(records[0].id, DiagnosticId(u32::MAX));
 }
@@ -430,6 +464,495 @@ fn reconciliation_rejects_unused_or_invalid_frozen_records() {
         catch_unwind(AssertUnwindSafe(|| RewriteOutput::reconcile(
             std::slice::from_ref(&invalid)
         )))
+        .is_err()
+    );
+}
+
+fn emit_nested_structured_recoveries(output: &mut RewriteOutput<'_>) {
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    output.start_node(SyntaxKind::Root.into());
+    emit_structured_recovery_error_from_item(
+        In::new(&mut input, &mut recover, &mut *output),
+        unknown_item("a"),
+        1,
+        structured_spec(LiteralRole::RuleFieldName),
+        |mut nested, primary| {
+            primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+            emit_recovery_missing(nested.rb(), LeadingTrivia::default(), 1, |range| {
+                singleton_draft(
+                    LiteralRole::RuleCaptureRightItem,
+                    RecoveryKind::Missing,
+                    range,
+                    Arc::from([]),
+                    ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                )
+            });
+            emit_structured_recovery_error_from_item(
+                nested.rb(),
+                unknown_item("b"),
+                2,
+                structured_spec(LiteralRole::RulePathName),
+                |inner, primary| {
+                    primary.emit_remaining(&mut *inner.state, SyntaxKind::Unknown);
+                    ((), 2)
+                },
+            );
+            nested.state.token(SyntaxKind::Unknown.into(), "c");
+            ((), 3)
+        },
+    );
+    output.finish_node();
+}
+
+#[test]
+fn structured_reservations_preserve_fresh_and_frozen_order_through_nested_publication() {
+    let mut fresh = RewriteOutput::new();
+    assert_eq!(fresh.recovery_capacity(), 0);
+    emit_nested_structured_recoveries(&mut fresh);
+    let (green, records) = fresh.finish_with_recoveries();
+    assert_eq!(green.to_string(), "abc");
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        2
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    assert_eq!(
+        records.iter().map(|record| record.id).collect::<Vec<_>>(),
+        [DiagnosticId(0), DiagnosticId(1), DiagnosticId(2)]
+    );
+    assert_eq!(
+        records
+            .iter()
+            .filter(|record| record.kind == RecoveryKind::Error)
+            .count(),
+        2
+    );
+    assert_eq!(
+        records[0],
+        structured_record(0, LiteralRole::RuleFieldName, 0..3)
+    );
+    assert_eq!(records[1].site.range, 1..1);
+    assert_eq!(records[1].kind, RecoveryKind::Missing);
+    assert_eq!(
+        records[2],
+        structured_record(2, LiteralRole::RulePathName, 1..2)
+    );
+
+    let frozen = [
+        structured_record(9, LiteralRole::RuleFieldName, 0..3),
+        frozen_record(
+            4,
+            LiteralRole::RuleCaptureRightItem,
+            RecoveryKind::Missing,
+            1..1,
+            Arc::from([]),
+            Arc::from([expectation(
+                role(LiteralRole::RuleCaptureRightItem),
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                1..1,
+                ExpectationSources::COMMITTED_RECOVERY_RULE,
+            )]),
+            0,
+        ),
+        structured_record(12, LiteralRole::RulePathName, 1..2),
+    ];
+    let mut reconciled = RewriteOutput::reconcile(&frozen);
+    emit_nested_structured_recoveries(&mut reconciled);
+    let (_, records) = reconciled.finish_with_recoveries();
+    assert_eq!(records, frozen);
+}
+
+#[test]
+fn structured_reservation_allocates_after_empty_and_exhausted_frozen_sequences() {
+    let (_, valid_records) = finish_empty_root(RewriteOutput::new());
+    assert!(valid_records.is_empty());
+    assert_eq!(valid_records.capacity(), 0);
+
+    let empty: [CommittedRecoveryRecord; 0] = [];
+    let mut output = RewriteOutput::reconcile(&empty);
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    output.start_node(SyntaxKind::Root.into());
+    emit_structured_recovery_error_from_item(
+        In::new(&mut input, &mut recover, &mut output),
+        unknown_item("x"),
+        1,
+        structured_spec(LiteralRole::RuleFieldName),
+        |nested, primary| {
+            primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+            ((), 1)
+        },
+    );
+    output.finish_node();
+    let (_, records) = output.finish_with_recoveries();
+    assert_eq!(
+        records,
+        [structured_record(0, LiteralRole::RuleFieldName, 0..1)]
+    );
+
+    let frozen = [frozen_record(
+        7,
+        LiteralRole::RuleCaptureRightItem,
+        RecoveryKind::Missing,
+        0..0,
+        Arc::from([]),
+        Arc::from([expectation(
+            role(LiteralRole::RuleCaptureRightItem),
+            ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            0..0,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+        )]),
+        0,
+    )];
+    let mut output = RewriteOutput::reconcile(&frozen);
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    output.start_node(SyntaxKind::Root.into());
+    emit_recovery_missing(
+        In::new(&mut input, &mut recover, &mut output),
+        LeadingTrivia::default(),
+        0,
+        |range| {
+            singleton_draft(
+                LiteralRole::RuleCaptureRightItem,
+                RecoveryKind::Missing,
+                range,
+                Arc::from([]),
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            )
+        },
+    );
+    emit_structured_recovery_error_from_item(
+        In::new(&mut input, &mut recover, &mut output),
+        unknown_item("a"),
+        2,
+        structured_spec(LiteralRole::RuleFieldName),
+        |mut outer, primary| {
+            primary.emit_remaining(&mut *outer.state, SyntaxKind::Unknown);
+            emit_recovery_missing(outer.rb(), LeadingTrivia::default(), 2, |range| {
+                singleton_draft(
+                    LiteralRole::RuleCaptureRightItem,
+                    RecoveryKind::Missing,
+                    range,
+                    Arc::from([]),
+                    ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                )
+            });
+            emit_structured_recovery_error_from_item(
+                outer.rb(),
+                unknown_item("b"),
+                3,
+                structured_spec(LiteralRole::RulePathName),
+                |inner, primary| {
+                    primary.emit_remaining(&mut *inner.state, SyntaxKind::Unknown);
+                    ((), 3)
+                },
+            );
+            outer.state.token(SyntaxKind::Unknown.into(), "c");
+            ((), 4)
+        },
+    );
+    output.finish_node();
+    let (_, records) = output.finish_with_recoveries();
+    assert_eq!(
+        records.iter().map(|record| record.id).collect::<Vec<_>>(),
+        [
+            DiagnosticId(7),
+            DiagnosticId(8),
+            DiagnosticId(9),
+            DiagnosticId(10)
+        ]
+    );
+    assert_eq!(records[1].site.range, 1..4);
+    assert_eq!(records[2].site.range, 2..2);
+    assert_eq!(records[3].site.range, 2..3);
+}
+
+#[test]
+fn structured_item_start_and_token_delta_exclude_prior_and_preemitted_bytes() {
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    output.token(SyntaxKind::Identifier.into(), "seed");
+    emit_structured_recovery_error_from_item(
+        In::new(&mut input, &mut recover, &mut output),
+        unknown_item("x"),
+        11,
+        structured_spec(LiteralRole::RuleFieldName),
+        |nested, primary| {
+            primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+            ((), 11)
+        },
+    );
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), "seedx");
+    assert_eq!(
+        records,
+        [structured_record(0, LiteralRole::RuleFieldName, 10..11)]
+    );
+
+    let origin = 20;
+    let comment = "/*a\n> b*/";
+    let payload = "β\r\n> q";
+    let payload_start = origin + comment.len() + 1;
+    let successor = payload_start + payload.len();
+    let mut primary = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![
+                Trivia::block_comment(comment.into()),
+                Trivia::whitespace(" ".into()),
+            ]
+            .into_boxed_slice(),
+        )),
+        Payload::Token(Token {
+            kind: TokenKind::Unknown,
+            text: payload.into(),
+        }),
+        Some(vec![
+            ForeignSplit::quote_prefix(origin + "/*a\n".len(), 2),
+            ForeignSplit::quote_prefix(payload_start + "β\r\n".len(), 2),
+        ]),
+        origin,
+    )
+    .unwrap();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    primary.emit_all_remaining_leading(&mut output);
+    emit_structured_recovery_error_from_item(
+        In::new(&mut input, &mut recover, &mut output),
+        primary,
+        successor,
+        structured_spec(LiteralRole::RulePathName),
+        |nested, primary| {
+            primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+            ((), successor)
+        },
+    );
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), format!("{comment} {payload}"));
+    let root = SyntaxNode::new_root(green);
+    let error = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .unwrap();
+    assert_eq!(error.to_string(), payload);
+    assert_eq!(
+        error
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Unknown, "β\r\n".into()),
+            (SyntaxKind::YmQuotePrefix, "> ".into()),
+            (SyntaxKind::Unknown, "q".into()),
+        ]
+    );
+    assert_eq!(
+        records,
+        [structured_record(
+            0,
+            LiteralRole::RulePathName,
+            payload_start..successor,
+        )]
+    );
+}
+
+#[test]
+fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_failures() {
+    let wrong_role = [structured_record(3, LiteralRole::RuleFieldName, 0..1)];
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| {
+            let mut output = RewriteOutput::reconcile(&wrong_role);
+            let operators = OperatorTable::empty();
+            let mut input = "";
+            let mut recover = Recover::new(&operators);
+            emit_structured_recovery_error_from_item(
+                In::new(&mut input, &mut recover, &mut output),
+                unknown_item("x"),
+                1,
+                structured_spec(LiteralRole::RulePathName),
+                |_, _| ((), 1),
+            );
+        }))
+        .is_err()
+    );
+
+    for frozen in [
+        None,
+        Some(structured_record(5, LiteralRole::RuleFieldName, 0..2)),
+    ] {
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                let frozen_storage = frozen.into_iter().collect::<Vec<_>>();
+                let mut output = if frozen_storage.is_empty() {
+                    RewriteOutput::new()
+                } else {
+                    RewriteOutput::reconcile(&frozen_storage)
+                };
+                let operators = OperatorTable::empty();
+                let mut input = "";
+                let mut recover = Recover::new(&operators);
+                emit_structured_recovery_error_from_item(
+                    In::new(&mut input, &mut recover, &mut output),
+                    unknown_item("x"),
+                    1,
+                    structured_spec(LiteralRole::RuleFieldName),
+                    |nested, primary| {
+                        primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+                        ((), 2)
+                    },
+                );
+            }))
+            .is_err()
+        );
+    }
+
+    let wrong_end = [structured_record(5, LiteralRole::RuleFieldName, 0..2)];
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| {
+            let mut output = RewriteOutput::reconcile(&wrong_end);
+            let operators = OperatorTable::empty();
+            let mut input = "";
+            let mut recover = Recover::new(&operators);
+            emit_structured_recovery_error_from_item(
+                In::new(&mut input, &mut recover, &mut output),
+                unknown_item("x"),
+                1,
+                structured_spec(LiteralRole::RuleFieldName),
+                |nested, primary| {
+                    primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+                    ((), 1)
+                },
+            );
+        }))
+        .is_err()
+    );
+
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| {
+            let mut output = RewriteOutput::new();
+            let operators = OperatorTable::empty();
+            let mut input = "";
+            let mut recover = Recover::new(&operators);
+            let primary = Item::plain(
+                LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+                Payload::Token(Token {
+                    kind: TokenKind::Unknown,
+                    text: "x".into(),
+                }),
+            );
+            emit_structured_recovery_error_from_item(
+                In::new(&mut input, &mut recover, &mut output),
+                primary,
+                2,
+                structured_spec(LiteralRole::RuleFieldName),
+                |_, _| ((), 2),
+            );
+        }))
+        .is_err()
+    );
+
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| {
+            let mut output = RewriteOutput::new();
+            output.violate_structured_lifo_for_test(
+                unknown_item("a"),
+                1,
+                structured_spec(LiteralRole::RuleFieldName),
+                unknown_item("b"),
+                2,
+                structured_spec(LiteralRole::RulePathName),
+                2,
+            );
+        }))
+        .is_err()
+    );
+
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| {
+            let mut output = RewriteOutput::new();
+            output.start_node(SyntaxKind::Root.into());
+            output.finish_node();
+            output.leave_structured_unfinished_for_test(
+                unknown_item("x"),
+                1,
+                structured_spec(LiteralRole::RuleFieldName),
+            );
+            output.finish_with_recoveries();
+        }))
+        .is_err()
+    );
+
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| {
+            let mut output = RewriteOutput::new();
+            let operators = OperatorTable::empty();
+            let mut input = "";
+            let mut recover = Recover::new(&operators);
+            emit_structured_recovery_error_from_item(
+                In::new(&mut input, &mut recover, &mut output),
+                unknown_item("x"),
+                1,
+                structured_spec(LiteralRole::RuleFieldName),
+                |_, _| ((), 0),
+            );
+        }))
+        .is_err()
+    );
+
+    let maximum = [frozen_record(
+        u32::MAX,
+        LiteralRole::RuleCaptureRightItem,
+        RecoveryKind::Missing,
+        0..0,
+        Arc::from([]),
+        Arc::from([expectation(
+            role(LiteralRole::RuleCaptureRightItem),
+            ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            0..0,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+        )]),
+        0,
+    )];
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| {
+            let mut output = RewriteOutput::reconcile(&maximum);
+            output.commit_recovery(singleton_draft(
+                LiteralRole::RuleCaptureRightItem,
+                RecoveryKind::Missing,
+                0..0,
+                Arc::from([]),
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            ));
+            let operators = OperatorTable::empty();
+            let mut input = "";
+            let mut recover = Recover::new(&operators);
+            emit_structured_recovery_error_from_item(
+                In::new(&mut input, &mut recover, &mut output),
+                unknown_item("x"),
+                2,
+                structured_spec(LiteralRole::RuleFieldName),
+                |_, _| ((), 2),
+            );
+        }))
         .is_err()
     );
 }
@@ -786,7 +1309,7 @@ fn rejected_branch_preserves_tree_records_id_cursor_input_and_item() {
     assert_eq!(input, "tail");
     assert_eq!(item, control_item);
     assert_eq!(output.diagnostic_position(), before);
-    assert_eq!(output.recoveries().len(), 1);
+    assert_eq!(output.recovery_slot_count(), 1);
     output.finish_node();
     let (green, records) = output.finish_with_recoveries();
     assert_eq!(green, seeded_root());

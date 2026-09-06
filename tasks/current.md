@@ -833,6 +833,26 @@ recovery-only ordered slot protocolと最初のPV callerをuserが承認する�
 output prerequisiteと最初のnarrow PV O3a construction checkpointを開始できる。既存のO3a Type/PV migration、
 O4 joint certification、public dispatchはこの承認だけでは完了扱いにしない。
 
+2026-09-07: output prerequisiteのcompiler/recovery delta reviewで、structured Errorのcaller-supplied
+rangeを実emitted extentへ独立照合しない欠陥を発見した。承認済みreservation amendmentを書き換えず、
+`2026-09-07-successor-structured-recovery-extent-validation-addendum.md`へcounter、sealed Item-derived
+start、exact emitted-byte deltaだけを狭く記録した。M3 compiler/recovery・specification・performance
+delta reviewはclean、timing budgetは0。現在はuser approval待ちであり、output prerequisiteのcommitと
+PV caller移行は保留する。
+
+2026-09-07: ユーザがextent-validation addendumを承認した。counter、sealed Item-derived start、
+exact emitted-byte deltaのscopeだけを`Authoritative`へ移し、output prerequisiteの検証・commitを
+再開できる。PV caller移行、広いType/PV owner migration、public dispatchはこの承認に含めない。
+
+2026-09-07: structured-recovery output prerequisiteを完了した。`RewriteOutput`はordered
+`Reserved`/`Complete` slot、borrowed frozen record、fresh/frozen ID reservation、O(1) LIFO active link、
+consuming final extractionをprivateに保持する。extent-validation addendumに従い、sole token forwarderの
+checked byte counter、Item-derived start seal、nested exact emitted-byte delta照合を追加した。producerの
+17 recovery-output / 4 output tests、`cargo check -p yu-syntax`、full fmt、diff checkはgreen。
+compiler/recovery・specification・performance delta reviewはclean、timing budgetは0。broad suiteはO4/O7まで
+defer。次は一つだけのPV wrong-kind tag-name callerをこのprivate helperへ移すnarrow O3a checkpointであり、
+public dispatchには触れない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

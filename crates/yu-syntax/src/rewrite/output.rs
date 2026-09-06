@@ -2,12 +2,18 @@
 
 use std::sync::Arc;
 
+use reborrow_generic::Reborrow as _;
 use rowan::{Checkpoint, GreenNode, GreenNodeBuilder, SyntaxKind as RowanSyntaxKind};
 
-use crate::session::{
-    CommittedRecoveryRecord, DiagnosticId, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-    UnexpectedSyntax,
+use crate::{
+    session::{
+        CommittedRecoveryRecord, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+    },
+    syntax_kind::SyntaxKind,
 };
+
+use super::{RewriteIn, item::Item};
 
 /// Complete recovery evidence before its diagnostic identity is assigned.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -60,6 +66,124 @@ impl RecoveryDraft {
     }
 }
 
+/// Fields known before a structured Error enters its total nested body.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct StructuredRecoverySpec {
+    role: GrammarRole,
+    unexpected: UnexpectedCategory,
+    expected: ExpectedSyntax,
+    sources: ExpectationSources,
+    primary_expectation: usize,
+}
+
+impl StructuredRecoverySpec {
+    pub(super) fn new(
+        role: GrammarRole,
+        unexpected: UnexpectedCategory,
+        expected: ExpectedSyntax,
+        sources: ExpectationSources,
+        primary_expectation: usize,
+    ) -> Self {
+        assert_eq!(
+            primary_expectation, 0,
+            "the structured singleton expectation is primary"
+        );
+        Self {
+            role,
+            unexpected,
+            expected,
+            sources,
+            primary_expectation,
+        }
+    }
+
+    fn draft(self, start: usize, end: usize) -> RecoveryDraft {
+        assert!(start < end, "a structured Error range is nonempty");
+        let range = start..end;
+        RecoveryDraft::new(
+            RecoverySiteKey {
+                role: self.role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: self.unexpected,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role: self.role,
+                expected: self.expected,
+                range,
+                sources: self.sources,
+            }]),
+            self.primary_expectation,
+        )
+    }
+
+    fn assert_frozen_prefix(self, start: usize, frozen: &CommittedRecoveryRecord) {
+        assert_eq!(frozen.site.role, self.role, "frozen recovery role mismatch");
+        assert_eq!(
+            frozen.kind,
+            RecoveryKind::Error,
+            "frozen recovery kind mismatch"
+        );
+        assert_eq!(
+            frozen.site.range.start, start,
+            "frozen recovery start mismatch"
+        );
+        let [UnexpectedSyntax::Token { range, category }] = &*frozen.unexpected else {
+            panic!("a structured frozen Error requires one Token unexpected fact")
+        };
+        assert_eq!(range.start, start, "frozen unexpected start mismatch");
+        assert_eq!(
+            *category, self.unexpected,
+            "frozen unexpected category mismatch"
+        );
+        let [expectation] = &*frozen.expectations else {
+            panic!("a structured frozen Error requires one expectation")
+        };
+        assert_eq!(
+            expectation.role, self.role,
+            "frozen expectation role mismatch"
+        );
+        assert_eq!(
+            expectation.range.start, start,
+            "frozen expectation start mismatch"
+        );
+        assert_eq!(
+            expectation.expected, self.expected,
+            "frozen expected syntax mismatch"
+        );
+        assert_eq!(
+            expectation.sources, self.sources,
+            "frozen expectation sources mismatch"
+        );
+        assert_eq!(
+            frozen.primary_expectation, self.primary_expectation,
+            "frozen primary expectation mismatch"
+        );
+    }
+}
+
+enum RecoverySlot<'frozen> {
+    Reserved(StructuredReservation<'frozen>),
+    Complete(CommittedRecoveryRecord),
+}
+
+struct StructuredReservation<'frozen> {
+    id: DiagnosticId,
+    frozen: Option<&'frozen CommittedRecoveryRecord>,
+    spec: StructuredRecoverySpec,
+    start: usize,
+    emitted_token_bytes: usize,
+    previous_active: Option<usize>,
+}
+
+/// Private affine identity retained inside the structured output helper.
+struct StructuredReservationToken {
+    slot: usize,
+}
+
 enum DiagnosticSequence<'frozen> {
     Fresh {
         next_id: Option<u32>,
@@ -87,12 +211,16 @@ impl DiagnosticSequence<'_> {
             return draft.into_record(id);
         }
 
+        draft.into_record(self.allocate_fresh())
+    }
+
+    fn allocate_fresh(&mut self) -> DiagnosticId {
         let next_id = match self {
             Self::Fresh { next_id } | Self::Reconcile { next_id, .. } => next_id,
         };
         let raw = next_id.expect("diagnostic ID overflow");
         *next_id = raw.checked_add(1);
-        draft.into_record(DiagnosticId(raw))
+        DiagnosticId(raw)
     }
 
     fn finish(&self) {
@@ -136,6 +264,22 @@ impl<'frozen> DiagnosticSequence<'frozen> {
             next_id: maximum.map_or(Some(0), |id| id.checked_add(1)),
         }
     }
+
+    fn reserve_structured(
+        &mut self,
+        start: usize,
+        spec: StructuredRecoverySpec,
+    ) -> (DiagnosticId, Option<&'frozen CommittedRecoveryRecord>) {
+        if let Self::Reconcile { frozen, cursor, .. } = self
+            && let Some(expected) = frozen.get(*cursor)
+        {
+            spec.assert_frozen_prefix(start, expected);
+            let id = expected.id;
+            *cursor += 1;
+            return (id, Some(expected));
+        }
+        (self.allocate_fresh(), None)
+    }
 }
 
 /// The sole mutable CST and committed-recovery output carried by `RewriteIn`.
@@ -144,8 +288,10 @@ impl<'frozen> DiagnosticSequence<'frozen> {
 /// finalization remain responsibilities of the enclosing rewrite harness.
 pub(super) struct RewriteOutput<'frozen> {
     builder: GreenNodeBuilder<'static>,
-    recoveries: Vec<CommittedRecoveryRecord>,
+    recoveries: Vec<RecoverySlot<'frozen>>,
     diagnostics: DiagnosticSequence<'frozen>,
+    active_structured: Option<usize>,
+    emitted_token_bytes: usize,
 }
 
 impl RewriteOutput<'_> {
@@ -154,6 +300,8 @@ impl RewriteOutput<'_> {
             builder: GreenNodeBuilder::new(),
             recoveries: Vec::new(),
             diagnostics: DiagnosticSequence::fresh(),
+            active_structured: None,
+            emitted_token_bytes: 0,
         }
     }
 
@@ -174,6 +322,10 @@ impl RewriteOutput<'_> {
 
     #[inline]
     pub(super) fn token(&mut self, kind: RowanSyntaxKind, text: &str) {
+        self.emitted_token_bytes = self
+            .emitted_token_bytes
+            .checked_add(text.len())
+            .expect("emitted token byte count overflow");
         self.builder.token(kind, text);
     }
 
@@ -184,7 +336,7 @@ impl RewriteOutput<'_> {
 
     pub(super) fn commit_recovery(&mut self, draft: RecoveryDraft) {
         let record = self.diagnostics.publish(draft);
-        self.recoveries.push(record);
+        self.recoveries.push(RecoverySlot::Complete(record));
     }
 
     pub(super) fn finish(self) -> GreenNode {
@@ -198,12 +350,27 @@ impl RewriteOutput<'_> {
 
     pub(super) fn finish_with_recoveries(self) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
         self.diagnostics.finish();
-        (self.builder.finish(), self.recoveries)
+        assert!(
+            self.active_structured.is_none(),
+            "all structured recovery reservations must be completed"
+        );
+        let mut records = if self.recoveries.is_empty() {
+            Vec::new()
+        } else {
+            Vec::with_capacity(self.recoveries.len())
+        };
+        for slot in self.recoveries {
+            let RecoverySlot::Complete(record) = slot else {
+                panic!("a reserved recovery slot reached final output")
+            };
+            records.push(record);
+        }
+        (self.builder.finish(), records)
     }
 
     #[cfg(test)]
-    pub(super) fn recoveries(&self) -> &[CommittedRecoveryRecord] {
-        &self.recoveries
+    pub(super) fn recovery_slot_count(&self) -> usize {
+        self.recoveries.len()
     }
 
     #[cfg(test)]
@@ -223,8 +390,127 @@ impl<'frozen> RewriteOutput<'frozen> {
             builder: GreenNodeBuilder::new(),
             recoveries: Vec::new(),
             diagnostics: DiagnosticSequence::reconcile(frozen),
+            active_structured: None,
+            emitted_token_bytes: 0,
         }
     }
+}
+
+impl<'frozen> RewriteOutput<'frozen> {
+    fn begin_structured_recovery(
+        &mut self,
+        start: usize,
+        spec: StructuredRecoverySpec,
+    ) -> StructuredReservationToken {
+        let (id, frozen) = self.diagnostics.reserve_structured(start, spec);
+        let slot = self.recoveries.len();
+        self.recoveries
+            .push(RecoverySlot::Reserved(StructuredReservation {
+                id,
+                frozen,
+                spec,
+                start,
+                emitted_token_bytes: self.emitted_token_bytes,
+                previous_active: self.active_structured,
+            }));
+        self.active_structured = Some(slot);
+        StructuredReservationToken { slot }
+    }
+
+    fn complete_structured_recovery(&mut self, token: StructuredReservationToken, end: usize) {
+        assert_eq!(
+            self.active_structured,
+            Some(token.slot),
+            "structured recovery reservations complete in LIFO order"
+        );
+        let RecoverySlot::Reserved(reservation) = &self.recoveries[token.slot] else {
+            panic!("a structured recovery reservation completes exactly once")
+        };
+        let range_bytes = end
+            .checked_sub(reservation.start)
+            .filter(|bytes| *bytes > 0)
+            .expect("a structured Error range is nonempty");
+        let emitted_bytes = self
+            .emitted_token_bytes
+            .checked_sub(reservation.emitted_token_bytes)
+            .expect("structured Error token byte count moved backwards");
+        assert_eq!(
+            emitted_bytes, range_bytes,
+            "structured Error range must equal its emitted token bytes"
+        );
+        let draft = reservation.spec.draft(reservation.start, end);
+        if let Some(frozen) = reservation.frozen {
+            assert_draft_matches_record(&draft, frozen);
+        }
+        let record = draft.into_record(reservation.id);
+        let previous_active = reservation.previous_active;
+        self.recoveries[token.slot] = RecoverySlot::Complete(record);
+        self.active_structured = previous_active;
+    }
+
+    #[cfg(test)]
+    pub(super) fn leave_structured_unfinished_for_test(
+        &mut self,
+        primary: Item,
+        successor_origin: usize,
+        spec: StructuredRecoverySpec,
+    ) {
+        let start = structured_start_from_item(&primary, successor_origin);
+        let _ = self.begin_structured_recovery(start, spec);
+    }
+
+    #[cfg(test)]
+    pub(super) fn violate_structured_lifo_for_test(
+        &mut self,
+        outer_primary: Item,
+        outer_successor_origin: usize,
+        outer_spec: StructuredRecoverySpec,
+        inner_primary: Item,
+        inner_successor_origin: usize,
+        inner_spec: StructuredRecoverySpec,
+        outer_end: usize,
+    ) {
+        let outer_start = structured_start_from_item(&outer_primary, outer_successor_origin);
+        let inner_start = structured_start_from_item(&inner_primary, inner_successor_origin);
+        let outer = self.begin_structured_recovery(outer_start, outer_spec);
+        let _inner = self.begin_structured_recovery(inner_start, inner_spec);
+        self.complete_structured_recovery(outer, outer_end);
+    }
+}
+
+/// Reserves one ordered structured Error before running its total nested body.
+///
+/// The affine reservation token never leaves this output-owning helper. A
+/// panic invalidates the output; a normal return pairs exactly one Error node
+/// with the completed record in its original reserved slot.
+pub(super) fn emit_structured_recovery_error_from_item<R>(
+    mut i: RewriteIn,
+    primary: Item,
+    successor_origin: usize,
+    spec: StructuredRecoverySpec,
+    body: impl FnOnce(RewriteIn, Item) -> (R, usize),
+) -> R {
+    let start = structured_start_from_item(&primary, successor_origin);
+    let reservation = i.state.begin_structured_recovery(start, spec);
+    i.state.start_node(SyntaxKind::Error.into());
+    let (result, end) = body(i.rb(), primary);
+    i.state.finish_node();
+    i.state.complete_structured_recovery(reservation, end);
+    result
+}
+
+fn structured_start_from_item(primary: &Item, successor_origin: usize) -> usize {
+    assert_eq!(
+        primary.leading_view().remaining_physical_parts(),
+        0,
+        "structured PV recovery requires its direct leading to be pre-emitted"
+    );
+    let range = primary.extent(successor_origin).recovery_range();
+    assert!(
+        range.start < range.end,
+        "a structured primary Item is nonempty"
+    );
+    range.start
 }
 
 fn validate_recovery(
