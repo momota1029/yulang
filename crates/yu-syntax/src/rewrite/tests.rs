@@ -9,6 +9,7 @@ use crate::{
 
 use super::{
     RewriteIn, Stops,
+    act_decl::act_declaration_witness,
     current_item::LineEntry,
     declaration_companion::declaration_companion_witness,
     declaration_variant::{VariantSequenceForm, declaration_variant_sequence_witness},
@@ -26,6 +27,7 @@ use super::{
     yumark_cell::{accepted_identifier_statement_witness, yulang_code_cell_witness},
 };
 
+mod act_decl;
 mod binding;
 mod case_like;
 mod declaration_companion;
@@ -230,6 +232,31 @@ fn run_enum_declaration<'source>(
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = enum_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        caller_stops,
+        super::statement::StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_act_declaration<'source>(
+    source: &'source str,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = act_declaration_witness(
         In::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,

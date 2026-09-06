@@ -6,6 +6,7 @@
 use chasa_recover::In;
 use rowan::GreenNodeBuilder;
 
+mod act_decl;
 mod binding;
 mod case_like;
 mod current_item;

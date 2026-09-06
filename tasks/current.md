@@ -661,8 +661,10 @@ malformed path retryは一つのlocal Errorの後にunchanged `with`を返す。
 Derives predecessorとbody Missing、CRLF/fence、braced/Catch newline、outer remainderをfocused controlsで固定した。M2
 compiler/recovery・specification reviewとdelta reviewは承認。Type 39件、companion 17件、`cargo check -p yu-syntax`、scoped
 rustfmt、diff checkはgreen。ordinary/public/legacy dispatch、state/carrier、allocation、replay/rescanは追加しておらず、性能測定と
-workspace suiteはこのisolated sliceでは行わない。次は同じvertical順のAct sliceであり、public cutover、
-L6/L7/Yumarkは未完である。
+workspace suiteはこのisolated sliceでは行わない。後続のStruct、Enum/Error pair、Actも同じ
+vertical順で完了した。declaration-companionの全private owner sliceは揃ったが、Gate 10のatomic
+public scopeはrewrite Gate 9のfinal-root closureまで維持する。次はGate 6の残るindividual declaration form
+(`Role` / `Impl` / `Cast`)とfinal-root前のcoverage ledger closureであり、L6/L7/Yumark/public cutoverは未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
