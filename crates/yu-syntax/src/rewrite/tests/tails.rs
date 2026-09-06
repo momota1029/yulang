@@ -754,6 +754,122 @@ fn colon_c2_indented_expression_statement_block_preserves_dedent() {
 }
 
 #[test]
+fn dynamic_nuds_are_direct_canonical_statements() {
+    let operators = dynamic_operator_table();
+    for (source, operator_kind) in [
+        ("~x", SyntaxKind::PrefixOperatorUse),
+        ("?", SyntaxKind::NullfixOperatorUse),
+    ] {
+        let (green, exit) = run_statement_with(source, &operators);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            1,
+            "{source:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == operator_kind)
+                .count(),
+            1,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn dynamic_nuds_enter_strict_indented_statement_blocks() {
+    let operators = dynamic_operator_table();
+    for (source, operator_kind) in [
+        ("f:\n  ~x\nz", SyntaxKind::PrefixOperatorUse),
+        ("f:\n  ?\nz", SyntaxKind::NullfixOperatorUse),
+    ] {
+        let (green, exit) = run_with(source, &operators);
+        assert_eq!(green.to_string(), &source[..source.len() - 2], "{source:?}");
+        assert!(
+            matches!(
+                exit,
+                Some(Err(Either::Left(item)))
+                    if item.payload_view().token_kind() == Some(TokenKind::Identifier)
+                        && item.payload_view().spelling() == Some("z")
+            ),
+            "{source:?}",
+        );
+
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .expect("strict indented statement block");
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            1,
+            "{source:?}",
+        );
+        assert_eq!(
+            block
+                .descendants()
+                .filter(|node| node.kind() == operator_kind)
+                .count(),
+            1,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn dynamic_nuds_enter_braced_statement_sequences_and_leave_close_owned() {
+    let operators = dynamic_operator_table();
+    for (source, operator_kind) in [
+        ("{~x}", SyntaxKind::PrefixOperatorUse),
+        ("{?}", SyntaxKind::NullfixOperatorUse),
+    ] {
+        let (green, exit) = run_with(source, &operators);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("braced statement sequence");
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            1,
+            "{source:?}",
+        );
+        assert_eq!(
+            block
+                .descendants()
+                .filter(|node| node.kind() == operator_kind)
+                .count(),
+            1,
+            "{source:?}",
+        );
+        assert_eq!(
+            block
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::RBrace)
+                .count(),
+            1,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
 fn colon_c4_recovers_deep_indented_statement_slots() {
     let (green, exit) = run("f:\n  ");
     assert_eq!(green.to_string(), "f:\n  ");

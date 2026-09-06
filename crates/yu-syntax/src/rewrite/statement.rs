@@ -13,8 +13,8 @@ use super::{
     driver::{
         Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
         continue_normalized_tail, delimited_baseline, expr_from_nud_normalized, handoff,
-        implicit_delimited_newline, indentation_after_newline, is_active_stop, is_separator,
-        is_statement_nud, ordinary_exit, suffix_marker, token_kind,
+        implicit_delimited_newline, indentation_after_newline, is_active_stop, is_nud_item,
+        is_separator, ordinary_exit, suffix_marker, token_kind,
     },
     emit::{emit_missing, emit_token_item},
     for_decl::{for_statement_normalized, for_statement_selected},
@@ -274,7 +274,7 @@ pub(super) fn is_canonical_statement_nud_normalized(
         return false;
     }
     selected_declaration_family(i.rb(), item, baseline, item_origin, fence).is_some()
-        || (!is_binding_visibility(item) && is_statement_nud(item))
+        || (!is_binding_visibility(item) && is_nud_item(item))
 }
 
 #[derive(Clone, Copy)]

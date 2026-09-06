@@ -580,6 +580,14 @@ dead ordinary Derives adapterと二つのordinary malformed-EOF recoveryでError
 direct Type 32件、Derives 4件、normalized 82件、`cargo check -p yu-syntax`、format/diff checkはgreen。
 broad suiteと性能計測は反復していない。N2 temporary normalized-owner frontier ledgerは空である。
 
+2026-09-06: isolated Gate 4–6 constructionの接続漏れを一つ閉じた。canonical Statement admissionは
+normal core / `{}`だけでなく、既存Expression NUDと同じdynamic Prefix / Nullfixも受理する。declaration-first、
+visibility Binding exclusion、boundary-first、既存expression bodyは不変であり、新しいprobe/state/buffer/adapterや
+legacy/public parserへの接続はない。direct Statement、strict indented blockのdedent handoff、braced sequenceの
+matching close ownershipをPrefix / Nullfixそれぞれで固定し、M1 regression reviewはapprovedした。focused tails 14件、
+`cargo check -p yu-syntax`、format/diff checkはgreen。Gate 4/6 certification、typed diagnostics、AST/HIR、
+Yumark、public cutoverは未実施のままである。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
