@@ -1,6 +1,6 @@
 # Successor retry-leading diagnostic-extent amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-07
 
@@ -8,6 +8,10 @@ Drafted-by: primary after T2a implementation-review finding
 
 Reviewed-by: M3 compiler/recovery, specification, and performance review;
 one batched repair and clean delta review on 2026-09-07
+
+Approved-by: user
+
+Approved-at: 2026-09-07
 
 Scope: one recovery-only exception for a mapped malformed Error whose legacy
 diagnostic extent includes same-line leading trivia owned by the valid retry
@@ -228,5 +232,7 @@ source replay, a second builder, a buffered token/event protocol, and changing
 the Gate3b range witness. Each either breaks the Item/CST ownership invariant
 or violates source-free committed-output authority.
 
-No user approval has been recorded. No implementation under this reviewed
-proposal may begin until it has explicit user approval.
+User approved the fifth sealed terminal operation, the retained ArrowRhs
+whole-run evidence convention, and the T2a-only implementation scope on
+2026-09-07. No other owner migration, public dispatch, or legacy cutover is
+authorized by that approval.

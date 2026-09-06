@@ -919,6 +919,11 @@ recovered-path `O(L)` accountingを指摘し、一回のrepair/deltaでcompiler/
 現在の唯一のblockerは、Error CSTを変えずvalid retry Itemのsame-line leadingだけをdiagnostic recordと
 whole-run unexpected factへ含めるfifth sealed terminal operationをuserが承認するかどうかである。
 
+2026-09-07: ユーザがretry-leading diagnostic-extent amendmentを承認した。O2 Error-runへfifth sealed
+terminal operationを追加し、T2a ArrowRhsの二つのMissingと一つのcontiguous Error runを、既存CST/Item
+ownershipを変えずに移行できる。T2b PathSegment、T3–T7/PV1、caller-owned Missing、public dispatch、
+legacy cutoverはこの承認に含めない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
