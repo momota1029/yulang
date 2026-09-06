@@ -67,7 +67,17 @@ fn run_type_declaration_with_handoff(
     let mut i = In::new(&mut source_input, &mut recover, &mut builder);
     let leading = super::super::lexer::scan_trivia(i.rb());
     let intro = super::super::lexer::statement_item_after_trivia(i.rb(), leading, 0, 0);
-    let mut exit = super::super::type_decl::type_declaration(i, intro, 0, 0, line_handoff);
+    let mut exit =
+        super::super::driver::ordinary_exit(super::super::type_decl::type_declaration_normalized(
+            i,
+            intro,
+            0,
+            0,
+            line_handoff,
+            0,
+            super::super::current_item::LineEntry::InLine,
+            None,
+        ));
     if let Err(Either::Right(end)) = &mut exit {
         emit_end(&mut builder, end);
     }
@@ -1614,4 +1624,30 @@ fn type_c15_keeps_active_else_companion_outside_a_completed_clause() {
     let root = SyntaxNode::new_root(green);
     assert_eq!(count(&root, SyntaxKind::IfExpression), 1);
     assert_eq!(count(&root, SyntaxKind::ElseArm), 1);
+}
+
+#[test]
+fn type_error_recovery_owns_ordinary_eof_trailing_trivia() {
+    for source in ["type @ ", "type T @ "] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        let error = declaration
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("malformed Type slot must own one Error");
+        assert_eq!(error.to_string(), "@ ", "{source:?}");
+        let trailing = declaration
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .last()
+            .expect("trailing whitespace token");
+        assert_eq!(trailing.kind(), SyntaxKind::Whitespace, "{source:?}");
+        assert_eq!(trailing.text(), " ", "{source:?}");
+        assert_eq!(
+            trailing.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::Error),
+            "{source:?}",
+        );
+    }
 }

@@ -33,50 +33,157 @@ fn syntax_tokens(green: GreenNode) -> Vec<(SyntaxKind, String)> {
         .collect()
 }
 
-fn deferred_head(source: &str, spelling: &str) {
-    let operators = OperatorTable::empty();
-    let fence = active_fence();
-    let (green, exit, remainder) = run_normalized(
-        source,
-        &operators,
-        100,
-        LineEntry::PhysicalStart,
-        Some(&fence),
-    );
-    let Some(NormalizedExit::Deferred(mut item, LineEntry::InLine)) = exit else {
-        panic!("the distinct owner must be deferred")
-    };
-
-    assert_eq!(green.to_string(), "");
-    assert_eq!(item.payload_view().spelling(), Some(spelling));
-    assert_eq!(remainder, &source["> > ".len() + spelling.len()..]);
-    assert_eq!(
-        emit_pending_leading_tokens(&mut item),
-        [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())]
-    );
-}
-
 #[test]
-fn normalized_statement_defers_only_the_remaining_type_declaration_family() {
+fn normalized_type_declaration_streams_bare_and_visibility_headers() {
     let fence = active_fence();
-    for (source, spelling, remainder) in [
-        ("> > type T = U", "type", " T = U"),
-        ("> > our type T = U", "our", " type T = U"),
+    for (source, accepted, remainder, prefixes, parameters, line_entry) in [
+        (
+            "> > type T _x 'a = U\n> > ```\nouter",
+            "> > type T _x 'a = U",
+            "> > ```\nouter",
+            1,
+            2,
+            LineEntry::PhysicalStart,
+        ),
+        (
+            "> > our\r\n> >   type T = U\r\n> > ```\r\nouter",
+            "> > our\r\n> >   type T = U",
+            "> > ```\r\nouter",
+            2,
+            0,
+            LineEntry::PhysicalStart,
+        ),
     ] {
         let (green, exit, actual_remainder) =
             run_statement_normalized(source, 4100, LineEntry::PhysicalStart, Some(&fence));
-        let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
-            panic!("selected declaration family must defer before Statement: {source:?}")
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), actual_line_entry) = exit else {
+            panic!("the Type owner must stream to the exact fence: {source:?}")
         };
-        assert_eq!(green.to_string(), "", "{source:?}");
-        assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
+        assert!(boundary.payload_view().is_boundary(), "{source:?}");
+        assert_eq!(actual_line_entry, line_entry, "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{source:?}");
         assert_eq!(actual_remainder, remainder, "{source:?}");
         assert_eq!(
-            emit_pending_leading_tokens(&mut item),
-            [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())],
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::YmQuotePrefix)
+                .count(),
+            prefixes,
+            "{source:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                .count(),
+            1,
+            "{source:?}",
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::DeclarationTypeParameterList)
+                .flat_map(|node| node.children_with_tokens())
+                .filter(|element| {
+                    element.as_token().is_some_and(|token| {
+                        matches!(
+                            token.kind(),
+                            SyntaxKind::Identifier | SyntaxKind::SigilIdentifier
+                        )
+                    })
+                })
+                .count(),
+            parameters,
             "{source:?}",
         );
     }
+}
+
+#[test]
+fn normalized_type_declaration_keeps_each_phase_boundary_pending() {
+    let fence = active_fence();
+    for (source, accepted, remainder, missing, line_entry) in [
+        (
+            "> > type\n> > ```\nouter",
+            "> > type",
+            "> > ```\nouter",
+            1,
+            LineEntry::PhysicalStart,
+        ),
+        (
+            "> > type T\n> ]\nouter",
+            "> > type T",
+            "> ]\nouter",
+            0,
+            LineEntry::PhysicalStart,
+        ),
+        (
+            "> > type T =\n> > ```\nouter",
+            "> > type T =",
+            "> > ```\nouter",
+            1,
+            LineEntry::PhysicalStart,
+        ),
+        (
+            "> > type T derives\n> > ```\nouter",
+            "> > type T derives",
+            "> > ```\nouter",
+            1,
+            LineEntry::PhysicalStart,
+        ),
+        (
+            "> > type T derives Role via\n> > ```\nouter",
+            "> > type T derives Role via",
+            "> > ```\nouter",
+            1,
+            LineEntry::PhysicalStart,
+        ),
+        ("> > type T", "> > type T", "", 0, LineEntry::InLine),
+    ] {
+        let (green, exit, actual_remainder) =
+            run_statement_normalized(source, 4175, LineEntry::PhysicalStart, Some(&fence));
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), actual_line_entry) = exit else {
+            panic!("Type phase must return the exact fence boundary: {source:?}")
+        };
+        assert!(boundary.payload_view().is_boundary(), "{source:?}");
+        assert_eq!(actual_line_entry, line_entry, "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), accepted, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn normalized_type_declaration_streams_header_and_trailing_derives() {
+    let fence = active_fence();
+    let accepted = "> > type T derives Role via Header = F derives Trait, Other via Tail";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (green, exit, remainder) =
+        run_statement_normalized(&source, 4225, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+    else {
+        panic!("both Derives episodes must stream through the Type owner")
+    };
+    assert!(boundary.payload_view().is_boundary());
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::DerivesClause)
+            .count(),
+        2
+    );
+    assert!(
+        root.descendants()
+            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+    );
 }
 
 #[test]
@@ -112,24 +219,6 @@ fn normalized_statement_visibility_admission_stops_at_the_fence() {
             .count(),
         1
     );
-
-    for (source, spelling, remainder) in
-        [("> > pub\r\n> >   type T = U", "pub", "\r\n> >   type T = U")]
-    {
-        let (green, exit, actual_remainder) =
-            run_statement_normalized(source, 4450, LineEntry::PhysicalStart, Some(&fence));
-        let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
-            panic!("CRLF visibility admission must select the declaration family: {source:?}")
-        };
-        assert_eq!(green.to_string(), "", "{source:?}");
-        assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
-        assert_eq!(actual_remainder, remainder, "{source:?}");
-        assert_eq!(
-            emit_pending_leading_tokens(&mut item),
-            [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())],
-            "{source:?}",
-        );
-    }
 }
 
 #[test]
@@ -370,13 +459,26 @@ fn normalized_struct_preserves_type_openers_and_successor_frontiers() {
         LineEntry::PhysicalStart,
         Some(&fence),
     );
-    let Some(NormalizedExit::Deferred(mut item, LineEntry::InLine)) = exit else {
-        panic!("Struct completion must preserve the following Type frontier")
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::InLine)) = exit
+    else {
+        panic!("Struct completion must enter the following Type owner")
     };
-    assert_eq!(green.to_string(), "> > {struct S;");
-    assert_eq!(item.payload_view().spelling(), Some("type"));
-    assert_eq!(remainder, " T = U");
-    assert_eq!(emit_pending_leading_text(&mut item), " ");
+    assert!(boundary.payload_view().is_boundary());
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), source);
+    assert_eq!(remainder, "");
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypeDeclaration)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        2
+    );
 }
 
 #[test]
@@ -547,29 +649,18 @@ fn normalized_mod_phase_recovery_stops_before_fence_boundaries() {
 }
 
 #[test]
-fn normalized_mod_closes_before_the_nested_type_frontier() {
+fn normalized_mod_owns_the_nested_type_statement() {
     let fence = active_fence();
-    for (source, accepted, spelling, remainder, pending_leading) in [(
-        "> > mod Outer:\n> >   type T = U",
-        "> > mod Outer:",
-        "type",
-        " T = U",
-        "\n> >   ",
-    )] {
+    for source in ["> > mod Outer:\n> >   type T = U"] {
         let (green, exit, actual_remainder) =
             run_statement_normalized(source, 4520, LineEntry::PhysicalStart, Some(&fence));
-        let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
-            panic!("Mod must propagate its nested declaration frontier: {source:?}")
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::InLine) = exit else {
+            panic!("Mod must enter its nested Type declaration: {source:?}")
         };
+        assert!(boundary.payload_view().is_boundary(), "{source:?}");
         let root = SyntaxNode::new_root(green);
-        assert_eq!(root.to_string(), accepted, "{source:?}");
-        assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
-        assert_eq!(actual_remainder, remainder, "{source:?}");
-        assert_eq!(
-            emit_pending_leading_text(&mut item),
-            pending_leading,
-            "{source:?}"
-        );
+        assert_eq!(root.to_string(), source, "{source:?}");
+        assert_eq!(actual_remainder, "", "{source:?}");
         assert_eq!(
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
@@ -1010,19 +1101,18 @@ fn normalized_for_recovery_and_nested_declaration_stop_at_their_exact_frontiers(
     let source = "> > for x in xs:\n> >   type T = U";
     let (green, exit, remainder) =
         run_statement_normalized(source, origin, LineEntry::PhysicalStart, Some(&fence));
-    let NormalizedExit::Deferred(mut item, LineEntry::InLine) = exit else {
-        panic!("the For owner must propagate its nested declaration frontier")
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::InLine) = exit else {
+        panic!("the For owner must enter its nested Type statement")
     };
-    assert_eq!(green.to_string(), "> > for x in xs:");
-    assert_eq!(item.payload_view().spelling(), Some("type"));
-    assert_eq!(remainder, " T = U");
+    assert!(boundary.payload_view().is_boundary());
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), source);
+    assert_eq!(remainder, "");
     assert_eq!(
-        emit_pending_leading_tokens(&mut item),
-        [
-            (SyntaxKind::Newline, "\n".to_owned()),
-            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
-            (SyntaxKind::Whitespace, "  ".to_owned()),
-        ]
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypeDeclaration)
+            .count(),
+        1
     );
 }
 
@@ -1462,11 +1552,9 @@ fn normalized_use_preserves_final_statement_successors() {
 }
 
 #[test]
-fn normalized_statement_frontier_propagates_through_existing_callers() {
+fn normalized_type_statement_streams_through_existing_callers() {
     let plain = plain_fence();
-    for (source, expected_green, spelling, expected_remainder, fence) in
-        [("x:\n  type T = U", "x:", "type", " T = U", &plain)]
-    {
+    for (source, fence) in [("x:\n  type T = U", &plain)] {
         let operators = OperatorTable::empty();
         let (green, exit, remainder) = run_normalized(
             source,
@@ -1475,13 +1563,14 @@ fn normalized_statement_frontier_propagates_through_existing_callers() {
             LineEntry::PhysicalStart,
             Some(fence),
         );
-        let Some(NormalizedExit::Deferred(item, LineEntry::InLine)) = exit else {
-            panic!("selected child must propagate through its normalized caller: {source:?}")
+        let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::InLine)) = exit
+        else {
+            panic!("the normalized caller must enter its Type child: {source:?}")
         };
+        assert!(boundary.payload_view().is_boundary(), "{source:?}");
         let root = SyntaxNode::new_root(green);
-        assert_eq!(root.to_string(), expected_green, "{source:?}");
-        assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
-        assert_eq!(remainder, expected_remainder, "{source:?}");
+        assert_eq!(root.to_string(), source, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
         assert!(
             root.descendants()
                 .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
@@ -1532,7 +1621,7 @@ fn normalized_statement_hands_close_transition_and_eof_boundaries_up() {
 }
 
 #[test]
-fn normalized_braced_explicit_separator_preserves_the_next_frontier() {
+fn normalized_braced_explicit_separator_enters_the_next_type_statement() {
     let fence = active_fence();
 
     let source = "> > { x; type T = U";
@@ -1544,20 +1633,23 @@ fn normalized_braced_explicit_separator_preserves_the_next_frontier() {
         LineEntry::PhysicalStart,
         Some(&fence),
     );
-    let Some(NormalizedExit::Deferred(mut item, LineEntry::InLine)) = exit else {
-        panic!("the selected statement after `;` must remain an exact deferred Item")
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::InLine)) = exit
+    else {
+        panic!("the statement after `;` must enter its Type owner")
     };
+    assert!(boundary.payload_view().is_boundary());
     let root = SyntaxNode::new_root(green);
-    assert_eq!(root.to_string(), "> > { x;");
-    assert_eq!(item.payload_view().spelling(), Some("type"));
-    assert_eq!(remainder, " T = U");
-    assert_eq!(
-        emit_pending_leading_tokens(&mut item),
-        [(SyntaxKind::Whitespace, " ".to_owned())]
-    );
+    assert_eq!(root.to_string(), source);
+    assert_eq!(remainder, "");
     assert!(
         root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+            .all(|node| node.kind() != SyntaxKind::Error)
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
     );
 
     let source = "> > { x;\n> > ```\nouter";

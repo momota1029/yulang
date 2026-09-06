@@ -6,36 +6,29 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn, Stops,
-    current_item::LineEntry,
-    derives::{derives_clause, is_word},
+    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    derives::{derives_clause_normalized, is_word},
     driver::{
-        Either, TailExit, handoff, implicit_delimited_newline, indentation_after_newline,
-        is_active_stop, token_kind,
+        Either, NormalizedExit, advanced_origin, complete, handoff, implicit_delimited_newline,
+        indentation_after_newline, is_active_stop, suffix_marker, token_kind,
     },
-    emit::{emit_leading_trivia, emit_missing, emit_token_item},
+    emit::{emit_missing, emit_token_item},
     if_expr::{ActiveStatementCompanion, active_statement_companion},
-    item::{Item, LeadingTrivia, Token, TokenKind},
+    item::{Item, LeadingTrivia, TokenKind},
     lexer::{
-        declaration_type_header_item_after_trivia, is_declaration_starter_word,
-        scan_declaration_type_parameter, scan_identifier, scan_trivia, source_identifier,
-        statement_item_after_trivia, type_nud_item_after_trivia,
+        is_declaration_starter_word, scan_declaration_type_parameter, scan_identifier,
+        scan_type_nud_payload, source_identifier,
     },
-    operator::{
-        STOP_SEMICOLON, STOP_WITH, TriviaObservation, observe_fenced_trivia, source_after_trivia,
-    },
+    operator::{STOP_SEMICOLON, STOP_WITH, TriviaObservation, observe_fenced_trivia},
     statement::StatementLineHandoff,
     type_expr::{
         TypeOuterBoundary, is_type_caller_boundary,
-        required_type_expr_with_caller_stops_and_outer_boundary,
+        required_type_expr_with_caller_stops_and_outer_boundary_normalized,
     },
     yumark::FenceBoundary,
 };
 
 type NameResult = Result<Option<Item>, Item>;
-
-pub(super) fn type_declaration_selected(i: RewriteIn, item: &Item, baseline: usize) -> bool {
-    type_declaration_selected_normalized(i, item, baseline, 0, None)
-}
 
 pub(super) fn type_declaration_selected_normalized(
     i: RewriteIn,
@@ -73,39 +66,76 @@ fn prefixed_type_candidate_normalized(
         && source_identifier(observed.source).is_some_and(|(word, _)| word == "type")
 }
 
-pub(super) fn type_declaration(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn type_declaration_normalized(
     mut i: RewriteIn,
     intro: Item,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    debug_assert!(type_declaration_selected(i.rb(), &intro, baseline));
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    debug_assert!(type_declaration_selected_normalized(
+        i.rb(),
+        &intro,
+        baseline,
+        item_origin,
+        fence,
+    ));
     i.state.start_node(SyntaxKind::TypeDeclaration.into());
     if item_word(&intro) == Some("type") {
         emit_intro(&mut i, intro, SyntaxKind::TypeKw);
     } else {
         emit_visibility(&mut i, intro);
-        let accepted = emit_gtype(i.rb(), baseline, true);
-        debug_assert!(accepted);
-        let keyword = i
-            .token(|lex| scan_exact_identifier(lex, "type"))
-            .expect("visibility-led selection proved exact `type`");
-        i.state.token(SyntaxKind::TypeKw.into(), &keyword.text);
+        let (mut keyword, next_origin, next_entry) =
+            type_item_normalized(i.rb(), item_origin, line_entry, fence, true);
+        item_origin = next_origin;
+        line_entry = next_entry;
+        debug_assert!(gtype_item_allowed(&keyword, baseline));
+        debug_assert_eq!(item_word(&keyword), Some("type"));
+        keyword.emit_all_remaining_leading(&mut *i.state);
+        emit_intro(&mut i, keyword, SyntaxKind::TypeKw);
     }
 
-    let exit = if !emit_gtype(i.rb(), baseline, true) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        handoff(scan_pending_item(i.rb(), baseline, stops))
-    } else {
-        match required_name(i.rb(), baseline, stops) {
-            Ok(None) => {
-                parameters(i.rb());
-                definition(i.rb(), None, baseline, stops, line_handoff)
-            }
-            Ok(Some(equals)) => definition(i.rb(), Some(equals), baseline, stops, line_handoff),
-            Err(boundary) => handoff(boundary),
+    let (first, next_origin, next_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence, true);
+    item_origin = next_origin;
+    line_entry = next_entry;
+    let exit = match required_name_normalized(
+        i.rb(),
+        first,
+        baseline,
+        stops,
+        &mut item_origin,
+        &mut line_entry,
+        fence,
+    ) {
+        Ok(None) => {
+            parameters_normalized(i.rb(), &mut item_origin, &mut line_entry, fence);
+            definition_normalized(
+                i.rb(),
+                None,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
+        Ok(Some(equals)) => definition_normalized(
+            i.rb(),
+            Some(equals),
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        Err(boundary) => complete(handoff(boundary), line_entry),
     };
     i.state.finish_node();
     exit
@@ -113,8 +143,30 @@ pub(super) fn type_declaration(
 
 /// `Some(equals)` means the incomplete name slot reached a literal `=` and
 /// the definition/RHS slots may continue without a second name diagnostic.
-fn required_name(mut i: RewriteIn, baseline: usize, stops: Stops) -> NameResult {
-    let item = declaration_type_header_item_after_trivia(i.rb(), LeadingTrivia::default());
+#[allow(clippy::too_many_arguments)]
+fn required_name_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NameResult {
+    if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Err(item);
+    }
+    if item.payload_view().is_eof() {
+        item.emit_eof_leading(&mut *i.state);
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Err(item);
+    }
+    if item.leading_view().is_grammar_empty() || !gtype_item_allowed(&item, baseline) {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return Err(item);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
     if token_kind(&item) == Some(TokenKind::Equals) {
         emit_missing(&mut i, LeadingTrivia::default());
         return Ok(Some(item));
@@ -129,11 +181,22 @@ fn required_name(mut i: RewriteIn, baseline: usize, stops: Stops) -> NameResult 
     }
 
     i.state.start_node(SyntaxKind::Error.into());
-    let mut item = item;
     loop {
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = declaration_type_header_item_after_trivia(i.rb(), leading);
+        let (next, next_origin, next_entry) =
+            type_item_normalized(i.rb(), *item_origin, *line_entry, fence, true);
+        *item_origin = next_origin;
+        *line_entry = next_entry;
+        item = next;
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return Err(item);
+        }
+        if item.payload_view().is_eof() {
+            item.emit_eof_leading(&mut *i.state);
+            i.state.finish_node();
+            return Err(item);
+        }
         if !gtype_item_allowed(&item, baseline) || header_boundary(i.rb(), &item, baseline, stops) {
             i.state.finish_node();
             return Err(item);
@@ -152,29 +215,55 @@ fn required_name(mut i: RewriteIn, baseline: usize, stops: Stops) -> NameResult 
     }
 }
 
-fn parameters(mut i: RewriteIn) {
-    let Some((leading, parameter)) = i.token(scan_parameter) else {
+fn parameters_normalized(
+    mut i: RewriteIn,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) {
+    let Some((parameter, next_origin, next_entry)) =
+        parameter_item_normalized(i.rb(), *item_origin, *line_entry, fence)
+    else {
         return;
     };
+    *item_origin = next_origin;
+    *line_entry = next_entry;
     i.state
         .start_node(SyntaxKind::DeclarationTypeParameterList.into());
-    emit_parameter(&mut i, leading, parameter);
-    while let Some((leading, parameter)) = i.token(scan_parameter) {
-        emit_parameter(&mut i, leading, parameter);
+    emit_parameter(&mut i, parameter);
+    while let Some((parameter, next_origin, next_entry)) =
+        parameter_item_normalized(i.rb(), *item_origin, *line_entry, fence)
+    {
+        *item_origin = next_origin;
+        *line_entry = next_entry;
+        emit_parameter(&mut i, parameter);
     }
     i.state.finish_node();
 }
 
-fn definition(
+#[allow(clippy::too_many_arguments)]
+fn definition_normalized(
     mut i: RewriteIn,
     pending: Option<Item>,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let name_was_incomplete = pending.is_some();
-    let item = pending.unwrap_or_else(|| definition_item(i.rb()));
-    definition_from_item(
+    let item = match pending {
+        Some(item) => item,
+        None => {
+            let (item, next_origin, next_entry) =
+                type_item_normalized(i.rb(), item_origin, line_entry, fence, false);
+            item_origin = next_origin;
+            line_entry = next_entry;
+            item
+        }
+    };
+    definition_from_item_normalized(
         i,
         item,
         name_was_incomplete,
@@ -182,10 +271,14 @@ fn definition(
         baseline,
         stops,
         line_handoff,
+        item_origin,
+        line_entry,
+        fence,
     )
 }
 
-fn definition_from_item(
+#[allow(clippy::too_many_arguments)]
+fn definition_from_item_normalized(
     mut i: RewriteIn,
     mut item: Item,
     name_was_incomplete: bool,
@@ -193,25 +286,45 @@ fn definition_from_item(
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     if !name_was_incomplete
         && derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff)
     {
-        let next = derives_clause(
+        let (next, next_origin, next_entry) = derives_clause_normalized(
             i.rb(),
             item,
             baseline,
             stops,
             line_handoff,
             header_role_boundary(),
+            item_origin,
+            line_entry,
+            fence,
         );
-        return definition_from_item(i, next, false, true, baseline, stops, line_handoff);
+        return definition_from_item_normalized(
+            i,
+            next,
+            false,
+            true,
+            baseline,
+            stops,
+            line_handoff,
+            next_origin,
+            next_entry,
+            fence,
+        );
     }
     if header_clause_seen
         && (is_word(&item, "with") || is_word(&item, "impl"))
         && attachment_gap_continues(i.rb(), &item, baseline, stops, line_handoff)
     {
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     let companion = (!name_was_incomplete)
         .then(|| active_statement_companion(i.rb(), &item, baseline, stops))
@@ -227,13 +340,21 @@ fn definition_from_item(
     ) {
         TypeDeclarationForm::Equality => {
             emit_token_item(&mut i, item);
-            return rhs(i, baseline, stops, line_handoff);
+            return rhs_normalized(
+                i,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
         TypeDeclarationForm::Nominal(boundary) => {
             if boundary.type_owns_leading() {
                 emit_item_leading(&mut i, &mut item);
             }
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         TypeDeclarationForm::EqualityRecovery => {}
     }
@@ -242,126 +363,239 @@ fn definition_from_item(
     }
     if !name_was_incomplete && !gtype_item_allowed(&item, baseline) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if definition_boundary(i.rb(), &item, baseline, stops) {
         emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
+        return complete(handoff(item), line_entry);
     }
     if type_starter(&item) {
         item.emit_all_remaining_leading(&mut *i.state);
         emit_missing(&mut i, LeadingTrivia::default());
-        return rhs_item(i, item, baseline, stops, line_handoff);
+        return rhs_item_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
 
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        let leading = scan_trivia(i.rb());
-        item = type_nud_item_after_trivia(i.rb(), leading);
+        let (next, next_origin, next_entry) =
+            type_item_normalized(i.rb(), item_origin, line_entry, fence, false);
+        item = next;
+        item_origin = next_origin;
+        line_entry = next_entry;
+        if item.payload_view().is_boundary() {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
+        if item.payload_view().is_eof() {
+            item.emit_eof_leading(&mut *i.state);
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if !gtype_item_allowed(&item, baseline)
             || definition_boundary(i.rb(), &item, baseline, stops)
         {
             i.state.finish_node();
-            return handoff(item);
+            return complete(handoff(item), line_entry);
         }
         if token_kind(&item) == Some(TokenKind::Equals) {
             emit_item_leading(&mut i, &mut item);
             i.state.finish_node();
             emit_token_item(&mut i, item);
-            return rhs(i, baseline, stops, line_handoff);
+            return rhs_normalized(
+                i,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
         if type_starter(&item) {
             emit_item_leading(&mut i, &mut item);
             i.state.finish_node();
-            return rhs_item(i, item, baseline, stops, line_handoff);
+            return rhs_item_normalized(
+                i,
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
     }
 }
 
-fn rhs(
+#[allow(clippy::too_many_arguments)]
+fn rhs_normalized(
     mut i: RewriteIn,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    let leading = scan_trivia(i.rb());
-    let mut primary = type_nud_item_after_trivia(i.rb(), leading);
-    let caller_stops = stops | STOP_SEMICOLON | STOP_WITH;
-    if !is_word(&primary, "derives") && !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
-        emit_item_leading(&mut i, &mut primary);
-    }
-    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary(
-        i.rb(),
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let (primary, item_origin, line_entry) =
+        type_item_normalized(i.rb(), item_origin, line_entry, fence, false);
+    rhs_item_normalized(
+        i,
         primary,
         baseline,
-        caller_stops,
-        TypeOuterBoundary::DERIVES,
-    );
-    trailing_after_type(i, exit, baseline, caller_stops, line_handoff)
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn rhs_item(
+#[allow(clippy::too_many_arguments)]
+fn rhs_item_normalized(
     mut i: RewriteIn,
     mut primary: Item,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     let caller_stops = stops | STOP_SEMICOLON | STOP_WITH;
-    if !is_word(&primary, "derives") && !rhs_gap_is_outer_owned(&primary, baseline, caller_stops) {
+    if !primary.payload_view().is_boundary()
+        && !is_word(&primary, "derives")
+        && !rhs_gap_is_outer_owned(&primary, baseline, caller_stops)
+    {
         emit_item_leading(&mut i, &mut primary);
     }
-    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary(
+    let child_entry = suffix_marker(i.rb());
+    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary_normalized(
         i.rb(),
         primary,
         baseline,
         caller_stops,
         TypeOuterBoundary::DERIVES,
+        item_origin,
+        line_entry,
+        fence,
     );
-    trailing_after_type(i, exit, baseline, caller_stops, line_handoff)
+    let item_origin = advanced_origin(item_origin, child_entry, i.rb());
+    trailing_after_type_normalized(
+        i,
+        exit,
+        baseline,
+        caller_stops,
+        line_handoff,
+        item_origin,
+        fence,
+    )
 }
 
-fn trailing_after_type(
-    i: RewriteIn,
-    exit: TailExit,
+#[allow(clippy::too_many_arguments)]
+fn trailing_after_type_normalized(
+    mut i: RewriteIn,
+    exit: NormalizedExit,
     baseline: usize,
     caller_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     match exit {
-        Ok(()) => Ok(()),
-        Err(Either::Left(item)) => {
-            trailing_from_item(i, item, baseline, caller_stops, line_handoff)
+        NormalizedExit::Complete(Ok(()), line_entry) => {
+            let (item, item_origin, line_entry) =
+                type_item_normalized(i.rb(), item_origin, line_entry, fence, false);
+            trailing_from_item_normalized(
+                i,
+                item,
+                baseline,
+                caller_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            )
         }
-        Err(Either::Right(end)) => Err(Either::Right(end)),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
+            trailing_from_item_normalized(
+                i,
+                item,
+                baseline,
+                caller_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            )
+        }
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            trailing_from_item_normalized(
+                i,
+                end.item,
+                baseline,
+                caller_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            )
+        }
+        NormalizedExit::Deferred(_, _) => {
+            unreachable!("normalized TypeExpression does not defer a declaration owner")
+        }
     }
 }
 
-fn trailing_from_item(
+#[allow(clippy::too_many_arguments)]
+fn trailing_from_item_normalized(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
     caller_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> TailExit {
-    if !derives_attachment_start(i.rb(), &item, baseline, caller_stops, line_handoff) {
-        return handoff(item);
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
     }
-    let next = derives_clause(
+    if !derives_attachment_start(i.rb(), &item, baseline, caller_stops, line_handoff) {
+        return complete(handoff(item), line_entry);
+    }
+    let (next, next_origin, next_entry) = derives_clause_normalized(
         i.rb(),
         item,
         baseline,
         caller_stops & !STOP_WITH,
         line_handoff,
         trailing_role_boundary(),
+        item_origin,
+        line_entry,
+        fence,
     );
-    trailing_from_item(i, next, baseline, caller_stops, line_handoff)
-}
-
-fn definition_item(mut i: RewriteIn) -> Item {
-    let leading = scan_trivia(i.rb());
-    type_nud_item_after_trivia(i.rb(), leading)
+    trailing_from_item_normalized(
+        i,
+        next,
+        baseline,
+        caller_stops,
+        line_handoff,
+        next_origin,
+        next_entry,
+        fence,
+    )
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -373,6 +607,7 @@ enum TypeDeclarationForm {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum NominalBoundary {
+    FencedBoundary,
     SameLineTerminal,
     EofOwnedTrivia,
     OrdinaryLayoutNewline,
@@ -400,6 +635,9 @@ fn type_form(
     if name_was_incomplete {
         debug_assert_eq!(token_kind(item), Some(TokenKind::Equals));
         return TypeDeclarationForm::Equality;
+    }
+    if item.payload_view().is_boundary() {
+        return TypeDeclarationForm::Nominal(NominalBoundary::FencedBoundary);
     }
     if companion.is_some() {
         return TypeDeclarationForm::Nominal(NominalBoundary::AmbientCompanion);
@@ -455,7 +693,8 @@ fn derives_attachment_start(
     stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> bool {
-    is_word(item, "derives")
+    !item.payload_view().is_boundary()
+        && is_word(item, "derives")
         && attachment_gap_continues(i.rb(), item, baseline, stops, line_handoff)
 }
 
@@ -466,7 +705,8 @@ fn attachment_gap_continues(
     stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> bool {
-    !is_active_stop(i.rb(), item, stops)
+    !item.payload_view().is_boundary()
+        && !is_active_stop(i.rb(), item, stops)
         && active_statement_companion(i.rb(), item, baseline, stops).is_none()
         && indentation_after_newline(item.leading_view()).is_none_or(|indentation| {
             matches!(line_handoff, StatementLineHandoff::OrdinaryLayout) && indentation > baseline
@@ -488,7 +728,8 @@ fn trailing_role_boundary() -> TypeOuterBoundary {
 }
 
 fn header_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    item.payload_view().is_eof()
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
         || implicit_delimited_newline(baseline, item.leading_view())
         || is_active_stop(i.rb(), item, stops)
         || matches!(
@@ -504,40 +745,22 @@ fn definition_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: St
         })
 }
 
-fn emit_gtype(mut i: RewriteIn, baseline: usize, required: bool) -> bool {
-    let allowed = observes(i.rb(), |source| {
-        let (_, present, indentation) = source_after_trivia(source);
-        (!required || present) && indentation.is_none_or(|indentation| indentation > baseline)
-    });
-    if !allowed {
-        return false;
-    }
-    let trivia = scan_trivia(i.rb());
-    emit_leading_trivia(&mut i, &trivia);
-    true
-}
-
 fn gtype_item_allowed(item: &Item, baseline: usize) -> bool {
     !implicit_delimited_newline(baseline, item.leading_view())
 }
 
-fn scan_parameter(mut i: LexIn) -> Option<(LeadingTrivia, Token)> {
-    let leading = scan_trivia(i.rb());
-    if leading.view().is_grammar_empty() || leading.view().contains_line_break() {
-        return None;
-    }
-    let parameter = scan_declaration_type_parameter(i.rb())?;
-    parameter_spelling(&parameter).then_some((leading, parameter))
-}
-
-fn parameter_spelling(parameter: &Token) -> bool {
-    if parameter.kind == TokenKind::SigilIdentifier {
+fn parameter_spelling(parameter: &Item) -> bool {
+    if token_kind(parameter) == Some(TokenKind::SigilIdentifier) {
         return true;
     }
-    debug_assert_eq!(parameter.kind, TokenKind::Identifier);
-    !is_declaration_starter_word(&parameter.text)
+    debug_assert_eq!(token_kind(parameter), Some(TokenKind::Identifier));
+    let spelling = parameter
+        .payload_view()
+        .spelling()
+        .expect("declaration parameter scanner returns identifiers");
+    !is_declaration_starter_word(spelling)
         && !matches!(
-            &*parameter.text,
+            spelling,
             "for"
                 | "realm"
                 | "band"
@@ -554,14 +777,13 @@ fn parameter_spelling(parameter: &Token) -> bool {
         )
 }
 
-fn emit_parameter(i: &mut RewriteIn, leading: LeadingTrivia, parameter: Token) {
-    emit_leading_trivia(i, &leading);
-    let kind = match parameter.kind {
-        TokenKind::Identifier => SyntaxKind::Identifier,
-        TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
+fn emit_parameter(i: &mut RewriteIn, parameter: Item) {
+    let kind = match token_kind(&parameter) {
+        Some(TokenKind::Identifier) => SyntaxKind::Identifier,
+        Some(TokenKind::SigilIdentifier) => SyntaxKind::SigilIdentifier,
         _ => unreachable!("declaration parameter scanner returns identifiers"),
     };
-    i.state.token(kind.into(), &parameter.text);
+    parameter.emit_remaining(&mut *i.state, kind);
 }
 
 fn type_starter(item: &Item) -> bool {
@@ -585,14 +807,79 @@ fn raw_name(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Identifier)
 }
 
-fn scan_pending_item(mut i: RewriteIn, baseline: usize, stops: Stops) -> Item {
-    let leading = scan_trivia(i.rb());
-    statement_item_after_trivia(i, leading, baseline, stops)
+fn parameter_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<(Item, usize, LineEntry)> {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i.token(|lex| {
+        let current = current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, _, _, _, _| {
+                let parameter = lex.token(scan_declaration_type_parameter)?;
+                Some(AcceptedPayload {
+                    payload: CurrentPayload::Token(parameter),
+                    next_line_entry: LineEntry::InLine,
+                })
+            },
+        )?;
+        (!current.item.payload_view().is_boundary()
+            && !current.item.payload_view().is_eof()
+            && !current.item.leading_view().is_grammar_empty()
+            && !current.item.leading_view().contains_line_break()
+            && parameter_spelling(&current.item))
+        .then_some(current)
+    })?;
+    Some((
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    ))
 }
 
-fn scan_exact_identifier(mut i: LexIn, expected: &str) -> Option<Token> {
-    let token = scan_identifier(i.rb())?;
-    (&*token.text == expected).then_some(token)
+fn type_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    raw_identifier: bool,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |mut lex, leading, origin, fence, _| {
+                    if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
+                        return Some(AcceptedPayload {
+                            payload: CurrentPayload::Token(identifier),
+                            next_line_entry: LineEntry::InLine,
+                        });
+                    }
+                    scan_type_nud_payload(lex, leading, origin, fence)
+                },
+            )
+        })
+        .expect("Type declaration payload scanning is total");
+    (
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    )
 }
 
 fn item_word(item: &Item) -> Option<&str> {

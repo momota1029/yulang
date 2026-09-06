@@ -23,7 +23,7 @@ use super::{
     mod_decl::{mod_declaration_normalized, mod_declaration_selected_normalized},
     operator::stops_for,
     struct_decl::{struct_declaration_normalized, struct_declaration_selected_normalized},
-    type_decl::{type_declaration, type_declaration_selected_normalized},
+    type_decl::{type_declaration_normalized, type_declaration_selected_normalized},
     use_decl::{use_declaration_normalized, use_declaration_selected_normalized},
     yumark::FenceBoundary,
 };
@@ -156,11 +156,8 @@ pub(super) fn canonical_statement_normalized(
         fence,
     ));
     let family = selected_declaration_family(i.rb(), &item, baseline, item_origin, fence);
-    if declaration_family_is_deferred(family, fence) {
-        return NormalizedExit::Deferred(item, line_entry);
-    }
     i.state.start_node(SyntaxKind::Statement.into());
-    let exit = match family {
+    match family {
         Some(DeclarationFamily::Struct) => {
             let exit = struct_declaration_normalized(
                 i.rb(),
@@ -202,7 +199,18 @@ pub(super) fn canonical_statement_normalized(
             return exit;
         }
         Some(DeclarationFamily::Type) => {
-            type_declaration(i.rb(), item, baseline, stops, line_handoff)
+            let exit = type_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            i.state.finish_node();
+            return exit;
         }
         Some(DeclarationFamily::For) => {
             let exit = for_statement_normalized(
@@ -248,9 +256,7 @@ pub(super) fn canonical_statement_normalized(
             i.state.finish_node();
             return exit;
         }
-    };
-    i.state.finish_node();
-    complete(exit, line_entry)
+    }
 }
 
 pub(super) fn is_canonical_statement_nud(i: RewriteIn, item: &Item, baseline: usize) -> bool {
@@ -279,13 +285,6 @@ enum DeclarationFamily {
     Type,
     For,
     Binding,
-}
-
-fn declaration_family_is_deferred(
-    family: Option<DeclarationFamily>,
-    fence: Option<&FenceBoundary>,
-) -> bool {
-    fence.is_some() && matches!(family, Some(DeclarationFamily::Type))
 }
 
 fn selected_declaration_family(
@@ -354,14 +353,7 @@ pub(super) fn indented_statement_block_normalized(
         .filter(|&indentation| indentation > base_indent)
         .expect("C2 admission proved a strictly indented block opening");
 
-    let deferred_child = declaration_family_is_deferred(
-        selected_declaration_family(i.rb(), &item, block_indent, item_origin, fence),
-        fence,
-    );
-
-    if !deferred_child {
-        item.emit_all_remaining_leading(&mut *i.state);
-    }
+    item.emit_all_remaining_leading(&mut *i.state);
     let exit = statement_sequence_normalized(
         i.rb(),
         item,
@@ -459,13 +451,7 @@ pub(super) fn braced_statement_block_normalized(
         return exit;
     }
     let baseline = delimited_baseline(incoming_baseline, item.leading_view());
-    let deferred_child = declaration_family_is_deferred(
-        selected_declaration_family(i.rb(), &item, baseline, item_origin, fence),
-        fence,
-    );
-    if !item.payload_view().is_boundary() && !deferred_child {
-        item.emit_all_remaining_leading(&mut *i.state);
-    }
+    item.emit_all_remaining_leading(&mut *i.state);
     let exit = statement_sequence_normalized(
         i.rb(),
         item,
@@ -606,11 +592,7 @@ fn indented_statement_slot_normalized(
         return complete(handoff(item), line_entry);
     }
     if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
-        let deferred_child = declaration_family_is_deferred(
-            selected_declaration_family(i.rb(), &item, baseline, item_origin, fence),
-            fence,
-        );
-        if !first && !deferred_child {
+        if !first {
             emit_separator_leading(&mut i, &mut item);
         }
         return canonical_statement_normalized(
@@ -753,11 +735,7 @@ fn braced_statement_slot_normalized(
         return braced_terminal_normalized(i, item, line_entry);
     }
     if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
-        let deferred_child = declaration_family_is_deferred(
-            selected_declaration_family(i.rb(), &item, baseline, item_origin, fence),
-            fence,
-        );
-        if !first && !deferred_child && implicit_delimited_newline(baseline, item.leading_view()) {
+        if !first && implicit_delimited_newline(baseline, item.leading_view()) {
             emit_separator_leading(&mut i, &mut item);
         }
         return canonical_statement_normalized(
@@ -844,8 +822,8 @@ fn braced_statement_successor_normalized(
     fence: Option<&FenceBoundary>,
 ) -> Result<(Item, LineEntry, usize), NormalizedExit> {
     match exit {
-        NormalizedExit::Deferred(item, line_entry) => {
-            Err(NormalizedExit::Deferred(item, line_entry))
+        NormalizedExit::Deferred(_, _) => {
+            unreachable!("normalized canonical statements do not defer declaration owners")
         }
         NormalizedExit::Complete(Ok(()), line_entry) => Err(complete(Ok(()), line_entry)),
         NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
@@ -915,12 +893,7 @@ fn braced_explicit_separator_normalized(
     emit_token_item(&mut i, separator);
     let (mut item, item_origin, line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-    let deferred_child = !item.payload_view().is_boundary()
-        && declaration_family_is_deferred(
-            selected_declaration_family(i.rb(), &item, baseline, item_origin, fence),
-            fence,
-        );
-    if !item.payload_view().is_boundary() && !deferred_child {
+    if !item.payload_view().is_boundary() {
         item.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.finish_node();

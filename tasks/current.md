@@ -364,24 +364,16 @@ ledgerは未起票のままである。focused lexical 40件、operator 11件、
 
 ### N2 temporary normalized-owner frontier ledger
 
-以下の各行だけが`None`で既存direct-rewrite childへ入り、`Some(fence)`でそのchildを開く前に
-`Deferred(Item, LineEntry)`を返してよい。全行でfenced controlは同じItem、同じsuffix、同じ
-`LineEntry`、Rowan/recovery無変更を検査する。
+canonical statement normalizationとBinding/For/Use/Mod/Struct/Type owner normalizationにより、
+temporary normalized-owner frontierはすべて削除した。canonical Statement/declaration coneは
+`Some(fence)`でもselected direct childをその場で開き、declaration-family用の
+`Deferred(Item, LineEntry)`を生成しない。visibility headは引き続きpureなfence-aware admission
+observerで選び、`my role A`、`my impl A`など未選択headはordinary同様にhandoffする。
 
-canonical statement normalizationにより旧case/if deeper body、braced、with、colonの五行は削除した。
-Binding/For/Use/Mod/Struct normalizationによりその五行も削除し、active frontierは以下の一行だけである。visibility headを
-一括Deferredせず、pureなfence-aware admission observerが実在するdirect childを選んだ後、`Statement`
-nodeを開く前だけDeferredを生成する。
-`my role A`、`my impl A`など未選択headはordinary同様にhandoffする。
-
-| normalized owner / exact call site | ordinary direct child | exact Deferred propagation | controls | deletion gate |
-| --- | --- | --- | --- | --- |
-| 同 Type dispatch | `type_decl::type_declaration` | 同上 | 同上 | Type declaration normalized owner |
-
-全一行でclose/transition/EOF、boundary-first、未emit leading、Error/Missing/separatorなしを検査する。
-braced ownerがboundaryへ達した場合だけ既存のmandatory missing closeを所有し、indented required first slotも
-既存mandatory Missingだけを所有して、同じboundary Itemを上へ返す。新しいstate/context/cursor/wrapper、
-replay、token bufferは導入しない。
+close/transition/EOFではboundary-firstと未emit leadingを保持する。braced ownerがboundaryへ達した
+場合だけ既存のmandatory missing closeを所有し、indented required first slotも既存mandatory Missingだけを
+所有して、同じboundary Itemを上へ返す。新しいstate/context/cursor/wrapper、replay、token bufferは
+導入しない。Ruleの別系統`Deferred`代数はこのledgerの対象外である。
 
 2026-09-06: N2 Pratt coreをnormalized grammar bodyへ移行した。`expr`/required operand/infix・prefix・suffix/
 ML argument/tailは、call-local `item_origin`、`LineEntry`、`Option<&FenceBoundary>`を直接引き回し、child
@@ -576,6 +568,17 @@ TypeOuterBoundaryを同時に渡すnormalized entryを追加した。ordinary Ty
 outer-only contextual boundary、fresh nested Type entry、raw `via` target、CRLF/prefixおよびfenced close/transition/EOF
 handoffをapprovedした。direct Derives 4件、ordinary C15 15件、`cargo check -p yu-syntax`、format/diff checkはgreen。
 broad suiteと性能計測は反復していない。次gateでType ownerをこのentryへ接続してfinal frontierを削除する。
+
+2026-09-06: final Type ownerを一つのordinary/fenced current-Item bodyへ移行し、canonical Statementの
+Type dispatchを直接接続して最後のdeclaration-family `Deferred` frontierを削除した。visibility、raw name、
+same-line raw parameter、form/retry、mandatory RHS、header/trailing/repeated Derivesとsuccessorはlive
+origin/`LineEntry`/fenceを直接受け、TypeExpressionとDerives childもnormalized entryだけを使う。raw
+`_x` parameter分類、nominal fence handoff、C14 line handoff、C15 outer-only boundaryは保持した。
+independent specification reviewはTD/TND/C14/C15/current-Item contractをapprovedした。regression reviewが
+dead ordinary Derives adapterと二つのordinary malformed-EOF recoveryでError外へ落ちるtrailing whitespaceを
+検出し、adapter削除とError内EOF-leading emission、CST parent controlsで修復してdelta-approvedとなった。
+direct Type 32件、Derives 4件、normalized 82件、`cargo check -p yu-syntax`、format/diff checkはgreen。
+broad suiteと性能計測は反復していない。N2 temporary normalized-owner frontier ledgerは空である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

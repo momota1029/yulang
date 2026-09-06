@@ -22,31 +22,6 @@ use super::{
     yumark::FenceBoundary,
 };
 
-/// Consume one already-qualified `derives` clause and return its first pending
-/// successor.  The Type owner alone decides whether that successor starts a
-/// repeated clause or belongs to the declaration form/outer statement.
-pub(super) fn derives_clause(
-    i: RewriteIn,
-    keyword: Item,
-    baseline: usize,
-    caller_stops: Stops,
-    line_handoff: StatementLineHandoff,
-    role_boundary: TypeOuterBoundary,
-) -> Item {
-    derives_clause_normalized(
-        i,
-        keyword,
-        baseline,
-        caller_stops,
-        line_handoff,
-        role_boundary,
-        0,
-        LineEntry::InLine,
-        None,
-    )
-    .0
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn derives_clause_normalized(
     mut i: RewriteIn,
