@@ -771,6 +771,16 @@ literal/private Gate-6 construction checkpointは完了したが、E/RB-E/P/RB-P
 certificationは未完。次はsuccessor typed-output/recovery topologyのM3設計・user approvalであり、承認前に
 実装やpublic/legacy cutoverへ進まない。
 
+2026-09-06: `notes/design/2026-09-06-successor-typed-output-recovery-amendment.md`へ、successorの
+single `RewriteOutput`、committed-only typed recovery、immediate coordinate range derivation、unit-mark
+rollback、sequential frozen-header reconciliation、O0–O7 cutoverを`Reviewed`提案として記録した。M3の
+compiler/recovery・specification・performance reviewを3 rounds以内で完了し、fallible entryの
+pre-accept effect-free contract、existing fragment intervalの非recovery authority、sealed
+`ErrorRunOutput`、single SCC migration、literal 16 slotの完全record mapping、mandatory Gate 9 obsolete
+entrypoint removal、borrowed frozen sliceの`O(F) + O(1)/record`を閉じた。文書差分以外のcode/test変更と
+timing measurementはない。現在の唯一のblockerはuser approvalであり、承認後の次gateはO1 output
+shell。承認前にcompiler実装やpublic cutoverへ進まない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
