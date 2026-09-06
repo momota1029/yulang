@@ -643,6 +643,14 @@ approved。companion 16件、Derives 4件、normalized 82件、`cargo check -p y
 ordinary/public edge、allocation、Vec/clone/cache/replay/rescan/ambient stateは追加していない。次はGate 5 typed episode
 handoffであり、declaration shell/public cutover/L6/L7/Yumarkは未完である。
 
+2026-09-06: Gate 5--9のhorizontal stagingがdirect rewriteの実装実体と矛盾することをarchitecture/specification auditで
+確定した。Type/Derivesとisolated variant coreだけがdirect側にあり、Act/Enum/Error ownerは未構築であるため、literalな
+Gate 5完了にはdetached carrier/test-only adapter/placeholderが必要になる。ユーザは推奨案を承認し、
+`2026-09-06-direct-declaration-companion-vertical-slices-amendment.md`をAuthoritativeとした。private direct routeだけを
+Type → Struct → Enum/Error pair → Actのvertical sliceへ再順序化する。各concrete ownerは既存outer-only `WITH`から
+unchanged pending Itemを即時に消費またはouter Statementへ返し、general carrier/new NormalizedExit/state/placeholderは
+作らない。companion addendum §§3--12とGate 10 atomic public scopeは不変である。次はType Header/Equality handoff slice。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
