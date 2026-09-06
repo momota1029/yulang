@@ -904,6 +904,21 @@ malformed pathのみでvalid pathのallocation/traversal/asymptotic changeなし
 満たしtimingは0のまま。O4/O7 broad suite、T2–T7/PV1、caller-owned Missing、public dispatch、legacy
 cutoverは未実施である。
 
+2026-09-07: T2a ArrowRhsのimplementation preflight/reviewで、Gate3b witness `A ->@ B`が
+`Type(ArrowRhs)` Error `4..6`を要求する一方、O2 sealed Error-runはError CSTへemitしたsegmentだけから
+rangeを導き、valid retry `B`が所有する同一行spaceをErrorへ移せないcapability mismatchを発見した。
+synthetic range、retry leadingのCST移動、Item split/source replayはいずれも既存authorityに反するため不採用。
+ArrowRhs candidateはcommitせず`51d3d033`へtargeted restoration済みである。
+`2026-09-07-successor-retry-leading-diagnostic-extent-amendment.md`に、retry Itemを借用のみしてrecord extentだけを
+contiguous same-line leadingまで拡張するfifth sealed Error-run operationのProposed designを記録した。これは
+durable output decisionなので、M3 compiler/spec/performance reviewとuser approvalまでT2a codeを再開しない。
+abstract PendingBoundary Missingは既存§5どおりcoordinateを使う別の明確な修正であり、このproposalが承認されても
+T2b PathSegment、T3–T7/PV1、caller-owned Missing、public dispatch、legacy cutoverはscope外である。
+M3 reviewはinitialでwhole-run unexpected evidence、sealed eligibility/terminality、embedded/fence evidence、
+recovered-path `O(L)` accountingを指摘し、一回のrepair/deltaでcompiler/spec/performanceはcleanとなった。
+現在の唯一のblockerは、Error CSTを変えずvalid retry Itemのsame-line leadingだけをdiagnostic recordと
+whole-run unexpected factへ含めるfifth sealed terminal operationをuserが承認するかどうかである。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
