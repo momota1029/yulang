@@ -20,6 +20,7 @@ use super::{
     item::{Item, OperatorUse, PhysicalLeadingTrivia, TokenKind, Trivia, TriviaKind},
     operator::{STOP_ARROW, STOP_COLON, STOP_ELSE, scan_operator, stops_for},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_normalized, pattern_with_stops},
+    role_decl::role_declaration_witness,
     state::Recover,
     statement::{statement, statement_normalized},
     type_expr::{type_expr, type_expr_normalized},
@@ -44,6 +45,7 @@ mod normalized;
 mod operators;
 mod owners;
 mod pattern;
+mod role_decl;
 mod rule;
 mod struct_decl;
 mod tails;
@@ -257,6 +259,31 @@ fn run_act_declaration<'source>(
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = act_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        caller_stops,
+        super::statement::StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_role_declaration<'source>(
+    source: &'source str,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = role_declaration_witness(
         In::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,

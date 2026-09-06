@@ -663,8 +663,19 @@ compiler/recovery・specification reviewとdelta reviewは承認。Type 39件、
 rustfmt、diff checkはgreen。ordinary/public/legacy dispatch、state/carrier、allocation、replay/rescanは追加しておらず、性能測定と
 workspace suiteはこのisolated sliceでは行わない。後続のStruct、Enum/Error pair、Actも同じ
 vertical順で完了した。declaration-companionの全private owner sliceは揃ったが、Gate 10のatomic
-public scopeはrewrite Gate 9のfinal-root closureまで維持する。次はGate 6の残るindividual declaration form
-(`Role` / `Impl` / `Cast`)とfinal-root前のcoverage ledger closureであり、L6/L7/Yumark/public cutoverは未完である。
+public scopeはrewrite Gate 9のfinal-root closureまで維持する。
+
+2026-09-06: Gate 6のindividual declaration formからprivate direct `RoleDeclaration` isolated CST
+constructionを完了した。exact `role`とvisibility form、full TypeExpression head、semicolon / brace /
+colon-inline / strictly-deeper colon-indented bodyを既存normalized ownerだけで構成し、Role固有wrapper、
+ActのSource/derives/companion、production Statement/root dispatchは追加していない。RLD-Rに従い、fresh
+missing Headは同じbody starterからretryする一方、malformed Headが到達した`;` / `{` / `:`はunchanged
+pending Itemとして返す。matching brace後はsuccessor Itemを一度だけ取得してhandoffし、Head/colon-body
+Missing前のlocal leadingとordinary EOF Error内trivia ownershipも修復した。M2 compiler/recovery・
+specification reviewを二回のbounded repair/delta roundで閉じ、focused Role 14件、`cargo check -p
+yu-syntax`、scoped rustfmt、diff checkはgreen。typed recovery recordsとfull Gate 6 certification、workspace
+suite、timing measurementはこのpreliminary isolated sliceに含めていない。次は残るdirect declaration
+form (`Impl` / `Cast`)とfinal-root前のcoverage ledger closureであり、L6/L7/Yumark/public cutoverは未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

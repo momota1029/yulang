@@ -26,6 +26,7 @@ mod literal;
 mod mod_decl;
 mod operator;
 mod pattern;
+mod role_decl;
 mod rule;
 mod state;
 mod statement;
