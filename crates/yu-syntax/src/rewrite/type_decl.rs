@@ -7,6 +7,7 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     LexIn, RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    declaration_companion::declaration_companion_normalized,
     derives::{derives_clause_normalized, is_word},
     driver::{
         Either, NormalizedExit, advanced_origin, complete, handoff, implicit_delimited_newline,
@@ -19,7 +20,7 @@ use super::{
         is_declaration_starter_word, scan_declaration_type_parameter, scan_identifier,
         scan_type_nud_payload, source_identifier,
     },
-    operator::{STOP_SEMICOLON, STOP_WITH, TriviaObservation, observe_fenced_trivia},
+    operator::{STOP_SEMICOLON, TriviaObservation, observe_fenced_trivia},
     statement::StatementLineHandoff,
     type_expr::{
         TypeOuterBoundary, is_type_caller_boundary,
@@ -267,7 +268,6 @@ fn definition_normalized(
         i,
         item,
         name_was_incomplete,
-        false,
         baseline,
         stops,
         line_handoff,
@@ -282,7 +282,6 @@ fn definition_from_item_normalized(
     mut i: RewriteIn,
     mut item: Item,
     name_was_incomplete: bool,
-    header_clause_seen: bool,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -311,7 +310,6 @@ fn definition_from_item_normalized(
             i,
             next,
             false,
-            true,
             baseline,
             stops,
             line_handoff,
@@ -320,11 +318,24 @@ fn definition_from_item_normalized(
             fence,
         );
     }
-    if header_clause_seen
-        && (is_word(&item, "with") || is_word(&item, "impl"))
+    if !name_was_incomplete
+        && is_word(&item, "impl")
         && attachment_gap_continues(i.rb(), &item, baseline, stops, line_handoff)
     {
         return complete(handoff(item), line_entry);
+    }
+    if !name_was_incomplete
+        && declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff)
+    {
+        return declaration_companion_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
     let companion = (!name_was_incomplete)
         .then(|| active_statement_companion(i.rb(), &item, baseline, stops))
@@ -473,7 +484,7 @@ fn rhs_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    let caller_stops = stops | STOP_SEMICOLON | STOP_WITH;
+    let caller_stops = stops | STOP_SEMICOLON;
     if !primary.payload_view().is_boundary()
         && !is_word(&primary, "derives")
         && !rhs_gap_is_outer_owned(&primary, baseline, caller_stops)
@@ -486,7 +497,7 @@ fn rhs_item_normalized(
         primary,
         baseline,
         caller_stops,
-        TypeOuterBoundary::DERIVES,
+        TypeOuterBoundary::DERIVES.with(TypeOuterBoundary::WITH),
         item_origin,
         line_entry,
         fence,
@@ -572,6 +583,17 @@ fn trailing_from_item_normalized(
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
     }
+    if declaration_companion_start(i.rb(), &item, baseline, caller_stops, line_handoff) {
+        return declaration_companion_normalized(
+            i,
+            item,
+            baseline,
+            caller_stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
     if !derives_attachment_start(i.rb(), &item, baseline, caller_stops, line_handoff) {
         return complete(handoff(item), line_entry);
     }
@@ -579,7 +601,7 @@ fn trailing_from_item_normalized(
         i.rb(),
         item,
         baseline,
-        caller_stops & !STOP_WITH,
+        caller_stops,
         line_handoff,
         trailing_role_boundary(),
         item_origin,
@@ -669,11 +691,14 @@ fn type_form(
     if item.payload_view().is_eof() || token_kind(item) == Some(TokenKind::Semicolon) {
         return TypeDeclarationForm::Nominal(NominalBoundary::SameLineTerminal);
     }
-    if is_active_stop(i.rb(), item, stops)
-        && matches!(
-            token_kind(item),
-            Some(TokenKind::Comma | TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
-        )
+    if is_type_caller_boundary(item, stops)
+        || (is_active_stop(i.rb(), item, stops)
+            && matches!(
+                token_kind(item),
+                Some(
+                    TokenKind::Comma | TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace
+                )
+            ))
     {
         return TypeDeclarationForm::Nominal(NominalBoundary::ActiveFixed);
     }
@@ -682,6 +707,7 @@ fn type_form(
 
 fn rhs_gap_is_outer_owned(item: &Item, baseline: usize, caller_stops: Stops) -> bool {
     implicit_delimited_newline(baseline, item.leading_view())
+        || is_word(item, "with")
         || (is_type_caller_boundary(item, caller_stops)
             && token_kind(item) != Some(TokenKind::Semicolon))
 }
@@ -695,6 +721,19 @@ fn derives_attachment_start(
 ) -> bool {
     !item.payload_view().is_boundary()
         && is_word(item, "derives")
+        && attachment_gap_continues(i.rb(), item, baseline, stops, line_handoff)
+}
+
+fn declaration_companion_start(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> bool {
+    is_word(item, "with")
+        && item.leading_view().has_ordinary_trivia()
+        && !is_type_caller_boundary(item, stops)
         && attachment_gap_continues(i.rb(), item, baseline, stops, line_handoff)
 }
 

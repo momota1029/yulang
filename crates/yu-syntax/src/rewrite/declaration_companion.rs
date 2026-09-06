@@ -285,6 +285,9 @@ fn inline_form_from_item(
         baseline,
         caller_stops | STOP_COMMA | STOP_SEMICOLON,
     );
+    if item.payload_view().is_boundary() {
+        return complete(handoff(item), line_entry);
+    }
     if token_kind(&item) == Some(TokenKind::Semicolon)
         && !item.leading_view().has_ordinary_newline()
     {

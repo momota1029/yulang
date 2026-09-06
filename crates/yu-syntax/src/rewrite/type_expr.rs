@@ -1663,7 +1663,9 @@ fn type_path_tail_normalized(
             fence,
         );
     }
-    if is_type_outer_boundary(&segment, outer_boundary) {
+    if is_type_outer_boundary(&segment, outer_boundary)
+        && (segment.leading_view().has_ordinary_newline() || !is_type_path_segment(&segment))
+    {
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
         return type_tail_normalized(
@@ -1799,8 +1801,8 @@ fn retry_type_path_segment_normalized(
         );
         if item.payload_view().is_boundary()
             || is_type_caller_boundary(&item, caller_stops)
-            || is_type_outer_boundary(&item, outer_boundary)
             || is_type_path_segment(&item)
+            || is_type_outer_boundary(&item, outer_boundary)
             || !type_chain_trivia(item.leading_view(), baseline)
             || is_type_path_boundary(&item)
         {

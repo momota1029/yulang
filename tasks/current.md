@@ -649,7 +649,20 @@ Gate 5完了にはdetached carrier/test-only adapter/placeholderが必要にな�
 `2026-09-06-direct-declaration-companion-vertical-slices-amendment.md`をAuthoritativeとした。private direct routeだけを
 Type → Struct → Enum/Error pair → Actのvertical sliceへ再順序化する。各concrete ownerは既存outer-only `WITH`から
 unchanged pending Itemを即時に消費またはouter Statementへ返し、general carrier/new NormalizedExit/state/placeholderは
-作らない。companion addendum §§3--12とGate 10 atomic public scopeは不変である。次はType Header/Equality handoff slice。
+作らない。companion addendum §§3--12とGate 10 atomic public scopeは不変である。
+
+2026-09-06: 最初のvertical sliceとしてprivate direct `TypeDeclaration`のHeader/Equality companionを実装した。
+complete Name後のHeader derives → raw `impl` handoff → exact Identifier `with` →既存form judge、およびEquality RHS
+→trailing derives→companionの順で、既存pending Itemを直ちに`declaration_companion_normalized`へ渡す。flat `STOP_WITH`は
+RHSのcaller stopsから除去し、outer logical episodeだけの`TypeOuterBoundary::WITH`へ置換した。fresh nested Type episodeは
+従来どおり`NONE`である。pathのsame-line `A::with`はType syntax、physical newlineを伴うouter boundaryはType ownerへ返し、
+malformed path retryは一つのlocal Errorの後にunchanged `with`を返す。shared inline companionのfence successorはboundaryを
+`token_kind`前にunchanged handoffするよう修正した。C15の固定`Eq::@` recovery fixture、`with:`のcomplete/missing/malformed
+Derives predecessorとbody Missing、CRLF/fence、braced/Catch newline、outer remainderをfocused controlsで固定した。M2
+compiler/recovery・specification reviewとdelta reviewは承認。Type 39件、companion 17件、`cargo check -p yu-syntax`、scoped
+rustfmt、diff checkはgreen。ordinary/public/legacy dispatch、state/carrier、allocation、replay/rescanは追加しておらず、性能測定と
+workspace suiteはこのisolated sliceでは行わない。次は同じvertical順のStruct sliceであり、Enum/Error、Act、public cutover、
+L6/L7/Yumarkは未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

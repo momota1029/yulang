@@ -787,3 +787,40 @@ fn declaration_companion_returns_one_crlf_fence_boundary_item() {
     assert_eq!(count(&root, SyntaxKind::Missing), 0);
     assert_eq!(count(&root, SyntaxKind::DerivesClause), 1);
 }
+
+#[test]
+fn declaration_companion_inline_returns_one_crlf_fence_boundary_item() {
+    let fence = active_fence();
+    let origin = 1200;
+    let accepted = "> > with: item";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (green, exit, remainder) = run_declaration_companion(
+        &source,
+        0,
+        0,
+        origin,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) = exit
+    else {
+        panic!("the inline companion must return its exact fence Item")
+    };
+    let (leading, pending) = emit_terminal_leading_text(item);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+    let root = syntax_root(green);
+    assert_eq!(
+        count(&root, SyntaxKind::DeclarationCompanionIndentedBody),
+        0
+    );
+    assert_eq!(count(&root, SyntaxKind::Statement), 1);
+    assert_eq!(count(&root, SyntaxKind::Missing), 0);
+    assert_eq!(count(&root, SyntaxKind::Error), 0);
+}

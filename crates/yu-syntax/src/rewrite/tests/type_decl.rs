@@ -55,6 +55,20 @@ fn assert_pending_word_with_leading(exit: Option<TailExit>, word: &str, leading:
     );
 }
 
+fn assert_pending_word_or_end_with_leading(exit: Option<TailExit>, word: &str, leading: &str) {
+    let mut item = match exit {
+        Some(Err(Either::Left(item))) => item,
+        Some(Err(Either::Right(end))) => end.item,
+        _ => panic!("{word:?} must remain pending"),
+    };
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    assert_eq!(item.payload_view().spelling(), Some(word));
+    assert_eq!(emit_pending_leading_text(&mut item), leading);
+}
+
 fn run_type_declaration_with_handoff(
     source: &str,
     line_handoff: super::super::statement::StatementLineHandoff,
@@ -344,6 +358,15 @@ fn type_c12_rhs_uses_the_full_ordinary_type_surface() {
         1
     );
 
+    let source = "type T = A::with with {}";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::TypePathTail), 1);
+    assert_eq!(identifier_count(&declaration, "with"), 1);
+    assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+
     let source = "type T = {with: A}";
     let (green, _) = run_statement(source);
     assert_eq!(green.to_string(), source);
@@ -398,44 +421,6 @@ fn type_c12_rhs_boundaries_remain_exact_pending_items() {
         Some(Err(Either::Left(ref item))) if token_kind(item) == Some(TokenKind::Semicolon)
     ));
 
-    let (green, exit) = run_statement("type T = A with");
-    assert_eq!(green.to_string(), "type T = A");
-    let Some(Err(Either::Left(mut item))) = exit else {
-        panic!("With must remain pending")
-    };
-    assert_eq!(
-        item.payload_view().token_kind(),
-        Some(TokenKind::Identifier)
-    );
-    assert_eq!(item.payload_view().spelling(), Some("with"));
-    assert_eq!(emit_pending_leading_text(&mut item), " ");
-
-    for source in [
-        "type T = A -> B with",
-        "type T = [A] -> B with",
-        "type T = for 'a: A with",
-        "type T = (A) with",
-        "type T = {x: A} with",
-        "type T = '[E] with",
-        "type T = :{Tag} with",
-        "type T = A -> @ with",
-    ] {
-        let (green, exit) = run_statement(source);
-        assert_eq!(
-            green.to_string(),
-            source.strip_suffix(" with").expect("With suffix")
-        );
-        assert!(
-            matches!(
-                exit,
-                Some(Err(Either::Left(ref item)))
-                    if item.payload_view().token_kind() == Some(TokenKind::Identifier)
-                        && item.payload_view().spelling() == Some("with")
-            ),
-            "{source:?}"
-        );
-    }
-
     let (green, _) = run_statement("type T = A without");
     assert_eq!(green.to_string(), "type T = A without");
 
@@ -454,56 +439,42 @@ fn type_c12_rhs_boundaries_remain_exact_pending_items() {
 
 #[test]
 fn type_c12_nested_type_owners_preserve_outer_boundaries() {
-    for (source, committed) in [
-        ("type T = (A with", "type T = (A"),
-        ("type T = A(B with", "type T = A(B"),
-        ("type T = [A with", "type T = [A"),
-        ("type T = {x: A with", "type T = {x: A"),
-        ("type T = '[E with", "type T = '[E"),
-        ("type T = :{Tag A with", "type T = :{Tag A"),
+    for source in [
+        "type T = (A with Inner) with {}",
+        "type T = A(B with Inner) with {}",
+        "type T = Head (A with Inner) with {}",
+        "type T = (Left -> A with Inner) with {}",
+        "type T = (for 'a: A with Inner) with {}",
+        "type T = ({x: A with Inner}) with {}",
+        "type T = ([A with Inner] Result) with {}",
+        "type T = ('[A with Inner]) with {}",
+        "type T = (:{Tag A with Inner}) with {}",
     ] {
-        let (green, exit) = run_statement(source);
-        assert_eq!(green.to_string(), committed, "{source:?}");
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
         let declaration = type_declaration_node(&green);
-        assert_eq!(count(&declaration, SyntaxKind::Missing), 1, "{source:?}");
-        assert!(
-            matches!(
-                exit,
-                Some(Err(Either::Left(ref item)))
-                    if matches!(
-                        item.payload_view().token_kind(),
-                        Some(TokenKind::Identifier)
-                    ) && item.payload_view().spelling() == Some("with")
-                        && item.leading_view().has_ordinary_trivia()
-                        && !item.leading_view().has_ordinary_newline()
-            ),
-            "{source:?}"
-        );
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+        assert_eq!(identifier_count(&declaration, "with"), 1, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
     }
 
     for source in [
-        "type T = (@ with",
-        "type T = A(@ with",
-        "type T = {x: @ with",
-        "type T = '[ @ with",
-        "type T = :{Tag @ with",
+        "type T = (@ with Inner) with {}",
+        "type T = A(@ with Inner) with {}",
+        "type T = ({x: @ with Inner}) with {}",
+        "type T = ('[ @ with Inner]) with {}",
+        "type T = (:{Tag @ with Inner}) with {}",
+        "type T = (A::@ with Inner) with {}",
     ] {
-        let (green, exit) = run_statement(source);
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
         let declaration = type_declaration_node(&green);
         assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
-        assert_eq!(count(&declaration, SyntaxKind::Missing), 1, "{source:?}");
-        assert!(
-            matches!(
-                exit,
-                Some(Err(Either::Left(ref item)))
-                    if matches!(
-                        item.payload_view().token_kind(),
-                        Some(TokenKind::Identifier)
-                    ) && item.payload_view().spelling() == Some("with")
-            ),
-            "{source:?}: {:?}",
-            green.to_string()
-        );
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+        assert_eq!(identifier_count(&declaration, "with"), 1, "{source:?}");
     }
 
     let operators = OperatorTable::empty();
@@ -554,7 +525,6 @@ fn type_c12_nested_type_owners_preserve_outer_boundaries() {
 fn type_c12_malformed_path_retry_preserves_caller_stops() {
     let operators = OperatorTable::empty();
     for (source, stops, committed, expected_kind, expected_word) in [
-        ("type T = A::@ with", 0, "type T = A::@", None, Some("with")),
         (
             "type T = A::@ ;",
             0,
@@ -598,6 +568,42 @@ fn type_c12_malformed_path_retry_preserves_caller_stops() {
             assert_eq!(item.payload_view().spelling(), Some(word));
         }
     }
+
+    let source = "type T = A::@ B with {} tail";
+    let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "type T = A::@ B with {}", "{source:?}");
+    assert!(matches!(exit, NormalizedExit::Complete(Ok(()), _)));
+    assert_eq!(remainder, " tail");
+    let declaration = type_declaration_node(&green);
+    let errors = declaration
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@");
+    assert_eq!(
+        errors[0].parent().map(|node| node.kind()),
+        Some(SyntaxKind::TypePathTail)
+    );
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+
+    let source = "type T = A::@ with {}";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let declaration = type_declaration_node(&green);
+    let error = declaration
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("the malformed path segment must remain path-owned");
+    assert_eq!(error.text().to_string(), "@");
+    assert_eq!(
+        error.parent().map(|node| node.kind()),
+        Some(SyntaxKind::TypePathTail)
+    );
+    assert_eq!(count(&declaration, SyntaxKind::TypePathTail), 1);
+    assert_eq!(identifier_count(&declaration, "with"), 0);
+    assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
 
     let (green, _) = run_statement("type T = A::with");
     assert_eq!(green.to_string(), "type T = A::with");
@@ -743,10 +749,7 @@ fn type_c12_completes_the_header_and_rhs_recovery_rows() {
     );
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
 
-    for (source, stops, word) in [
-        ("type T = with", 0, "with"),
-        ("type T = else", STOP_ELSE, "else"),
-    ] {
+    for (source, stops, word) in [("type T = else", STOP_ELSE, "else")] {
         let (green, exit) = run_statement_with_stops(source, &operators, stops);
         assert_eq!(green.to_string(), "type T =", "{source:?}");
         let declaration = type_declaration_node(&green);
@@ -1100,7 +1103,6 @@ fn type_c15_fresh_type_expression_edges_fence_contextual_words() {
 #[test]
 fn type_c15_preserves_header_boundaries_and_nested_suspension() {
     for (source, committed, word, missing, errors) in [
-        ("type T derives Eq with", "type T derives Eq", "with", 0, 0),
         (
             "type T derives Eq impl P",
             "type T derives Eq",
@@ -1108,9 +1110,7 @@ fn type_c15_preserves_header_boundaries_and_nested_suspension() {
             0,
             0,
         ),
-        ("type T derives with", "type T derives", "with", 1, 0),
         ("type T derives impl P", "type T derives", "impl", 1, 0),
-        ("type T derives @ with", "type T derives @", "with", 0, 1),
     ] {
         let (green, exit) = run_statement(source);
         assert_eq!(green.to_string(), committed, "{source:?}");
@@ -1181,24 +1181,21 @@ fn type_c15_recovers_clause_slots_without_consuming_successors() {
         assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
     }
 
-    for source in [
-        "type T = Int derives Eq with",
-        "type T = Int derives (Eq with Inner) with",
-        "type T derives Eq via with",
+    for (source, missing) in [
+        ("type T = Int derives Eq with {}", 0),
+        ("type T = Int derives (Eq with Inner) with {}", 0),
+        ("type T derives Eq via with {}", 1),
     ] {
-        let (green, exit) = run_statement(source);
-        assert_eq!(
-            green.to_string(),
-            source.strip_suffix(" with").expect("with suffix"),
-            "{source:?}"
-        );
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
         let declaration = type_declaration_node(&green);
         assert_eq!(
             count(&declaration, SyntaxKind::DerivesClause),
             1,
             "{source:?}"
         );
-        assert_pending_word(exit, "with");
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(count(&declaration, SyntaxKind::Missing), missing);
     }
 }
 
@@ -1280,22 +1277,18 @@ fn type_c15_contextual_words_remain_exact() {
 #[test]
 fn type_c15_keeps_with_outer_only_for_derives_roles() {
     for source in [
-        "type T = Body derives (Eq with Inner) with",
-        "type T = Body derives Call(Eq with Inner) with",
-        "type T = Body derives Head (Eq with Inner) with",
-        "type T = Body derives (Left -> Eq with Inner) with",
-        "type T = Body derives (for 'a: Eq with Inner) with",
-        "type T = Body derives ({field: Eq with Inner}) with",
-        "type T = Body derives ([Eq with Inner] Result) with",
-        "type T = Body derives ('[Eq with Inner]) with",
-        "type T = Body derives (:{Tag Eq with Inner}) with",
+        "type T = Body derives (Eq with Inner) with {}",
+        "type T = Body derives Call(Eq with Inner) with {}",
+        "type T = Body derives Head (Eq with Inner) with {}",
+        "type T = Body derives (Left -> Eq with Inner) with {}",
+        "type T = Body derives (for 'a: Eq with Inner) with {}",
+        "type T = Body derives ({field: Eq with Inner}) with {}",
+        "type T = Body derives ([Eq with Inner] Result) with {}",
+        "type T = Body derives ('[Eq with Inner]) with {}",
+        "type T = Body derives (:{Tag Eq with Inner}) with {}",
     ] {
-        let (green, exit) = run_statement(source);
-        assert_eq!(
-            green.to_string(),
-            source.strip_suffix(" with").expect("outer with suffix"),
-            "{source:?}"
-        );
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
         let declaration = type_declaration_node(&green);
         assert_eq!(
             count(&declaration, SyntaxKind::DerivesClause),
@@ -1305,8 +1298,19 @@ fn type_c15_keeps_with_outer_only_for_derives_roles() {
         assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
         assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
         assert_eq!(identifier_count(&declaration, "with"), 1, "{source:?}");
-        assert_pending_word(exit, "with");
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
     }
+
+    let source = "type T derives A::with with {}";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::TypePathTail), 1);
+    assert_eq!(identifier_count(&declaration, "with"), 1);
+    assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
 }
 
 #[test]
@@ -1526,16 +1530,54 @@ fn type_c15_retains_outer_boundary_trivia_through_rhs_path_and_forall() {
 }
 
 #[test]
+fn type_companion_path_newline_keeps_the_boundary_at_the_outer_owner() {
+    for (source, missing, errors) in [
+        ("type T = A::\n  with {}", 1, 0),
+        ("type T = A::@\n  with {}", 0, 1),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::TypePathTail), 1);
+        assert_eq!(count(&declaration, SyntaxKind::Missing), missing);
+        assert_eq!(count(&declaration, SyntaxKind::Error), errors);
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+    }
+
+    use super::super::statement::StatementLineHandoff;
+
+    for handoff in [
+        StatementLineHandoff::BracedStatementSequence,
+        StatementLineHandoff::CatchArmSequenceThroughInlineCanonicalStatement,
+    ] {
+        for (source, committed, missing, errors) in [
+            ("type T = A::\n  with {}", "type T = A::", 1, 0),
+            ("type T = A::@\n  with {}", "type T = A::@", 0, 1),
+        ] {
+            let (green, exit) = run_type_declaration_with_handoff(source, handoff);
+            assert_eq!(green.to_string(), committed, "{handoff:?}, {source:?}");
+            let declaration = type_declaration_node(&green);
+            assert_eq!(count(&declaration, SyntaxKind::TypePathTail), 1);
+            assert_eq!(count(&declaration, SyntaxKind::Missing), missing);
+            assert_eq!(count(&declaration, SyntaxKind::Error), errors);
+            assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 0);
+            assert_pending_word_with_leading(exit, "with", "\n  ");
+        }
+    }
+}
+
+#[test]
 fn type_c15_header_handoff_and_rhs_retry_keep_single_owners() {
     use super::super::statement::StatementLineHandoff;
 
-    for (source, committed, missing, errors) in [
-        ("type T derives Eq with:", "type T derives Eq", 0, 0),
-        ("type T derives with:", "type T derives", 1, 0),
-        ("type T derives @ with:", "type T derives @", 0, 1),
+    for (source, missing, errors) in [
+        ("type T derives Eq with {}", 0, 0),
+        ("type T derives with {}", 1, 0),
+        ("type T derives @ with {}", 0, 1),
     ] {
-        let (green, exit) = run_statement(source);
-        assert_eq!(green.to_string(), committed, "{source:?}");
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
         let declaration = type_declaration_node(&green);
         assert_eq!(
             count(&declaration, SyntaxKind::DerivesClause),
@@ -1548,7 +1590,8 @@ fn type_c15_header_handoff_and_rhs_retry_keep_single_owners() {
             "{source:?}"
         );
         assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
-        assert_pending_word_with_leading(exit, "with", " ");
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
     }
 
     let source = "type T derives Eq\n  with";
@@ -1624,6 +1667,270 @@ fn type_c15_keeps_active_else_companion_outside_a_completed_clause() {
     let root = SyntaxNode::new_root(green);
     assert_eq!(count(&root, SyntaxKind::IfExpression), 1);
     assert_eq!(count(&root, SyntaxKind::ElseArm), 1);
+}
+
+#[test]
+fn type_companion_wires_header_and_equality_positions_in_source_order() {
+    for (source, indented) in [
+        ("type T with: our x = y;", false),
+        ("type T with:\n  our x = y", true),
+        ("type T = A with {our x = y}", false),
+        ("type T derives Eq with {}", false),
+        ("type T = A derives Eq with {}", false),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DeclarationCompanionIndentedBody),
+            usize::from(indented),
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::WithBodyTail), 0);
+        assert_eq!(count(&declaration, SyntaxKind::IndentedStatementBlock), 0);
+        assert_eq!(
+            count(&declaration, SyntaxKind::BracedStatementBlockExpression),
+            0
+        );
+    }
+
+    let source = "type T = A derives Eq with {}";
+    let (green, _) = run_statement(source);
+    let declaration = type_declaration_node(&green);
+    assert_eq!(
+        declaration
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::TypeExpression,
+            SyntaxKind::DerivesClause,
+            SyntaxKind::DeclarationCompanion,
+        ]
+    );
+    let companion = declaration
+        .children()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+        .expect("Type must own its selected companion");
+    assert_eq!(companion.text().to_string(), " with {}");
+}
+
+#[test]
+fn type_companion_predecessor_recovery_hands_off_once_without_a_cascade() {
+    for (source, derives, missing, errors) in [
+        ("type T derives with {}", 1, 1, 0),
+        ("type T derives @ with {}", 1, 0, 1),
+        ("type T = with {}", 0, 1, 0),
+        ("type T = @ with {}", 0, 0, 1),
+        ("type T = @ A with {}", 0, 0, 1),
+        ("type T = A derives with {}", 1, 1, 0),
+        ("type T = A derives @ with {}", 1, 0, 1),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DerivesClause),
+            derives,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, SyntaxKind::Error), errors, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+    }
+
+    let (green, _) = run_statement("type T with");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(green.to_string(), "type T with");
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Error), 0);
+}
+
+#[test]
+fn type_companion_colon_body_recovery_stays_separate_from_header_derives_recovery() {
+    for (source, predecessor_missing, predecessor_errors) in [
+        ("type T derives Eq with:", 0, 0),
+        ("type T derives with:", 1, 0),
+        ("type T derives @ with:", 0, 1),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+        assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+        assert_eq!(
+            count(&declaration, SyntaxKind::Missing),
+            predecessor_missing + 1,
+            "the companion body contributes exactly one Missing: {source:?}\n{declaration:#?}",
+        );
+        assert_eq!(
+            count(&declaration, SyntaxKind::Error),
+            predecessor_errors,
+            "{source:?}\n{declaration:#?}",
+        );
+
+        let companion = declaration
+            .children()
+            .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+            .expect("Type owns one direct companion");
+        assert_eq!(count(&companion, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(count(&companion, SyntaxKind::Error), 0, "{source:?}");
+
+        let derives = declaration
+            .children()
+            .find(|node| node.kind() == SyntaxKind::DerivesClause)
+            .expect("Type owns one direct header derives clause");
+        assert_eq!(
+            count(&derives, SyntaxKind::Missing),
+            predecessor_missing,
+            "{source:?}",
+        );
+        assert_eq!(
+            count(&derives, SyntaxKind::Error),
+            predecessor_errors,
+            "{source:?}",
+        );
+    }
+
+    let source = "type T derives Eq with:]tail";
+    let operators = OperatorTable::empty();
+    let (green, exit) =
+        run_statement_with_stops(source, &operators, stops_for(TokenKind::RBracket));
+    assert_eq!(green.to_string(), "type T derives Eq with:");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DerivesClause), 1);
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+    assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Missing), 1);
+    assert_eq!(count(&declaration, SyntaxKind::Error), 0);
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(ref item)))
+            if token_kind(item) == Some(TokenKind::RBracket)
+    ));
+}
+
+#[test]
+fn type_companion_terminates_type_and_preserves_impl_priority() {
+    for source in ["type T impl P with {}", "type T derives Eq impl P with {}"] {
+        let (green, exit) = run_statement(source);
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 0);
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0);
+        assert_pending_word_with_leading(exit, "impl", " ");
+    }
+
+    let source = "type T with {} = A";
+    let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "type T with {}");
+    assert!(matches!(exit, NormalizedExit::Complete(Ok(()), _)));
+    assert_eq!(remainder, " = A");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+    assert_eq!(token_count(&declaration, SyntaxKind::Equals), 0);
+}
+
+#[test]
+fn type_companion_gap_and_contextual_word_judges_remain_exact() {
+    for source in ["type T\n  with {}", "type T\r\n  with {}"] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            count(
+                &type_declaration_node(&green),
+                SyntaxKind::DeclarationCompanion
+            ),
+            1,
+            "{source:?}"
+        );
+    }
+
+    for source in ["type T\nwith {}", "type T = A\r\nwith {}"] {
+        let (green, exit) = run_statement(source);
+        let declaration = type_declaration_node(&green);
+        assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 0);
+        assert_pending_word_or_end_with_leading(
+            exit,
+            "with",
+            if source.contains("\r\n") {
+                "\r\n"
+            } else {
+                "\n"
+            },
+        );
+    }
+
+    let operators = OperatorTable::empty();
+    let (green, exit) = run_statement_with_stops(
+        "type T with {}",
+        &operators,
+        super::super::operator::STOP_WITH,
+    );
+    assert_eq!(
+        count(
+            &type_declaration_node(&green),
+            SyntaxKind::DeclarationCompanion
+        ),
+        0
+    );
+    assert_pending_word_with_leading(exit, "with", " ");
+
+    for source in [
+        "type T withx = A",
+        "type T within = A",
+        "type T = A::with",
+        "type T = A without B",
+    ] {
+        let (green, _) = run_statement(source);
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            count(&declaration, SyntaxKind::DeclarationCompanion),
+            0,
+            "{source:?}: {declaration:#?}"
+        );
+    }
+}
+
+#[test]
+fn type_companion_streams_crlf_to_the_same_fence_boundary() {
+    use super::super::yumark::{FenceOpener, FencePrefixPolicy};
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let origin = 7200;
+    let accepted = "> > type T derives Eq with: our x = y";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (green, exit, remainder) =
+        run_statement_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+    else {
+        panic!("the Type companion must return the exact fence boundary")
+    };
+    assert!(boundary.payload_view().is_boundary());
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    let declaration = type_declaration_node(&green);
+    assert_eq!(count(&declaration, SyntaxKind::DeclarationCompanion), 1);
+    assert_eq!(token_count(&declaration, SyntaxKind::WithKw), 1);
+    let (leading, pending) = emit_terminal_leading_text(boundary);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
 }
 
 #[test]
