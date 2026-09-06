@@ -745,6 +745,19 @@ yu-syntax`、full rustfmt check、diff checkはgreen。full package/timingはbud
 `VirtualStatementBlock`、続いてL7 literal closureであり、その後のjoint Gate 4–6 certification前に
 successor typed-output/recovery topologyのM3設計とuser approvalが必要である。
 
+2026-09-06: direct literal cone L6 `VirtualStatementBlock` isolated constructionを完了した。private
+root-style canonical `Statement*` ownerを追加し、comma/semicolon/LF/CRLF separatorを所有する一方、
+explicit `}`はsame current Item/LineEntryのままStringInterpolation親へ返す。empty block、mixed
+Role/Impl/Cast/Act/expression、malformed/adjacent separator recovery、EOF/fence、UTF-8 origin、outer string
+continuationを構成した。L3 callback primitiveは維持し、L6 adapterだけを追加、RuleLiteral routeはL7へ
+defer。M2 compiler/recovery・specification reviewでclose-leadingを誤って`StringInterpolationBody`内へ
+置く点を検出し、一回のrepair/delta review後にclean。現在はL3/L6ともBodyをfinishしてからInterpolation
+直下でexact borrowed close leadingをemitし、payloadだけを`StringInterpolationCloseBrace`へretagする。
+focused virtual block 9件、literal 26件、Statement 8件、normalized 82件、lexical 45件、`cargo check -p
+yu-syntax`、full rustfmt check、diff checkはgreen。full package/timingはbudget外。次はL7 complete literal
+routes/deltaであり、nested StringLiteralをcanonical Statement NUDへ接続する証拠もそのscopeに属する。
+typed recovery/joint Gate 4–6 certification/public cutoverは引き続き未完である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

@@ -57,6 +57,7 @@ mod tails;
 mod type_decl;
 mod type_expr;
 mod use_decl;
+mod virtual_statement_block;
 mod yumark;
 mod yumark_cell;
 

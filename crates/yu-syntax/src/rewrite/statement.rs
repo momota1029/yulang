@@ -1091,7 +1091,7 @@ fn missing_brace_close(mut i: RewriteIn, mut item: Item) -> TailExit {
     handoff(item)
 }
 
-fn statement_item_normalized(
+pub(super) fn statement_item_normalized(
     mut i: RewriteIn,
     item_origin: usize,
     line_entry: LineEntry,

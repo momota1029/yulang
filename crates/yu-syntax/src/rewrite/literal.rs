@@ -11,6 +11,7 @@ use super::{
         ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, PhysicalLeadingTrivia, Token,
         TokenKind,
     },
+    virtual_statement_block::{VirtualStatementBlockExit, virtual_statement_block_normalized},
     yumark::{AcceptedQuotePrefix, FenceBoundary, FenceLineDecision, judge_fence_line},
 };
 
@@ -65,6 +66,11 @@ enum LiteralLineTransition {
     Continue,
     Structural(Option<AcceptedQuotePrefix>),
     Boundary(Item),
+}
+
+enum InterpolationBodyExit {
+    Close { item: Item, line_entry: LineEntry },
+    Boundary { item: Item, line_entry: LineEntry },
 }
 
 /// Accepts only a complete literal opener candidate. Two adjacent quotes are
@@ -147,8 +153,74 @@ pub(super) fn scan_string_text_witness(
 
 /// Builds one isolated StringLiteral through an injected interpolation-body
 /// witness. The witness is the sole source of a successful borrowed `RBrace`;
-/// full virtual-statement construction remains deferred to L6.
+/// this callback surface remains the preserved L3 primitive, while the L6
+/// adapter below supplies full virtual-statement construction.
 pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'builder>(
+    i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
+    opener: Item,
+    mode: StringMode,
+    part_origin: usize,
+    fence: &FenceBoundary,
+    mut interpolation_body: impl for<'a> FnMut(
+        RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
+    ) -> Item,
+) -> StringLiteralExit
+where
+    'operators: 'recover,
+{
+    string_literal_with_interpolation_body(
+        i,
+        opener,
+        mode,
+        part_origin,
+        fence,
+        |child, _, line_entry| InterpolationBodyExit::Close {
+            item: interpolation_body(child),
+            line_entry,
+        },
+    )
+}
+
+/// L6 isolated StringLiteral construction using the canonical virtual
+/// Statement sequence for every interpolation body.
+pub(super) fn string_literal_with_virtual_statements_witness<
+    'source,
+    'recover,
+    'operators,
+    'builder,
+>(
+    i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
+    opener: Item,
+    mode: StringMode,
+    part_origin: usize,
+    fence: &FenceBoundary,
+) -> StringLiteralExit
+where
+    'operators: 'recover,
+{
+    string_literal_with_interpolation_body(
+        i,
+        opener,
+        mode,
+        part_origin,
+        fence,
+        |child, body_origin, line_entry| match virtual_statement_block_normalized(
+            child,
+            body_origin,
+            line_entry,
+            Some(fence),
+        ) {
+            VirtualStatementBlockExit::Close(item, line_entry) => {
+                InterpolationBodyExit::Close { item, line_entry }
+            }
+            VirtualStatementBlockExit::Boundary(item, line_entry) => {
+                InterpolationBodyExit::Boundary { item, line_entry }
+            }
+        },
+    )
+}
+
+fn string_literal_with_interpolation_body<'source, 'recover, 'operators, 'builder>(
     mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
     opener: Item,
     mode: StringMode,
@@ -156,7 +228,9 @@ pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'builder>(
     fence: &FenceBoundary,
     mut interpolation_body: impl for<'a> FnMut(
         RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
-    ) -> Item,
+        usize,
+        LineEntry,
+    ) -> InterpolationBodyExit,
 ) -> StringLiteralExit
 where
     'operators: 'recover,
@@ -462,7 +536,9 @@ fn emit_string_interpolation<'source, 'recover, 'operators, 'builder>(
     fence: &FenceBoundary,
     interpolation_body: &mut impl for<'a> FnMut(
         RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
-    ) -> Item,
+        usize,
+        LineEntry,
+    ) -> InterpolationBodyExit,
 ) -> Result<(), Item>
 where
     'operators: 'recover,
@@ -523,18 +599,33 @@ where
         .expect("the interpolation child source probe is total");
     i.state
         .start_node(SyntaxKind::StringInterpolationBody.into());
-    let mut close = interpolation_body(i.rb());
-    i.state.finish_node();
+    let body = interpolation_body(i.rb(), *part_origin, LineEntry::InLine);
     let child_end = i
         .token(|lex| Some(lex.remainder()))
         .expect("the interpolation child source probe is total");
     advance_suffix_origin(part_origin, child_start, child_end);
 
-    close.emit_all_remaining_leading(&mut *i.state);
-    assert_eq!(close.payload_view().token_kind(), Some(TokenKind::RBrace));
-    close.emit_payload(&mut *i.state, SyntaxKind::StringInterpolationCloseBrace);
-    i.state.finish_node();
-    Ok(())
+    match body {
+        InterpolationBodyExit::Close {
+            mut item,
+            line_entry,
+        } => {
+            let _ = line_entry;
+            i.state.finish_node();
+            item.emit_all_remaining_leading(&mut *i.state);
+            assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBrace));
+            item.emit_payload(&mut *i.state, SyntaxKind::StringInterpolationCloseBrace);
+            i.state.finish_node();
+            Ok(())
+        }
+        InterpolationBodyExit::Boundary { item, line_entry } => {
+            let _ = line_entry;
+            i.state.finish_node();
+            emit_missing(&mut i, LeadingTrivia::default());
+            i.state.finish_node();
+            Err(item)
+        }
+    }
 }
 
 fn scan_multiline_literal_item(
