@@ -18,8 +18,8 @@ use super::{
         scan_unknown,
     },
     literal::{
-        NormalizedNonInterpolatingStringExit, non_interpolating_string_body_normalized,
-        scan_string_opener_token, string_mode_from_opener,
+        NormalizedStringLiteralExit, scan_string_opener_token,
+        string_literal_with_virtual_statements_normalized, string_mode_from_opener,
     },
     yumark::FenceBoundary,
 };
@@ -29,7 +29,15 @@ use self::expression_list::{ExpressionListExit, expression_list, first_item as f
 #[derive(Clone, Copy)]
 enum RuleFrame {
     Body,
-    Parenthesis,
+    Parenthesis { outer_literal_quote: bool },
+    LiteralInterpolation,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum RuleLiteralSequenceExit {
+    Close(Item, LineEntry),
+    OuterTerminator(Item, LineEntry),
+    Boundary(Item, LineEntry),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -69,6 +77,26 @@ pub(super) fn rule_body_witness(
         NormalizedRuleWitnessExit::Complete(_) => RuleWitnessExit::Complete,
         NormalizedRuleWitnessExit::Returned(item, _) => RuleWitnessExit::Returned(item),
         NormalizedRuleWitnessExit::Deferred(item, _) => RuleWitnessExit::Deferred(item),
+    }
+}
+
+#[cfg(test)]
+pub(super) fn rule_body_normalized_witness(
+    i: RewriteIn,
+    opener: Item,
+    current: Item,
+    line_entry: LineEntry,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> (RuleWitnessExit, LineEntry) {
+    match rule_body_normalized(i, opener, current, origin, line_entry, fence) {
+        NormalizedRuleWitnessExit::Complete(line_entry) => (RuleWitnessExit::Complete, line_entry),
+        NormalizedRuleWitnessExit::Returned(item, line_entry) => {
+            (RuleWitnessExit::Returned(item), line_entry)
+        }
+        NormalizedRuleWitnessExit::Deferred(item, line_entry) => {
+            (RuleWitnessExit::Deferred(item), line_entry)
+        }
     }
 }
 
@@ -208,6 +236,37 @@ fn rule_alternation(
     }
 }
 
+pub(super) fn rule_literal_sequence_normalized(
+    mut i: RewriteIn,
+    origin: &mut usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> RuleLiteralSequenceExit {
+    let (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
+    i.state.start_node(SyntaxKind::RuleSequence.into());
+    let exit = rule_sequence(
+        i.rb(),
+        current,
+        line_entry,
+        RuleFrame::LiteralInterpolation,
+        origin,
+        fence,
+    );
+    i.state.finish_node();
+    match exit {
+        SequenceExit::Stop(item, line_entry) if is_token(&item, TokenKind::RBrace) => {
+            RuleLiteralSequenceExit::Close(item, line_entry)
+        }
+        SequenceExit::Stop(item, line_entry) if is_outer_literal_quote(&item) => {
+            RuleLiteralSequenceExit::OuterTerminator(item, line_entry)
+        }
+        SequenceExit::Stop(item, line_entry) => RuleLiteralSequenceExit::Boundary(item, line_entry),
+        SequenceExit::Deferred(_, _) => {
+            unreachable!("L7 RuleSequence children enter every direct literal owner")
+        }
+    }
+}
+
 fn rule_sequence(
     mut i: RewriteIn,
     mut current: Item,
@@ -217,7 +276,10 @@ fn rule_sequence(
     fence: Option<&FenceBoundary>,
 ) -> SequenceExit {
     loop {
-        if !current.payload_view().is_boundary() && current.leading_view().has_ordinary_newline() {
+        if !matches!(frame, RuleFrame::LiteralInterpolation)
+            && !current.payload_view().is_boundary()
+            && current.leading_view().has_ordinary_newline()
+        {
             return SequenceExit::Stop(current, line_entry);
         }
         if is_rule_stop(&current, frame) {
@@ -257,7 +319,9 @@ fn rule_item(
             i.rb(),
             nested_current,
             nested_line_entry,
-            RuleFrame::Parenthesis,
+            RuleFrame::Parenthesis {
+                outer_literal_quote: carries_outer_literal_quote(frame),
+            },
             origin,
             fence,
         );
@@ -277,23 +341,22 @@ fn rule_item(
             }
         }
     } else if let Some(mode) = string_mode_from_opener(&current) {
-        i.state.start_node(SyntaxKind::StringLiteral.into());
-        emit_item_as(&mut i, current, SyntaxKind::StringStart);
         let entry = suffix_marker(i.rb());
-        let exit =
-            non_interpolating_string_body_normalized(i.rb(), mode, *origin, line_entry, fence);
+        let exit = string_literal_with_virtual_statements_normalized(
+            i.rb(),
+            current,
+            mode,
+            *origin,
+            fence,
+        );
         *origin = advanced_origin(*origin, entry, i.rb());
         match exit {
-            NormalizedNonInterpolatingStringExit::Complete(line_entry) => {
+            NormalizedStringLiteralExit::Complete(line_entry) => {
                 next_rule_item(i.rb(), origin, line_entry, fence)
             }
-            NormalizedNonInterpolatingStringExit::Boundary(pending, line_entry) => {
+            NormalizedStringLiteralExit::Boundary(pending, line_entry) => {
                 i.state.finish_node();
                 return ItemExit::Continue(pending, line_entry);
-            }
-            NormalizedNonInterpolatingStringExit::DeferredInterpolation(item, line_entry) => {
-                i.state.finish_node();
-                return ItemExit::Deferred(item, line_entry);
             }
         }
     } else if is_token(&current, TokenKind::LBracket) {
@@ -418,6 +481,12 @@ fn required_rule_item(
     fence: Option<&FenceBoundary>,
 ) -> ItemExit {
     loop {
+        if carries_outer_literal_quote(frame)
+            && is_outer_literal_quote(&current)
+            && is_rule_atom_start(&current)
+        {
+            return rule_item(i, current, line_entry, frame, origin, fence);
+        }
         if is_rule_stop(&current, frame) {
             emit_missing(&mut i);
             return ItemExit::Continue(current, line_entry);
@@ -511,10 +580,25 @@ fn scan_rule_token(mut i: LexIn) -> Option<Token> {
         return Some(token);
     }
     i.token(scan_rule_fixed)
-        .or_else(|| i.token(scan_exact_equals))
+        .or_else(|| i.token(scan_rule_equals))
         .or_else(|| i.token(scan_punctuation))
         .or_else(|| i.token(scan_operator_shaped_unknown))
         .or_else(|| i.token(scan_unknown))
+}
+
+fn scan_rule_equals(mut i: LexIn) -> Option<Token> {
+    // A quote immediately after capture `=` is a syntactically required
+    // nested StringLiteral opener, rather than part of one malformed operator.
+    if !i.remainder().starts_with("=\"") {
+        return i.token(scan_exact_equals);
+    }
+    let (_, text) = i
+        .rb()
+        .with_str(|mut equals| (equals.next()? == '=').then_some(()));
+    Some(Token {
+        kind: TokenKind::Equals,
+        text: text.into(),
+    })
 }
 
 fn scan_rule_fixed(mut i: LexIn) -> Option<Token> {
@@ -628,11 +712,37 @@ fn is_stop_keyword(item: &Item) -> bool {
 }
 
 fn is_rule_stop(item: &Item, frame: RuleFrame) -> bool {
-    item.payload_view().is_boundary()
-        || item.payload_view().is_eof()
-        || is_stop_keyword(item)
-        || is_close(item)
-        || is_separator(item, frame)
+    if item.payload_view().is_boundary() || item.payload_view().is_eof() {
+        return true;
+    }
+    match frame {
+        RuleFrame::Body => is_stop_keyword(item) || is_close(item) || is_separator(item, frame),
+        RuleFrame::Parenthesis {
+            outer_literal_quote,
+        } => {
+            is_stop_keyword(item)
+                || is_close(item)
+                || is_separator(item, frame)
+                || outer_literal_quote && is_outer_literal_quote(item)
+        }
+        RuleFrame::LiteralInterpolation => {
+            is_token(item, TokenKind::RBrace) || is_outer_literal_quote(item)
+        }
+    }
+}
+
+fn carries_outer_literal_quote(frame: RuleFrame) -> bool {
+    matches!(
+        frame,
+        RuleFrame::LiteralInterpolation
+            | RuleFrame::Parenthesis {
+                outer_literal_quote: true
+            }
+    )
+}
+
+fn is_outer_literal_quote(item: &Item) -> bool {
+    item.payload_view().spelling() == Some("\"")
 }
 
 fn is_close(item: &Item) -> bool {
@@ -644,7 +754,7 @@ fn is_close(item: &Item) -> bool {
 
 fn is_separator(item: &Item, frame: RuleFrame) -> bool {
     is_token(item, TokenKind::Pipe)
-        || matches!(frame, RuleFrame::Parenthesis) && is_token(item, TokenKind::Comma)
+        || matches!(frame, RuleFrame::Parenthesis { .. }) && is_token(item, TokenKind::Comma)
 }
 
 fn is_quantifier(item: &Item) -> bool {

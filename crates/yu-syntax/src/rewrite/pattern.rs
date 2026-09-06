@@ -13,11 +13,16 @@ use super::{
     current_item::{CurrentItem, LineEntry, current_item},
     driver::{
         Either, NormalizedExit, TailExit, advanced_origin, complete, delimited_baseline, handoff,
-        implicit_delimited_newline, ordinary_exit, suffix_marker, token_kind,
+        implicit_delimited_newline, ordinary_exit, scan_pattern_literal_payload, suffix_marker,
+        token_kind,
     },
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
+    literal::{
+        NormalizedRuleLiteralExit, NormalizedStringLiteralExit, rule_literal_normalized,
+        string_literal_with_virtual_statements_normalized, string_mode_from_opener,
+    },
     operator::{STOP_COMMA, STOP_IN, STOP_SEMICOLON, stops_for},
     statement::StatementLineHandoff,
     type_expr::{
@@ -645,6 +650,58 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
+    if item.payload_view().spelling() == Some("\"") {
+        let entry = suffix_marker(i.rb());
+        let exit = rule_literal_normalized(i.rb(), item, item_origin, line_entry, fence);
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        return match exit {
+            NormalizedRuleLiteralExit::Complete(line_entry) => scan_pattern_tail_normalized(
+                i,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                caller_closes,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+            ),
+            NormalizedRuleLiteralExit::Boundary(item, line_entry) => {
+                *completion = PatternCompletion::Incomplete;
+                complete(handoff(item), line_entry)
+            }
+        };
+    }
+    if let Some(mode) = string_mode_from_opener(&item) {
+        let entry = suffix_marker(i.rb());
+        let exit = string_literal_with_virtual_statements_normalized(
+            i.rb(),
+            item,
+            mode,
+            item_origin,
+            fence,
+        );
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        return match exit {
+            NormalizedStringLiteralExit::Complete(line_entry) => scan_pattern_tail_normalized(
+                i,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                caller_closes,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+            ),
+            NormalizedStringLiteralExit::Boundary(item, line_entry) => {
+                *completion = PatternCompletion::Incomplete;
+                complete(handoff(item), line_entry)
+            }
+        };
+    }
     match token_kind(&item) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier) => {
             i.state.start_node(SyntaxKind::IdentifierPattern.into());
@@ -802,8 +859,9 @@ fn pattern_nud_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
-                |lex, leading, origin, fence, _| {
-                    scan_pattern_nud_payload(lex, leading, origin, fence, stops)
+                |mut lex, leading, origin, fence, _| {
+                    scan_pattern_literal_payload(lex.rb())
+                        .or_else(|| scan_pattern_nud_payload(lex, leading, origin, fence, stops))
                 },
             )
         })
@@ -1144,6 +1202,9 @@ pub(super) fn is_pattern_nud(item: &Item, stops: PatternStops) -> bool {
         || token_kind(item) == Some(TokenKind::PatternSymbolColon)
         || (token_kind(item) == Some(TokenKind::Colon)
             && stops & (PATTERN_STOP_COLON | PATTERN_STOP_PRIMARY_COLON) == 0)
+        || item.payload_view().spelling() == Some("\"")
+        || string_mode_from_opener(item)
+            .is_some_and(|mode| matches!(mode, super::literal::StringMode::Heredoc { .. }))
 }
 
 fn is_pattern_primary_boundary(item: &Item, baseline: usize, stops: PatternStops) -> bool {

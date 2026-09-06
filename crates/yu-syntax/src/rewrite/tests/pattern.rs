@@ -1,17 +1,20 @@
 use super::*;
 use crate::rewrite::{
     current_item::{CurrentItem, LineEntry, current_item},
+    driver::scan_pattern_literal_payload,
     item::{BorrowedTarget, Boundary},
     lexer::scan_pattern_nud_payload,
-    literal::{NonInterpolatingStringExit, RuleLiteralExit},
+    literal::{RuleLiteralExit, StringLiteralExit},
     pattern::{
         PATTERN_STOP_COLON, PATTERN_STOP_EQUALS, PatternCallerCloses, PatternCompletion,
         PatternLiteralWitnessExit, PatternMandatorySlotPolicy, PatternStops,
-        pattern_literal_witness, required_pattern_from_entry_item_with_policy_normalized,
+        pattern_literal_witness, pattern_normalized,
+        required_pattern_from_entry_item_with_policy_normalized,
     },
     statement::StatementLineHandoff,
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
 };
+use reborrow_generic::Reborrow as _;
 
 fn run_required_pattern_with_policy<'source>(
     source: &'source str,
@@ -114,6 +117,32 @@ fn run_pattern_literal<'source>(
         },
     )
     .expect("Pattern quote witness");
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_l7_pattern<'source>(source: &'source str) -> (GreenNode, NormalizedExit, &'source str) {
+    run_l7_pattern_with_context(source, 0, LineEntry::InLine, None)
+}
+
+fn run_l7_pattern_with_context<'source>(
+    source: &'source str,
+    origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, NormalizedExit, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = pattern_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        origin,
+        line_entry,
+        fence,
+        0,
+    );
     builder.finish_node();
     (builder.finish(), exit, input)
 }
@@ -2033,7 +2062,7 @@ fn pattern_literal_checkpoint_splits_one_quote_from_three_quote_string() {
     assert_eq!(remainder, "tail");
     assert_eq!(
         exit,
-        PatternLiteralWitnessExit::String(NonInterpolatingStringExit::Complete)
+        PatternLiteralWitnessExit::String(StringLiteralExit::Complete)
     );
     let root = SyntaxNode::new_root(green);
     assert_eq!(
@@ -2050,19 +2079,125 @@ fn pattern_literal_checkpoint_splits_one_quote_from_three_quote_string() {
     );
 
     let (green, exit, remainder) = run_pattern_literal("\"\"\"a%{x}\"\"\"tail");
-    let PatternLiteralWitnessExit::String(NonInterpolatingStringExit::DeferredInterpolation(
-        percent,
-    )) = exit
-    else {
-        panic!("nested Pattern StringInterpolation stays deferred")
-    };
-    assert_eq!(percent.payload_view().spelling(), Some("%"));
-    assert_eq!(remainder, "{x}\"\"\"tail");
     assert_eq!(
-        SyntaxNode::new_root(green)
-            .descendants()
+        exit,
+        PatternLiteralWitnessExit::String(StringLiteralExit::Complete)
+    );
+    assert_eq!(remainder, "tail");
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.descendants()
             .filter(|node| node.kind() == SyntaxKind::StringInterpolation)
             .count(),
-        0
+        1
     );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Statement)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn l7_pattern_primary_routes_literals_without_an_expression_wrapper() {
+    for (source, rules, strings) in [
+        ("\"text:{capture}\"", 1, 0),
+        ("\"text{value}\"", 1, 0),
+        ("\"\"\"α\"\"\"", 0, 1),
+        ("\"\"\"outer%{role R;}tail\"\"\"", 0, 1),
+    ] {
+        let (green, _, remainder) = run_l7_pattern(source);
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::RuleLiteral),
+            rules,
+            "{source:?}"
+        );
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::StringLiteral),
+            strings,
+            "{source:?}"
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        if source == "\"\"\"α\"\"\"" {
+            assert_eq!(recovery_count(&green, SyntaxKind::OperatorChain), 0);
+        }
+    }
+
+    let (green, _, remainder) = run_l7_pattern("\"\"tail");
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), "\"\"tail");
+    assert_eq!(recovery_count(&green, SyntaxKind::RuleLiteral), 0);
+    assert_eq!(recovery_count(&green, SyntaxKind::StringLiteral), 0);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 1);
+
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = "\"\"tail";
+    let CurrentItem { item, .. } = current_item(
+        In::new(&mut input, &mut recover, ()),
+        0,
+        LineEntry::InLine,
+        None,
+        |mut lex, leading, origin, fence, _| {
+            scan_pattern_literal_payload(lex.rb())
+                .or_else(|| scan_pattern_nud_payload(lex, leading, origin, fence, 0))
+        },
+    )
+    .expect("two-quote Pattern Item");
+    assert_eq!(item.payload_view().spelling(), Some("\"\""));
+    assert_eq!(input, "tail");
+}
+
+#[test]
+fn l7_pattern_literal_routes_preserve_multiline_and_fence_handoffs() {
+    for (source, rule_literals, strings) in [
+        ("\"a\nb\"", 1, 0),
+        ("\"a\r\nb\"", 1, 0),
+        ("\"\"\"a\nb\"\"\"", 0, 1),
+        ("\"\"\"a\r\nb\"\"\"", 0, 1),
+    ] {
+        let (green, _, remainder) = run_l7_pattern(source);
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::RuleLiteral),
+            rule_literals,
+            "{source:?}"
+        );
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::StringLiteral),
+            strings,
+            "{source:?}"
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+    }
+
+    let boundary = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for source in ["> > \"a\n> stop\n", "> > \"\"\"a\n> stop\n"] {
+        let (green, exit, remainder) =
+            run_l7_pattern_with_context(source, 800, LineEntry::PhysicalStart, Some(&boundary));
+        let NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("Pattern literal must return the exact fence Item: {source:?}")
+        };
+        assert!(pending.payload_view().is_boundary(), "{source:?}");
+        assert_eq!(remainder, "> stop\n", "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(
+            green.to_string(),
+            source.strip_suffix("> stop\n").expect("fence suffix")
+        );
+    }
 }

@@ -3,9 +3,10 @@ use crate::rewrite::{
     emit::emit_literal_item,
     item::{BorrowedTarget, Boundary, Item, LeadingTrivia, Payload, StopKind, Token},
     literal::{
-        LiteralPiece, RuleLiteralExit, StringLiteralExit, StringMode, rule_literal_witness,
-        scan_expression_rule_literal_opener_witness, scan_string_close_witness,
-        scan_string_opener_witness, scan_string_text_witness, string_literal_witness,
+        LiteralPiece, NormalizedRuleLiteralExit, RuleLiteralExit, StringLiteralExit, StringMode,
+        rule_literal_normalized, rule_literal_witness, scan_expression_rule_literal_opener_witness,
+        scan_string_close_witness, scan_string_opener_witness, scan_string_text_witness,
+        string_literal_witness,
     },
     yumark::{
         FenceBoundary, FenceLineDecision, FenceOpener, FencePrefixPolicy, QuoteTransitionKind,
@@ -140,6 +141,29 @@ fn run_rule_literal<'source>(
     (builder.finish(), exit, input)
 }
 
+fn run_rule_literal_normalized<'source>(
+    source: &'source str,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, NormalizedRuleLiteralExit, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let opener = scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ()))
+        .expect("expression RuleLiteral opener");
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = rule_literal_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        opener,
+        origin + 2,
+        LineEntry::InLine,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
 fn injected_empty_interpolation_body(mut i: RewriteIn) -> Item {
     let leading = i
         .token(|mut lex| {
@@ -215,6 +239,132 @@ fn syntax_shape(green: &GreenNode) -> String {
     let mut shape = String::new();
     push_node(&mut shape, SyntaxNode::new_root(green.clone()));
     shape
+}
+
+#[test]
+fn l7_expression_nud_routes_strings_rule_literals_and_postfix_tails() {
+    let operators = OperatorTable::empty();
+    for (source, strings, rule_literals, calls, fields) in [
+        ("\"\"", 1, 0, 0, 0),
+        ("\"α\\λ\".field", 1, 0, 0, 1),
+        ("\"\"\"α\"\"\"(x)", 1, 0, 1, 0),
+        ("~\"a:{capture}\"", 0, 1, 0, 0),
+    ] {
+        let (green, exit, remainder) =
+            run_normalized(source, &operators, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            node_count(&green, SyntaxKind::StringLiteral),
+            strings,
+            "{source:?}"
+        );
+        assert_eq!(
+            node_count(&green, SyntaxKind::RuleLiteral),
+            rule_literals,
+            "{source:?}"
+        );
+        assert_eq!(
+            node_count(&green, SyntaxKind::CallTail),
+            calls,
+            "{source:?}"
+        );
+        assert_eq!(
+            node_count(&green, SyntaxKind::FieldTail),
+            fields,
+            "{source:?}"
+        );
+        assert_eq!(node_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn l7_expression_keeps_only_adjacent_tilde_quote_reserved() {
+    let operators = dynamic_operator_table();
+    for source in ["~a", "~ \"x\""] {
+        let (green, exit, remainder) =
+            run_normalized(source, &operators, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(node_count(&green, SyntaxKind::RuleLiteral), 0, "{source:?}");
+        assert_eq!(
+            node_count(&green, SyntaxKind::PrefixOperatorUse),
+            1,
+            "{source:?}"
+        );
+    }
+    let (green, exit, remainder) = run_normalized("~\"x\"", &operators, 0, LineEntry::InLine, None);
+    assert!(exit.is_some());
+    assert_eq!(remainder, "");
+    assert_eq!(node_count(&green, SyntaxKind::RuleLiteral), 1);
+    assert_eq!(node_count(&green, SyntaxKind::PrefixOperatorUse), 0);
+}
+
+#[test]
+fn l7_expression_string_interpolation_admits_nested_string_statements() {
+    let source = "\"outer%{ \"inner%{x}\" }tail\"";
+    let operators = OperatorTable::empty();
+    let (green, exit, remainder) = run_normalized(source, &operators, 200, LineEntry::InLine, None);
+    assert!(exit.is_some());
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), source);
+    assert_eq!(node_count(&green, SyntaxKind::StringLiteral), 2);
+    assert_eq!(node_count(&green, SyntaxKind::StringInterpolation), 2);
+    assert_eq!(node_count(&green, SyntaxKind::Statement), 2);
+    assert_eq!(node_count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(node_count(&green, SyntaxKind::Error), 0);
+}
+
+#[test]
+fn l7_expression_string_routes_preserve_multiline_and_fence_handoffs() {
+    let operators = OperatorTable::empty();
+    for source in [
+        "\"a\nb\"",
+        "\"a\r\nb\"",
+        "\"\"\"a\nb\"\"\"",
+        "\"\"\"a\r\nb\"\"\"",
+    ] {
+        let (green, exit, remainder) =
+            run_normalized(source, &operators, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            node_count(&green, SyntaxKind::StringLiteral),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(node_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+    }
+
+    let boundary = active_fence(2);
+    for source in ["> > \"a\n> stop\n", "> > \"\"\"a\n> stop\n"] {
+        let (green, exit, remainder) = run_normalized(
+            source,
+            &operators,
+            700,
+            LineEntry::PhysicalStart,
+            Some(&boundary),
+        );
+        let Some(NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("String owner must return the exact fence boundary: {source:?}")
+        };
+        assert!(pending.payload_view().is_boundary(), "{source:?}");
+        assert_eq!(remainder, "> stop\n", "{source:?}");
+        assert_eq!(
+            node_count(&green, SyntaxKind::StringLiteral),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(node_count(&green, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(
+            green.to_string(),
+            source.strip_suffix("> stop\n").expect("fence suffix")
+        );
+    }
 }
 
 #[test]

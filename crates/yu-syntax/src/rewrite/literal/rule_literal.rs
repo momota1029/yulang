@@ -1,20 +1,19 @@
-//! L5 RuleLiteral construction shared by expression and Pattern witnesses.
+//! L7 RuleLiteral construction shared by Expression and Pattern owners.
 
 use unicode_ident::is_xid_continue;
 
 use super::*;
+use crate::rewrite::rule::{RuleLiteralSequenceExit, rule_literal_sequence_normalized};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(in crate::rewrite) enum RuleLiteralExit {
     Complete,
     Boundary(Item),
-    DeferredInterpolation(Item),
 }
 
 pub(in crate::rewrite) enum NormalizedRuleLiteralExit {
     Complete(LineEntry),
     Boundary(Item, LineEntry),
-    DeferredInterpolation(Item, LineEntry),
 }
 
 pub(in crate::rewrite) enum PatternLiteralOpener {
@@ -25,24 +24,52 @@ pub(in crate::rewrite) enum PatternLiteralOpener {
 pub(in crate::rewrite) fn scan_expression_rule_literal_opener_witness(
     mut i: LexIn,
 ) -> Option<Item> {
+    let token = i.token(scan_expression_rule_literal_opener_token)?;
+    Some(Item::plain(LeadingTrivia::default(), Payload::Token(token)))
+}
+
+pub(in crate::rewrite) fn scan_expression_rule_literal_opener_token(mut i: LexIn) -> Option<Token> {
     i.remainder().starts_with("~\"").then_some(())?;
     let (_, text) = i.rb().with_str(|opener| consume_exact_bytes(opener, 2));
-    Some(literal_token(text))
+    Some(Token {
+        kind: TokenKind::Unknown,
+        text: text.into(),
+    })
 }
 
 pub(in crate::rewrite) fn scan_pattern_literal_opener_witness(
     mut i: LexIn,
 ) -> Option<PatternLiteralOpener> {
+    let token = i.token(scan_pattern_literal_opener_token)?;
+    if token.text.len() == 1 {
+        return Some(PatternLiteralOpener::Rule(Item::plain(
+            LeadingTrivia::default(),
+            Payload::Token(token),
+        )));
+    }
+    let mode = match token.text.len() {
+        quotes @ 3.. => StringMode::Heredoc { quotes },
+        _ => unreachable!("a Pattern StringLiteral opener is a heredoc quote run"),
+    };
+    Some(PatternLiteralOpener::String(
+        Item::plain(LeadingTrivia::default(), Payload::Token(token)),
+        mode,
+    ))
+}
+
+pub(in crate::rewrite) fn scan_pattern_literal_opener_token(mut i: LexIn) -> Option<Token> {
     let run = quote_run(i.remainder());
-    if run == 0 {
-        return None;
+    match run {
+        1 => {
+            let (_, text) = i.rb().with_str(|opener| consume_exact_bytes(opener, 1));
+            Some(Token {
+                kind: TokenKind::Unknown,
+                text: text.into(),
+            })
+        }
+        3.. => i.token(scan_string_opener_token).map(|(token, _)| token),
+        _ => None,
     }
-    if run >= 3 {
-        let (opener, mode) = scan_string_opener_witness(i)?;
-        return Some(PatternLiteralOpener::String(opener, mode));
-    }
-    let (_, text) = i.rb().with_str(|opener| consume_exact_bytes(opener, 1));
-    Some(PatternLiteralOpener::Rule(literal_token(text)))
 }
 
 /// Builds the non-interpolation portion of an isolated RuleLiteral. A plain
@@ -56,9 +83,6 @@ pub(in crate::rewrite) fn rule_literal_witness(
     match rule_literal_normalized(i, opener, part_origin, LineEntry::InLine, Some(fence)) {
         NormalizedRuleLiteralExit::Complete(_) => RuleLiteralExit::Complete,
         NormalizedRuleLiteralExit::Boundary(item, _) => RuleLiteralExit::Boundary(item),
-        NormalizedRuleLiteralExit::DeferredInterpolation(item, _) => {
-            RuleLiteralExit::DeferredInterpolation(item)
-        }
     }
 }
 
@@ -70,6 +94,8 @@ pub(in crate::rewrite) fn rule_literal_normalized(
     fence: Option<&FenceBoundary>,
 ) -> NormalizedRuleLiteralExit {
     i.state.start_node(SyntaxKind::RuleLiteral.into());
+    let mut opener = opener;
+    opener.emit_all_remaining_leading(&mut *i.state);
     emit_literal_item(&mut i, opener, SyntaxKind::RuleLiteralStart);
     let mut next_prefix = None;
 
@@ -110,8 +136,41 @@ pub(in crate::rewrite) fn rule_literal_normalized(
                 let open = i
                     .token(|lex| Some(scan_rule_literal_structural(lex, part_origin, prefix, '{')))
                     .expect("checked RuleLiteral interpolation opener");
-                i.state.finish_node();
-                return NormalizedRuleLiteralExit::DeferredInterpolation(open, LineEntry::InLine);
+                advance_item_origin(&mut part_origin, &open);
+                i.state
+                    .start_node(SyntaxKind::RuleLiteralInterpolation.into());
+                emit_literal_item(&mut i, open, SyntaxKind::RuleLiteralOpenBrace);
+                match rule_literal_sequence_normalized(
+                    i.rb(),
+                    &mut part_origin,
+                    LineEntry::InLine,
+                    fence,
+                ) {
+                    RuleLiteralSequenceExit::Close(mut close, _) => {
+                        close.emit_all_remaining_leading(&mut *i.state);
+                        debug_assert_eq!(
+                            close.payload_view().token_kind(),
+                            Some(TokenKind::RBrace)
+                        );
+                        close.emit_payload(&mut *i.state, SyntaxKind::RuleLiteralCloseBrace);
+                        i.state.finish_node();
+                        continue;
+                    }
+                    RuleLiteralSequenceExit::OuterTerminator(mut end, line_entry) => {
+                        end.emit_all_remaining_leading(&mut *i.state);
+                        emit_missing(&mut i, LeadingTrivia::default());
+                        i.state.finish_node();
+                        debug_assert_eq!(end.payload_view().spelling(), Some("\""));
+                        end.emit_payload(&mut *i.state, SyntaxKind::RuleLiteralEnd);
+                        i.state.finish_node();
+                        return NormalizedRuleLiteralExit::Complete(line_entry);
+                    }
+                    RuleLiteralSequenceExit::Boundary(pending, _) => {
+                        emit_missing(&mut i, LeadingTrivia::default());
+                        i.state.finish_node();
+                        return finish_rule_literal_boundary(i, pending);
+                    }
+                }
             }
             Some((':', prefix)) => {
                 let colon = i

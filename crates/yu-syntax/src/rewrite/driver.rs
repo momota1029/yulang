@@ -7,14 +7,23 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 use super::{
     LexIn, RewriteIn, Stops,
     case_like::{CaseLikeFamily, case_like_nud_normalized},
-    current_item::{CurrentItem, LineEntry, current_item},
+    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     delimited::parenthesized_nud_normalized,
     emit::{
         emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
     },
     if_expr::if_nud_normalized,
     item::{Item, LeadingTrivia, LeadingView, OperatorUse, TokenKind},
-    lexer::{contextual_word_suffix_follower, scan_expression_payload, scan_nud_payload},
+    lexer::{
+        contextual_word_suffix_follower, scan_expression_payload, scan_nud_payload,
+        scan_operator_shaped_unknown,
+    },
+    literal::{
+        NormalizedRuleLiteralExit, NormalizedStringLiteralExit, quote_run, rule_literal_normalized,
+        scan_expression_rule_literal_opener_token, scan_pattern_literal_opener_token,
+        scan_string_opener_token, string_literal_with_virtual_statements_normalized,
+        string_mode_from_opener,
+    },
     operator::{
         STOP_LINE_BREAK, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item,
     },
@@ -159,6 +168,35 @@ fn append_nud(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
+    if is_expression_rule_literal_opener(&nud) {
+        return append_rule_literal_nud(
+            i,
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    if let Some(mode) = string_mode_from_opener(&nud) {
+        return append_string_literal_nud(
+            i,
+            nud,
+            mode,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
     if is_contextual_word(i.rb(), &nud, "case") {
         return case_like_nud_normalized(
             i,
@@ -269,6 +307,76 @@ fn append_nud(
             fence,
         ),
         _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_string_literal_nud(
+    mut i: RewriteIn,
+    opener: Item,
+    mode: super::literal::StringMode,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    _line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let entry = suffix_marker(i.rb());
+    let exit =
+        string_literal_with_virtual_statements_normalized(i.rb(), opener, mode, item_origin, fence);
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    match exit {
+        NormalizedStringLiteralExit::Complete(line_entry) => scan_tail_after_accept_normalized(
+            i,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        NormalizedStringLiteralExit::Boundary(item, line_entry) => {
+            complete(handoff(item), line_entry)
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_rule_literal_nud(
+    mut i: RewriteIn,
+    opener: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    _line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    let entry = suffix_marker(i.rb());
+    let exit = rule_literal_normalized(i.rb(), opener, item_origin, LineEntry::InLine, fence);
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    match exit {
+        NormalizedRuleLiteralExit::Complete(line_entry) => scan_tail_after_accept_normalized(
+            i,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+        ),
+        NormalizedRuleLiteralExit::Boundary(item, line_entry) => {
+            complete(handoff(item), line_entry)
+        }
     }
 }
 
@@ -941,8 +1049,9 @@ fn optional_nud_item(
             item_origin,
             line_entry,
             fence,
-            |lex, leading, origin, fence, _| {
-                scan_nud_payload(lex, leading, origin, fence, baseline, stops)
+            |mut lex, leading, origin, fence, _| {
+                scan_expression_literal_payload(lex.rb(), OperatorSite::Nud)
+                    .or_else(|| scan_nud_payload(lex, leading, origin, fence, baseline, stops))
             },
         )?;
         let payload = current.item.payload_view();
@@ -976,13 +1085,68 @@ pub(super) fn expression_item(
                 line_entry,
                 fence,
                 |lex, leading, origin, fence, _| {
-                    scan_expression_payload(lex, site, leading, origin, fence, baseline, stops)
+                    scan_expression_payload_with_literals(
+                        lex, site, leading, origin, fence, baseline, stops,
+                    )
                 },
             )
         })
         .expect("expression payload scanning is total");
     let item_origin = advanced_origin(item_origin, entry, i);
     (item, item_origin, next_line_entry)
+}
+
+pub(super) fn scan_expression_payload_with_literals(
+    mut i: LexIn,
+    site: OperatorSite,
+    has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> Option<AcceptedPayload> {
+    if let Some(literal) = i.token(|lex| scan_expression_literal_payload(lex, site)) {
+        return Some(literal);
+    }
+    scan_expression_payload(
+        i,
+        site,
+        has_leading_trivia,
+        payload_origin,
+        fence,
+        baseline,
+        stops,
+    )
+}
+
+pub(super) fn scan_expression_literal_payload(
+    mut i: LexIn,
+    site: OperatorSite,
+) -> Option<AcceptedPayload> {
+    if matches!(site, OperatorSite::Nud)
+        && let Some(token) = i.token(scan_expression_rule_literal_opener_token)
+    {
+        return Some(literal_payload(token));
+    }
+    i.token(scan_string_opener_token)
+        .map(|(token, _)| literal_payload(token))
+}
+
+pub(super) fn scan_pattern_literal_payload(mut i: LexIn) -> Option<AcceptedPayload> {
+    // Pattern reserves one quote for RuleLiteral and three or more for String;
+    // keep the rejected two-quote run maximal as one ordinary recovery Item.
+    if quote_run(i.remainder()) == 2 {
+        return i.token(scan_operator_shaped_unknown).map(literal_payload);
+    }
+    i.token(scan_pattern_literal_opener_token)
+        .map(literal_payload)
+}
+
+fn literal_payload(token: super::item::Token) -> AcceptedPayload {
+    AcceptedPayload {
+        payload: CurrentPayload::Token(token),
+        next_line_entry: LineEntry::InLine,
+    }
 }
 
 pub(super) fn complete(exit: TailExit, line_entry: LineEntry) -> NormalizedExit {
@@ -1085,7 +1249,14 @@ fn is_contextual_word_lex(mut i: LexIn, item: &Item, word: &str) -> bool {
 }
 
 pub(super) fn is_statement_nud(item: &Item) -> bool {
-    is_normal_core_item(item) || token_kind(item) == Some(TokenKind::LBrace)
+    is_normal_core_item(item)
+        || token_kind(item) == Some(TokenKind::LBrace)
+        || string_mode_from_opener(item).is_some()
+        || is_expression_rule_literal_opener(item)
+}
+
+fn is_expression_rule_literal_opener(item: &Item) -> bool {
+    item.payload_view().spelling() == Some("~\"")
 }
 
 pub(super) fn is_normal_core_item(item: &Item) -> bool {

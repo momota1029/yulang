@@ -3,8 +3,8 @@ use crate::rewrite::{
     current_item::LineEntry,
     item::{Boundary, Item, LeadingTrivia, Payload, PendingBoundary, StopKind, Token},
     rule::{
-        RuleWitnessExit, expression_list_handoff_witness, rule_body_witness,
-        scan_rule_current_item_witness, scan_rule_introducer_successor_witness,
+        RuleWitnessExit, expression_list_handoff_witness, rule_body_normalized_witness,
+        rule_body_witness, scan_rule_current_item_witness, scan_rule_introducer_successor_witness,
         scan_rule_item_witness,
     },
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
@@ -58,6 +58,34 @@ fn run_rule_body_with_fence_and_operators<'source>(
     );
     builder.finish_node();
     (builder.finish(), exit, input)
+}
+
+fn run_rule_body_normalized<'source>(
+    source: &'source str,
+    source_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, RuleWitnessExit, LineEntry, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let mut lex = In::new(&mut input, &mut recover, ());
+    let opener = scan_rule_item_witness(lex.rb()).expect("RuleBody opener");
+    let current_origin = source_origin + source.len() - lex.remainder().len();
+    let current = scan_rule_current_item_witness(lex, current_origin, LineEntry::InLine, fence);
+    let origin = source_origin + source.len() - input.len();
+
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let (exit, line_entry) = rule_body_normalized_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        opener,
+        current.item,
+        current.next_line_entry,
+        origin,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, line_entry, input)
 }
 
 fn run_rule_body_with<'source>(
@@ -453,18 +481,63 @@ fn l5_rule_atoms_and_argument_tails_take_over_the_l4_deferred_positions() {
 }
 
 #[test]
-fn nested_string_interpolation_stays_an_exact_later_gate_handoff() {
+fn nested_string_interpolation_uses_the_l6_virtual_statement_owner() {
     let source = "{\"text%{x}\"}";
-    let start = source.as_ptr();
     let (green, exit, remainder) = run_rule_body(source);
-    let item = returned(exit);
-    assert_eq!(item, token_item(TokenKind::Unknown, "%"));
-    assert_eq!(remainder, "{x}\"}");
+    assert_eq!(exit, RuleWitnessExit::Complete);
+    assert_eq!(remainder, "");
+    assert_eq!(count(&green, SyntaxKind::StringInterpolation), 1);
+    assert_eq!(count(&green, SyntaxKind::Statement), 1);
+    assert_eq!(count(&green, SyntaxKind::Missing), 0);
+}
+
+#[test]
+fn rule_atom_string_boundary_finishes_its_rule_item_before_handoff() {
+    let source = "{\"unterminated";
+    let (green, exit, line_entry, remainder) = run_rule_body_normalized(source, 0, None);
+    let pending = returned(exit);
+    assert!(pending.payload_view().is_eof());
+    assert_eq!(line_entry, LineEntry::InLine);
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), source);
+    assert_eq!(count(&green, SyntaxKind::Missing), 2);
+    let syntax_root = root(&green);
+    let string = syntax_root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::StringLiteral)
+        .expect("StringLiteral");
     assert_eq!(
-        remainder.as_ptr(),
-        start.wrapping_add(source.len() - remainder.len())
+        string.parent().expect("String parent").kind(),
+        SyntaxKind::RuleItem
     );
-    assert_eq!(count(&green, SyntaxKind::StringInterpolation), 0);
+    let parents = syntax_root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .map(|node| node.parent().expect("Missing parent").kind())
+        .collect::<Vec<_>>();
+    assert_eq!(parents, [SyntaxKind::StringLiteral, SyntaxKind::RuleBody]);
+
+    let boundary = active_fence(2);
+    let source = "{\"text\n> stop\n";
+    let (green, exit, line_entry, remainder) =
+        run_rule_body_normalized(source, 900, Some(&boundary));
+    let pending = returned(exit);
+    assert_eq!(line_entry, LineEntry::PhysicalStart);
+    assert_eq!(remainder, "> stop\n");
+    assert_eq!(
+        pending,
+        expected_boundary_item(remainder, 907, &boundary, &[])
+    );
+    assert_eq!(green.to_string(), "{\"text\n");
+    assert_eq!(count(&green, SyntaxKind::Missing), 2);
+    let string = root(&green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::StringLiteral)
+        .expect("fenced StringLiteral");
+    assert_eq!(
+        string.parent().expect("String parent").kind(),
+        SyntaxKind::RuleItem
+    );
 }
 
 #[test]

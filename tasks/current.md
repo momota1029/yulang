@@ -758,6 +758,19 @@ yu-syntax`、full rustfmt check、diff checkはgreen。full package/timingはbud
 routes/deltaであり、nested StringLiteralをcanonical Statement NUDへ接続する証拠もそのscopeに属する。
 typed recovery/joint Gate 4–6 certification/public cutoverは引き続き未完である。
 
+2026-09-06: direct literal cone L7 constructionを完了した。Expression NUDのnormal/heredoc StringLiteral
+（L6 `%{ Statement* }`を含む）、Pattern NUDの1 quote RuleLiteral / 3+ quote StringLiteral / 2 quote
+non-opener、RuleAtom host StringLiteral、RuleLiteral固有`{ RuleSequence }` interpolationをprivate direct routeへ
+接続した。RuleLiteralとStringInterpolationは別ownerのまま、adjacent `~"`だけをRuleLiteralへ予約し、nested
+captureのrequired Stringに限るRule-local `="` splitを追加した。M2初回compiler/recovery reviewで
+LiteralInterpolationへのRuleBody stop漏れ、outer-quote leading、unterminated RuleAtom StringのRuleItem close
+忘れを検出し、specification reviewはLF/CRLF/fence/2-quote evidence gapを検出。一回のrepair/delta reviewで
+全件clean。focused literal 35、Pattern 24、Rule 25、VirtualStatementBlock 9、Statement 8、normalized 82件と
+`cargo check -p yu-syntax`、full rustfmt check、diff checkはgreen。full package/timingはbudget外。L0–L7の
+literal/private Gate-6 construction checkpointは完了したが、E/RB-E/P/RB-P typed ledgerとjoint Gate 4–6
+certificationは未完。次はsuccessor typed-output/recovery topologyのM3設計・user approvalであり、承認前に
+実装やpublic/legacy cutoverへ進まない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

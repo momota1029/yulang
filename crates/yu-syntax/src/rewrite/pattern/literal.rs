@@ -3,9 +3,8 @@
 use super::super::{
     RewriteIn,
     literal::{
-        NonInterpolatingStringExit, PatternLiteralOpener, RuleLiteralExit,
-        non_interpolating_string_literal_witness, rule_literal_witness,
-        scan_pattern_literal_opener_witness,
+        PatternLiteralOpener, RuleLiteralExit, StringLiteralExit, rule_literal_witness,
+        scan_pattern_literal_opener_witness, string_literal_with_virtual_statements_witness,
     },
     yumark::FenceBoundary,
 };
@@ -13,11 +12,11 @@ use super::super::{
 #[derive(Debug, Eq, PartialEq)]
 pub(in crate::rewrite) enum PatternLiteralWitnessExit {
     Rule(RuleLiteralExit),
-    String(NonInterpolatingStringExit),
+    String(StringLiteralExit),
 }
 
 /// Applies LC-5's one-quote/three-quote split without making it reachable
-/// from the production Pattern primary path before the L7 barrier.
+/// through the same literal owners used by the production Pattern primary.
 pub(in crate::rewrite) fn pattern_literal_witness(
     mut i: RewriteIn,
     origin: usize,
@@ -35,7 +34,7 @@ pub(in crate::rewrite) fn pattern_literal_witness(
                 .expect("a Pattern string opener is one token")
                 .len();
             Some(PatternLiteralWitnessExit::String(
-                non_interpolating_string_literal_witness(
+                string_literal_with_virtual_statements_witness(
                     i,
                     opener,
                     mode,

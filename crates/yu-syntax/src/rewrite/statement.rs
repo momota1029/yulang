@@ -2,7 +2,7 @@
 
 use reborrow_generic::Reborrow as _;
 
-use crate::{operator::BindingPower, syntax_kind::SyntaxKind};
+use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
     RewriteIn, Stops,
@@ -16,7 +16,7 @@ use super::{
         Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
         continue_normalized_tail, delimited_baseline, expr_from_nud_normalized, handoff,
         implicit_delimited_newline, indentation_after_newline, is_active_stop, is_nud_item,
-        is_separator, ordinary_exit, suffix_marker, token_kind,
+        is_separator, ordinary_exit, scan_expression_literal_payload, suffix_marker, token_kind,
     },
     emit::{emit_missing, emit_token_item},
     enum_decl::{enum_declaration_normalized, enum_declaration_selected_normalized},
@@ -1110,8 +1110,10 @@ pub(super) fn statement_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
-                |lex, leading, origin, fence, _| {
-                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                |mut lex, leading, origin, fence, _| {
+                    scan_expression_literal_payload(lex.rb(), OperatorSite::Nud).or_else(|| {
+                        scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                    })
                 },
             )
         })

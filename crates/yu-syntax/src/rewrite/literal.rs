@@ -17,6 +17,11 @@ use super::{
 
 mod rule_literal;
 
+pub(super) use rule_literal::{
+    NormalizedRuleLiteralExit, rule_literal_normalized, scan_expression_rule_literal_opener_token,
+    scan_pattern_literal_opener_token,
+};
+
 #[cfg(test)]
 pub(super) use rule_literal::{
     PatternLiteralOpener, RuleLiteralExit, rule_literal_witness,
@@ -42,6 +47,11 @@ pub(super) enum StringMode {
 pub(super) enum StringLiteralExit {
     Complete,
     Boundary(Item),
+}
+
+pub(super) enum NormalizedStringLiteralExit {
+    Complete(LineEntry),
+    Boundary(Item, LineEntry),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -168,17 +178,20 @@ pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'builder>(
 where
     'operators: 'recover,
 {
-    string_literal_with_interpolation_body(
+    match string_literal_with_interpolation_body(
         i,
         opener,
         mode,
         part_origin,
-        fence,
+        Some(fence),
         |child, _, line_entry| InterpolationBodyExit::Close {
             item: interpolation_body(child),
             line_entry,
         },
-    )
+    ) {
+        NormalizedStringLiteralExit::Complete(_) => StringLiteralExit::Complete,
+        NormalizedStringLiteralExit::Boundary(item, _) => StringLiteralExit::Boundary(item),
+    }
 }
 
 /// L6 isolated StringLiteral construction using the canonical virtual
@@ -198,6 +211,25 @@ pub(super) fn string_literal_with_virtual_statements_witness<
 where
     'operators: 'recover,
 {
+    match string_literal_with_virtual_statements_normalized(
+        i,
+        opener,
+        mode,
+        part_origin,
+        Some(fence),
+    ) {
+        NormalizedStringLiteralExit::Complete(_) => StringLiteralExit::Complete,
+        NormalizedStringLiteralExit::Boundary(item, _) => StringLiteralExit::Boundary(item),
+    }
+}
+
+pub(super) fn string_literal_with_virtual_statements_normalized(
+    i: RewriteIn,
+    opener: Item,
+    mode: StringMode,
+    part_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedStringLiteralExit {
     string_literal_with_interpolation_body(
         i,
         opener,
@@ -208,7 +240,7 @@ where
             child,
             body_origin,
             line_entry,
-            Some(fence),
+            fence,
         ) {
             VirtualStatementBlockExit::Close(item, line_entry) => {
                 InterpolationBodyExit::Close { item, line_entry }
@@ -225,17 +257,19 @@ fn string_literal_with_interpolation_body<'source, 'recover, 'operators, 'builde
     opener: Item,
     mode: StringMode,
     mut part_origin: usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
     mut interpolation_body: impl for<'a> FnMut(
         RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
         usize,
         LineEntry,
     ) -> InterpolationBodyExit,
-) -> StringLiteralExit
+) -> NormalizedStringLiteralExit
 where
     'operators: 'recover,
 {
     i.state.start_node(SyntaxKind::StringLiteral.into());
+    let mut opener = opener;
+    opener.emit_all_remaining_leading(&mut *i.state);
     emit_literal_item(&mut i, opener, SyntaxKind::StringStart);
     let mut next_prefix = None;
 
@@ -259,7 +293,7 @@ where
                         .expect("a judged prefixed terminator is accepted");
                     emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
                     i.state.finish_node();
-                    return StringLiteralExit::Complete;
+                    return NormalizedStringLiteralExit::Complete(LineEntry::InLine);
                 }
                 '%' => {
                     match emit_string_interpolation(
@@ -284,7 +318,7 @@ where
         } else if let Some(close) = i.token(|lex| scan_string_close_witness(lex, mode)) {
             emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
             i.state.finish_node();
-            return StringLiteralExit::Complete;
+            return NormalizedStringLiteralExit::Complete(LineEntry::InLine);
         } else if i
             .token(|lex| Some(lex.remainder().starts_with('%')))
             .expect("the literal source probe is total")
@@ -304,7 +338,7 @@ where
         };
 
         if let Some(lead) = lead {
-            match emit_string_escape(i.rb(), lead, &mut part_origin, Some(fence), mode) {
+            match emit_string_escape(i.rb(), lead, &mut part_origin, fence, mode) {
                 EscapeExit::Continue => continue,
                 EscapeExit::AfterLine => {
                     let scan = i
@@ -312,7 +346,7 @@ where
                             Some(scan_multiline_literal_item(
                                 lex,
                                 part_origin,
-                                Some(fence),
+                                fence,
                                 true,
                                 |source| string_text_stop(source, mode),
                             ))
@@ -339,7 +373,7 @@ where
                 Some(scan_multiline_literal_item(
                     lex,
                     part_origin,
-                    Some(fence),
+                    fence,
                     false,
                     |source| string_text_stop(source, mode),
                 ))
@@ -533,7 +567,7 @@ fn emit_string_interpolation<'source, 'recover, 'operators, 'builder>(
     mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
     prefix: Option<AcceptedQuotePrefix>,
     part_origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
     interpolation_body: &mut impl for<'a> FnMut(
         RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
         usize,
@@ -562,7 +596,7 @@ where
             Some(scan_multiline_literal_item(
                 lex,
                 *part_origin,
-                Some(fence),
+                fence,
                 false,
                 interpolation_format_stop,
             ))
@@ -917,10 +951,11 @@ fn emit_literal_error(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
     i.state.finish_node();
 }
 
-fn finish_string_boundary(mut i: RewriteIn, pending: Item) -> StringLiteralExit {
+fn finish_string_boundary(mut i: RewriteIn, pending: Item) -> NormalizedStringLiteralExit {
+    let line_entry = pending_line_entry(&pending);
     emit_missing(&mut i, LeadingTrivia::default());
     i.state.finish_node();
-    StringLiteralExit::Boundary(pending)
+    NormalizedStringLiteralExit::Boundary(pending, line_entry)
 }
 
 fn current_boundary_item(
@@ -1161,7 +1196,7 @@ fn literal_token(text: &str) -> Item {
     )
 }
 
-fn quote_run(source: &str) -> usize {
+pub(super) fn quote_run(source: &str) -> usize {
     source.bytes().take_while(|byte| *byte == b'"').count()
 }
 
