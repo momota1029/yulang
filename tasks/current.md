@@ -690,6 +690,18 @@ Role 14、Act 15、Struct 23件と`cargo check -p yu-syntax`、scoped rustfmt、
 records/full Gate 6 certification、workspace suite、timing measurementは未実施。次は残るdirect declaration
 form `Cast`とfinal-root前のcoverage ledger closureであり、L6/L7/Yumark/public cutoverは未完である。
 
+2026-09-06: direct Cast shellの前提をarchitecture auditし、共有Pattern prerequisiteを二つのneutral
+sub-gateへ分離した。Sub-gate Aは完了: default-empty `PatternMandatorySlotPolicy`を追加し、mandatory
+outer slotのinitial/malformed same-slot retryだけへfresh `Colon | Equal` reservationを適用する。valid
+`:symbol`、accepted `x: T` annotation、record default、recursive Pattern entryは従来所有のままである。
+別fieldのrecovered-tail reservationは、outermost Parenthesized owner自身が一つのErrorをemitしてactual
+matching closeをconsumeした場合だけ次のColonをpendingで返し、`cast((x @): B;`の正本contractを準備する。
+既存entryは全てdefault wrapper、production reachabilityとCast shellは未追加。M2 compiler/recovery・
+specification reviewはclean、focused Pattern 15件、`cargo check -p yu-syntax`、scoped rustfmt、diff checkは
+green。allocation/state/replay/traversal追加はなくtiming measurementは不要。次はSub-gate Bのexplicit
+caller-right-close capability、その後にisolated direct Cast shellである。A+B closure時に一度だけfull
+`cargo test -p yu-syntax`を実行する。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

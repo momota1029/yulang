@@ -1,9 +1,75 @@
 use super::*;
 use crate::rewrite::{
+    current_item::{CurrentItem, LineEntry, current_item},
+    item::{BorrowedTarget, Boundary},
+    lexer::scan_pattern_nud_payload,
     literal::{NonInterpolatingStringExit, RuleLiteralExit},
-    pattern::{PatternLiteralWitnessExit, pattern_literal_witness},
+    pattern::{
+        PATTERN_STOP_COLON, PATTERN_STOP_EQUALS, PatternCompletion, PatternLiteralWitnessExit,
+        PatternMandatorySlotPolicy, PatternStops, pattern_literal_witness,
+        required_pattern_from_entry_item_with_policy_normalized,
+    },
+    statement::StatementLineHandoff,
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
 };
+
+fn run_required_pattern_with_policy<'source>(
+    source: &'source str,
+    stops: PatternStops,
+    policy: PatternMandatorySlotPolicy,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, NormalizedExit, PatternCompletion, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let mut input = source;
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = current_item(
+        In::new(&mut input, &mut recover, ()),
+        item_origin,
+        line_entry,
+        fence,
+        |lex, leading, origin, fence, _| {
+            scan_pattern_nud_payload(lex, leading, origin, fence, stops)
+        },
+    )
+    .expect("mandatory Pattern acquisition is total");
+    let next_origin = item_origin
+        .checked_add(source.len() - input.len())
+        .expect("test Pattern origin");
+    let (exit, completion) = required_pattern_from_entry_item_with_policy_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        item,
+        0,
+        stops,
+        StatementLineHandoff::OrdinaryLayout,
+        policy,
+        next_origin,
+        next_line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, completion, input)
+}
+
+fn policy(fresh: PatternStops, recovered_tail: PatternStops) -> PatternMandatorySlotPolicy {
+    PatternMandatorySlotPolicy {
+        fresh_primary_recovery_stops: fresh,
+        recovered_primary_tail_stops: recovered_tail,
+    }
+}
+
+fn recovery_count(green: &GreenNode, kind: SyntaxKind) -> usize {
+    SyntaxNode::new_root(green.clone())
+        .descendants()
+        .filter(|node| node.kind() == kind)
+        .count()
+}
 
 fn run_pattern_literal<'source>(
     source: &'source str,
@@ -50,6 +116,193 @@ fn annotation_node(green: &GreenNode) -> SyntaxNode {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
         .expect("PatternTypeAnnotation")
+}
+
+#[test]
+fn mandatory_pattern_policy_reserves_only_fresh_primary_recovery_stops() {
+    let fresh_stops = PATTERN_STOP_COLON | PATTERN_STOP_EQUALS;
+    for (source, kind, remainder) in [
+        (": T", TokenKind::Colon, " T"),
+        ("= value", TokenKind::Equals, " value"),
+    ] {
+        let (green, exit, completion, actual_remainder) = run_required_pattern_with_policy(
+            source,
+            0,
+            policy(fresh_stops, 0),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), "", "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(completion, PatternCompletion::Incomplete, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1);
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0);
+        let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+            panic!("fresh stop Item must remain pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}");
+    }
+
+    for (source, kind) in [("@ :", TokenKind::Colon), ("@ =", TokenKind::Equals)] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_policy(
+            source,
+            0,
+            policy(fresh_stops, 0),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), "@", "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Incomplete, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 1);
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("recovery stop Item must remain pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
+
+    for source in [":symbol", "x: T", "{x = 1}", "@ x: T", "@ {x = 1}"] {
+        let (green, _, completion, remainder) = run_required_pattern_with_policy(
+            source,
+            0,
+            policy(fresh_stops, 0),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+    }
+    let symbol = run_required_pattern_with_policy(
+        ":symbol",
+        0,
+        policy(fresh_stops, 0),
+        0,
+        LineEntry::InLine,
+        None,
+    )
+    .0;
+    assert_eq!(
+        SyntaxNode::new_root(symbol)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::SymbolPattern)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn mandatory_pattern_policy_reserves_only_recovered_parenthesized_primary_tail() {
+    let source = "(x @): T";
+    let (default_green, _, default_completion, default_remainder) =
+        run_required_pattern_with_policy(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+    assert_eq!(default_green.to_string(), source);
+    assert_eq!(default_remainder, "");
+    assert_eq!(default_completion, PatternCompletion::Complete);
+    assert_eq!(recovery_count(&default_green, SyntaxKind::Error), 1);
+    assert_eq!(
+        SyntaxNode::new_root(default_green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .count(),
+        1
+    );
+
+    let (green, exit, completion, remainder) = run_required_pattern_with_policy(
+        source,
+        0,
+        policy(0, PATTERN_STOP_COLON),
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "(x @)");
+    assert_eq!(remainder, " T");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 1);
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(
+        SyntaxNode::new_root(green.clone())
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .count(),
+        0
+    );
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+        panic!("recovered Parenthesized Pattern must return the colon pending")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+
+    for nested in ["((x @): T)", "(@ (x @)): T"] {
+        let (green, _, completion, remainder) = run_required_pattern_with_policy(
+            nested,
+            0,
+            policy(PATTERN_STOP_COLON | PATTERN_STOP_EQUALS, PATTERN_STOP_COLON),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), nested, "{nested:?}");
+        assert_eq!(remainder, "", "{nested:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{nested:?}");
+        assert!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation),
+            "{nested:?}"
+        );
+    }
+}
+
+#[test]
+fn mandatory_pattern_policy_preserves_fenced_boundaries_and_coordinates() {
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let origin = 8_000;
+    let source = "@\r\n> > ```\r\nouter";
+    let (green, exit, completion, remainder) = run_required_pattern_with_policy(
+        source,
+        0,
+        policy(PATTERN_STOP_COLON | PATTERN_STOP_EQUALS, PATTERN_STOP_COLON),
+        origin,
+        LineEntry::InLine,
+        Some(&fence),
+    );
+    assert_eq!(green.to_string(), "@");
+    assert_eq!(remainder, "> > ```\r\nouter");
+    assert_eq!(completion, PatternCompletion::Incomplete);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 1);
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) = exit else {
+        panic!("fenced close must remain the pending Pattern boundary")
+    };
+    let (leading, pending) = emit_terminal_leading_text(item);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + 3);
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
 }
 
 #[test]

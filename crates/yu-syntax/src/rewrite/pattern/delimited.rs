@@ -21,7 +21,7 @@ use super::{
     PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
     PATTERN_STOP_RPAREN, PatternCompletion, PatternPrecedence, PatternStops, RewriteIn,
     pattern_from_item_recording_normalized, pattern_item_normalized, pattern_nud_item_normalized,
-    scan_pattern_tail_normalized,
+    pattern_primary_stop_token, pattern_tail_normalized, scan_pattern_tail_normalized,
 };
 
 #[derive(Clone, Copy)]
@@ -66,6 +66,7 @@ pub(super) fn parenthesized_pattern(
     incoming_baseline: usize,
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    recovered_primary_tail_stops: PatternStops,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -79,6 +80,7 @@ pub(super) fn parenthesized_pattern(
         incoming_baseline,
         outer_stops,
         line_handoff,
+        recovered_primary_tail_stops,
         completion,
         item_origin,
         line_entry,
@@ -107,6 +109,7 @@ pub(super) fn list_pattern(
         incoming_baseline,
         outer_stops,
         line_handoff,
+        0,
         completion,
         item_origin,
         line_entry,
@@ -135,6 +138,7 @@ pub(super) fn record_pattern(
         incoming_baseline,
         outer_stops,
         line_handoff,
+        0,
         completion,
         item_origin,
         line_entry,
@@ -151,6 +155,7 @@ fn pattern_delimited(
     incoming_baseline: usize,
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    recovered_primary_tail_stops: PatternStops,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -167,6 +172,7 @@ fn pattern_delimited(
     }
     let mut expect_item = true;
     let mut contents_completion = PatternCompletion::Complete;
+    let mut own_recovery_consumed_error = false;
 
     loop {
         if item.payload_view().is_boundary() {
@@ -184,6 +190,8 @@ fn pattern_delimited(
                     incoming_baseline,
                     outer_stops,
                     contents_completion,
+                    own_recovery_consumed_error,
+                    recovered_primary_tail_stops,
                     line_handoff,
                     completion,
                     item_origin,
@@ -210,6 +218,7 @@ fn pattern_delimited(
                 return missing_close(i, item, line_entry);
             }
             if is_other_close(owner, &item) {
+                own_recovery_consumed_error = true;
                 emit_error_item(&mut i, item);
                 (item, item_origin, line_entry) = pattern_nud_item_normalized(
                     i.rb(),
@@ -221,6 +230,7 @@ fn pattern_delimited(
                 continue;
             }
             if matches!(owner, Owner::Record) && !is_item_start(owner, &item) {
+                own_recovery_consumed_error = true;
                 emit_error_item(&mut i, item);
                 (item, item_origin, line_entry) = pattern_nud_item_normalized(
                     i.rb(),
@@ -314,6 +324,8 @@ fn pattern_delimited(
                 incoming_baseline,
                 outer_stops,
                 contents_completion,
+                own_recovery_consumed_error,
+                recovered_primary_tail_stops,
                 line_handoff,
                 completion,
                 item_origin,
@@ -326,6 +338,7 @@ fn pattern_delimited(
             return missing_close(i, item, line_entry);
         }
         if is_other_close(owner, &item) {
+            own_recovery_consumed_error = true;
             emit_error_item(&mut i, item);
             (item, item_origin, line_entry) =
                 pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
@@ -340,6 +353,7 @@ fn pattern_delimited(
             expect_item = true;
             continue;
         }
+        own_recovery_consumed_error = true;
         emit_error_item(&mut i, item);
         (item, item_origin, line_entry) =
             pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
@@ -356,6 +370,8 @@ fn finish_delimited_pattern(
     incoming_baseline: usize,
     outer_stops: PatternStops,
     contents_completion: PatternCompletion,
+    own_recovery_consumed_error: bool,
+    recovered_primary_tail_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     completion: &mut PatternCompletion,
     item_origin: usize,
@@ -363,17 +379,41 @@ fn finish_delimited_pattern(
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     let mut tail_completion = PatternCompletion::Complete;
-    let exit = scan_pattern_tail_normalized(
-        i,
-        minimum,
-        incoming_baseline,
-        outer_stops,
-        line_handoff,
-        &mut tail_completion,
-        item_origin,
-        line_entry,
-        fence,
-    );
+    let exit = if own_recovery_consumed_error && recovered_primary_tail_stops != 0 {
+        let mut i = i;
+        let (item, item_origin, line_entry) =
+            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, outer_stops);
+        if token_kind(&item)
+            .is_some_and(|kind| pattern_primary_stop_token(kind, recovered_primary_tail_stops))
+        {
+            complete(handoff(item), line_entry)
+        } else {
+            pattern_tail_normalized(
+                i,
+                item,
+                minimum,
+                incoming_baseline,
+                outer_stops,
+                line_handoff,
+                &mut tail_completion,
+                item_origin,
+                line_entry,
+                fence,
+            )
+        }
+    } else {
+        scan_pattern_tail_normalized(
+            i,
+            minimum,
+            incoming_baseline,
+            outer_stops,
+            line_handoff,
+            &mut tail_completion,
+            item_origin,
+            line_entry,
+            fence,
+        )
+    };
     *completion = contents_completion;
     merge_completion(completion, tail_completion);
     exit

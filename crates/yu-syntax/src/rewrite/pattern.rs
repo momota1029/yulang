@@ -61,6 +61,12 @@ pub(super) const PATTERN_DEFAULT_STOPS: PatternStops = PATTERN_STOP_COMMA
     | PATTERN_STOP_RBRACE
     | PATTERN_STOP_EQUALS;
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct PatternMandatorySlotPolicy {
+    pub(super) fresh_primary_recovery_stops: PatternStops,
+    pub(super) recovered_primary_tail_stops: PatternStops,
+}
+
 pub(super) fn pattern_stops_from_owner(stops: Stops) -> PatternStops {
     [
         (TokenKind::Colon, PATTERN_STOP_COLON),
@@ -140,7 +146,7 @@ fn pattern_from_item_normalized(
     .0
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PatternCompletion {
     Complete,
     Incomplete,
@@ -181,12 +187,41 @@ fn pattern_from_item_with_completion_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn pattern_from_item_recording_normalized(
+    i: RewriteIn,
+    item: Item,
+    minimum: PatternPrecedence,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    completion: &mut PatternCompletion,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    pattern_from_item_recording_with_policy_normalized(
+        i,
+        item,
+        minimum,
+        baseline,
+        stops,
+        line_handoff,
+        PatternMandatorySlotPolicy::default(),
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pattern_from_item_recording_with_policy_normalized(
     mut i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    policy: PatternMandatorySlotPolicy,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -201,6 +236,7 @@ fn pattern_from_item_recording_normalized(
         baseline,
         stops,
         line_handoff,
+        policy,
         completion,
         item_origin,
         line_entry,
@@ -218,6 +254,7 @@ fn pattern_from_item_core_normalized(
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    policy: PatternMandatorySlotPolicy,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -229,15 +266,22 @@ fn pattern_from_item_core_normalized(
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
+    if is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops) {
+        *completion = PatternCompletion::Incomplete;
+        let mut i = i;
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
     if is_pattern_nud(&item, stops) {
         *completion = PatternCompletion::Complete;
-        pattern_from_primary_normalized(
+        pattern_from_primary_with_recovered_tail_stops_normalized(
             i,
             item,
             minimum,
             baseline,
             stops,
             line_handoff,
+            policy.recovered_primary_tail_stops,
             completion,
             item_origin,
             line_entry,
@@ -251,6 +295,7 @@ fn pattern_from_item_core_normalized(
             baseline,
             stops,
             line_handoff,
+            policy,
             completion,
             item_origin,
             line_entry,
@@ -312,17 +357,18 @@ pub(super) fn pattern_from_entry_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    pattern_from_item_normalized(
+    required_pattern_from_entry_item_with_policy_normalized(
         i,
         item,
-        PatternPrecedence::Lowest,
         baseline,
         stops,
         line_handoff,
+        PatternMandatorySlotPolicy::default(),
         item_origin,
         line_entry,
         fence,
     )
+    .0
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -336,17 +382,46 @@ pub(super) fn pattern_from_entry_item_with_completion_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (NormalizedExit, PatternCompletion) {
-    pattern_from_item_with_completion_normalized(
+    required_pattern_from_entry_item_with_policy_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        PatternMandatorySlotPolicy::default(),
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
+    i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    policy: PatternMandatorySlotPolicy,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, PatternCompletion) {
+    let mut completion = PatternCompletion::Incomplete;
+    let exit = pattern_from_item_recording_with_policy_normalized(
         i,
         item,
         PatternPrecedence::Lowest,
         baseline,
         stops,
         line_handoff,
+        policy,
+        &mut completion,
         item_origin,
         line_entry,
         fence,
-    )
+    );
+    (exit, completion)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -357,6 +432,7 @@ fn recover_pattern_primary_normalized(
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    policy: PatternMandatorySlotPolicy,
     completion: &mut PatternCompletion,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -364,6 +440,10 @@ fn recover_pattern_primary_normalized(
 ) -> NormalizedExit {
     *completion = PatternCompletion::Incomplete;
     if item.payload_view().is_boundary() {
+        emit_missing(&mut i, LeadingTrivia::default());
+        return complete(handoff(item), line_entry);
+    }
+    if is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops) {
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
@@ -396,6 +476,10 @@ fn recover_pattern_primary_normalized(
             i.state.finish_node();
             return complete(handoff(item), line_entry);
         }
+        if is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops) {
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
+        }
         if is_pattern_primary_boundary(&item, baseline, stops) {
             i.state.finish_node();
             return complete(handoff(item), line_entry);
@@ -419,13 +503,14 @@ fn recover_pattern_primary_normalized(
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             *completion = PatternCompletion::Complete;
-            return pattern_from_primary_normalized(
+            return pattern_from_primary_with_recovered_tail_stops_normalized(
                 i,
                 item,
                 minimum,
                 baseline,
                 stops,
                 line_handoff,
+                policy.recovered_primary_tail_stops,
                 completion,
                 item_origin,
                 line_entry,
@@ -437,12 +522,41 @@ fn recover_pattern_primary_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn pattern_from_primary_normalized(
+    i: RewriteIn,
+    item: Item,
+    minimum: PatternPrecedence,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    completion: &mut PatternCompletion,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    pattern_from_primary_with_recovered_tail_stops_normalized(
+        i,
+        item,
+        minimum,
+        baseline,
+        stops,
+        line_handoff,
+        0,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pattern_from_primary_with_recovered_tail_stops_normalized(
     mut i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    recovered_primary_tail_stops: PatternStops,
     completion: &mut PatternCompletion,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -516,6 +630,7 @@ fn pattern_from_primary_normalized(
             baseline,
             stops,
             line_handoff,
+            recovered_primary_tail_stops,
             completion,
             item_origin,
             line_entry,
@@ -949,6 +1064,10 @@ fn pattern_primary_stop_token(kind: TokenKind, stops: PatternStops) -> bool {
         TokenKind::LBrace => stops & PATTERN_STOP_LBRACE != 0,
         _ => false,
     }
+}
+
+fn is_mandatory_slot_fresh_primary_stop(item: &Item, stops: PatternStops) -> bool {
+    token_kind(item).is_some_and(|kind| pattern_primary_stop_token(kind, stops))
 }
 
 fn pattern_tail_stop_token(kind: TokenKind, stops: PatternStops) -> bool {
