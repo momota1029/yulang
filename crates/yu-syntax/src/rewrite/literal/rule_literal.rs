@@ -11,6 +11,12 @@ pub(in crate::rewrite) enum RuleLiteralExit {
     DeferredInterpolation(Item),
 }
 
+pub(in crate::rewrite) enum NormalizedRuleLiteralExit {
+    Complete(LineEntry),
+    Boundary(Item, LineEntry),
+    DeferredInterpolation(Item, LineEntry),
+}
+
 pub(in crate::rewrite) enum PatternLiteralOpener {
     Rule(Item),
     String(Item, StringMode),
@@ -42,11 +48,27 @@ pub(in crate::rewrite) fn scan_pattern_literal_opener_witness(
 /// Builds the non-interpolation portion of an isolated RuleLiteral. A plain
 /// `{` is completed as the exact next Item and handed to the L7 owner.
 pub(in crate::rewrite) fn rule_literal_witness(
+    i: RewriteIn,
+    opener: Item,
+    part_origin: usize,
+    fence: &FenceBoundary,
+) -> RuleLiteralExit {
+    match rule_literal_normalized(i, opener, part_origin, LineEntry::InLine, Some(fence)) {
+        NormalizedRuleLiteralExit::Complete(_) => RuleLiteralExit::Complete,
+        NormalizedRuleLiteralExit::Boundary(item, _) => RuleLiteralExit::Boundary(item),
+        NormalizedRuleLiteralExit::DeferredInterpolation(item, _) => {
+            RuleLiteralExit::DeferredInterpolation(item)
+        }
+    }
+}
+
+pub(in crate::rewrite) fn rule_literal_normalized(
     mut i: RewriteIn,
     opener: Item,
     mut part_origin: usize,
-    fence: &FenceBoundary,
-) -> RuleLiteralExit {
+    _line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedRuleLiteralExit {
     i.state.start_node(SyntaxKind::RuleLiteral.into());
     emit_literal_item(&mut i, opener, SyntaxKind::RuleLiteralStart);
     let mut next_prefix = None;
@@ -82,14 +104,14 @@ pub(in crate::rewrite) fn rule_literal_witness(
                 advance_item_origin(&mut part_origin, &end);
                 emit_literal_item(&mut i, end, SyntaxKind::RuleLiteralEnd);
                 i.state.finish_node();
-                return RuleLiteralExit::Complete;
+                return NormalizedRuleLiteralExit::Complete(LineEntry::InLine);
             }
             Some(('{', prefix)) => {
                 let open = i
                     .token(|lex| Some(scan_rule_literal_structural(lex, part_origin, prefix, '{')))
                     .expect("checked RuleLiteral interpolation opener");
                 i.state.finish_node();
-                return RuleLiteralExit::DeferredInterpolation(open);
+                return NormalizedRuleLiteralExit::DeferredInterpolation(open, LineEntry::InLine);
             }
             Some((':', prefix)) => {
                 let colon = i
@@ -127,7 +149,7 @@ fn emit_rule_lazy_capture(
     mut i: RewriteIn,
     colon: Item,
     part_origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
 ) -> Result<(), Item> {
     i.state.start_node(SyntaxKind::RuleLazyCapture.into());
     emit_literal_item(&mut i, colon, SyntaxKind::RuleLiteralColon);
@@ -240,8 +262,9 @@ fn rule_literal_text_stop(source: &str) -> bool {
     source.starts_with(['"', ':', '{'])
 }
 
-fn finish_rule_literal_boundary(mut i: RewriteIn, pending: Item) -> RuleLiteralExit {
+fn finish_rule_literal_boundary(mut i: RewriteIn, pending: Item) -> NormalizedRuleLiteralExit {
+    let line_entry = pending_line_entry(&pending);
     emit_missing(&mut i, LeadingTrivia::default());
     i.state.finish_node();
-    RuleLiteralExit::Boundary(pending)
+    NormalizedRuleLiteralExit::Boundary(pending, line_entry)
 }

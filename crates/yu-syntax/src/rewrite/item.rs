@@ -156,6 +156,17 @@ impl<'item> LeadingView<'item> {
             .map(|(offset, _)| self.first_unemitted + offset + 1)
             .last()
     }
+
+    /// Returns the physical-part boundary immediately after the first
+    /// un-emitted ordinary newline.  Grammar owners which give each physical
+    /// newline its own structural role can consume one separator at a time
+    /// without exposing or rebuilding the remaining leading trivia.
+    pub(super) fn cut_after_first_ordinary_newline(self) -> Option<usize> {
+        self.remaining_physical()
+            .enumerate()
+            .find(|(_, part)| part.kind == TriviaKind::Newline)
+            .map(|(offset, _)| self.first_unemitted + offset + 1)
+    }
 }
 
 fn indentation_after_newline<'a>(parts: impl Iterator<Item = &'a Trivia>) -> Option<usize> {
@@ -327,6 +338,13 @@ impl<'item> PayloadView<'item> {
 
     pub(super) fn is_eof(self) -> bool {
         matches!(self.payload, Payload::Eof)
+    }
+
+    pub(super) fn is_eof_after_trivia_boundary(self) -> bool {
+        matches!(
+            self.payload,
+            Payload::Boundary(boundary) if boundary.kind() == &Boundary::EofAfterTrivia
+        )
     }
 }
 

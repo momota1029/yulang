@@ -5,6 +5,7 @@ use reborrow_generic::Reborrow as _;
 
 use super::{
     LexIn, RewriteIn,
+    current_item::LineEntry,
     emit::{emit_literal_item, emit_missing},
     item::{
         ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, PhysicalLeadingTrivia, Token,
@@ -47,6 +48,12 @@ pub(super) enum NonInterpolatingStringExit {
     Complete,
     Boundary(Item),
     DeferredInterpolation(Item),
+}
+
+pub(super) enum NormalizedNonInterpolatingStringExit {
+    Complete(LineEntry),
+    Boundary(Item, LineEntry),
+    DeferredInterpolation(Item, LineEntry),
 }
 
 struct LiteralScan {
@@ -131,7 +138,7 @@ pub(super) fn scan_string_text_witness(
     fence: &FenceBoundary,
     mode: StringMode,
 ) -> LiteralPiece {
-    scan_multiline_literal_item(i, part_origin, fence, false, |source| {
+    scan_multiline_literal_item(i, part_origin, Some(fence), false, |source| {
         string_text_stop(source, mode)
     })
     .piece
@@ -223,7 +230,7 @@ where
         };
 
         if let Some(lead) = lead {
-            match emit_string_escape(i.rb(), lead, &mut part_origin, fence, mode) {
+            match emit_string_escape(i.rb(), lead, &mut part_origin, Some(fence), mode) {
                 EscapeExit::Continue => continue,
                 EscapeExit::AfterLine => {
                     let scan = i
@@ -231,7 +238,7 @@ where
                             Some(scan_multiline_literal_item(
                                 lex,
                                 part_origin,
-                                fence,
+                                Some(fence),
                                 true,
                                 |source| string_text_stop(source, mode),
                             ))
@@ -258,7 +265,7 @@ where
                 Some(scan_multiline_literal_item(
                     lex,
                     part_origin,
-                    fence,
+                    Some(fence),
                     false,
                     |source| string_text_stop(source, mode),
                 ))
@@ -282,17 +289,32 @@ pub(super) fn non_interpolating_string_literal_witness(
 ) -> NonInterpolatingStringExit {
     i.state.start_node(SyntaxKind::StringLiteral.into());
     emit_literal_item(&mut i, opener, SyntaxKind::StringStart);
-    non_interpolating_string_body_witness(i, mode, part_origin, fence)
+    match non_interpolating_string_body_normalized(
+        i,
+        mode,
+        part_origin,
+        LineEntry::InLine,
+        Some(fence),
+    ) {
+        NormalizedNonInterpolatingStringExit::Complete(_) => NonInterpolatingStringExit::Complete,
+        NormalizedNonInterpolatingStringExit::Boundary(item, _) => {
+            NonInterpolatingStringExit::Boundary(item)
+        }
+        NormalizedNonInterpolatingStringExit::DeferredInterpolation(item, _) => {
+            NonInterpolatingStringExit::DeferredInterpolation(item)
+        }
+    }
 }
 
 /// Completes an already-open StringLiteral whose caller emitted its outer
 /// current Item, including any ordinary leading trivia or Yumark carrier.
-pub(super) fn non_interpolating_string_body_witness(
+pub(super) fn non_interpolating_string_body_normalized(
     mut i: RewriteIn,
     mode: StringMode,
     mut part_origin: usize,
-    fence: &FenceBoundary,
-) -> NonInterpolatingStringExit {
+    _line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedNonInterpolatingStringExit {
     let mut next_prefix = None;
 
     loop {
@@ -315,7 +337,7 @@ pub(super) fn non_interpolating_string_body_witness(
                         .expect("a judged prefixed terminator is accepted");
                     emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
                     i.state.finish_node();
-                    return NonInterpolatingStringExit::Complete;
+                    return NormalizedNonInterpolatingStringExit::Complete(LineEntry::InLine);
                 }
                 '%' => {
                     let percent = i
@@ -329,7 +351,10 @@ pub(super) fn non_interpolating_string_body_witness(
                         })
                         .expect("a judged interpolation prefix has a percent successor");
                     i.state.finish_node();
-                    return NonInterpolatingStringExit::DeferredInterpolation(percent);
+                    return NormalizedNonInterpolatingStringExit::DeferredInterpolation(
+                        percent,
+                        LineEntry::InLine,
+                    );
                 }
                 '\\' => Some(
                     i.token(|lex| {
@@ -342,7 +367,7 @@ pub(super) fn non_interpolating_string_body_witness(
         } else if let Some(close) = i.token(|lex| scan_string_close_witness(lex, mode)) {
             emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
             i.state.finish_node();
-            return NonInterpolatingStringExit::Complete;
+            return NormalizedNonInterpolatingStringExit::Complete(LineEntry::InLine);
         } else if i
             .token(|lex| Some(lex.remainder().starts_with('%')))
             .expect("the literal source probe is total")
@@ -351,7 +376,10 @@ pub(super) fn non_interpolating_string_body_witness(
                 .token(scan_interpolation_percent)
                 .expect("checked interpolation percent");
             i.state.finish_node();
-            return NonInterpolatingStringExit::DeferredInterpolation(percent);
+            return NormalizedNonInterpolatingStringExit::DeferredInterpolation(
+                percent,
+                LineEntry::InLine,
+            );
         } else {
             i.token(scan_escape_lead)
         };
@@ -412,10 +440,19 @@ pub(super) fn non_interpolating_string_body_witness(
 fn finish_non_interpolating_string_boundary(
     mut i: RewriteIn,
     pending: Item,
-) -> NonInterpolatingStringExit {
+) -> NormalizedNonInterpolatingStringExit {
+    let line_entry = pending_line_entry(&pending);
     emit_missing(&mut i, LeadingTrivia::default());
     i.state.finish_node();
-    NonInterpolatingStringExit::Boundary(pending)
+    NormalizedNonInterpolatingStringExit::Boundary(pending, line_entry)
+}
+
+fn pending_line_entry(item: &Item) -> LineEntry {
+    if item.payload_view().is_eof() || item.payload_view().is_eof_after_trivia_boundary() {
+        LineEntry::InLine
+    } else {
+        LineEntry::PhysicalStart
+    }
 }
 
 fn emit_string_interpolation<'source, 'recover, 'operators, 'builder>(
@@ -449,7 +486,7 @@ where
             Some(scan_multiline_literal_item(
                 lex,
                 *part_origin,
-                fence,
+                Some(fence),
                 false,
                 interpolation_format_stop,
             ))
@@ -503,7 +540,7 @@ where
 fn scan_multiline_literal_item(
     mut i: LexIn,
     part_origin: usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
     after_line: bool,
     stop: impl Copy + Fn(&str) -> bool,
 ) -> LiteralScan {
@@ -629,7 +666,7 @@ fn emit_string_escape(
     mut i: RewriteIn,
     lead: Item,
     part_origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
     mode: StringMode,
 ) -> EscapeExit {
     i.state.start_node(SyntaxKind::StringEscape.into());
@@ -673,7 +710,7 @@ fn emit_string_escape(
 fn emit_unicode_escape(
     mut i: RewriteIn,
     part_origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
     mode: StringMode,
 ) -> EscapeExit {
     let hex = i.token(scan_unicode_hex);
@@ -795,7 +832,11 @@ fn finish_string_boundary(mut i: RewriteIn, pending: Item) -> StringLiteralExit 
     StringLiteralExit::Boundary(pending)
 }
 
-fn current_boundary_item(mut i: RewriteIn, coordinate: usize, fence: &FenceBoundary) -> Item {
+fn current_boundary_item(
+    mut i: RewriteIn,
+    coordinate: usize,
+    fence: Option<&FenceBoundary>,
+) -> Item {
     i.token(|lex| {
         let mut foreign = None;
         Some(
@@ -909,10 +950,23 @@ fn interpolation_format_stop(source: &str) -> bool {
 fn literal_line_transition(
     i: LexIn,
     coordinate: usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
     foreign: &mut Option<Vec<ForeignSplit>>,
     starts_new_item: impl FnOnce(&str) -> bool,
 ) -> LiteralLineTransition {
+    let Some(fence) = fence else {
+        if i.remainder().is_empty() {
+            return LiteralLineTransition::Boundary(Item::plain(
+                LeadingTrivia::default(),
+                Payload::Eof,
+            ));
+        }
+        return if starts_new_item(i.remainder()) {
+            LiteralLineTransition::Structural(None)
+        } else {
+            LiteralLineTransition::Continue
+        };
+    };
     match judge_fence_line(i.remainder(), coordinate, fence) {
         FenceLineDecision::Boundary(pending) => LiteralLineTransition::Boundary(Item::plain(
             LeadingTrivia::default(),

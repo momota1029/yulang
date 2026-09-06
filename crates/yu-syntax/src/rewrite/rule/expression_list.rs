@@ -7,19 +7,24 @@ use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 use super::{
     super::{
         RewriteIn,
-        driver::{Either, MlMode, expr_from_nud, is_close, is_nud_item},
+        current_item::LineEntry,
+        driver::{
+            Either, MlMode, NormalizedExit, advanced_origin, expr_from_nud_normalized,
+            expression_item, is_close, is_nud_item, suffix_marker,
+        },
         emit::emit_error_item,
         item::{Item, TokenKind, TriviaKind},
-        lexer::{scan_trivia, tail_item_after_trivia},
         operator::{STOP_LINE_BREAK, stops_for},
         statement::StatementLineHandoff,
+        yumark::FenceBoundary,
     },
-    advance_origin, current_suffix_marker, emit_item_as, emit_missing, is_newline, is_token,
+    emit_item_as, emit_missing, is_token,
 };
 
 pub(super) enum ExpressionListExit {
-    Close(Item),
-    Returned(Item),
+    Close(Item, LineEntry),
+    Returned(Item, LineEntry),
+    Deferred(Item, LineEntry),
 }
 
 /// Parses the ordinary expression interior without introducing a CST wrapper.
@@ -29,25 +34,20 @@ pub(super) fn expression_list(
     mut current: Item,
     close: TokenKind,
     origin: &mut usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
 ) -> ExpressionListExit {
     let stops = stops_for(close) | STOP_LINE_BREAK;
     let mut needs_expression = true;
     let mut recovery_requires_expression = false;
 
     loop {
-        if current.payload_view().is_eof() || current.payload_view().is_boundary() {
+        if current.payload_view().is_boundary() {
             if recovery_requires_expression {
                 emit_missing(&mut i);
             }
             emit_missing(&mut i);
-            return ExpressionListExit::Returned(current);
-        }
-        if is_unread_close(&current) && token_kind_or_boundary(&current) != Some(close) {
-            if recovery_requires_expression {
-                emit_missing(&mut i);
-            }
-            emit_missing(&mut i);
-            return ExpressionListExit::Returned(current);
+            return ExpressionListExit::Returned(current, line_entry);
         }
 
         if emit_leading_newline_separators(
@@ -59,24 +59,34 @@ pub(super) fn expression_list(
             continue;
         }
 
+        if current.payload_view().is_eof() {
+            if recovery_requires_expression {
+                emit_missing(&mut i);
+            }
+            emit_missing(&mut i);
+            return ExpressionListExit::Returned(current, line_entry);
+        }
+        if is_unread_close(&current) && token_kind_or_boundary(&current) != Some(close) {
+            if recovery_requires_expression {
+                emit_missing(&mut i);
+            }
+            emit_missing(&mut i);
+            return ExpressionListExit::Returned(current, line_entry);
+        }
+
         if token_kind_or_boundary(&current) == Some(close) {
             if recovery_requires_expression {
                 emit_missing(&mut i);
             }
-            return ExpressionListExit::Close(current);
+            return ExpressionListExit::Close(current, line_entry);
         }
 
-        if is_token(&current, TokenKind::Comma) || is_newline(&current) {
+        if is_token(&current, TokenKind::Comma) {
             if needs_expression {
                 emit_missing(&mut i);
             }
-            let kind = if is_newline(&current) {
-                SyntaxKind::Newline
-            } else {
-                SyntaxKind::Comma
-            };
-            emit_item_as(&mut i, current, kind);
-            current = next_item(i.rb(), stops, origin);
+            emit_item_as(&mut i, current, SyntaxKind::Comma);
+            (current, line_entry) = next_item(i.rb(), stops, origin, line_entry, fence);
             needs_expression = true;
             recovery_requires_expression = false;
             continue;
@@ -85,13 +95,13 @@ pub(super) fn expression_list(
         if needs_expression {
             if !is_nud_item(&current) {
                 emit_error_item(&mut i, current);
-                current = next_item(i.rb(), stops, origin);
+                (current, line_entry) = next_item(i.rb(), stops, origin, line_entry, fence);
                 recovery_requires_expression = true;
                 continue;
             }
 
-            let start = current_suffix_marker(i.rb());
-            let exit = expr_from_nud(
+            let entry = suffix_marker(i.rb());
+            let exit = expr_from_nud_normalized(
                 i.rb(),
                 current,
                 None,
@@ -99,12 +109,22 @@ pub(super) fn expression_list(
                 stops,
                 MlMode::All,
                 StatementLineHandoff::OrdinaryLayout,
+                *origin,
+                line_entry,
+                fence,
             );
-            advance_origin(origin, start, current_suffix_marker(i.rb()));
-            current = match exit {
-                Ok(()) => next_item(i.rb(), stops, origin),
-                Err(Either::Left(item)) => item,
-                Err(Either::Right(end)) => end.item,
+            *origin = advanced_origin(*origin, entry, i.rb());
+            (current, line_entry) = match exit {
+                NormalizedExit::Complete(Ok(()), line_entry) => {
+                    next_item(i.rb(), stops, origin, line_entry, fence)
+                }
+                NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => (item, line_entry),
+                NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+                    (end.item, line_entry)
+                }
+                NormalizedExit::Deferred(item, line_entry) => {
+                    return ExpressionListExit::Deferred(item, line_entry);
+                }
             };
             needs_expression = false;
             recovery_requires_expression = false;
@@ -112,20 +132,44 @@ pub(super) fn expression_list(
         }
 
         emit_error_item(&mut i, current);
-        current = next_item(i.rb(), stops, origin);
+        (current, line_entry) = next_item(i.rb(), stops, origin, line_entry, fence);
     }
 }
 
-pub(super) fn first_item(mut i: RewriteIn, close: TokenKind, origin: &mut usize) -> Item {
-    next_item(i.rb(), stops_for(close) | STOP_LINE_BREAK, origin)
+pub(super) fn first_item(
+    mut i: RewriteIn,
+    close: TokenKind,
+    origin: &mut usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, LineEntry) {
+    next_item(
+        i.rb(),
+        stops_for(close) | STOP_LINE_BREAK,
+        origin,
+        line_entry,
+        fence,
+    )
 }
 
-fn next_item(mut i: RewriteIn, stops: u16, origin: &mut usize) -> Item {
-    let start = current_suffix_marker(i.rb());
-    let leading = scan_trivia(i.rb());
-    let item = tail_item_after_trivia(i.rb(), leading, OperatorSite::Nud, 0, stops);
-    advance_origin(origin, start, current_suffix_marker(i));
-    item
+fn next_item(
+    mut i: RewriteIn,
+    stops: u16,
+    origin: &mut usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, LineEntry) {
+    let (item, next_origin, next_line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        *origin,
+        line_entry,
+        fence,
+        0,
+        stops,
+    );
+    *origin = next_origin;
+    (item, next_line_entry)
 }
 
 fn emit_leading_newline_separators(

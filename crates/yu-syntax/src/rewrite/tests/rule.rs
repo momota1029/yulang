@@ -1,16 +1,18 @@
 use super::*;
 use crate::rewrite::{
+    current_item::LineEntry,
     item::{Boundary, Item, LeadingTrivia, Payload, PendingBoundary, StopKind, Token},
     rule::{
         RuleWitnessExit, expression_list_handoff_witness, rule_body_witness,
-        scan_rule_introducer_successor_witness, scan_rule_item_witness,
+        scan_rule_current_item_witness, scan_rule_introducer_successor_witness,
+        scan_rule_item_witness,
     },
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
 };
 use reborrow_generic::Reborrow as _;
 
 fn run_rule_body<'source>(source: &'source str) -> (GreenNode, RuleWitnessExit, &'source str) {
-    run_rule_body_fenced(source, 0, &plain_fence())
+    run_rule_body_with_fence(source, 0, None)
 }
 
 fn run_rule_body_fenced<'source>(
@@ -18,12 +20,30 @@ fn run_rule_body_fenced<'source>(
     source_origin: usize,
     fence: &FenceBoundary,
 ) -> (GreenNode, RuleWitnessExit, &'source str) {
+    run_rule_body_with_fence(source, source_origin, Some(fence))
+}
+
+fn run_rule_body_with_fence<'source>(
+    source: &'source str,
+    source_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, RuleWitnessExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    run_rule_body_with_fence_and_operators(source, source_origin, fence, &operators)
+}
+
+fn run_rule_body_with_fence_and_operators<'source>(
+    source: &'source str,
+    source_origin: usize,
+    fence: Option<&FenceBoundary>,
+    operators: &OperatorTable,
+) -> (GreenNode, RuleWitnessExit, &'source str) {
+    let mut recover = Recover::new(operators);
     let mut input = source;
     let mut lex = In::new(&mut input, &mut recover, ());
     let opener = scan_rule_item_witness(lex.rb()).expect("RuleBody opener");
-    let current = scan_rule_item_witness(lex).expect("first RuleBody current Item");
+    let current_origin = source_origin + source.len() - lex.remainder().len();
+    let current = scan_rule_current_item_witness(lex, current_origin, LineEntry::InLine, fence);
     let origin = source_origin + source.len() - input.len();
 
     let mut builder = GreenNodeBuilder::new();
@@ -31,7 +51,8 @@ fn run_rule_body_fenced<'source>(
     let exit = rule_body_witness(
         In::new(&mut input, &mut recover, &mut builder),
         opener,
-        current,
+        current.item,
+        current.next_line_entry,
         origin,
         fence,
     );
@@ -53,8 +74,9 @@ fn run_rule_body_with<'source>(
         In::new(&mut input, &mut recover, &mut builder),
         token_item(TokenKind::LBrace, "{"),
         current,
+        LineEntry::InLine,
         origin,
-        &plain_fence(),
+        None,
     );
     builder.finish_node();
     (builder.finish(), exit, input)
@@ -202,6 +224,53 @@ fn body_and_parenthesis_alternations_own_all_branches_and_separators() {
         SyntaxKind::RParen
     );
     assert_eq!(count(&green, SyntaxKind::Missing), 0);
+}
+
+#[test]
+fn leading_newlines_preserve_rule_alternative_topology_and_separator_trivia() {
+    for (source, sequences, newlines) in [
+        ("{\r\n}", 2, 1),
+        ("{a\r\n}", 2, 1),
+        ("{a\r\n\r\nb}", 3, 2),
+        ("{a /*separator*/\r\n  b}", 2, 1),
+    ] {
+        let (green, exit, remainder) = run_rule_body(source);
+        assert_eq!(exit, RuleWitnessExit::Complete, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            count(&green, SyntaxKind::RuleSequence),
+            sequences,
+            "{source:?}"
+        );
+        assert_eq!(
+            tokens(&green)
+                .iter()
+                .filter(|(kind, _)| *kind == SyntaxKind::Newline)
+                .count(),
+            newlines,
+            "{source:?}"
+        );
+        assert_eq!(count(&green, SyntaxKind::Missing), 0, "{source:?}");
+    }
+
+    let (green, _, _) = run_rule_body("{a /*separator*/\n  b}");
+    let root = root(&green);
+    let comment = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::BlockComment)
+        .expect("separator-site comment");
+    assert_eq!(
+        comment.parent().unwrap().kind(),
+        SyntaxKind::RuleAlternation
+    );
+    let indentation = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Whitespace && token.text() == "  ")
+        .expect("post-newline indentation");
+    assert_eq!(indentation.parent().unwrap().kind(), SyntaxKind::RuleItem);
 }
 
 #[test]
@@ -417,6 +486,78 @@ fn expression_lists_own_commas_newlines_and_local_item_recovery() {
 }
 
 #[test]
+fn expression_lists_use_the_normalized_pratt_and_statement_children() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "~",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+        OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::scalar(40)),
+        ),
+        OperatorDeclaration::new("?", OperatorFixities::new().with_nullfix()),
+    ])
+    .expect("Rule argument dynamic operators");
+    let source = "{x[a b] y[a(b)] z[~a + ?] q({use foo; my v = 1})}";
+    let (green, exit, remainder) =
+        run_rule_body_with_fence_and_operators(source, 0, None, &operators);
+    assert_eq!(exit, RuleWitnessExit::Complete);
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), source);
+    assert_eq!(count(&green, SyntaxKind::RuleIndex), 3);
+    assert_eq!(count(&green, SyntaxKind::RuleCall), 1);
+    assert_eq!(count(&green, SyntaxKind::CallTail), 1);
+    assert!(count(&green, SyntaxKind::MlArgument) >= 1);
+    assert_eq!(count(&green, SyntaxKind::PrefixOperatorUse), 1);
+    assert_eq!(count(&green, SyntaxKind::InfixOperatorUse), 1);
+    assert_eq!(count(&green, SyntaxKind::NullfixOperatorUse), 1);
+    assert_eq!(count(&green, SyntaxKind::UseDeclaration), 1);
+    assert_eq!(count(&green, SyntaxKind::BindingStatement), 1);
+    assert_eq!(count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(count(&green, SyntaxKind::Error), 0);
+}
+
+#[test]
+fn fenced_expression_list_keeps_prefixes_and_returns_boundary_leading_untouched() {
+    let source_origin = 120;
+    let fence = active_fence(2);
+    let source = "{x[a\r\n> > b]\r\n> stop\r\n";
+    let boundary_offset = source.find("> stop").unwrap();
+    let (green, exit, remainder) = run_rule_body_fenced(source, source_origin, &fence);
+    assert_eq!(remainder, &source[boundary_offset..]);
+    assert_eq!(green.to_string(), &source[..boundary_offset - 2]);
+    assert_eq!(count(&green, SyntaxKind::RuleIndex), 1);
+    assert_eq!(count(&green, SyntaxKind::OperatorChain), 2);
+    assert_eq!(
+        tokens(&green)
+            .iter()
+            .filter(|(kind, _)| *kind == SyntaxKind::YmQuotePrefix)
+            .count(),
+        1
+    );
+    assert_eq!(
+        tokens(&green)
+            .iter()
+            .filter(|(kind, _)| *kind == SyntaxKind::Newline)
+            .count(),
+        1
+    );
+    assert_eq!(count(&green, SyntaxKind::Missing), 1);
+
+    let pending = returned(exit);
+    assert_eq!(
+        pending,
+        expected_boundary_item(
+            remainder,
+            source_origin + boundary_offset,
+            &fence,
+            &[("\r\n", TriviaKind::Newline)],
+        )
+    );
+}
+
+#[test]
 fn expression_list_partial_leading_repeats_missing_newline_order_and_finishes_cleanly() {
     let source = "{a(1\n\n2)}";
     let (green, exit, remainder) = run_rule_body(source);
@@ -502,7 +643,12 @@ fn rule_atom_string_uses_the_immediate_origin_and_real_fence() {
         );
         assert_eq!(
             pending,
-            expected_boundary_item(boundary_line, source_origin + boundary_offset, &fence, &[],),
+            expected_boundary_item(
+                boundary_line,
+                source_origin + boundary_offset,
+                &fence,
+                &[("\r\n", TriviaKind::Newline)],
+            ),
             "{boundary_line:?}"
         );
         assert_eq!(count(&green, SyntaxKind::StringLiteral), 1);
@@ -515,7 +661,8 @@ fn rule_atom_string_uses_the_immediate_origin_and_real_fence() {
                 .collect::<Vec<_>>(),
             ["> > "]
         );
-        assert!(root(&green).to_string().contains("α\r\n> > β\"\r\n"));
+        assert!(root(&green).to_string().contains("α\r\n> > β\""));
+        assert!(!root(&green).to_string().ends_with("\r\n"));
     }
 
     let source = "{a\r\n> >   \"β\"\r\n> stop\r\n";
@@ -526,7 +673,12 @@ fn rule_atom_string_uses_the_immediate_origin_and_real_fence() {
     assert_eq!(remainder.as_ptr(), start.wrapping_add(boundary_offset));
     assert_eq!(
         returned(exit),
-        expected_boundary_item(remainder, source_origin + boundary_offset, &fence, &[],)
+        expected_boundary_item(
+            remainder,
+            source_origin + boundary_offset,
+            &fence,
+            &[("\r\n", TriviaKind::Newline)],
+        )
     );
     assert_eq!(count(&green, SyntaxKind::StringLiteral), 1);
     assert!(tokens(&green).contains(&(SyntaxKind::StringText, "β".to_owned())));
@@ -728,8 +880,9 @@ fn segmented_introducer_opener_enters_rule_body_once_in_physical_order() {
         In::new(&mut input, &mut recover, &mut builder),
         opener,
         current,
+        LineEntry::InLine,
         origin,
-        &active_fence(2),
+        Some(&active_fence(2)),
     );
     builder.finish_node();
     let green = builder.finish();

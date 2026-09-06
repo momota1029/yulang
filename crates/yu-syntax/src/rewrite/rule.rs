@@ -9,29 +9,22 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     LexIn, RewriteIn,
+    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    driver::{advanced_origin, suffix_marker},
     emit::emit_error_item,
-    item::{
-        ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, PhysicalLeadingTrivia, Token,
-        TokenKind, Trivia,
-    },
+    item::{Item, Token, TokenKind},
     lexer::{
-        scan_exact_equals, scan_integer, scan_operator_shaped_unknown, scan_ordinary_trivia_part,
-        scan_punctuation, scan_unknown,
+        scan_exact_equals, scan_integer, scan_operator_shaped_unknown, scan_punctuation,
+        scan_unknown,
     },
     literal::{
-        NonInterpolatingStringExit, non_interpolating_string_body_witness,
+        NormalizedNonInterpolatingStringExit, non_interpolating_string_body_normalized,
         scan_string_opener_token, string_mode_from_opener,
     },
-    yumark::{FenceBoundary, FenceLineDecision, judge_fence_line},
+    yumark::FenceBoundary,
 };
 
 use self::expression_list::{ExpressionListExit, expression_list, first_item as first_list_item};
-
-#[cfg(test)]
-use super::{
-    item::PendingBoundary,
-    lexer::{FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part},
-};
 
 #[derive(Clone, Copy)]
 enum RuleFrame {
@@ -46,50 +39,91 @@ pub(super) enum RuleWitnessExit {
     Deferred(Item),
 }
 
+enum NormalizedRuleWitnessExit {
+    Complete(LineEntry),
+    Returned(Item, LineEntry),
+    Deferred(Item, LineEntry),
+}
+
 enum SequenceExit {
-    Stop(Item),
-    Deferred(Item),
+    Stop(Item, LineEntry),
+    Deferred(Item, LineEntry),
 }
 
 enum ItemExit {
-    Continue(Item),
-    Deferred(Item),
+    Continue(Item, LineEntry),
+    Deferred(Item, LineEntry),
 }
 
 /// Builds one isolated RuleBody from an already accepted `{` and one current
 /// Item. It does not recognize `rule` or enter production expression dispatch.
 pub(super) fn rule_body_witness(
+    i: RewriteIn,
+    opener: Item,
+    current: Item,
+    line_entry: LineEntry,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> RuleWitnessExit {
+    match rule_body_normalized(i, opener, current, origin, line_entry, fence) {
+        NormalizedRuleWitnessExit::Complete(_) => RuleWitnessExit::Complete,
+        NormalizedRuleWitnessExit::Returned(item, _) => RuleWitnessExit::Returned(item),
+        NormalizedRuleWitnessExit::Deferred(item, _) => RuleWitnessExit::Deferred(item),
+    }
+}
+
+fn rule_body_normalized(
     mut i: RewriteIn,
     opener: Item,
     current: Item,
     mut origin: usize,
-    fence: &FenceBoundary,
-) -> RuleWitnessExit {
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedRuleWitnessExit {
     debug_assert!(is_token(&opener, TokenKind::LBrace));
     i.state.start_node(SyntaxKind::RuleBody.into());
     emit_item_as(&mut i, opener, SyntaxKind::LBrace);
 
-    let exit = rule_alternation(i.rb(), current, RuleFrame::Body, &mut origin, fence);
+    let exit = rule_alternation(
+        i.rb(),
+        current,
+        line_entry,
+        RuleFrame::Body,
+        &mut origin,
+        fence,
+    );
     let exit = match exit {
-        SequenceExit::Stop(close) if is_token(&close, TokenKind::RBrace) => {
+        SequenceExit::Stop(close, line_entry) if is_token(&close, TokenKind::RBrace) => {
             emit_item_as(&mut i, close, SyntaxKind::RBrace);
-            RuleWitnessExit::Complete
+            NormalizedRuleWitnessExit::Complete(line_entry)
         }
-        SequenceExit::Stop(pending) => {
+        SequenceExit::Stop(pending, line_entry) => {
             emit_missing(&mut i);
-            RuleWitnessExit::Returned(pending)
+            NormalizedRuleWitnessExit::Returned(pending, line_entry)
         }
-        SequenceExit::Deferred(item) => RuleWitnessExit::Deferred(item),
+        SequenceExit::Deferred(item, line_entry) => {
+            NormalizedRuleWitnessExit::Deferred(item, line_entry)
+        }
     };
     i.state.finish_node();
     exit
 }
 
-/// Scans one rule-local current Item. Newlines are payload Items so the
-/// alternatives owner can consume each physical separator without rewriting
-/// the next Item's leading trivia.
+/// Scans one rule-local current Item. Physical newlines remain in its leading
+/// trivia so the alternatives owner can consume one separator at a time.
 pub(super) fn scan_rule_item_witness(i: LexIn) -> Option<Item> {
-    scan_rule_item(i)
+    current_item(i, 0, LineEntry::InLine, None, scan_rule_payload).map(|current| current.item)
+}
+
+#[cfg(test)]
+pub(super) fn scan_rule_current_item_witness(
+    i: LexIn,
+    origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> CurrentItem {
+    current_item(i, origin, line_entry, fence, scan_rule_payload)
+        .expect("the Rule current-Item witness scanner is total")
 }
 
 #[cfg(test)]
@@ -100,10 +134,11 @@ pub(super) fn expression_list_handoff_witness(
     origin: usize,
 ) -> RuleWitnessExit {
     let mut origin = origin;
-    match expression_list(i, current, close, &mut origin) {
-        ExpressionListExit::Close(item) | ExpressionListExit::Returned(item) => {
+    match expression_list(i, current, close, &mut origin, LineEntry::InLine, None) {
+        ExpressionListExit::Close(item, _) | ExpressionListExit::Returned(item, _) => {
             RuleWitnessExit::Returned(item)
         }
+        ExpressionListExit::Deferred(item, _) => RuleWitnessExit::Deferred(item),
     }
 }
 
@@ -112,89 +147,62 @@ pub(super) fn expression_list_handoff_witness(
 /// fragments stay attached to it, while a fence decision is its exact payload.
 #[cfg(test)]
 pub(super) fn scan_rule_introducer_successor_witness(
-    mut i: LexIn,
+    i: LexIn,
     origin: usize,
     fence: &FenceBoundary,
 ) -> Item {
-    let source = i.remainder();
-    let mut leading = PhysicalLeadingTrivia::default();
-    let mut foreign = None;
-
-    let payload = loop {
-        if i.remainder().starts_with("/*") {
-            let part_origin = origin + suffix_distance(source, i.remainder());
-            match i
-                .token(|comment| {
-                    scan_block_comment_fenced(comment, part_origin, fence, &mut foreign)
-                })
-                .expect("checked fenced block-comment opener")
-            {
-                FencedBlockComment::Complete(comment) => leading.push_ordinary(comment),
-                FencedBlockComment::Boundary { accepted, pending } => {
-                    leading.push_ordinary(accepted);
-                    break Payload::Boundary(pending);
-                }
-            }
-            continue;
-        }
-        if let Some(trivia) = i.token(scan_fenced_prior_trivia_part) {
-            let is_newline = trivia.is_newline();
-            leading.push_ordinary(trivia);
-            if is_newline {
-                if let Some(boundary) = introducer_line_transition(
-                    i.rb(),
-                    source,
-                    origin,
-                    fence,
-                    &mut foreign,
-                    &mut leading,
-                ) {
-                    break Payload::Boundary(boundary);
-                }
-            }
-            continue;
-        }
-
-        break if i.remainder().is_empty() {
-            Payload::Eof
-        } else {
-            Payload::Token(
-                i.token(scan_rule_token)
-                    .expect("a nonempty rule successor has one lexical token"),
-            )
-        };
-    };
-
-    Item::finish(leading, payload, foreign, origin)
-        .expect("accepted introducer prefixes remain inside the current Item")
+    current_item(i, origin, LineEntry::InLine, Some(fence), scan_rule_payload)
+        .expect("the Rule successor current-Item scanner is total")
+        .item
 }
 
 fn rule_alternation(
     mut i: RewriteIn,
     mut current: Item,
+    mut line_entry: LineEntry,
     frame: RuleFrame,
     origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
 ) -> SequenceExit {
     i.state.start_node(SyntaxKind::RuleAlternation.into());
+    i.state.start_node(SyntaxKind::RuleSequence.into());
     loop {
-        i.state.start_node(SyntaxKind::RuleSequence.into());
-        let exit = rule_sequence(i.rb(), current, frame, origin, fence);
-        i.state.finish_node();
+        if current.payload_view().is_boundary() {
+            i.state.finish_node();
+            i.state.finish_node();
+            return SequenceExit::Stop(current, line_entry);
+        }
+
+        while let Some(end_part) = current.leading_view().cut_after_first_ordinary_newline() {
+            i.state.finish_node();
+            current.emit_leading_prefix_with(&mut *i.state, end_part, |_, _| {});
+            i.state.start_node(SyntaxKind::RuleSequence.into());
+        }
+
+        let exit = rule_sequence(i.rb(), current, line_entry, frame, origin, fence);
 
         match exit {
-            SequenceExit::Deferred(item) => {
+            SequenceExit::Deferred(item, line_entry) => {
                 i.state.finish_node();
-                return SequenceExit::Deferred(item);
+                i.state.finish_node();
+                return SequenceExit::Deferred(item, line_entry);
             }
-            SequenceExit::Stop(item) if is_separator(&item, frame) => {
-                let after_line = is_newline(&item);
+            SequenceExit::Stop(item, next_line_entry) if is_separator(&item, frame) => {
+                i.state.finish_node();
                 emit_separator(&mut i, item);
-                current = next_rule_item(i.rb(), origin, fence, after_line);
+                i.state.start_node(SyntaxKind::RuleSequence.into());
+                (current, line_entry) = next_rule_item(i.rb(), origin, next_line_entry, fence);
             }
-            SequenceExit::Stop(item) => {
+            SequenceExit::Stop(item, next_line_entry)
+                if item.leading_view().has_ordinary_newline() =>
+            {
+                current = item;
+                line_entry = next_line_entry;
+            }
+            SequenceExit::Stop(item, line_entry) => {
                 i.state.finish_node();
-                return SequenceExit::Stop(item);
+                i.state.finish_node();
+                return SequenceExit::Stop(item, line_entry);
             }
         }
     }
@@ -203,129 +211,156 @@ fn rule_alternation(
 fn rule_sequence(
     mut i: RewriteIn,
     mut current: Item,
+    mut line_entry: LineEntry,
     frame: RuleFrame,
     origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
 ) -> SequenceExit {
     loop {
+        if !current.payload_view().is_boundary() && current.leading_view().has_ordinary_newline() {
+            return SequenceExit::Stop(current, line_entry);
+        }
         if is_rule_stop(&current, frame) {
-            return SequenceExit::Stop(current);
+            return SequenceExit::Stop(current, line_entry);
         }
         if is_rule_atom_start(&current) {
-            match rule_item(i.rb(), current, frame, origin, fence) {
-                ItemExit::Continue(next) => current = next,
-                ItemExit::Deferred(item) => return SequenceExit::Deferred(item),
+            match rule_item(i.rb(), current, line_entry, frame, origin, fence) {
+                ItemExit::Continue(next, next_line_entry) => {
+                    current = next;
+                    line_entry = next_line_entry;
+                }
+                ItemExit::Deferred(item, line_entry) => {
+                    return SequenceExit::Deferred(item, line_entry);
+                }
             }
             continue;
         }
 
         emit_unexpected(&mut i, current);
-        current = next_rule_item(i.rb(), origin, fence, false);
+        (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     }
 }
 
 fn rule_item(
     mut i: RewriteIn,
     current: Item,
+    line_entry: LineEntry,
     frame: RuleFrame,
     origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
 ) -> ItemExit {
     i.state.start_node(SyntaxKind::RuleItem.into());
-    let mut current = if is_token(&current, TokenKind::LParen) {
+    let (mut current, mut line_entry) = if is_token(&current, TokenKind::LParen) {
         emit_item_as(&mut i, current, SyntaxKind::LParen);
-        let nested_current = next_rule_item(i.rb(), origin, fence, false);
+        let (nested_current, nested_line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
         let nested = rule_alternation(
             i.rb(),
             nested_current,
+            nested_line_entry,
             RuleFrame::Parenthesis,
             origin,
             fence,
         );
         match nested {
-            SequenceExit::Stop(close) if is_token(&close, TokenKind::RParen) => {
+            SequenceExit::Stop(close, line_entry) if is_token(&close, TokenKind::RParen) => {
                 emit_item_as(&mut i, close, SyntaxKind::RParen);
-                next_rule_item(i.rb(), origin, fence, false)
+                next_rule_item(i.rb(), origin, line_entry, fence)
             }
-            SequenceExit::Stop(pending) => {
+            SequenceExit::Stop(pending, line_entry) => {
                 emit_missing(&mut i);
                 i.state.finish_node();
-                return ItemExit::Continue(pending);
+                return ItemExit::Continue(pending, line_entry);
             }
-            SequenceExit::Deferred(item) => {
+            SequenceExit::Deferred(item, line_entry) => {
                 i.state.finish_node();
-                return ItemExit::Deferred(item);
+                return ItemExit::Deferred(item, line_entry);
             }
         }
     } else if let Some(mode) = string_mode_from_opener(&current) {
         i.state.start_node(SyntaxKind::StringLiteral.into());
         emit_item_as(&mut i, current, SyntaxKind::StringStart);
-        let start = current_suffix_marker(i.rb());
-        let exit = non_interpolating_string_body_witness(i.rb(), mode, *origin, fence);
-        advance_origin(origin, start, current_suffix_marker(i.rb()));
+        let entry = suffix_marker(i.rb());
+        let exit =
+            non_interpolating_string_body_normalized(i.rb(), mode, *origin, line_entry, fence);
+        *origin = advanced_origin(*origin, entry, i.rb());
         match exit {
-            NonInterpolatingStringExit::Complete => next_rule_item(i.rb(), origin, fence, false),
-            NonInterpolatingStringExit::Boundary(pending) => {
-                i.state.finish_node();
-                return ItemExit::Continue(pending);
+            NormalizedNonInterpolatingStringExit::Complete(line_entry) => {
+                next_rule_item(i.rb(), origin, line_entry, fence)
             }
-            NonInterpolatingStringExit::DeferredInterpolation(item) => {
+            NormalizedNonInterpolatingStringExit::Boundary(pending, line_entry) => {
                 i.state.finish_node();
-                return ItemExit::Deferred(item);
+                return ItemExit::Continue(pending, line_entry);
+            }
+            NormalizedNonInterpolatingStringExit::DeferredInterpolation(item, line_entry) => {
+                i.state.finish_node();
+                return ItemExit::Deferred(item, line_entry);
             }
         }
     } else if is_token(&current, TokenKind::LBracket) {
         emit_item_as(&mut i, current, SyntaxKind::LBracket);
-        let first = first_list_item(i.rb(), TokenKind::RBracket, origin);
-        match expression_list(i.rb(), first, TokenKind::RBracket, origin) {
-            ExpressionListExit::Close(close) => {
+        let (first, first_line_entry) =
+            first_list_item(i.rb(), TokenKind::RBracket, origin, line_entry, fence);
+        match expression_list(
+            i.rb(),
+            first,
+            TokenKind::RBracket,
+            origin,
+            first_line_entry,
+            fence,
+        ) {
+            ExpressionListExit::Close(close, line_entry) => {
                 emit_item_as(&mut i, close, SyntaxKind::RBracket);
-                next_rule_item(i.rb(), origin, fence, false)
+                next_rule_item(i.rb(), origin, line_entry, fence)
             }
-            ExpressionListExit::Returned(pending) => {
+            ExpressionListExit::Returned(pending, line_entry) => {
                 i.state.finish_node();
-                return ItemExit::Continue(pending);
+                return ItemExit::Continue(pending, line_entry);
+            }
+            ExpressionListExit::Deferred(item, line_entry) => {
+                i.state.finish_node();
+                return ItemExit::Deferred(item, line_entry);
             }
         }
     } else {
         emit_rule_atom(&mut i, current);
-        next_rule_item(i.rb(), origin, fence, false)
+        next_rule_item(i.rb(), origin, line_entry, fence)
     };
 
     loop {
         if is_token(&current, TokenKind::Equals) {
             i.state.start_node(SyntaxKind::RuleCapture.into());
             emit_item_as(&mut i, current, SyntaxKind::Equals);
-            let right = next_rule_item(i.rb(), origin, fence, false);
-            match required_rule_item(i.rb(), right, frame, origin, fence) {
-                ItemExit::Continue(next) => {
+            let (right, right_line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
+            match required_rule_item(i.rb(), right, right_line_entry, frame, origin, fence) {
+                ItemExit::Continue(next, line_entry) => {
                     i.state.finish_node();
                     i.state.finish_node();
-                    return ItemExit::Continue(next);
+                    return ItemExit::Continue(next, line_entry);
                 }
-                ItemExit::Deferred(item) => {
+                ItemExit::Deferred(item, line_entry) => {
                     i.state.finish_node();
                     i.state.finish_node();
-                    return ItemExit::Deferred(item);
+                    return ItemExit::Deferred(item, line_entry);
                 }
             }
         }
 
         if !current.leading_view().is_grammar_empty() {
             i.state.finish_node();
-            return ItemExit::Continue(current);
+            return ItemExit::Continue(current, line_entry);
         }
 
         if is_quantifier(&current) {
             i.state.start_node(SyntaxKind::RuleQuantifier.into());
             emit_item_as(&mut i, current, SyntaxKind::RuleQuantifierToken);
             i.state.finish_node();
-            current = next_rule_item(i.rb(), origin, fence, false);
+            (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
             continue;
         }
 
         if is_token(&current, TokenKind::Dot) || is_token(&current, TokenKind::PathSeparator) {
-            current = rule_named_postfix(i.rb(), current, frame, origin, fence);
+            (current, line_entry) =
+                rule_named_postfix(i.rb(), current, line_entry, frame, origin, fence);
             continue;
         }
 
@@ -347,54 +382,62 @@ fn rule_item(
             };
             i.state.start_node(node.into());
             emit_item_as(&mut i, current, open_kind);
-            let first = first_list_item(i.rb(), close, origin);
-            match expression_list(i.rb(), first, close, origin) {
-                ExpressionListExit::Close(close) => {
+            let (first, first_line_entry) =
+                first_list_item(i.rb(), close, origin, line_entry, fence);
+            match expression_list(i.rb(), first, close, origin, first_line_entry, fence) {
+                ExpressionListExit::Close(close, next_line_entry) => {
                     emit_item_as(&mut i, close, close_kind);
                     i.state.finish_node();
-                    current = next_rule_item(i.rb(), origin, fence, false);
+                    (current, line_entry) = next_rule_item(i.rb(), origin, next_line_entry, fence);
                     continue;
                 }
-                ExpressionListExit::Returned(pending) => {
+                ExpressionListExit::Returned(pending, line_entry) => {
                     i.state.finish_node();
                     i.state.finish_node();
-                    return ItemExit::Continue(pending);
+                    return ItemExit::Continue(pending, line_entry);
+                }
+                ExpressionListExit::Deferred(item, line_entry) => {
+                    i.state.finish_node();
+                    i.state.finish_node();
+                    return ItemExit::Deferred(item, line_entry);
                 }
             }
         }
 
         i.state.finish_node();
-        return ItemExit::Continue(current);
+        return ItemExit::Continue(current, line_entry);
     }
 }
 
 fn required_rule_item(
     mut i: RewriteIn,
     mut current: Item,
+    mut line_entry: LineEntry,
     frame: RuleFrame,
     origin: &mut usize,
-    fence: &FenceBoundary,
+    fence: Option<&FenceBoundary>,
 ) -> ItemExit {
     loop {
         if is_rule_stop(&current, frame) {
             emit_missing(&mut i);
-            return ItemExit::Continue(current);
+            return ItemExit::Continue(current, line_entry);
         }
         if is_rule_atom_start(&current) {
-            return rule_item(i, current, frame, origin, fence);
+            return rule_item(i, current, line_entry, frame, origin, fence);
         }
         emit_unexpected(&mut i, current);
-        current = next_rule_item(i.rb(), origin, fence, false);
+        (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     }
 }
 
 fn rule_named_postfix(
     mut i: RewriteIn,
     introducer: Item,
+    line_entry: LineEntry,
     frame: RuleFrame,
     origin: &mut usize,
-    fence: &FenceBoundary,
-) -> Item {
+    fence: Option<&FenceBoundary>,
+) -> (Item, LineEntry) {
     let (node, missing) = if is_token(&introducer, TokenKind::Dot) {
         (SyntaxKind::RuleField, SyntaxKind::Dot)
     } else {
@@ -403,10 +446,10 @@ fn rule_named_postfix(
     i.state.start_node(node.into());
     emit_item_as(&mut i, introducer, missing);
 
-    let current = next_rule_item(i.rb(), origin, fence, false);
+    let (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     if is_rule_identifier(&current) && !is_stop_keyword(&current) {
         emit_item_as(&mut i, current, SyntaxKind::Identifier);
-        let next = next_rule_item(i.rb(), origin, fence, false);
+        let next = next_rule_item(i.rb(), origin, line_entry, fence);
         i.state.finish_node();
         return next;
     }
@@ -414,11 +457,11 @@ fn rule_named_postfix(
     if is_rule_stop(&current, frame) {
         emit_missing(&mut i);
         i.state.finish_node();
-        return current;
+        return (current, line_entry);
     }
 
     emit_unexpected(&mut i, current);
-    let next = next_rule_item(i.rb(), origin, fence, false);
+    let next = next_rule_item(i.rb(), origin, line_entry, fence);
     i.state.finish_node();
     next
 }
@@ -426,85 +469,32 @@ fn rule_named_postfix(
 fn next_rule_item(
     mut i: RewriteIn,
     origin: &mut usize,
-    fence: &FenceBoundary,
-    after_line: bool,
-) -> Item {
-    let start = current_suffix_marker(i.rb());
-    let item = i
-        .token(|lex| Some(scan_rule_item_fenced(lex, *origin, fence, after_line)))
-        .expect("the rule current-item scanner is total");
-    advance_origin(origin, start, current_suffix_marker(i));
-    item
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| current_item(lex, *origin, line_entry, fence, scan_rule_payload))
+        .expect("the Rule current-Item scanner is total");
+    *origin = advanced_origin(*origin, entry, i);
+    (item, next_line_entry)
 }
 
-fn scan_rule_item_fenced(
+fn scan_rule_payload(
     mut i: LexIn,
-    origin: usize,
-    fence: &FenceBoundary,
-    after_line: bool,
-) -> Item {
-    let source = i.remainder();
-    let mut leading = PhysicalLeadingTrivia::default();
-    let mut foreign = None;
-
-    if after_line {
-        match judge_fence_line(source, origin, fence) {
-            FenceLineDecision::Boundary(pending) => {
-                return Item::plain(LeadingTrivia::default(), Payload::Boundary(pending));
-            }
-            FenceLineDecision::Body { prefix: None, .. } => {}
-            FenceLineDecision::Body {
-                prefix: Some(prefix),
-                content,
-            } => {
-                let length = content - prefix.facts.extent.start;
-                let (_, text) = i.rb().with_str(|prefix| consume_bytes(prefix, length));
-                leading.push_quote_prefix(text.into());
-                PendingFragments::record(
-                    &mut foreign,
-                    ForeignSplit::quote_prefix(prefix.facts.extent.start, length),
-                )
-                .expect("the fence judge returns one in-range body prefix");
-            }
-        }
-    }
-
-    while let Some(trivia) = i.token(scan_inline_trivia) {
-        leading.push_ordinary(trivia);
-    }
-    let payload = if i.remainder().is_empty() {
-        Payload::Eof
-    } else {
-        Payload::Token(
-            i.token(scan_rule_token)
-                .expect("a nonempty rule suffix has one lexical token"),
-        )
-    };
-    Item::finish(leading, payload, foreign, origin)
-        .expect("an accepted rule body prefix remains in its current Item")
-}
-
-fn scan_rule_item(mut i: LexIn) -> Option<Item> {
-    let mut leading = Vec::new();
-    while let Some(trivia) = i.token(scan_inline_trivia) {
-        leading.push(trivia);
-    }
-    let payload = if i.remainder().is_empty() {
-        Payload::Eof
-    } else {
-        Payload::Token(i.token(scan_rule_token)?)
-    };
-    Some(Item::plain(
-        LeadingTrivia::ordinary(leading.into_boxed_slice()),
-        payload,
-    ))
-}
-
-fn scan_inline_trivia(i: LexIn) -> Option<Trivia> {
-    if i.remainder().starts_with(['\n', '\r']) {
-        return None;
-    }
-    scan_ordinary_trivia_part(i)
+    _leading: bool,
+    _origin: usize,
+    _fence: Option<&FenceBoundary>,
+    _foreign: &mut Option<Vec<super::item::ForeignSplit>>,
+) -> Option<AcceptedPayload> {
+    let token = i.token(scan_rule_token)?;
+    Some(AcceptedPayload {
+        payload: CurrentPayload::Token(token),
+        next_line_entry: LineEntry::InLine,
+    })
 }
 
 fn scan_rule_token(mut i: LexIn) -> Option<Token> {
@@ -532,12 +522,10 @@ fn scan_rule_fixed(mut i: LexIn) -> Option<Token> {
         (TokenKind::DotDot, 2)
     } else if i.remainder().starts_with("*?") || i.remainder().starts_with("+?") {
         (TokenKind::Unknown, 2)
-    } else if i.remainder().starts_with("\r\n") {
-        (TokenKind::Unknown, 2)
     } else {
         match i.remainder().chars().next()? {
             '|' => (TokenKind::Pipe, 1),
-            '\n' | '*' | '+' | '?' => (TokenKind::Unknown, 1),
+            '*' | '+' | '?' => (TokenKind::Unknown, 1),
             _ => return None,
         }
     };
@@ -580,38 +568,6 @@ fn scan_rule_identifier_text(mut i: LexIn) -> Option<()> {
         .is_some()
     {}
     Some(())
-}
-
-#[cfg(test)]
-fn introducer_line_transition(
-    mut i: LexIn,
-    source: &str,
-    origin: usize,
-    fence: &FenceBoundary,
-    foreign: &mut Option<Vec<ForeignSplit>>,
-    leading: &mut PhysicalLeadingTrivia,
-) -> Option<PendingBoundary> {
-    let coordinate = origin + suffix_distance(source, i.remainder());
-    match judge_fence_line(i.remainder(), coordinate, fence) {
-        FenceLineDecision::Boundary(boundary) => Some(boundary),
-        FenceLineDecision::Body { prefix: None, .. } => None,
-        FenceLineDecision::Body {
-            prefix: Some(prefix),
-            content,
-        } => {
-            let length = content - coordinate;
-            let start = i.remainder();
-            consume_bytes(i.rb(), length).expect("the judged prefix is live source text");
-            let text = consumed_prefix(start, i.remainder());
-            PendingFragments::record(
-                foreign,
-                ForeignSplit::quote_prefix(prefix.facts.extent.start, length),
-            )
-            .expect("fence judge returns ordered prefix ranges");
-            leading.push_quote_prefix(text.into());
-            None
-        }
-    }
 }
 
 fn emit_rule_atom(i: &mut RewriteIn, item: Item) {
@@ -688,12 +644,7 @@ fn is_close(item: &Item) -> bool {
 
 fn is_separator(item: &Item, frame: RuleFrame) -> bool {
     is_token(item, TokenKind::Pipe)
-        || is_newline(item)
         || matches!(frame, RuleFrame::Parenthesis) && is_token(item, TokenKind::Comma)
-}
-
-fn is_newline(item: &Item) -> bool {
-    token_text(item).is_some_and(|text| matches!(text, "\n" | "\r\n"))
 }
 
 fn is_quantifier(item: &Item) -> bool {
@@ -714,39 +665,4 @@ fn consume_bytes(mut i: LexIn, width: usize) -> Option<()> {
         consumed += i.next()?.len_utf8();
     }
     (consumed == width).then_some(())
-}
-
-fn current_suffix_marker(mut i: RewriteIn) -> (usize, usize) {
-    i.token(|lex| Some((lex.remainder().as_ptr() as usize, lex.remainder().len())))
-        .expect("the live suffix probe is total")
-}
-
-fn advance_origin(origin: &mut usize, start: (usize, usize), end: (usize, usize)) {
-    let consumed = start
-        .1
-        .checked_sub(end.1)
-        .expect("a direct rule child cannot lengthen its live suffix");
-    assert_eq!(
-        start.0.wrapping_add(consumed),
-        end.0,
-        "a direct rule child keeps the input on one source suffix"
-    );
-    *origin = origin
-        .checked_add(consumed)
-        .expect("the rule source coordinate must fit usize");
-}
-
-#[cfg(test)]
-fn suffix_distance(source: &str, suffix: &str) -> usize {
-    let consumed = source
-        .len()
-        .checked_sub(suffix.len())
-        .expect("live suffix cannot exceed its source");
-    assert_eq!(source.as_ptr().wrapping_add(consumed), suffix.as_ptr());
-    consumed
-}
-
-#[cfg(test)]
-fn consumed_prefix<'source>(source: &'source str, suffix: &str) -> &'source str {
-    &source[..suffix_distance(source, suffix)]
 }

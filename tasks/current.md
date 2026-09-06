@@ -588,6 +588,19 @@ matching close ownershipをPrefix / Nullfixそれぞれで固定し、M1 regress
 `cargo check -p yu-syntax`、format/diff checkはgreen。Gate 4/6 certification、typed diagnostics、AST/HIR、
 Yumark、public cutoverは未実施のままである。
 
+2026-09-06: N2 temporary normalized-owner frontierが空になった後のN3/L5 isolated Rule/literal constructionを
+完了した。Rule DSLのordinary/fenced二重scannerとmanual prefix/transition pathを削除し、raw Rule payloadを渡す
+shared `current_item`だけで全successorを取得する。RuleAlternationはnon-boundary current Itemのleading LF/CRLFを
+一つずつseparatorとしてemitしてempty alternativeを保ち、pending boundary Itemのleadingは一切emitせずYumark側へ
+そのまま返す。Rule call/indexのExpressionListはnormalized Pratt entryを使い、simple/compound expression、braced
+canonical statement/declaration child、dynamic operatorを同じorigin/LineEntry/fence transportで受ける。non-interpolating
+StringとRuleLiteralのcrossingもComplete(LineEntry)またはunchanged Item+LineEntryへ統一し、`%{ Statement* }`と
+RuleLiteral interpolationはzero-effect deferredのままL6/L7へ残す。Patternのone-quote RuleLiteral / three-or-more
+StringLiteral witnessはisolatedのまま維持した。M2 specification/regression reviewはapproved。focused Rule 24、literal
+26、Pattern 12、`cargo check -p yu-syntax`、format/diff checkはgreen。public/legacy parser、production Yumark、
+Pattern production dispatch、AST/HIRは未接続であり、Gate 4--6 certification、L6/L7、Yumark integration/cutoverは
+未完である。新しいretained state、buffer、replay、allocation、traversalを導入していないため性能計測は不要。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
