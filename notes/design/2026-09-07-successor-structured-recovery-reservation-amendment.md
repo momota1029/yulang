@@ -1,6 +1,6 @@
 # Successor structured-recovery reservation amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-07
 
@@ -8,6 +8,10 @@ Drafted-by: primary after architect adjudication
 
 Reviewed-by: M3 compiler/recovery, specification, and performance review in two
 rounds on 2026-09-07
+
+Approved-by: user
+
+Approved-at: 2026-09-07
 
 Scope: one ordered structured `Error > TypeExpression` recovery needed by the
 successor polymorphic-variant tag-name owner during O3a.

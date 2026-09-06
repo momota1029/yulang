@@ -829,6 +829,10 @@ frozen exhausted時のfresh-ID branch、実PV再帰`:{:{123}}`のLIFO/range/orde
 delta reviewはclean、timing budgetは0。statusを`Reviewed`へ更新した。現在のblockerは、この一つの
 recovery-only ordered slot protocolと最初のPV callerをuserが承認するかどうか。承認前にcodeへ入らない。
 
+2026-09-07: ユーザがstructured-recovery reservation amendmentを承認した。statusを`Authoritative`へ移し、
+output prerequisiteと最初のnarrow PV O3a construction checkpointを開始できる。既存のO3a Type/PV migration、
+O4 joint certification、public dispatchはこの承認だけでは完了扱いにしない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
