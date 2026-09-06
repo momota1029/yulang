@@ -2128,7 +2128,7 @@ fn is_type_primary(item: &Item) -> bool {
     )
 }
 
-fn is_type_nud(item: &Item) -> bool {
+pub(super) fn is_type_nud(item: &Item) -> bool {
     is_type_primary(item) || token_kind(item) == Some(TokenKind::LBracket)
 }
 

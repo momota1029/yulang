@@ -715,6 +715,20 @@ yu-syntax`、scoped rustfmt、diff check、A+B closureのfull `cargo test -p yu-
 2 ignoredがgreen。固定bit/scalar transportだけでperformance measurementは不要。次はisolated direct Cast
 shellであり、typed recovery/full Gate 6 certification、L6/L7/Yumark/public cutoverは未完である。
 
+2026-09-06: Gate 6のisolated direct `CastDeclaration` CST shellを完了した。exact bare/visibility-led
+`cast` intro、Cast-owned mandatory one-Pattern group、`CastTarget` TypeExpression、bodyless `;`、exact
+`=`後のinline OperatorChain / strictly-deeper canonical IndentedStatementBlockを構成し、production
+Statement/root dispatchは未接続のまま保った。Pattern prerequisite A/Bを使い、missing openerではclose
+authorityを作らず、actual opener時だけlocal `RParen`とambient actual closeを合成する。共有
+`CastTransition` judgeはactual local `)`、original gap ASOB、allowed-gap `:`/`;`/`=`、other outer
+boundaryの順で全phase transitionをemission前に分類する。M2 compiler/recovery・specification reviewで
+newline gap launderingとPatternIntroducer EOF trailing-trivia ownershipを検出し、一回のrepair/delta review
+後にclean。focused Cast 11件、Pattern 22件、TypeExpression 50件、`cargo check -p yu-syntax`、scoped
+rustfmt、diff checkはgreen。full package suiteとtiming measurementはbudget外。次は全isolated declaration
+shellをprivate canonical `Statement` dispatchへ接続するconstruction checkpointであり、その後にL6/L7を
+進める。typed recovery/output topologyは別Authoritative文書間に未解決のauthority gapがあり、後続M3
+設計とuser approvalまではcertification/public cutoverを行わない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
