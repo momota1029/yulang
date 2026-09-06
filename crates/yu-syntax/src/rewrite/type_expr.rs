@@ -242,6 +242,32 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
     (ordinary_exit(exit), primary_found)
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
+    required_type_expr_inner_normalized(
+        i,
+        primary,
+        baseline,
+        None,
+        false,
+        0,
+        caller_stops,
+        outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
 pub(super) fn required_type_expr_normalized(
     i: RewriteIn,
     primary: Item,

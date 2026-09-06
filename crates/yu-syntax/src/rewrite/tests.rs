@@ -24,6 +24,7 @@ use super::{
 
 mod binding;
 mod case_like;
+mod derives;
 mod for_statement;
 mod if_expr;
 mod lexical;

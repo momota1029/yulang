@@ -5,97 +5,172 @@ use reborrow_generic::Reborrow as _;
 use crate::syntax_kind::SyntaxKind;
 
 use super::{
-    RewriteIn, Stops,
-    driver::{Either, TailExit, indentation_after_newline, is_active_stop, token_kind},
+    LexIn, RewriteIn, Stops,
+    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    driver::{
+        Either, NormalizedExit, advanced_origin, indentation_after_newline, is_active_stop,
+        suffix_marker, token_kind,
+    },
     emit::{emit_missing, emit_token_item},
     if_expr::active_statement_companion,
     item::{Item, LeadingTrivia, TokenKind},
-    lexer::{scan_trivia, type_nud_item_after_trivia},
+    lexer::{scan_identifier, scan_type_nud_payload},
     statement::StatementLineHandoff,
-    type_expr::{TypeOuterBoundary, required_type_expr_with_caller_stops_and_outer_boundary},
+    type_expr::{
+        TypeOuterBoundary, required_type_expr_with_caller_stops_and_outer_boundary_normalized,
+    },
+    yumark::FenceBoundary,
 };
 
 /// Consume one already-qualified `derives` clause and return its first pending
 /// successor.  The Type owner alone decides whether that successor starts a
 /// repeated clause or belongs to the declaration form/outer statement.
 pub(super) fn derives_clause(
-    mut i: RewriteIn,
+    i: RewriteIn,
     keyword: Item,
     baseline: usize,
     caller_stops: Stops,
     line_handoff: StatementLineHandoff,
     role_boundary: TypeOuterBoundary,
 ) -> Item {
+    derives_clause_normalized(
+        i,
+        keyword,
+        baseline,
+        caller_stops,
+        line_handoff,
+        role_boundary,
+        0,
+        LineEntry::InLine,
+        None,
+    )
+    .0
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn derives_clause_normalized(
+    mut i: RewriteIn,
+    keyword: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    line_handoff: StatementLineHandoff,
+    role_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
     debug_assert!(is_word(&keyword, "derives"));
     i.state.start_node(SyntaxKind::DerivesClause.into());
     emit_contextual_keyword(&mut i, keyword, SyntaxKind::DerivesKw);
 
-    let mut next = required_role(i.rb(), baseline, caller_stops, line_handoff, role_boundary);
+    let (mut next, mut item_origin, mut line_entry) = required_role_normalized(
+        i.rb(),
+        baseline,
+        caller_stops,
+        line_handoff,
+        role_boundary,
+        item_origin,
+        line_entry,
+        fence,
+    );
     loop {
         if !clause_gap_continues(i.rb(), &next, baseline, caller_stops, line_handoff) {
             i.state.finish_node();
-            return next;
+            return (next, item_origin, line_entry);
         }
         if token_kind(&next) == Some(TokenKind::Comma) {
             emit_token_item(&mut i, next);
-            next = required_role(i.rb(), baseline, caller_stops, line_handoff, role_boundary);
+            (next, item_origin, line_entry) = required_role_normalized(
+                i.rb(),
+                baseline,
+                caller_stops,
+                line_handoff,
+                role_boundary,
+                item_origin,
+                line_entry,
+                fence,
+            );
             continue;
         }
         if is_word(&next, "via") {
             emit_contextual_keyword(&mut i, next, SyntaxKind::ViaKw);
-            next = required_via_target(i.rb(), baseline, caller_stops, line_handoff);
+            (next, item_origin, line_entry) = required_via_target_normalized(
+                i.rb(),
+                baseline,
+                caller_stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
         }
         i.state.finish_node();
-        return next;
+        return (next, item_origin, line_entry);
     }
 }
 
-fn required_role(
+#[allow(clippy::too_many_arguments)]
+fn required_role_normalized(
     mut i: RewriteIn,
     baseline: usize,
     caller_stops: Stops,
     line_handoff: StatementLineHandoff,
     role_boundary: TypeOuterBoundary,
-) -> Item {
-    let leading = scan_trivia(i.rb());
-    let primary = type_nud_item_after_trivia(i.rb(), leading);
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let (primary, item_origin, line_entry) =
+        next_clause_item_normalized(i.rb(), item_origin, line_entry, fence, false);
     if !clause_gap_continues(i.rb(), &primary, baseline, caller_stops, line_handoff) {
         emit_missing_type_expression(&mut i);
-        return primary;
+        return (primary, item_origin, line_entry);
     }
-    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary(
+    let child_entry = suffix_marker(i.rb());
+    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary_normalized(
         i.rb(),
         primary,
         baseline,
         caller_stops,
         role_boundary,
+        item_origin,
+        line_entry,
+        fence,
     );
-    successor_after_type(i, exit)
+    let item_origin = advanced_origin(item_origin, child_entry, i.rb());
+    successor_after_type_normalized(i, exit, item_origin, fence)
 }
 
-fn required_via_target(
+#[allow(clippy::too_many_arguments)]
+fn required_via_target_normalized(
     mut i: RewriteIn,
     baseline: usize,
     caller_stops: Stops,
     line_handoff: StatementLineHandoff,
-) -> Item {
-    let leading = scan_trivia(i.rb());
-    let mut target = type_nud_item_after_trivia(i.rb(), leading);
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let (mut target, next_origin, next_entry) =
+        next_clause_item_normalized(i.rb(), item_origin, line_entry, fence, true);
+    item_origin = next_origin;
+    line_entry = next_entry;
     if !clause_gap_continues(i.rb(), &target, baseline, caller_stops, line_handoff)
         || via_target_boundary(&target)
     {
         emit_missing(&mut i, LeadingTrivia::default());
-        return target;
+        return (target, item_origin, line_entry);
     }
     if raw_identifier(&target) {
         emit_token_item(&mut i, target);
-        return next_type_item(i);
+        return next_clause_item_normalized(i, item_origin, line_entry, fence, false);
     }
 
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, target);
-        target = next_type_item(i.rb());
+        (target, item_origin, line_entry) =
+            next_clause_item_normalized(i.rb(), item_origin, line_entry, fence, true);
         if !clause_gap_continues(i.rb(), &target, baseline, caller_stops, line_handoff)
             || via_target_boundary(&target)
             || raw_identifier(&target)
@@ -103,9 +178,9 @@ fn required_via_target(
             i.state.finish_node();
             if raw_identifier(&target) {
                 emit_token_item(&mut i, target);
-                return next_type_item(i);
+                return next_clause_item_normalized(i, item_origin, line_entry, fence, false);
             }
-            return target;
+            return (target, item_origin, line_entry);
         }
     }
 }
@@ -113,31 +188,79 @@ fn required_via_target(
 /// The raw Identifier slot keeps contextual clause words pending for the
 /// clause or Type owner.
 fn via_target_boundary(item: &Item) -> bool {
-    matches!(
-        token_kind(item),
-        Some(
-            TokenKind::Comma
-                | TokenKind::Semicolon
-                | TokenKind::Equals
-                | TokenKind::RParen
-                | TokenKind::RBracket
-                | TokenKind::RBrace
+    item.payload_view().is_boundary()
+        || matches!(
+            token_kind(item),
+            Some(
+                TokenKind::Comma
+                    | TokenKind::Semicolon
+                    | TokenKind::Equals
+                    | TokenKind::RParen
+                    | TokenKind::RBracket
+                    | TokenKind::RBrace
+            )
         )
-    ) || item.payload_view().is_eof()
+        || item.payload_view().is_eof()
         || matches!(item_word(item), Some("derives" | "via" | "with" | "impl"))
 }
 
-fn successor_after_type(i: RewriteIn, exit: TailExit) -> Item {
+fn successor_after_type_normalized(
+    i: RewriteIn,
+    exit: NormalizedExit,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
     match exit {
-        Ok(()) => next_type_item(i),
-        Err(Either::Left(item)) => item,
-        Err(Either::Right(end)) => end.item,
+        NormalizedExit::Complete(Ok(()), line_entry) => {
+            next_clause_item_normalized(i, item_origin, line_entry, fence, false)
+        }
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
+            (item, item_origin, line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            (end.item, item_origin, line_entry)
+        }
+        NormalizedExit::Deferred(_, _) => {
+            unreachable!("normalized TypeExpression does not defer a declaration owner")
+        }
     }
 }
 
-fn next_type_item(mut i: RewriteIn) -> Item {
-    let leading = scan_trivia(i.rb());
-    type_nud_item_after_trivia(i, leading)
+fn next_clause_item_normalized(
+    mut i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    raw_identifier_first: bool,
+) -> (Item, usize, LineEntry) {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item,
+        next_line_entry,
+    } = i
+        .token(|lex| {
+            current_item(
+                lex,
+                item_origin,
+                line_entry,
+                fence,
+                |mut lex: LexIn, leading, origin, fence, _| {
+                    if raw_identifier_first && let Some(identifier) = lex.token(scan_identifier) {
+                        return Some(AcceptedPayload {
+                            payload: CurrentPayload::Token(identifier),
+                            next_line_entry: LineEntry::InLine,
+                        });
+                    }
+                    scan_type_nud_payload(lex, leading, origin, fence)
+                },
+            )
+        })
+        .expect("Derives payload scanning is total");
+    (
+        item,
+        advanced_origin(item_origin, entry, i),
+        next_line_entry,
+    )
 }
 
 /// This is the complete direct-C15 gap decision.  It is deliberately local:
@@ -150,6 +273,9 @@ fn clause_gap_continues(
     caller_stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> bool {
+    if item.payload_view().is_boundary() {
+        return false;
+    }
     if is_active_stop(i.rb(), item, caller_stops)
         || active_statement_companion(i.rb(), item, baseline, caller_stops).is_some()
     {

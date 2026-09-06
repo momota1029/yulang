@@ -569,6 +569,14 @@ owner-local whitespaceをError外へ落とす四経路を発見し、ordinary EO
 追加してdelta-approvedとなった。ordinary Struct 13件、normalized全体80件、`cargo check -p yu-syntax`、format/diff
 checkはgreen。broad suiteと性能計測は反復していない。active frontierはTypeの一行だけ。
 
+2026-09-06: final Type frontierの前提としてDerivesClauseのrole / comma / `via` / local recovery / first successorを
+一つのnormalized child bodyへ移行した。全logical Itemをcurrent-Itemで取得し、role TypeExpressionにはcaller stopsと
+TypeOuterBoundaryを同時に渡すnormalized entryを追加した。ordinary Type ownerの二つのlive callerだけはthin None adapterを
+通し、Type dispatch/Deferred ledgerには未接続のまま保つ。independent specification/regression auditはC14 handoff、
+outer-only contextual boundary、fresh nested Type entry、raw `via` target、CRLF/prefixおよびfenced close/transition/EOF
+handoffをapprovedした。direct Derives 4件、ordinary C15 15件、`cargo check -p yu-syntax`、format/diff checkはgreen。
+broad suiteと性能計測は反復していない。次gateでType ownerをこのentryへ接続してfinal frontierを削除する。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
