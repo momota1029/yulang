@@ -78,7 +78,7 @@ fn run_required_pattern_with_context<'source>(
         fence,
     );
     builder.finish_node();
-    (builder.finish(), exit, completion, input)
+    (builder.finish_with_recoveries().0, exit, completion, input)
 }
 
 fn policy(fresh: PatternStops, recovered_tail: PatternStops) -> PatternMandatorySlotPolicy {
@@ -144,7 +144,7 @@ fn run_l7_pattern_with_context<'source>(
         0,
     );
     builder.finish_node();
-    (builder.finish(), exit, input)
+    (builder.finish_with_recoveries().0, exit, input)
 }
 
 fn pattern_node(green: GreenNode) -> SyntaxNode {

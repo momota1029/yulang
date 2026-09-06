@@ -96,7 +96,7 @@ fn run_type_declaration_with_handoff(
         emit_end(&mut builder, end);
     }
     builder.finish_node();
-    (builder.finish(), Some(exit))
+    (builder.finish_with_recoveries().0, Some(exit))
 }
 
 #[test]

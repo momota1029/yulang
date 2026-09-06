@@ -1,10 +1,179 @@
 use super::*;
 
+use std::{
+    ops::Range,
+    panic::{AssertUnwindSafe, catch_unwind},
+    sync::Arc,
+};
+
+use crate::rewrite::yumark::{FenceOpener, FencePrefixPolicy};
+use crate::session::{
+    ConstructRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
+    UnexpectedCategory, UnexpectedSyntax,
+};
+use chasa_recover::Recoverable as _;
+
 fn top_type_expression(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .children()
         .find(|node| node.kind() == SyntaxKind::TypeExpression)
         .expect("top-level type expression")
+}
+
+fn expected_type_error(id: u32, role: TypeRole, range: Range<usize>) -> CommittedRecoveryRecord {
+    let role = GrammarRole::Type(role);
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Error,
+        unexpected: Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Identifier,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+fn expected_parenthesized_close(id: u32, at: usize) -> CommittedRecoveryRecord {
+    let role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::ParenthesizedTypeGroup,
+        delimiter: Delimiter::Parenthesis,
+    };
+    let range = at..at;
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Missing,
+        unexpected: Arc::from([]),
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            )),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+fn commit_record_draft(output: &mut GreenNodeBuilder<'_>, record: &CommittedRecoveryRecord) {
+    output.commit_recovery(super::super::output::RecoveryDraft::new(
+        record.site.clone(),
+        record.kind,
+        record.unexpected.clone(),
+        record.expectations.clone(),
+        record.primary_expectation,
+    ));
+}
+
+fn seed_identifier(output: &mut GreenNodeBuilder<'_>) {
+    output.start_node(SyntaxKind::IdentifierExpression.into());
+    output.token(SyntaxKind::Identifier.into(), "sentinel");
+    output.finish_node();
+}
+
+fn scan_type_item_control<'source>(
+    source: &'source str,
+    item_origin: usize,
+    operators: &OperatorTable,
+) -> (Item, usize, LineEntry, &'source str, (), bool) {
+    let mut input = source;
+    let mut recover = Recover::new(operators);
+    let mark = recover.mark();
+    let same_operators = std::ptr::eq(recover.operators(), operators);
+    let super::super::current_item::CurrentItem {
+        item,
+        next_line_entry,
+    } = super::super::current_item::current_item(
+        In::new(&mut input, &mut recover, ()),
+        item_origin,
+        LineEntry::InLine,
+        None,
+        |lex, leading, origin, fence, _| {
+            super::super::lexer::scan_type_nud_payload(lex, leading, origin, fence)
+        },
+    )
+    .expect("control Type Item scan");
+    let successor_origin = item_origin
+        .checked_add(source.len() - input.len())
+        .expect("control Type successor origin");
+    (
+        item,
+        successor_origin,
+        next_line_entry,
+        input,
+        mark,
+        same_operators,
+    )
+}
+
+fn parenthesized_group(green: &GreenNode) -> SyntaxNode {
+    SyntaxNode::new_root(green.clone())
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+        .expect("parenthesized Type group")
+}
+
+fn assert_outer_parenthesized_close(source: &str) {
+    let close_at = source.find('}').expect("outer right brace");
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source, "{source:?}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+    assert_eq!(
+        records
+            .iter()
+            .filter(|record| {
+                record.site.role
+                    == (GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::ParenthesizedTypeGroup,
+                        delimiter: Delimiter::Parenthesis,
+                    })
+            })
+            .cloned()
+            .collect::<Vec<_>>(),
+        [expected_parenthesized_close(1, close_at)],
+        "{source:?}"
+    );
+    assert_eq!(
+        parenthesized_group(&green)
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1,
+        "{source:?}"
+    );
+}
+
+fn assert_local_parenthesized_close(source: &str, emitted: &str) {
+    let (green, exit, remainder, records) =
+        run_type_normalized_with_recoveries(source, 0, LineEntry::InLine, None, None);
+    assert_eq!(green.to_string(), emitted, "{source:?}");
+    let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine)) = exit else {
+        panic!("local mismatched close must remain pending: {source:?}")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBracket));
+    assert!(item.leading_view().is_grammar_empty());
+    assert_eq!(remainder, "");
+    assert!(records.is_empty());
+    assert!(
+        !parenthesized_group(&green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
 }
 
 #[test]
@@ -1783,6 +1952,561 @@ fn polymorphic_variant_type_recovers_outer_tag_positions() {
             "{source:?}"
         );
     }
+}
+
+#[test]
+fn polymorphic_variant_structured_tag_name_orders_fresh_and_frozen_recovery() {
+    let source = ":{@ (A}";
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        records,
+        [
+            expected_type_error(0, TypeRole::PolymorphicVariantTag, 2..3),
+            expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..6),
+            expected_parenthesized_close(2, 6),
+        ]
+    );
+
+    let root = SyntaxNode::new_root(green.clone());
+    let tag = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+        .expect("recovered polymorphic-variant tag");
+    let tag_children = tag.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(tag_children[0].kind(), SyntaxKind::Error);
+    assert_eq!(tag_children[0].to_string(), "@");
+    assert_eq!(tag_children[1].kind(), SyntaxKind::Whitespace);
+    assert_eq!(tag_children[1].to_string(), " ");
+    assert_eq!(tag_children[2].kind(), SyntaxKind::Error);
+    let structured = tag_children[2]
+        .clone()
+        .into_node()
+        .expect("structured tag-name Error");
+    let group = structured
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+        .expect("nested parenthesized Type group");
+    assert_eq!(group.text().to_string(), "(A");
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    let variant = tag
+        .ancestors()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic-variant owner");
+    assert!(
+        variant
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::RBrace && token.text() == "}")
+    );
+
+    let (frozen_green, frozen_exit, frozen_records) =
+        run_type_with_recoveries(source, Some(&records));
+    assert_eq!(frozen_green, green);
+    assert!(matches!(frozen_exit, Some(Err(Either::Right(_)))));
+    assert_eq!(frozen_records, records);
+}
+
+#[test]
+fn polymorphic_variant_recursive_structured_tag_names_are_lifo_and_reusable() {
+    let source = ":{:{123}}";
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        records,
+        [
+            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..8),
+            expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..7),
+        ]
+    );
+    let root = SyntaxNode::new_root(green.clone());
+    let structured = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        structured
+            .iter()
+            .map(|node| node.text().to_string())
+            .collect::<Vec<_>>(),
+        [":{123}", "123"]
+    );
+    assert!(structured[0].descendants().any(|node| {
+        node.kind() == SyntaxKind::PolymorphicVariantType && node.text().to_string() == ":{123}"
+    }));
+
+    let (frozen_green, frozen_exit, frozen_records) =
+        run_type_with_recoveries(source, Some(&records));
+    assert_eq!(frozen_green, green);
+    assert!(matches!(frozen_exit, Some(Err(Either::Right(_)))));
+    assert_eq!(frozen_records, records);
+}
+
+#[test]
+fn polymorphic_variant_structured_tag_name_single_and_valid_controls() {
+    let (green, exit, records) = run_type_with_recoveries(":{123}", None);
+    assert_eq!(green.to_string(), ":{123}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        records,
+        [expected_type_error(
+            0,
+            TypeRole::PolymorphicVariantTagName,
+            2..5,
+        )]
+    );
+
+    let (green, exit, records) = run_type_with_recoveries(":{A}", None);
+    assert_eq!(green.to_string(), ":{A}");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(records.is_empty());
+}
+
+#[test]
+fn polymorphic_variant_structured_frozen_mismatches_reject_each_position() {
+    let source = ":{@ (A}";
+    let (_, _, records) = run_type_with_recoveries(source, None);
+    for (index, mismatch_source, item_origin, outer_closes) in [
+        (0, source, 0, 0),
+        (1, ":{(A}", 2, 0),
+        (
+            2,
+            "(A}",
+            4,
+            super::super::type_expr::with_type_outer_close(0, TokenKind::RBrace),
+        ),
+    ] {
+        let mut mismatched = records.clone();
+        Arc::make_mut(&mut mismatched[index].expectations)[0].expected =
+            ExpectedSyntax::TypeExpression;
+        let operators = OperatorTable::empty();
+        let mut input = mismatch_source;
+        let mut recover = Recover::new(&operators);
+        let mut output = GreenNodeBuilder::reconcile(&mismatched);
+        output.start_node(SyntaxKind::Root.into());
+        for record in records.iter().take(index) {
+            commit_record_draft(&mut output, record);
+        }
+        let before_diagnostics = output.diagnostic_position();
+        let before_slots = output.recovery_slot_count();
+        assert_eq!(before_diagnostics, (Some(3), index));
+        assert_eq!(before_slots, index);
+        let mismatch = catch_unwind(AssertUnwindSafe(|| {
+            let _ = super::super::type_expr::type_expr_with_caller_stops_for_test(
+                In::new(&mut input, &mut recover, &mut output),
+                0,
+                outer_closes,
+                item_origin,
+            )
+            .expect("focused mismatch source is a Type candidate");
+        }));
+        assert!(mismatch.is_err(), "frozen recovery position {index}");
+        assert_eq!(output.diagnostic_position(), before_diagnostics);
+        assert_eq!(output.recovery_slot_count(), before_slots);
+        // The panic invalidates this partially emitted builder. Only the
+        // pre-mismatch cursor/slot surface is inspected; it is then discarded.
+        drop(output);
+    }
+}
+
+#[test]
+fn parenthesized_close_initial() {
+    assert_outer_parenthesized_close(":{(}");
+    assert_local_parenthesized_close("(]", "(");
+}
+
+#[test]
+fn parenthesized_close_post_head() {
+    assert_outer_parenthesized_close(":{(A}");
+    assert_local_parenthesized_close("(A]", "(A");
+}
+
+#[test]
+fn parenthesized_close_malformed_retry() {
+    assert_outer_parenthesized_close(":{(@}");
+    assert_local_parenthesized_close("(@]", "(@");
+}
+
+#[test]
+fn parenthesized_close_after_separator() {
+    assert_outer_parenthesized_close(":{(A,}");
+    assert_local_parenthesized_close("(A,]", "(A,");
+}
+
+#[test]
+fn parenthesized_close_matching() {
+    let (green, exit, records) = run_type_with_recoveries("(A)", None);
+    assert_eq!(green.to_string(), "(A)");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(records.is_empty());
+}
+
+#[test]
+fn parenthesized_close_eof() {
+    let (green, exit, records) = run_type_with_recoveries("(A", None);
+    assert_eq!(green.to_string(), "(A");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(records, [expected_parenthesized_close(0, 2)]);
+}
+
+#[test]
+fn parenthesized_close_trivia_prefixed_outer_anchor() {
+    let source = ":{(A }";
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        records,
+        [
+            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..4),
+            expected_parenthesized_close(1, 4),
+        ]
+    );
+    assert_eq!(parenthesized_group(&green).text().to_string(), "(A");
+}
+
+#[test]
+fn parenthesized_close_abstract_boundary() {
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let source = "> > (A\n> > ```\nouter";
+    let (green, exit, remainder, records) = run_type_normalized_with_recoveries(
+        source,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        None,
+    );
+    assert_eq!(green.to_string(), "> > (A");
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+        exit
+    else {
+        panic!("parenthesized group must preserve the abstract fence boundary")
+    };
+    assert!(boundary.payload_view().is_boundary());
+    assert!(boundary.leading_view().has_ordinary_newline());
+    assert_eq!(remainder, "> > ```\nouter");
+    assert_eq!(records, [expected_parenthesized_close(0, 6)]);
+}
+
+#[test]
+fn parenthesized_close_nonclose_caller_boundary() {
+    let operators = OperatorTable::empty();
+    let mut input = "(A with";
+    let mut recover = Recover::new(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let (exit, successor_origin) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+        In::new(&mut input, &mut recover, &mut output),
+        super::super::operator::STOP_WITH,
+        0,
+        0,
+    )
+    .expect("accepted parenthesized Type");
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), "(A");
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+        panic!("active non-close caller boundary must remain pending")
+    };
+    assert_eq!(item.payload_view().spelling(), Some("with"));
+    assert_eq!(item.leading_view().remaining_physical_parts(), 1);
+    assert_eq!(input, "");
+    assert_eq!(successor_origin, 7);
+    assert_eq!(records, [expected_parenthesized_close(0, 2)]);
+}
+
+#[test]
+fn parenthesized_close_active_caller_close_is_raw_and_preserves_successor() {
+    let operators = OperatorTable::empty();
+    let active_close_stops = stops_for(TokenKind::RBracket)
+        & !super::super::operator::STOP_COMMA
+        & !super::super::operator::STOP_SEMICOLON;
+    for (source, emitted, missing_count) in [
+        ("( ] tail", "(", 1),
+        ("(A ] tail", "(A", 1),
+        ("(@ ] tail", "(@", 1),
+        ("(A, ] tail", "(A,", 2),
+    ] {
+        let mut input = source;
+        let mut recover = Recover::new(&operators);
+        assert_eq!(recover.mark(), ());
+        assert!(std::ptr::eq(recover.operators(), &operators));
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let (exit, successor_origin) =
+            super::super::type_expr::type_expr_with_caller_stops_for_test(
+                In::new(&mut input, &mut recover, &mut output),
+                active_close_stops,
+                0,
+                0,
+            )
+            .expect("accepted parenthesized Type");
+        let diagnostics = output.diagnostic_position();
+        let slots = output.recovery_slot_count();
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        let NormalizedExit::Complete(Err(Either::Left(item)), line_entry) = exit else {
+            panic!("active caller-owned close must remain pending: {source:?}")
+        };
+        let control_source = source
+            .strip_prefix(emitted)
+            .expect("emitted prefix belongs to source");
+        let (control_item, control_origin, control_line, control_remainder, mark, same_operators) =
+            scan_type_item_control(control_source, emitted.len(), &operators);
+        assert_eq!(green.to_string(), emitted, "{source:?}");
+        assert_eq!(
+            parenthesized_group(&green)
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing_count,
+            "{source:?}"
+        );
+        assert!(records.is_empty(), "{source:?}");
+        assert_eq!(slots, 0, "{source:?}");
+        assert_eq!(diagnostics, (Some(0), 0), "{source:?}");
+        assert_eq!(item, control_item, "{source:?}");
+        assert_eq!(
+            item.payload_view().token_kind(),
+            Some(TokenKind::RBracket),
+            "{source:?}"
+        );
+        assert_eq!(item.leading_view().remaining_physical_parts(), 1);
+        assert!(item.leading_view().has_ordinary_trivia());
+        assert!(!item.leading_view().has_ordinary_newline());
+        assert_eq!(input, control_remainder, "{source:?}");
+        assert_eq!(successor_origin, control_origin, "{source:?}");
+        assert_eq!(line_entry, control_line, "{source:?}");
+        assert_eq!(mark, ());
+        assert!(same_operators);
+    }
+}
+
+#[test]
+fn type_delimited_owner_routing_keeps_non_group_close_recovery_raw() {
+    for source in ["T(A", "'[A", "[e"] {
+        let (green, _, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(records.is_empty(), "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn polymorphic_variant_nt8_same_slot_trivia_has_one_exact_prefix_record() {
+    let source = ":{@ A}";
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        records,
+        [expected_type_error(
+            0,
+            TypeRole::PolymorphicVariantTag,
+            2..3,
+        )]
+    );
+    let tag = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+        .expect("same-slot recovered tag");
+    let children = tag.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children[0].kind(), SyntaxKind::Error);
+    assert_eq!(children[0].to_string(), "@");
+    assert_eq!(children[1].kind(), SyntaxKind::Whitespace);
+    assert_eq!(children[1].to_string(), " ");
+    assert_eq!(children[2].kind(), SyntaxKind::Identifier);
+    assert_eq!(children[2].to_string(), "A");
+
+    let source = ":{@ . A}";
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(
+        records,
+        [expected_type_error(
+            0,
+            TypeRole::PolymorphicVariantTag,
+            2..5,
+        )]
+    );
+    let tag = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+        .expect("multi-Item same-slot recovered tag");
+    let children = tag.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children[0].kind(), SyntaxKind::Error);
+    assert_eq!(children[0].to_string(), "@ .");
+    assert_eq!(children[1].kind(), SyntaxKind::Whitespace);
+    assert_eq!(children[1].to_string(), " ");
+    assert_eq!(children[2].kind(), SyntaxKind::Identifier);
+    assert_eq!(children[2].to_string(), "A");
+}
+
+#[test]
+fn rb_pv_rejected_candidate_preservation() {
+    let operators = OperatorTable::empty();
+    let frozen = [];
+
+    let mut candidate_input = ":x";
+    let mut candidate_recover = Recover::new(&operators);
+    let candidate_mark = candidate_recover.mark();
+    let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
+    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    candidate_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut candidate_output);
+    let before_slots = candidate_output.recovery_slot_count();
+    let before_diagnostics = candidate_output.diagnostic_position();
+    let exit = super::super::type_expr::type_expr(In::new(
+        &mut candidate_input,
+        &mut candidate_recover,
+        &mut candidate_output,
+    ));
+    assert!(exit.is_none());
+    let candidate_slots = candidate_output.recovery_slot_count();
+    let candidate_diagnostics = candidate_output.diagnostic_position();
+    candidate_output.finish_node();
+    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+
+    let control_input = ":x";
+    let control_recover = Recover::new(&operators);
+    let control_mark = control_recover.mark();
+    let control_operators = std::ptr::eq(control_recover.operators(), &operators);
+    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    control_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut control_output);
+    let control_slots = control_output.recovery_slot_count();
+    let control_diagnostics = control_output.diagnostic_position();
+    control_output.finish_node();
+    let (control_green, control_records) = control_output.finish_with_recoveries();
+
+    let candidate_pending: Option<Item> = None;
+    let control_pending: Option<Item> = None;
+    let candidate_successor_origin = 0;
+    let control_successor_origin = 0;
+    let candidate_line_entry = LineEntry::InLine;
+    let control_line_entry = LineEntry::InLine;
+    assert_eq!(candidate_green, control_green);
+    assert_eq!(candidate_records, control_records);
+    assert_eq!(candidate_slots, control_slots);
+    assert_eq!(candidate_diagnostics, control_diagnostics);
+    assert_eq!(candidate_input, control_input);
+    assert_eq!(candidate_pending, control_pending);
+    assert_eq!(candidate_successor_origin, control_successor_origin);
+    assert_eq!(candidate_line_entry, control_line_entry);
+    assert_eq!(candidate_mark, control_mark);
+    assert_eq!(candidate_mark, ());
+    assert!(candidate_operators && control_operators);
+    assert_eq!(candidate_slots, before_slots);
+    assert_eq!(candidate_diagnostics, before_diagnostics);
+    assert_eq!(candidate_diagnostics, (Some(0), 0));
+    assert_eq!(candidate_input, ":x");
+    assert!(candidate_records.is_empty());
+}
+
+#[test]
+fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
+    let operators = OperatorTable::empty();
+    let frozen = [expected_parenthesized_close(0, 2)];
+
+    let mut candidate_input: &'static str = "(A with";
+    let mut candidate_recover = Recover::new(&operators);
+    let candidate_mark = candidate_recover.mark();
+    let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
+    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    candidate_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut candidate_output);
+    let (candidate_exit, candidate_origin) =
+        super::super::type_expr::type_expr_with_caller_stops_for_test(
+            In::new(
+                &mut candidate_input,
+                &mut candidate_recover,
+                &mut candidate_output,
+            ),
+            super::super::operator::STOP_WITH,
+            0,
+            0,
+        )
+        .expect("accepted parenthesized Type");
+    let NormalizedExit::Complete(Err(Either::Left(candidate_item)), candidate_line) =
+        candidate_exit
+    else {
+        panic!("active caller boundary must remain pending")
+    };
+    let candidate_diagnostics = candidate_output.diagnostic_position();
+    let candidate_slots = candidate_output.recovery_slot_count();
+    candidate_output.finish_node();
+    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+
+    let (
+        control_item,
+        control_origin,
+        control_line,
+        control_input,
+        control_mark,
+        control_operators,
+    ) = scan_type_item_control(" with", 2, &operators);
+    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    control_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut control_output);
+    control_output.start_node(SyntaxKind::TypeExpression.into());
+    control_output.start_node(SyntaxKind::ParenthesizedTypeGroup.into());
+    control_output.token(SyntaxKind::LParen.into(), "(");
+    control_output.start_node(SyntaxKind::TypeExpression.into());
+    control_output.token(SyntaxKind::Identifier.into(), "A");
+    control_output.finish_node();
+    control_output.start_node(SyntaxKind::Missing.into());
+    control_output.finish_node();
+    commit_record_draft(&mut control_output, &frozen[0]);
+    control_output.finish_node();
+    control_output.finish_node();
+    let control_diagnostics = control_output.diagnostic_position();
+    let control_slots = control_output.recovery_slot_count();
+    control_output.finish_node();
+    let (control_green, control_records) = control_output.finish_with_recoveries();
+
+    assert_eq!(candidate_green, control_green);
+    assert_eq!(candidate_records, control_records);
+    assert_eq!(candidate_slots, control_slots);
+    assert_eq!(candidate_diagnostics, control_diagnostics);
+    assert_eq!(candidate_input, control_input);
+    assert_eq!(candidate_item, control_item);
+    assert_eq!(candidate_origin, control_origin);
+    assert_eq!(candidate_line, control_line);
+    assert_eq!(candidate_mark, control_mark);
+    assert_eq!(candidate_mark, ());
+    assert!(candidate_operators && control_operators);
+    assert_eq!(candidate_records, frozen);
+    assert_eq!(candidate_item.payload_view().spelling(), Some("with"));
+    assert_eq!(candidate_item.leading_view().remaining_physical_parts(), 1);
+    assert!(candidate_item.leading_view().has_ordinary_trivia());
+    assert!(!candidate_item.leading_view().has_ordinary_newline());
+    assert_eq!(candidate_line, LineEntry::InLine);
+    assert_eq!(candidate_input, "");
+    assert_eq!(candidate_origin, 7);
+    assert_eq!(candidate_diagnostics, (Some(1), 1));
+    assert_eq!(candidate_slots, 1);
 }
 
 #[test]

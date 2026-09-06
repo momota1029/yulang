@@ -853,6 +853,39 @@ compiler/recovery・specification・performance delta reviewはclean、timing bu
 defer。次は一つだけのPV wrong-kind tag-name callerをこのprivate helperへ移すnarrow O3a checkpointであり、
 public dispatchには触れない。
 
+2026-09-07: 既承認structured PV callerのimplementation preflightで、§7の3-record fixtureに必要な
+NT-8 prefix Errorとnested Parenthesized close Missingがproductionではまだraw CST-onlyである矛盾を
+発見した。TagName-onlyのprovisional record/frozen streamはauthority外なので採用しない。architect裁定により、
+`2026-09-07-successor-structured-recovery-prerequisite-ordering-addendum.md`へ、prefix Error、
+Parenthesized close Missing、four-owner TypeDelimited discriminatorを先行し、続いて既承認TagName callerを
+移す狭いDraftを記録した。M3 reviewとuser approvalまでcodeは`813521af`のまま保留する。
+
+2026-09-07: prerequisite-ordering DraftのM3 reviewはinitial、first delta、second deltaの三roundで、
+scope、outer-close classifier、全path evidenceを収束させた。second delta後にlegacy `ParseLocal`/sink/cut/logを
+successor rollback witnessへ要求する矛盾が判明した。typed-output authorityのoperator-only unit-mark `Recover`と
+両立しないため、一回だけの追加narrow deltaを許可する。このdeltaはRowan output、records、diagnostic cursor、
+input、Item、coordinate、line entry、operator-table/unit-markというsuccessor-native evidenceへの置換だけを
+検証し、新しいsemantic/API/owner decisionは解決しない。
+
+2026-09-07: prerequisite-ordering DraftのM3 reviewはcleanになった。performanceはvalid pathのallocation、
+scan、asymptotic増加なし・timing 0。compiler/specはexact outer/local close classification、three-record
+fresh/frozen order、successor-native rollback evidenceを承認した。Draftを`Reviewed`へ移した。現在のblockerは、
+two prerequisite producers、Parenthesized outer-close Missing CST correction、four-owner discriminatorを先に
+移してから既承認TagName callerを実装する狭い順序をuserが承認するかどうかだけである。
+
+2026-09-07: ユーザがprerequisite-ordering addendumを承認した。prefix Error、Parenthesized outer-close
+Missing CST correction、four-owner discriminator、既承認structured TagName callerをこの順序で実装できる。
+raw local mismatch、他のType/PV cause、public dispatchは引き続きscope外である。
+
+2026-09-07: prerequisite-ordering addendumのnarrow O3a checkpointを実装完了。NT-8 prefix Error、
+ParenthesizedTypeGroup outer-close Missing、four-owner discriminator、structured TagName callerにより、
+`:{@ (A}`のfresh/frozen三record (ID 0..2) とrecursive LIFO recordを実現した。初回M3 reviewで
+explicit caller-close raw Missing消失、typed recoveryを通るtest harnessのfinalization、rollback/frozen
+evidence不足を発見し、一つのrepair bundleで修復した。compiler/spec delta reviewはclean、performanceは
+valid pathのmaterial costなし・timing 0。primary verificationはType/PV 68、normalized Type 25、
+Pattern caller-close、TypeDeclaration nested-owner、`cargo check -p yu-syntax`、fmt、diff checkがすべて
+green。O4/O7 broad suite、public dispatch、残るType/PV recovery migrationとcutoverは未実施である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

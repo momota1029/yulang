@@ -1,8 +1,16 @@
 //! Effect-row and polymorphic-variant type primaries.
 
+use std::sync::Arc;
+
 use reborrow_generic::Reborrow as _;
 
-use crate::syntax_kind::SyntaxKind;
+use crate::{
+    session::{
+        ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind, RecoverySiteKey,
+        SyntaxExpectation, TypeRole, UnexpectedCategory, UnexpectedSyntax,
+    },
+    syntax_kind::SyntaxKind,
+};
 
 use super::super::{
     RewriteIn, Stops,
@@ -10,8 +18,9 @@ use super::super::{
     driver::{
         Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
     },
-    emit::{emit_error_item, emit_missing, emit_token_item},
+    emit::{emit_error_item, emit_missing, emit_recovery_error_run, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
+    output::{RecoveryDraft, StructuredRecoverySpec, emit_structured_recovery_error_from_item},
     yumark::FenceBoundary,
 };
 use super::{
@@ -19,7 +28,8 @@ use super::{
     indentation_after_newline, is_type_caller_boundary, is_type_mismatched_close, is_type_nud,
     is_type_outer_close, is_type_payload_boundary, is_type_polymorphic_variant_tag_name,
     type_delimited_baseline, type_delimited_normalized, type_expr_from_nud_normalized,
-    type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
+    type_nud_item_with_pipe_lexical_normalized,
+    type_nud_item_with_pipe_lexical_normalized_in_error_run, with_type_outer_close,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -56,7 +66,7 @@ pub(super) fn type_effect_row_normalized(
         i.rb(),
         TokenKind::RBracket,
         baseline,
-        TypeDelimitedOwner::Generic,
+        TypeDelimitedOwner::EffectRow,
         outer_closes,
         caller_stops,
         pipe_lexical,
@@ -443,25 +453,42 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    let entry = suffix_marker(i.rb());
-    let exit = type_expr_from_nud_normalized(
+    let successor_origin = item_origin;
+    let exit = emit_structured_recovery_error_from_item(
         i.rb(),
         primary,
-        baseline,
-        true,
-        None,
-        true,
-        outer_closes,
-        caller_stops,
-        TypeOuterBoundary::NONE,
-        pipe_lexical,
-        item_origin,
-        line_entry,
-        fence,
+        successor_origin,
+        StructuredRecoverySpec::new(
+            GrammarRole::Type(TypeRole::PolymorphicVariantTagName),
+            UnexpectedCategory::OtherCharacter,
+            ExpectedSyntax::Identifier,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+            0,
+        ),
+        |mut nested, primary| {
+            let entry = suffix_marker(nested.rb());
+            let exit = type_expr_from_nud_normalized(
+                nested.rb(),
+                primary,
+                baseline,
+                true,
+                None,
+                true,
+                outer_closes,
+                caller_stops,
+                TypeOuterBoundary::NONE,
+                pipe_lexical,
+                successor_origin,
+                line_entry,
+                fence,
+            );
+            let post_origin = advanced_origin(successor_origin, entry, nested.rb());
+            let end = structured_tag_name_end(&exit, post_origin);
+            ((exit, post_origin), end)
+        },
     );
-    item_origin = advanced_origin(item_origin, entry, i.rb());
-    i.state.finish_node();
+    let (exit, next_origin) = exit;
+    item_origin = next_origin;
     type_polymorphic_variant_tag_payloads_after_head_normalized(
         i,
         exit,
@@ -487,29 +514,41 @@ fn type_polymorphic_variant_malformed_tag_normalized(
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        item.emit_all_remaining_leading(&mut *i.state);
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-        );
-        if !is_type_polymorphic_variant_tag_safe(&item) {
-            continue;
-        }
-        i.state.finish_node();
-        let exit = if item.payload_view().is_boundary()
-            || is_type_polymorphic_variant_tag_boundary(&item)
-        {
+    let (next, next_origin, next_line_entry) = emit_recovery_error_run(
+        i.rb(),
+        |run| {
+            let mut run_start = None;
+            loop {
+                let kind = polymorphic_variant_malformed_item_syntax_kind(&item);
+                let extent = run.emit_item_as(item, item_origin, kind);
+                let range = extent.recovery_range();
+                run_start.get_or_insert(range.start);
+                let run_end = range.end;
+                (item, item_origin, line_entry) =
+                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                        run,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                    );
+                if is_type_polymorphic_variant_tag_safe(&item) {
+                    let range = run_start.expect("an NT-8 Error run is nonempty")..run_end;
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| polymorphic_variant_tag_error_draft(range, unexpected),
+    );
+    item = next;
+    item_origin = next_origin;
+    line_entry = next_line_entry;
+    let exit =
+        if item.payload_view().is_boundary() || is_type_polymorphic_variant_tag_boundary(&item) {
             complete(handoff(item), line_entry)
         } else {
             item.emit_all_remaining_leading(&mut *i.state);
@@ -539,8 +578,77 @@ fn type_polymorphic_variant_malformed_tag_normalized(
                 )
             }
         };
-        i.state.finish_node();
-        return exit;
+    i.state.finish_node();
+    exit
+}
+
+fn structured_tag_name_end(exit: &NormalizedExit, post_origin: usize) -> usize {
+    let NormalizedExit::Complete(exit, _) = exit else {
+        unreachable!("normalized Type owners do not defer")
+    };
+    match exit {
+        Ok(()) => post_origin,
+        Err(Either::Left(item)) => pending_structured_end(item, post_origin),
+        Err(Either::Right(end)) => pending_structured_end(&end.item, post_origin),
+    }
+}
+
+fn pending_structured_end(item: &Item, post_origin: usize) -> usize {
+    let pending = item.extent(post_origin).recovery_range();
+    if pending.start < pending.end {
+        pending.start
+    } else {
+        post_origin
+    }
+}
+
+fn polymorphic_variant_tag_error_draft(
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::Type(TypeRole::PolymorphicVariantTag);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        RecoveryKind::Error,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Identifier,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn polymorphic_variant_malformed_item_syntax_kind(item: &Item) -> SyntaxKind {
+    match token_kind(item).expect("an NT-8 Error run contains lexical Items") {
+        TokenKind::Identifier => SyntaxKind::Identifier,
+        TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
+        TokenKind::Integer => SyntaxKind::Integer,
+        TokenKind::Operator => SyntaxKind::Operator,
+        TokenKind::LParen => SyntaxKind::LParen,
+        TokenKind::RParen => SyntaxKind::RParen,
+        TokenKind::LBracket => SyntaxKind::LBracket,
+        TokenKind::RBracket => SyntaxKind::RBracket,
+        TokenKind::LBrace => SyntaxKind::LBrace,
+        TokenKind::RBrace => SyntaxKind::RBrace,
+        TokenKind::Comma => SyntaxKind::Comma,
+        TokenKind::Semicolon => SyntaxKind::Semicolon,
+        TokenKind::Dot => SyntaxKind::Dot,
+        TokenKind::DotDot => SyntaxKind::DotDot,
+        TokenKind::Arrow => SyntaxKind::Arrow,
+        TokenKind::Colon => SyntaxKind::Colon,
+        TokenKind::Equals => SyntaxKind::Equals,
+        TokenKind::Forall => SyntaxKind::ForKw,
+        TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
+        TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => SyntaxKind::Colon,
+        TokenKind::PathSeparator => SyntaxKind::ColonColon,
+        TokenKind::Pipe => SyntaxKind::Pipe,
+        TokenKind::Unknown => SyntaxKind::Unknown,
     }
 }
 

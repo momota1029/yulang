@@ -16,7 +16,7 @@ use super::{
         Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, ordinary_exit,
         suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{ErrorRunOutput, emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, LeadingView, TokenKind},
     lexer::{
         BalancedBracketSuffix, scan_balanced_bracket_suffix_normalized, scan_exact_pipe,
@@ -122,6 +122,55 @@ pub(super) fn type_expr_normalized(
         next_line_entry,
         fence,
     ))
+}
+
+#[cfg(test)]
+pub(super) fn type_expr_with_caller_stops_for_test(
+    mut i: RewriteIn,
+    caller_stops: Stops,
+    outer_closes: u8,
+    item_origin: usize,
+) -> Option<(NormalizedExit, usize)> {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item: primary,
+        next_line_entry,
+    } = i.token(|lex| {
+        let current = current_item(
+            lex,
+            item_origin,
+            LineEntry::InLine,
+            None,
+            |lex, leading, origin, fence, _| scan_type_nud_payload(lex, leading, origin, fence),
+        )?;
+        if current.item.payload_view().is_boundary()
+            || current.item.payload_view().is_eof()
+            || !current.item.leading_view().is_grammar_empty()
+            || !is_type_nud(&current.item)
+        {
+            return None;
+        }
+        Some(current)
+    })?;
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    let continuation_entry = suffix_marker(i.rb());
+    let exit = type_expr_from_nud_normalized(
+        i.rb(),
+        primary,
+        0,
+        false,
+        None,
+        false,
+        outer_closes,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+        false,
+        item_origin,
+        next_line_entry,
+        None,
+    );
+    let successor_origin = advanced_origin(item_origin, continuation_entry, i.rb());
+    Some((exit, successor_origin))
 }
 
 /// Build a mandatory TypeExpression slot already introduced by another owner.
@@ -867,6 +916,57 @@ fn type_nud_item_with_pipe_lexical_normalized(
     )
 }
 
+/// Scans one total Type NUD item while a sealed malformed run owns output.
+///
+/// The coordinate check is the lexical counterpart of `suffix_marker` plus
+/// `advanced_origin`; the sealed Error-run capability deliberately cannot
+/// expose a general `RewriteIn` to its body.
+fn type_nud_item_with_pipe_lexical_normalized_in_error_run(
+    run: &mut ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
+) -> (Item, usize, LineEntry) {
+    run.lexical(|mut lex| {
+        let entry_pointer = lex.remainder().as_ptr() as usize;
+        let entry_length = lex.remainder().len();
+        let CurrentItem {
+            item,
+            next_line_entry,
+        } = current_item(
+            lex.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| {
+                if pipe_lexical && let Some(pipe) = lex.token(scan_exact_pipe) {
+                    return Some(AcceptedPayload {
+                        payload: CurrentPayload::Token(pipe),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                scan_type_nud_payload(lex, leading, origin, fence)
+            },
+        )
+        .expect("type NUD payload scanning is total");
+        let suffix_pointer = lex.remainder().as_ptr() as usize;
+        let suffix_length = lex.remainder().len();
+        let consumed = entry_length
+            .checked_sub(suffix_length)
+            .expect("a direct Type item scan cannot lengthen its live suffix");
+        assert_eq!(
+            entry_pointer.wrapping_add(consumed),
+            suffix_pointer,
+            "a direct Type item scan keeps the input on one source suffix",
+        );
+        let item_origin = item_origin
+            .checked_add(consumed)
+            .expect("a direct Type item coordinate must fit usize");
+        (item, item_origin, next_line_entry)
+    })
+}
+
 fn scan_type_tail(
     i: RewriteIn,
     baseline: usize,
@@ -1513,7 +1613,7 @@ fn type_group_normalized(
         i.rb(),
         TokenKind::RParen,
         baseline,
-        TypeDelimitedOwner::Generic,
+        TypeDelimitedOwner::ParenthesizedGroup,
         outer_closes,
         caller_stops,
         pipe_lexical,
@@ -1562,7 +1662,7 @@ fn type_call_tail_normalized(
         i.rb(),
         TokenKind::RParen,
         baseline,
-        TypeDelimitedOwner::Generic,
+        TypeDelimitedOwner::Call,
         outer_closes,
         caller_stops,
         pipe_lexical,
