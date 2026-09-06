@@ -2,7 +2,8 @@
 //!
 //! The declaration shell selects the exact contextual `with` Item.  This
 //! owner starts after that decision and owns only the companion form, its
-//! direct canonical Statement items, and its local separators/brace close.
+//! direct canonical Statement and Derives-run items, and its local
+//! separators/brace close.
 
 use reborrow_generic::Reborrow as _;
 
@@ -11,6 +12,7 @@ use crate::syntax_kind::SyntaxKind;
 use super::{
     LexIn, RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    derives::{derives_clause_normalized, is_word},
     driver::{
         Either, NormalizedExit, advanced_origin, complete, delimited_baseline, handoff,
         implicit_delimited_newline, indentation_after_newline, is_active_stop, is_close,
@@ -25,6 +27,7 @@ use super::{
         StatementLineHandoff, canonical_statement_contents_normalized,
         is_canonical_statement_nud_normalized,
     },
+    type_expr::TypeOuterBoundary,
     yumark::FenceBoundary,
 };
 
@@ -108,7 +111,7 @@ fn companion_after_keyword(
             emit_token_item(&mut i, item);
             braced_form(i, baseline, caller_stops, item_origin, line_entry, fence)
         }
-        _ if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) => {
+        _ if is_companion_item_nud(i.rb(), &item, baseline, item_origin, fence) => {
             emit_missing(&mut i, LeadingTrivia::default());
             inline_form_from_item(
                 i,
@@ -170,9 +173,8 @@ fn retry_introducer(
             token_kind(&item),
             Some(TokenKind::Colon | TokenKind::LBrace)
         );
-        let statement =
-            is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence);
-        if starter || statement {
+        let companion_item = is_companion_item_nud(i.rb(), &item, baseline, item_origin, fence);
+        if starter || companion_item {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             return match token_kind(&item) {
@@ -262,7 +264,7 @@ fn inline_form_from_item(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    let slot = statement_slot(
+    let slot = companion_item_slot(
         i.rb(),
         item,
         CompanionLayout::Inline,
@@ -336,7 +338,7 @@ fn indented_form_from_item(
             emit_separator_leading(&mut i, &mut item);
         }
 
-        let slot = statement_slot(
+        let slot = companion_item_slot(
             i.rb(),
             item,
             CompanionLayout::Indented { block_indent },
@@ -361,7 +363,7 @@ fn indented_form_from_item(
         );
         after_separator = false;
 
-        if is_canonical_statement_nud_normalized(i.rb(), &item, block_indent, item_origin, fence)
+        if is_companion_item_nud(i.rb(), &item, block_indent, item_origin, fence)
             && indentation_after_newline(item.leading_view()).is_none()
         {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -471,13 +473,12 @@ fn braced_form(
             item.emit_all_remaining_leading(&mut *i.state);
         }
 
-        let candidate =
-            is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence);
+        let candidate = is_companion_item_nud(i.rb(), &item, baseline, item_origin, fence);
         if matches!(slot, BracedSlot::AfterItem) && candidate {
             emit_missing(&mut i, LeadingTrivia::default());
         }
 
-        let parsed = statement_slot(
+        let parsed = companion_item_slot(
             i.rb(),
             item,
             CompanionLayout::Braced { baseline },
@@ -501,6 +502,84 @@ fn braced_form(
         } else {
             BracedSlot::AfterSeparator
         };
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn companion_item_slot(
+    i: RewriteIn,
+    item: Item,
+    layout: CompanionLayout,
+    baseline: usize,
+    stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> SlotExit {
+    if is_word(&item, "derives") {
+        return derives_run_slot(
+            i,
+            item,
+            layout,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+        );
+    }
+    statement_slot(
+        i,
+        item,
+        layout,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn derives_run_slot(
+    mut i: RewriteIn,
+    mut item: Item,
+    layout: CompanionLayout,
+    baseline: usize,
+    stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> SlotExit {
+    loop {
+        // A comma after a role belongs to DerivesClause even where the outer
+        // companion sequence also accepts comma as an item separator.
+        (item, item_origin, line_entry) = derives_clause_normalized(
+            i.rb(),
+            item,
+            baseline,
+            stops & !STOP_COMMA,
+            derives_line_handoff(layout),
+            TypeOuterBoundary::DERIVES.with(TypeOuterBoundary::VIA),
+            item_origin,
+            line_entry,
+            fence,
+        );
+        if !is_word(&item, "derives") || derives_separator_before(&item, layout) {
+            if let CompanionLayout::Indented { block_indent } = layout
+                && indentation_after_newline(item.leading_view())
+                    .is_some_and(|indentation| indentation > block_indent)
+                && !indented_terminal(i.rb(), &item, block_indent, stops)
+                && is_companion_item_nud(i.rb(), &item, block_indent, item_origin, fence)
+            {
+                emit_missing(&mut i, LeadingTrivia::default());
+            }
+            return SlotExit {
+                exit: complete(handoff(item), line_entry),
+                item_origin,
+                complete: true,
+            };
+        }
     }
 }
 
@@ -557,6 +636,21 @@ fn statement_slot(
                 complete: false,
             };
         }
+        if is_word(&item, "derives") {
+            item.emit_all_remaining_leading(&mut *i.state);
+            i.state.finish_node();
+            i.state.finish_node();
+            return derives_run_slot(
+                i,
+                item,
+                layout,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
         if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
@@ -583,11 +677,43 @@ fn statement_slot(
     }
 }
 
+fn is_companion_item_nud(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    is_word(item, "derives")
+        || is_canonical_statement_nud_normalized(i.rb(), item, baseline, item_origin, fence)
+}
+
 fn line_handoff(layout: CompanionLayout) -> StatementLineHandoff {
     match layout {
         CompanionLayout::Braced { .. } => StatementLineHandoff::BracedStatementSequence,
         CompanionLayout::Inline | CompanionLayout::Indented { .. } => {
             StatementLineHandoff::OrdinaryLayout
+        }
+    }
+}
+
+fn derives_line_handoff(layout: CompanionLayout) -> StatementLineHandoff {
+    match layout {
+        CompanionLayout::Indented { .. } => StatementLineHandoff::OrdinaryLayout,
+        CompanionLayout::Inline | CompanionLayout::Braced { .. } => {
+            StatementLineHandoff::BracedStatementSequence
+        }
+    }
+}
+
+fn derives_separator_before(item: &Item, layout: CompanionLayout) -> bool {
+    match layout {
+        CompanionLayout::Inline => item.leading_view().has_ordinary_newline(),
+        CompanionLayout::Indented { block_indent } => {
+            indentation_after_newline(item.leading_view()) == Some(block_indent)
+        }
+        CompanionLayout::Braced { baseline } => {
+            implicit_delimited_newline(baseline, item.leading_view())
         }
     }
 }

@@ -3,7 +3,7 @@ use super::*;
 use crate::rewrite::{
     driver::Either,
     item::{BorrowedTarget, Boundary},
-    operator::stops_for,
+    operator::{STOP_LBRACE, stops_for},
     yumark::{FenceOpener, FencePrefixPolicy},
 };
 
@@ -14,6 +14,13 @@ fn syntax_root(green: GreenNode) -> SyntaxNode {
 fn count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
     root.descendants()
         .filter(|node| node.kind() == kind)
+        .count()
+}
+
+fn token_count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
+    root.descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == kind)
         .count()
 }
 
@@ -151,11 +158,390 @@ fn declaration_companion_builds_each_statement_only_form() {
         }
     }
 
-    let (green, _, _) =
-        run_declaration_companion("with: derives", 0, 0, 0, LineEntry::InLine, None);
+    for source in ["with: derivesx", "with: derives?"] {
+        let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::Statement), 1, "{source:?}");
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn declaration_companion_derives_run_is_direct_and_precedes_statements() {
+    let source = "with: derives Eq derives Ord;tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with: derives Eq derives Ord;");
+    assert_eq!(remainder, "tail");
     let root = syntax_root(green);
-    assert_eq!(count(&root, SyntaxKind::Statement), 1);
-    assert_eq!(count(&root, SyntaxKind::DerivesClause), 0);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+    let companion = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+        .expect("one declaration companion");
+    assert_eq!(
+        direct_node_kinds(&companion),
+        [SyntaxKind::DerivesClause, SyntaxKind::DerivesClause],
+    );
+    assert_eq!(count(&root, SyntaxKind::WithBodyTail), 0);
+    assert_eq!(count(&root, SyntaxKind::IndentedStatementBlock), 0);
+    assert_eq!(count(&root, SyntaxKind::BracedStatementBlockExpression), 0);
+}
+
+#[test]
+fn declaration_companion_derives_runs_share_indented_and_braced_sequences() {
+    let source = "with:\n  derives Eq derives Ord\n  item\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:\n  derives Eq derives Ord\n  item");
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("indented companion returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::Statement,
+        ],
+    );
+
+    let source = "with { derives Eq derives Ord; item }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq derives Ord; item }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::BlockStatementSeparator), 1);
+    let companion = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+        .expect("one declaration companion");
+    assert_eq!(
+        direct_node_kinds(&companion),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::Statement,
+        ],
+    );
+}
+
+#[test]
+fn declaration_companion_derives_runs_remain_distinct_across_outer_separators() {
+    let source = "with:\n  derives Eq\n  derives Ord\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:\n  derives Eq\n  derives Ord");
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("indented companion returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::DerivesClause,
+        ],
+    );
+    assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+
+    let source = "with { derives Eq; derives Ord }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq; derives Ord }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    let companion = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+        .expect("one declaration companion");
+    assert_eq!(
+        direct_node_kinds(&companion),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::DerivesClause,
+        ],
+    );
+    assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_derives_deeper_successor_has_one_sequence_owner() {
+    let source = "with:\n  derives Eq via key\n    item\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:\n  derives Eq via key\n    item");
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("indented companion returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::Missing,
+            SyntaxKind::Statement,
+        ],
+        "{root:#?}",
+    );
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Error), 0, "{root:#?}");
+
+    let source = "with:\n  derives Eq via key\n    @ item\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:\n  derives Eq via key\n    @ item");
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("malformed item still returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [SyntaxKind::DerivesClause, SyntaxKind::Statement],
+        "{root:#?}",
+    );
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_derives_deeper_caller_stops_remain_pending() {
+    let origin = 7000;
+    let accepted = "with:\n  derives Eq via key";
+    for (source, stops, spelling, kind) in [
+        (
+            "with:\n  derives Eq via key\n    else tail",
+            STOP_ELSE,
+            "else",
+            TokenKind::Identifier,
+        ),
+        (
+            "with:\n  derives Eq via key\n    { tail",
+            STOP_LBRACE,
+            "{",
+            TokenKind::LBrace,
+        ),
+    ] {
+        let (green, exit, remainder) =
+            run_declaration_companion(source, 0, stops, origin, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        let Some(NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine)) =
+            exit
+        else {
+            panic!("the exact caller stop Item must remain pending: {source:?}")
+        };
+        assert_eq!(
+            pending.payload_view().spelling(),
+            Some(spelling),
+            "{source:?}"
+        );
+        assert_eq!(
+            pending.payload_view().token_kind(),
+            Some(kind),
+            "{source:?}"
+        );
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            "\n    ",
+            "{source:?}"
+        );
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Error), 0, "{root:#?}");
+    }
+}
+
+#[test]
+fn declaration_companion_derives_owns_role_commas_and_inner_recovery() {
+    let source = "with { derives Eq, Debug; item }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq, Debug; item }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::TypeExpression), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::BlockStatementSeparator), 1);
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+
+    let source = "with { derives Eq via key, item }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq via key, item }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::BlockStatementSeparator), 1);
+
+    for (source, missing, errors) in [
+        ("with: derives Eq, via;tail", 2, 0),
+        ("with: derives @ Role via @ target;tail", 0, 2),
+    ] {
+        let (green, _, remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert_eq!(remainder, "tail", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Missing), missing, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Error), errors, "{root:#?}");
+    }
+}
+
+#[test]
+fn declaration_companion_derives_is_retried_in_every_committed_item_slot() {
+    for (source, missing, errors) in [
+        ("with derives Eq;tail", 1, 0),
+        ("with :: derives Eq;tail", 0, 1),
+        ("with { @ derives Eq }tail", 0, 1),
+    ] {
+        let (green, _, remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert_eq!(remainder, "tail", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Missing), missing, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Error), errors, "{root:#?}");
+        let derives = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::DerivesClause)
+            .expect("one direct companion DerivesClause");
+        assert!(
+            derives
+                .ancestors()
+                .all(|ancestor| ancestor.kind() != SyntaxKind::Statement),
+            "{root:#?}",
+        );
+    }
+}
+
+#[test]
+fn declaration_companion_derives_preserves_close_and_caller_handoffs() {
+    let (green, exit, remainder) = run_declaration_companion(
+        "with { derives Eq]tail",
+        0,
+        stops_for(TokenKind::RBracket),
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "with { derives Eq");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert_eq!(
+        pending(exit.expect("caller close remains pending"))
+            .payload_view()
+            .token_kind(),
+        Some(TokenKind::RBracket),
+    );
+
+    let (green, exit, remainder) = run_declaration_companion(
+        "with { derives Eq : outer",
+        0,
+        STOP_COLON,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "with { derives Eq");
+    assert_eq!(remainder, " outer");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert_eq!(
+        pending(exit.expect("caller stop remains pending"))
+            .payload_view()
+            .token_kind(),
+        Some(TokenKind::Colon),
+    );
+
+    let (green, exit, remainder) =
+        run_declaration_companion("with { derives Eq) }tail", 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_derives_is_identifier_only_and_gate5_stays_closed() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "derives",
+        OperatorFixities::new().with_nullfix(),
+    )])
+    .expect("dynamic derives operator table");
+    let (green, _, remainder) = run_declaration_companion_with(
+        "with: derives;tail",
+        &operators,
+        0,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+
+    let (green, _, _) = run_declaration_companion(
+        "with: derives Eq with Role",
+        0,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(token_count(&root, SyntaxKind::WithKw), 1, "{root:#?}");
 }
 
 #[test]
@@ -376,8 +762,8 @@ fn declaration_companion_braced_body_returns_caller_stops_unchanged() {
 #[test]
 fn declaration_companion_returns_one_crlf_fence_boundary_item() {
     let fence = active_fence();
-    let source = "> > with:\r\n> >   item\r\n> > ```\r\nouter";
-    let accepted = "> > with:\r\n> >   item";
+    let source = "> > with:\r\n> >   derives Eq\r\n> >   item\r\n> > ```\r\nouter";
+    let accepted = "> > with:\r\n> >   derives Eq\r\n> >   item";
     let (green, exit, remainder) =
         run_declaration_companion(source, 0, 0, 900, LineEntry::PhysicalStart, Some(&fence));
     assert_eq!(green.to_string(), accepted);
@@ -399,5 +785,5 @@ fn declaration_companion_returns_one_crlf_fence_boundary_item() {
     );
     assert_eq!(count(&root, SyntaxKind::Statement), 1);
     assert_eq!(count(&root, SyntaxKind::Missing), 0);
-    assert_eq!(count(&root, SyntaxKind::DerivesClause), 0);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1);
 }

@@ -629,6 +629,20 @@ checkはgreen。ordinary/public call edge、Vec/clone/cache/replay/rescan/extra 
 timing measurementは不要である。次はGate 4 companion `DerivesClause` itemとowner/episode handoff、その後のdeclaration
 shellへ進む。L6/L7/Yumark/public cutoverは未完である。
 
+2026-09-06: isolated declaration companionのGate 4として、committed item slotでexact Identifier `derives`を
+Canonical Statementより先に受理し、既存`derives_clause_normalized`をそのままreuseするdirect `DerivesClause+` runを
+追加した。DerivesClauseはStatement wrapperを持たずcompanionのdirect childとなる。driverには
+`TypeOuterBoundary::DERIVES | VIA`だけを渡し、Gate 5が所有する`WITH`等は渡さない。既存driverのcommaはrole listの
+内部separatorであるため、driver call境界だけ`STOP_COMMA`を外す一方、companion scanner/outer sequenceはfull stopsを
+保持する。dynamic OperatorUseの`derives`は既存driver/Type boundaryがIdentifier-onlyのため意図的に未受理である。
+M2 reviewは二つのrecovery gapを検出した。terminal `via`後のdeeper recognizable itemへMissing Separatorなしで進む経路は
+exactly one companion Missingをemitして同一Itemをretryするよう修正し、active caller `else`/`{`はその判定前にterminalとして
+unchanged handoffするよう修正した。separate Derives runのouter separator、valid/malformed deeper successor、inner
+Derives recovery、CRLF fence、caller stopをfocused controlsで固定し、compiler/recovery・regressionのfinal delta reviewは
+approved。companion 16件、Derives 4件、normalized 82件、`cargo check -p yu-syntax`、format/diff checkはgreen。
+ordinary/public edge、allocation、Vec/clone/cache/replay/rescan/ambient stateは追加していない。次はGate 5 typed episode
+handoffであり、declaration shell/public cutover/L6/L7/Yumarkは未完である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

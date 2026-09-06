@@ -1,4 +1,5 @@
-//! One direct-CST `DerivesClause`, shared by the Type header and equality tail.
+//! One direct-CST `DerivesClause`, shared by declaration attachment and
+//! companion-item owners.
 
 use reborrow_generic::Reborrow as _;
 
