@@ -45,11 +45,11 @@ mod yumark_cell;
 #[cfg(test)]
 mod tests;
 
-type RewriteIn<'a, 'source, 'recover, 'operators, 'builder> = In<
+type RewriteIn<'a, 'source, 'recover, 'operators, 'output, 'frozen> = In<
     'a,
     &'source str,
     &'recover mut state::Recover<'operators>,
-    &'builder mut output::RewriteOutput,
+    &'output mut output::RewriteOutput<'frozen>,
 >;
 
 type LexIn<'a, 'source, 'recover, 'operators> =

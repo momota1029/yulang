@@ -797,6 +797,21 @@ fmt、diff checkはgreen。full package/workspace suiteはO4/O7 barrierまでdef
 evidence kernelであり、typed publication、DiagnosticSequence、ItemExtent、sealed ErrorRunOutput、literal
 vocabularyを追加する。
 
+2026-09-07: O2 evidence kernelを完了した。validated ID-less `RecoveryDraft`、fresh/borrowed-frozen
+`DiagnosticSequence`、typed recovery vectorをsingle `RewriteOutput`へ追加し、zero-width Missing、one-Item
+Error、total malformed Error runをnodeとrecordのnormal-return atomic pairとしてprivate API化した。
+`ItemExtent`はsuccessor coordinateとowned Item bytesだけから一回のchecked leading traversalで導出し、
+fragment carrier range、source reread、replay、二つ目のbuilderを使わない。literal recovery 16 role / 5 expected
+variantとRule-local unexpected category mappingも追加した。review round 1では、leading prefixの二重走査、
+frozen evidence比較を省いた計算量表記、Use ownerが必要とする`TokenKind::Operator -> SyntaxKind::Unknown`
+retag capabilityが見つかった。architect裁定でatomicityはpanic-unwind transactionではなくnormal-return保証と
+明確化し、single traversal、`O(F + E_frozen)` construction / `O(1 + E_record)` publication、sealed
+owner-selected Item emissionへ修正した。compiler/recovery・performance delta reviewはclean。producerは
+recovery-output 13、output 4、lexical/current-item 45、Use 11を実行し、primaryはrecovery-output 13、
+`cargo check -p yu-syntax`、full fmt、diff checkを再実行してgreen。既存warningのみ。full package/workspace
+suiteはO4/O7 barrierまでdefer、timing budgetは0。次はO3a TypeExpression / PolymorphicVariant owner
+migrationであり、public dispatchはまだ変更しない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

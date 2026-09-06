@@ -5,7 +5,10 @@ mod expression_list;
 use reborrow_generic::Reborrow as _;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::syntax_kind::SyntaxKind;
+use crate::{
+    session::{Delimiter, PunctuationEvidence, UnexpectedCategory},
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     LexIn, RewriteIn,
@@ -14,8 +17,8 @@ use super::{
     emit::emit_error_item,
     item::{Item, Token, TokenKind},
     lexer::{
-        scan_exact_equals, scan_integer, scan_operator_shaped_unknown, scan_punctuation,
-        scan_unknown,
+        is_operator_shaped_unknown, scan_exact_equals, scan_integer, scan_operator_shaped_unknown,
+        scan_punctuation, scan_unknown,
     },
     literal::{
         NormalizedStringLiteralExit, scan_string_opener_token,
@@ -25,6 +28,62 @@ use super::{
 };
 
 use self::expression_list::{ExpressionListExit, expression_list, first_item as first_list_item};
+
+/// Maps one already-owned malformed Rule item to its exact diagnostic category.
+///
+/// Caller-owned closes and boundaries are filtered before this Rule-local
+/// mapping. No source text is rescanned: `Unknown` uses only its owned spelling.
+pub(super) fn rule_item_unexpected_category(item: &Item) -> UnexpectedCategory {
+    let payload = item.payload_view();
+    if payload.operator_use().is_some() {
+        return UnexpectedCategory::OperatorLike;
+    }
+    match payload
+        .token_kind()
+        .expect("Rule unexpected evidence requires a lexical Item")
+    {
+        TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Forall => {
+            UnexpectedCategory::Word
+        }
+        TokenKind::Integer => UnexpectedCategory::DecimalInteger,
+        TokenKind::Operator | TokenKind::DotDot => UnexpectedCategory::OperatorLike,
+        TokenKind::LParen => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis))
+        }
+        TokenKind::RParen => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis))
+        }
+        TokenKind::LBracket => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Bracket))
+        }
+        TokenKind::RBracket => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket))
+        }
+        TokenKind::LBrace => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Brace))
+        }
+        TokenKind::RBrace => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
+        }
+        TokenKind::Comma => UnexpectedCategory::Punctuation(PunctuationEvidence::Comma),
+        TokenKind::Semicolon => UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
+        TokenKind::Dot => UnexpectedCategory::Punctuation(PunctuationEvidence::Dot),
+        TokenKind::Arrow => UnexpectedCategory::Punctuation(PunctuationEvidence::Arrow),
+        TokenKind::Colon | TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Colon)
+        }
+        TokenKind::Equals => UnexpectedCategory::Punctuation(PunctuationEvidence::Equals),
+        TokenKind::EffectRowApostrophe => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Apostrophe)
+        }
+        TokenKind::PathSeparator => {
+            UnexpectedCategory::Punctuation(PunctuationEvidence::ColonColon)
+        }
+        TokenKind::Pipe => UnexpectedCategory::Punctuation(PunctuationEvidence::Pipe),
+        TokenKind::Unknown if is_operator_shaped_unknown(item) => UnexpectedCategory::OperatorLike,
+        TokenKind::Unknown => UnexpectedCategory::OtherCharacter,
+    }
+}
 
 #[derive(Clone, Copy)]
 enum RuleFrame {

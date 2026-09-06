@@ -165,14 +165,14 @@ pub(super) fn scan_string_text_witness(
 /// witness. The witness is the sole source of a successful borrowed `RBrace`;
 /// this callback surface remains the preserved L3 primitive, while the L6
 /// adapter below supplies full virtual-statement construction.
-pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'builder>(
-    i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
+pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'output, 'frozen>(
+    i: RewriteIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
     opener: Item,
     mode: StringMode,
     part_origin: usize,
     fence: &FenceBoundary,
     mut interpolation_body: impl for<'a> FnMut(
-        RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
+        RewriteIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
     ) -> Item,
 ) -> StringLiteralExit
 where
@@ -200,9 +200,10 @@ pub(super) fn string_literal_with_virtual_statements_witness<
     'source,
     'recover,
     'operators,
-    'builder,
+    'output,
+    'frozen,
 >(
-    i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
+    i: RewriteIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
     opener: Item,
     mode: StringMode,
     part_origin: usize,
@@ -252,14 +253,14 @@ pub(super) fn string_literal_with_virtual_statements_normalized(
     )
 }
 
-fn string_literal_with_interpolation_body<'source, 'recover, 'operators, 'builder>(
-    mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
+fn string_literal_with_interpolation_body<'source, 'recover, 'operators, 'output, 'frozen>(
+    mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
     opener: Item,
     mode: StringMode,
     mut part_origin: usize,
     fence: Option<&FenceBoundary>,
     mut interpolation_body: impl for<'a> FnMut(
-        RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
+        RewriteIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
         usize,
         LineEntry,
     ) -> InterpolationBodyExit,
@@ -563,13 +564,13 @@ fn pending_line_entry(item: &Item) -> LineEntry {
     }
 }
 
-fn emit_string_interpolation<'source, 'recover, 'operators, 'builder>(
-    mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'builder>,
+fn emit_string_interpolation<'source, 'recover, 'operators, 'output, 'frozen>(
+    mut i: RewriteIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
     prefix: Option<AcceptedQuotePrefix>,
     part_origin: &mut usize,
     fence: Option<&FenceBoundary>,
     interpolation_body: &mut impl for<'a> FnMut(
-        RewriteIn<'a, 'source, 'recover, 'operators, 'builder>,
+        RewriteIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
         usize,
         LineEntry,
     ) -> InterpolationBodyExit,

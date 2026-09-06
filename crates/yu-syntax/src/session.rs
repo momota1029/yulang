@@ -1578,6 +1578,7 @@ pub(crate) enum GrammarRole {
     BracedStatementBlock(BracedStatementBlockRole),
     Pattern(PatternRole),
     Type(TypeRole),
+    Literal(LiteralRole),
     Layout(LayoutRole),
     Embedded(EmbeddedRole),
     Yumark(YumarkRole),
@@ -2008,6 +2009,26 @@ pub(crate) enum TypeRole {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum LiteralRole {
+    StringTerminator,
+    StringEscapeSimpleTarget,
+    StringEscapeUnicodeHex,
+    StringEscapeUnicodeEnd,
+    StringInterpolationOpenBrace,
+    StringInterpolationCloseBrace,
+    RuleBodyCloseBrace,
+    RuleParenClose,
+    RuleCaptureRightItem,
+    RuleFieldName,
+    RulePathName,
+    RuleUnexpectedItem,
+    RuleLiteralTerminator,
+    RuleLiteralInterpolationCloseBrace,
+    RuleLazyCaptureName,
+    RuleLazyCaptureCloseBrace,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum LayoutRole {
     InlineTrivia,
 }
@@ -2064,6 +2085,7 @@ pub(crate) enum PunctuationEvidence {
     Apostrophe,
     Backslash,
     Arrow,
+    Pipe,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2107,7 +2129,17 @@ pub(crate) enum ExpectedSyntax {
     DelimitedSequenceSeparator,
     Keyword(KeywordEvidence),
     Punctuation(PunctuationEvidence),
+    Literal(LiteralExpected),
     Yumark(YumarkSyntaxEvidence),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum LiteralExpected {
+    StringTerminator,
+    StringEscapeTarget,
+    UnicodeHexDigit,
+    RuleItem,
+    RuleLiteralTerminator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

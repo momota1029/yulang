@@ -52,6 +52,7 @@ mod operators;
 mod output;
 mod owners;
 mod pattern;
+mod recovery_output;
 mod role_decl;
 mod rule;
 mod statement;

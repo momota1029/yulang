@@ -154,6 +154,13 @@ Each operation emits the generic `Missing` or `Error` CST node and publishes its
 record atomically. After the final migration, grammar owners may not construct
 raw recovery nodes directly.
 
+Here atomicity is parser-observable normal-return atomicity: before an operation
+returns normally, its recovery node and record have both been committed exactly
+once. The malformed-run body and draft factory are total post-commit contracts.
+A panic invalidates and discards the `RewriteOutput`; the API does not promise
+`catch_unwind` reuse or Rowan-builder rollback. Adding reservation, poison, or
+buffering state for unwind recovery is outside this design.
+
 `emit_error_run` accepts only a total lexical or malformed-run body. The body
 receives lexical input plus a sealed `ErrorRunOutput`, never `RewriteIn` or
 `RewriteOutput`. `ErrorRunOutput` exposes only forward emission of the current
@@ -429,8 +436,10 @@ Expected cost:
   the concrete output forwarding layer is expected to inline;
 - recovered input uses amortized `O(records + recovery evidence)` storage and
   `O(Item-leading parts)` extent work once per recovered Item;
-- frozen reconciliation is one `O(F)` construction scan followed by `O(1)` per
-  committed recovery through a borrowed slice and sequential cursor;
+- frozen reconciliation construction is `O(F + E_frozen)`, followed by
+  `O(1 + E_record)` publication per committed recovery through a borrowed slice
+  and sequential cursor, where `E_frozen` and `E_record` count the exact
+  unexpected and expectation evidence examined;
 - there is no map, cache, source clone, replay, or additional recursive frame.
 
 M3 pre-approval review uses `compiler_referee`, `spec_auditor`, and

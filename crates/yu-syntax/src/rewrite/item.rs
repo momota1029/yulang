@@ -557,6 +557,36 @@ pub(super) struct Item {
     first_unemitted_leading: usize,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct ItemExtent {
+    physical: std::ops::Range<usize>,
+    leading: std::ops::Range<usize>,
+    remaining: std::ops::Range<usize>,
+    payload: std::ops::Range<usize>,
+}
+
+impl ItemExtent {
+    pub(super) fn physical(&self) -> std::ops::Range<usize> {
+        self.physical.clone()
+    }
+
+    pub(super) fn leading(&self) -> std::ops::Range<usize> {
+        self.leading.clone()
+    }
+
+    pub(super) fn remaining(&self) -> std::ops::Range<usize> {
+        self.remaining.clone()
+    }
+
+    pub(super) fn payload(&self) -> std::ops::Range<usize> {
+        self.payload.clone()
+    }
+
+    pub(super) fn recovery_range(&self) -> std::ops::Range<usize> {
+        self.remaining.start..self.payload.end
+    }
+}
+
 impl Item {
     pub(super) fn plain(leading: LeadingTrivia, payload: Payload) -> Self {
         Self {
@@ -602,6 +632,48 @@ impl Item {
     pub(super) fn payload_view(&self) -> PayloadView<'_> {
         PayloadView {
             payload: &self.payload,
+        }
+    }
+
+    /// Derives the recovery extent from the threaded successor coordinate and
+    /// owned Item bytes. Fragment carrier coordinates are validation-only and
+    /// are deliberately not consulted here.
+    pub(super) fn extent(&self, successor_origin: usize) -> ItemExtent {
+        assert!(self.first_unemitted_leading <= self.physical_leading.len());
+        let mut all_leading_bytes = 0usize;
+        let mut emitted_leading_bytes = 0usize;
+        for (index, part) in self.physical_leading.iter().enumerate() {
+            all_leading_bytes = all_leading_bytes
+                .checked_add(part.text.len())
+                .expect("Item leading length overflow");
+            if index < self.first_unemitted_leading {
+                emitted_leading_bytes = emitted_leading_bytes
+                    .checked_add(part.text.len())
+                    .expect("emitted Item leading length overflow");
+            }
+        }
+        let payload_bytes = payload_text(&self.payload).map_or(0, |(_, text)| text.len());
+        let physical_bytes = all_leading_bytes
+            .checked_add(payload_bytes)
+            .expect("Item physical length overflow");
+        let physical_start = successor_origin
+            .checked_sub(physical_bytes)
+            .expect("successor coordinate precedes the owned Item");
+        let leading_end = physical_start
+            .checked_add(all_leading_bytes)
+            .expect("Item leading end overflow");
+        let remaining_start = physical_start
+            .checked_add(emitted_leading_bytes)
+            .expect("Item remaining-leading start overflow");
+        let payload_end = leading_end
+            .checked_add(payload_bytes)
+            .expect("Item payload end overflow");
+        assert_eq!(payload_end, successor_origin);
+        ItemExtent {
+            physical: physical_start..successor_origin,
+            leading: physical_start..leading_end,
+            remaining: remaining_start..leading_end,
+            payload: leading_end..payload_end,
         }
     }
 
