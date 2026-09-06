@@ -601,6 +601,20 @@ StringLiteral witnessはisolatedのまま維持した。M2 specification/regress
 Pattern production dispatch、AST/HIRは未接続であり、Gate 4--6 certification、L6/L7、Yumark integration/cutoverは
 未完である。新しいretained state、buffer、replay、allocation、traversalを導入していないため性能計測は不要。
 
+2026-09-06: L6 `%{ Statement* }` の前提を監査し、Gate 6 root statement/declaration construction checkpointは
+未達であることを確認した。direct canonical StatementにはStruct/Mod/Use/Type/For/Bindingしかなく、Enum/Error/Role/
+Impl/Cast/Actのshellが未構築のため、partial virtual blockは正本に反する。そこでGate 6指定のshared-before-shell順に
+isolated declaration-variant sequence/payload coreを実装した。Braced/ColonIndented/EqualsInline/EqualsIndentedの四formと
+unit/from/named/tuple/positionalのpayloadを一つのstreaming ownerで構成し、Struct field loopはowner-parameterized helperへ
+抽出した。Enum/Error header shell、Statement admission、derives/companion、AST/HIR、legacy/public dispatchは未接続である。
+実装中に`TypeOuterBoundary`へlexical Pipe markerを混ぜる案がC15のactive-boundary契約に反すると判明したため、二回の
+M2 repair後にarchitecture再査読へ戻した。既存ENUM-T/ERROR-Tからuser decisionなしに解けると確定し、active boundaryとは
+別のimmediate `pipe_lexical: bool`へ置換した。non-braced variant payloadだけがactive Pipe stopを持ち、fresh nested
+Type episodeはPipe lexical capabilityを保ったままouter boundaryを`NONE`へ落とす。ordinary TypeはPipeをUnknownのまま
+保つ。specificationとcompiler/recoveryのdelta reviewはapproved。focused declaration variant 17件、TypeExpression 50件、
+Struct 13件、`cargo check -p yu-syntax`、format/diff checkはgreen。workspace suiteと性能計測はisolated gateのため
+実施していない。次はEnum/Error shellと残るGate 6 declaration ownerであり、L6/L7/public cutoverは未完である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

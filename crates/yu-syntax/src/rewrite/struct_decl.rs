@@ -15,8 +15,8 @@ use super::{
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
-        introduced_body_indentation_normalized, scan_identifier, scan_statement_payload,
-        scan_type_nud_payload, source_identifier,
+        introduced_body_indentation_normalized, scan_exact_pipe, scan_identifier,
+        scan_statement_payload, scan_type_nud_payload, source_identifier,
     },
     operator::{TriviaObservation, observe_fenced_trivia},
     type_expr::{
@@ -334,7 +334,7 @@ fn recover_body_introducer_normalized(
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = struct_item_normalized(
+        (item, item_origin, line_entry) = struct_item_with_pipe_lexical_normalized(
             i.rb(),
             item_origin,
             line_entry,
@@ -343,6 +343,7 @@ fn recover_body_introducer_normalized(
             stops,
             false,
             true,
+            false,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -377,9 +378,20 @@ fn recover_body_introducer_normalized(
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-enum FieldList {
+pub(super) enum FieldList {
     NamedBrace,
     Tuple,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(super) enum FieldOuterClose {
+    Recover,
+    Borrow,
+}
+
+pub(super) struct DeclarationFieldExit {
+    pub(super) exit: NormalizedExit,
+    pub(super) item_origin: usize,
 }
 
 impl FieldList {
@@ -392,7 +404,7 @@ impl FieldList {
 
     fn type_boundary(self) -> Option<TypeApplyBoundary> {
         match self {
-            Self::NamedBrace => Some(TypeApplyBoundary::StructNamedFields),
+            Self::NamedBrace => Some(TypeApplyBoundary::DeclarationNamedFields),
             Self::Tuple => None,
         }
     }
@@ -409,6 +421,47 @@ fn parse_delimited_fields_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
+    let result = declaration_fields_normalized(
+        i.rb(),
+        open,
+        owner_baseline,
+        stops,
+        list,
+        FieldOuterClose::Recover,
+        false,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    match result.exit {
+        NormalizedExit::Complete(Ok(()), line_entry) => after_completed_normalized(
+            i,
+            owner_baseline,
+            stops,
+            result.item_origin,
+            line_entry,
+            fence,
+        ),
+        exit => exit,
+    }
+}
+
+/// Shared direct named/tuple declaration-field owner.  It consumes exactly
+/// its own matching close; the enclosing declaration owner decides how to
+/// acquire the successor after `Ok(())`.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn declaration_fields_normalized(
+    mut i: RewriteIn,
+    open: Item,
+    owner_baseline: usize,
+    stops: Stops,
+    list: FieldList,
+    outer_close: FieldOuterClose,
+    pipe_lexical: bool,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> DeclarationFieldExit {
     emit_token_item(&mut i, open);
     let (mut item, item_origin, line_entry) = field_item_normalized(
         i.rb(),
@@ -418,6 +471,7 @@ fn parse_delimited_fields_normalized(
         owner_baseline,
         stops,
         Some(list),
+        pipe_lexical,
     );
     let list_base = delimited_baseline(owner_baseline, item.leading_view());
     if item.payload_view().is_eof() {
@@ -429,9 +483,10 @@ fn parse_delimited_fields_normalized(
         i,
         item,
         list_base,
-        owner_baseline,
         stops,
         Some(list),
+        outer_close,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -495,13 +550,15 @@ fn parse_indented_fields_normalized(
         i,
         item,
         block_indent,
-        baseline,
         stops,
         None,
+        FieldOuterClose::Recover,
+        false,
         item_origin,
         line_entry,
         fence,
     )
+    .exit
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -509,13 +566,14 @@ fn field_sequence_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    owner_baseline: usize,
     stops: Stops,
     delimited: Option<FieldList>,
+    outer_close: FieldOuterClose,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
-) -> NormalizedExit {
+) -> DeclarationFieldExit {
     let mut need_field = true;
     let mut after_comma = false;
     loop {
@@ -530,7 +588,10 @@ fn field_sequence_normalized(
             } else if need_field && !after_comma {
                 emit_missing_field(&mut i, LeadingTrivia::default(), false);
             }
-            return complete(handoff(item), line_entry);
+            return DeclarationFieldExit {
+                exit: complete(handoff(item), line_entry),
+                item_origin,
+            };
         }
         if item.payload_view().is_eof() {
             if let Some(list) = delimited {
@@ -548,20 +609,19 @@ fn field_sequence_normalized(
                     emit_missing_field(&mut i, LeadingTrivia::default(), false);
                 }
             }
-            return complete(handoff(item), line_entry);
+            return DeclarationFieldExit {
+                exit: complete(handoff(item), line_entry),
+                item_origin,
+            };
         }
 
         if let Some(list) = delimited {
             if token_kind(&item) == Some(list.close()) {
                 emit_token_item(&mut i, item);
-                return after_completed_normalized(
-                    i,
-                    owner_baseline,
-                    stops,
+                return DeclarationFieldExit {
+                    exit: complete(Ok(()), line_entry),
                     item_origin,
-                    line_entry,
-                    fence,
-                );
+                };
             }
             if is_active_stop(i.rb(), &item, stops) {
                 if after_comma
@@ -570,16 +630,29 @@ fn field_sequence_normalized(
                     emit_missing_field_item(&mut i, &mut item, list == FieldList::Tuple);
                 }
                 emit_missing(&mut i, LeadingTrivia::default());
-                return complete(handoff(item), line_entry);
+                return DeclarationFieldExit {
+                    exit: complete(handoff(item), line_entry),
+                    item_origin,
+                };
             }
         } else if indented_end(i.rb(), &item, baseline, stops) {
             if need_field && !after_comma {
                 emit_missing_field(&mut i, LeadingTrivia::default(), false);
             }
-            return complete(handoff(item), line_entry);
+            return DeclarationFieldExit {
+                exit: complete(handoff(item), line_entry),
+                item_origin,
+            };
         }
 
         if delimited.is_some_and(|list| mismatched_close(&item, list.close())) {
+            if outer_close == FieldOuterClose::Borrow {
+                emit_missing(&mut i, LeadingTrivia::default());
+                return DeclarationFieldExit {
+                    exit: complete(handoff(item), line_entry),
+                    item_origin,
+                };
+            }
             i.state.start_node(SyntaxKind::Error.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
@@ -591,6 +664,7 @@ fn field_sequence_normalized(
                 baseline,
                 stops,
                 delimited,
+                pipe_lexical,
             );
             continue;
         }
@@ -608,6 +682,7 @@ fn field_sequence_normalized(
                 baseline,
                 stops,
                 delimited,
+                pipe_lexical,
             );
             need_field = true;
             after_comma = true;
@@ -624,6 +699,7 @@ fn field_sequence_normalized(
                 baseline,
                 stops,
                 delimited,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -655,6 +731,7 @@ fn field_sequence_normalized(
                     baseline,
                     stops,
                     delimited,
+                    pipe_lexical,
                     item_origin,
                     line_entry,
                     fence,
@@ -664,7 +741,12 @@ fn field_sequence_normalized(
                         NormalizedExit::Complete(Err(Either::Left(item)), next_entry),
                         next_origin,
                     ) => (item, next_origin, next_entry),
-                    (exit, _) => return exit,
+                    (exit, next_origin) => {
+                        return DeclarationFieldExit {
+                            exit,
+                            item_origin: next_origin,
+                        };
+                    }
                 };
                 need_field = false;
                 after_comma = false;
@@ -675,15 +757,22 @@ fn field_sequence_normalized(
 
         if need_field {
             let (exit, next_origin) = match delimited {
-                Some(FieldList::Tuple) => {
-                    tuple_field_normalized(i.rb(), item, baseline, item_origin, line_entry, fence)
-                }
+                Some(FieldList::Tuple) => tuple_field_normalized(
+                    i.rb(),
+                    item,
+                    baseline,
+                    pipe_lexical,
+                    item_origin,
+                    line_entry,
+                    fence,
+                ),
                 Some(FieldList::NamedBrace) | None => named_field_normalized(
                     i.rb(),
                     item,
                     baseline,
                     stops,
                     delimited,
+                    pipe_lexical,
                     item_origin,
                     line_entry,
                     fence,
@@ -693,7 +782,12 @@ fn field_sequence_normalized(
                 NormalizedExit::Complete(Err(Either::Left(item)), next_entry) => {
                     (item, next_origin, next_entry)
                 }
-                exit => return exit,
+                exit => {
+                    return DeclarationFieldExit {
+                        exit,
+                        item_origin: next_origin,
+                    };
+                }
             };
             need_field = false;
             after_comma = false;
@@ -708,6 +802,7 @@ fn named_field_normalized(
     baseline: usize,
     stops: Stops,
     delimited: Option<FieldList>,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -715,7 +810,7 @@ fn named_field_normalized(
     i.state.start_node(SyntaxKind::StructField.into());
     if raw_name(&item) {
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = struct_item_normalized(
+        (item, item_origin, line_entry) = struct_item_with_pipe_lexical_normalized(
             i.rb(),
             item_origin,
             line_entry,
@@ -724,6 +819,7 @@ fn named_field_normalized(
             0,
             true,
             false,
+            pipe_lexical,
         );
     } else {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -745,7 +841,15 @@ fn named_field_normalized(
         && indentation_after_newline(item.leading_view()).is_none()
     {
         emit_token_item(&mut i, item);
-        return named_field_rhs_normalized(i, baseline, delimited, item_origin, line_entry, fence);
+        return named_field_rhs_normalized(
+            i,
+            baseline,
+            delimited,
+            pipe_lexical,
+            item_origin,
+            line_entry,
+            fence,
+        );
     }
 
     if indentation_after_newline(item.leading_view()).is_some() {
@@ -762,6 +866,7 @@ fn named_field_normalized(
             item,
             baseline,
             delimited,
+            pipe_lexical,
             item_origin,
             line_entry,
             fence,
@@ -780,7 +885,7 @@ fn named_field_normalized(
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = struct_item_normalized(
+        (item, item_origin, line_entry) = struct_item_with_pipe_lexical_normalized(
             i.rb(),
             item_origin,
             line_entry,
@@ -789,6 +894,7 @@ fn named_field_normalized(
             stops,
             true,
             false,
+            pipe_lexical,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -810,6 +916,7 @@ fn named_field_normalized(
                 i,
                 baseline,
                 delimited,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -824,6 +931,7 @@ fn named_field_normalized(
                 item,
                 baseline,
                 delimited,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -846,6 +954,7 @@ fn recover_named_field_normalized(
     baseline: usize,
     stops: Stops,
     delimited: Option<FieldList>,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -854,7 +963,7 @@ fn recover_named_field_normalized(
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = struct_item_normalized(
+        (item, item_origin, line_entry) = struct_item_with_pipe_lexical_normalized(
             i.rb(),
             item_origin,
             line_entry,
@@ -863,6 +972,7 @@ fn recover_named_field_normalized(
             stops,
             true,
             false,
+            pipe_lexical,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -884,6 +994,7 @@ fn recover_named_field_normalized(
                 i,
                 baseline,
                 delimited,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -902,11 +1013,12 @@ fn named_field_rhs_normalized(
     mut i: RewriteIn,
     baseline: usize,
     delimited: Option<FieldList>,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (NormalizedExit, usize) {
-    let (mut primary, item_origin, line_entry) = struct_item_normalized(
+    let (mut primary, item_origin, line_entry) = struct_item_with_pipe_lexical_normalized(
         i.rb(),
         item_origin,
         line_entry,
@@ -915,6 +1027,7 @@ fn named_field_rhs_normalized(
         0,
         false,
         true,
+        pipe_lexical,
     );
     if !primary.payload_view().is_boundary()
         && indentation_after_newline(primary.leading_view()).is_none_or(|indent| indent > baseline)
@@ -930,6 +1043,7 @@ fn named_field_rhs_normalized(
         primary,
         baseline,
         delimited,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -944,6 +1058,7 @@ fn named_type_normalized(
     primary: Item,
     baseline: usize,
     delimited: Option<FieldList>,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -954,8 +1069,9 @@ fn named_type_normalized(
         i.rb(),
         primary,
         baseline,
-        Some(TypeApplyBoundary::StructNamedFields),
+        Some(TypeApplyBoundary::DeclarationNamedFields),
         close,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -968,6 +1084,7 @@ fn tuple_field_normalized(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -980,6 +1097,7 @@ fn tuple_field_normalized(
         baseline,
         None,
         1,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -996,6 +1114,7 @@ fn recover_separator_normalized(
     baseline: usize,
     stops: Stops,
     delimited: Option<FieldList>,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -1011,6 +1130,7 @@ fn recover_separator_normalized(
             baseline,
             stops,
             delimited,
+            pipe_lexical,
         );
         if item.payload_view().is_boundary()
             || item.payload_view().is_eof()
@@ -1037,9 +1157,10 @@ fn field_item_normalized(
     baseline: usize,
     stops: Stops,
     delimited: Option<FieldList>,
+    pipe_lexical: bool,
 ) -> (Item, usize, LineEntry) {
     match delimited {
-        Some(FieldList::Tuple) => struct_item_normalized(
+        Some(FieldList::Tuple) => struct_item_with_pipe_lexical_normalized(
             i,
             item_origin,
             line_entry,
@@ -1048,8 +1169,9 @@ fn field_item_normalized(
             stops,
             false,
             true,
+            pipe_lexical,
         ),
-        Some(FieldList::NamedBrace) | None => struct_item_normalized(
+        Some(FieldList::NamedBrace) | None => struct_item_with_pipe_lexical_normalized(
             i,
             item_origin,
             line_entry,
@@ -1058,13 +1180,14 @@ fn field_item_normalized(
             stops,
             true,
             false,
+            pipe_lexical,
         ),
     }
 }
 
-/// Scope-local pre-TypeApply candidate for named struct fields. The candidate
-/// Item is already complete; only its bounded live suffix is observed.
-pub(super) fn struct_named_fields_next_field_candidate(
+/// Scope-local pre-TypeApply candidate for shared named declaration fields.
+/// The Item is already complete; only its bounded live suffix is observed.
+pub(super) fn named_declaration_fields_next_field_candidate(
     i: RewriteIn,
     item: &Item,
     item_origin: usize,
@@ -1153,6 +1276,30 @@ fn after_completed_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn struct_item_normalized(
+    i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    raw_identifier: bool,
+    type_vocabulary: bool,
+) -> (Item, usize, LineEntry) {
+    struct_item_with_pipe_lexical_normalized(
+        i,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+        raw_identifier,
+        type_vocabulary,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn struct_item_with_pipe_lexical_normalized(
     mut i: RewriteIn,
     item_origin: usize,
     line_entry: LineEntry,
@@ -1161,6 +1308,7 @@ fn struct_item_normalized(
     stops: Stops,
     raw_identifier: bool,
     type_vocabulary: bool,
+    pipe_lexical: bool,
 ) -> (Item, usize, LineEntry) {
     let entry = suffix_marker(i.rb());
     let CurrentItem {
@@ -1174,6 +1322,12 @@ fn struct_item_normalized(
                 line_entry,
                 fence,
                 |mut lex, leading, origin, fence, _| {
+                    if pipe_lexical && let Some(pipe) = lex.token(scan_exact_pipe) {
+                        return Some(AcceptedPayload {
+                            payload: CurrentPayload::Token(pipe),
+                            next_line_entry: LineEntry::InLine,
+                        });
+                    }
                     if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
                         return Some(AcceptedPayload {
                             payload: CurrentPayload::Token(identifier),

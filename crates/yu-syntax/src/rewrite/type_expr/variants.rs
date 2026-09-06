@@ -19,7 +19,7 @@ use super::{
     indentation_after_newline, is_type_caller_boundary, is_type_mismatched_close, is_type_nud,
     is_type_outer_close, is_type_payload_boundary, is_type_polymorphic_variant_tag_name,
     type_delimited_baseline, type_delimited_normalized, type_expr_from_nud_normalized,
-    type_nud_item_normalized, with_type_outer_close,
+    type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -33,14 +33,20 @@ pub(super) fn type_effect_row_normalized(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
+    pipe_lexical: bool,
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::EffectRowType.into());
     emit_token_item(&mut i, apostrophe);
-    let (open, next_origin, next_line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (open, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     item_origin = next_origin;
     debug_assert_eq!(token_kind(&open), Some(TokenKind::LBracket));
     debug_assert!(open.leading_view().is_grammar_empty());
@@ -53,6 +59,7 @@ pub(super) fn type_effect_row_normalized(
         TypeDelimitedOwner::Generic,
         outer_closes,
         caller_stops,
+        pipe_lexical,
         item_origin,
         next_line_entry,
         fence,
@@ -68,6 +75,7 @@ pub(super) fn type_effect_row_normalized(
         outer_closes,
         caller_stops,
         outer_boundary,
+        pipe_lexical,
         exit,
         item_origin,
         fence,
@@ -85,6 +93,7 @@ pub(super) fn type_polymorphic_variant_normalized(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
+    pipe_lexical: bool,
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -93,8 +102,13 @@ pub(super) fn type_polymorphic_variant_normalized(
         .start_node(SyntaxKind::PolymorphicVariantType.into());
     emit_token_item(&mut i, colon);
 
-    let (open, next_origin, next_line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (open, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     item_origin = next_origin;
     debug_assert_eq!(token_kind(&open), Some(TokenKind::LBrace));
     debug_assert!(open.leading_view().is_grammar_empty());
@@ -107,6 +121,7 @@ pub(super) fn type_polymorphic_variant_normalized(
         outer_separators,
         with_type_outer_close(outer_closes, TokenKind::RBrace),
         caller_stops,
+        pipe_lexical,
         item_origin,
         next_line_entry,
         fence,
@@ -122,6 +137,7 @@ pub(super) fn type_polymorphic_variant_normalized(
         outer_closes,
         caller_stops,
         outer_boundary,
+        pipe_lexical,
         exit,
         item_origin,
         fence,
@@ -143,12 +159,18 @@ fn type_polymorphic_variant_tags_normalized(
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    let (mut item, next_origin, next_line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (mut item, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     item_origin = next_origin;
     line_entry = next_line_entry;
     let baseline = type_delimited_baseline(incoming_baseline, item.leading_view());
@@ -189,8 +211,13 @@ fn type_polymorphic_variant_tags_normalized(
             }
             item.emit_all_remaining_leading(&mut *i.state);
             emit_error_item(&mut i, item);
-            (item, item_origin, line_entry) =
-                type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+            (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+            );
             continue;
         }
         if token_kind(&item) == Some(TokenKind::Comma) {
@@ -202,8 +229,13 @@ fn type_polymorphic_variant_tags_normalized(
                 position = TagPosition::Unfilled;
             }
             emit_token_item(&mut i, item);
-            (item, item_origin, line_entry) =
-                type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+            (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+            );
             continue;
         }
         if token_kind(&item) == Some(TokenKind::Semicolon) {
@@ -212,8 +244,13 @@ fn type_polymorphic_variant_tags_normalized(
             }
             item.emit_all_remaining_leading(&mut *i.state);
             emit_error_item(&mut i, item);
-            (item, item_origin, line_entry) =
-                type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+            (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+            );
             continue;
         }
         if item.payload_view().is_eof() {
@@ -229,6 +266,7 @@ fn type_polymorphic_variant_tags_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -240,6 +278,7 @@ fn type_polymorphic_variant_tags_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -251,6 +290,7 @@ fn type_polymorphic_variant_tags_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -265,7 +305,13 @@ fn type_polymorphic_variant_tags_normalized(
         item = match exit {
             Ok(()) => {
                 let (next, next_origin, next_line_entry) =
-                    type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+                    type_nud_item_with_pipe_lexical_normalized(
+                        i.rb(),
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                    );
                 item_origin = next_origin;
                 line_entry = next_line_entry;
                 next
@@ -302,6 +348,7 @@ fn type_polymorphic_variant_tag_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -316,6 +363,7 @@ fn type_polymorphic_variant_tag_normalized(
         baseline,
         outer_closes,
         caller_stops,
+        pipe_lexical,
     );
     i.state.finish_node();
     exit
@@ -328,6 +376,7 @@ fn type_polymorphic_variant_wrong_kind_tag_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -339,6 +388,7 @@ fn type_polymorphic_variant_wrong_kind_tag_normalized(
         baseline,
         outer_closes,
         caller_stops,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -357,16 +407,23 @@ fn type_polymorphic_variant_tag_after_name_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
 ) -> NormalizedExit {
     emit_token_item(&mut i, name);
-    let (item, item_origin, line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     type_polymorphic_variant_tag_payloads_normalized(
         i,
         item,
         baseline,
         outer_closes,
         caller_stops,
+        pipe_lexical,
         false,
         item_origin,
         line_entry,
@@ -381,6 +438,7 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -397,6 +455,7 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
         outer_closes,
         caller_stops,
         TypeOuterBoundary::NONE,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -409,6 +468,7 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
         baseline,
         outer_closes,
         caller_stops,
+        pipe_lexical,
         item_origin,
         fence,
     )
@@ -421,6 +481,7 @@ fn type_polymorphic_variant_malformed_tag_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -435,8 +496,13 @@ fn type_polymorphic_variant_malformed_tag_normalized(
         }
         item.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if !is_type_polymorphic_variant_tag_safe(&item) {
             continue;
         }
@@ -457,6 +523,7 @@ fn type_polymorphic_variant_malformed_tag_normalized(
                     baseline,
                     outer_closes,
                     caller_stops,
+                    pipe_lexical,
                 )
             } else {
                 type_polymorphic_variant_tag_after_wrong_kind_normalized(
@@ -465,6 +532,7 @@ fn type_polymorphic_variant_malformed_tag_normalized(
                     baseline,
                     outer_closes,
                     caller_stops,
+                    pipe_lexical,
                     item_origin,
                     line_entry,
                     fence,
@@ -483,6 +551,7 @@ fn type_polymorphic_variant_tag_payloads_after_head_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
@@ -490,7 +559,13 @@ fn type_polymorphic_variant_tag_payloads_after_head_normalized(
         unreachable!("normalized Type owners do not defer")
     };
     let (item, item_origin, line_entry) = match exit {
-        Ok(()) => type_nud_item_normalized(i.rb(), item_origin, line_entry, fence),
+        Ok(()) => type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        ),
         Err(Either::Left(item)) if item.payload_view().is_boundary() => {
             return complete(handoff(item), line_entry);
         }
@@ -506,6 +581,7 @@ fn type_polymorphic_variant_tag_payloads_after_head_normalized(
         baseline,
         outer_closes,
         caller_stops,
+        pipe_lexical,
         true,
         item_origin,
         line_entry,
@@ -520,6 +596,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut completed_payload: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -543,6 +620,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -555,7 +633,13 @@ fn type_polymorphic_variant_tag_payloads_normalized(
             item = match exit {
                 Ok(()) => {
                     let (next, next_origin, next_line_entry) =
-                        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+                        type_nud_item_with_pipe_lexical_normalized(
+                            i.rb(),
+                            item_origin,
+                            line_entry,
+                            fence,
+                            pipe_lexical,
+                        );
                     item_origin = next_origin;
                     line_entry = next_line_entry;
                     next
@@ -576,6 +660,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
             baseline,
             outer_closes,
             caller_stops,
+            pipe_lexical,
             item_origin,
             line_entry,
             fence,
@@ -588,7 +673,13 @@ fn type_polymorphic_variant_tag_payloads_normalized(
         item = match exit {
             Ok(()) => {
                 let (next, next_origin, next_line_entry) =
-                    type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+                    type_nud_item_with_pipe_lexical_normalized(
+                        i.rb(),
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                    );
                 item_origin = next_origin;
                 line_entry = next_line_entry;
                 next
@@ -612,6 +703,7 @@ fn type_polymorphic_variant_payload_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -633,6 +725,7 @@ fn type_polymorphic_variant_payload_normalized(
         outer_closes,
         caller_stops,
         TypeOuterBoundary::NONE,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -648,6 +741,7 @@ fn type_polymorphic_variant_malformed_payload_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -668,8 +762,13 @@ fn type_polymorphic_variant_malformed_payload_normalized(
         }
         item.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
             i.state.finish_node();
@@ -697,6 +796,7 @@ fn type_polymorphic_variant_malformed_payload_normalized(
             outer_closes,
             caller_stops,
             TypeOuterBoundary::NONE,
+            pipe_lexical,
             item_origin,
             line_entry,
             fence,

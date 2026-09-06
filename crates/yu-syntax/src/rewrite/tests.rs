@@ -10,6 +10,7 @@ use crate::{
 use super::{
     RewriteIn, Stops,
     current_item::LineEntry,
+    declaration_variant::{VariantSequenceForm, declaration_variant_sequence_witness},
     driver::{Either, NormalizedExit, TailExit, expr, expr_normalized, token_kind},
     emit::emit_end,
     item::{Item, OperatorUse, PhysicalLeadingTrivia, TokenKind, Trivia, TriviaKind},
@@ -24,6 +25,7 @@ use super::{
 
 mod binding;
 mod case_like;
+mod declaration_variant;
 mod derives;
 mod for_statement;
 mod if_expr;
@@ -156,6 +158,30 @@ fn run_statement_normalized<'source>(
     let exit = statement_normalized(
         In::new(&mut input, &mut recover, &mut builder),
         0,
+        0,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_declaration_variant<'source>(
+    source: &'source str,
+    form: VariantSequenceForm,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = declaration_variant_sequence_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        form,
         0,
         item_origin,
         line_entry,

@@ -8,6 +8,17 @@ fn top_type_expression(green: &GreenNode) -> SyntaxNode {
 }
 
 #[test]
+fn ordinary_type_payload_does_not_classify_pipe_as_a_contextual_separator() {
+    let (green, exit) = run_type("T | U");
+    assert_eq!(green.to_string(), "T");
+    let Some(Err(Either::Left(item))) = exit else {
+        panic!("ordinary Type must hand its unowned raw pipe to the caller")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Unknown));
+    assert_eq!(item.payload_view().spelling(), Some("|"));
+}
+
+#[test]
 fn type_expression_keeps_fixed_tails_in_source_order() {
     let source = "List(Int)::Result Arg -> Out -> Final";
     let (green, exit) = run_type(source);

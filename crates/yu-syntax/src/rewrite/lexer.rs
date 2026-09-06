@@ -544,7 +544,7 @@ fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
         token(scan_integer),
         token(scan_record_spread_marker),
         token(scan_exact_equals),
-        token(scan_pattern_pipe),
+        token(scan_exact_pipe),
         choice((
             token(scan_pattern_malformed_fixed_operator),
             token(scan_punctuation),
@@ -1199,7 +1199,7 @@ fn scan_pattern_symbol_colon(mut i: LexIn) -> Option<Token> {
     })
 }
 
-fn scan_pattern_pipe(mut i: LexIn) -> Option<Token> {
+pub(super) fn scan_exact_pipe(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i
         .rb()
         .with_str(|mut pipe| (pipe.next()? == '|').then_some(()));

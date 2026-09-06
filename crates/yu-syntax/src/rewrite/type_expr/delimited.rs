@@ -18,7 +18,8 @@ use super::{
     TypeOuterBoundary, is_type_caller_boundary, is_type_deeper_newline, is_type_implicit_boundary,
     is_type_mismatched_close, is_type_nud, is_type_separator, missing_bracket_row_close,
     missing_type_close, missing_type_item, type_chain_trivia, type_delimited_baseline,
-    type_expr_from_nud_normalized, type_nud_item_normalized, with_type_outer_close,
+    type_expr_from_nud_normalized, type_nud_item_with_pipe_lexical_normalized,
+    with_type_outer_close,
 };
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -35,12 +36,18 @@ pub(super) fn type_delimited_normalized(
     owner: TypeDelimitedOwner,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    let (mut item, next_origin, next_line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (mut item, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     item_origin = next_origin;
     line_entry = next_line_entry;
     let baseline = type_delimited_baseline(incoming_baseline, item.leading_view());
@@ -93,6 +100,7 @@ pub(super) fn type_delimited_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             );
         }
         if is_type_separator(&item) {
@@ -107,6 +115,7 @@ pub(super) fn type_delimited_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -127,6 +136,7 @@ pub(super) fn type_delimited_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -145,6 +155,7 @@ pub(super) fn type_delimited_normalized(
             with_type_outer_close(outer_closes, close),
             caller_stops,
             TypeOuterBoundary::NONE,
+            pipe_lexical,
             item_origin,
             line_entry,
             fence,
@@ -154,7 +165,13 @@ pub(super) fn type_delimited_normalized(
             NormalizedExit::Complete(Ok(()), next_line_entry) => {
                 line_entry = next_line_entry;
                 let (next, next_origin, next_line_entry) =
-                    type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+                    type_nud_item_with_pipe_lexical_normalized(
+                        i.rb(),
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                    );
                 item_origin = next_origin;
                 line_entry = next_line_entry;
                 next
@@ -184,6 +201,27 @@ pub(super) fn type_delimited_normalized(
                         item_origin,
                         line_entry,
                         fence,
+                        pipe_lexical,
+                    ) {
+                        Ok((next, next_origin, next_line_entry)) => {
+                            item_origin = next_origin;
+                            line_entry = next_line_entry;
+                            next
+                        }
+                        Err(exit) => return exit,
+                    }
+                } else if pipe_lexical && token_kind(&next) == Some(TokenKind::Pipe) {
+                    match retry_type_delimited_item_normalized(
+                        i.rb(),
+                        next,
+                        close,
+                        owner,
+                        baseline,
+                        caller_stops,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
                     ) {
                         Ok((next, next_origin, next_line_entry)) => {
                             item_origin = next_origin;
@@ -205,6 +243,7 @@ pub(super) fn type_delimited_normalized(
                         item_origin,
                         line_entry,
                         fence,
+                        pipe_lexical,
                     );
                 } else if owner == TypeDelimitedOwner::BracketRow
                     && is_type_deeper_newline(baseline, next.leading_view())
@@ -229,6 +268,7 @@ pub(super) fn type_delimited_normalized(
                         item_origin,
                         line_entry,
                         fence,
+                        pipe_lexical,
                     ) {
                         Ok((next, next_origin, next_line_entry)) => {
                             item_origin = next_origin;
@@ -274,13 +314,19 @@ fn retry_type_delimited_item_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     debug_assert!(!item.payload_view().is_boundary());
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
             emit_missing(&mut i, LeadingTrivia::default());
@@ -308,6 +354,7 @@ fn retry_type_delimited_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             );
         }
         if is_type_implicit_boundary(baseline, item.leading_view()) {
@@ -343,6 +390,7 @@ fn retry_type_delimited_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             ));
         }
     }
@@ -356,14 +404,20 @@ fn retry_bracket_row_close_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> NormalizedExit {
     debug_assert!(!item.payload_view().is_boundary());
     loop {
         i.state.start_node(SyntaxKind::Error.into());
         emit_token_item(&mut i, item);
         i.state.finish_node();
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if item.payload_view().is_boundary() {
             emit_missing(&mut i, LeadingTrivia::default());
             return complete(handoff(item), line_entry);
@@ -392,9 +446,15 @@ fn type_after_separator_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
-    let (mut next, item_origin, line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (mut next, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     if next.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
         emit_missing(&mut i, LeadingTrivia::default());
@@ -424,6 +484,7 @@ fn type_after_separator_normalized(
             item_origin,
             line_entry,
             fence,
+            pipe_lexical,
         ));
     }
     if is_type_nud(&next) {

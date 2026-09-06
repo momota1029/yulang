@@ -6,14 +6,14 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::super::{
     LexIn, RewriteIn, Stops,
-    current_item::{CurrentPayload, LineEntry},
+    current_item::{AcceptedPayload, CurrentPayload, LineEntry},
     driver::{
         Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, suffix_marker,
         token_kind,
     },
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
-    lexer::scan_type_nud_payload,
+    lexer::{scan_exact_pipe, scan_type_nud_payload},
     operator::{TriviaObservation, observe_fenced_trivia},
     yumark::FenceBoundary,
 };
@@ -22,8 +22,8 @@ use super::{
     is_type_implicit_boundary, is_type_mismatched_close, is_type_nud,
     is_type_record_field_boundary, is_type_record_field_name, is_type_record_field_start,
     missing_type_close, missing_type_item, retry_type_rhs_normalized, type_chain_trivia,
-    type_delimited_baseline, type_expr_from_nud_normalized, type_item_normalized,
-    type_nud_item_normalized, with_type_outer_close,
+    type_delimited_baseline, type_expr_from_nud_normalized, type_item_with_pipe_lexical_normalized,
+    type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -37,6 +37,7 @@ pub(super) fn type_record_normalized(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
+    pipe_lexical: bool,
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -49,6 +50,7 @@ pub(super) fn type_record_normalized(
         baseline,
         with_type_outer_close(outer_closes, TokenKind::RBrace),
         caller_stops,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -64,6 +66,7 @@ pub(super) fn type_record_normalized(
         outer_closes,
         caller_stops,
         outer_boundary,
+        pipe_lexical,
         exit,
         item_origin,
         fence,
@@ -76,12 +79,18 @@ fn type_record_fields_normalized(
     incoming_baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    let (mut item, next_origin, next_line_entry) =
-        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (mut item, next_origin, next_line_entry) = type_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     item_origin = next_origin;
     line_entry = next_line_entry;
     let baseline = type_delimited_baseline(incoming_baseline, item.leading_view());
@@ -109,6 +118,7 @@ fn type_record_fields_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             )
         {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -124,6 +134,7 @@ fn type_record_fields_normalized(
                 i.rb(),
                 baseline,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -140,6 +151,7 @@ fn type_record_fields_normalized(
                 item,
                 baseline,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -158,6 +170,7 @@ fn type_record_fields_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -170,6 +183,7 @@ fn type_record_fields_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -179,6 +193,7 @@ fn type_record_fields_normalized(
             item_origin,
             line_entry,
             fence,
+            pipe_lexical,
         ) && item.leading_view().indentation_after_newline().is_none()
         {
             type_record_malformed_name_normalized(
@@ -187,6 +202,7 @@ fn type_record_fields_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -197,6 +213,7 @@ fn type_record_fields_normalized(
                 item,
                 baseline,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -214,6 +231,7 @@ fn type_record_fields_normalized(
             exit,
             baseline,
             caller_stops,
+            pipe_lexical,
             item_origin,
             fence,
         );
@@ -232,14 +250,20 @@ fn type_record_field_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeRecordField.into());
     emit_token_item(&mut i, name);
-    let (mut colon, next_origin, next_line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (mut colon, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     item_origin = next_origin;
     line_entry = next_line_entry;
 
@@ -273,6 +297,7 @@ fn type_record_field_normalized(
                 outer_closes,
                 caller_stops,
                 TypeOuterBoundary::NONE,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -287,6 +312,7 @@ fn type_record_field_normalized(
             baseline,
             outer_closes,
             caller_stops,
+            pipe_lexical,
             item_origin,
             line_entry,
             fence,
@@ -301,6 +327,7 @@ fn type_record_field_normalized(
         baseline,
         outer_closes,
         caller_stops,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -316,6 +343,7 @@ fn type_record_missing_name_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -328,6 +356,7 @@ fn type_record_missing_name_normalized(
         baseline,
         outer_closes,
         caller_stops,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -341,6 +370,7 @@ fn type_record_malformed_name_colon_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> bool {
     i.rb()
         .map(
@@ -350,6 +380,7 @@ fn type_record_malformed_name_colon_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    pipe_lexical,
                 ))
             },
             |has_colon| has_colon,
@@ -362,12 +393,13 @@ fn type_record_malformed_name_colon_probe(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> bool {
     let mut source = i.remainder();
     let mut nested_depth = 0usize;
     loop {
         let Some((next, next_origin, next_line_entry, kind, indentation)) =
-            observe_type_item(i.rb(), source, item_origin, line_entry, fence)
+            observe_type_item(i.rb(), source, item_origin, line_entry, fence, pipe_lexical)
         else {
             return false;
         };
@@ -406,6 +438,7 @@ fn type_record_malformed_name_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -421,8 +454,13 @@ fn type_record_malformed_name_normalized(
             return complete(handoff(item), line_entry);
         }
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
             i.state.finish_node();
@@ -436,6 +474,7 @@ fn type_record_malformed_name_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -474,17 +513,25 @@ fn type_record_field_head_after_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> bool {
     i.rb()
         .map(
             |mut lex: LexIn| {
                 let source = lex.remainder();
                 Some(
-                    observe_type_item(lex.rb(), source, item_origin, line_entry, fence)
-                        .is_some_and(|(_, _, _, kind, indentation)| {
-                            kind == Some(TokenKind::Colon)
-                                && indentation.is_none_or(|indentation| indentation > baseline)
-                        }),
+                    observe_type_item(
+                        lex.rb(),
+                        source,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                    )
+                    .is_some_and(|(_, _, _, kind, indentation)| {
+                        kind == Some(TokenKind::Colon)
+                            && indentation.is_none_or(|indentation| indentation > baseline)
+                    }),
                 )
             },
             |has_colon| has_colon,
@@ -499,10 +546,18 @@ pub(super) fn type_record_next_field_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> bool {
     is_type_record_field_name(item)
         && item.leading_view().indentation_after_newline().is_none()
-        && type_record_field_head_after_normalized(i.rb(), baseline, item_origin, line_entry, fence)
+        && type_record_field_head_after_normalized(
+            i.rb(),
+            baseline,
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -511,6 +566,7 @@ fn retry_type_record_field_normalized(
     mut item: Item,
     baseline: usize,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -525,8 +581,13 @@ fn retry_type_record_field_normalized(
             return Err(complete(handoff(item), line_entry));
         }
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
             emit_missing(&mut i, LeadingTrivia::default());
@@ -550,6 +611,7 @@ fn retry_type_record_field_normalized(
                 i,
                 baseline,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -572,6 +634,7 @@ fn retry_type_record_field_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             )
         {
             i.state.finish_node();
@@ -616,6 +679,7 @@ fn retry_type_record_colon_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -627,8 +691,13 @@ fn retry_type_record_colon_normalized(
             return complete(handoff(item), line_entry);
         }
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
             return complete(handoff(item), line_entry);
@@ -641,6 +710,7 @@ fn retry_type_record_colon_normalized(
                 baseline,
                 outer_closes,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -665,6 +735,7 @@ fn retry_type_record_colon_normalized(
                 outer_closes,
                 caller_stops,
                 TypeOuterBoundary::NONE,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -679,12 +750,18 @@ fn type_record_rhs_normalized(
     baseline: usize,
     outer_closes: u8,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    let (mut rhs, next_origin, next_line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (mut rhs, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     item_origin = next_origin;
     line_entry = next_line_entry;
     if rhs.payload_view().is_boundary() {
@@ -707,6 +784,7 @@ fn type_record_rhs_normalized(
             rhs,
             baseline,
             caller_stops,
+            pipe_lexical,
             item_origin,
             line_entry,
             fence,
@@ -732,6 +810,7 @@ fn type_record_rhs_normalized(
         outer_closes,
         caller_stops,
         TypeOuterBoundary::NONE,
+        pipe_lexical,
         item_origin,
         line_entry,
         fence,
@@ -742,12 +821,18 @@ fn type_record_after_comma_normalized(
     mut i: RewriteIn,
     baseline: usize,
     caller_stops: Stops,
+    pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
-    let (mut next, item_origin, line_entry) =
-        type_item_normalized(i.rb(), item_origin, line_entry, fence);
+    let (mut next, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        pipe_lexical,
+    );
     if next.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
         emit_missing(&mut i, LeadingTrivia::default());
@@ -768,6 +853,7 @@ fn type_record_after_comma_normalized(
             item_origin,
             line_entry,
             fence,
+            pipe_lexical,
         )
     {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -790,6 +876,7 @@ fn retry_type_record_separator_normalized(
     mut item: Item,
     baseline: usize,
     caller_stops: Stops,
+    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -803,8 +890,13 @@ fn retry_type_record_separator_normalized(
             return Err(complete(handoff(item), line_entry));
         }
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
             emit_missing(&mut i, LeadingTrivia::default());
@@ -828,6 +920,7 @@ fn retry_type_record_separator_normalized(
                 i,
                 baseline,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -874,6 +967,7 @@ fn type_record_successor_normalized(
     exit: NormalizedExit,
     baseline: usize,
     caller_stops: Stops,
+    pipe_lexical: bool,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> Result<(Item, LineEntry), NormalizedExit> {
@@ -892,6 +986,7 @@ fn type_record_successor_normalized(
                 i,
                 baseline,
                 caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -914,6 +1009,7 @@ fn type_record_successor_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                pipe_lexical,
             ) =>
         {
             next.emit_all_remaining_leading(&mut *i.state);
@@ -935,6 +1031,25 @@ fn type_record_successor_normalized(
                 next,
                 baseline,
                 caller_stops,
+                pipe_lexical,
+                item_origin,
+                line_entry,
+                fence,
+            ) {
+                Ok((next, _, line_entry)) => Ok((next, line_entry)),
+                Err(exit) => Err(exit),
+            }
+        }
+        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
+            if pipe_lexical && token_kind(&next) == Some(TokenKind::Pipe) =>
+        {
+            next.emit_all_remaining_leading(&mut *i.state);
+            match retry_type_record_separator_normalized(
+                i,
+                next,
+                baseline,
+                caller_stops,
+                pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
@@ -969,6 +1084,7 @@ fn observe_type_item<'source>(
     source_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
 ) -> Option<(
     &'source str,
     usize,
@@ -987,12 +1103,15 @@ fn observe_type_item<'source>(
 
     let payload_origin = source_origin + source.len() - visible.source.len();
     let mut suffix = visible.source;
-    let accepted = scan_type_nud_payload(
-        chasa_recover::In::new(&mut suffix, i.recovery(), ()),
-        visible.present,
-        payload_origin,
-        fence,
-    )?;
+    let mut lex = chasa_recover::In::new(&mut suffix, i.recovery(), ());
+    let accepted = if pipe_lexical && let Some(pipe) = lex.rb().token(scan_exact_pipe) {
+        AcceptedPayload {
+            payload: CurrentPayload::Token(pipe),
+            next_line_entry: LineEntry::InLine,
+        }
+    } else {
+        scan_type_nud_payload(lex, visible.present, payload_origin, fence)?
+    };
     let kind = match accepted.payload {
         CurrentPayload::Token(token) => Some(token.kind),
         CurrentPayload::Operator(_) => None,
