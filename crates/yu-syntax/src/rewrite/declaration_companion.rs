@@ -24,8 +24,8 @@ use super::{
     lexer::{scan_statement_payload, scan_unknown},
     operator::{STOP_COMMA, STOP_SEMICOLON, stops_for},
     statement::{
-        StatementLineHandoff, canonical_statement_contents_normalized,
-        is_canonical_statement_nud_normalized,
+        StatementAdmission, StatementLineHandoff,
+        canonical_statement_contents_from_admission_normalized, classify_statement_item_normalized,
     },
     type_expr::TypeOuterBoundary,
     yumark::FenceBoundary,
@@ -42,6 +42,14 @@ struct SlotExit {
     exit: NormalizedExit,
     item_origin: usize,
     complete: bool,
+    pending_admission: Option<CompanionItemAdmission>,
+}
+
+#[derive(Clone, Copy)]
+enum CompanionItemAdmission {
+    Derives,
+    Statement(StatementAdmission),
+    Rejected,
 }
 
 /// Construct one already-selected declaration companion.  Attachment gap,
@@ -102,6 +110,7 @@ fn companion_after_keyword(
     }
 
     item.emit_all_remaining_leading(&mut *i.state);
+    let admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
     match token_kind(&item) {
         Some(TokenKind::Colon) => {
             emit_token_item(&mut i, item);
@@ -111,11 +120,12 @@ fn companion_after_keyword(
             emit_token_item(&mut i, item);
             braced_form(i, baseline, caller_stops, item_origin, line_entry, fence)
         }
-        _ if is_companion_item_nud(i.rb(), &item, baseline, item_origin, fence) => {
+        _ if !matches!(admission, CompanionItemAdmission::Rejected) => {
             emit_missing(&mut i, LeadingTrivia::default());
             inline_form_from_item(
                 i,
                 item,
+                admission,
                 baseline,
                 caller_stops,
                 item_origin,
@@ -173,8 +183,8 @@ fn retry_introducer(
             token_kind(&item),
             Some(TokenKind::Colon | TokenKind::LBrace)
         );
-        let companion_item = is_companion_item_nud(i.rb(), &item, baseline, item_origin, fence);
-        if starter || companion_item {
+        let admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
+        if starter || !matches!(admission, CompanionItemAdmission::Rejected) {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             return match token_kind(&item) {
@@ -189,6 +199,7 @@ fn retry_introducer(
                 _ => inline_form_from_item(
                     i,
                     item,
+                    admission,
                     baseline,
                     caller_stops,
                     item_origin,
@@ -243,9 +254,11 @@ fn colon_form(
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
+    let admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
     inline_form_from_item(
         i,
         item,
+        admission,
         baseline,
         caller_stops,
         item_origin,
@@ -258,6 +271,7 @@ fn colon_form(
 fn inline_form_from_item(
     mut i: RewriteIn,
     item: Item,
+    admission: CompanionItemAdmission,
     baseline: usize,
     caller_stops: Stops,
     item_origin: usize,
@@ -267,6 +281,7 @@ fn inline_form_from_item(
     let slot = companion_item_slot(
         i.rb(),
         item,
+        admission,
         CompanionLayout::Inline,
         baseline,
         caller_stops | STOP_COMMA | STOP_SEMICOLON,
@@ -277,9 +292,10 @@ fn inline_form_from_item(
     if !slot.complete {
         return slot.exit;
     }
-    let (mut item, _, line_entry) = successor_item(
+    let (mut item, _, line_entry, _) = successor_item(
         i.rb(),
         slot.exit,
+        slot.pending_admission,
         slot.item_origin,
         fence,
         baseline,
@@ -313,6 +329,7 @@ fn indented_form_from_item(
         .start_node(SyntaxKind::DeclarationCompanionIndentedBody.into());
     item.emit_all_remaining_leading(&mut *i.state);
     let mut after_separator = false;
+    let mut admission = classify_companion_item(i.rb(), &item, block_indent, item_origin, fence);
     loop {
         if indented_terminal(i.rb(), &item, block_indent, caller_stops) {
             i.state.finish_node();
@@ -334,6 +351,7 @@ fn indented_form_from_item(
                 Some(block_indent),
             );
             after_separator = true;
+            admission = classify_companion_item(i.rb(), &item, block_indent, item_origin, fence);
             continue;
         }
 
@@ -344,6 +362,7 @@ fn indented_form_from_item(
         let slot = companion_item_slot(
             i.rb(),
             item,
+            admission,
             CompanionLayout::Indented { block_indent },
             block_indent,
             caller_stops | STOP_SEMICOLON,
@@ -356,17 +375,24 @@ fn indented_form_from_item(
             i.state.finish_node();
             return slot.exit;
         }
-        (item, item_origin, line_entry) = successor_item(
+        let (next, next_origin, next_entry, carried_admission) = successor_item(
             i.rb(),
             slot.exit,
+            slot.pending_admission,
             item_origin,
             fence,
             block_indent,
             caller_stops | STOP_SEMICOLON,
         );
+        item = next;
+        item_origin = next_origin;
+        line_entry = next_entry;
+        admission = carried_admission.unwrap_or_else(|| {
+            classify_companion_item(i.rb(), &item, block_indent, item_origin, fence)
+        });
         after_separator = false;
 
-        if is_companion_item_nud(i.rb(), &item, block_indent, item_origin, fence)
+        if !matches!(admission, CompanionItemAdmission::Rejected)
             && indentation_after_newline(item.leading_view()).is_none()
         {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -403,6 +429,7 @@ fn braced_form(
     line_entry = next_entry;
     let baseline = delimited_baseline(incoming_baseline, item.leading_view());
     let mut slot = BracedSlot::Initial;
+    let mut admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
 
     loop {
         if !item.payload_view().is_boundary() && !item.payload_view().is_eof() {
@@ -426,6 +453,8 @@ fn braced_form(
                         local_stops,
                         None,
                     );
+                    admission =
+                        classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
                     slot = BracedSlot::AfterSeparator;
                     continue;
                 }
@@ -462,6 +491,7 @@ fn braced_form(
                     baseline,
                     local_stops,
                 );
+                admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
                 continue;
             }
             _ => {}
@@ -476,7 +506,7 @@ fn braced_form(
             item.emit_all_remaining_leading(&mut *i.state);
         }
 
-        let candidate = is_companion_item_nud(i.rb(), &item, baseline, item_origin, fence);
+        let candidate = !matches!(admission, CompanionItemAdmission::Rejected);
         if matches!(slot, BracedSlot::AfterItem) && candidate {
             emit_missing(&mut i, LeadingTrivia::default());
         }
@@ -484,6 +514,7 @@ fn braced_form(
         let parsed = companion_item_slot(
             i.rb(),
             item,
+            admission,
             CompanionLayout::Braced { baseline },
             baseline,
             local_stops,
@@ -492,14 +523,21 @@ fn braced_form(
             fence,
         );
         item_origin = parsed.item_origin;
-        (item, item_origin, line_entry) = successor_item(
+        let (next, next_origin, next_entry, carried_admission) = successor_item(
             i.rb(),
             parsed.exit,
+            parsed.pending_admission,
             item_origin,
             fence,
             baseline,
             local_stops,
         );
+        item = next;
+        item_origin = next_origin;
+        line_entry = next_entry;
+        admission = carried_admission.unwrap_or_else(|| {
+            classify_companion_item(i.rb(), &item, baseline, item_origin, fence)
+        });
         slot = if parsed.complete {
             BracedSlot::AfterItem
         } else {
@@ -512,6 +550,7 @@ fn braced_form(
 fn companion_item_slot(
     i: RewriteIn,
     item: Item,
+    admission: CompanionItemAdmission,
     layout: CompanionLayout,
     baseline: usize,
     stops: Stops,
@@ -519,7 +558,7 @@ fn companion_item_slot(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> SlotExit {
-    if is_word(&item, "derives") {
+    if matches!(admission, CompanionItemAdmission::Derives) {
         return derives_run_slot(
             i,
             item,
@@ -534,6 +573,10 @@ fn companion_item_slot(
     statement_slot(
         i,
         item,
+        match admission {
+            CompanionItemAdmission::Statement(admission) => Some(admission),
+            CompanionItemAdmission::Derives | CompanionItemAdmission::Rejected => None,
+        },
         layout,
         baseline,
         stops,
@@ -569,11 +612,23 @@ fn derives_run_slot(
             fence,
         );
         if !is_word(&item, "derives") || derives_separator_before(&item, layout) {
-            if let CompanionLayout::Indented { block_indent } = layout
+            let pending_admission = if let CompanionLayout::Indented { block_indent } = layout
                 && indentation_after_newline(item.leading_view())
                     .is_some_and(|indentation| indentation > block_indent)
                 && !indented_terminal(i.rb(), &item, block_indent, stops)
-                && is_companion_item_nud(i.rb(), &item, block_indent, item_origin, fence)
+            {
+                Some(classify_companion_item(
+                    i.rb(),
+                    &item,
+                    block_indent,
+                    item_origin,
+                    fence,
+                ))
+            } else {
+                None
+            };
+            if pending_admission
+                .is_some_and(|admission| !matches!(admission, CompanionItemAdmission::Rejected))
             {
                 emit_missing(&mut i, LeadingTrivia::default());
             }
@@ -581,6 +636,7 @@ fn derives_run_slot(
                 exit: complete(handoff(item), line_entry),
                 item_origin,
                 complete: true,
+                pending_admission,
             };
         }
     }
@@ -590,6 +646,7 @@ fn derives_run_slot(
 fn statement_slot(
     mut i: RewriteIn,
     mut item: Item,
+    admission: Option<StatementAdmission>,
     layout: CompanionLayout,
     baseline: usize,
     stops: Stops,
@@ -598,11 +655,12 @@ fn statement_slot(
     fence: Option<&FenceBoundary>,
 ) -> SlotExit {
     i.state.start_node(SyntaxKind::Statement.into());
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+    if let Some(admission) = admission {
         let entry = suffix_marker(i.rb());
-        let exit = canonical_statement_contents_normalized(
+        let exit = canonical_statement_contents_from_admission_normalized(
             i.rb(),
             item,
+            admission,
             baseline,
             stops,
             line_handoff(layout),
@@ -616,6 +674,7 @@ fn statement_slot(
             exit,
             item_origin,
             complete: true,
+            pending_admission: None,
         };
     }
 
@@ -637,6 +696,7 @@ fn statement_slot(
                 exit: complete(handoff(item), line_entry),
                 item_origin,
                 complete: false,
+                pending_admission: None,
             };
         }
         if is_word(&item, "derives") {
@@ -654,13 +714,16 @@ fn statement_slot(
                 fence,
             );
         }
-        if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             let entry = suffix_marker(i.rb());
-            let exit = canonical_statement_contents_normalized(
+            let exit = canonical_statement_contents_from_admission_normalized(
                 i.rb(),
                 item,
+                admission,
                 baseline,
                 stops,
                 line_handoff(layout),
@@ -674,21 +737,29 @@ fn statement_slot(
                 exit,
                 item_origin,
                 complete: true,
+                pending_admission: None,
             };
         }
         emit_token_item(&mut i, item);
     }
 }
 
-fn is_companion_item_nud(
+fn classify_companion_item(
     mut i: RewriteIn,
     item: &Item,
     baseline: usize,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
-) -> bool {
-    is_word(item, "derives")
-        || is_canonical_statement_nud_normalized(i.rb(), item, baseline, item_origin, fence)
+) -> CompanionItemAdmission {
+    if is_word(item, "derives") {
+        CompanionItemAdmission::Derives
+    } else if let Some(admission) =
+        classify_statement_item_normalized(i.rb(), item, baseline, item_origin, fence)
+    {
+        CompanionItemAdmission::Statement(admission)
+    } else {
+        CompanionItemAdmission::Rejected
+    }
 }
 
 fn line_handoff(layout: CompanionLayout) -> StatementLineHandoff {
@@ -845,20 +916,23 @@ fn emit_missing_statement(i: &mut RewriteIn) {
 fn successor_item(
     i: RewriteIn,
     exit: NormalizedExit,
+    pending_admission: Option<CompanionItemAdmission>,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
     baseline: usize,
     stops: Stops,
-) -> (Item, usize, LineEntry) {
+) -> (Item, usize, LineEntry, Option<CompanionItemAdmission>) {
     match exit {
         NormalizedExit::Complete(Ok(()), line_entry) => {
-            statement_item_normalized(i, item_origin, line_entry, fence, baseline, stops)
+            let (item, item_origin, line_entry) =
+                statement_item_normalized(i, item_origin, line_entry, fence, baseline, stops);
+            (item, item_origin, line_entry, None)
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
-            (item, item_origin, line_entry)
+            (item, item_origin, line_entry, pending_admission)
         }
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
-            (end.item, item_origin, line_entry)
+            (end.item, item_origin, line_entry, None)
         }
         NormalizedExit::Deferred(_, _) => {
             unreachable!("normalized canonical statements do not defer declaration owners")

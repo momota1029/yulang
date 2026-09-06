@@ -16,7 +16,7 @@ use super::{
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
         introduced_body_indentation_normalized, is_exact_equals_source, scan_pattern_nud_payload,
-        scan_statement_payload, source_identifier,
+        scan_statement_payload, source_declaration_head, source_identifier,
     },
     mod_decl::mod_declaration_selected_normalized,
     operator::{TriviaObservation, observe_fenced_trivia},
@@ -140,16 +140,7 @@ fn named_declaration_head_candidate_normalized(
     {
         return false;
     }
-    if source_identifier(observed.source).is_some() {
-        return true;
-    }
-    matches!(observed.source.chars().next(), Some('$' | '&' | '\''))
-        && observed
-            .source
-            .chars()
-            .next()
-            .and_then(|sigil| observed.source.get(sigil.len_utf8()..))
-            .is_some_and(|source| source_identifier(source).is_some())
+    source_declaration_head(observed.source)
 }
 
 fn binding_definition_follows_normalized(
@@ -186,13 +177,6 @@ pub(super) fn binding_statement_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(binding_statement_selected_normalized(
-        i.rb(),
-        &visibility,
-        baseline,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::BindingStatement.into());
     i.state.start_node(SyntaxKind::BindingHeader.into());
     emit_visibility(&mut i, visibility);

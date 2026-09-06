@@ -128,7 +128,7 @@ fn cast_source_selected_normalized(
     .unwrap_or(false)
 }
 
-fn cast_declaration_selected_normalized(
+pub(super) fn cast_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
     baseline: usize,
@@ -165,7 +165,7 @@ fn prefixed_cast_candidate_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn cast_declaration_normalized(
+pub(super) fn cast_declaration_normalized(
     mut i: RewriteIn,
     intro: Item,
     baseline: usize,

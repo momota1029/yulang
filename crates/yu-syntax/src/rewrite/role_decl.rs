@@ -20,8 +20,9 @@ use super::{
     },
     operator::{TriviaObservation, observe_fenced_trivia},
     statement::{
-        StatementLineHandoff, braced_statement_block_normalized, canonical_statement_normalized,
-        indented_statement_block_normalized, is_canonical_statement_nud_normalized,
+        StatementAdmission, StatementLineHandoff, braced_statement_block_normalized,
+        canonical_statement_from_admission_normalized, classify_statement_item_normalized,
+        indented_statement_block_normalized,
     },
     type_expr::{
         TypeOuterBoundary, is_type_caller_boundary,
@@ -110,7 +111,7 @@ fn role_source_selected_normalized(
     .unwrap_or(false)
 }
 
-fn role_declaration_selected_normalized(
+pub(super) fn role_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
     baseline: usize,
@@ -147,7 +148,7 @@ fn prefixed_role_candidate_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn role_declaration_normalized(
+pub(super) fn role_declaration_normalized(
     mut i: RewriteIn,
     intro: Item,
     baseline: usize,
@@ -157,13 +158,6 @@ fn role_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(role_declaration_selected_normalized(
-        i.rb(),
-        &intro,
-        baseline,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::RoleDeclaration.into());
     if item_word(&intro) == Some("role") {
         emit_item_as(&mut i, intro, SyntaxKind::RoleKw);
@@ -476,10 +470,13 @@ fn inline_body_from_item_normalized(
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+    if let Some(admission) =
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    {
         return inline_statement_normalized(
             i,
             item,
+            admission,
             baseline,
             stops,
             line_handoff,
@@ -538,11 +535,14 @@ fn recover_inline_body_normalized(
             i.state.finish_node();
             return complete(handoff(item), line_entry);
         }
-        if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        {
             i.state.finish_node();
             return inline_statement_normalized(
                 i,
                 item,
+                admission,
                 baseline,
                 stops,
                 line_handoff,
@@ -558,6 +558,7 @@ fn recover_inline_body_normalized(
 fn inline_statement_normalized(
     mut i: RewriteIn,
     item: Item,
+    admission: StatementAdmission,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -566,9 +567,10 @@ fn inline_statement_normalized(
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     let child_entry = suffix_marker(i.rb());
-    let exit = canonical_statement_normalized(
+    let exit = canonical_statement_from_admission_normalized(
         i.rb(),
         item,
+        admission,
         baseline,
         stops,
         line_handoff.through_inline_statement(),
@@ -650,10 +652,11 @@ fn role_gap_allowed(item: &Item, baseline: usize) -> bool {
 }
 
 fn body_starter(item: &Item) -> bool {
-    matches!(
-        token_kind(item),
-        Some(TokenKind::Semicolon | TokenKind::LBrace | TokenKind::Colon)
-    )
+    !item.payload_view().is_boundary()
+        && matches!(
+            token_kind(item),
+            Some(TokenKind::Semicolon | TokenKind::LBrace | TokenKind::Colon)
+        )
 }
 
 fn inline_terminal_semicolon(item: &Item) -> bool {

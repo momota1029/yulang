@@ -78,13 +78,6 @@ pub(super) fn type_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(type_declaration_selected_normalized(
-        i.rb(),
-        &intro,
-        baseline,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::TypeDeclaration.into());
     if item_word(&intro) == Some("type") {
         emit_intro(&mut i, intro, SyntaxKind::TypeKw);

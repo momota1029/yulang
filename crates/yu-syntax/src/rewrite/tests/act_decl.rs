@@ -95,19 +95,20 @@ fn act_private_shell_builds_head_source_and_each_body_form() {
 
 #[test]
 fn act_my_intro_requires_the_raw_head_candidate_without_consuming_a_rejection() {
-    for source in [
-        "my act = value",
-        "my act;",
-        "my act",
-        "my act $hidden = value",
-    ] {
+    for source in ["my act = value", "my act;", "my act"] {
         let (green, exit, remainder) = run_act_declaration(source, 0, 700, LineEntry::InLine, None);
         assert!(exit.is_none(), "{source:?}");
         assert_eq!(green.to_string(), "", "{source:?}");
         assert_eq!(remainder, source, "{source:?}");
     }
 
-    for source in ["my act next = last", "my act't = last", "my act _hidden;"] {
+    for source in [
+        "my act next = last",
+        "my act't = last",
+        "my act _hidden;",
+        "my act $hidden = value",
+        "my act &hidden = value",
+    ] {
         let (green, exit, _) = run_act_declaration(source, 0, 0, LineEntry::InLine, None);
         assert!(exit.is_some(), "{source:?}");
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -398,10 +399,11 @@ fn act_companion_preserves_exact_remainder_origin_line_entry_and_fence_boundary(
 }
 
 #[test]
-fn act_private_slice_has_no_direct_statement_dispatch_edge() {
+fn act_private_slice_uses_canonical_statement_dispatch() {
     let (green, _) = run_statement("act A with {}");
+    assert_eq!(green.to_string(), "act A with {}");
     assert_eq!(
         count(&SyntaxNode::new_root(green), SyntaxKind::ActDeclaration),
-        0
+        1
     );
 }

@@ -13,6 +13,23 @@ fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
         .count()
 }
 
+fn token_count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    node.descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == kind)
+        .count()
+}
+
+fn pending_token(exit: Option<NormalizedExit>, kind: TokenKind, leading: &str) {
+    let mut item = match exit {
+        Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
+        Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
+        _ => panic!("{kind:?} must remain pending"),
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(kind));
+    assert_eq!(emit_pending_leading_text(&mut item), leading);
+}
+
 fn pending_word(exit: Option<NormalizedExit>, word: &str, leading: &str) {
     let mut item = match exit {
         Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
@@ -44,6 +61,41 @@ fn error_private_shell_builds_the_shared_variant_surface() {
         );
         assert_eq!(count(&node, SyntaxKind::Error), 0, "{source:?}\n{node:#?}");
     }
+}
+
+#[test]
+fn error_sigil_head_evidence_recovers_one_maximal_raw_name_and_stops() {
+    let source = "my error &hidden = A";
+    let (green, exit, remainder) = run_error_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "my error &hidden");
+    assert_eq!(remainder, " A");
+    pending_token(exit, TokenKind::Equals, " ");
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::EnumVariant), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::DerivesClause), 0, "{node:#?}");
+    assert_eq!(token_count(&node, SyntaxKind::Identifier), 0, "{node:#?}");
+    assert_eq!(token_count(&node, SyntaxKind::Equals), 0, "{node:#?}");
+    let error = node
+        .descendants()
+        .find(|child| child.kind() == SyntaxKind::Error)
+        .expect("one declaration-local Name Error");
+    assert_eq!(error.text().to_string(), "&hidden");
+}
+
+#[test]
+fn error_sigil_name_error_retries_one_raw_identifier() {
+    let source = "my error $hidden E = A";
+    let (green, exit, remainder) = run_error_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert!(exit.is_some());
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::EnumVariant), 1, "{node:#?}");
+    assert_eq!(token_count(&node, SyntaxKind::Identifier), 2, "{node:#?}");
 }
 
 #[test]

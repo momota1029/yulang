@@ -729,6 +729,22 @@ shellをprivate canonical `Statement` dispatchへ接続するconstruction checkp
 進める。typed recovery/output topologyは別Authoritative文書間に未解決のauthority gapがあり、後続M3
 設計とuser approvalまではcertification/public cutoverを行わない。
 
+2026-09-06: Gate 6 private canonical `Statement` dispatch construction checkpointを完了した。sealed Copy
+`StatementAdmission`で各current Itemを一度だけ分類し、entry/retry、braced/indented sequence、inline owner、
+declaration companion、`with:` tailsまで同じadmissionをcommitへtransportする。final additive orderは
+boundary → Struct → Enum → Error → Mod → Type → Role → Impl → Cast → Act → For → coordinated
+Binding/Use → Expression。shared `source_declaration_head`はEnum/Error/Actの`my` introとBinding fallbackの
+Identifier/SigilIdentifier evidenceだけを所有し、Enum/Error NameのRequiredRawIdentifierは広げない。
+sigil malformed Nameは一つのmaximal local Errorとなりstarterをpendingで返す。M2初回reviewでparallel
+classifier/no-owner gap、order、再分類を検出し、architecture再裁定を含む二回のbounded repair/delta review
+後にcompiler/recovery・specificationともclean。focused Statement 8、lexical 45、normalized 82、Enum 13、
+Error 12、Act 15、Binding 7、Use 11、declaration companion 17ほかowner coneと`cargo check -p
+yu-syntax`、full rustfmt check、diff checkはgreen。full package/timingはbudget外。Gate 6 ledgerのS1、D1–D12
+全subcell、Enum/Error V1–V4/NV1、RB-S/RB-D/RB-DRV/RB-CMPはprivate direct CST owner/testへのmappingを
+持つconstruction evidenceまで到達したが、typed record/rollback certificationはopenのまま。次はL6
+`VirtualStatementBlock`、続いてL7 literal closureであり、その後のjoint Gate 4–6 certification前に
+successor typed-output/recovery topologyのM3設計とuser approvalが必要である。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。

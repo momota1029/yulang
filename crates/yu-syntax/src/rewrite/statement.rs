@@ -6,9 +6,11 @@ use crate::{operator::BindingPower, syntax_kind::SyntaxKind};
 
 use super::{
     RewriteIn, Stops,
+    act_decl::{act_declaration_normalized, act_declaration_selected_normalized},
     binding::{
         binding_statement_normalized, binding_statement_selected_normalized, is_binding_visibility,
     },
+    cast_decl::{cast_declaration_normalized, cast_declaration_selected_normalized},
     current_item::{CurrentItem, LineEntry, current_item},
     driver::{
         Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
@@ -17,11 +19,15 @@ use super::{
         is_separator, ordinary_exit, suffix_marker, token_kind,
     },
     emit::{emit_missing, emit_token_item},
+    enum_decl::{enum_declaration_normalized, enum_declaration_selected_normalized},
+    error_decl::{error_declaration_normalized, error_declaration_selected_normalized},
     for_decl::{for_statement_normalized, for_statement_selected},
+    impl_decl::{impl_declaration_normalized, impl_declaration_selected_normalized},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::scan_statement_payload,
     mod_decl::{mod_declaration_normalized, mod_declaration_selected_normalized},
     operator::stops_for,
+    role_decl::{role_declaration_normalized, role_declaration_selected_normalized},
     struct_decl::{struct_declaration_normalized, struct_declaration_selected_normalized},
     type_decl::{type_declaration_normalized, type_declaration_selected_normalized},
     use_decl::{use_declaration_normalized, use_declaration_selected_normalized},
@@ -98,23 +104,22 @@ pub(super) fn statement_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    if item.payload_view().is_boundary() {
+    let Some(admission) =
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    else {
         return complete(handoff(item), line_entry);
-    }
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
-        canonical_statement_normalized(
-            i,
-            item,
-            baseline,
-            stops,
-            StatementLineHandoff::OrdinaryLayout,
-            item_origin,
-            line_entry,
-            fence,
-        )
-    } else {
-        complete(handoff(item), line_entry)
-    }
+    };
+    canonical_statement_from_admission_normalized(
+        i,
+        item,
+        admission,
+        baseline,
+        stops,
+        StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
+    )
 }
 
 pub(super) fn canonical_statement(
@@ -147,18 +152,38 @@ pub(super) fn canonical_statement_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(!item.payload_view().is_boundary());
-    debug_assert!(is_canonical_statement_nud_normalized(
-        i.rb(),
-        &item,
+    let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        .expect("canonical Statement wrapper requires an admitted Item");
+    canonical_statement_from_admission_normalized(
+        i,
+        item,
+        admission,
         baseline,
+        stops,
+        line_handoff,
         item_origin,
+        line_entry,
         fence,
-    ));
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn canonical_statement_from_admission_normalized(
+    mut i: RewriteIn,
+    item: Item,
+    admission: StatementAdmission,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Statement.into());
-    let exit = canonical_statement_contents_normalized(
+    let exit = canonical_statement_contents_from_admission_normalized(
         i.rb(),
         item,
+        admission,
         baseline,
         stops,
         line_handoff,
@@ -184,17 +209,35 @@ pub(super) fn canonical_statement_contents_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(!item.payload_view().is_boundary());
-    debug_assert!(is_canonical_statement_nud_normalized(
-        i.rb(),
-        &item,
+    let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        .expect("canonical Statement contents require an admitted Item");
+    canonical_statement_contents_from_admission_normalized(
+        i,
+        item,
+        admission,
         baseline,
+        stops,
+        line_handoff,
         item_origin,
+        line_entry,
         fence,
-    ));
-    let family = selected_declaration_family(i.rb(), &item, baseline, item_origin, fence);
-    match family {
-        Some(DeclarationFamily::Struct) => {
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn canonical_statement_contents_from_admission_normalized(
+    mut i: RewriteIn,
+    item: Item,
+    admission: StatementAdmission,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    match admission.0 {
+        StatementFamily::Struct => {
             let exit = struct_declaration_normalized(
                 i.rb(),
                 item,
@@ -207,7 +250,31 @@ pub(super) fn canonical_statement_contents_normalized(
             );
             return exit;
         }
-        Some(DeclarationFamily::Mod) => {
+        StatementFamily::Enum => {
+            return enum_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementFamily::Error => {
+            return error_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementFamily::Mod => {
             let exit = mod_declaration_normalized(
                 i.rb(),
                 item,
@@ -220,20 +287,8 @@ pub(super) fn canonical_statement_contents_normalized(
             );
             return exit;
         }
-        Some(DeclarationFamily::Use) => {
-            let exit = use_declaration_normalized(
-                i.rb(),
-                item,
-                baseline,
-                stops,
-                item_origin,
-                line_entry,
-                fence,
-            );
-            return exit;
-        }
-        Some(DeclarationFamily::Type) => {
-            let exit = type_declaration_normalized(
+        StatementFamily::Type => {
+            return type_declaration_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -243,10 +298,9 @@ pub(super) fn canonical_statement_contents_normalized(
                 line_entry,
                 fence,
             );
-            return exit;
         }
-        Some(DeclarationFamily::For) => {
-            let exit = for_statement_normalized(
+        StatementFamily::Role => {
+            return role_declaration_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -256,10 +310,9 @@ pub(super) fn canonical_statement_contents_normalized(
                 line_entry,
                 fence,
             );
-            return exit;
         }
-        Some(DeclarationFamily::Binding) => {
-            let exit = binding_statement_normalized(
+        StatementFamily::Impl => {
+            return impl_declaration_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -269,10 +322,68 @@ pub(super) fn canonical_statement_contents_normalized(
                 line_entry,
                 fence,
             );
-            return exit;
         }
-        None => {
-            let exit = expr_from_nud_normalized(
+        StatementFamily::Cast => {
+            return cast_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementFamily::Act => {
+            return act_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementFamily::For => {
+            return for_statement_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementFamily::Binding => {
+            return binding_statement_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementFamily::Use => {
+            return use_declaration_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementFamily::Expression => {
+            return expr_from_nud_normalized(
                 i.rb(),
                 item,
                 None,
@@ -284,63 +395,88 @@ pub(super) fn canonical_statement_contents_normalized(
                 line_entry,
                 fence,
             );
-            return exit;
         }
     }
 }
 
 pub(super) fn is_canonical_statement_nud(i: RewriteIn, item: &Item, baseline: usize) -> bool {
-    is_canonical_statement_nud_normalized(i, item, baseline, 0, None)
+    classify_statement_item_normalized(i, item, baseline, 0, None).is_some()
 }
 
 pub(super) fn is_canonical_statement_nud_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     item: &Item,
     baseline: usize,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> bool {
-    if item.payload_view().is_boundary() {
-        return false;
-    }
-    selected_declaration_family(i.rb(), item, baseline, item_origin, fence).is_some()
-        || (!is_binding_visibility(item) && is_nud_item(item))
+    classify_statement_item_normalized(i, item, baseline, item_origin, fence).is_some()
 }
 
 #[derive(Clone, Copy)]
-enum DeclarationFamily {
+pub(super) struct StatementAdmission(StatementFamily);
+
+#[derive(Clone, Copy)]
+enum StatementFamily {
     Struct,
+    Enum,
+    Error,
     Mod,
-    Use,
     Type,
+    Role,
+    Impl,
+    Cast,
+    Act,
     For,
     Binding,
+    Use,
+    Expression,
 }
 
-fn selected_declaration_family(
+pub(super) fn classify_statement_item_normalized(
     mut i: RewriteIn,
     item: &Item,
     baseline: usize,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
-) -> Option<DeclarationFamily> {
-    if struct_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-        Some(DeclarationFamily::Struct)
-    } else if mod_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-        Some(DeclarationFamily::Mod)
-    } else if use_declaration_selected_normalized(i.rb(), item, item_origin, fence) {
-        Some(DeclarationFamily::Use)
-    } else if type_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-        Some(DeclarationFamily::Type)
-    } else if for_statement_selected(item) {
-        Some(DeclarationFamily::For)
-    } else if is_binding_visibility(item)
-        && binding_statement_selected_normalized(i, item, baseline, item_origin, fence)
-    {
-        Some(DeclarationFamily::Binding)
-    } else {
-        None
+) -> Option<StatementAdmission> {
+    if item.payload_view().is_boundary() {
+        return None;
     }
+    let family =
+        if struct_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Struct
+        } else if enum_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Enum
+        } else if error_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence)
+        {
+            StatementFamily::Error
+        } else if mod_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Mod
+        } else if type_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Type
+        } else if role_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Role
+        } else if impl_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Impl
+        } else if cast_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Cast
+        } else if act_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
+            StatementFamily::Act
+        } else if for_statement_selected(item) {
+            StatementFamily::For
+        } else if is_binding_visibility(item)
+            && binding_statement_selected_normalized(i.rb(), item, baseline, item_origin, fence)
+        {
+            StatementFamily::Binding
+        } else if use_declaration_selected_normalized(i.rb(), item, item_origin, fence) {
+            StatementFamily::Use
+        } else if !is_binding_visibility(item) && is_nud_item(item) {
+            StatementFamily::Expression
+        } else {
+            return None;
+        };
+    Some(StatementAdmission(family))
 }
 
 #[derive(Clone, Copy)]
@@ -509,6 +645,7 @@ fn statement_sequence_normalized(
     fence: Option<&FenceBoundary>,
     mut first: bool,
 ) -> NormalizedExit {
+    let mut known_admission = None;
     loop {
         match policy {
             StatementSequencePolicy::Indented { block_indent } => {
@@ -524,6 +661,7 @@ fn statement_sequence_normalized(
                     line_entry,
                     fence,
                     first,
+                    known_admission,
                 );
                 item_origin = advanced_origin(item_origin, entry, i.rb());
                 (item, line_entry) = match indented_statement_successor_normalized(
@@ -559,19 +697,21 @@ fn statement_sequence_normalized(
                     line_entry,
                     fence,
                     first,
+                    known_admission,
                 );
                 item_origin = advanced_origin(item_origin, entry, i.rb());
-                (item, line_entry, item_origin) = match braced_statement_successor_normalized(
-                    i.rb(),
-                    exit,
-                    baseline,
-                    stops,
-                    item_origin,
-                    fence,
-                ) {
-                    Ok(next) => next,
-                    Err(exit) => return exit,
-                };
+                (item, line_entry, item_origin, known_admission) =
+                    match braced_statement_successor_normalized(
+                        i.rb(),
+                        exit,
+                        baseline,
+                        stops,
+                        item_origin,
+                        fence,
+                    ) {
+                        Ok(next) => next,
+                        Err(exit) => return exit,
+                    };
             }
         }
         first = false;
@@ -607,6 +747,7 @@ fn indented_statement_slot_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     first: bool,
+    known_admission: Option<Option<StatementAdmission>>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
@@ -621,13 +762,17 @@ fn indented_statement_slot_normalized(
         }
         return complete(handoff(item), line_entry);
     }
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+    let admission = known_admission.unwrap_or_else(|| {
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    });
+    if let Some(admission) = admission {
         if !first {
             emit_separator_leading(&mut i, &mut item);
         }
-        return canonical_statement_normalized(
+        return canonical_statement_from_admission_normalized(
             i,
             item,
+            admission,
             baseline,
             stops,
             StatementLineHandoff::OrdinaryLayout,
@@ -641,7 +786,7 @@ fn indented_statement_slot_normalized(
         emit_separator_leading(&mut i, &mut item);
     }
 
-    let (next, next_origin, next_line_entry) = retry_indented_statement_normalized(
+    let (next, admission, next_origin, next_line_entry) = retry_indented_statement_normalized(
         i.rb(),
         item,
         baseline,
@@ -655,16 +800,10 @@ fn indented_statement_slot_normalized(
     if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops) {
         return complete(handoff(item), next_line_entry);
     }
-    debug_assert!(is_canonical_statement_nud_normalized(
-        i.rb(),
-        &item,
-        baseline,
-        next_origin,
-        fence
-    ));
-    canonical_statement_normalized(
+    canonical_statement_from_admission_normalized(
         i,
         item,
+        admission.expect("retry returned an admitted canonical Statement"),
         baseline,
         stops,
         StatementLineHandoff::OrdinaryLayout,
@@ -684,17 +823,21 @@ fn retry_indented_statement_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
-) -> (Item, usize, LineEntry) {
+) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
         (item, item_origin, line_entry) =
             statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-        if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops)
-            || is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence)
+        if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops) {
+            i.state.finish_node();
+            return (item, None, item_origin, line_entry);
+        }
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
         {
             i.state.finish_node();
-            return (item, item_origin, line_entry);
+            return (item, Some(admission), item_origin, line_entry);
         }
     }
 }
@@ -760,17 +903,22 @@ fn braced_statement_slot_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     first: bool,
+    known_admission: Option<Option<StatementAdmission>>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return braced_terminal_normalized(i, item, line_entry);
     }
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+    let admission = known_admission.unwrap_or_else(|| {
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    });
+    if let Some(admission) = admission {
         if !first && implicit_delimited_newline(baseline, item.leading_view()) {
             emit_separator_leading(&mut i, &mut item);
         }
-        return canonical_statement_normalized(
+        return canonical_statement_from_admission_normalized(
             i,
             item,
+            admission,
             baseline,
             stops,
             StatementLineHandoff::BracedStatementSequence,
@@ -784,7 +932,7 @@ fn braced_statement_slot_normalized(
         emit_separator_leading(&mut i, &mut item);
     }
 
-    let (item, item_origin, line_entry) = retry_braced_statement_normalized(
+    let (item, admission, item_origin, line_entry) = retry_braced_statement_normalized(
         i.rb(),
         item,
         baseline,
@@ -795,10 +943,11 @@ fn braced_statement_slot_normalized(
     );
     if braced_statement_boundary(&item, baseline) {
         complete(handoff(item), line_entry)
-    } else if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
-        canonical_statement_normalized(
+    } else if let Some(admission) = admission {
+        canonical_statement_from_admission_normalized(
             i,
             item,
+            admission,
             baseline,
             stops,
             StatementLineHandoff::BracedStatementSequence,
@@ -820,17 +969,21 @@ fn retry_braced_statement_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
-) -> (Item, usize, LineEntry) {
+) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
         (item, item_origin, line_entry) =
             statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-        if braced_statement_boundary(&item, baseline)
-            || is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence)
+        if braced_statement_boundary(&item, baseline) {
+            i.state.finish_node();
+            return (item, None, item_origin, line_entry);
+        }
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
         {
             i.state.finish_node();
-            return (item, item_origin, line_entry);
+            return (item, Some(admission), item_origin, line_entry);
         }
     }
 }
@@ -850,7 +1003,7 @@ fn braced_statement_successor_normalized(
     stops: Stops,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
-) -> Result<(Item, LineEntry, usize), NormalizedExit> {
+) -> Result<(Item, LineEntry, usize, Option<Option<StatementAdmission>>), NormalizedExit> {
     match exit {
         NormalizedExit::Deferred(_, _) => {
             unreachable!("normalized canonical statements do not defer declaration owners")
@@ -870,7 +1023,7 @@ fn braced_statement_successor_normalized(
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
             if implicit_delimited_newline(baseline, item.leading_view()) =>
         {
-            Ok((item, line_entry, item_origin))
+            Ok((item, line_entry, item_origin, None))
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
             if token_kind(&item) == Some(TokenKind::RBrace) =>
@@ -888,22 +1041,15 @@ fn braced_statement_successor_normalized(
                 line_entry,
                 fence,
             );
-            Ok((item, line_entry, item_origin))
-        }
-        NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
-            if is_canonical_statement_nud_normalized(
-                i.rb(),
-                &item,
-                baseline,
-                item_origin,
-                fence,
-            ) =>
-        {
-            emit_missing(&mut i, LeadingTrivia::default());
-            Ok((item, line_entry, item_origin))
+            Ok((item, line_entry, item_origin, None))
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
-            Ok((item, line_entry, item_origin))
+            let admission =
+                classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence);
+            if admission.is_some() {
+                emit_missing(&mut i, LeadingTrivia::default());
+            }
+            Ok((item, line_entry, item_origin, Some(admission)))
         }
     }
 }

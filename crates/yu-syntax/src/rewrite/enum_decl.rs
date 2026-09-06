@@ -20,7 +20,7 @@ use super::{
     lexer::{
         introduced_body_indentation_normalized, is_declaration_starter_word,
         scan_declaration_type_parameter, scan_identifier, scan_statement_payload,
-        scan_type_nud_payload, source_identifier,
+        scan_type_nud_payload, source_declaration_head, source_identifier,
     },
     operator::{STOP_WITH, TriviaObservation, observe_fenced_trivia},
     statement::StatementLineHandoff,
@@ -170,7 +170,7 @@ fn prefixed_enum_candidate_normalized(
     };
     head.indentation
         .is_none_or(|indentation| indentation > baseline)
-        && source_identifier(head.source).is_some()
+        && source_declaration_head(head.source)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -184,13 +184,6 @@ pub(super) fn enum_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(enum_declaration_selected_normalized(
-        i.rb(),
-        &intro,
-        baseline,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::EnumDeclaration.into());
     if item_word(&intro) == Some("enum") {
         emit_item_as(&mut i, intro, SyntaxKind::EnumKw);
@@ -342,9 +335,8 @@ fn required_name_normalized(
             return Err(next);
         }
         if body_starter(&next) {
-            next.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
-            return Ok(Some(next));
+            return Err(next);
         }
         if raw_name(&next) {
             next.emit_all_remaining_leading(&mut *i.state);

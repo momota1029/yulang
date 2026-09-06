@@ -19,8 +19,9 @@ use super::{
     },
     operator::{TriviaObservation, observe_fenced_trivia},
     statement::{
-        StatementLineHandoff, braced_statement_block_normalized, canonical_statement_normalized,
-        indented_statement_block_normalized, is_canonical_statement_nud_normalized,
+        StatementAdmission, StatementLineHandoff, braced_statement_block_normalized,
+        canonical_statement_from_admission_normalized, classify_statement_item_normalized,
+        indented_statement_block_normalized,
     },
     yumark::FenceBoundary,
 };
@@ -80,13 +81,6 @@ pub(super) fn mod_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(mod_declaration_selected_normalized(
-        i.rb(),
-        &intro,
-        baseline,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::ModDeclaration.into());
 
     if item_word(&intro) == Some("mod") {
@@ -327,6 +321,7 @@ fn parse_body_item_normalized(
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
+    let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence);
     match token_kind(&item) {
         Some(TokenKind::Semicolon) => {
             emit_token_item(&mut i, item);
@@ -362,11 +357,12 @@ fn parse_body_item_normalized(
                 fence,
             )
         }
-        _ if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) => {
+        _ if admission.is_some() => {
             emit_missing(&mut i, LeadingTrivia::default());
             parse_inline_statement_normalized(
                 i,
                 item,
+                admission.expect("guard proved canonical Statement admission"),
                 baseline,
                 stops,
                 line_handoff,
@@ -428,11 +424,14 @@ fn recover_body_introducer_normalized(
                 fence,
             );
         }
-        if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        {
             i.state.finish_node();
             return parse_inline_statement_normalized(
                 i,
                 item,
+                admission,
                 baseline,
                 stops,
                 line_handoff,
@@ -512,10 +511,13 @@ fn parse_inline_body_item_normalized(
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+    if let Some(admission) =
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    {
         return parse_inline_statement_normalized(
             i,
             item,
+            admission,
             baseline,
             stops,
             line_handoff,
@@ -573,11 +575,14 @@ fn recover_inline_body_normalized(
             i.state.finish_node();
             return complete(handoff(item), line_entry);
         }
-        if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        {
             i.state.finish_node();
             return parse_inline_statement_normalized(
                 i,
                 item,
+                admission,
                 baseline,
                 stops,
                 line_handoff,
@@ -593,6 +598,7 @@ fn recover_inline_body_normalized(
 fn parse_inline_statement_normalized(
     mut i: RewriteIn,
     item: Item,
+    admission: StatementAdmission,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -601,9 +607,10 @@ fn parse_inline_statement_normalized(
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
-    let exit = canonical_statement_normalized(
+    let exit = canonical_statement_from_admission_normalized(
         i.rb(),
         item,
+        admission,
         baseline,
         stops,
         line_handoff.through_inline_statement(),

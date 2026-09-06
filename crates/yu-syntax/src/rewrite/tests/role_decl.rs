@@ -681,10 +681,11 @@ fn role_braced_completion_hands_off_exactly_one_normalized_successor_item() {
 }
 
 #[test]
-fn role_private_slice_has_no_direct_statement_dispatch_edge() {
+fn role_private_slice_uses_canonical_statement_dispatch() {
     let (green, _) = run_statement("role R;");
+    assert_eq!(green.to_string(), "role R;");
     assert_eq!(
         count(&SyntaxNode::new_root(green), SyntaxKind::RoleDeclaration),
-        0
+        1
     );
 }

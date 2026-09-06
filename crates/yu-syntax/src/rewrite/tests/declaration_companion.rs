@@ -293,10 +293,13 @@ fn declaration_companion_derives_runs_remain_distinct_across_outer_separators() 
 
 #[test]
 fn declaration_companion_derives_deeper_successor_has_one_sequence_owner() {
-    let source = "with:\n  derives Eq via key\n    item\nouter";
+    let source = "with:\n  derives Eq via key\n    my enum E = A\nouter";
     let (green, exit, remainder) =
         run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
-    assert_eq!(green.to_string(), "with:\n  derives Eq via key\n    item");
+    assert_eq!(
+        green.to_string(),
+        "with:\n  derives Eq via key\n    my enum E = A"
+    );
     assert_eq!(remainder, "");
     let mut outer = pending(exit.expect("indented companion returns its dedent Item"));
     assert_eq!(outer.payload_view().spelling(), Some("outer"));
@@ -317,6 +320,8 @@ fn declaration_companion_derives_deeper_successor_has_one_sequence_owner() {
     );
     assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
     assert_eq!(count(&root, SyntaxKind::Error), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::EnumDeclaration), 1, "{root:#?}");
 
     let source = "with:\n  derives Eq via key\n    @ item\nouter";
     let (green, exit, remainder) =

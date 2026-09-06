@@ -22,8 +22,8 @@ use super::{
     },
     operator::{STOP_COMMA, lone_colon_after_fenced_trivia},
     statement::{
-        StatementLineHandoff, canonical_statement_normalized, indented_statement_block_normalized,
-        is_canonical_statement_nud_normalized,
+        StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
+        classify_statement_item_normalized, indented_statement_block_normalized,
     },
     yumark::FenceBoundary,
 };
@@ -456,23 +456,27 @@ fn with_inline_item_normalized(
         }
         return complete(handoff(item), line_entry);
     }
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence)
-        && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace))
-    {
-        return canonical_statement_normalized(
-            i,
-            item,
-            baseline,
-            stops,
-            line_handoff.through_inline_statement(),
-            item_origin,
-            line_entry,
-            fence,
-        );
+    if allow_braced || token_kind(&item) != Some(TokenKind::LBrace) {
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        {
+            return canonical_statement_from_admission_normalized(
+                i,
+                item,
+                admission,
+                baseline,
+                stops,
+                line_handoff.through_inline_statement(),
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
     }
 
     emit_inline_leading(&mut i, &mut item);
-    (item, item_origin, line_entry) = retry_with_inline_body_normalized(
+    let admission;
+    (item, admission, item_origin, line_entry) = retry_with_inline_body_normalized(
         i.rb(),
         item,
         baseline,
@@ -496,16 +500,10 @@ fn with_inline_item_normalized(
         }
         return complete(handoff(item), line_entry);
     }
-    debug_assert!(is_canonical_statement_nud_normalized(
-        i.rb(),
-        &item,
-        baseline,
-        item_origin,
-        fence
-    ));
-    canonical_statement_normalized(
+    canonical_statement_from_admission_normalized(
         i,
         item,
+        admission.expect("inline-body retry returned an admitted canonical Statement"),
         baseline,
         stops,
         line_handoff.through_inline_statement(),
@@ -525,7 +523,7 @@ fn retry_with_inline_body_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
-) -> (Item, usize, LineEntry) {
+) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
         emit_token_item(&mut i, item);
@@ -543,11 +541,16 @@ fn retry_with_inline_body_normalized(
                     token_kind(&item),
                     Some(TokenKind::LBrace | TokenKind::PathSeparator)
                 ))
-            || (is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence)
-                && (allow_braced || token_kind(&item) != Some(TokenKind::LBrace)))
         {
             i.state.finish_node();
-            return (item, item_origin, line_entry);
+            return (item, None, item_origin, line_entry);
+        }
+        if (allow_braced || token_kind(&item) != Some(TokenKind::LBrace))
+            && let Some(admission) =
+                classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        {
+            i.state.finish_node();
+            return (item, Some(admission), item_origin, line_entry);
         }
     }
 }

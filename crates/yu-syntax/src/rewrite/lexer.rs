@@ -921,6 +921,24 @@ pub(super) fn source_identifier(source: &str) -> Option<(&str, &str)> {
     Some((&source[..end], &source[end..]))
 }
 
+/// Report whether source begins with declaration-head lexical evidence.
+///
+/// This source-only predicate is for contextual declaration admission.  An
+/// admitted owner still applies its own name-slot grammar; in particular, a
+/// sigil identifier can admit a declaration whose required raw identifier
+/// subsequently recovers it as malformed.
+pub(super) fn source_declaration_head(source: &str) -> bool {
+    if source_identifier(source).is_some() {
+        return true;
+    }
+    matches!(source.chars().next(), Some('$' | '&' | '\''))
+        && source
+            .chars()
+            .next()
+            .and_then(|sigil| source.get(sigil.len_utf8()..))
+            .is_some_and(|suffix| source_identifier(suffix).is_some())
+}
+
 pub(super) fn scan_apostrophe_sigil_identifier(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut segment| {
         (segment.next()? == '\'').then_some(())?;

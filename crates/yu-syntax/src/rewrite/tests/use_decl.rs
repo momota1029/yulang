@@ -233,6 +233,13 @@ fn use_c9_dispatch_is_exact_contextual_and_shared_with_binding() {
     let (green, _) = run_statement("use");
     let declaration = use_declaration(&green);
     assert_eq!(descendants_of_kind(&declaration, SyntaxKind::Missing), 1);
+
+    for source in ["our use", "pub use"] {
+        let (green, _) = run_statement(source);
+        let declaration = use_declaration(&green);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(descendants_of_kind(&declaration, SyntaxKind::Missing), 1);
+    }
 }
 
 #[test]

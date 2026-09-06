@@ -85,13 +85,6 @@ pub(super) fn struct_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(struct_declaration_selected_normalized(
-        i.rb(),
-        &intro,
-        baseline,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::StructDeclaration.into());
     if item_word(&intro) == Some("struct") {
         emit_item_as(&mut i, intro, SyntaxKind::StructKw);

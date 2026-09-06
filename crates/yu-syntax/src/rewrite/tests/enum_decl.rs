@@ -20,6 +20,16 @@ fn token_count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
         .count()
 }
 
+fn pending_token(exit: Option<NormalizedExit>, kind: TokenKind, leading: &str) {
+    let mut item = match exit {
+        Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
+        Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
+        _ => panic!("{kind:?} must remain pending"),
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(kind));
+    assert_eq!(emit_pending_leading_text(&mut item), leading);
+}
+
 fn pending_word(exit: Option<NormalizedExit>, word: &str, leading: &str) {
     let mut item = match exit {
         Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
@@ -51,6 +61,49 @@ fn enum_private_shell_builds_header_and_all_body_forms() {
         );
         assert_eq!(count(&node, SyntaxKind::Error), 0, "{source:?}\n{node:#?}");
     }
+}
+
+#[test]
+fn enum_sigil_head_evidence_recovers_one_maximal_raw_name_and_stops() {
+    for (source, accepted, malformed) in [
+        ("my enum $hidden = A", "my enum $hidden", "$hidden"),
+        ("my enum 'hidden = A", "my enum 'hidden", "'hidden"),
+    ] {
+        let (green, exit, remainder) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(remainder, " A", "{source:?}");
+        pending_token(exit, TokenKind::Equals, " ");
+        let node = declaration(&green);
+        assert_eq!(count(&node, SyntaxKind::Error), 1, "{source:?}\n{node:#?}");
+        assert_eq!(
+            count(&node, SyntaxKind::Missing),
+            0,
+            "{source:?}\n{node:#?}"
+        );
+        assert_eq!(count(&node, SyntaxKind::EnumVariant), 0, "{source:?}");
+        assert_eq!(count(&node, SyntaxKind::DerivesClause), 0, "{source:?}");
+        assert_eq!(token_count(&node, SyntaxKind::Identifier), 0, "{source:?}");
+        assert_eq!(token_count(&node, SyntaxKind::Equals), 0, "{source:?}");
+        let error = node
+            .descendants()
+            .find(|child| child.kind() == SyntaxKind::Error)
+            .expect("one declaration-local Name Error");
+        assert_eq!(error.text().to_string(), malformed, "{source:?}");
+    }
+}
+
+#[test]
+fn enum_sigil_name_error_retries_one_raw_identifier() {
+    let source = "my enum $hidden E = A";
+    let (green, exit, remainder) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert!(exit.is_some());
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::EnumVariant), 1, "{node:#?}");
+    assert_eq!(token_count(&node, SyntaxKind::Identifier), 2, "{node:#?}");
 }
 
 #[test]

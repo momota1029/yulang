@@ -52,6 +52,7 @@ pub(super) fn use_declaration_selected_normalized(
                 lex.remainder(),
                 item_origin,
                 fence,
+                item_word(item) == Some("my"),
             ))
         },
         |selected| selected,
@@ -63,6 +64,7 @@ fn prefixed_use_candidate_normalized(
     source: &str,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    require_target: bool,
 ) -> bool {
     let TriviaObservation::Visible(first) =
         observe_fenced_trivia(source, item_origin, LineEntry::InLine, fence)
@@ -77,6 +79,9 @@ fn prefixed_use_candidate_normalized(
     };
     if head != "use" {
         return false;
+    }
+    if !require_target {
+        return true;
     }
     let consumed = source.len() - after_head.len();
     let Some(after_head_origin) = item_origin.checked_add(consumed) else {
@@ -100,12 +105,6 @@ pub(super) fn use_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(use_declaration_selected_normalized(
-        i.rb(),
-        &intro,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::UseDeclaration.into());
 
     if item_word(&intro) == Some("use") {

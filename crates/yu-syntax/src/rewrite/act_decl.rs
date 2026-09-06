@@ -18,12 +18,13 @@ use super::{
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
         introduced_body_indentation_normalized, scan_identifier, scan_statement_payload,
-        scan_type_nud_payload, source_identifier,
+        scan_type_nud_payload, source_declaration_head, source_identifier,
     },
     operator::{STOP_WITH, TriviaObservation, observe_fenced_trivia},
     statement::{
-        StatementLineHandoff, braced_statement_block_normalized, canonical_statement_normalized,
-        indented_statement_block_normalized, is_canonical_statement_nud_normalized,
+        StatementAdmission, StatementLineHandoff, braced_statement_block_normalized,
+        canonical_statement_from_admission_normalized, classify_statement_item_normalized,
+        indented_statement_block_normalized,
     },
     type_expr::{
         TypeOuterBoundary, is_type_caller_boundary,
@@ -113,7 +114,7 @@ fn act_source_selected_normalized(
     .unwrap_or(false)
 }
 
-fn act_declaration_selected_normalized(
+pub(super) fn act_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
     baseline: usize,
@@ -175,18 +176,11 @@ fn prefixed_act_candidate_normalized(
     };
     head.indentation
         .is_none_or(|indentation| indentation > baseline)
-        && raw_my_head_candidate(head.source)
-}
-
-fn raw_my_head_candidate(source: &str) -> bool {
-    source_identifier(source).is_some()
-        || source
-            .strip_prefix('\'')
-            .is_some_and(|suffix| source_identifier(suffix).is_some())
+        && source_declaration_head(head.source)
 }
 
 #[allow(clippy::too_many_arguments)]
-fn act_declaration_normalized(
+pub(super) fn act_declaration_normalized(
     mut i: RewriteIn,
     intro: Item,
     baseline: usize,
@@ -196,13 +190,6 @@ fn act_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    debug_assert!(act_declaration_selected_normalized(
-        i.rb(),
-        &intro,
-        baseline,
-        item_origin,
-        fence,
-    ));
     i.state.start_node(SyntaxKind::ActDeclaration.into());
     if item_word(&intro) == Some("act") {
         emit_item_as(&mut i, intro, SyntaxKind::ActKw);
@@ -703,10 +690,13 @@ fn inline_body_from_item_normalized(
         emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
-    if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+    if let Some(admission) =
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    {
         return inline_statement_normalized(
             i,
             item,
+            admission,
             baseline,
             stops,
             line_handoff,
@@ -765,11 +755,14 @@ fn recover_inline_body_normalized(
             i.state.finish_node();
             return complete(handoff(item), line_entry);
         }
-        if is_canonical_statement_nud_normalized(i.rb(), &item, baseline, item_origin, fence) {
+        if let Some(admission) =
+            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        {
             i.state.finish_node();
             return inline_statement_normalized(
                 i,
                 item,
+                admission,
                 baseline,
                 stops,
                 line_handoff,
@@ -785,6 +778,7 @@ fn recover_inline_body_normalized(
 fn inline_statement_normalized(
     mut i: RewriteIn,
     item: Item,
+    admission: StatementAdmission,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -793,9 +787,10 @@ fn inline_statement_normalized(
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     let child_entry = suffix_marker(i.rb());
-    let exit = canonical_statement_normalized(
+    let exit = canonical_statement_from_admission_normalized(
         i.rb(),
         item,
+        admission,
         baseline,
         stops,
         line_handoff.through_inline_statement(),
@@ -984,10 +979,11 @@ fn act_gap_allowed(item: &Item, baseline: usize) -> bool {
 }
 
 fn body_starter(item: &Item) -> bool {
-    matches!(
-        token_kind(item),
-        Some(TokenKind::Semicolon | TokenKind::LBrace | TokenKind::Colon)
-    )
+    !item.payload_view().is_boundary()
+        && matches!(
+            token_kind(item),
+            Some(TokenKind::Semicolon | TokenKind::LBrace | TokenKind::Colon)
+        )
 }
 
 fn inline_terminal_semicolon(item: &Item) -> bool {

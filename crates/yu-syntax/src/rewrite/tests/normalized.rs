@@ -187,17 +187,22 @@ fn normalized_type_declaration_streams_header_and_trailing_derives() {
 }
 
 #[test]
-fn normalized_statement_visibility_admission_stops_at_the_fence() {
+fn normalized_statement_visibility_admission_respects_the_fence() {
     let fence = active_fence();
-    for source in ["> > my role A", "> > my impl A"] {
-        let (green, exit, remainder) =
+    for (source, family) in [
+        ("> > my role A", SyntaxKind::RoleDeclaration),
+        ("> > my impl A", SyntaxKind::ImplDeclaration),
+    ] {
+        let (green, _, remainder) =
             run_statement_normalized(source, 4300, LineEntry::PhysicalStart, Some(&fence));
-        let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
-            panic!("unsupported visibility head must remain a complete handoff: {source:?}")
-        };
-        assert_eq!(green.to_string(), "", "{source:?}");
-        assert_eq!(item.payload_view().spelling(), Some("my"), "{source:?}");
-        assert_eq!(remainder, &source["> > my".len()..], "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == family),
+            "{source:?}",
+        );
     }
 
     let source = "> > my\n> > ```\nouter";

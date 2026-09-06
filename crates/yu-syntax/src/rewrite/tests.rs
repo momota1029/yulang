@@ -51,6 +51,7 @@ mod owners;
 mod pattern;
 mod role_decl;
 mod rule;
+mod statement;
 mod struct_decl;
 mod tails;
 mod type_decl;

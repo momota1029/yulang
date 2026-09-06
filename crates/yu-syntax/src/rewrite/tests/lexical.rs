@@ -10,6 +10,7 @@ use crate::rewrite::{
     lexer::{
         FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part,
         scan_nud_payload, scan_pattern_nud_payload, scan_statement_item, scan_type_nud_payload,
+        source_declaration_head,
     },
     operator::{
         TriviaObservation, lone_colon_after_fenced_trivia, observe_fenced_trivia,
@@ -17,6 +18,18 @@ use crate::rewrite::{
     },
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
 };
+
+#[test]
+fn raw_declaration_head_predicate_matches_identifier_and_sigil_surface() {
+    for source in [
+        "name", "_name", "name?", "$hidden", "&hidden", "'hidden", "$hidden!",
+    ] {
+        assert!(source_declaration_head(source), "{source:?}");
+    }
+    for source in ["", "$", "&", "'", "1name", "=", ";", "}"] {
+        assert!(!source_declaration_head(source), "{source:?}");
+    }
+}
 
 fn active_fence(depth: usize) -> FenceBoundary {
     FenceBoundary {

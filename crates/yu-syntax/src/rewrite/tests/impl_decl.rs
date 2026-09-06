@@ -659,7 +659,7 @@ fn impl_preserves_caller_shallow_and_fenced_boundaries_with_origin() {
 }
 
 #[test]
-fn impl_private_owner_has_no_act_features_or_public_statement_edge() {
+fn impl_private_owner_has_no_act_features_and_uses_canonical_statement_dispatch() {
     for source in ["impl T derives D;", "impl T with {}"] {
         let (green, _, _) = run_impl_declaration(source, 0, 0, LineEntry::InLine, None);
         let node = declaration(&green);
@@ -676,8 +676,9 @@ fn impl_private_owner_has_no_act_features_or_public_statement_edge() {
     assert_eq!(remainder, "");
     assert_eq!(count(&declaration(&green), SyntaxKind::Error), 1);
     let (green, _) = run_statement("impl T;");
+    assert_eq!(green.to_string(), "impl T;");
     assert_eq!(
         count(&SyntaxNode::new_root(green), SyntaxKind::ImplDeclaration),
-        0
+        1
     );
 }

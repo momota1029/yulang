@@ -92,7 +92,7 @@ fn cast_private_owner_builds_bodyless_inline_and_indented_forms() {
 }
 
 #[test]
-fn cast_intro_is_exact_visibility_aware_and_isolated_from_dispatch() {
+fn cast_intro_is_exact_visibility_aware_and_uses_canonical_statement_dispatch() {
     for source in [
         "cast(x): T;",
         "my cast(x): T;",
@@ -132,12 +132,13 @@ fn cast_intro_is_exact_visibility_aware_and_isolated_from_dispatch() {
     assert_eq!(count(&declaration, SyntaxKind::CastBody), 1);
 
     let (green, _) = run_statement("cast(x): T;");
+    assert_eq!(green.to_string(), "cast(x): T;");
     assert_eq!(
         SyntaxNode::new_root(green)
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::CastDeclaration)
             .count(),
-        0
+        1
     );
 }
 
