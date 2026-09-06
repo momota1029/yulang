@@ -812,6 +812,23 @@ recovery-output 13、output 4、lexical/current-item 45、Use 11を実行し、p
 suiteはO4/O7 barrierまでdefer、timing budgetは0。次はO3a TypeExpression / PolymorphicVariant owner
 migrationであり、public dispatchはまだ変更しない。
 
+2026-09-07: O3a TypeExpression/PV inventoryを開始し、96個のraw recovery siteをT1–T7/PV1と
+RB-T/RB-PVへ対応付けた。private `TypeDelimitedOwner::Generic`がCall/Parenthesized/EffectRowを
+畳み込む点は、既存authority内で四owner discriminatorへ展開できる。一方、PV wrong-kind tagは
+`Error > TypeExpression`を要求し、nested Type recoveryがouter TagName Errorより先にpublishされうるため、
+O2のsealed lexical Error-runではrecord/ID source orderを保てない。architect裁定により、ordered slot/IDを
+nested parse前に予約して後でexact completeする新しいdurable output topologyにはuser approvalが必要。
+`notes/design/2026-09-07-successor-structured-recovery-reservation-amendment.md`へ狭いProposed amendmentを
+記録した。M3 compiler/recovery・specification・performance review後に選択を求める。承認前にO3a codeを
+部分移行せず、public dispatchにも触れない。
+
+2026-09-07: structured-recovery reservation提案のM3 reviewを2 roundsで完了した。round 1の指摘は、
+frozen exhausted時のfresh-ID branch、実PV再帰`:{:{123}}`のLIFO/range/order evidence、O3a checkpointの
+位置、3-record fixtureのcomplete primary expectation、borrowed frozen record、finish時の一時的
+`O(R)` slots + `O(R)` final records peak。全て文書へ反映し、compiler/recovery・specification・performance
+delta reviewはclean、timing budgetは0。statusを`Reviewed`へ更新した。現在のblockerは、この一つの
+recovery-only ordered slot protocolと最初のPV callerをuserが承認するかどうか。承認前にcodeへ入らない。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 2026-08-30: 次sliceとしてshared declaration companion `with:`を選定した。
