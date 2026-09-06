@@ -674,8 +674,21 @@ pending Itemとして返す。matching brace後はsuccessor Itemを一度だけ�
 Missing前のlocal leadingとordinary EOF Error内trivia ownershipも修復した。M2 compiler/recovery・
 specification reviewを二回のbounded repair/delta roundで閉じ、focused Role 14件、`cargo check -p
 yu-syntax`、scoped rustfmt、diff checkはgreen。typed recovery recordsとfull Gate 6 certification、workspace
-suite、timing measurementはこのpreliminary isolated sliceに含めていない。次は残るdirect declaration
-form (`Impl` / `Cast`)とfinal-root前のcoverage ledger closureであり、L6/L7/Yumark/public cutoverは未完である。
+suite、timing measurementはこのpreliminary isolated sliceに含めていない。
+
+2026-09-06: 続くprivate direct standalone `ImplDeclaration` isolated CST constructionを完了した。
+exact `impl` / visibility、full TypeExpression Head、same-line first-colon Description、newline first-colon
+body、semicolon / brace / colon-inline / colon-indented bodyを既存normalized ownerで構成し、Type-attached
+Impl、Act-specific attachment、production dispatchは変更していない。IMD-Tのfresh Description bare `{`と
+completed-tail body `{`の非対称を表すdefault-false `RequiredTypeFreshPrimaryPolicy`をshared direct Type
+mandatory entryへ追加し、initial/malformed retryだけでincoming `STOP_LBRACE`とouter LBraceをmaskする。
+既存callerはdefault wrapper、accepted tailとnested episodeは不変である。first-colon judgeはactive fenceを
+渡す`observe_fenced_trivia_with_newline`へ移し、close/transition/fenced EOF/unterminated block comment前の
+physical-newline factをouter Yumarkへ越境せず保持する。M2 architecture adjudication、compiler/recovery・
+specification review、一回のrepair/delta reviewを経てclean。focused Impl 10、TypeExpression 50、lexical 44、
+Role 14、Act 15、Struct 23件と`cargo check -p yu-syntax`、scoped rustfmt、diff checkはgreen。typed recovery
+records/full Gate 6 certification、workspace suite、timing measurementは未実施。次は残るdirect declaration
+form `Cast`とfinal-root前のcoverage ledger closureであり、L6/L7/Yumark/public cutoverは未完である。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 

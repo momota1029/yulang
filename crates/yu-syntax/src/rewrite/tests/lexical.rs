@@ -13,7 +13,7 @@ use crate::rewrite::{
     },
     operator::{
         TriviaObservation, lone_colon_after_fenced_trivia, observe_fenced_trivia,
-        scan_operator_fenced,
+        observe_fenced_trivia_with_newline, scan_operator_fenced,
     },
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
 };
@@ -535,6 +535,38 @@ fn fenced_source_observer_skips_prefixes_and_stops_before_outer_boundary() {
         TriviaObservation::Boundary
     ));
     assert_eq!(source.as_ptr(), pointer);
+}
+
+#[test]
+fn fenced_source_observer_retains_newline_before_every_terminal_boundary() {
+    let fence = active_fence(2);
+    let visible =
+        observe_fenced_trivia_with_newline("\r\n> > value", 700, LineEntry::InLine, Some(&fence));
+    assert!(visible.saw_physical_newline);
+    assert!(matches!(visible.observation, TriviaObservation::Visible(_)));
+
+    for source in [
+        "\r\n> > ```\r\nouter",
+        "\n> outer",
+        "\n> > ",
+        "/* open\n> > body",
+    ] {
+        let pointer = source.as_ptr();
+        let observed =
+            observe_fenced_trivia_with_newline(source, 700, LineEntry::InLine, Some(&fence));
+        assert!(observed.saw_physical_newline, "{source:?}");
+        assert!(matches!(observed.observation, TriviaObservation::Boundary));
+        assert_eq!(source.as_ptr(), pointer, "{source:?}");
+        assert!(matches!(
+            observe_fenced_trivia(source, 700, LineEntry::InLine, Some(&fence)),
+            TriviaObservation::Boundary
+        ));
+    }
+
+    let source = "";
+    let observed = observe_fenced_trivia_with_newline(source, 700, LineEntry::InLine, Some(&fence));
+    assert!(!observed.saw_physical_newline);
+    assert!(matches!(observed.observation, TriviaObservation::Boundary));
 }
 
 #[test]

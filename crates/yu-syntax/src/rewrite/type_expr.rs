@@ -66,6 +66,15 @@ impl TypeOuterBoundary {
     }
 }
 
+/// Slot-local ownership adjustments for a fresh mandatory Type primary.
+///
+/// The policy is deliberately not propagated into accepted tails or nested
+/// TypeExpression episodes.
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+pub(super) struct RequiredTypeFreshPrimaryPolicy {
+    pub(super) owns_bare_left_brace: bool,
+}
+
 pub(super) fn type_expr(i: RewriteIn) -> Option<TailExit> {
     type_expr_normalized(i, 0, LineEntry::InLine, None).map(ordinary_exit)
 }
@@ -132,6 +141,7 @@ pub(super) fn required_type_expr(i: RewriteIn, primary: Item, baseline: usize) -
             0,
             0,
             TypeOuterBoundary::NONE,
+            RequiredTypeFreshPrimaryPolicy::default(),
             false,
             false,
             0,
@@ -159,6 +169,7 @@ pub(super) fn required_type_expr_with_boundary(
             outer_closes,
             0,
             TypeOuterBoundary::NONE,
+            RequiredTypeFreshPrimaryPolicy::default(),
             false,
             false,
             0,
@@ -190,6 +201,7 @@ pub(super) fn required_type_expr_with_boundary_normalized(
         outer_closes,
         0,
         TypeOuterBoundary::NONE,
+        RequiredTypeFreshPrimaryPolicy::default(),
         false,
         pipe_lexical,
         item_origin,
@@ -223,6 +235,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion(
         0,
         caller_stops,
         TypeOuterBoundary::NONE,
+        RequiredTypeFreshPrimaryPolicy::default(),
         false,
         false,
         0,
@@ -248,6 +261,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
         0,
         caller_stops,
         outer_boundary,
+        RequiredTypeFreshPrimaryPolicy::default(),
         false,
         false,
         0,
@@ -268,6 +282,31 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (NormalizedExit, bool) {
+    required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
+        i,
+        primary,
+        baseline,
+        caller_stops,
+        outer_boundary,
+        RequiredTypeFreshPrimaryPolicy::default(),
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    fresh_primary_policy: RequiredTypeFreshPrimaryPolicy,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
     required_type_expr_inner_normalized(
         i,
         primary,
@@ -277,6 +316,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
         0,
         caller_stops,
         outer_boundary,
+        fresh_primary_policy,
         false,
         false,
         item_origin,
@@ -308,6 +348,7 @@ pub(super) fn required_variant_payload_type_normalized(
         0,
         0,
         outer_boundary,
+        RequiredTypeFreshPrimaryPolicy::default(),
         type_ml,
         true,
         item_origin,
@@ -333,6 +374,7 @@ pub(super) fn required_type_expr_normalized(
         0,
         0,
         TypeOuterBoundary::NONE,
+        RequiredTypeFreshPrimaryPolicy::default(),
         false,
         false,
         item_origin,
@@ -360,6 +402,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
         0,
         caller_stops,
         TypeOuterBoundary::NONE,
+        RequiredTypeFreshPrimaryPolicy::default(),
         false,
         false,
         item_origin,
@@ -378,6 +421,7 @@ fn required_type_expr_inner_normalized(
     outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
+    fresh_primary_policy: RequiredTypeFreshPrimaryPolicy,
     type_ml: bool,
     pipe_lexical: bool,
     mut item_origin: usize,
@@ -390,7 +434,13 @@ fn required_type_expr_inner_normalized(
         i.state.finish_node();
         return (complete(handoff(primary), line_entry), false);
     }
-    if is_required_type_boundary(&primary, baseline, caller_stops, outer_boundary) {
+    if is_required_type_boundary(
+        &primary,
+        baseline,
+        caller_stops,
+        outer_boundary,
+        fresh_primary_policy,
+    ) {
         i.state.start_node(SyntaxKind::TypeExpression.into());
         emit_missing(&mut i, LeadingTrivia::default());
         i.state.finish_node();
@@ -431,7 +481,13 @@ fn required_type_expr_inner_normalized(
             i.state.finish_node();
             return (complete(handoff(primary), line_entry), false);
         }
-        if is_required_type_boundary(&primary, baseline, caller_stops, outer_boundary) {
+        if is_required_type_boundary(
+            &primary,
+            baseline,
+            caller_stops,
+            outer_boundary,
+            fresh_primary_policy,
+        ) {
             i.state.finish_node();
             return (complete(handoff(primary), line_entry), false);
         }
@@ -2133,12 +2189,15 @@ fn is_required_type_boundary(
     baseline: usize,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
+    fresh_primary_policy: RequiredTypeFreshPrimaryPolicy,
 ) -> bool {
+    let owns_fresh_left_brace =
+        fresh_primary_policy.owns_bare_left_brace && token_kind(item) == Some(TokenKind::LBrace);
     !type_chain_trivia(item.leading_view(), baseline)
         || is_type_rhs_boundary(item)
         || token_kind(item) == Some(TokenKind::Equals)
-        || is_type_caller_boundary(item, caller_stops)
-        || is_fresh_type_outer_boundary(item, outer_boundary)
+        || (!owns_fresh_left_brace && is_type_caller_boundary(item, caller_stops))
+        || (!owns_fresh_left_brace && is_fresh_type_outer_boundary(item, outer_boundary))
 }
 
 fn is_fresh_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> bool {

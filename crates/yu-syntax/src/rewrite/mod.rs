@@ -20,6 +20,7 @@ mod enum_decl;
 mod error_decl;
 mod for_decl;
 mod if_expr;
+mod impl_decl;
 mod item;
 mod lexer;
 mod literal;

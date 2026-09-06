@@ -17,6 +17,7 @@ use super::{
     emit::emit_end,
     enum_decl::enum_declaration_witness,
     error_decl::error_declaration_witness,
+    impl_decl::impl_declaration_witness,
     item::{Item, OperatorUse, PhysicalLeadingTrivia, TokenKind, Trivia, TriviaKind},
     operator::{STOP_ARROW, STOP_COLON, STOP_ELSE, scan_operator, stops_for},
     pattern::{PATTERN_DEFAULT_STOPS, PATTERN_STOP_COLON, pattern_normalized, pattern_with_stops},
@@ -38,6 +39,7 @@ mod enum_decl;
 mod error_decl;
 mod for_statement;
 mod if_expr;
+mod impl_decl;
 mod lexical;
 mod literal;
 mod mod_decl;
@@ -284,6 +286,31 @@ fn run_role_declaration<'source>(
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = role_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        caller_stops,
+        super::statement::StatementLineHandoff::OrdinaryLayout,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    (builder.finish(), exit, input)
+}
+
+fn run_impl_declaration<'source>(
+    source: &'source str,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Option<NormalizedExit>, &'source str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = impl_declaration_witness(
         In::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,

@@ -353,18 +353,42 @@ pub(super) struct VisibleTrivia<'source> {
     pub(super) indentation: Option<usize>,
 }
 
+pub(super) struct TriviaObservationWithNewline<'source> {
+    pub(super) observation: TriviaObservation<'source>,
+    pub(super) saw_physical_newline: bool,
+}
+
 /// Reads one maximal trivia suffix without building Items or fence facts.
 /// Under a fence it stops at the first close, transition, or physical EOF and
 /// never reads the next outer line. Accepted quote prefixes are skipped as
 /// foreign physical text, never reclassified as ordinary whitespace.
 pub(super) fn observe_fenced_trivia<'source>(
+    source: &'source str,
+    source_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> TriviaObservation<'source> {
+    observe_fenced_trivia_with_newline(source, source_origin, line_entry, fence).observation
+}
+
+/// Fence-aware trivia observation with the physical-newline fact retained
+/// even when the visible suffix ends at a close, transition, or physical EOF.
+pub(super) fn observe_fenced_trivia_with_newline<'source>(
     mut source: &'source str,
     mut source_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
-) -> TriviaObservation<'source> {
+) -> TriviaObservationWithNewline<'source> {
     if fence.is_none() {
-        return observe_ordinary_trivia(source);
+        let observation = observe_ordinary_trivia(source);
+        let saw_physical_newline = matches!(
+            &observation,
+            TriviaObservation::Visible(visible) if visible.indentation.is_some()
+        );
+        return TriviaObservationWithNewline {
+            observation,
+            saw_physical_newline,
+        };
     }
 
     let mut present = false;
@@ -379,7 +403,10 @@ pub(super) fn observe_fenced_trivia<'source>(
         fence,
         &mut at_line_start,
     ) {
-        return TriviaObservation::Boundary;
+        return TriviaObservationWithNewline {
+            observation: TriviaObservation::Boundary,
+            saw_physical_newline: saw_newline,
+        };
     }
 
     loop {
@@ -412,7 +439,10 @@ pub(super) fn observe_fenced_trivia<'source>(
                 fence,
                 &mut at_line_start,
             ) {
-                return TriviaObservation::Boundary;
+                return TriviaObservationWithNewline {
+                    observation: TriviaObservation::Boundary,
+                    saw_physical_newline: saw_newline,
+                };
             }
             continue;
         }
@@ -429,7 +459,10 @@ pub(super) fn observe_fenced_trivia<'source>(
                 fence,
                 &mut at_line_start,
             ) {
-                return TriviaObservation::Boundary;
+                return TriviaObservationWithNewline {
+                    observation: TriviaObservation::Boundary,
+                    saw_physical_newline: saw_newline,
+                };
             }
             continue;
         }
@@ -473,20 +506,29 @@ pub(super) fn observe_fenced_trivia<'source>(
                 &mut at_line_start,
                 &mut indentation,
             ) {
-                return TriviaObservation::Boundary;
+                return TriviaObservationWithNewline {
+                    observation: TriviaObservation::Boundary,
+                    saw_physical_newline: saw_newline,
+                };
             }
             continue;
         }
 
         if source.is_empty() && fence.is_some() {
-            return TriviaObservation::Boundary;
+            return TriviaObservationWithNewline {
+                observation: TriviaObservation::Boundary,
+                saw_physical_newline: saw_newline,
+            };
         }
 
-        return TriviaObservation::Visible(VisibleTrivia {
-            source,
-            present,
-            indentation: saw_newline.then_some(indentation),
-        });
+        return TriviaObservationWithNewline {
+            observation: TriviaObservation::Visible(VisibleTrivia {
+                source,
+                present,
+                indentation: saw_newline.then_some(indentation),
+            }),
+            saw_physical_newline: saw_newline,
+        };
     }
 }
 
