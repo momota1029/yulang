@@ -1,7 +1,7 @@
 name = "spec_auditor"
 description = "Read-only exact-conformance auditor for Authoritative designs, language specifications, approved gates, and test contracts."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "high"
+model = "gpt-6-astra"
+model_reasoning_effort = "low"
 sandbox_mode = "read-only"
 developer_instructions = """
 Remain read-only. Read rules/design-authority.md, notes/design/INDEX.md, the exact governing source sections, the target diff, and relevant test contracts.
