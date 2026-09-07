@@ -2014,6 +2014,266 @@ mod tests {
     }
 
     #[test]
+    fn nested_if_identity_claims_the_pv_recovery_continuation_with_the_inner_owner() {
+        use crate::session::{
+            CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
+            UnexpectedCategory, UnexpectedSyntax,
+        };
+        use std::sync::Arc;
+
+        let source = ":{A::else: 0";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let outer = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let inner = local.push_if_expression_companion(5, &["elsif", "else"]);
+        assert_eq!(local.if_expression_companion_depth(), 2);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        assert_eq!(i.pos(), 0);
+        assert!(!any_ambient_owner_claims(&mut i));
+        assert_eq!(if_continuation_owner(&mut i), None);
+        let observation = i.checkpoint();
+        for _ in 0..3 {
+            i.input.next().expect("byte 3 probe source");
+        }
+        assert_eq!(i.pos(), 3);
+        assert!(!any_ambient_owner_claims(&mut i));
+        assert_eq!(if_continuation_owner(&mut i), None);
+        i.rollback(observation);
+        assert_eq!(i.pos(), 0);
+        let expression = i
+            .run(from_fn(parse_type_expression))
+            .expect("nested-If recovered PV prefix");
+        assert_eq!(i.pos(), 5);
+        assert_eq!(i.input.remainder(), "else: 0");
+        assert!(any_ambient_owner_claims(&mut i));
+        assert_eq!(if_continuation_owner(&mut i), Some(inner));
+        assert!(any_ambient_owner_claims(&mut i));
+        assert_eq!(if_continuation_owner(&mut i), Some(inner));
+        assert_eq!(i.local.stop_set(), None);
+        assert_eq!(expression.range, 0..5);
+        assert!(
+            expression.leading_effect_row.is_none()
+                && expression.postfix.is_empty()
+                && expression.arrow.is_none()
+        );
+        let TypePrimary::PolymorphicVariant(pv) = expression.complete_primary() else {
+            panic!("nested-If recovered PV AST")
+        };
+        assert_eq!(pv.range, 0..5);
+        assert_eq!(pv.colon, 0..1);
+        assert_eq!(pv.open, 1..2);
+        assert!(pv.trailing_comma.is_none());
+        assert!(matches!(pv.close, Recovered::Incomplete));
+        let [Recovered::Complete(tag), Recovered::Incomplete] = pv.tags.as_slice() else {
+            panic!("nested-If recovered PV tags")
+        };
+        assert_eq!(tag.range, 2..3);
+        assert!(tag.payloads.is_empty());
+        assert!(
+            matches!(&tag.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3))
+        );
+        drop(i);
+        assert_eq!(local.type_expression_episode_depth(), 0);
+        assert_eq!(local.type_expression_episode_policy(), None);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(local.if_expression_companion_depth(), 2);
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(inner)
+        );
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let outer = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let inner = local.push_if_expression_companion(5, &["elsif", "else"]);
+        assert_eq!(local.if_expression_companion_depth(), 2);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        assert_eq!(committed.probe(|probe| probe.input().pos()), 0);
+        assert!(committed.probe(|probe| !any_ambient_owner_claims(probe.input())));
+        assert_eq!(
+            committed.probe(|probe| if_continuation_owner(probe.input())),
+            None,
+        );
+        committed.probe(|probe| {
+            let i = probe.input();
+            let observation = i.checkpoint();
+            for _ in 0..3 {
+                i.input.next().expect("direct byte 3 probe source");
+            }
+            assert_eq!(i.pos(), 3);
+            assert!(!any_ambient_owner_claims(i));
+            assert_eq!(if_continuation_owner(i), None);
+            i.rollback(observation);
+            assert_eq!(i.pos(), 0);
+        });
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed)
+            .expect("nested-If recovered direct PV prefix");
+        assert_eq!(committed.probe(|probe| probe.input().pos()), 5);
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "else: 0",
+        );
+        assert!(committed.probe(|probe| any_ambient_owner_claims(probe.input())));
+        assert_eq!(
+            committed.probe(|probe| if_continuation_owner(probe.input())),
+            Some(inner),
+        );
+        assert!(committed.probe(|probe| any_ambient_owner_claims(probe.input())));
+        assert_eq!(
+            committed.probe(|probe| if_continuation_owner(probe.input())),
+            Some(inner),
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.stop_set()),
+            None,
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.type_expression_episode_depth()),
+            0,
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.type_expression_episode_policy()),
+            None,
+        );
+        assert_eq!(
+            committed.probe(|probe| {
+                probe
+                    .input()
+                    .local
+                    .type_expression_scoped_stop_frames()
+                    .count()
+            }),
+            0,
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        let records = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(root.to_string(), ":{A::");
+        assert_eq!(format!("{root}else: 0"), source);
+        let shape = root
+            .descendants_with_tokens()
+            .map(|part| {
+                let depth = match &part {
+                    rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                    rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                };
+                let range =
+                    usize::from(part.text_range().start())..usize::from(part.text_range().end());
+                assert_eq!(part.to_string(), source[range.clone()]);
+                (depth, part.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                (0, SyntaxKind::Root, 0..5),
+                (1, SyntaxKind::TypeExpression, 0..5),
+                (2, SyntaxKind::PolymorphicVariantType, 0..5),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..3),
+                (4, SyntaxKind::Identifier, 2..3),
+                (3, SyntaxKind::PolymorphicVariantTag, 3..5),
+                (4, SyntaxKind::Error, 3..5),
+                (5, SyntaxKind::Unknown, 3..5),
+                (3, SyntaxKind::Missing, 5..5),
+            ],
+        );
+        let tag_role = GrammarRole::Type(TypeRole::PolymorphicVariantTag);
+        let close_role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::PolymorphicVariantType,
+            delimiter: Delimiter::Brace,
+        };
+        assert_eq!(
+            records,
+            vec![
+                CommittedRecoveryRecord {
+                    id: DiagnosticId(0),
+                    site: RecoverySiteKey {
+                        role: tag_role,
+                        range: 3..5,
+                    },
+                    kind: RecoveryKind::Error,
+                    unexpected: Arc::from([UnexpectedSyntax::Token {
+                        range: 3..5,
+                        category: UnexpectedCategory::OtherCharacter,
+                    }]),
+                    expectations: Arc::from([SyntaxExpectation {
+                        role: tag_role,
+                        expected: ExpectedSyntax::Identifier,
+                        range: 3..5,
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    }]),
+                    primary_expectation: 0,
+                },
+                CommittedRecoveryRecord {
+                    id: DiagnosticId(1),
+                    site: RecoverySiteKey {
+                        role: close_role,
+                        range: 5..5,
+                    },
+                    kind: RecoveryKind::Missing,
+                    unexpected: Arc::from([]),
+                    expectations: Arc::from([SyntaxExpectation {
+                        role: close_role,
+                        expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                            Delimiter::Brace,
+                        )),
+                        range: 5..5,
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    }]),
+                    primary_expectation: 0,
+                },
+            ],
+        );
+        assert_eq!(local.type_expression_episode_depth(), 0);
+        assert_eq!(local.type_expression_episode_policy(), None);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(local.if_expression_companion_depth(), 2);
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(inner)
+        );
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
+    }
+
+    #[test]
     fn opener_and_comma_fresh_heads_keep_companion_spelling_local() {
         let source = ":{else,A,else}";
         let stops = StopSet::default()

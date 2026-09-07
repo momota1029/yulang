@@ -60,7 +60,7 @@ The following direct controls are retained rather than rewritten:
 | scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership |
 | primary and reservation boundary | `legacy_polymorphic_variant_primary_completion_preflight` | non-atomic primary external/internal tails, selected `::Next`, numeric apparent Call, prefix, and recursive PV ownership |
 | P and E carriers | `legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned` and `legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned` | P/E ordinary-gap extent facts, E rows, numeric apparent-Call distinction, prefix/nested cells, and `::Next` continuations |
-| ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial and recovery-continuation, and nested-If identity controls, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, strict-dedent initial `:{A\nelse: 0}` and recovery-continuation `:{123\nelse: 0}` under baseline 2, plus nested outer(0)/inner(5) same-line `:{A else: 0}` selecting inner, can remain ambient despite no active stop bit; frames must balance |
+| ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial and recovery-continuation, and nested-If initial/recovery-continuation controls, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, strict-dedent initial `:{A\nelse: 0}` and recovery-continuation `:{123\nelse: 0}` under baseline 2, plus nested outer(0)/inner(5) same-line initial `:{A else: 0}` and recovery-continuation `:{A::else: 0}` selecting inner, can remain ambient despite no active stop bit; frames must balance |
 
 These controls do not prove a general retry grammar.  In particular, their
 valid-name scalar examples do not characterize equivalent wrong-head, fence,
@@ -70,8 +70,7 @@ The current direct PV ambient coverage is deliberately narrower than the
 ordinary provenance matrix: it installs a root scope with one visible
 companion.  Query-level `ParseLocal` indented/dedent and nested-companion tests
 are not PV AST/CST/recovery evidence.  They therefore do not discharge the
-nested-If recovery-continuation, accepted-own-Else retirement, or
-post-completed-If outer-tail cells below.
+accepted-own-Else retirement or post-completed-If outer-tail cells below.
 
 ## 3. Required direct evidence matrix
 
@@ -87,7 +86,7 @@ unavailable only with a concrete reason and without inferring a policy from it.
 | wrong-head scalar runs | `+`, `@@`, `::/*c*/`, and CRLF after a wrong head; admitted nested-PV retry, decline, native-close, and EOF counterparts where legacy exposes them |
 | spacing and no-retry | wrong-head spaced malformed surface; each named multi-token/comment spelling whose no-retry result would be used by a future classifier |
 | fence-qualified scalar rows | valid and wrong heads at inline retry/decline and CRLF/fence termination, or an explicit direct unavailability result for each |
-| ordinary ambient provenance | root visible/no-stop initial and retry, indented strict-dedent initial/recovery-continuation, and nested-If initial identity are already pinned; add nested-If recovery-continuation and initial/recovery-continuation under own Else and outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
+| ordinary ambient provenance | root visible/no-stop initial and retry, indented strict-dedent initial/recovery-continuation, and nested-If initial/recovery-continuation are already pinned; add initial/recovery-continuation under own Else and outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
 | retry primary vocabulary | adjacent and spaced forms for every primary class proposed for admission, with leading BracketRow explicitly classified rather than silently inherited |
 | retained structural siblings | numeric apparent Call, non-atomic external/internal tails, repeated payload, prefix and recursive reservation, and every authorized P/E extent row remain exact fresh/frozen controls |
 | unavailable callers | virtual normal/heredoc/nested/fence and Yumark production-cell rows remain unavailable until a separate policy/evidence decision; a future observer must decline under carrier `None` |
@@ -143,6 +142,13 @@ selects the captured inner companion at byte 3.  The direct/AST prefix ends
 before the exact ` else: 0` remainder and has only the PV outer-brace Missing
 record.  Repeated probes pin rollback-stable inner identity; this does not
 retire an accepted Else frame or restore an outer tail.
+
+The eighth bounded slice pins nested-If identity after scalar recovery.  Under
+the same root, outer(0), inner(5), no-stop context, `:{A::else: 0` has no claim
+at byte 3 before `::` is consumed, then selects the captured inner companion
+at byte 5.  Its prefix has one complete `A` tag, one recovered `::` tag slot,
+then the outer-brace Missing record; the exact `else: 0` remainder stays
+unconsumed.  It neither retires an Else frame nor restores an outer tail.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
