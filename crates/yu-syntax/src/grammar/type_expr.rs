@@ -8567,6 +8567,278 @@ mod tests {
     }
 
     #[test]
+    fn t4p_legacy_parenthesized_inherited_type_ml_baselines_are_execution_pinned() {
+        fn assert_group(expression: &TypeExpression<'_>, expected_items: usize) {
+            assert!(
+                matches!(expression.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Complete(_),
+                    ..
+                }) if elements.len() == expected_items),
+                "{expression:#?}",
+            );
+        }
+
+        fn assert_outer_apply_group(source: &str, expected_items: usize) {
+            let expression = parse(source);
+            assert!(
+                matches!(expression.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                    if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                        elements,
+                        close: Recovered::Complete(_),
+                        ..
+                    }) if elements.len() == expected_items)),
+                "{source:?}: {expression:#?}",
+            );
+        }
+
+        fn assert_direct(source: &str, expected: Option<(TypeRole, Range<usize>)>) -> SyntaxNode {
+            let records = parse_direct_recovered(source);
+            match expected {
+                Some((role, range)) => assert!(
+                    matches!(records.as_slice(), [record]
+                        if record.site.role == GrammarRole::Type(role)
+                            && record.site.range == range
+                            && record.kind == RecoveryKind::Missing
+                            && record.primary_expectation == 0
+                            && record.expectations[record.primary_expectation].expected
+                                == ExpectedSyntax::DelimitedSequenceSeparator),
+                    "{source:?}: {records:#?}",
+                ),
+                None => assert!(records.is_empty(), "{source:?}: {records:#?}"),
+            }
+            let direct = parse_direct(source);
+            assert_eq!(
+                direct.to_string(),
+                source,
+                "lossless direct CST: {source:?}"
+            );
+            direct
+        }
+
+        let standalone = parse("(F A)");
+        assert!(
+            matches!(standalone.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                elements,
+                close: Recovered::Complete(close),
+                ..
+            }) if matches!(elements.as_slice(), [Recovered::Complete(item)]
+                if matches!(item.postfix.as_slice(), [TypePostfixTail::Apply(_)]))
+                && close == (4..5)),
+            "{standalone:#?}",
+        );
+        assert_direct("(F A)", None);
+
+        let adjacent = parse("(A{})");
+        assert_group(&adjacent, 2);
+        let adjacent_direct =
+            assert_direct("(A{})", Some((TypeRole::ParenthesizedSeparator, 2..2)));
+        let adjacent_group = adjacent_direct
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+            .expect("direct adjacent ParenthesizedTypeGroup");
+        assert_eq!(
+            adjacent_group
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::RParen,
+            ],
+        );
+
+        let crlf = parse("G (F\r\n  A)");
+        assert!(
+            matches!(crlf.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Complete(close),
+                    ..
+                }) if elements.len() == 2 && close == (9..10))),
+            "{crlf:#?}",
+        );
+        let crlf_direct = assert_direct(
+            "G (F\r\n  A)",
+            Some((TypeRole::ParenthesizedSeparator, 8..8)),
+        );
+        let crlf_group = crlf_direct
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+            .expect("direct CRLF ParenthesizedTypeGroup");
+        assert_eq!(
+            crlf_group
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Newline,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::RParen,
+            ],
+        );
+        let crlf_trivia = crlf_group
+            .children_with_tokens()
+            .filter_map(|child| child.into_token())
+            .filter(|token| matches!(token.kind(), SyntaxKind::Newline | SyntaxKind::Whitespace))
+            .map(|token| (token.kind(), token.text().to_string()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            crlf_trivia,
+            vec![
+                (SyntaxKind::Newline, "\r\n".to_owned()),
+                (SyntaxKind::Whitespace, "  ".to_owned()),
+            ],
+        );
+
+        for source in ["G (F , A)", "G (F; A)", "G (F\nA)", "G (F\r\nA)"] {
+            assert_outer_apply_group(source, 2);
+            assert_direct(source, None);
+        }
+
+        let line_comment = "G (F // note\nA)";
+        assert_outer_apply_group(line_comment, 2);
+        let line_comment_direct = assert_direct(line_comment, None);
+        let line_comment_group = line_comment_direct
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+            .expect("direct line-comment ParenthesizedTypeGroup");
+        assert_eq!(
+            line_comment_group
+                .children_with_tokens()
+                .filter_map(|child| child.into_token())
+                .filter(|token| {
+                    matches!(
+                        token.kind(),
+                        SyntaxKind::Whitespace | SyntaxKind::LineComment | SyntaxKind::Newline
+                    )
+                })
+                .map(|token| (token.kind(), token.text().to_string()))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::Whitespace, " ".to_owned()),
+                (SyntaxKind::LineComment, "// note".to_owned()),
+                (SyntaxKind::Newline, "\n".to_owned()),
+            ],
+        );
+
+        let block_comment = "G (F/*note*/ A)";
+        assert_outer_apply_group(block_comment, 2);
+        let block_comment_direct = assert_direct(
+            block_comment,
+            Some((TypeRole::ParenthesizedSeparator, 13..13)),
+        );
+        let block_comment_group = block_comment_direct
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+            .expect("direct block-comment ParenthesizedTypeGroup");
+        assert_eq!(
+            block_comment_group
+                .children_with_tokens()
+                .filter_map(|child| child.into_token())
+                .filter(|token| {
+                    matches!(
+                        token.kind(),
+                        SyntaxKind::BlockComment | SyntaxKind::Whitespace
+                    )
+                })
+                .map(|token| (token.kind(), token.text().to_string()))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::BlockComment, "/*note*/".to_owned()),
+                (SyntaxKind::Whitespace, " ".to_owned()),
+            ],
+        );
+
+        let actual_close = parse("G (F\r\n  )");
+        assert!(
+            matches!(actual_close.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Complete(close),
+                    ..
+                }) if elements.len() == 1 && close == (8..9))),
+            "{actual_close:#?}",
+        );
+        assert_direct("G (F\r\n  )", None);
+
+        let nested_group = parse("G ((F A))");
+        assert!(
+            matches!(nested_group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Complete(_),
+                    ..
+                }) if matches!(elements.as_slice(), [Recovered::Complete(inner)]
+                    if matches!(inner.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                        elements,
+                        close: Recovered::Complete(_),
+                        ..
+                    }) if elements.len() == 2)))),
+            "{nested_group:#?}",
+        );
+        assert_direct("G ((F A))", Some((TypeRole::ParenthesizedSeparator, 6..6)));
+
+        let through_call = parse("G T((F A))");
+        assert!(
+            matches!(through_call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(call)]
+                    if matches!(call.arguments.as_slice(), [Recovered::Complete(item)]
+                        if matches!(item.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                            elements,
+                            close: Recovered::Complete(_),
+                            ..
+                        }) if elements.len() == 2)))),
+            "{through_call:#?}",
+        );
+        assert_direct("G T((F A))", Some((TypeRole::ParenthesizedSeparator, 7..7)));
+
+        let through_bracket_row = parse("G T[(F A)]->U");
+        assert!(
+            matches!(through_bracket_row.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.arrow, Some(TypeArrowTail {
+                    argument_effect: Some(BracketRow { ref items, close: Recovered::Complete(_), .. }),
+                    ..
+                }) if matches!(items.as_slice(), [Recovered::Complete(item)]
+                    if matches!(item.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                        elements,
+                        close: Recovered::Complete(_),
+                        ..
+                    }) if elements.len() == 2)))),
+            "{through_bracket_row:#?}",
+        );
+        assert_direct(
+            "G T[(F A)]->U",
+            Some((TypeRole::ParenthesizedSeparator, 7..7)),
+        );
+
+        let ordinary_call = parse("T(F A)");
+        assert!(
+            matches!(ordinary_call.postfix.as_slice(), [TypePostfixTail::Call(call)]
+                if matches!(call.arguments.as_slice(), [Recovered::Complete(argument)]
+                    if matches!(argument.postfix.as_slice(), [TypePostfixTail::Apply(_)]))),
+            "{ordinary_call:#?}",
+        );
+        assert_direct("T(F A)", None);
+
+        let inherited_call = parse("G T(F A)");
+        assert!(
+            matches!(inherited_call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(call)]
+                    if call.arguments.len() == 2)),
+            "{inherited_call:#?}",
+        );
+        assert_direct("G T(F A)", Some((TypeRole::CallArgumentSeparator, 6..6)));
+    }
+
+    #[test]
     fn call_and_group_recovery_leave_outer_owned_boundaries_unconsumed() {
         let (call_remainder, call_ast) =
             parse_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
