@@ -24,6 +24,28 @@ without replay/buffering before a fresh user decision.  The separately
 authorized shared delimited candidate remains unstaged in
 `type_expr/delimited.rs` and its focused tests.
 
+2026-09-07: the current shared Call/Parenthesized/EffectRow horizontal
+delimiter candidate had M3 compiler/recovery, specification, and regression
+implementation review.  The helper is within its immediate-owner authority,
+but integration is blocked: the authorized Parenthesized/EffectRow
+structured-PV addenda require their complete fresh/frozen carrier matrices,
+and numeric apparent Call under a wrong-kind PV head remains a distinct
+payload-admission contradiction.  The only changed P-in-TagName oracle is the
+after-item row; Initial/separator/continuation/prefix/nested P controls and all
+E rows are still absent.  These candidate-dependent controls cannot be made an
+independent green commit on `HEAD`; the two dirty candidate files remain
+unstaged.  The six `rewrite::tests::type_decl` failures are baseline failures
+relative to `b85c32f3`, not a reason to rewrite their expectations here.
+
+The next design/evidence gate is a private ordinary-context pre-Item scalar
+frontier for the shared PV payload judge.  It must first pin every named retry
+class and byte boundary, including colon overlap, comments, CRLF/fence,
+ambient `else`, `None` virtual/Yumark decline, numeric apparent Call, and
+P/E carriers; specify a no-retention/no-replay observation point; and prove
+aggregate bounded work.  No payload observation, virtual policy, or resumption
+of the primary-completion candidate is authorized until a replacement M3 Draft
+is independently reviewed and a fresh user decision is recorded.
+
 `2026-09-07-successor-pv-payload-admission-capability-amendment.md` remains a
 Draft problem record, not a construction gate.  Initial M3 review found that
 `:{A::{B}}` needs its retry boundary inside successor's completed `::`
