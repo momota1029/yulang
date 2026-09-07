@@ -5,7 +5,13 @@ use super::ambient_claim::AmbientClaimContext;
 use super::ambient_claim::AmbientClaimView;
 use reborrow_generic::Reborrow as _;
 
-use crate::syntax_kind::SyntaxKind;
+use crate::{
+    session::{
+        DeclarationRole, EnumDeclarationRole, ErrorDeclarationRole, GrammarRole,
+        VariantDeclarationRole,
+    },
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     RewriteIn, Stops,
@@ -26,6 +32,21 @@ use super::{
     },
     yumark::FenceBoundary,
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum VariantOwner {
+    Enum,
+    Error,
+}
+
+impl VariantOwner {
+    fn role(self, slot: VariantDeclarationRole) -> GrammarRole {
+        GrammarRole::Declaration(match self {
+            Self::Enum => DeclarationRole::Enum(EnumDeclarationRole::Variant(slot)),
+            Self::Error => DeclarationRole::Error(ErrorDeclarationRole::Variant(slot)),
+        })
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum VariantSequenceForm {
@@ -68,6 +89,7 @@ impl VariantSequenceForm {
 #[allow(clippy::too_many_arguments)]
 pub(super) fn declaration_variant_sequence_normalized(
     mut i: RewriteIn,
+    owner: VariantOwner,
     form: VariantSequenceForm,
     introducer: Item,
     yield_with: bool,
@@ -111,6 +133,7 @@ pub(super) fn declaration_variant_sequence_normalized(
     };
     drive_variant_sequence(
         i,
+        owner,
         form,
         item,
         yield_with,
@@ -133,6 +156,7 @@ enum Slot {
 #[allow(clippy::too_many_arguments)]
 fn drive_variant_sequence(
     mut i: RewriteIn,
+    owner: VariantOwner,
     form: VariantSequenceForm,
     mut item: Item,
     yield_with: bool,
@@ -211,6 +235,7 @@ fn drive_variant_sequence(
 
         let parsed = parse_variant(
             i.rb(),
+            owner,
             item,
             form,
             yield_with,
@@ -294,6 +319,7 @@ struct ParsedVariant {
 #[allow(clippy::too_many_arguments)]
 fn parse_variant(
     mut i: RewriteIn,
+    owner: VariantOwner,
     mut item: Item,
     form: VariantSequenceForm,
     yield_with: bool,
@@ -351,6 +377,7 @@ fn parse_variant(
         let parsed = parse_payload_type(
             i.rb(),
             item,
+            owner.role(VariantDeclarationRole::FromType),
             sequence_baseline,
             TypeMlContext::INACTIVE,
             form.allows_pipe(),
@@ -379,6 +406,11 @@ fn parse_variant(
         };
         let fields = declaration_fields_normalized(
             i.rb(),
+            owner.role(if list == FieldList::Tuple {
+                VariantDeclarationRole::TupleFieldType
+            } else {
+                VariantDeclarationRole::NamedFieldType
+            }),
             item,
             sequence_baseline,
             stops,
@@ -424,6 +456,7 @@ fn parse_variant(
         let parsed = parse_payload_type(
             i.rb(),
             item,
+            owner.role(VariantDeclarationRole::PositionalPayload),
             sequence_baseline,
             TypeMlContext::INACTIVE.enter_non_type_apply(),
             form.allows_pipe(),
@@ -473,6 +506,7 @@ fn positional_payload_candidate(form: VariantSequenceForm, item: &Item, baseline
 fn parse_payload_type(
     mut i: RewriteIn,
     primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     type_ml: TypeMlContext,
     pipe_boundary: bool,
@@ -486,6 +520,7 @@ fn parse_payload_type(
     let (exit, _) = required_variant_payload_type_normalized_with_ambient(
         i.rb(),
         primary,
+        missing_role,
         baseline,
         type_ml,
         (if pipe_boundary {
@@ -617,6 +652,7 @@ pub(super) fn declaration_variant_sequence_witness(
     (token_kind(&introducer) == Some(form.introducer())).then(|| {
         declaration_variant_sequence_normalized(
             i,
+            VariantOwner::Enum,
             form,
             introducer,
             false,

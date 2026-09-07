@@ -27,7 +27,7 @@ use super::{
         suffix_marker, token_kind,
     },
     emit::{
-        ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_missing, emit_recovery_error_run,
+        ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_recovery_error_run,
         emit_recovery_missing, emit_token_item,
     },
     item::{Item, LeadingTrivia, LeadingView, TokenKind},
@@ -182,6 +182,7 @@ pub(super) fn type_nud_item_normalized(
 }
 
 /// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+#[cfg(test)]
 pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
     i: RewriteIn,
     primary: Item,
@@ -194,6 +195,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
     required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
         i,
         primary,
+        GrammarRole::Type(TypeRole::Primary),
         baseline,
         caller_stops,
         item_origin,
@@ -204,6 +206,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
 }
 
 /// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+#[cfg(test)]
 pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized(
     i: RewriteIn,
     primary: Item,
@@ -217,6 +220,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
     required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
         i,
         primary,
+        GrammarRole::Type(TypeRole::Primary),
         baseline,
         caller_stops,
         outer_boundary,
@@ -228,6 +232,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
 }
 
 /// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+#[cfg(test)]
 pub(super) fn required_variant_payload_type_normalized(
     i: RewriteIn,
     primary: Item,
@@ -241,6 +246,7 @@ pub(super) fn required_variant_payload_type_normalized(
     required_variant_payload_type_normalized_with_ambient(
         i,
         primary,
+        GrammarRole::Type(TypeRole::Primary),
         baseline,
         type_ml,
         outer_boundary,
@@ -436,62 +442,11 @@ pub(super) fn type_expr_with_context_and_boundaries_for_test(
 /// module owns both a malformed type-primary Error and the retry. This entry
 /// point has no caller-arrow policy; consumers that make an Arrow active must
 /// own that boundary themselves.
-pub(super) fn required_type_expr(i: RewriteIn, primary: Item, baseline: usize) -> TailExit {
-    ordinary_exit(
-        required_type_expr_inner_normalized(
-            i,
-            primary,
-            baseline,
-            None,
-            false,
-            0,
-            0,
-            TypeOuterBoundary::NONE,
-            RequiredTypeFreshPrimaryPolicy::default(),
-            TypeMlContext::INACTIVE,
-            false,
-            0,
-            LineEntry::InLine,
-            None,
-            Some(AmbientClaimView::root_statement(baseline)).into(),
-        )
-        .0,
-    )
-}
-
-pub(super) fn required_type_expr_with_boundary(
-    i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_closes: u8,
-) -> TailExit {
-    ordinary_exit(
-        required_type_expr_inner_normalized(
-            i,
-            primary,
-            baseline,
-            apply_boundary,
-            true,
-            outer_closes,
-            0,
-            TypeOuterBoundary::NONE,
-            RequiredTypeFreshPrimaryPolicy::default(),
-            TypeMlContext::INACTIVE,
-            false,
-            0,
-            LineEntry::InLine,
-            None,
-            Some(AmbientClaimView::root_statement(baseline)).into(),
-        )
-        .0,
-    )
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn required_type_expr_with_boundary_normalized(
     i: RewriteIn,
     primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_closes: u8,
@@ -504,6 +459,7 @@ pub(super) fn required_type_expr_with_boundary_normalized(
     required_type_expr_inner_normalized(
         i,
         primary,
+        missing_role,
         baseline,
         apply_boundary,
         true,
@@ -521,72 +477,11 @@ pub(super) fn required_type_expr_with_boundary_normalized(
     .0
 }
 
-pub(super) fn required_type_expr_with_caller_stops(
-    i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    caller_stops: Stops,
-) -> TailExit {
-    required_type_expr_with_caller_stops_and_completion(i, primary, baseline, caller_stops).0
-}
-
-pub(super) fn required_type_expr_with_caller_stops_and_completion(
-    i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    caller_stops: Stops,
-) -> (TailExit, bool) {
-    let (exit, primary_found) = required_type_expr_inner_normalized(
-        i,
-        primary,
-        baseline,
-        None,
-        false,
-        0,
-        caller_stops,
-        TypeOuterBoundary::NONE,
-        RequiredTypeFreshPrimaryPolicy::default(),
-        TypeMlContext::INACTIVE,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    );
-    (ordinary_exit(exit), primary_found)
-}
-
-pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
-    i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> (TailExit, bool) {
-    let (exit, primary_found) = required_type_expr_inner_normalized(
-        i,
-        primary,
-        baseline,
-        None,
-        false,
-        0,
-        caller_stops,
-        outer_boundary,
-        RequiredTypeFreshPrimaryPolicy::default(),
-        TypeMlContext::INACTIVE,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    );
-    (ordinary_exit(exit), primary_found)
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
     i: RewriteIn,
     primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
@@ -598,6 +493,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
     required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
         i,
         primary,
+        missing_role,
         baseline,
         caller_stops,
         outer_boundary,
@@ -613,6 +509,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
 pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
     i: RewriteIn,
     primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
@@ -625,6 +522,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
     required_type_expr_inner_normalized(
         i,
         primary,
+        missing_role,
         baseline,
         None,
         false,
@@ -648,6 +546,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
 pub(super) fn required_variant_payload_type_normalized_with_ambient(
     i: RewriteIn,
     primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     type_ml: TypeMlContext,
     outer_boundary: TypeOuterBoundary,
@@ -659,6 +558,7 @@ pub(super) fn required_variant_payload_type_normalized_with_ambient(
     required_type_expr_inner_normalized(
         i,
         primary,
+        missing_role,
         baseline,
         None,
         false,
@@ -678,6 +578,7 @@ pub(super) fn required_variant_payload_type_normalized_with_ambient(
 pub(super) fn required_type_expr_normalized(
     i: RewriteIn,
     primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     item_origin: usize,
     line_entry: LineEntry,
@@ -687,6 +588,7 @@ pub(super) fn required_type_expr_normalized(
     required_type_expr_inner_normalized(
         i,
         primary,
+        missing_role,
         baseline,
         None,
         false,
@@ -707,6 +609,7 @@ pub(super) fn required_type_expr_normalized(
 pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
     i: RewriteIn,
     primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     caller_stops: Stops,
     item_origin: usize,
@@ -717,6 +620,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_wit
     required_type_expr_inner_normalized(
         i,
         primary,
+        missing_role,
         baseline,
         None,
         false,
@@ -737,6 +641,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_wit
 fn required_type_expr_inner_normalized(
     mut i: RewriteIn,
     mut primary: Item,
+    missing_role: GrammarRole,
     baseline: usize,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
@@ -751,21 +656,23 @@ fn required_type_expr_inner_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, bool) {
-    if primary.payload_view().is_boundary() {
+    if primary.payload_view().is_boundary()
+        || is_required_type_boundary(
+            &primary,
+            baseline,
+            caller_stops,
+            outer_boundary,
+            fresh_primary_policy,
+        )
+    {
         i.state.start_node(SyntaxKind::TypeExpression.into());
-        emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
-        return (complete(handoff(primary), line_entry), false);
-    }
-    if is_required_type_boundary(
-        &primary,
-        baseline,
-        caller_stops,
-        outer_boundary,
-        fresh_primary_policy,
-    ) {
-        i.state.start_node(SyntaxKind::TypeExpression.into());
-        emit_missing(&mut i, LeadingTrivia::default());
+        let at = primary.payload_view().pending_boundary().map_or_else(
+            || primary.extent(item_origin).recovery_range().start,
+            |boundary| boundary.coordinate(),
+        );
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+            type_expression_missing_draft(missing_role, range)
+        });
         i.state.finish_node();
         return (complete(handoff(primary), line_entry), false);
     }
@@ -881,8 +788,10 @@ fn type_expression_error_draft(
     )
 }
 
-fn type_expression_missing_draft(role: TypeRole, range: std::ops::Range<usize>) -> RecoveryDraft {
-    let role = GrammarRole::Type(role);
+fn type_expression_missing_draft(
+    role: GrammarRole,
+    range: std::ops::Range<usize>,
+) -> RecoveryDraft {
     RecoveryDraft::new(
         RecoverySiteKey {
             role,
@@ -1750,7 +1659,10 @@ fn type_leading_bracket_row_normalized(
         NormalizedExit::Complete(Ok(()), next_line_entry) => line_entry = next_line_entry,
         NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
             emit_recovery_missing(i.rb(), LeadingTrivia::default(), item_origin, |range| {
-                type_expression_missing_draft(TypeRole::LeadingEffectTypeHead, range)
+                type_expression_missing_draft(
+                    GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+                    range,
+                )
             });
             return complete(Err(Either::Right(end)), next_line_entry);
         }
@@ -1906,7 +1818,7 @@ fn emit_leading_type_head_missing(i: &mut RewriteIn, item: &Item, item_origin: u
         |boundary| boundary.coordinate(),
     );
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        type_expression_missing_draft(TypeRole::LeadingEffectTypeHead, range)
+        type_expression_missing_draft(GrammarRole::Type(TypeRole::LeadingEffectTypeHead), range)
     });
 }
 
@@ -2782,14 +2694,14 @@ fn type_arrow_rhs_normalized(
             .expect("a boundary Item retains its inspected boundary")
             .coordinate();
         emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_expression_missing_draft(TypeRole::ArrowRhs, range)
+            type_expression_missing_draft(GrammarRole::Type(TypeRole::ArrowRhs), range)
         });
         return complete(handoff(rhs), line_entry);
     }
     if is_type_outer_boundary(&rhs, outer_boundary) {
         let at = rhs.extent(item_origin).recovery_range().start;
         emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_expression_missing_draft(TypeRole::ArrowRhs, range)
+            type_expression_missing_draft(GrammarRole::Type(TypeRole::ArrowRhs), range)
         });
         return complete(handoff(rhs), line_entry);
     }
@@ -2800,7 +2712,7 @@ fn type_arrow_rhs_normalized(
         rhs.emit_all_remaining_leading(&mut *i.state);
         let at = rhs.extent(item_origin).recovery_range().start;
         emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_expression_missing_draft(TypeRole::ArrowRhs, range)
+            type_expression_missing_draft(GrammarRole::Type(TypeRole::ArrowRhs), range)
         });
         return complete(handoff(rhs), line_entry);
     }

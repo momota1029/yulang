@@ -186,7 +186,32 @@ fn derives_normalized_recovers_role_and_via_slots_before_the_fence() {
     let operators = OperatorTable::empty();
     for (accepted, missing, errors, expected_recoveries) in [
         ("> > derives", 1, 0, Vec::new()),
-        ("> > derives Eq, via", 2, 0, Vec::new()),
+        (
+            "> > derives Eq, via",
+            2,
+            0,
+            vec![{
+                let role = GrammarRole::Declaration(crate::session::DeclarationRole::Derives(
+                    crate::session::DerivesRole::RoleReference,
+                ));
+                CommittedRecoveryRecord {
+                    id: DiagnosticId(0),
+                    site: RecoverySiteKey {
+                        role,
+                        range: 6215..6215,
+                    },
+                    kind: RecoveryKind::Missing,
+                    unexpected: Arc::from([]),
+                    expectations: Arc::from([SyntaxExpectation {
+                        role,
+                        expected: ExpectedSyntax::TypeExpression,
+                        range: 6215..6215,
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    }]),
+                    primary_expectation: 0,
+                }
+            }],
+        ),
         (
             "> > derives @ Role via @ target",
             0,

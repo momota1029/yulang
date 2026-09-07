@@ -1,6 +1,7 @@
 //! Private direct `role` declaration construction.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use crate::session::{DeclarationRole, GrammarRole, RoleDeclarationRole};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -207,6 +208,7 @@ pub(super) fn role_declaration_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i.rb(),
             head,
+            GrammarRole::Declaration(DeclarationRole::Role(RoleDeclarationRole::Head)),
             baseline,
             stops,
             TypeOuterBoundary::VARIANT_BODY,

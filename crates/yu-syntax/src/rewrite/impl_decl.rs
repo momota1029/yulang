@@ -1,6 +1,7 @@
 //! Private direct standalone `impl` declaration construction.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use crate::session::{DeclarationRole, GrammarRole, ImplRole};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -208,6 +209,7 @@ pub(super) fn impl_declaration_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i.rb(),
             head,
+            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head)),
             baseline,
             stops,
             TypeOuterBoundary::VARIANT_BODY,
@@ -395,6 +397,7 @@ fn description_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
             i.rb(),
             description,
+            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Description)),
             baseline,
             stops,
             TypeOuterBoundary::VARIANT_BODY,

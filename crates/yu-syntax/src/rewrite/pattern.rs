@@ -1,6 +1,7 @@
 //! Source-free direct Pattern construction.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use crate::session::{GrammarRole, PatternRole};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -1211,6 +1212,7 @@ fn pattern_type_annotation_rhs_normalized(
             required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
                 i,
                 primary,
+                GrammarRole::Pattern(PatternRole::TypeAnnotation),
                 baseline,
                 caller_stops | STOP_IN,
                 item_origin,
@@ -1227,6 +1229,7 @@ fn pattern_type_annotation_rhs_normalized(
         required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
             i,
             primary,
+            GrammarRole::Pattern(PatternRole::TypeAnnotation),
             baseline,
             caller_stops,
             item_origin,
@@ -1240,6 +1243,7 @@ fn pattern_type_annotation_rhs_normalized(
         required_type_expr_normalized(
             i,
             primary,
+            GrammarRole::Pattern(PatternRole::TypeAnnotation),
             baseline,
             item_origin,
             line_entry,

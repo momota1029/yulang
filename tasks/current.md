@@ -99,11 +99,23 @@ exact mandatory-colon ownership. Ten new typed tests passed; full Type: 186;
 normalized Type/unmatched head: 27; declaration: 39; output: 4; recovery
 output: 25; package check passed. No repair round was needed.
 
-Next: the two remaining required-Type Missing sites in `type_expr.rs` and
-their caller contracts. They are caller-owned slots, not automatically Primary
-records; retain that distinction in the typed-output ledger. The old
-eighth-terminal proposal is not a required prerequisite. No public dispatch
-has been switched yet.
+The shared required-Type Missing helper is implemented under
+`2026-09-08-successor-required-type-missing-roles.md`. Production callers
+explicitly select their own missing-slot role; malformed and nested Type
+records remain unchanged. Type: 191 passed; package/format/diff checks passed.
+The Type/PV implementation now has no raw recovery constructors, but the
+complete typed/RB ledger and calling owners' bypass sites are still open.
+
+Current gate: wider caller conformance. The expanded serial owner filters
+passed 424 and failed 5. Exact names and observed mismatches are in the
+required-Type design's checkpoint: nested pipe materialization, inherited
+Type-ML spaced arrows in role/impl heads, P/E Pattern caller-close whitespace,
+and named-record matching-close whitespace. Do not blindly update those
+expectations; resolve each under its governing accepted/recovery contract.
+Static tracing also found a tuple-field `=` nonprogress path: add a bounded
+witness and fix it at the owning admission/sequence boundary before broader
+certification. The old eighth-terminal proposal is not a required prerequisite.
+No public dispatch has been switched yet.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
@@ -111,8 +123,8 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Finish the caller-owned required-Type helper sites and the Type/PV ledger,
-   then migrate the remaining mutually recursive Expression/Pattern/Statement/
+1. Close the five wider caller failures and tuple nonprogress path, complete
+   the Type/PV ledger, then migrate the remaining mutually recursive Expression/Pattern/Statement/
    declaration/literal owners. Local Type construction does not certify raw
    recovery still emitted by another owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,

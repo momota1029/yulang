@@ -3,7 +3,10 @@
 use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
-use crate::syntax_kind::SyntaxKind;
+use crate::{
+    session::{DeclarationRole, GrammarRole, StructRole},
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     LexIn, RewriteIn, Stops,
@@ -513,6 +516,7 @@ fn parse_delimited_fields_normalized(
 ) -> NormalizedExit {
     let result = declaration_fields_normalized(
         i.rb(),
+        GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldType)),
         open,
         owner_baseline,
         stops,
@@ -545,6 +549,7 @@ fn parse_delimited_fields_normalized(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn declaration_fields_normalized(
     mut i: RewriteIn,
+    missing_type_role: GrammarRole,
     open: Item,
     owner_baseline: usize,
     stops: Stops,
@@ -575,6 +580,7 @@ pub(super) fn declaration_fields_normalized(
     }
     field_sequence_normalized(
         i,
+        missing_type_role,
         item,
         list_base,
         stops,
@@ -644,6 +650,7 @@ fn parse_indented_fields_normalized(
     }
     field_sequence_normalized(
         i,
+        GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldType)),
         item,
         block_indent,
         stops,
@@ -661,6 +668,7 @@ fn parse_indented_fields_normalized(
 #[allow(clippy::too_many_arguments)]
 fn field_sequence_normalized(
     mut i: RewriteIn,
+    missing_type_role: GrammarRole,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -825,6 +833,7 @@ fn field_sequence_normalized(
             if matches!(delimited, Some(FieldList::NamedBrace) | None) {
                 let exit = recover_named_field_normalized(
                     i.rb(),
+                    missing_type_role,
                     item,
                     baseline,
                     stops,
@@ -858,6 +867,7 @@ fn field_sequence_normalized(
             let (exit, next_origin) = match delimited {
                 Some(FieldList::Tuple) => tuple_field_normalized(
                     i.rb(),
+                    missing_type_role,
                     item,
                     baseline,
                     pipe_lexical,
@@ -868,6 +878,7 @@ fn field_sequence_normalized(
                 ),
                 Some(FieldList::NamedBrace) | None => named_field_normalized(
                     i.rb(),
+                    missing_type_role,
                     item,
                     baseline,
                     stops,
@@ -899,6 +910,7 @@ fn field_sequence_normalized(
 #[allow(clippy::too_many_arguments)]
 fn named_field_normalized(
     mut i: RewriteIn,
+    missing_type_role: GrammarRole,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -945,6 +957,7 @@ fn named_field_normalized(
         emit_token_item(&mut i, item);
         return named_field_rhs_normalized(
             i,
+            missing_type_role,
             baseline,
             delimited,
             pipe_lexical,
@@ -966,6 +979,7 @@ fn named_field_normalized(
         emit_missing(&mut i, LeadingTrivia::default());
         let (exit, item_origin) = named_type_normalized(
             i.rb(),
+            missing_type_role,
             item,
             baseline,
             delimited,
@@ -1018,6 +1032,7 @@ fn named_field_normalized(
             emit_token_item(&mut i, item);
             return named_field_rhs_normalized(
                 i,
+                missing_type_role,
                 baseline,
                 delimited,
                 pipe_lexical,
@@ -1033,6 +1048,7 @@ fn named_field_normalized(
             i.state.finish_node();
             let (exit, item_origin) = named_type_normalized(
                 i.rb(),
+                missing_type_role,
                 item,
                 baseline,
                 delimited,
@@ -1056,6 +1072,7 @@ fn named_field_normalized(
 #[allow(clippy::too_many_arguments)]
 fn recover_named_field_normalized(
     mut i: RewriteIn,
+    missing_type_role: GrammarRole,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -1099,6 +1116,7 @@ fn recover_named_field_normalized(
             emit_token_item(&mut i, item);
             return named_field_rhs_normalized(
                 i,
+                missing_type_role,
                 baseline,
                 delimited,
                 pipe_lexical,
@@ -1119,6 +1137,7 @@ fn recover_named_field_normalized(
 #[allow(clippy::too_many_arguments)]
 fn named_field_rhs_normalized(
     mut i: RewriteIn,
+    missing_type_role: GrammarRole,
     baseline: usize,
     delimited: Option<FieldList>,
     pipe_lexical: bool,
@@ -1149,6 +1168,7 @@ fn named_field_rhs_normalized(
     }
     let (exit, item_origin) = named_type_normalized(
         i.rb(),
+        missing_type_role,
         primary,
         baseline,
         delimited,
@@ -1165,6 +1185,7 @@ fn named_field_rhs_normalized(
 #[allow(clippy::too_many_arguments)]
 fn named_type_normalized(
     mut i: RewriteIn,
+    missing_type_role: GrammarRole,
     primary: Item,
     baseline: usize,
     delimited: Option<FieldList>,
@@ -1179,6 +1200,7 @@ fn named_type_normalized(
     let exit = required_type_expr_with_boundary_normalized(
         i.rb(),
         primary,
+        missing_type_role,
         baseline,
         Some(TypeApplyBoundary::DeclarationNamedFields),
         close,
@@ -1194,6 +1216,7 @@ fn named_type_normalized(
 #[allow(clippy::too_many_arguments)]
 fn tuple_field_normalized(
     mut i: RewriteIn,
+    missing_type_role: GrammarRole,
     item: Item,
     baseline: usize,
     pipe_lexical: bool,
@@ -1207,6 +1230,7 @@ fn tuple_field_normalized(
     let exit = required_type_expr_with_boundary_normalized(
         i.rb(),
         item,
+        missing_type_role,
         baseline,
         None,
         1,

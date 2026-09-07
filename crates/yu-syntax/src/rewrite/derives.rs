@@ -2,6 +2,7 @@
 //! companion-item owners.
 
 use super::ambient_claim::AmbientClaimContext;
+use crate::session::{DeclarationRole, DerivesRole, GrammarRole};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -112,6 +113,7 @@ fn required_role_normalized(
     let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
         i.rb(),
         primary,
+        GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)),
         baseline,
         caller_stops,
         role_boundary,

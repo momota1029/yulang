@@ -22,6 +22,7 @@ mod pe_recovery;
 mod pv_recovery;
 mod record_field_recovery;
 mod record_sequence_recovery;
+mod required_recovery;
 
 fn top_type_expression(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
@@ -952,11 +953,15 @@ fn required_type_primary_preserves_boundaries_and_accepts_an_ordinary_primary() 
         assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}");
         assert_eq!(remainder, "A", "{source:?}");
         assert!(!primary_found, "{source:?}");
-        assert!(records.is_empty(), "{source:?}");
+        assert_eq!(
+            records,
+            [expected_type_expression_missing(0, TypeRole::Primary, 0)],
+            "{source:?}"
+        );
         let type_expr = SyntaxNode::new_root(green)
             .children()
             .find(|node| node.kind() == SyntaxKind::TypeExpression)
-            .expect("raw missing required TypeExpression");
+            .expect("typed missing required TypeExpression");
         assert_eq!(
             type_expr
                 .children()
@@ -987,12 +992,15 @@ fn required_type_primary_preserves_boundaries_and_accepts_an_ordinary_primary() 
     ));
     assert!(!primary_found);
     assert_eq!(remainder, "");
-    assert!(records.is_empty());
+    assert_eq!(
+        records,
+        [expected_type_expression_missing(0, TypeRole::Primary, 0)]
+    );
     assert_eq!(
         SyntaxNode::new_root(green)
             .children()
             .find(|node| node.kind() == SyntaxKind::TypeExpression)
-            .expect("raw EOF missing TypeExpression")
+            .expect("typed EOF missing TypeExpression")
             .children()
             .map(|node| node.kind())
             .collect::<Vec<_>>(),
@@ -1022,12 +1030,15 @@ fn required_type_primary_abstract_boundary_is_missing_and_unconsumed() {
     assert!(item.leading_view().has_ordinary_newline());
     assert!(!primary_found);
     assert_eq!(remainder, "> > ```\nouter");
-    assert!(records.is_empty());
+    assert_eq!(
+        records,
+        [expected_type_expression_missing(0, TypeRole::Primary, 5)]
+    );
     assert_eq!(
         SyntaxNode::new_root(green)
             .children()
             .find(|node| node.kind() == SyntaxKind::TypeExpression)
-            .expect("raw fence missing TypeExpression")
+            .expect("typed fence missing TypeExpression")
             .children()
             .map(|node| node.kind())
             .collect::<Vec<_>>(),
@@ -1036,11 +1047,18 @@ fn required_type_primary_abstract_boundary_is_missing_and_unconsumed() {
 }
 
 #[test]
-fn pattern_annotation_keeps_caller_missing_raw_and_t1_error_typed() {
+fn pattern_annotation_keeps_caller_missing_distinct_from_t1_error() {
     let (missing_green, missing_exit, missing_records) = run_pattern_with_recoveries("x:", None);
     assert_eq!(missing_green.to_string(), "x:");
     assert!(matches!(missing_exit, Err(Either::Right(_))));
-    assert!(missing_records.is_empty());
+    assert_eq!(
+        missing_records,
+        [required_recovery::missing(
+            0,
+            GrammarRole::Pattern(crate::session::PatternRole::TypeAnnotation),
+            2
+        )]
+    );
     let missing_annotation = SyntaxNode::new_root(missing_green)
         .descendants()
         .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)

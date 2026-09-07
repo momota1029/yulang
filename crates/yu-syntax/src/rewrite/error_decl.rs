@@ -543,6 +543,7 @@ fn parse_variant_body_normalized(
     let entry = suffix_marker(i.rb());
     let exit = declaration_variant_sequence_normalized(
         i.rb(),
+        super::declaration_variant::VariantOwner::Error,
         form,
         introducer,
         yield_with,

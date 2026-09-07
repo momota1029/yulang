@@ -1,6 +1,7 @@
 //! Private direct `act` declaration construction.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use crate::session::{ActDeclarationRole, DeclarationRole, GrammarRole};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -280,6 +281,10 @@ fn type_slot_from_item_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i.rb(),
             primary,
+            GrammarRole::Declaration(DeclarationRole::Act(match slot {
+                ActTypeSlot::Head => ActDeclarationRole::Head,
+                ActTypeSlot::Source => ActDeclarationRole::Source,
+            })),
             baseline,
             stops,
             outer_boundary,

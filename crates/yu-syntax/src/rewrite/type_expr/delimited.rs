@@ -1217,7 +1217,7 @@ fn emit_delimited_item_missing(
     };
     let at = delimited_missing_anchor(item, item_origin);
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        super::type_expression_missing_draft(role, range)
+        super::type_expression_missing_draft(GrammarRole::Type(role), range)
     });
 }
 
