@@ -50,19 +50,20 @@ is independently reviewed and a fresh user decision is recorded.
 evidence only.  Its first direct slice pins wrong-head `+`, `@@`, comment, and
 CRLF scalar-run behavior in legacy, including the separate CRLF tag-loop
 ownership; the thirteenth slice adds outer-EOF counterparts for the three
-inline nested-PV retry spellings.  A second slice pins spaced `+`/`@@`
-no-retry native/EOF behavior; the third pins spaced-comment native close versus
-EOF prefix/remainder as a distinct path; the fourth pins unspaced `+`/`@@`
+inline nested-PV retry spellings, and the fourteenth adds its separate CRLF
+outer-EOF tag-loop counterpart.  A second slice pins spaced `+`/`@@` no-retry
+native/EOF behavior; the third pins spaced-comment native close versus EOF
+prefix/remainder as a distinct path; the fourth pins unspaced `+`/`@@`
 outer-tag no-retry native/EOF behavior.  Direct PV ambient evidence pins
 root visible/no-stop initial/retry, indented strict-dedent initial/recovery-continuation, nested-If
 inner initial/recovery-continuation, accepted-own-Else initial/recovery-
 continuation, and post-completed-If outer-tail initial/recovery-continuation;
 query-only indented/dedent tests are not a substitute.  The ordinary ambient-
 provenance row's named cells are complete.  Its immediate next action is to
-establish one concrete wrong-head CRLF outer-EOF source/result and receive a
-pre-write specification audit before adding that distinct slice; its status
-does not authorize rewrite-source changes or alter the two-file delimiter
-integration block.
+map one concrete unpinned wrong-head comment no-retry surface before selecting
+its source/result, then receive a pre-write specification audit before adding
+that distinct slice; its status does not authorize rewrite-source changes or
+alter the two-file delimiter integration block.
 
 `2026-09-07-successor-pv-payload-admission-capability-amendment.md` remains a
 Draft problem record, not a construction gate.  Initial M3 review found that

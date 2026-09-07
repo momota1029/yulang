@@ -14818,6 +14818,98 @@ mod tests {
             }
         };
 
+        // At EOF, the wrong-head CRLF path remains entirely in the outer PV
+        // tag loop.  The final `}` is part of its final malformed tag, not a
+        // nested-PV close or a payload retry.
+        let source = ":{123::\r\n:{B}";
+        let end = source.len();
+        let ast = parse(source);
+        assert_eq!(ast.range, 0..end);
+        assert!(ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none());
+        let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+            panic!("wrong-head CRLF EOF outer PV")
+        };
+        assert_eq!(pv.range, 0..end);
+        assert_eq!(pv.colon, 0..1);
+        assert_eq!(pv.open, 1..2);
+        assert!(pv.trailing_comma.is_none());
+        assert!(matches!(pv.close, Recovered::Incomplete));
+        let [
+            Recovered::Complete(first),
+            Recovered::Incomplete,
+            Recovered::Complete(last),
+        ] = pv.tags.as_slice()
+        else {
+            panic!("wrong-head CRLF EOF tag sequence: {pv:#?}")
+        };
+        assert_eq!(first.range, 2..5);
+        assert!(matches!(first.name, Recovered::Incomplete));
+        assert!(first.payloads.is_empty());
+        assert_eq!(last.range, 9..13);
+        assert!(matches!(last.name, Recovered::Incomplete));
+        assert!(last.payloads.is_empty());
+
+        let root = parse_direct(source);
+        assert_eq!(root.to_string(), source);
+        let shape = root
+            .descendants_with_tokens()
+            .map(|part| {
+                let depth = match &part {
+                    rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                    rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                };
+                let range =
+                    usize::from(part.text_range().start())..usize::from(part.text_range().end());
+                assert_eq!(part.to_string(), source[range.clone()]);
+                (depth, part.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                (0, SyntaxKind::Root, 0..13),
+                (1, SyntaxKind::TypeExpression, 0..13),
+                (2, SyntaxKind::PolymorphicVariantType, 0..13),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..5),
+                (4, SyntaxKind::Error, 2..5),
+                (5, SyntaxKind::Unknown, 2..5),
+                (3, SyntaxKind::PolymorphicVariantTag, 5..7),
+                (4, SyntaxKind::Error, 5..7),
+                (5, SyntaxKind::Unknown, 5..7),
+                (3, SyntaxKind::Newline, 7..9),
+                (3, SyntaxKind::PolymorphicVariantTag, 9..13),
+                (4, SyntaxKind::Error, 9..13),
+                (5, SyntaxKind::Unknown, 9..13),
+                (3, SyntaxKind::Missing, 13..13),
+            ],
+        );
+        assert_eq!(
+            parse_direct_recovered(source),
+            vec![
+                record(
+                    0,
+                    TypeRole::PolymorphicVariantTagName,
+                    2..5,
+                    ExpectedSyntax::Identifier,
+                ),
+                record(
+                    1,
+                    TypeRole::PolymorphicVariantTag,
+                    5..7,
+                    ExpectedSyntax::Identifier,
+                ),
+                record(
+                    2,
+                    TypeRole::PolymorphicVariantTagName,
+                    9..13,
+                    ExpectedSyntax::Identifier,
+                ),
+                missing_close(3, 13..13),
+            ],
+        );
+
         // With an explicit horizontal boundary, the same scalar spellings are
         // payload-owned malformed TypeExpressions.  They terminate that
         // payload rather than admitting an inline retry; native and EOF close
