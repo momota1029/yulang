@@ -74,31 +74,42 @@ any public/Yumark/legacy-production surface.
 ## 2. Provenance-scoped context and recovery ownership
 
 The existing `type_ml: bool` is insufficient: non-TypeApply positional
-declaration and polymorphic-variant paths also require the tail-stop behavior.
-This amendment therefore defines one private by-value context type:
+declaration and polymorphic-variant paths also require the tail-stop behavior,
+while an OuterTypeApply provenance must remain live across a whole nested
+argument even when a nonreactive owner lies between it and a P/E item.  This
+amendment therefore defines one private by-value context type with two private
+semantic axes:
 
 ```text
-TypeMlContext := Inactive | NonTypeApplyScoped | OuterTypeApply
+TypeMlContext {
+  provenance: None | NonTypeApply | OuterTypeApply,
+  stop_here: bool,
+}
 ```
 
-`type_apply_argument_normalized` alone constructs `OuterTypeApply` for its
-one argument TypeExpression.  Existing declaration/PV positional entries
-construct `NonTypeApplyScoped`; all ordinary entries construct `Inactive`.
-Both active states preserve the established nonempty-trivia tail stop, so T3
-Call still receives only `is_active()` behavior.  A pair of bools is forbidden,
-because it permits impossible active/origin combinations.
+Private constructors/transitions, rather than loose bool parameters, guarantee
+the required dormant `{ OuterTypeApply, false }` state.  Only committed
+`type_apply_argument_normalized` enters `{ OuterTypeApply, true }` for its one
+argument TypeExpression.  Standalone PV and Enum/Error positional payload
+scopes enter `{ NonTypeApply, true }`; ordinary entries are inactive.  A
+NonTypeApply scope entered while OuterTypeApply is live retains the latter
+provenance and restores the caller value on lexical return.  A nested
+TypeApply inside NonTypeApply temporarily enters OuterTypeApply and restores
+NonTypeApply afterward.  `stop_here` retains the existing nonempty-trivia tail
+stop; T3 Call derives its authorized child stop phase from that active context.
 
 The value is lexical and by-value: it is not stored in `Item`, `Recover`,
 `NormalizedExit`, session-local state, a record, or output.  Every probe and
-exit restores it by construction.  Only a ParenthesizedGroup or EffectRow
-primary entered with `OuterTypeApply` may pass that value to immediate
-delimited item parses.  It remains available through a direct
-Parenthesized/EffectRow-to-item-to-Parenthesized/EffectRow chain, so the
-source-derived controls `G ((F A))` and `G ('[F A])` must be execution-pinned
-before successor expectations.  Call, arrow RHS, forall, NamedRecord,
-PolymorphicVariant, declaration payload, BracketRow, and every other
-independent owner downgrade it to `NonTypeApplyScoped`; crossing any such
-owner is a return-to-architecture condition.
+exit restores it by construction.  Provenance is threaded unchanged through
+every nested owner for the full lexical outer-TypeApply argument; a nonreactive
+owner carries dormant OuterTypeApply provenance rather than erasing it.  Only
+ParenthesizedGroup and EffectRow derive `stop_here = true` for their immediate
+delimited item parsing when that provenance is OuterTypeApply.  Call, arrow
+RHS, forall, NamedRecord, PolymorphicVariant, declaration payload, BracketRow,
+and other owners publish no new separator from this amendment, but they forward
+the dormant provenance so a later nested P/E can react.  Candidate probes never
+construct OuterTypeApply, and every outer continuation retains its pre-argument
+value.
 
 After each completed item stops at active inherited type-ML, the direct
 delimited owner applies this exact priority before a separator Missing:
@@ -106,8 +117,8 @@ delimited owner applies this exact priority before a separator Missing:
 1. un-emitted caller, outer, and abstract boundaries hand off unchanged;
 2. the owner emits eligible owned trivia outside any Error node, preserving
    native Whitespace, Newline, LineComment, or BlockComment token boundaries;
-3. a literal comma or semicolon, actual/local/outer close, or qualifying
-   implicit-newline boundary wins with no separator Missing; then
+3. a literal comma or semicolon, actual matching close, or owner-local mismatch
+   wins with no separator Missing; then
 4. only a `None` or `DeeperNewline` gap with an unconsumed valid next Type
    primary publishes one committed-rule Missing with the owner's separator role,
    expected `DelimitedSequenceSeparator`, primary index zero, and the
@@ -125,29 +136,45 @@ successful separator episodes.
 The required no-Missing controls are `G (F , A)` / `G '[F , A]` for an
 explicit separator, `G (F\nA)` / `G '[F\nA]` and equal/shallow LineComment
 forms for qualifying implicit boundaries, and `G (F\n  )` / `G '[F\n  ]`
-for actual close.  Active caller/outer/abstract boundaries remain unconsumed.
-The direct owner, rather than outer TypeApply, retains delimiter frame, Item
-frontier, trivia, Missing record, and retry ownership.
+for actual close.  Abstract/ASOB/caller boundaries and outer-owned closes are
+classified before any trivia/frontier/output mutation; their pending leading
+and payload are untouched for the caller.  EOF is distinct: a locally owned
+Item may emit eligible leading before its close-Missing path.  The direct owner,
+rather than outer TypeApply, retains delimiter frame, Item frontier, trivia,
+Missing record, and retry ownership.
 
-The `OuterTypeApply` origin applies only to ParenthesizedGroup and EffectRow.
-It must not extend into standalone delimiters, Call beyond T3's existing
-active-stop behavior, NamedRecord, PolymorphicVariant, BracketRow,
-BracketRowArrow, or a nested TypeExpression that is not a direct P/E chain.
-`NonTypeApplyScoped` declaration/PV controls prove unchanged current successor
-state, output, records, Item frontier, and line entry; their legacy parity is
-not asserted here and remains separately characterizable.  BracketRow may have
-an analogous edge, but it is an explicit T4B preflight audit item rather than
-authority for this amendment.
+Only ParenthesizedGroup and EffectRow act on `OuterTypeApply` provenance by
+activating an immediate item stop and publishing their own separator Missing.
+Call retains T3's active-stop behavior but publishes no new record; NamedRecord,
+PolymorphicVariant, BracketRow, BracketRowArrow, arrow, forall, and declaration
+owners remain nonreactive while forwarding dormant provenance.  In particular,
+`G T[F A]->U` gains no BracketRowSeparator under this amendment, though its
+provenance must reach any nested P/E.
+
+Legacy global `type_ml_arg` may make P/E react to a standalone NonTypeApply
+PV/declaration origin too.  This amendment deliberately does not claim that
+parity: `:{Tag (F A)}`, `:{Tag '[F A]}`, `enum E = Tag X (F A)`, and
+`enum E = Tag '[F A]` are source-derived characterization controls.  Their
+legacy baselines must run before any semantic expectation is assigned.  They
+remain Open for a later reviewed scope expansion; consequently this amendment
+can authorize only T4P/T4E local construction, never owner-complete or O4
+certification.  BracketRow's own analogous reaction remains a T4B preflight
+audit item rather than authority here.
 
 ## 3. Ordered construction and evidence
 
 T4P remains the first construction slice, but cannot begin until this Draft is
 Authoritative.  Before successor expectations, it execution-pins every
 source-derived Parenthesized tuple in §1--2, including `(F A)`, `(A{})`, CRLF,
-priority, and direct P/E-chain controls.  T4E remains a later ordered slice
-and first execution-pins all its source-derived EffectRow tuples, including
-same-line `G '[F A]`, CRLF, priority, and direct P/E-chain controls.  T4B and
-T4A do not receive construction authority.
+priority, `G ((F A))` (inner ParenthesizedSeparator `6..6`),
+`G T((F A))` (ParenthesizedSeparator `7..7`, Call publishes nothing), and
+`G T[(F A)]->U` (ParenthesizedSeparator `7..7`, BracketRow publishes nothing).
+T4E remains a later ordered slice and first execution-pins all its
+source-derived EffectRow tuples, including same-line `G '[F A]`, CRLF,
+priority, `G ('[F A])` (EffectRowSeparator `7..7`), and
+`G T('[F A])` (EffectRowSeparator `8..8`, Call publishes nothing), plus a
+BracketRow-forwarding EffectRow witness.  T4B and T4A do not receive
+construction authority.
 
 For each affected owner, local O3/O4 evidence must prove:
 
@@ -158,6 +185,17 @@ For each affected owner, local O3/O4 evidence must prove:
 - fresh/frozen equality of record ID/order, role, range, expectation, primary
   index, Item frontier, line entry, `TypeMlContext`, delimiter/stop/episode/
   outer-boundary restoration, and lossless remainder;
+- RB-T seeded-output rejection and handoff matrix for inactive,
+  `{ OuterTypeApply, true }`, `{ OuterTypeApply, false }`, and
+  `{ NonTypeApply, true }` phase inputs.  Every failed probe, complete,
+  caller/outer/abstract boundary, outer-close, local-close, EOF, and frozen
+  rejection proves unchanged caller-retained context, input/remainder, pending
+  Item identity/frontier/leading, origin/LineEntry, delimiter/stops/fence,
+  mark/operator identity, output checkpoint/node/token/slot counts, recovery
+  IDs/order, diagnostic cursor, and frozen cursor.  Required transitions also
+  include rejected TypeApply probe then standalone P/E, affected parse then
+  standalone P/E, NonTypeApply entered inside OuterTypeApply and restored
+  without erasing it, and nested TypeApply restoring NonTypeApply afterward;
 - actual-close, caller stop, outer close, EOF, and abstract-boundary priority
   controls with no separator record or boundary consumption; and
 - standalone `(A B)` / `'[A B]` zero-recovery controls plus unchanged T1--T3,
@@ -174,18 +212,18 @@ offsets remain unverified until those direct legacy baselines execute.
 The private by-value context replaces a bool through the existing normalized
 TypeExpression cone.  It adds no source retention, scan, allocation, clone,
 split, replay, buffer, builder, cache, worklist, or dynamic dispatch.  Valid
-input adds one constant state branch per existing immediate item and no
-traversal; recovery work and the already-approved eighth terminal remain
-unchanged.  Timing budget is zero unless review identifies a material resource
-change.
+input adds constant state propagation/branch work per existing nested entry and
+per immediate P/E item, with no traversal; recovery work and the already-
+approved eighth terminal remain unchanged.  Timing budget is zero unless review
+identifies a material resource change.
 
 Return to architecture without implementation if direct legacy execution
-contradicts a listed witness, propagation requires a global or non-immediate
-context, `OuterTypeApply` leaks across a downgrade owner or into an exit value,
-a caller/outer boundary is consumed, the separator is published by TypeApply
-rather than its delimited owner, an Error/topology exception leaks, or the T4B
-audit finds a dependency that cannot remain excluded.  Any implementation
-returns to clean commit `b70951c2` while retaining this Draft.
+contradicts a listed witness, provenance leaks into an exit value or fails to
+cross a nested owner inside the lexical outer argument, a caller/outer boundary
+is consumed, the separator is published by TypeApply rather than its delimited
+owner, a nonreactive owner publishes a separator, an Error/topology exception
+leaks, or the T4B audit finds a dependency that cannot remain excluded.  Any
+implementation returns to clean commit `b70951c2` while retaining this Draft.
 
 This Draft requires M3 compiler/recovery, specification, and performance
 review.  Because the false premise is material, their Reviewed recommendation
