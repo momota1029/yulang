@@ -60,7 +60,7 @@ The following direct controls are retained rather than rewritten:
 | scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership |
 | primary and reservation boundary | `legacy_polymorphic_variant_primary_completion_preflight` | non-atomic primary external/internal tails, selected `::Next`, numeric apparent Call, prefix, and recursive PV ownership |
 | P and E carriers | `legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned` and `legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned` | P/E ordinary-gap extent facts, E rows, numeric apparent-Call distinction, prefix/nested cells, and `::Next` continuations |
-| ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial and recovery-continuation, nested-If initial/recovery-continuation, and actual-If accepted-own-Else initial-PV controls, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, strict-dedent initial `:{A\nelse: 0}` and recovery-continuation `:{123\nelse: 0}` under baseline 2, nested outer(0)/inner(5) same-line initial `:{A else: 0}` and recovery-continuation `:{A::else: 0}` selecting inner, plus `if condition:\n  type T = :{A\nelse: value` whose PV missing brace precedes the accepted own Else and retires the internal companion; frames must balance |
+| ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial and recovery-continuation, nested-If initial/recovery-continuation, and actual-If accepted-own-Else initial/recovery-continuation controls, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, strict-dedent initial `:{A\nelse: 0}` and recovery-continuation `:{123\nelse: 0}` under baseline 2, nested outer(0)/inner(5) same-line initial `:{A else: 0}` and recovery-continuation `:{A::else: 0}` selecting inner, plus `if condition:\n  type T = :{A\nelse: value` and `if condition:\n  type T = :{A::\nelse: value`, whose PV recoveries precede accepted own Else and retire the internal companion; frames must balance |
 
 These controls do not prove a general retry grammar.  In particular, their
 valid-name scalar examples do not characterize equivalent wrong-head, fence,
@@ -70,8 +70,8 @@ The current direct PV ambient coverage is deliberately narrower than the
 ordinary provenance matrix: it installs a root scope with one visible
 companion.  Query-level `ParseLocal` indented/dedent and nested-companion tests
 are not PV AST/CST/recovery evidence.  The actual-If accepted-own-Else initial
-PV cell below is now direct evidence; post-completed-If outer-tail restoration
-remains unpinned.
+and recovery-continuation cells below are now direct evidence; post-completed-
+If outer-tail restoration remains unpinned.
 
 ## 3. Required direct evidence matrix
 
@@ -87,7 +87,7 @@ unavailable only with a concrete reason and without inferring a policy from it.
 | wrong-head scalar runs | `+`, `@@`, `::/*c*/`, and CRLF after a wrong head; admitted nested-PV retry, decline, native-close, and EOF counterparts where legacy exposes them |
 | spacing and no-retry | wrong-head spaced malformed surface; each named multi-token/comment spelling whose no-retry result would be used by a future classifier |
 | fence-qualified scalar rows | valid and wrong heads at inline retry/decline and CRLF/fence termination, or an explicit direct unavailability result for each |
-| ordinary ambient provenance | root visible/no-stop initial and retry, indented strict-dedent initial/recovery-continuation, nested-If initial/recovery-continuation, and accepted-own-Else after an initial PV prefix are already pinned; add recovery-continuation under own Else and initial/recovery-continuation under outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
+| ordinary ambient provenance | root visible/no-stop initial and retry, indented strict-dedent initial/recovery-continuation, nested-If initial/recovery-continuation, and accepted-own-Else initial/recovery-continuation are already pinned; add initial/recovery-continuation under outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
 | retry primary vocabulary | adjacent and spaced forms for every primary class proposed for admission, with leading BracketRow explicitly classified rather than silently inherited |
 | retained structural siblings | numeric apparent Call, non-atomic external/internal tails, repeated payload, prefix and recursive reservation, and every authorized P/E extent row remain exact fresh/frozen controls |
 | unavailable callers | virtual normal/heredoc/nested/fence and Yumark production-cell rows remain unavailable until a separate policy/evidence decision; a future observer must decline under carrier `None` |
@@ -160,7 +160,17 @@ accepted at `29..40`.  The internal companion intentionally has no test hook:
 the observable proof is restoration to depth 1 with the preexisting outer ID.
 AST and direct CST/recovery facts are exact, and AST emits the same missing
 close as `Recovered::Incomplete` while its sink remains empty by contract.
-This establishes neither an own-Else recovery continuation nor an outer tail.
+That initial row alone did not establish own-Else recovery continuation or an
+outer tail.
+
+The tenth bounded slice pins accepted-own-Else recovery continuation.  Under
+the same root, preexisting outer companion, no-stop, and actual If entry,
+`if condition:\n  type T = :{A::\nelse: value` consumes through byte 42.  The
+PV `25..30` has complete `A`, then an incomplete second tag slot whose `::`
+is the sole tag Error at `28..30`, followed by the Missing brace at `30..30`.
+The actual `ElseArm` `31..42` is accepted.  As with the initial row, no inner
+ID hook is introduced: depth 1 and the captured outer ID are the observable
+retirement proof.  This establishes no post-completed-If outer-tail result.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
