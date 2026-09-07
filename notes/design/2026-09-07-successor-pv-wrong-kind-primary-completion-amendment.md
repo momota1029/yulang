@@ -1,6 +1,12 @@
 # Successor PV wrong-kind primary-completion amendment
 
-Status: Authoritative; construction blocked by §2 payload-adapter contradiction
+Status: Authoritative in retained scope; partly superseded, not implemented
+
+Current disposition (2026-09-08):
+`2026-09-08-successor-recovery-authority-amendment.md` §§2 and 4 removes the
+legacy-parity construction prerequisite and supersedes the numeric-head Call
+split. The blocked/reverted candidate below is history, not the active queue.
+Other external-tail policies are not implemented by that bounded correction.
 
 Date: 2026-09-07
 

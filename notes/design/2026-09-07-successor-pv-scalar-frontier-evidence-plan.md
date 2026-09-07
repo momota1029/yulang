@@ -1,6 +1,11 @@
 # Successor PV scalar-frontier evidence plan
 
-Status: Reviewed; evidence-only preflight, no construction authority
+Status: Superseded as a construction prerequisite; historical evidence retained
+
+Superseded-by: `2026-09-08-successor-recovery-authority-amendment.md` §§1--3.
+The former §§3--5 legacy-equality work queue below is not an active gate.
+No scalar observer is needed solely to reproduce old recovery; the collected
+observations remain tests of the older Yulang3 parser, not Yulang2 acceptance.
 
 Date: 2026-09-07
 

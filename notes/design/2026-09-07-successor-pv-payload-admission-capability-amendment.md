@@ -1,5 +1,12 @@
 # Successor PV payload-admission capability amendment
 
+Current disposition (2026-09-08): the conditional legacy-retry premise and
+scalar-witness construction prerequisite are superseded by
+`2026-09-08-successor-recovery-authority-amendment.md` §§1--3. This former Draft
+remains a historical problem record, not an active construction gate. No
+payload observer, virtual/Yumark policy, or reverted implementation is thereby
+approved; choose subsequent recovery from the current Item and its owner.
+
 Status: Draft; architecture re-entry required
 
 Date: 2026-09-07
