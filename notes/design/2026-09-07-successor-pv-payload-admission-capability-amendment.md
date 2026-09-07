@@ -33,9 +33,9 @@ evidence currently pinned and its remaining characterization boundary.
 
 | proposed class | currently pinned direct fact / evidence limit |
 | --- | --- |
-| owner boundary, physical newline, native close, or EOF | valid-name `A` rows only; wrong-head, comment, CRLF, and fence forms remain uncharacterized |
+| owner boundary, physical newline, native close, or EOF | valid-name `A` rows, plus CRLF after a malformed prefix; wrong-head and fence forms remain uncharacterized |
 | adjacent admissible primary | existing primary bases named in the primary-completion evidence only |
-| unspaced invalid retry | valid/wrong-head `::` and `->` rows, plus the four colon-overlap rows below |
+| unspaced invalid retry | valid/wrong-head `::` and `->` rows, four colon-overlap rows, and valid-name `+`/`@@`/block-comment rows below |
 | unspaced invalid run with no retry | valid/wrong-head dangling `::` only |
 | ambient retry | visible no-stop `else` row only |
 | spaced invalid run | valid-name `::{T}` row only |
@@ -56,6 +56,14 @@ the nested `:{B}`: in `::{B}` it emits one-colon PayloadBoundary Error and
 retries at the second colon; in `:::{B}` it emits a two-colon error and retries
 at the third.  This directly contradicts a witness that begins only after a
 successor-completed `::` PathSeparator Item.
+
+`legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned`
+adds the complementary scalar-run rows.  `->`, `+`, `@@`, and `::/*c*/` each
+produce one PayloadBoundary Error followed by a nested-PV retry; the block
+comment belongs atomically to the Error span.  `::\r\n:{B}` instead stops before
+payload admission: the outer PV tag loop owns the `::` Error, the CRLF newline,
+and the malformed nested starter separately.  These rows characterize only the
+observed valid-name surfaces, not a generic fence or wrong-head rule.
 
 For example, `:{123::T}` requires TagName Error `2..5`, then a sibling
 `PolymorphicVariantPayload` with PayloadBoundary Error `5..7` and payload `T`

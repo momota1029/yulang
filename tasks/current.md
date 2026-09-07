@@ -28,9 +28,10 @@ authorized shared delimited candidate remains unstaged in
 Draft problem record, not a construction gate.  Initial M3 review found that
 `:{A::{B}}` needs its retry boundary inside successor's completed `::`
 PathSeparator Item, so a suffix witness begins too late.  Four colon-overlap
-rows are now execution-pinned.  A replacement must establish a pre-Item scalar
-boundary, position-sensitive ambient claim, zero allocation/no retention, and
-an aggregate work proof before independent review and a fresh user decision.
+rows plus `->`/`+`/`@@`/comment/CRLF scalar-run rows are now execution-pinned.
+A replacement must establish a pre-Item scalar boundary, position-sensitive
+ambient claim, zero allocation/no retention, and an aggregate work proof before
+independent review and a fresh user decision.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology

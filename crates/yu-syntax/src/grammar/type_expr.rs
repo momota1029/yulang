@@ -14285,6 +14285,221 @@ mod tests {
     }
 
     #[test]
+    fn legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned() {
+        use crate::session::{
+            CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
+            UnexpectedCategory, UnexpectedSyntax,
+        };
+        use std::sync::Arc;
+
+        let record =
+            |id: u32, role: TypeRole, range: std::ops::Range<usize>, expected: ExpectedSyntax| {
+                let role = GrammarRole::Type(role);
+                CommittedRecoveryRecord {
+                    id: DiagnosticId(id),
+                    site: RecoverySiteKey {
+                        role,
+                        range: range.clone(),
+                    },
+                    kind: RecoveryKind::Error,
+                    unexpected: Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }]),
+                    expectations: Arc::from([SyntaxExpectation {
+                        role,
+                        expected,
+                        range,
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    }]),
+                    primary_expectation: 0,
+                }
+            };
+
+        // Legacy advances a scalar malformed run, not successor lexical
+        // tokens: `->`, `+`, `@@`, and an opaque block comment all precede
+        // the retried nested-PV starter.  No source-derived endpoint may be
+        // retained after this direct characterization.
+        for (source, error_end, nested_start) in [
+            (":{A->:{B}}", 5, 5),
+            (":{A+:{B}}", 4, 4),
+            (":{A@@:{B}}", 5, 5),
+            (":{A::/*c*/:{B}}", 10, 10),
+        ] {
+            let end = source.len();
+            let ast = parse(source);
+            let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                panic!("outer PV: {source:?}")
+            };
+            assert_eq!(pv.range, 0..end);
+            let [Recovered::Complete(tag)] = pv.tags.as_slice() else {
+                panic!("outer tag: {source:?}")
+            };
+            assert_eq!(tag.range, 2..end - 1);
+            assert!(
+                matches!(&tag.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3))
+            );
+            let [Recovered::Complete(payload)] = tag.payloads.as_slice() else {
+                panic!("payload: {source:?}")
+            };
+            assert_eq!(payload.range, 3..end - 1);
+            assert!(matches!(payload.boundary, Recovered::Incomplete));
+            let Recovered::Complete(expr) = &payload.type_expr else {
+                panic!("payload expression: {source:?}")
+            };
+            assert_eq!(expr.range, nested_start..end - 1);
+            let TypePrimary::PolymorphicVariant(nested) = expr.complete_primary() else {
+                panic!("nested PV: {source:?}")
+            };
+            assert_eq!(nested.range, nested_start..end - 1);
+            assert!(
+                matches!(&nested.close, Recovered::Complete(range) if *range == (end - 2..end - 1))
+            );
+            let [Recovered::Complete(nested_tag)] = nested.tags.as_slice() else {
+                panic!("nested tag: {source:?}")
+            };
+            assert!(
+                matches!(&nested_tag.name, Recovered::Complete(word) if word.text() == "B" && word.range() == (nested_start + 2..nested_start + 3))
+            );
+
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source);
+            let shape = root
+                .descendants_with_tokens()
+                .map(|part| {
+                    let depth = match &part {
+                        rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                        rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                    };
+                    let range = usize::from(part.text_range().start())
+                        ..usize::from(part.text_range().end());
+                    assert_eq!(part.to_string(), source[range.clone()]);
+                    (depth, part.kind(), range)
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                shape,
+                vec![
+                    (0, SyntaxKind::Root, 0..end),
+                    (1, SyntaxKind::TypeExpression, 0..end),
+                    (2, SyntaxKind::PolymorphicVariantType, 0..end),
+                    (3, SyntaxKind::Colon, 0..1),
+                    (3, SyntaxKind::LBrace, 1..2),
+                    (3, SyntaxKind::PolymorphicVariantTag, 2..end - 1),
+                    (4, SyntaxKind::Identifier, 2..3),
+                    (4, SyntaxKind::PolymorphicVariantPayload, 3..end - 1),
+                    (5, SyntaxKind::Error, 3..error_end),
+                    (6, SyntaxKind::Unknown, 3..error_end),
+                    (5, SyntaxKind::TypeExpression, nested_start..end - 1),
+                    (6, SyntaxKind::PolymorphicVariantType, nested_start..end - 1,),
+                    (7, SyntaxKind::Colon, nested_start..nested_start + 1),
+                    (7, SyntaxKind::LBrace, nested_start + 1..nested_start + 2),
+                    (
+                        7,
+                        SyntaxKind::PolymorphicVariantTag,
+                        nested_start + 2..nested_start + 3,
+                    ),
+                    (
+                        8,
+                        SyntaxKind::Identifier,
+                        nested_start + 2..nested_start + 3,
+                    ),
+                    (7, SyntaxKind::RBrace, end - 2..end - 1),
+                    (3, SyntaxKind::RBrace, end - 1..end),
+                ],
+                "{source:?}",
+            );
+            assert_eq!(
+                parse_direct_recovered(source),
+                vec![record(
+                    0,
+                    TypeRole::PolymorphicVariantPayloadBoundary,
+                    3..error_end,
+                    ExpectedSyntax::TypePayloadBoundary,
+                )],
+                "{source:?}",
+            );
+        }
+
+        // A physical CRLF ends that scalar-recovery attempt before a payload
+        // exists. The unconsumed path is then owned by the outer PV tag loop,
+        // so this must not be collapsed into the inline retry rows above.
+        let source = ":{A::\r\n:{B}}";
+        let ast = parse(source);
+        let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+            panic!("outer PV")
+        };
+        let [
+            Recovered::Complete(first),
+            Recovered::Incomplete,
+            Recovered::Complete(last),
+        ] = pv.tags.as_slice()
+        else {
+            panic!("CRLF tag sequence: {pv:#?}")
+        };
+        assert!(
+            matches!(&first.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3))
+        );
+        assert!(first.payloads.is_empty());
+        assert!(matches!(last.name, Recovered::Incomplete));
+        assert!(last.payloads.is_empty());
+        assert_eq!(last.range, 7..11);
+
+        let root = parse_direct(source);
+        assert_eq!(root.to_string(), source);
+        let shape = root
+            .descendants_with_tokens()
+            .map(|part| {
+                let depth = match &part {
+                    rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                    rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                };
+                let range =
+                    usize::from(part.text_range().start())..usize::from(part.text_range().end());
+                assert_eq!(part.to_string(), source[range.clone()]);
+                (depth, part.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                (0, SyntaxKind::Root, 0..12),
+                (1, SyntaxKind::TypeExpression, 0..12),
+                (2, SyntaxKind::PolymorphicVariantType, 0..12),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..3),
+                (4, SyntaxKind::Identifier, 2..3),
+                (3, SyntaxKind::PolymorphicVariantTag, 3..5),
+                (4, SyntaxKind::Error, 3..5),
+                (5, SyntaxKind::Unknown, 3..5),
+                (3, SyntaxKind::Newline, 5..7),
+                (3, SyntaxKind::PolymorphicVariantTag, 7..11),
+                (4, SyntaxKind::Error, 7..11),
+                (5, SyntaxKind::Unknown, 7..11),
+                (3, SyntaxKind::RBrace, 11..12),
+            ],
+        );
+        assert_eq!(
+            parse_direct_recovered(source),
+            vec![
+                record(
+                    0,
+                    TypeRole::PolymorphicVariantTag,
+                    3..5,
+                    ExpectedSyntax::Identifier
+                ),
+                record(
+                    1,
+                    TypeRole::PolymorphicVariantTagName,
+                    7..11,
+                    ExpectedSyntax::Identifier,
+                ),
+            ],
+        );
+    }
+
+    #[test]
     fn legacy_polymorphic_variant_primary_completion_preflight() {
         use crate::session::{
             CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
