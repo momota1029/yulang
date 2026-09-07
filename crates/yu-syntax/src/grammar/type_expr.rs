@@ -15988,6 +15988,16 @@ mod tests {
                 11..15,
             ),
             (
+                ":{A::/*c*/\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 10 },
+                TypeMalformedCallerBoundaryFence { trivia_start: 5 },
+                true,
+                3..5,
+                5..10,
+                10..12,
+                12..16,
+            ),
+            (
                 ":{123::/*c*/\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 12 },
                 TypeMalformedCallerBoundaryFence { trivia_start: 7 },
@@ -15996,6 +16006,16 @@ mod tests {
                 7..12,
                 12..13,
                 13..17,
+            ),
+            (
+                ":{123::/*c*/\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 12 },
+                TypeMalformedCallerBoundaryFence { trivia_start: 7 },
+                false,
+                5..7,
+                7..12,
+                12..14,
+                14..18,
             ),
         ] {
             let stops = StopSet::default().with(StopKind::Newline);

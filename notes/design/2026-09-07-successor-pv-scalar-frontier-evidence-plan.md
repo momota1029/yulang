@@ -240,7 +240,9 @@ start of the complete comment/newline trivia run (bytes 5 / 7).  Both fully
 consume; their PVs locally own BlockComment, Newline, final malformed tag, and
 actual RBrace with no payload node.  This is only the observed overwrite for
 these two rows: it weakens neither the `+`/`@@` preservation cells nor defines
-a general comment, fence, retry, CRLF, or rewrite rule.
+a general comment, fence, retry, or rewrite rule. Its CRLF counterparts retain
+the overwrite and emit two-byte PV-local Newlines `10..12` / `12..14` as
+separate direct rows.
 
 The eighteenth bounded cell pins separate CRLF preservation pairs for `+` and
 `@@`.
