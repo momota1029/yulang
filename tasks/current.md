@@ -62,6 +62,13 @@ T4P candidate was discarded.  A narrow correction, M3 review, and fresh user
 decision are required before T4P/T4E resume; T4B/T4A, T7c certification, O6,
 and public cutover remain gated.
 
+The new Draft `2026-09-07-successor-t4-inherited-type-ml-correction-amendment.md`
+preserves standalone TypeApply controls while restoring only the outer-TypeApply
+inherited-context Parenthesized/EffectRow separator witnesses.  It proposes no
+new Error capability and leaves T4B/T4A excluded.  M3 compiler/recovery,
+specification, and performance review must close before a fresh user decision;
+no T4 code may resume during this Draft gate.
+
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
 standalone `act`宣言11 gate完走に続き、standalone `enum`宣言addendumの12 gate実装も完了）→
