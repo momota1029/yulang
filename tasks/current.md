@@ -53,10 +53,18 @@ EffectRow activates only the approved OuterTypeApply provenance. Type tests:
 141 passed; declaration: 39; output: 4; recovery output: 25; package check
 passed. Call and structured PV contracts remain green.
 
-Next: BracketRow item/separator/close, then the mandatory row arrow and leading
-head. Retain accepted row grammar, attachment and newline/caller boundaries;
-select a current-Item recovery rule explicitly before migrating the raw sites.
-The old eighth-terminal proposal is not a required prerequisite.
+BracketRow-owned Item/Separator/Close construction is complete under
+`2026-09-08-successor-bracket-row-current-item-recovery.md`. The shared
+delimiter module has no raw Error/Missing constructors; P/E/B share the total
+Item-error scan, B preserves its close-only retry and protects full caller/outer
+Items. Type tests: 147; declaration: 39; output: 4; recovery output: 25; package
+check passed.
+
+Next: migrate mandatory BracketRowArrow and LeadingEffectTypeHead recovery in
+`type_expr.rs`, including malformed arrow retry and wrong-kind second leading
+rows. Preserve accepted row attachment, mandatory-slot distinctions and
+caller/newline/fence boundaries. The old eighth-terminal proposal is not a
+required prerequisite.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
@@ -64,7 +72,7 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Complete the remaining Type-owned recovery sites (BracketRow, row arrow/head,
+1. Complete the remaining Type-owned recovery sites (row arrow/head,
    record and forall). PV-local construction does not certify raw recovery
    still emitted by a nested non-PV owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,

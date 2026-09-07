@@ -14,6 +14,7 @@ use crate::session::{
 };
 use chasa_recover::Recoverable as _;
 
+mod bracket_recovery;
 mod pe_recovery;
 mod pv_recovery;
 
@@ -7595,10 +7596,10 @@ fn shared_delimited_horizontal_fresh_outer_closes_continue_in_their_actual_owner
 }
 
 #[test]
-fn type_delimited_owner_routing_types_effect_but_keeps_bracket_close_recovery_raw() {
+fn type_delimited_owner_routing_publishes_effect_and_bracket_close_records() {
     for (source, expected) in [
         ("'[A", vec![pe_recovery::close(0, true, 3..3, None)]),
-        ("[e", vec![]),
+        ("[e", vec![bracket_recovery::close(0, 2..2, None)]),
     ] {
         let (green, _, records) = run_type_with_recoveries(source, None);
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -8892,7 +8893,7 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::Error)
         .expect("bracket item error");
-    assert_eq!(error.text().to_string(), "@ ");
+    assert_eq!(error.text().to_string(), "@");
 
     let (green, exit) = run_type("[e");
     assert_eq!(green.to_string(), "[e");
@@ -8927,10 +8928,10 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
     for (source, error_text, missing) in [
         ("T [:] -> U", ":", 0),
         ("T [@\nA] -> U", "@", 0),
-        ("T [@\n  A] -> U", "@\n  ", 0),
+        ("T [@\n  A] -> U", "@", 0),
         ("T [A\n  )] -> U", ")", 0),
-        ("T [@/* comment */A] -> U", "@/* comment */", 0),
-        ("T [@/*\n*/A] -> U", "@/*\n*/", 0),
+        ("T [@/* comment */A] -> U", "@", 0),
+        ("T [@/*\n*/A] -> U", "@", 0),
     ] {
         let (green, exit) = run_type(source);
         assert_eq!(green.to_string(), source, "{source:?}");

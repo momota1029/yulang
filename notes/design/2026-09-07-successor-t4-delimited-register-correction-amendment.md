@@ -9,8 +9,10 @@ Current scope note (2026-09-08): the recovery-authority amendment closes the
 shared horizontal correction. `2026-09-08-successor-pe-current-item-recovery.md`
 selects P/E current-Item recovery, superseding their retry-leading/eighth-terminal
 requirement and local-close representation below. The corrected role register
-and accepted grammar remain; BracketRow/row-arrow and aggregate O6/public
-certification are separate open work.
+and accepted grammar remain. BracketRow construction is now complete under
+`2026-09-08-successor-bracket-row-current-item-recovery.md`, which also replaces
+its retry-leading/eighth-terminal and local-close representation requirements.
+Row-arrow and aggregate O6/public certification are separate open work.
 
 Drafted-by: primary from T4 architecture preflight after T3 local construction
 

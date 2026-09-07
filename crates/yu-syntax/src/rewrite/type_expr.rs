@@ -2251,14 +2251,6 @@ fn missing_type_close(mut i: RewriteIn, mut item: Item) -> TailExit {
     handoff(item)
 }
 
-fn missing_bracket_row_close(mut i: RewriteIn, item: Item, baseline: usize) -> TailExit {
-    if is_type_implicit_boundary(baseline, item.leading_view()) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return handoff(item);
-    }
-    missing_type_close(i, item)
-}
-
 fn type_arrow_rhs(
     i: RewriteIn,
     arrow: Item,
