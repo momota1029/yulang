@@ -1,6 +1,6 @@
 # Successor shared delimited boundary-priority correction
 
-Status: Reviewed; fresh user decision required
+Status: Authoritative; bounded construction approved
 
 Date: 2026-09-07
 
@@ -10,6 +10,15 @@ post-item legacy boundary phases
 Reviewed-by: M3 independent compiler/recovery and specification review; two
 batched Draft repairs followed by clean compiler/specification delta review
 
+Approved-by: user
+
+Approved-at: 2026-09-07
+
+User-directed decision: select §6 option 1.  Adopt the legacy-compatible,
+phase-aware correction and authorize exactly the bounded private construction
+gate in §3.  All stated retained behavior, exclusions, proof obligations, and
+O6/public gates remain in force.
+
 Scope: define one phase-aware, private successor recovery-priority correction
 for the immediate `TypeDelimitedOwner::{Call, ParenthesizedGroup, EffectRow}`
 owners.  It addresses only ordinary horizontal leading before an already
@@ -18,8 +27,8 @@ boundary handoff and matching-local-close behavior.  If approved, it authorizes
 one private construction gate and no public dispatch, Yumark, legacy-parser,
 or T4E recovery-cell implementation.
 
-This Reviewed proposal records no user decision and authorizes no code or
-expected-output change.
+This Authoritative decision authorizes only the §3 bounded private construction
+gate.  It authorizes no public or expected-output change.
 
 Supersedes if approved, and only for the horizontal ordinary-leading priority
 described in §2:
@@ -219,18 +228,18 @@ invariants.  Required design review is independent `compiler_referee` and
 the shared sibling-owner test surface.  At most three review/repair rounds
 apply.
 
-## 6. User decision after review
+## 6. User decision
 
-After independent review, select one option:
+The user selected option 1 on 2026-09-07: approve §2 and the bounded
+construction gate.  The successor adopts the observed phase-sensitive
+immediate-owner gap ownership while retaining raw generic/outer payload handoff
+and abstract whole-gap handoff.
 
-1. **Legacy-compatible correction (recommended).** Approve §2 and the bounded
-   construction gate.  The successor adopts the observed phase-sensitive
-   immediate-owner gap ownership while retaining raw generic/outer payload
-   handoff and abstract whole-gap handoff.
-2. **Intentional successor divergence.** Keep whole-gap handoff at generic or
-   outer boundaries.  This rejects §2, changes direct CST trivia placement and
-   Missing coordinates from legacy, and requires a new explicit compatibility,
-   reconciliation, O6, and public-surface decision before any construction.
+Option 2, intentional successor divergence, was not selected.  It would retain
+whole-gap handoff at generic or outer boundaries, reject §2, change direct CST
+trivia placement and Missing coordinates from legacy, and require a new
+explicit compatibility, reconciliation, O6, and public-surface decision before
+any construction.
 
 Unconditional emit-before-boundary, unconditional whole-gap handoff, and a
 downstream diagnostic-range patch are rejected: each contradicts at least one

@@ -105,9 +105,10 @@ implementation.  The Reviewed
 ASOB whole-gap handoff from delimited-owner horizontal-trivia consumption before
 raw generic caller/outer payload handoff.  M3 compiler/recovery and
 specification review closed after two bounded Draft repairs and clean deltas.
-It authorizes no construction: a fresh user choice between its §6
-legacy-compatible correction and intentional successor divergence is the next
-required action.
+The user selected its §6 legacy-compatible option, so exactly one M3-reviewed
+private Call/Parenthesized/EffectRow construction pass is now authorized.  The
+phase-aware owner gap correction must retain all stated T3/T4P behavior and
+proof controls; T4E construction remains excluded.
 
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
