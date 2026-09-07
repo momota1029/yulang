@@ -1,12 +1,15 @@
 # Successor PV wrong-kind primary-completion amendment
 
-Status: Authoritative in retained scope; partly superseded, not implemented
+Status: Superseded; primary-completion proposal not implemented
 
 Current disposition (2026-09-08):
 `2026-09-08-successor-recovery-authority-amendment.md` §§2 and 4 removes the
 legacy-parity construction prerequisite and supersedes the numeric-head Call
-split. The blocked/reverted candidate below is history, not the active queue.
-Other external-tail policies are not implemented by that bounded correction.
+split. `2026-09-08-successor-pv-current-item-recovery.md` selects full scoped
+Type-expression recovery for all wrong-kind tag heads, including their tight
+tails. The blocked/reverted primary-completion candidate below is history.
+Structured reservation, extent and frozen invariants retain their independent
+authority; the proposed completion adapter is no longer required.
 
 Date: 2026-09-07
 

@@ -7,8 +7,9 @@ use reborrow_generic::Reborrow as _;
 
 use crate::{
     session::{
-        ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind, RecoverySiteKey,
-        SyntaxExpectation, TypeRole, UnexpectedCategory, UnexpectedSyntax,
+        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
+        UnexpectedCategory, UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -19,7 +20,9 @@ use super::super::{
     driver::{
         Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
     },
-    emit::{emit_error_item, emit_missing, emit_recovery_error_run, emit_token_item},
+    emit::{
+        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+    },
     item::{Item, LeadingTrivia, TokenKind},
     output::{RecoveryDraft, StructuredRecoverySpec, emit_structured_recovery_error_from_item},
     yumark::FenceBoundary,
@@ -28,9 +31,11 @@ use super::{
     TypeApplyBoundary, TypeDelimitedOwner, TypeMlContext, TypeOuterBoundary,
     continue_type_tail_normalized, indentation_after_newline, is_type_caller_boundary,
     is_type_mismatched_close, is_type_nud, is_type_outer_close, is_type_payload_boundary,
-    is_type_polymorphic_variant_tag_name, type_delimited_baseline, type_delimited_normalized,
-    type_expr_from_nud_normalized, type_nud_item_with_pipe_lexical_normalized,
-    type_nud_item_with_pipe_lexical_normalized_in_error_run, with_type_outer_close,
+    is_type_polymorphic_variant_tag_name, required_type_primary_unexpected_category,
+    type_delimited_baseline, type_delimited_normalized, type_expr_from_nud_normalized,
+    type_nud_item_with_pipe_lexical_normalized,
+    type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
+    with_type_outer_close,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -203,17 +208,23 @@ fn type_polymorphic_variant_tags_normalized(
     let mut position = TagPosition::Open;
 
     if item.payload_view().is_boundary() {
-        return type_polymorphic_variant_boundary(i, item, position, line_entry);
+        return type_polymorphic_variant_boundary(i, item, position, item_origin, line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
 
     loop {
         if item.payload_view().is_boundary() {
-            return type_polymorphic_variant_boundary(i, item, position, line_entry);
+            return type_polymorphic_variant_boundary(i, item, position, item_origin, line_entry);
         }
         if let Some(indentation) = indentation_after_newline(item.leading_view()) {
             if indentation > baseline {
-                return type_polymorphic_variant_boundary(i, item, position, line_entry);
+                return type_polymorphic_variant_boundary(
+                    i,
+                    item,
+                    position,
+                    item_origin,
+                    line_entry,
+                );
             }
             item.emit_all_remaining_leading(&mut *i.state);
             if matches!(position, TagPosition::AfterTag) {
@@ -229,14 +240,26 @@ fn type_polymorphic_variant_tags_normalized(
         if is_type_caller_boundary(&item, caller_stops)
             && !is_type_polymorphic_variant_tag_name(&item)
         {
-            return type_polymorphic_variant_boundary(i, item, position, line_entry);
+            return type_polymorphic_variant_boundary(i, item, position, item_origin, line_entry);
         }
         if is_type_mismatched_close(&item, TokenKind::RBrace) {
             if is_type_outer_close(&item, outer_closes) {
-                return type_polymorphic_variant_boundary(i, item, position, line_entry);
+                return type_polymorphic_variant_boundary(
+                    i,
+                    item,
+                    position,
+                    item_origin,
+                    line_entry,
+                );
             }
             item.emit_all_remaining_leading(&mut *i.state);
-            emit_error_item(&mut i, item);
+            emit_polymorphic_variant_token_error(
+                i.rb(),
+                item,
+                item_origin,
+                polymorphic_variant_close_role(),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+            );
             (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
                 i.rb(),
                 item_origin,
@@ -250,7 +273,13 @@ fn type_polymorphic_variant_tags_normalized(
         if token_kind(&item) == Some(TokenKind::Comma) {
             item.emit_all_remaining_leading(&mut *i.state);
             if !matches!(position, TagPosition::AfterTag) {
-                emit_missing(&mut i, LeadingTrivia::default());
+                emit_polymorphic_variant_missing(
+                    i.rb(),
+                    &item,
+                    item_origin,
+                    GrammarRole::Type(TypeRole::PolymorphicVariantTag),
+                    ExpectedSyntax::Identifier,
+                );
                 position = TagPosition::Filled;
             } else {
                 position = TagPosition::Unfilled;
@@ -268,10 +297,22 @@ fn type_polymorphic_variant_tags_normalized(
         }
         if token_kind(&item) == Some(TokenKind::Semicolon) {
             if outer_separators {
-                return type_polymorphic_variant_boundary(i, item, position, line_entry);
+                return type_polymorphic_variant_boundary(
+                    i,
+                    item,
+                    position,
+                    item_origin,
+                    line_entry,
+                );
             }
             item.emit_all_remaining_leading(&mut *i.state);
-            emit_error_item(&mut i, item);
+            emit_polymorphic_variant_token_error(
+                i.rb(),
+                item,
+                item_origin,
+                GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator),
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
             (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
                 i.rb(),
                 item_origin,
@@ -283,7 +324,7 @@ fn type_polymorphic_variant_tags_normalized(
             continue;
         }
         if item.payload_view().is_eof() {
-            return type_polymorphic_variant_boundary(i, item, position, line_entry);
+            return type_polymorphic_variant_boundary(i, item, position, item_origin, line_entry);
         }
 
         item.emit_all_remaining_leading(&mut *i.state);
@@ -353,10 +394,22 @@ fn type_polymorphic_variant_tags_normalized(
                 next
             }
             Err(Either::Left(next)) if next.payload_view().is_boundary() => {
-                return type_polymorphic_variant_boundary(i, next, position, line_entry);
+                return type_polymorphic_variant_boundary(
+                    i,
+                    next,
+                    position,
+                    item_origin,
+                    line_entry,
+                );
             }
             Err(Either::Left(next)) if is_type_caller_boundary(&next, caller_stops) => {
-                return type_polymorphic_variant_boundary(i, next, position, line_entry);
+                return type_polymorphic_variant_boundary(
+                    i,
+                    next,
+                    position,
+                    item_origin,
+                    line_entry,
+                );
             }
             Err(Either::Left(next)) => next,
             Err(Either::Right(end)) => end.item,
@@ -368,13 +421,85 @@ fn type_polymorphic_variant_boundary(
     mut i: RewriteIn,
     item: Item,
     position: TagPosition,
+    item_origin: usize,
     line_entry: LineEntry,
 ) -> NormalizedExit {
     if matches!(position, TagPosition::Unfilled) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_polymorphic_variant_missing(
+            i.rb(),
+            &item,
+            item_origin,
+            GrammarRole::Type(TypeRole::PolymorphicVariantTag),
+            ExpectedSyntax::Identifier,
+        );
     }
-    emit_missing(&mut i, LeadingTrivia::default());
+    emit_polymorphic_variant_missing(
+        i.rb(),
+        &item,
+        item_origin,
+        polymorphic_variant_close_role(),
+        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+    );
     complete(handoff(item), line_entry)
+}
+
+fn polymorphic_variant_close_role() -> GrammarRole {
+    GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::PolymorphicVariantType,
+        delimiter: Delimiter::Brace,
+    }
+}
+
+fn emit_polymorphic_variant_missing(
+    i: RewriteIn,
+    item: &Item,
+    item_origin: usize,
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        polymorphic_variant_recovery_draft(
+            role,
+            expected,
+            RecoveryKind::Missing,
+            range,
+            Arc::from([]),
+        )
+    });
+}
+
+fn emit_polymorphic_variant_token_error(
+    i: RewriteIn,
+    item: Item,
+    item_origin: usize,
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+) {
+    let unexpected = UnexpectedSyntax::Token {
+        range: item.extent(item_origin).recovery_range(),
+        category: required_type_primary_unexpected_category(&item),
+    };
+    let kind = type_recovery_error_syntax_kind(&item);
+    emit_recovery_error_item(
+        i,
+        item,
+        item_origin,
+        kind,
+        unexpected,
+        |range, unexpected| {
+            polymorphic_variant_recovery_draft(
+                role,
+                expected,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+            )
+        },
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -560,75 +685,54 @@ fn type_polymorphic_variant_malformed_tag_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
-    let (next, next_origin, next_line_entry) = emit_recovery_error_run(
+    let (next, next_origin, next_line_entry) = recover_polymorphic_variant_run(
         i.rb(),
-        |run| {
-            let mut run_start = None;
-            loop {
-                let kind = polymorphic_variant_malformed_item_syntax_kind(&item);
-                let extent = run.emit_item_as(item, item_origin, kind);
-                let range = extent.recovery_range();
-                run_start.get_or_insert(range.start);
-                let run_end = range.end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if is_type_polymorphic_variant_tag_safe(&item) {
-                    let range = run_start.expect("an NT-8 Error run is nonempty")..run_end;
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
-                }
-            }
-        },
-        |range, unexpected| polymorphic_variant_tag_error_draft(range, unexpected),
+        item,
+        TypeRole::PolymorphicVariantTag,
+        caller_stops,
+        pipe_lexical,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
     );
     item = next;
     item_origin = next_origin;
     line_entry = next_line_entry;
-    let exit =
-        if item.payload_view().is_boundary() || is_type_polymorphic_variant_tag_boundary(&item) {
-            complete(handoff(item), line_entry)
+    let exit = if is_polymorphic_variant_retry_boundary(&item, caller_stops) {
+        complete(handoff(item), line_entry)
+    } else {
+        item.emit_all_remaining_leading(&mut *i.state);
+        if is_type_polymorphic_variant_tag_name(&item) {
+            type_polymorphic_variant_tag_after_name_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                item,
+                baseline,
+                type_ml,
+                outer_closes,
+                caller_stops,
+                pipe_lexical,
+                ambient,
+            )
         } else {
-            item.emit_all_remaining_leading(&mut *i.state);
-            if is_type_polymorphic_variant_tag_name(&item) {
-                type_polymorphic_variant_tag_after_name_normalized(
-                    i.rb(),
-                    item_origin,
-                    line_entry,
-                    fence,
-                    item,
-                    baseline,
-                    type_ml,
-                    outer_closes,
-                    caller_stops,
-                    pipe_lexical,
-                    ambient,
-                )
-            } else {
-                type_polymorphic_variant_tag_after_wrong_kind_normalized(
-                    i.rb(),
-                    item,
-                    baseline,
-                    type_ml,
-                    outer_closes,
-                    caller_stops,
-                    pipe_lexical,
-                    item_origin,
-                    line_entry,
-                    fence,
-                    ambient,
-                )
-            }
-        };
+            type_polymorphic_variant_tag_after_wrong_kind_normalized(
+                i.rb(),
+                item,
+                baseline,
+                type_ml,
+                outer_closes,
+                caller_stops,
+                pipe_lexical,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
+        }
+    };
     i.state.finish_node();
     exit
 }
@@ -653,21 +757,23 @@ fn pending_structured_end(item: &Item, post_origin: usize) -> usize {
     }
 }
 
-fn polymorphic_variant_tag_error_draft(
+fn polymorphic_variant_recovery_draft(
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+    kind: RecoveryKind,
     range: std::ops::Range<usize>,
     unexpected: Arc<[UnexpectedSyntax]>,
 ) -> RecoveryDraft {
-    let role = GrammarRole::Type(TypeRole::PolymorphicVariantTag);
     RecoveryDraft::new(
         RecoverySiteKey {
             role,
             range: range.clone(),
         },
-        RecoveryKind::Error,
+        kind,
         unexpected,
         Arc::from([SyntaxExpectation {
             role,
-            expected: ExpectedSyntax::Identifier,
+            expected,
             range,
             sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
         }]),
@@ -675,32 +781,64 @@ fn polymorphic_variant_tag_error_draft(
     )
 }
 
-fn polymorphic_variant_malformed_item_syntax_kind(item: &Item) -> SyntaxKind {
-    match token_kind(item).expect("an NT-8 Error run contains lexical Items") {
-        TokenKind::Identifier => SyntaxKind::Identifier,
-        TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
-        TokenKind::Integer => SyntaxKind::Integer,
-        TokenKind::Operator => SyntaxKind::Operator,
-        TokenKind::LParen => SyntaxKind::LParen,
-        TokenKind::RParen => SyntaxKind::RParen,
-        TokenKind::LBracket => SyntaxKind::LBracket,
-        TokenKind::RBracket => SyntaxKind::RBracket,
-        TokenKind::LBrace => SyntaxKind::LBrace,
-        TokenKind::RBrace => SyntaxKind::RBrace,
-        TokenKind::Comma => SyntaxKind::Comma,
-        TokenKind::Semicolon => SyntaxKind::Semicolon,
-        TokenKind::Dot => SyntaxKind::Dot,
-        TokenKind::DotDot => SyntaxKind::DotDot,
-        TokenKind::Arrow => SyntaxKind::Arrow,
-        TokenKind::Colon => SyntaxKind::Colon,
-        TokenKind::Equals => SyntaxKind::Equals,
-        TokenKind::Forall => SyntaxKind::ForKw,
-        TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
-        TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => SyntaxKind::Colon,
-        TokenKind::PathSeparator => SyntaxKind::ColonColon,
-        TokenKind::Pipe => SyntaxKind::Pipe,
-        TokenKind::Unknown => SyntaxKind::Unknown,
-    }
+/// A malformed prefix is consumed once, up to a retry NUD or owner boundary.
+/// The caller owns both the initial gap and the returned Item's leading.
+#[allow(clippy::too_many_arguments)]
+fn recover_polymorphic_variant_run(
+    i: RewriteIn,
+    mut item: Item,
+    role: TypeRole,
+    caller_stops: Stops,
+    pipe_lexical: bool,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> (Item, usize, LineEntry) {
+    let expected = match role {
+        TypeRole::PolymorphicVariantTag => ExpectedSyntax::Identifier,
+        TypeRole::PolymorphicVariantPayload => ExpectedSyntax::TypeExpression,
+        _ => unreachable!("only tag and payload slots own malformed PV runs"),
+    };
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let run_start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind = type_recovery_error_syntax_kind(&item);
+                let run_end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) =
+                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                        run,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                        ambient,
+                    );
+                if is_polymorphic_variant_retry_boundary(&item, caller_stops) || is_type_nud(&item)
+                {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: run_start..run_end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| {
+            polymorphic_variant_recovery_draft(
+                GrammarRole::Type(role),
+                expected,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+            )
+        },
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -885,7 +1023,13 @@ fn type_polymorphic_variant_payload_normalized(
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
     if primary.leading_view().is_grammar_empty() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_polymorphic_variant_missing(
+            i.rb(),
+            &primary,
+            item_origin,
+            GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary),
+            ExpectedSyntax::TypePayloadBoundary,
+        );
     } else {
         primary.emit_all_remaining_leading(&mut *i.state);
     }
@@ -930,41 +1074,22 @@ fn type_polymorphic_variant_malformed_payload_normalized(
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
+    (item, item_origin, line_entry) = recover_polymorphic_variant_run(
+        i.rb(),
+        item,
+        TypeRole::PolymorphicVariantPayload,
+        caller_stops,
+        pipe_lexical,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    );
+    let exit = if is_polymorphic_variant_retry_boundary(&item, caller_stops) {
+        complete(handoff(item), line_entry)
+    } else {
         item.emit_all_remaining_leading(&mut *i.state);
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-            ambient,
-        );
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if is_type_polymorphic_variant_payload_boundary(&item)
-            || is_type_caller_boundary(&item, caller_stops)
-        {
-            i.state.finish_node();
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if !is_type_nud(&item) {
-            continue;
-        }
-        i.state.finish_node();
-        item.emit_all_remaining_leading(&mut *i.state);
-        let exit = type_expr_from_nud_normalized(
+        type_expr_from_nud_normalized(
             i.rb(),
             item,
             baseline,
@@ -979,10 +1104,10 @@ fn type_polymorphic_variant_malformed_payload_normalized(
             line_entry,
             fence,
             ambient,
-        );
-        i.state.finish_node();
-        return exit;
-    }
+        )
+    };
+    i.state.finish_node();
+    exit
 }
 
 fn is_type_polymorphic_variant_payload_boundary(item: &Item) -> bool {
@@ -1000,23 +1125,8 @@ fn is_type_polymorphic_variant_payload_boundary(item: &Item) -> bool {
         || item.payload_view().is_eof()
 }
 
-fn is_type_polymorphic_variant_tag_safe(item: &Item) -> bool {
+fn is_polymorphic_variant_retry_boundary(item: &Item, caller_stops: Stops) -> bool {
     item.payload_view().is_boundary()
-        || is_type_polymorphic_variant_tag_boundary(item)
-        || is_type_nud(item)
-}
-
-fn is_type_polymorphic_variant_tag_boundary(item: &Item) -> bool {
-    indentation_after_newline(item.leading_view()).is_some()
-        || matches!(
-            token_kind(item),
-            Some(
-                TokenKind::Comma
-                    | TokenKind::Semicolon
-                    | TokenKind::RParen
-                    | TokenKind::RBracket
-                    | TokenKind::RBrace
-            )
-        )
-        || item.payload_view().is_eof()
+        || is_type_polymorphic_variant_payload_boundary(item)
+        || is_type_caller_boundary(item, caller_stops)
 }

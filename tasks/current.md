@@ -38,23 +38,28 @@ streaming-boundary rules rather than old-parser recovery output. Type tests:
 126 passed; TypeDeclaration: 39 passed; output: 4 passed; recovery output: 25
 passed; package check passed.
 
-Next: specify and simplify current-Item PV recovery under the new authority,
-then resume typed-owner migration. Start from accepted PV forms and the existing
-structured TagName reservation/output invariants; do not resume the superseded
-legacy scalar-frontier matrix.
+The PV-owned typed migration is also complete under
+`2026-09-08-successor-pv-current-item-recovery.md`. Every PV-owned recovery
+node publishes its typed record; malformed tag/payload runs share one forward
+operation and preserve explicit caller Items. Wrong-kind heads retain tight
+Type tails inside one structured Error. Type tests: 134 passed; declaration,
+output/RB and package checks remain green.
 
-The pre-Item scalar-frontier evidence plan is no longer a construction
-prerequisite. Its 29 legacy evidence slices remain historical observations;
-do not continue that matrix solely to reproduce malformed legacy output. The
-reverted primary-completion candidate remains unintegrated; numeric Calls have
-the explicit successor rule in the new amendment, and other PV recovery choices
-belong to the following current-Item owner gate.
+Next: resume the remaining Type-owner migration, starting with shared
+Parenthesized/EffectRow item, separator and close sites. Select bounded
+current-Item recovery where the old eighth-terminal proposal exists solely to
+copy malformed leading ownership. Preserve accepted Type-ML provenance and
+the completed Call/PV/structured-output contracts.
+
+The pre-Item scalar-frontier evidence plan and reverted primary-completion
+proposal are superseded. Their historical evidence does not create a remaining
+recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Specify and simplify current-Item PV recovery under the new authority, then
-   resume the typed-owner migration. Keep one forward pass and no replay or
-   scalar observer introduced only for legacy parity.
+1. Complete the remaining Type-owned recovery sites (P/E/BracketRow, row arrow,
+   record and forall). PV-local construction does not certify raw recovery
+   still emitted by a nested non-PV owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption

@@ -14,6 +14,8 @@ use crate::session::{
 };
 use chasa_recover::Recoverable as _;
 
+mod pv_recovery;
+
 fn top_type_expression(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .children()
