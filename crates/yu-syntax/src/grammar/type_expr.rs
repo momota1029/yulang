@@ -9530,6 +9530,390 @@ mod tests {
     }
 
     #[test]
+    fn legacy_delimited_fresh_slot_horizontal_gap_phases_are_execution_pinned() {
+        #[derive(Clone, Copy, Debug)]
+        enum Owner {
+            Call,
+            Parenthesized,
+            EffectRow,
+        }
+
+        fn assert_plain_atom(expression: &TypeExpression<'_>, expected_range: Range<usize>) {
+            assert!(
+                matches!(expression, TypeExpression {
+                    primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))),
+                    postfix,
+                    arrow: None,
+                    range,
+                    ..
+                } if postfix.is_empty() && *range == expected_range),
+                "{expression:#?}",
+            );
+        }
+
+        fn assert_slots(
+            slots: &[Recovered<TypeExpression<'_>>],
+            expected: &[Option<Range<usize>>],
+        ) {
+            assert_eq!(slots.len(), expected.len(), "{slots:#?}");
+            for (slot, expected) in slots.iter().zip(expected) {
+                match (slot, expected) {
+                    (Recovered::Complete(expression), Some(range)) => {
+                        assert_plain_atom(expression, range.clone());
+                    }
+                    (Recovered::Incomplete, None) => {}
+                    _ => panic!("slot mismatch: {slot:#?}, expected {expected:#?}"),
+                }
+            }
+        }
+
+        fn assert_outer_shape(
+            source: &str,
+            expression: &TypeExpression<'_>,
+            owner: Owner,
+            expected_slots: &[Option<Range<usize>>],
+            expected_close: Option<Range<usize>>,
+            expected_owner_range: Range<usize>,
+        ) {
+            let argument = match expression.postfix.as_slice() {
+                [TypePostfixTail::Apply(argument)] => &argument.argument,
+                _ => panic!("outer TypeApply shape for {source:?}: {expression:#?}"),
+            };
+            match owner {
+                Owner::Call => match argument.postfix.as_slice() {
+                    [
+                        TypePostfixTail::Call(TypeCallTail {
+                            arguments,
+                            close,
+                            range,
+                            ..
+                        }),
+                    ] => {
+                        assert_slots(arguments, expected_slots);
+                        assert_eq!(*range, expected_owner_range, "{source:?}");
+                        assert_eq!(
+                            close,
+                            &expected_close.map_or(Recovered::Incomplete, Recovered::Complete),
+                            "{source:?}",
+                        );
+                    }
+                    _ => panic!("Call shape for {source:?}: {argument:#?}"),
+                },
+                Owner::Parenthesized => match argument.complete_primary() {
+                    TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                        elements,
+                        close,
+                        range,
+                        ..
+                    }) => {
+                        assert_slots(&elements, expected_slots);
+                        assert_eq!(range, expected_owner_range, "{source:?}");
+                        assert_eq!(
+                            close,
+                            expected_close.map_or(Recovered::Incomplete, Recovered::Complete),
+                            "{source:?}",
+                        );
+                    }
+                    _ => panic!("Parenthesized shape for {source:?}: {argument:#?}"),
+                },
+                Owner::EffectRow => match argument.complete_primary() {
+                    TypePrimary::EffectRow(EffectRowType {
+                        items,
+                        close,
+                        range,
+                        ..
+                    }) => {
+                        assert_slots(&items, expected_slots);
+                        assert_eq!(range, expected_owner_range, "{source:?}");
+                        assert_eq!(
+                            close,
+                            expected_close.map_or(Recovered::Incomplete, Recovered::Complete),
+                            "{source:?}",
+                        );
+                    }
+                    _ => panic!("EffectRow shape for {source:?}: {argument:#?}"),
+                },
+            }
+            assert_eq!(expression.range, 0..expected_owner_range.end, "{source:?}");
+        }
+
+        fn roles(owner: Owner) -> (GrammarRole, GrammarRole, Delimiter) {
+            match owner {
+                Owner::Call => (
+                    GrammarRole::Type(TypeRole::CallArgument),
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::TypeCall,
+                        delimiter: Delimiter::Parenthesis,
+                    },
+                    Delimiter::Parenthesis,
+                ),
+                Owner::Parenthesized => (
+                    GrammarRole::Type(TypeRole::ParenthesizedItem),
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::ParenthesizedTypeGroup,
+                        delimiter: Delimiter::Parenthesis,
+                    },
+                    Delimiter::Parenthesis,
+                ),
+                Owner::EffectRow => (
+                    GrammarRole::Type(TypeRole::EffectRowItem),
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::EffectRowType,
+                        delimiter: Delimiter::Bracket,
+                    },
+                    Delimiter::Bracket,
+                ),
+            }
+        }
+
+        fn assert_missing_record(
+            record: &crate::session::CommittedRecoveryRecord,
+            role: GrammarRole,
+            at: usize,
+            expected: ExpectedSyntax,
+        ) {
+            assert_eq!(record.site.role, role);
+            assert_eq!(record.site.range, at..at);
+            assert_eq!(record.kind, RecoveryKind::Missing);
+            assert_eq!(record.primary_expectation, 0);
+            assert_eq!(record.expectations.len(), 1);
+            assert_eq!(record.expectations[0].role, role);
+            assert_eq!(record.expectations[0].range, at..at);
+            assert_eq!(record.expectations[0].expected, expected);
+        }
+
+        fn assert_boundary_records(
+            records: &[crate::session::CommittedRecoveryRecord],
+            owner: Owner,
+            at: usize,
+            missing_item: bool,
+        ) {
+            let (item_role, close_role, delimiter) = roles(owner);
+            let close_index = usize::from(missing_item);
+            assert_eq!(records.len(), close_index + 1, "{records:#?}");
+            if missing_item {
+                assert_missing_record(&records[0], item_role, at, ExpectedSyntax::TypeExpression);
+            }
+            assert_missing_record(
+                &records[close_index],
+                close_role,
+                at,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
+            );
+        }
+
+        fn parse_ambient_ast<'source>(source: &'source str) -> (String, TypeExpression<'source>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let expression = i
+                .run(from_fn(parse_type_expression))
+                .expect("ambient AST type expression");
+            let remainder = i.input.remainder().to_owned();
+            drop(i);
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+            (remainder, expression)
+        }
+
+        fn parse_ambient_direct(
+            source: &str,
+        ) -> (String, Vec<crate::session::CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            commit_direct_type_expression(&mut committed).expect("ambient direct type expression");
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output.committed_recoveries().to_vec();
+            drop(output);
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+            (remainder, records)
+        }
+
+        for (source, owner, slots, owner_range, at) in [
+            ("G ( }", Owner::Parenthesized, vec![None], 2..4, 4),
+            ("G T( }", Owner::Call, vec![None], 3..5, 5),
+            ("G '[ }", Owner::EffectRow, vec![None], 2..5, 5),
+            (
+                "G (F, }",
+                Owner::Parenthesized,
+                vec![Some(3..4), None],
+                2..6,
+                6,
+            ),
+            ("G T(F, }", Owner::Call, vec![Some(4..5), None], 3..7, 7),
+            (
+                "G '[F, }",
+                Owner::EffectRow,
+                vec![Some(4..5), None],
+                2..7,
+                7,
+            ),
+            (
+                "G (F; }",
+                Owner::Parenthesized,
+                vec![Some(3..4), None],
+                2..6,
+                6,
+            ),
+            ("G T(F; }", Owner::Call, vec![Some(4..5), None], 3..7, 7),
+            (
+                "G '[F; }",
+                Owner::EffectRow,
+                vec![Some(4..5), None],
+                2..7,
+                7,
+            ),
+        ] {
+            let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::RightBrace);
+            assert_eq!(ast_remainder, "}", "AST {source:?}");
+            assert_outer_shape(source, &ast, owner, &slots, None, owner_range);
+            let (direct_remainder, records) =
+                parse_direct_prefix_with_outer_stop(source, StopKind::RightBrace);
+            assert_eq!(direct_remainder, "}", "direct {source:?}");
+            assert_boundary_records(&records, owner, at, true);
+        }
+
+        for (source, owner, slots, owner_range, at) in [
+            (
+                "G ( else: 0",
+                Owner::Parenthesized,
+                vec![Some(4..8)],
+                2..8,
+                8,
+            ),
+            ("G T( else: 0", Owner::Call, vec![Some(5..9)], 3..9, 9),
+            ("G '[ else: 0", Owner::EffectRow, vec![Some(5..9)], 2..9, 9),
+            (
+                "G (F, else: 0",
+                Owner::Parenthesized,
+                vec![Some(3..4), Some(6..10)],
+                2..10,
+                10,
+            ),
+            (
+                "G T(F, else: 0",
+                Owner::Call,
+                vec![Some(4..5), Some(7..11)],
+                3..11,
+                11,
+            ),
+            (
+                "G '[F, else: 0",
+                Owner::EffectRow,
+                vec![Some(4..5), Some(7..11)],
+                2..11,
+                11,
+            ),
+            (
+                "G (F; else: 0",
+                Owner::Parenthesized,
+                vec![Some(3..4), Some(6..10)],
+                2..10,
+                10,
+            ),
+            (
+                "G T(F; else: 0",
+                Owner::Call,
+                vec![Some(4..5), Some(7..11)],
+                3..11,
+                11,
+            ),
+            (
+                "G '[F; else: 0",
+                Owner::EffectRow,
+                vec![Some(4..5), Some(7..11)],
+                2..11,
+                11,
+            ),
+        ] {
+            let (ast_remainder, ast) = parse_ambient_ast(source);
+            assert_eq!(ast_remainder, ": 0", "AST {source:?}");
+            assert_outer_shape(source, &ast, owner, &slots, None, owner_range);
+            let (direct_remainder, records) = parse_ambient_direct(source);
+            assert_eq!(direct_remainder, ": 0", "direct {source:?}");
+            assert_boundary_records(&records, owner, at, false);
+        }
+
+        for (source, owner, slots, owner_range, at) in [
+            (
+                "G (F else: 0",
+                Owner::Parenthesized,
+                vec![Some(3..4)],
+                2..4,
+                4,
+            ),
+            ("G T(F else: 0", Owner::Call, vec![Some(4..5)], 3..5, 5),
+            ("G '[F else: 0", Owner::EffectRow, vec![Some(4..5)], 2..5, 5),
+        ] {
+            let (ast_remainder, ast) = parse_ambient_ast(source);
+            assert_eq!(ast_remainder, " else: 0", "AST {source:?}");
+            assert_outer_shape(source, &ast, owner, &slots, None, owner_range);
+            let (direct_remainder, records) = parse_ambient_direct(source);
+            assert_eq!(direct_remainder, " else: 0", "direct {source:?}");
+            assert_boundary_records(&records, owner, at, false);
+        }
+
+        for (source, owner, slots, close, owner_range) in [
+            ("G ( )", Owner::Parenthesized, vec![], 4..5, 2..5),
+            ("G T( )", Owner::Call, vec![], 5..6, 3..6),
+            ("G '[ ]", Owner::EffectRow, vec![], 5..6, 2..6),
+            (
+                "G (F, )",
+                Owner::Parenthesized,
+                vec![Some(3..4)],
+                6..7,
+                2..7,
+            ),
+            ("G T(F, )", Owner::Call, vec![Some(4..5)], 7..8, 3..8),
+            ("G '[F, ]", Owner::EffectRow, vec![Some(4..5)], 7..8, 2..8),
+            (
+                "G (F; )",
+                Owner::Parenthesized,
+                vec![Some(3..4)],
+                6..7,
+                2..7,
+            ),
+            ("G T(F; )", Owner::Call, vec![Some(4..5)], 7..8, 3..8),
+            ("G '[F; ]", Owner::EffectRow, vec![Some(4..5)], 7..8, 2..8),
+        ] {
+            let ast = parse(source);
+            assert_outer_shape(source, &ast, owner, &slots, Some(close), owner_range);
+            assert!(parse_direct_recovered(source).is_empty(), "{source:?}");
+            assert_eq!(parse_direct(source).to_string(), source, "{source:?}");
+        }
+    }
+
+    #[test]
     fn call_and_group_recovery_leave_outer_owned_boundaries_unconsumed() {
         let (call_remainder, call_ast) =
             parse_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
