@@ -57,7 +57,7 @@ The following direct controls are retained rather than rewritten:
 | --- | --- | --- |
 | conditional payload admission | `legacy_polymorphic_variant_conditional_payload_admission_is_execution_pinned` | valid/wrong-head `::` and `->` retry, dangling `::`, visible no-stop `else` decline, spaced valid-name boundary, repeated payload, newline, native close, and EOF |
 | colon overlap | `legacy_polymorphic_variant_payload_colon_overlap_is_execution_pinned` | valid/wrong-head `::{B}` and `:::{B}` split at the retry colon |
-| scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned` and `legacy_polymorphic_variant_payload_scalar_fence_termination_is_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership, plus wrong-head inline nested-PV retry at native close/outer EOF, distinct CRLF tag-loop outer EOF, unspaced comment native/prefix no-retry ownership, and the exact valid/wrong `+`/`@@` active-newline caller-fence pairs |
+| scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned`, `legacy_polymorphic_variant_payload_scalar_fence_termination_is_execution_pinned`, and `legacy_polymorphic_variant_payload_comment_fence_overwrite_is_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership, plus wrong-head inline nested-PV retry at native close/outer EOF, distinct CRLF tag-loop outer EOF, unspaced comment native/prefix no-retry ownership, exact valid/wrong `+`/`@@` active-newline caller-fence pairs, and the distinct comment-trivia fence overwrite |
 | primary and reservation boundary | `legacy_polymorphic_variant_primary_completion_preflight` | non-atomic primary external/internal tails, selected `::Next`, numeric apparent Call, prefix, and recursive PV ownership |
 | P and E carriers | `legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned` and `legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned` | P/E ordinary-gap extent facts, E rows, numeric apparent-Call distinction, prefix/nested cells, and `::Next` continuations |
 | ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial and recovery-continuation, nested-If initial/recovery-continuation, actual-If accepted-own-Else initial/recovery-continuation, and post-completed-If outer-tail initial/recovery-continuation controls, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, strict-dedent initial `:{A\nelse: 0}` and recovery-continuation `:{123\nelse: 0}` under baseline 2, nested outer(0)/inner(5) same-line initial `:{A else: 0}` and recovery-continuation `:{A::else: 0}` selecting inner, actual-If `if condition:\n  type T = :{A\nelse: value` and `if condition:\n  type T = :{A::\nelse: value`, and outer-tail `if outer:\n  if inner:\n    value\n  type T = :{A\nelse: value` / `if outer:\n  if inner:\n    value\n  type T = :{A::\nelse: value`; their PV recoveries precede the relevant accepted Else and frames must balance |
@@ -230,6 +230,17 @@ state remains unchanged through each episode, then the harness alone clears
 the fence and pops the outer stop frame.  This establishes neither another
 spelling, retry/decline classification, CRLF behavior, nor any rewrite
 behavior.
+
+The seventeenth bounded cell records the distinct comment-trivia overwrite,
+not another preservation result.  With the same outer `StopKind::Newline`,
+the harness installs incoming fences at the physical newline for
+`:{A::/*c*/\n:{B}}` / `:{123::/*c*/\n:{B}}` (bytes 10 / 12), but both AST and
+direct parsing leave the outer stop intact while replacing the fence with the
+start of the complete comment/newline trivia run (bytes 5 / 7).  Both fully
+consume; their PVs locally own BlockComment, Newline, final malformed tag, and
+actual RBrace with no payload node.  This is only the observed overwrite for
+these two rows: it weakens neither the `+`/`@@` preservation cells nor defines
+a general comment, fence, retry, CRLF, or rewrite rule.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
