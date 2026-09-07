@@ -134,8 +134,11 @@ EffectRow rows are flat TagName `Error > Unknown` spans, while all numeric
 apparent-Call rows are instead a TagName Error for `123` followed by a separate
 Parenthesized PV payload and PayloadBoundary Missing--never a legacy Call in
 the TagName Error.  M1 specification review is clean.  This counterfact keeps
-the shared candidate unintegrated: no E/Call successor range/record oracle is
-authorized until architecture resolves their distinct compatibility routes.
+the shared candidate unintegrated: the Authoritative
+`2026-09-07-successor-delimited-pv-effect-row-extent-addendum.md` now admits
+the E same-carrier range/evidence cells under the recorded recommendation
+delegation, but E/P proof and the distinct Call head-admission
+architecture/evidence gate must both close before shared integration.
 
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
