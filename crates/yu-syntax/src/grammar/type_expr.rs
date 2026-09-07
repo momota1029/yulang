@@ -9404,6 +9404,155 @@ mod tests {
     }
 
     #[test]
+    fn malformed_path_segment_legacy_ast_controls_distinguish_path_retry_from_outer_apply() {
+        for (source, segment_range) in [
+            ("A::@@B", 5..6),
+            ("A::@/*x*/B", 9..10),
+            ("A::@/*x*/@B", 10..11),
+        ] {
+            let ast = parse(source);
+            let [
+                TypePostfixTail::Path(TypePathTail {
+                    segment: Recovered::Complete(TypePathSegment::Identifier(segment)),
+                    ..
+                }),
+            ] = ast.postfix.as_slice()
+            else {
+                panic!("legacy AST retries B in the TypePathTail: {source:?}")
+            };
+            assert_eq!(segment.text(), "B", "{source:?}");
+            assert_eq!(segment.range(), segment_range, "{source:?}");
+        }
+
+        let source = "A::@/*x*/ B";
+        let ast = parse(source);
+        let [
+            TypePostfixTail::Path(TypePathTail {
+                segment: Recovered::Incomplete,
+                ..
+            }),
+            TypePostfixTail::Apply(argument),
+        ] = ast.postfix.as_slice()
+        else {
+            panic!("legacy AST closes the incomplete path before outer TypeApply")
+        };
+        assert_eq!(argument.boundary, 9..10);
+        assert_eq!(argument.range, 9..11);
+        let TypePrimary::Atom(TypeAtom::Identifier(segment)) = argument.argument.complete_primary()
+        else {
+            panic!("legacy outer TypeApply owns identifier B")
+        };
+        assert_eq!(segment.text(), "B");
+        assert_eq!(segment.range(), 10..11);
+    }
+
+    #[test]
+    fn malformed_path_segment_legacy_trivia_controls_are_phase_aware() {
+        let source = "A:: @";
+        let ast = parse(source);
+        assert!(matches!(
+            ast.postfix.as_slice(),
+            [TypePostfixTail::Path(TypePathTail {
+                segment: Recovered::Incomplete,
+                ..
+            })]
+        ));
+        let direct = parse_direct(source);
+        let path = direct
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("legacy direct TypePathTail");
+        let error = path
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("legacy direct PathSegment Error");
+        assert_eq!(error.text(), "@");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            4..5,
+        );
+        let whitespace = path
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Whitespace)
+            .expect("legacy post-separator whitespace");
+        assert_eq!(
+            usize::from(whitespace.text_range().start())
+                ..usize::from(whitespace.text_range().end()),
+            3..4,
+        );
+        assert!(
+            !whitespace
+                .parent_ancestors()
+                .any(|ancestor| ancestor == error)
+        );
+
+        for (source, error_range, error_text, boundary, number_range) in [
+            ("A::@ 123", 3..4, "@", 4..5, 5..8),
+            ("A::@/*x*/ 123", 3..9, "@/*x*/", 9..10, 10..13),
+        ] {
+            let ast = parse(source);
+            let [
+                TypePostfixTail::Path(TypePathTail {
+                    segment: Recovered::Incomplete,
+                    ..
+                }),
+                TypePostfixTail::Apply(argument),
+            ] = ast.postfix.as_slice()
+            else {
+                panic!("legacy AST hands numeric payload to outer TypeApply: {source:?}")
+            };
+            assert_eq!(argument.boundary, boundary, "{source:?}");
+            assert_eq!(
+                argument.range,
+                boundary.start..number_range.end,
+                "{source:?}"
+            );
+            let TypePrimary::Atom(TypeAtom::Number(number)) = argument.argument.complete_primary()
+            else {
+                panic!("legacy outer TypeApply owns numeric payload: {source:?}")
+            };
+            assert_eq!(number.range, number_range, "{source:?}");
+
+            let direct = parse_direct(source);
+            let path = direct
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::TypePathTail)
+                .expect("legacy direct TypePathTail");
+            let error = path
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Error)
+                .expect("legacy direct PathSegment Error");
+            assert_eq!(error.text(), error_text, "{source:?}");
+            assert_eq!(
+                usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+                error_range,
+                "{source:?}",
+            );
+            let tokens = error
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .collect::<Vec<_>>();
+            let [token] = tokens.as_slice() else {
+                panic!("one coalesced legacy Unknown: {source:?}")
+            };
+            assert_eq!(token.kind(), SyntaxKind::Unknown, "{source:?}");
+            assert_eq!(token.text(), error_text, "{source:?}");
+            let integer = direct
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Integer)
+                .expect("legacy outer numeric TypeApply token");
+            assert!(
+                integer
+                    .parent_ancestors()
+                    .any(|ancestor| ancestor.kind() == SyntaxKind::TypeApplyArgument)
+            );
+            assert!(!integer.parent_ancestors().any(|ancestor| ancestor == path));
+        }
+    }
+
+    #[test]
     fn malformed_path_segment_retries_after_deeper_trivia() {
         let ast = parse("A::@\n  B");
         assert!(

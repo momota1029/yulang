@@ -132,6 +132,11 @@ impl<'item> LeadingView<'item> {
             .any(|part| part.kind == TriviaKind::Newline)
     }
 
+    pub(super) fn has_ordinary_horizontal_gap(self) -> bool {
+        self.remaining_physical()
+            .any(|part| part.kind == TriviaKind::Whitespace)
+    }
+
     pub(super) fn indentation_after_newline(self) -> Option<usize> {
         indentation_after_newline(
             self.remaining_physical()
@@ -572,6 +577,17 @@ pub(super) struct ItemExtent {
     payload: std::ops::Range<usize>,
 }
 
+pub(super) struct PathSegmentRetryLeadingPrefix {
+    end_part: usize,
+    range: std::ops::Range<usize>,
+}
+
+impl PathSegmentRetryLeadingPrefix {
+    pub(super) fn range(&self) -> std::ops::Range<usize> {
+        self.range.clone()
+    }
+}
+
 impl ItemExtent {
     pub(super) fn physical(&self) -> std::ops::Range<usize> {
         self.physical.clone()
@@ -709,6 +725,58 @@ impl Item {
         let suffix = extent.remaining();
         let payload = extent.payload();
         (!suffix.is_empty() && suffix.end == payload.start).then_some(suffix)
+    }
+
+    /// Validates the only leading prefix which a PathSegment Error may emit
+    /// from an immediate retry Item. The returned cut is Item-local and does
+    /// not expose physical trivia to grammar code.
+    pub(super) fn path_segment_retry_leading_prefix(
+        &self,
+        successor_origin: usize,
+    ) -> Option<PathSegmentRetryLeadingPrefix> {
+        if self.first_unemitted_leading != 0
+            || self.fragments.is_some()
+            || self.payload_text().is_none()
+            || self.physical_leading.iter().any(|part| {
+                matches!(
+                    part.kind,
+                    TriviaKind::Newline | TriviaKind::LineComment | TriviaKind::YmQuotePrefix
+                ) || part.text.contains(['\r', '\n'])
+            })
+        {
+            return None;
+        }
+        let end_part = self
+            .physical_leading
+            .iter()
+            .take_while(|part| part.kind == TriviaKind::BlockComment)
+            .count();
+        if end_part == 0
+            || self
+                .physical_leading
+                .get(end_part)
+                .is_some_and(|part| part.kind != TriviaKind::Whitespace)
+        {
+            return None;
+        }
+        let extent = self.extent(successor_origin);
+        let length = self.physical_leading[..end_part]
+            .iter()
+            .try_fold(0usize, |length, part| length.checked_add(part.text.len()))?;
+        let end = extent.physical().start.checked_add(length)?;
+        Some(PathSegmentRetryLeadingPrefix {
+            end_part,
+            range: extent.physical().start..end,
+        })
+    }
+
+    pub(super) fn emit_path_segment_retry_leading_prefix(
+        &mut self,
+        output: &mut RewriteOutput,
+        prefix: PathSegmentRetryLeadingPrefix,
+    ) {
+        debug_assert_eq!(self.first_unemitted_leading, 0);
+        self.emit_leading_prefix_with(output, prefix.end_part, |_, _| {});
     }
 
     pub(super) fn emit_all_remaining_leading(&mut self, output: &mut RewriteOutput) {

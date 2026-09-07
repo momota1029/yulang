@@ -27,6 +27,16 @@ not authorize any other T2 owner, T3--T7/PV owner, caller-owned Missing,
 legacy production change, Yumark/session transport change, public dispatch, or
 cutover.
 
+Implementation status: local T2b construction completed on 2026-09-07 after
+M3 compiler/recovery, specification, and regression implementation review, one
+batched repair, and a final micro-delta review.  The completed scope is only
+the three accepted-`TypePathTail` Missing branches and malformed PathSegment
+Error run described here.  Focused PathSegment/output/legacy-baseline tests,
+`cargo check -p yu-syntax`, formatting, and diff checks passed; static
+recovery-only cost remains `O(L)` and timing usage is zero.  O4 may certify
+only this local subproof.  O6 embedded successor-Yumark fact equality, all
+other owners, and public cutover remain deferred.
+
 Depends-on:
 
 - `2026-08-20-yu-syntax-chasa-architecture.md` Type primary/path recovery

@@ -26,8 +26,8 @@ use super::{
         suffix_marker, token_kind,
     },
     emit::{
-        ErrorRunOutput, emit_missing, emit_recovery_error_run, emit_recovery_missing,
-        emit_token_item,
+        ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_missing, emit_recovery_error_run,
+        emit_recovery_missing, emit_token_item,
     },
     item::{Item, LeadingTrivia, LeadingView, TokenKind},
     lexer::{
@@ -636,6 +636,29 @@ fn type_expression_missing_draft(role: TypeRole, range: std::ops::Range<usize>) 
     )
 }
 
+fn type_path_segment_recovery_draft(
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::Type(TypeRole::PathSegment);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::TypePathSegment,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
 fn required_type_primary_unexpected_category(item: &Item) -> UnexpectedCategory {
     match token_kind(item).expect("a required Type-primary Error contains lexical Items") {
         TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Forall => {
@@ -1095,6 +1118,52 @@ fn type_nud_item_with_pipe_lexical_normalized_in_error_run(
             },
         )
         .expect("type NUD payload scanning is total");
+        let suffix_pointer = lex.remainder().as_ptr() as usize;
+        let suffix_length = lex.remainder().len();
+        let consumed = entry_length
+            .checked_sub(suffix_length)
+            .expect("a direct Type item scan cannot lengthen its live suffix");
+        assert_eq!(
+            entry_pointer.wrapping_add(consumed),
+            suffix_pointer,
+            "a direct Type item scan keeps the input on one source suffix",
+        );
+        let item_origin = item_origin
+            .checked_add(consumed)
+            .expect("a direct Type item coordinate must fit usize");
+        (item, item_origin, next_line_entry)
+    })
+}
+
+fn type_item_with_pipe_lexical_normalized_in_error_run(
+    run: &mut ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
+) -> (Item, usize, LineEntry) {
+    run.lexical(|mut lex| {
+        let entry_pointer = lex.remainder().as_ptr() as usize;
+        let entry_length = lex.remainder().len();
+        let CurrentItem {
+            item,
+            next_line_entry,
+        } = current_item(
+            lex.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| {
+                if pipe_lexical && let Some(pipe) = lex.token(scan_exact_pipe) {
+                    return Some(AcceptedPayload {
+                        payload: CurrentPayload::Token(pipe),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                scan_type_payload(lex, leading, origin, fence)
+            },
+        )
+        .expect("type payload scanning is total");
         let suffix_pointer = lex.remainder().as_ptr() as usize;
         let suffix_length = lex.remainder().len();
         let consumed = entry_length
@@ -1948,7 +2017,14 @@ fn type_path_tail_normalized(
     line_entry = next_line_entry;
 
     if segment.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        let at = segment
+            .payload_view()
+            .pending_boundary()
+            .expect("a boundary Item retains its inspected boundary")
+            .coordinate();
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+            type_path_segment_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
+        });
         i.state.finish_node();
         return type_tail_normalized(
             i,
@@ -1966,10 +2042,13 @@ fn type_path_tail_normalized(
             fence,
         );
     }
-    if is_type_outer_boundary(&segment, outer_boundary)
-        && (segment.leading_view().has_ordinary_newline() || !is_type_path_segment(&segment))
+    if is_type_caller_boundary(&segment, caller_stops)
+        || is_type_outer_boundary(&segment, outer_boundary)
     {
-        emit_missing(&mut i, LeadingTrivia::default());
+        let at = segment.extent(item_origin).recovery_range().start;
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+            type_path_segment_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
+        });
         i.state.finish_node();
         return type_tail_normalized(
             i,
@@ -1989,7 +2068,10 @@ fn type_path_tail_normalized(
     }
     if !type_chain_trivia(segment.leading_view(), baseline) || is_type_path_boundary(&segment) {
         segment.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        let at = segment.extent(item_origin).recovery_range().start;
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+            type_path_segment_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
+        });
         i.state.finish_node();
         return type_tail_normalized(
             i,
@@ -2008,6 +2090,9 @@ fn type_path_tail_normalized(
         );
     }
     if !is_type_path_segment(&segment) {
+        // Trivia accepted immediately after `::` belongs to the ordinary
+        // PathSegment slot. Only the malformed payload starts its Error run.
+        segment.emit_all_remaining_leading(&mut *i.state);
         (segment, item_origin, line_entry) = retry_type_path_segment_normalized(
             i.rb(),
             segment,
@@ -2021,6 +2106,26 @@ fn type_path_tail_normalized(
         );
         if is_type_caller_boundary(&segment, caller_stops)
             || is_type_outer_boundary(&segment, outer_boundary)
+        {
+            i.state.finish_node();
+            return type_tail_normalized(
+                i,
+                segment,
+                baseline,
+                type_ml,
+                apply_boundary,
+                outer_separators,
+                outer_closes,
+                caller_stops,
+                outer_boundary,
+                pipe_lexical,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        if !type_chain_trivia(segment.leading_view(), baseline)
+            || is_type_payload_boundary(segment.leading_view())
         {
             i.state.finish_node();
             return type_tail_normalized(
@@ -2088,31 +2193,82 @@ fn retry_type_path_segment_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-        );
-        if item.payload_view().is_boundary()
-            || is_type_caller_boundary(&item, caller_stops)
-            || is_type_path_segment(&item)
-            || is_type_outer_boundary(&item, outer_boundary)
-            || !type_chain_trivia(item.leading_view(), baseline)
-            || is_type_path_boundary(&item)
-        {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-    }
+    let mut error_extent: Option<std::ops::Range<usize>> = None;
+    emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = type_recovery_error_syntax_kind(&item);
+            let extent = run.emit_item_as(item, item_origin, kind);
+            let item_extent = extent.recovery_range();
+            if let Some(error_extent) = &mut error_extent {
+                assert_eq!(
+                    error_extent.end, item_extent.start,
+                    "a PathSegment malformed run remains physically contiguous"
+                );
+                error_extent.end = item_extent.end;
+            } else {
+                error_extent = Some(item_extent);
+            }
+            (item, item_origin, line_entry) = type_item_with_pipe_lexical_normalized_in_error_run(
+                run,
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+            );
+            if item.payload_view().is_boundary()
+                || is_type_caller_boundary(&item, caller_stops)
+                || is_type_outer_boundary(&item, outer_boundary)
+                || !type_chain_trivia(item.leading_view(), baseline)
+                || is_type_path_boundary(&item)
+            {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: error_extent
+                        .clone()
+                        .expect("a PathSegment Error emits a malformed Item"),
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, item_origin, line_entry);
+            }
+            if is_type_payload_boundary(item.leading_view())
+                && item.leading_view().has_ordinary_horizontal_gap()
+            {
+                let sealed = run.seal_path_segment_retry_leading_prefix(
+                    &mut item,
+                    item_origin,
+                    UnexpectedCategory::OtherCharacter,
+                );
+                if sealed == PathSegmentRetryLeadingSeal::Ineligible {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: error_extent
+                            .clone()
+                            .expect("a PathSegment Error emits a malformed Item"),
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                }
+                return (item, item_origin, line_entry);
+            }
+            if is_type_path_segment(&item) {
+                let sealed = run.seal_path_segment_retry_leading_prefix(
+                    &mut item,
+                    item_origin,
+                    UnexpectedCategory::OtherCharacter,
+                );
+                if sealed == PathSegmentRetryLeadingSeal::Ineligible {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: error_extent
+                            .clone()
+                            .expect("a PathSegment Error emits a malformed Item"),
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                }
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| {
+            type_path_segment_recovery_draft(RecoveryKind::Error, range, unexpected)
+        },
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

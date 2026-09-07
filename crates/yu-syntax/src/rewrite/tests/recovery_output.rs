@@ -13,12 +13,15 @@ use crate::{
     session::{
         CommittedRecoveryRecord, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
         LiteralExpected, LiteralRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey,
-        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+        SyntaxExpectation, TypeRole, UnexpectedCategory, UnexpectedSyntax,
     },
 };
 
 use super::super::{
-    emit::{emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing},
+    emit::{
+        PathSegmentRetryLeadingSeal, emit_recovery_error_item, emit_recovery_error_run,
+        emit_recovery_missing,
+    },
     item::{
         Boundary, ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary,
         PhysicalLeadingTrivia, StopKind, Token, TokenKind, Trivia,
@@ -67,6 +70,29 @@ fn singleton_draft(
         Arc::from([expectation(
             role(slot),
             expected,
+            range,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+        )]),
+        0,
+    )
+}
+
+fn path_segment_draft(
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::Type(TypeRole::PathSegment);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([expectation(
+            role,
+            ExpectedSyntax::TypePathSegment,
             range,
             ExpectationSources::COMMITTED_RECOVERY_RULE,
         )]),
@@ -1253,14 +1279,326 @@ fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
     assert_eq!(records[0].site.range, 10..13);
     assert_eq!(records[0].unexpected.len(), 2);
 
-    const ERROR_RUN_CAPABILITY: [&str; 5] = [
+    const ERROR_RUN_CAPABILITY: [&str; 6] = [
         "lexical",
         "emit_item_as",
         "emit_literal_segment",
         "append_unexpected",
         "seal_record_through_retry_leading",
+        "seal_path_segment_retry_leading_prefix",
     ];
-    assert_eq!(ERROR_RUN_CAPABILITY.len(), 5);
+    assert_eq!(ERROR_RUN_CAPABILITY.len(), 6);
+}
+
+#[test]
+fn path_segment_retry_leading_seal_emits_only_block_comments_and_returns_the_same_item() {
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut retry = Item::plain(
+        LeadingTrivia::ordinary(
+            vec![
+                Trivia::block_comment("/*a*/".into()),
+                Trivia::block_comment("/*b*/".into()),
+                Trivia::whitespace(" ".into()),
+            ]
+            .into_boxed_slice(),
+        ),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+    );
+    let sealed = emit_recovery_error_run(
+        In::new(&mut input, &mut recover, &mut output),
+        |run| {
+            run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+            run.seal_path_segment_retry_leading_prefix(
+                &mut retry,
+                13,
+                UnexpectedCategory::OtherCharacter,
+            )
+        },
+        |range, unexpected| path_segment_draft(RecoveryKind::Error, range, unexpected),
+    );
+    assert_eq!(sealed, PathSegmentRetryLeadingSeal::Sealed);
+    assert_eq!(retry.leading_view().remaining_physical_parts(), 1);
+    retry.emit_remaining(&mut output, SyntaxKind::Identifier);
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), "@/*a*//*b*/ B");
+    assert_eq!(
+        records[0].site.role,
+        GrammarRole::Type(TypeRole::PathSegment)
+    );
+    assert_eq!(
+        records[0].expectations[0].expected,
+        ExpectedSyntax::TypePathSegment
+    );
+    assert_eq!(records[0].site.range, 0..11);
+    assert_eq!(
+        records[0].unexpected,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 0..11,
+            category: UnexpectedCategory::OtherCharacter,
+        }])
+    );
+    let root = SyntaxNode::new_root(green);
+    let error = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("PathSegment Error");
+    assert_eq!(error.text(), "@/*a*//*b*/");
+    assert_eq!(
+        error
+            .children_with_tokens()
+            .map(|element| (element.kind(), element.to_string()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Unknown, "@".to_owned()),
+            (SyntaxKind::BlockComment, "/*a*/".to_owned()),
+            (SyntaxKind::BlockComment, "/*b*/".to_owned()),
+        ]
+    );
+    assert_eq!(
+        root.children_with_tokens()
+            .map(|element| (element.kind(), element.to_string()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Error, "@/*a*//*b*/".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Identifier, "B".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn path_segment_retry_leading_ineligibility_is_atomic_and_leaves_the_run_open() {
+    fn token_retry(leading: Box<[Trivia]>) -> Item {
+        Item::plain(
+            LeadingTrivia::ordinary(leading),
+            Payload::Token(Token {
+                kind: TokenKind::Identifier,
+                text: "B".into(),
+            }),
+        )
+    }
+
+    fn reject(mut retry: Item, successor_origin: usize) {
+        let control = format!("{retry:?}");
+        let operators = OperatorTable::empty();
+        let mut input = "";
+        let mut recover = Recover::new(&operators);
+        let mut output = RewriteOutput::new();
+        output.start_node(SyntaxKind::Root.into());
+        let result = emit_recovery_error_run(
+            In::new(&mut input, &mut recover, &mut output),
+            |run| {
+                run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+                let result = run.seal_path_segment_retry_leading_prefix(
+                    &mut retry,
+                    successor_origin,
+                    UnexpectedCategory::OtherCharacter,
+                );
+                assert_eq!(result, PathSegmentRetryLeadingSeal::Ineligible);
+                assert_eq!(format!("{retry:?}"), control);
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: 0..1,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                result
+            },
+            |range, unexpected| {
+                singleton_draft(
+                    LiteralRole::RuleUnexpectedItem,
+                    RecoveryKind::Error,
+                    range,
+                    unexpected,
+                    ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                )
+            },
+        );
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(result, PathSegmentRetryLeadingSeal::Ineligible);
+        assert_eq!(green.to_string(), "@");
+        assert_eq!(records[0].site.range, 0..1);
+    }
+
+    reject(
+        token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        3,
+    );
+    reject(
+        token_retry(
+            vec![
+                Trivia::block_comment("/*x*/".into()),
+                Trivia::newline("\n".into()),
+            ]
+            .into_boxed_slice(),
+        ),
+        8,
+    );
+    reject(
+        token_retry(
+            vec![
+                Trivia::block_comment("/*x*/".into()),
+                Trivia::newline("\r\n".into()),
+            ]
+            .into_boxed_slice(),
+        ),
+        9,
+    );
+    reject(
+        token_retry(
+            vec![
+                Trivia::block_comment("/*x*/".into()),
+                Trivia::line_comment("//x".into()),
+            ]
+            .into_boxed_slice(),
+        ),
+        10,
+    );
+    reject(
+        token_retry(
+            vec![
+                Trivia::block_comment("/*x*/".into()),
+                Trivia::whitespace(" ".into()),
+                Trivia::line_comment("//x".into()),
+            ]
+            .into_boxed_slice(),
+        ),
+        11,
+    );
+    reject(
+        token_retry(vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice()),
+        9,
+    );
+    reject(
+        Item::plain(
+            LeadingTrivia::ordinary(vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice()),
+            Payload::Eof,
+        ),
+        6,
+    );
+    reject(
+        Item::plain(
+            LeadingTrivia::ordinary(vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice()),
+            Payload::Boundary(PendingBoundary::new(
+                6..7,
+                Boundary::Stop(StopKind::RightParenthesis),
+            )),
+        ),
+        6,
+    );
+
+    let carrier_origin = 1;
+    let carrier = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice(),
+        )),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+        Some(vec![ForeignSplit::quote_prefix(3, 2)]),
+        carrier_origin,
+    )
+    .expect("carrier retry Item");
+    reject(carrier, 7);
+
+    let mut partial = token_retry(vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice());
+    let mut prefix_output = RewriteOutput::new();
+    partial.emit_leading_prefix_with(&mut prefix_output, 1, |_, _| {});
+    reject(partial, 7);
+}
+
+#[test]
+fn path_segment_retry_leading_seal_is_terminal_for_every_operation() {
+    let operators = OperatorTable::empty();
+    let mut input = "x";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut retry = Item::plain(
+        LeadingTrivia::ordinary(vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice()),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+    );
+    emit_recovery_error_run(
+        In::new(&mut input, &mut recover, &mut output),
+        |run| {
+            run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+            assert_eq!(
+                run.seal_path_segment_retry_leading_prefix(
+                    &mut retry,
+                    7,
+                    UnexpectedCategory::OtherCharacter,
+                ),
+                PathSegmentRetryLeadingSeal::Sealed
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.seal_path_segment_retry_leading_prefix(
+                        &mut retry,
+                        7,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                }))
+                .is_err()
+            );
+            assert!(catch_unwind(AssertUnwindSafe(|| run.lexical(|mut lex| lex.next()))).is_err());
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.emit_item_as(unknown_item("!"), 7, SyntaxKind::Unknown)
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.emit_literal_segment("!", 6..7, SyntaxKind::Unknown)
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: 0..6,
+                        category: UnexpectedCategory::OtherCharacter,
+                    })
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.seal_record_through_retry_leading(
+                        &retry,
+                        7,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                }))
+                .is_err()
+            );
+        },
+        |range, unexpected| path_segment_draft(RecoveryKind::Error, range, unexpected),
+    );
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), "@/*x*/");
+    assert_eq!(
+        records[0].site.role,
+        GrammarRole::Type(TypeRole::PathSegment)
+    );
+    assert_eq!(
+        records[0].expectations[0].expected,
+        ExpectedSyntax::TypePathSegment
+    );
+    assert_eq!(records[0].site.range, 0..6);
+    assert_eq!(input, "x");
 }
 
 #[test]
@@ -1507,7 +1845,7 @@ fn retry_leading_seal_requires_empty_evidence_and_is_terminal_for_every_operatio
     let mut recover = Recover::new(&operators);
     let mut output = RewriteOutput::new();
     output.start_node(SyntaxKind::Root.into());
-    let retry = Item::plain(
+    let mut retry = Item::plain(
         LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
         Payload::Token(Token {
             kind: TokenKind::Identifier,
@@ -1523,6 +1861,16 @@ fn retry_leading_seal_requires_empty_evidence_and_is_terminal_for_every_operatio
                     3,
                     UnexpectedCategory::OtherCharacter,
                 )))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.seal_path_segment_retry_leading_prefix(
+                        &mut retry,
+                        3,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                }))
                 .is_err()
             );
             run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);

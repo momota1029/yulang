@@ -25,7 +25,19 @@ pub(super) struct ErrorRunOutput<'a, 'source, 'recover, 'operators, 'output, 'fr
     error_node_extent: Option<Range<usize>>,
     record_extent: Option<Range<usize>>,
     unexpected: Vec<UnexpectedSyntax>,
-    sealed_category: Option<UnexpectedCategory>,
+    sealed: Option<ErrorRunSeal>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ErrorRunSeal {
+    RecordThroughRetryLeading(UnexpectedCategory),
+    PathSegmentRetryLeadingPrefix(UnexpectedCategory),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum PathSegmentRetryLeadingSeal {
+    Ineligible,
+    Sealed,
 }
 
 impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
@@ -98,8 +110,40 @@ impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
         let record_extent = error_node_extent.start..suffix.end;
         debug_assert!(record_extent.start < record_extent.end);
         self.record_extent = Some(record_extent);
-        self.sealed_category = Some(category);
+        self.sealed = Some(ErrorRunSeal::RecordThroughRetryLeading(category));
         true
+    }
+
+    /// Emits only an eligible block-comment prefix from the same borrowed
+    /// PathSegment retry Item, then seals the equal Error/record extent.
+    pub(super) fn seal_path_segment_retry_leading_prefix(
+        &mut self,
+        retry: &mut Item,
+        successor_origin: usize,
+        category: UnexpectedCategory,
+    ) -> PathSegmentRetryLeadingSeal {
+        self.assert_unsealed();
+        assert!(
+            self.unexpected.is_empty(),
+            "PathSegment retry-leading sealing replaces ordinary unexpected evidence"
+        );
+        let error_node_extent = self
+            .error_node_extent
+            .as_ref()
+            .expect("PathSegment retry-leading sealing requires a nonempty Error body");
+        let Some(prefix) = retry.path_segment_retry_leading_prefix(successor_origin) else {
+            return PathSegmentRetryLeadingSeal::Ineligible;
+        };
+        let prefix_range = prefix.range();
+        if prefix_range.start != error_node_extent.end {
+            return PathSegmentRetryLeadingSeal::Ineligible;
+        }
+        let sealed_extent = error_node_extent.start..prefix_range.end;
+        retry.emit_path_segment_retry_leading_prefix(&mut *self.input.state, prefix);
+        self.error_node_extent = Some(sealed_extent.clone());
+        self.record_extent = Some(sealed_extent);
+        self.sealed = Some(ErrorRunSeal::PathSegmentRetryLeadingPrefix(category));
+        PathSegmentRetryLeadingSeal::Sealed
     }
 
     fn include_extent(&mut self, next: Range<usize>) {
@@ -119,7 +163,7 @@ impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
 
     fn assert_unsealed(&self) {
         assert!(
-            self.sealed_category.is_none(),
+            self.sealed.is_none(),
             "a sealed retry-leading Error run is terminal"
         );
     }
@@ -177,7 +221,7 @@ pub(super) fn emit_recovery_error_run<R>(
         error_node_extent: None,
         record_extent: None,
         unexpected: Vec::new(),
-        sealed_category: None,
+        sealed: None,
     };
     let result = body(&mut run);
     let ErrorRunOutput {
@@ -185,23 +229,34 @@ pub(super) fn emit_recovery_error_run<R>(
         error_node_extent,
         record_extent,
         unexpected,
-        sealed_category,
+        sealed,
     } = run;
     input.state.finish_node();
     let error_node_extent =
         error_node_extent.expect("an Error run emits a nonempty physical extent");
     let range = record_extent.expect("an Error run records its emitted physical extent");
-    let unexpected: Arc<[UnexpectedSyntax]> = if let Some(category) = sealed_category {
-        assert!(unexpected.is_empty());
-        assert_eq!(range.start, error_node_extent.start);
-        assert!(range.end > error_node_extent.end);
-        Arc::from([UnexpectedSyntax::Token {
-            range: range.clone(),
-            category,
-        }])
-    } else {
-        assert_eq!(range, error_node_extent);
-        unexpected.into()
+    let unexpected: Arc<[UnexpectedSyntax]> = match sealed {
+        Some(ErrorRunSeal::RecordThroughRetryLeading(category)) => {
+            assert!(unexpected.is_empty());
+            assert_eq!(range.start, error_node_extent.start);
+            assert!(range.end > error_node_extent.end);
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category,
+            }])
+        }
+        Some(ErrorRunSeal::PathSegmentRetryLeadingPrefix(category)) => {
+            assert!(unexpected.is_empty());
+            assert_eq!(range, error_node_extent);
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category,
+            }])
+        }
+        None => {
+            assert_eq!(range, error_node_extent);
+            unexpected.into()
+        }
     };
     let draft = make_draft(range.clone(), unexpected.clone());
     draft.assert_emission(RecoveryKind::Error, &range, &unexpected);

@@ -124,6 +124,37 @@ fn expected_type_expression_missing(id: u32, role: TypeRole, at: usize) -> Commi
     }
 }
 
+fn expected_type_path_segment_recovery(
+    id: u32,
+    kind: RecoveryKind,
+    range: Range<usize>,
+) -> CommittedRecoveryRecord {
+    let role = GrammarRole::Type(TypeRole::PathSegment);
+    let unexpected = match kind {
+        RecoveryKind::Missing => Arc::from([]),
+        RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    };
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::TypePathSegment,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
 fn run_pattern_with_recoveries<'frozen>(
     source: &str,
     frozen: Option<&'frozen [CommittedRecoveryRecord]>,
@@ -1132,6 +1163,748 @@ fn type_path_tail_recovers_its_mandatory_segment() {
             (SyntaxKind::Whitespace, " ".to_owned()),
         ]
     );
+}
+
+#[test]
+fn type_path_segment_missing_records_use_exact_owner_anchors_fresh_and_frozen() {
+    for (source, emitted, at) in [("A::", "A::", 3), ("A:: ", "A:: ", 4), ("A:: )", "A:: ", 4)] {
+        let expected = expected_type_path_segment_recovery(0, RecoveryKind::Missing, at..at);
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), emitted, "{source:?}");
+        assert!(matches!(exit, Some(Err(_))), "{source:?}");
+        assert_eq!(records, [expected.clone()], "{source:?}");
+        let path = SyntaxNode::new_root(green.clone())
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("TypePathTail");
+        let missing = path
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Missing)
+            .expect("PathSegment Missing");
+        assert_eq!(
+            usize::from(missing.text_range().start())..usize::from(missing.text_range().end()),
+            at..at,
+            "{source:?}",
+        );
+        let frozen_expected = expected_type_path_segment_recovery(7, RecoveryKind::Missing, at..at);
+        let (frozen_green, _, frozen_records) =
+            run_type_with_recoveries(source, Some(std::slice::from_ref(&frozen_expected)));
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert_eq!(frozen_records, [frozen_expected], "{source:?}");
+    }
+
+    let (green, exit, primary_found, _, _, records, _, _) =
+        run_required_type_with_outer_boundary_and_recoveries(
+            "A:: with",
+            super::super::type_expr::TypeOuterBoundary::WITH,
+            false,
+            None,
+        );
+    assert!(primary_found);
+    let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit else {
+        panic!("outer WITH remains pending")
+    };
+    assert_eq!(green.to_string(), "A::");
+    assert_eq!(
+        records,
+        [expected_type_path_segment_recovery(
+            0,
+            RecoveryKind::Missing,
+            3..3
+        )]
+    );
+    assert_eq!(pending.payload_view().spelling(), Some("with"));
+    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let source = "> > A::";
+    let expected = expected_type_path_segment_recovery(0, RecoveryKind::Missing, 7..7);
+    let (green, exit, remainder, records) = run_type_normalized_with_recoveries(
+        source,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        None,
+    );
+    assert_eq!(green.to_string(), "> > A::");
+    assert!(exit.is_some());
+    assert_eq!(remainder, "");
+    assert_eq!(records, [expected.clone()]);
+    let (frozen_green, _, frozen_remainder, frozen_records) = run_type_normalized_with_recoveries(
+        source,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        Some(std::slice::from_ref(&expected)),
+    );
+    assert_eq!(frozen_green, green);
+    assert_eq!(frozen_remainder, remainder);
+    assert_eq!(frozen_records, [expected]);
+
+    let boundary_source = "> > A::\n> > ```\nouter\n";
+    let boundary_expected = expected_type_path_segment_recovery(0, RecoveryKind::Missing, 8..8);
+    let (boundary_green, boundary_exit, boundary_remainder, boundary_records) =
+        run_type_normalized_with_recoveries(
+            boundary_source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+            None,
+        );
+    assert_eq!(boundary_green.to_string(), "> > A::");
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+        boundary_exit
+    else {
+        panic!("PathSegment preserves the abstract fence boundary")
+    };
+    assert!(boundary.payload_view().is_boundary());
+    assert_eq!(boundary_remainder, "> > ```\nouter\n");
+    assert_eq!(boundary_records, [boundary_expected.clone()]);
+    let (frozen_green, _, frozen_remainder, frozen_records) = run_type_normalized_with_recoveries(
+        boundary_source,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        Some(std::slice::from_ref(&boundary_expected)),
+    );
+    assert_eq!(frozen_green, boundary_green);
+    assert_eq!(frozen_remainder, boundary_remainder);
+    assert_eq!(frozen_records, [boundary_expected]);
+}
+
+#[test]
+fn type_path_segment_error_records_preserve_legacy_continuation_and_native_children() {
+    for (source, range, error_children, retry_in_path, retry_in_apply) in [
+        ("A::@", 3..4, vec![(SyntaxKind::Unknown, "@")], false, false),
+        (
+            "A::123",
+            3..6,
+            vec![(SyntaxKind::Integer, "123")],
+            false,
+            false,
+        ),
+        ("A::@B", 3..4, vec![(SyntaxKind::Unknown, "@")], true, false),
+        (
+            "A::@ B",
+            3..4,
+            vec![(SyntaxKind::Unknown, "@")],
+            false,
+            true,
+        ),
+        (
+            "A::@\n  B",
+            3..4,
+            vec![(SyntaxKind::Unknown, "@")],
+            true,
+            false,
+        ),
+        (
+            "A::@\r\n  B",
+            3..4,
+            vec![(SyntaxKind::Unknown, "@")],
+            true,
+            false,
+        ),
+        (
+            "A::@@B",
+            3..5,
+            vec![(SyntaxKind::Unknown, "@"), (SyntaxKind::Unknown, "@")],
+            true,
+            false,
+        ),
+        (
+            "A::@/*x*/B",
+            3..9,
+            vec![
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::BlockComment, "/*x*/"),
+            ],
+            true,
+            false,
+        ),
+        (
+            "A::@/*x*/ B",
+            3..9,
+            vec![
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::BlockComment, "/*x*/"),
+            ],
+            false,
+            true,
+        ),
+        (
+            "A::@/*x*/@B",
+            3..10,
+            vec![
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::BlockComment, "/*x*/"),
+                (SyntaxKind::Unknown, "@"),
+            ],
+            true,
+            false,
+        ),
+        (
+            "A::@/*a*//*b*/ B",
+            3..14,
+            vec![
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::BlockComment, "/*a*/"),
+                (SyntaxKind::BlockComment, "/*b*/"),
+            ],
+            false,
+            true,
+        ),
+        (
+            "A::@/*x*/ //note\n  B",
+            3..4,
+            vec![(SyntaxKind::Unknown, "@")],
+            true,
+            false,
+        ),
+    ] {
+        let expected = expected_type_path_segment_recovery(0, RecoveryKind::Error, range.clone());
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(records, [expected], "{source:?}");
+        let root = SyntaxNode::new_root(green.clone());
+        let path = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("TypePathTail");
+        let error = path
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("PathSegment Error");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            range,
+            "{source:?}",
+        );
+        assert_eq!(
+            error
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned()))
+                .collect::<Vec<_>>(),
+            error_children
+                .into_iter()
+                .map(|(kind, text)| (kind, text.to_owned()))
+                .collect::<Vec<_>>(),
+            "{source:?}",
+        );
+        let b = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B");
+        assert_eq!(b.is_some(), retry_in_path || retry_in_apply, "{source:?}");
+        if let Some(b) = b {
+            let in_path = b.parent_ancestors().any(|ancestor| ancestor == path);
+            let in_apply = b
+                .parent_ancestors()
+                .any(|ancestor| ancestor.kind() == SyntaxKind::TypeApplyArgument);
+            assert_eq!(in_path, retry_in_path, "{source:?}");
+            assert_eq!(in_apply, retry_in_apply, "{source:?}");
+            if retry_in_apply {
+                let space = root
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .find(|token| {
+                        token.kind() == SyntaxKind::Whitespace
+                            && usize::from(token.text_range().start()) == range.end
+                    })
+                    .expect("outer TypeApply space");
+                assert!(!space.parent_ancestors().any(|ancestor| ancestor == error));
+                assert!(
+                    space
+                        .parent_ancestors()
+                        .any(|ancestor| { ancestor.kind() == SyntaxKind::TypeApplyArgument })
+                );
+            }
+        }
+
+        let frozen_expected = expected_type_path_segment_recovery(
+            7,
+            RecoveryKind::Error,
+            records[0].site.range.clone(),
+        );
+        let (frozen_green, _, frozen_records) =
+            run_type_with_recoveries(source, Some(std::slice::from_ref(&frozen_expected)));
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert_eq!(frozen_records, [frozen_expected], "{source:?}");
+    }
+}
+
+#[test]
+fn type_path_segment_malformed_trivia_ownership_is_phase_aware() {
+    let source = "A:: @";
+    let expected = expected_type_path_segment_recovery(0, RecoveryKind::Error, 4..5);
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(records, [expected]);
+    let root = SyntaxNode::new_root(green.clone());
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypePathTail)
+        .expect("TypePathTail");
+    let error = path
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("PathSegment Error");
+    assert_eq!(error.text(), "@");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        4..5,
+    );
+    let initial_space = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Whitespace)
+        .expect("initial PathSegment whitespace");
+    assert_eq!(
+        usize::from(initial_space.text_range().start())
+            ..usize::from(initial_space.text_range().end()),
+        3..4,
+    );
+    assert!(
+        initial_space
+            .parent_ancestors()
+            .any(|ancestor| ancestor == path)
+    );
+    assert!(
+        !initial_space
+            .parent_ancestors()
+            .any(|ancestor| ancestor == error)
+    );
+    let frozen = expected_type_path_segment_recovery(7, RecoveryKind::Error, 4..5);
+    let (frozen_green, _, frozen_records) =
+        run_type_with_recoveries(source, Some(std::slice::from_ref(&frozen)));
+    assert_eq!(frozen_green, green);
+    assert_eq!(frozen_records, [frozen]);
+
+    for (source, range, error_children) in [
+        ("A::@ 123", 3..4, vec![(SyntaxKind::Unknown, "@")]),
+        (
+            "A::@/*x*/ 123",
+            3..9,
+            vec![
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::BlockComment, "/*x*/"),
+            ],
+        ),
+    ] {
+        let expected = expected_type_path_segment_recovery(0, RecoveryKind::Error, range.clone());
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(records, [expected], "{source:?}");
+        let root = SyntaxNode::new_root(green.clone());
+        let path = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("TypePathTail");
+        let error = path
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("PathSegment Error");
+        assert_eq!(
+            error
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned()))
+                .collect::<Vec<_>>(),
+            error_children
+                .into_iter()
+                .map(|(kind, text)| (kind, text.to_owned()))
+                .collect::<Vec<_>>(),
+            "{source:?}",
+        );
+        let integer = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Integer && token.text() == "123")
+            .expect("outer numeric TypeApply argument");
+        assert!(
+            integer
+                .parent_ancestors()
+                .any(|ancestor| ancestor.kind() == SyntaxKind::TypeApplyArgument)
+        );
+        assert!(!integer.parent_ancestors().any(|ancestor| ancestor == path));
+        let gap = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| {
+                token.kind() == SyntaxKind::Whitespace
+                    && usize::from(token.text_range().start()) == range.end
+            })
+            .expect("post-error outer TypeApply gap");
+        assert!(
+            gap.parent_ancestors()
+                .any(|ancestor| ancestor.kind() == SyntaxKind::TypeApplyArgument)
+        );
+        assert!(!gap.parent_ancestors().any(|ancestor| ancestor == error));
+
+        let frozen = expected_type_path_segment_recovery(7, RecoveryKind::Error, range);
+        let (frozen_green, _, frozen_records) =
+            run_type_with_recoveries(source, Some(std::slice::from_ref(&frozen)));
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert_eq!(frozen_records, [frozen], "{source:?}");
+    }
+}
+
+#[test]
+fn type_path_segment_valid_controls_publish_no_recovery() {
+    for source in ["A::B", "A:: B", "A::'b"] {
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(records.is_empty(), "{source:?}");
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+        );
+    }
+}
+
+#[test]
+fn type_path_segment_shifted_origin_maps_local_cst_to_global_records() {
+    for (source, local, global) in [
+        ("A::@", 3..4, 18..19),
+        ("A::@@B", 3..5, 18..20),
+        ("A::@/*x*/ B", 3..9, 18..24),
+    ] {
+        let (green, exit, primary_found, remainder, records) =
+            run_required_type_with_recoveries(source, 15, LineEntry::InLine, None, None);
+        assert!(primary_found, "{source:?}");
+        assert!(matches!(
+            exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), _)
+        ));
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(
+            records,
+            [expected_type_path_segment_recovery(
+                0,
+                RecoveryKind::Error,
+                global.clone()
+            )]
+        );
+        let error = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("shifted PathSegment Error");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            local.clone(),
+            "{source:?}",
+        );
+        assert_eq!(15 + local.start..15 + local.end, global, "{source:?}");
+    }
+}
+
+#[test]
+fn type_path_segment_boundaries_outrank_retry_leading_and_remain_pending() {
+    for (source, outer_boundary, pipe_lexical, pending_kind, leading_text) in [
+        (
+            "A::@ with",
+            super::super::type_expr::TypeOuterBoundary::WITH,
+            false,
+            TokenKind::Identifier,
+            " ",
+        ),
+        (
+            "A::@/*x*/ with",
+            super::super::type_expr::TypeOuterBoundary::WITH,
+            false,
+            TokenKind::Identifier,
+            "/*x*/ ",
+        ),
+        (
+            "A::@ = Body",
+            super::super::type_expr::TypeOuterBoundary::EQUALS,
+            false,
+            TokenKind::Equals,
+            " ",
+        ),
+        (
+            "A::@ | Body",
+            super::super::type_expr::TypeOuterBoundary::PIPE,
+            true,
+            TokenKind::Pipe,
+            " ",
+        ),
+        (
+            "A::@ : Body",
+            super::super::type_expr::TypeOuterBoundary::STRUCT_BODY,
+            false,
+            TokenKind::Colon,
+            " ",
+        ),
+        (
+            "A::@ ; Body",
+            super::super::type_expr::TypeOuterBoundary::VARIANT_BODY,
+            false,
+            TokenKind::Semicolon,
+            " ",
+        ),
+    ] {
+        let (green, exit, primary_found, _, _, records, slots, diagnostics) =
+            run_required_type_with_outer_boundary_and_recoveries(
+                source,
+                outer_boundary,
+                pipe_lexical,
+                None,
+            );
+        let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
+        else {
+            panic!("outer boundary remains pending: {source:?}")
+        };
+        assert!(primary_found, "{source:?}");
+        assert_eq!(green.to_string(), "A::@", "{source:?}");
+        assert_eq!(
+            records,
+            [expected_type_path_segment_recovery(
+                0,
+                RecoveryKind::Error,
+                3..4,
+            )],
+            "{source:?}",
+        );
+        assert_eq!(
+            pending.payload_view().token_kind(),
+            Some(pending_kind),
+            "{source:?}"
+        );
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            leading_text,
+            "{source:?}"
+        );
+        assert_eq!(slots, 1, "{source:?}");
+        assert_eq!(diagnostics, (Some(1), 0), "{source:?}");
+    }
+
+    let operators = OperatorTable::empty();
+    for (source, leading_text) in [("A::@ )", " "), ("A::@/*x*/ )", "/*x*/ ")] {
+        let mut input = source;
+        let mut recover = Recover::new(&operators);
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let (exit, _) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+            In::new(&mut input, &mut recover, &mut output),
+            super::super::operator::stops_for(TokenKind::RParen),
+            0,
+            0,
+        )
+        .expect("accepted PathSegment Type");
+        let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
+        else {
+            panic!("close remains pending: {source:?}")
+        };
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(green.to_string(), "A::@", "{source:?}");
+        assert_eq!(
+            records,
+            [expected_type_path_segment_recovery(
+                0,
+                RecoveryKind::Error,
+                3..4
+            )]
+        );
+        assert_eq!(pending.payload_view().token_kind(), Some(TokenKind::RParen));
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            leading_text,
+            "{source:?}"
+        );
+    }
+
+    for source in ["A::@\nB", "A::@\r\nB", "A::@ \nB", "A::@ \r\nB"] {
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), "A::@", "{source:?}");
+        assert_eq!(
+            records,
+            [expected_type_path_segment_recovery(
+                0,
+                RecoveryKind::Error,
+                3..4
+            )]
+        );
+        let Some(Err(Either::Left(item))) = exit else {
+            panic!("shallow newline Item remains pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().spelling(), Some("B"), "{source:?}");
+        assert!(item.leading_view().has_ordinary_newline(), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let path = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("shallow PathTail");
+        assert!(!path.descendants_with_tokens().any(|element| {
+            element
+                .into_token()
+                .is_some_and(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B")
+        }));
+    }
+
+    let (green, _, records) = run_type_with_recoveries("A::::B", None);
+    assert_eq!(green.to_string(), "A::::B");
+    assert_eq!(
+        records,
+        [expected_type_path_segment_recovery(
+            0,
+            RecoveryKind::Missing,
+            3..3
+        )]
+    );
+}
+
+#[test]
+fn type_path_segment_frozen_mismatch_preserves_the_diagnostic_cursor_and_slot() {
+    let mut mismatched = expected_type_path_segment_recovery(7, RecoveryKind::Error, 3..4);
+    mismatched.site.range = 3..5;
+    Arc::make_mut(&mut mismatched.unexpected)[0] = UnexpectedSyntax::Token {
+        range: 3..5,
+        category: UnexpectedCategory::OtherCharacter,
+    };
+    Arc::make_mut(&mut mismatched.expectations)[0].range = 3..5;
+    let operators = OperatorTable::empty();
+    let mut input = "A::@";
+    let mut recover = Recover::new(&operators);
+    let frozen = [mismatched];
+    let mut output = GreenNodeBuilder::reconcile(&frozen);
+    output.start_node(SyntaxKind::Root.into());
+    let before_slots = output.recovery_slot_count();
+    let before_diagnostics = output.diagnostic_position();
+    assert_eq!(before_slots, 0);
+    assert_eq!(before_diagnostics, (Some(8), 0));
+    let mismatch = catch_unwind(AssertUnwindSafe(|| {
+        let _ = super::super::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+    }));
+    assert!(mismatch.is_err());
+    assert_eq!(output.recovery_slot_count(), before_slots);
+    assert_eq!(output.diagnostic_position(), before_diagnostics);
+    drop(output);
+}
+
+#[test]
+fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
+    let operators = OperatorTable::empty();
+    let frozen = [expected_type_path_segment_recovery(
+        7,
+        RecoveryKind::Error,
+        3..4,
+    )];
+
+    for source in ["A::@ with", "A::@/*x*/ with"] {
+        let mut candidate_input = source;
+        let mut candidate_recover = Recover::new(&operators);
+        let candidate_mark = candidate_recover.mark();
+        let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
+        let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+        candidate_output.start_node(SyntaxKind::Root.into());
+        seed_identifier(&mut candidate_output);
+        let (primary, primary_origin, primary_line) =
+            super::super::type_expr::type_nud_item_normalized(
+                In::new(
+                    &mut candidate_input,
+                    &mut candidate_recover,
+                    &mut candidate_output,
+                ),
+                0,
+                LineEntry::InLine,
+                None,
+            );
+        let continuation_entry = super::super::driver::suffix_marker(In::new(
+            &mut candidate_input,
+            &mut candidate_recover,
+            &mut candidate_output,
+        ));
+        let (candidate_exit, primary_found) = super::super::type_expr::
+            required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+                In::new(
+                    &mut candidate_input,
+                    &mut candidate_recover,
+                    &mut candidate_output,
+                ),
+                primary,
+                0,
+                0,
+                super::super::type_expr::TypeOuterBoundary::WITH,
+                primary_origin,
+                primary_line,
+                None,
+            );
+        let candidate_origin = super::super::driver::advanced_origin(
+            primary_origin,
+            continuation_entry,
+            In::new(
+                &mut candidate_input,
+                &mut candidate_recover,
+                &mut candidate_output,
+            ),
+        );
+        let NormalizedExit::Complete(Err(Either::Left(candidate_item)), candidate_line) =
+            candidate_exit
+        else {
+            panic!("outer WITH remains pending: {source:?}")
+        };
+        assert!(primary_found, "{source:?}");
+        let candidate_slots = candidate_output.recovery_slot_count();
+        let candidate_diagnostics = candidate_output.diagnostic_position();
+        candidate_output.finish_node();
+        let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+
+        let pending_source = &source[4..];
+        let (control_item, control_origin, control_line, control_input, control_mark, control_ops) =
+            scan_type_item_control(pending_source, 4, &operators);
+        let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+        control_output.start_node(SyntaxKind::Root.into());
+        seed_identifier(&mut control_output);
+        control_output.start_node(SyntaxKind::TypeExpression.into());
+        control_output.token(SyntaxKind::Identifier.into(), "A");
+        control_output.start_node(SyntaxKind::TypePathTail.into());
+        control_output.token(SyntaxKind::ColonColon.into(), "::");
+        control_output.start_node(SyntaxKind::Error.into());
+        control_output.token(SyntaxKind::Unknown.into(), "@");
+        control_output.finish_node();
+        commit_record_draft(&mut control_output, &frozen[0]);
+        control_output.finish_node();
+        control_output.finish_node();
+        let control_slots = control_output.recovery_slot_count();
+        let control_diagnostics = control_output.diagnostic_position();
+        control_output.finish_node();
+        let (control_green, control_records) = control_output.finish_with_recoveries();
+
+        assert_eq!(candidate_green, control_green, "{source:?}");
+        assert_eq!(candidate_records, control_records, "{source:?}");
+        assert_eq!(candidate_records, frozen, "{source:?}");
+        assert_eq!(candidate_slots, control_slots, "{source:?}");
+        assert_eq!(candidate_slots, 1, "{source:?}");
+        assert_eq!(candidate_diagnostics, control_diagnostics, "{source:?}");
+        assert_eq!(candidate_diagnostics, (Some(8), 1), "{source:?}");
+        assert_eq!(candidate_input, control_input, "{source:?}");
+        assert_eq!(candidate_input, "", "{source:?}");
+        assert_eq!(candidate_item, control_item, "{source:?}");
+        assert_eq!(candidate_item.payload_view().spelling(), Some("with"));
+        assert_eq!(candidate_origin, control_origin, "{source:?}");
+        assert_eq!(candidate_line, control_line, "{source:?}");
+        assert_eq!(candidate_line, LineEntry::InLine, "{source:?}");
+        assert_eq!(candidate_mark, control_mark, "{source:?}");
+        assert_eq!(candidate_mark, ());
+        assert!(candidate_operators && control_ops, "{source:?}");
+    }
 }
 
 #[test]

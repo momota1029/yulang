@@ -3298,6 +3298,351 @@ fn gate3b_derives_via_target_episode() {
 }
 
 #[test]
+fn gate3b_path_segment_legacy_local_baselines_pin_error_and_continuation() {
+    for (source, ast_end, error_range, error_text, retry_in_path, retry_in_apply) in [
+        ("A::@", 3, 3..4, "@", false, false),
+        ("A::123", 3, 3..6, "123", false, false),
+        ("A::@@B", 6, 3..5, "@@", true, false),
+        ("A::@/*x*/B", 10, 3..9, "@/*x*/", true, false),
+        ("A::@/*x*/ B", 11, 3..9, "@/*x*/", false, true),
+        ("A::@/*x*/@B", 11, 3..10, "@/*x*/@", true, false),
+    ] {
+        let mut ast_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_sink = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let ast = crate::grammar::type_expr::parse_type_expression(
+            In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+                .set_local(&mut ast_local),
+        )
+        .expect("legacy AST TypeExpression");
+        assert_eq!(ast.range(), 0..ast_end, "AST range: {source:?}");
+        assert_eq!(ast_input.remainder(), "", "AST remainder: {source:?}");
+        assert_eq!(
+            ast_local.type_expression_episode_depth(),
+            0,
+            "AST episode: {source:?}"
+        );
+        assert!(ast_sink.take_merged().is_none(), "AST sink: {source:?}");
+        assert!(!ast_cut, "AST cut: {source:?}");
+
+        let mut direct_input = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_sink = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_input,
+            &mut direct_sink,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        let parsed = crate::grammar::type_expr::commit_direct_type_expression(&mut committed)
+            .expect("legacy direct TypeExpression");
+        assert_eq!(parsed.range(), 0..source.len(), "direct range: {source:?}");
+        committed.finish_node();
+        let output = committed.into_output();
+        assert_eq!(direct_input.remainder(), "", "direct remainder: {source:?}");
+        assert_eq!(
+            direct_local.type_expression_episode_depth(),
+            0,
+            "direct episode: {source:?}",
+        );
+        assert!(
+            direct_sink.take_merged().is_none(),
+            "direct sink: {source:?}"
+        );
+        assert!(!direct_cut, "direct cut: {source:?}");
+        let [record] = output.committed_recoveries() else {
+            panic!("one legacy direct PathSegment recovery: {source:?}")
+        };
+        assert_eq!(record.site.role, GrammarRole::Type(TypeRole::PathSegment));
+        assert_eq!(record.site.range, error_range, "record range: {source:?}");
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            &*record.unexpected,
+            [UnexpectedSyntax::Token {
+                range: error_range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }],
+            "unexpected: {source:?}",
+        );
+        assert_eq!(record.primary_expectation, 0);
+        assert_eq!(record.expectations.len(), 1);
+        assert_eq!(record.expectations[0].role, record.site.role);
+        assert_eq!(
+            record.expectations[0].expected,
+            ExpectedSyntax::TypePathSegment
+        );
+        assert_eq!(record.expectations[0].range, error_range);
+        assert_eq!(
+            record.expectations[0].sources,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+        );
+
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source, "lossless direct: {source:?}");
+        let path = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("legacy direct TypePathTail");
+        let error = path
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("legacy direct PathSegment Error");
+        assert_eq!(error.text(), error_text, "Error text: {source:?}");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            error_range,
+            "Error range: {source:?}",
+        );
+        let tokens = error
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .collect::<Vec<_>>();
+        let [token] = tokens.as_slice() else {
+            panic!("one coalesced legacy Unknown: {source:?}")
+        };
+        assert_eq!(token.kind(), SyntaxKind::Unknown);
+        assert_eq!(token.text(), error_text);
+        let b = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B");
+        assert_eq!(
+            b.is_some(),
+            retry_in_path || retry_in_apply,
+            "B: {source:?}"
+        );
+        if let Some(b) = b {
+            assert_eq!(
+                b.parent_ancestors().any(|ancestor| ancestor == path),
+                retry_in_path,
+                "Path continuation: {source:?}",
+            );
+            assert_eq!(
+                b.parent_ancestors()
+                    .any(|ancestor| ancestor.kind() == SyntaxKind::TypeApplyArgument),
+                retry_in_apply,
+                "Apply continuation: {source:?}",
+            );
+        }
+    }
+}
+
+#[test]
+fn gate3b_path_segment_legacy_direct_baselines_pin_continuation_without_ast_fact_equality() {
+    for (source, error_range, error_text, retry_in_path, retry_in_apply) in [
+        ("\\ref({type T = A::@})", 18..19, "@", false, false),
+        ("\\ref({type T = A::@@B})", 18..20, "@@", true, false),
+        (
+            "\\ref({type T = A::@/*x*/ B})",
+            18..24,
+            "@/*x*/",
+            false,
+            true,
+        ),
+    ] {
+        let mut ast_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        ast_local.set_line(LineState {
+            at_line_start: true,
+            ..LineState::default()
+        });
+        let mut ast_sink = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let mut i = In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+            .set_local(&mut ast_local);
+        let ast = parse_gate3_ast(
+            &OperatorTable::empty(),
+            Gate3Envelope {
+                base_column: 0,
+                stop: YumarkEnvelopeStop::BlockDocument,
+            },
+            &mut i,
+        );
+        assert_eq!(ast.document.range, 0..source.len(), "AST range: {source:?}");
+        assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+        assert_eq!(i.local.yumark_frame_depth(), 0, "AST frames: {source:?}");
+        assert_eq!(
+            ast.work.frame_pushes, ast.work.frame_pops,
+            "AST work: {source:?}"
+        );
+        let [Recovered::Complete(YumarkBlock::Paragraph(paragraph))] =
+            ast.document.blocks.as_slice()
+        else {
+            panic!("one complete legacy Yumark paragraph: {source:?}")
+        };
+        let [Recovered::Complete(YumarkInline::Reference(reference))] =
+            paragraph.document.items.as_slice()
+        else {
+            panic!("one complete legacy inline reference: {source:?}")
+        };
+        assert_eq!(
+            reference.range,
+            0..source.len(),
+            "AST reference: {source:?}"
+        );
+        let arguments = reference
+            .arguments
+            .as_ref()
+            .expect("legacy inline reference arguments");
+        assert_eq!(
+            arguments.range,
+            4..source.len(),
+            "AST arguments: {source:?}"
+        );
+        assert_eq!(
+            arguments.close,
+            Recovered::Complete(source.len() - 1..source.len()),
+            "AST close: {source:?}",
+        );
+        drop(i);
+        assert!(ast_sink.take_merged().is_none(), "AST sink: {source:?}");
+
+        let mut direct_input = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        direct_local.set_line(LineState {
+            at_line_start: true,
+            ..LineState::default()
+        });
+        let mut direct_sink = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_input,
+            &mut direct_sink,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let direct = commit_gate3_direct(
+            source,
+            &OperatorTable::empty(),
+            Gate3Envelope {
+                base_column: 0,
+                stop: YumarkEnvelopeStop::BlockDocument,
+            },
+            i,
+        );
+        assert_eq!(direct.range, 0..source.len(), "direct range: {source:?}");
+        assert_eq!(direct.remainder, "", "direct remainder: {source:?}");
+        assert_eq!(direct.frame_depth, 0, "direct frames: {source:?}");
+        assert_eq!(
+            direct.work.frame_pushes, direct.work.frame_pops,
+            "direct work: {source:?}"
+        );
+        let [record] = direct.output.committed_recoveries() else {
+            panic!("one legacy direct PathSegment recovery: {source:?}")
+        };
+        assert_eq!(record.site.role, GrammarRole::Type(TypeRole::PathSegment));
+        assert_eq!(record.site.range, error_range, "record range: {source:?}");
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            &*record.unexpected,
+            [UnexpectedSyntax::Token {
+                range: error_range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }],
+            "unexpected: {source:?}",
+        );
+        assert_eq!(record.primary_expectation, 0);
+        assert_eq!(record.expectations.len(), 1);
+        assert_eq!(record.expectations[0].role, record.site.role);
+        assert_eq!(
+            record.expectations[0].expected,
+            ExpectedSyntax::TypePathSegment
+        );
+        assert_eq!(
+            record.expectations[0].range, error_range,
+            "expectation: {source:?}"
+        );
+        assert_eq!(
+            record.expectations[0].sources,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+        );
+        assert!(
+            direct_sink.take_merged().is_none(),
+            "direct sink: {source:?}"
+        );
+
+        let root = SyntaxNode::new_root(direct.output.finish_prefix());
+        assert_eq!(root.to_string(), source, "lossless direct: {source:?}");
+        let declaration = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+            .expect("legacy direct Type declaration");
+        let path = declaration
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypePathTail)
+            .expect("legacy direct TypePathTail");
+        let error = path
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("legacy direct PathSegment Error");
+        assert_eq!(error.text(), error_text, "Error text: {source:?}");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            error_range,
+            "Error range: {source:?}",
+        );
+        let legacy_error_tokens = error
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .collect::<Vec<_>>();
+        let [legacy_error_token] = legacy_error_tokens.as_slice() else {
+            panic!("one coalesced legacy PathSegment token: {source:?}")
+        };
+        assert_eq!(legacy_error_token.kind(), SyntaxKind::Unknown);
+        assert_eq!(legacy_error_token.text(), error_text);
+        assert_eq!(
+            usize::from(legacy_error_token.text_range().start())
+                ..usize::from(legacy_error_token.text_range().end()),
+            error_range,
+        );
+        let b = declaration
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B");
+        assert_eq!(
+            b.is_some(),
+            retry_in_path || retry_in_apply,
+            "B: {source:?}"
+        );
+        if let Some(b) = b {
+            assert_eq!(
+                b.parent_ancestors().any(|ancestor| ancestor == path),
+                retry_in_path,
+                "Path continuation: {source:?}",
+            );
+            assert_eq!(
+                b.parent_ancestors()
+                    .any(|ancestor| ancestor.kind() == SyntaxKind::TypeApplyArgument),
+                retry_in_apply,
+                "Apply continuation: {source:?}",
+            );
+        }
+        let close_brace = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::RBrace)
+            .expect("legacy direct braced-expression close");
+        assert_eq!(
+            close_brace.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::BracedStatementBlockExpression),
+        );
+        let close_paren = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::RParen)
+            .expect("legacy direct Yumark close");
+        assert_eq!(
+            close_paren.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::YmYulangArgs),
+        );
+    }
+}
+
+#[test]
 fn gate3b_arrow_rhs_legacy_outer_structure_and_direct_recovery_baseline() {
     let source = "\\ref({type T = A ->@ B})";
 

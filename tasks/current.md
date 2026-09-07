@@ -25,12 +25,18 @@ and asserts the pre-existing `Type(Primary)` record with
 `finish()` so accidental record publication remains a failure; production
 parser/output behavior did not change.
 
-The immediate parser-migration candidate is the Authoritative T2b PathSegment
-recovery amendment.  User option-1 approval authorizes only the reviewed
-same-line continuation, Item-native Error child tokenization, sixth terminal
-operation, and O6 timing boundary.  T2b implementation may begin; no T2a
-evidence grants it construction or certification credit, and the aggregate T2
-matrix row remains Open until O6.
+The Authoritative T2b PathSegment recovery amendment has completed its local
+successor construction.  It migrates only the accepted `TypePathTail`'s three
+Missing branches and malformed PathSegment Error run, including the sixth
+sealed partial block-comment-leading operation and its owner-local native Error
+children.  M3 compiler/recovery, specification, and regression review found
+five repair items, the batched repair and final micro-delta are clean, and the
+focused PathSegment/output/legacy-baseline checks, package check, formatting,
+and diff check passed with zero timing processes.  O4 may close only T2b's
+local direct/CST/Item/frozen/RB-T subproof.  No T2a evidence grants T2b common
+credit; the aggregate T2 matrix row remains Open until O6 successor-Yumark
+adoption proves actual embedded AST/direct fact equality and successor
+topology.  Public cutover remains excluded.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
