@@ -13994,6 +13994,293 @@ mod tests {
     }
 
     #[test]
+    fn completed_inner_if_restores_the_outer_tail_before_a_pv_type() {
+        use crate::session::DiagnosticId;
+        use std::sync::Arc;
+
+        let source = "if outer:\n  if inner:\n    value\n  type T = :{A\nelse: value";
+        let table = canonical_operator_table();
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        assert_eq!(local.if_expression_companion_depth(), 0);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let keyword = i.run(scan_word).expect("outer If keyword");
+        let outer = parse_if_expression(&table, keyword, 0, &mut i);
+        assert_eq!(i.pos(), 58);
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.if_expression_companion_depth(), 0);
+        assert_eq!(i.local.stop_set(), None);
+        assert_eq!(i.local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(outer.range, 0..58);
+        let [outer_arm] = outer.arms.as_slice() else {
+            panic!("one outer If arm")
+        };
+        assert_eq!(outer_arm.range, 0..46);
+        let Recovered::Complete(ColonIntroducedArmBody {
+            colon: Recovered::Complete(outer_colon),
+            rhs: Recovered::Complete(ArmBodyRhs::Indented(outer_block)),
+            range: outer_body_range,
+        }) = &outer_arm.body
+        else {
+            panic!("indented outer If arm")
+        };
+        assert_eq!(*outer_colon, 8..9);
+        assert_eq!(*outer_body_range, 8..46);
+        assert_eq!(outer_block.base_indent, 0);
+        assert_eq!(outer_block.block_indent, 2);
+        assert_eq!(outer_block.range(), 9..46);
+        let [
+            Recovered::Complete(Statement::Expression(inner_chain)),
+            Recovered::Complete(Statement::Type(declaration)),
+        ] = outer_block.statements()
+        else {
+            panic!("completed inner If then sibling Type declaration")
+        };
+        assert_eq!(inner_chain.range(), 12..31);
+        let [OperatorChainItem::Primary(PrimaryExpression::If(inner))] = inner_chain.items() else {
+            panic!("completed nested If expression")
+        };
+        assert_eq!(inner.range, 12..31);
+        assert!(inner.else_arm.is_none());
+        let [inner_arm] = inner.arms.as_slice() else {
+            panic!("one inner If arm")
+        };
+        assert_eq!(inner_arm.range, 12..31);
+        let Recovered::Complete(ColonIntroducedArmBody {
+            colon: Recovered::Complete(inner_colon),
+            rhs: Recovered::Complete(ArmBodyRhs::Indented(inner_block)),
+            range: inner_body_range,
+        }) = &inner_arm.body
+        else {
+            panic!("indented inner If arm")
+        };
+        assert_eq!(*inner_colon, 20..21);
+        assert_eq!(*inner_body_range, 20..31);
+        assert_eq!(inner_block.base_indent, 2);
+        assert_eq!(inner_block.block_indent, 4);
+        assert_eq!(inner_block.range(), 21..31);
+        let [Recovered::Complete(Statement::Expression(value_chain))] = inner_block.statements()
+        else {
+            panic!("one inner value statement")
+        };
+        assert_eq!(value_chain.range(), 26..31);
+        assert!(matches!(
+            value_chain.items(),
+            [OperatorChainItem::Primary(PrimaryExpression::Identifier(name))]
+                if name.text() == "value" && name.range() == (26..31)
+        ));
+        assert_eq!(declaration.range(), 34..46);
+        let Some((equals, rhs)) = declaration.equality_rhs() else {
+            panic!("complete equality Type declaration RHS")
+        };
+        assert_eq!(*equals, 41..42);
+        assert_eq!(rhs.range(), 43..46);
+        assert!(rhs.postfix().is_empty());
+        assert_eq!(rhs.arrow(), None);
+        let Recovered::Complete(TypePrimary::PolymorphicVariant(variant)) = rhs.primary() else {
+            panic!("complete polymorphic-variant Type RHS")
+        };
+        let (colon, open, tags, trailing_comma, close, variant_range) = variant.ast_parts();
+        assert_eq!(*colon, 43..44);
+        assert_eq!(*open, 44..45);
+        let [Recovered::Complete(tag)] = tags else {
+            panic!("one complete polymorphic-variant tag")
+        };
+        let (name, payloads, tag_range) = tag.ast_parts();
+        assert!(matches!(
+            name,
+            Recovered::Complete(name) if name.text() == "A" && name.range() == (45..46)
+        ));
+        assert!(payloads.is_empty());
+        assert_eq!(*tag_range, 45..46);
+        assert_eq!(*trailing_comma, None);
+        assert_eq!(*close, Recovered::Incomplete);
+        assert_eq!(*variant_range, 43..46);
+        let else_arm = outer.else_arm.expect("accepted outer Else arm");
+        assert_eq!(else_arm.range, 47..58);
+        assert!(matches!(
+            else_arm.body,
+            Recovered::Complete(ElseArmBody::Colon(ColonIntroducedArmBody {
+                colon: Recovered::Complete(range),
+                rhs: Recovered::Complete(ArmBodyRhs::Inline(chain)),
+                range: body_range,
+            })) if range == (51..52) && chain.range == (53..58) && body_range == (51..58)
+        ));
+        drop(i);
+        assert!(expectations.take_merged().is_none());
+        assert_eq!(local.if_expression_companion_depth(), 0);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        assert_eq!(local.if_expression_companion_depth(), 0);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        committed.start_node(SyntaxKind::OperatorChain);
+        let keyword = committed
+            .probe(|probe| probe.input().run(scan_word))
+            .expect("outer direct If keyword");
+        commit_if_expression(&table, keyword, 0, &mut committed);
+        assert_eq!(committed.probe(|probe| probe.input().pos()), 58);
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "",);
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.if_expression_companion_depth()),
+            0,
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.stop_set()),
+            None,
+        );
+        assert_eq!(
+            committed.probe(|probe| {
+                probe
+                    .input()
+                    .local
+                    .type_expression_scoped_stop_frames()
+                    .count()
+            }),
+            0,
+        );
+        committed.finish_node();
+        committed.finish_node();
+        let output = committed.into_output();
+        let records = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        let shape = root
+            .descendants_with_tokens()
+            .map(|part| {
+                let depth = match &part {
+                    rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                    rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                };
+                let range =
+                    usize::from(part.text_range().start())..usize::from(part.text_range().end());
+                assert_eq!(part.to_string(), source[range.clone()]);
+                (depth, part.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                (0, SyntaxKind::Root, 0..58),
+                (1, SyntaxKind::OperatorChain, 0..58),
+                (2, SyntaxKind::IfExpression, 0..58),
+                (3, SyntaxKind::IfArm, 0..46),
+                (4, SyntaxKind::IfKw, 0..2),
+                (4, SyntaxKind::Whitespace, 2..3),
+                (4, SyntaxKind::Condition, 3..8),
+                (5, SyntaxKind::OperatorChain, 3..8),
+                (6, SyntaxKind::IdentifierExpression, 3..8),
+                (7, SyntaxKind::Identifier, 3..8),
+                (4, SyntaxKind::Colon, 8..9),
+                (4, SyntaxKind::IndentedStatementBlock, 9..46),
+                (5, SyntaxKind::Newline, 9..10),
+                (5, SyntaxKind::Whitespace, 10..12),
+                (5, SyntaxKind::Statement, 12..31),
+                (6, SyntaxKind::OperatorChain, 12..31),
+                (7, SyntaxKind::IfExpression, 12..31),
+                (8, SyntaxKind::IfArm, 12..31),
+                (9, SyntaxKind::IfKw, 12..14),
+                (9, SyntaxKind::Whitespace, 14..15),
+                (9, SyntaxKind::Condition, 15..20),
+                (10, SyntaxKind::OperatorChain, 15..20),
+                (11, SyntaxKind::IdentifierExpression, 15..20),
+                (12, SyntaxKind::Identifier, 15..20),
+                (9, SyntaxKind::Colon, 20..21),
+                (9, SyntaxKind::IndentedStatementBlock, 21..31),
+                (10, SyntaxKind::Newline, 21..22),
+                (10, SyntaxKind::Whitespace, 22..26),
+                (10, SyntaxKind::Statement, 26..31),
+                (11, SyntaxKind::OperatorChain, 26..31),
+                (12, SyntaxKind::IdentifierExpression, 26..31),
+                (13, SyntaxKind::Identifier, 26..31),
+                (5, SyntaxKind::BlockStatementSeparator, 31..34),
+                (6, SyntaxKind::Newline, 31..32),
+                (6, SyntaxKind::Whitespace, 32..34),
+                (5, SyntaxKind::Statement, 34..46),
+                (6, SyntaxKind::TypeDeclaration, 34..46),
+                (7, SyntaxKind::TypeKw, 34..38),
+                (7, SyntaxKind::Whitespace, 38..39),
+                (7, SyntaxKind::Identifier, 39..40),
+                (7, SyntaxKind::Whitespace, 40..41),
+                (7, SyntaxKind::Equals, 41..42),
+                (7, SyntaxKind::Whitespace, 42..43),
+                (7, SyntaxKind::TypeExpression, 43..46),
+                (8, SyntaxKind::PolymorphicVariantType, 43..46),
+                (9, SyntaxKind::Colon, 43..44),
+                (9, SyntaxKind::LBrace, 44..45),
+                (9, SyntaxKind::PolymorphicVariantTag, 45..46),
+                (10, SyntaxKind::Identifier, 45..46),
+                (9, SyntaxKind::Missing, 46..46),
+                (3, SyntaxKind::Newline, 46..47),
+                (3, SyntaxKind::ElseArm, 47..58),
+                (4, SyntaxKind::ElseKw, 47..51),
+                (4, SyntaxKind::Colon, 51..52),
+                (4, SyntaxKind::Whitespace, 52..53),
+                (4, SyntaxKind::OperatorChain, 53..58),
+                (5, SyntaxKind::IdentifierExpression, 53..58),
+                (6, SyntaxKind::Identifier, 53..58),
+            ],
+        );
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::PolymorphicVariantType,
+            delimiter: Delimiter::Brace,
+        };
+        assert_eq!(
+            records,
+            vec![CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: 46..46,
+                },
+                kind: RecoveryKind::Missing,
+                unexpected: Arc::from([]),
+                expectations: Arc::from([SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Brace,
+                    )),
+                    range: 46..46,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            }],
+        );
+        assert_eq!(local.if_expression_companion_depth(), 0);
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
+    }
+
+    #[test]
     fn terminal_else_body_returns_a_malformed_trailing_arm_to_its_caller() {
         let source = "if x: 1 else: y elsif z: 0";
         let trailing = " elsif z: 0";
