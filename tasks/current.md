@@ -52,9 +52,15 @@ is the Authoritative T4 delimited-register correction.  Preflight found that mat
 T4e, and T4g misclassify valid same-line TypeApply as separator recovery, and
 T4h has the wrong Arrow expectation.  M3 compiler/specification/performance
 review closed after one authority repair and clean delta; the active objective's
-recommended-proposal authority approves the corrected finite register and
-eighth terminal/CST boundary.  Only T4P Parenthesized implementation is now
-open; T4E/T4B/T4A, T7c certification, O6, and public cutover remain gated.
+recommended-proposal authority approved the corrected finite register and
+eighth terminal/CST boundary.  T4P is now suspended: the first implementation
+preflight execution-pinned an authority contradiction.  Standalone `(A B)` and
+`'[A B]` remain zero-recovery TypeApply controls, but inherited outer-TypeApply
+contexts require `G (F A)` to publish ParenthesizedSeparator Missing `5..5`
+and `G '[F\n  A]` to publish EffectRowSeparator Missing `8..8`.  The unstaged
+T4P candidate was discarded.  A narrow correction, M3 review, and fresh user
+decision are required before T4P/T4E resume; T4B/T4A, T7c certification, O6,
+and public cutover remain gated.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→

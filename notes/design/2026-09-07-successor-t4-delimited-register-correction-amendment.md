@@ -1,6 +1,6 @@
 # Successor T4 delimited recovery register correction amendment
 
-Status: Authoritative
+Status: Authoritative; T4P suspended pending narrow correction
 
 Date: 2026-09-07
 
@@ -284,3 +284,21 @@ authority repair and clean delta.  The active replacement objective's
 recommended-proposal authority approves this amendment.  Only the ordered T4P
 slice may begin; T4E, T4B, T4A, T7c certification, and every excluded scope
 remain separately gated.
+
+## 6. Implementation suspension
+
+The first T4P implementation preflight execution-pinned a §5 contradiction on
+2026-09-07.  The governing legacy controls prove that an outer TypeApply's
+scoped inherited type-ML context makes `G (F A)` publish
+`ParenthesizedSeparator` Missing at `5..5` and `G '[F\n  A]` publish
+`EffectRowSeparator` Missing at `8..8`.  Section 1's claim that these are
+zero-recovery controls is false.  The paused, unstaged T4P candidate was
+discarded without a commit; no implementation or expected-output change from
+that candidate remains.
+
+Standalone `(A B)` and `'[A B]` remain valid one-TypeApply, zero-recovery
+controls.  Before T4P resumes, a narrow correction must distinguish those
+standalone controls from the inherited-context separator witnesses, define the
+bounded Parenthesized/EffectRow propagation, receive M3 review, and obtain a
+fresh user decision.  No other T4 cell, the eighth-terminal proposal, or later
+gate gains construction credit from the discarded candidate.
