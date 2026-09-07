@@ -16244,7 +16244,7 @@ mod tests {
                 }
             };
 
-        // This is deliberately a CRLF cell, not a parameterization of the
+        // These are deliberately CRLF cells, not parameterizations of the
         // one-byte LF cases above.  The caller's incoming state survives the
         // PV episode while the PV owns the two-byte physical newline.
         for (source, fence, valid_name, tag_error, newline, last_tag) in [
@@ -16257,12 +16257,28 @@ mod tests {
                 6..10,
             ),
             (
+                ":{A@@\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 5 },
+                true,
+                3..5,
+                5..7,
+                7..11,
+            ),
+            (
                 ":{123+\r\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 6 },
                 false,
                 5..6,
                 6..8,
                 8..12,
+            ),
+            (
+                ":{123@@\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 7 },
+                false,
+                5..7,
+                7..9,
+                9..13,
             ),
         ] {
             let stops = StopSet::default().with(StopKind::Newline);

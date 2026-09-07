@@ -59,8 +59,8 @@ native close versus EOF prefix/remainder as a distinct path; the sixteenth
 pins only the valid/wrong `+`/`@@` active-newline pairs with explicitly
 incoming, preserved caller fences; the seventeenth records the separate
 comment-trivia overwrite from physical-newline fence to comment-run start.
-The eighteenth separately pins valid/wrong `+` CRLF active-newline fence
-preservation, including its two-byte local Newline.  Direct PV ambient evidence
+The eighteenth separately pins valid/wrong `+`/`@@` CRLF active-newline fence
+preservation, including their two-byte local Newlines.  Direct PV ambient evidence
 pins root visible/no-stop initial/retry, indented strict-dedent initial/
 recovery-continuation, nested-If inner initial/recovery-continuation,
 accepted-own-Else initial/recovery-continuation, and post-completed-If
