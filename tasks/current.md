@@ -60,11 +60,17 @@ Item-error scan, B preserves its close-only retry and protects full caller/outer
 Items. Type tests: 147; declaration: 39; output: 4; recovery output: 25; package
 check passed.
 
-Next: migrate mandatory BracketRowArrow and LeadingEffectTypeHead recovery in
-`type_expr.rs`, including malformed arrow retry and wrong-kind second leading
-rows. Preserve accepted row attachment, mandatory-slot distinctions and
+BracketRowArrow construction is complete under
+`2026-09-08-successor-bracket-arrow-current-item-recovery.md`. Its missing
+and malformed sites are typed, malformed content retries an arrow/RHS without
+a same-slot Missing cascade, and incomplete-row handoff preserves the separate
+arrow slot. Type tests: 152; declaration: 39; output: 4; recovery output: 25;
+package check passed.
+
+Next: LeadingEffectTypeHead recovery in `type_expr.rs`, including wrong-kind
+second leading rows, then record/forall. Preserve accepted row attachment and
 caller/newline/fence boundaries. The old eighth-terminal proposal is not a
-required prerequisite.
+required prerequisite. No public dispatch has been switched yet.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
@@ -72,7 +78,7 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Complete the remaining Type-owned recovery sites (row arrow/head,
+1. Complete the remaining Type-owned recovery sites (leading row head,
    record and forall). PV-local construction does not certify raw recovery
    still emitted by a nested non-PV owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,

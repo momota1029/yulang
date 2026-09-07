@@ -2007,10 +2007,11 @@ fn type_bracket_arrow_tail_normalized(
             ambient,
         ),
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_bracket_arrow_missing(&mut i, &end.item, item_origin);
             complete(Err(Either::Right(end)), line_entry)
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
+            emit_bracket_arrow_missing(&mut i, &item, item_origin);
             complete(handoff(item), line_entry)
         }
         _ => unreachable!("normalized Type owners do not defer"),
@@ -2068,7 +2069,7 @@ fn type_bracket_arrow_after_row_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let (mut arrow, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+    let (mut arrow, mut item_origin, mut line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
         item_origin,
         line_entry,
@@ -2076,15 +2077,32 @@ fn type_bracket_arrow_after_row_normalized(
         pipe_lexical,
         ambient,
     );
-    if arrow.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(arrow), line_entry);
+    let mut at_boundary = is_bracket_arrow_boundary(&arrow, baseline, caller_stops, outer_boundary);
+    let recovered =
+        !at_boundary && token_kind(&arrow) != Some(TokenKind::Arrow) && !is_type_nud(&arrow);
+    if recovered {
+        arrow.emit_all_remaining_leading(&mut *i.state);
+        (arrow, item_origin, line_entry) = retry_bracket_arrow_normalized(
+            i.rb(),
+            arrow,
+            baseline,
+            caller_stops,
+            outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+            ambient,
+        );
+        at_boundary = is_bracket_arrow_boundary(&arrow, baseline, caller_stops, outer_boundary);
     }
-    if !type_chain_trivia(arrow.leading_view(), baseline)
-        || is_type_caller_boundary(&arrow, caller_stops)
-        || is_type_outer_boundary(&arrow, outer_boundary)
-    {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if at_boundary {
+        if arrow.payload_view().is_eof() && type_chain_trivia(arrow.leading_view(), baseline) {
+            arrow.emit_all_remaining_leading(&mut *i.state);
+        }
+        if !recovered {
+            emit_bracket_arrow_missing(&mut i, &arrow, item_origin);
+        }
         return complete(handoff(arrow), line_entry);
     }
     if token_kind(&arrow) == Some(TokenKind::Arrow) {
@@ -2105,31 +2123,121 @@ fn type_bracket_arrow_after_row_normalized(
             ambient,
         );
     }
-    if is_type_nud(&arrow) {
-        arrow.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        return type_expr_from_nud_normalized(
-            i,
-            arrow,
-            baseline,
-            type_ml,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
-            caller_stops,
-            TypeOuterBoundary::NONE,
-            pipe_lexical,
-            item_origin,
-            line_entry,
-            fence,
-            ambient,
-        );
+    debug_assert!(is_type_nud(&arrow));
+    arrow.emit_all_remaining_leading(&mut *i.state);
+    if !recovered {
+        emit_bracket_arrow_missing(&mut i, &arrow, item_origin);
     }
-    if is_type_rhs_boundary(&arrow) {
-        arrow.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-    }
-    complete(handoff(arrow), line_entry)
+    type_expr_from_nud_normalized(
+        i,
+        arrow,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+        pipe_lexical,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+fn is_bracket_arrow_boundary(
+    item: &Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+) -> bool {
+    item.payload_view().is_boundary()
+        || !type_chain_trivia(item.leading_view(), baseline)
+        || is_type_rhs_boundary(item)
+        || is_type_caller_boundary(item, caller_stops)
+        || is_type_outer_boundary(item, outer_boundary)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_bracket_arrow_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
+) -> (Item, usize, LineEntry) {
+    emit_recovery_error_run(
+        i.rb(),
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind = type_recovery_error_syntax_kind(&item);
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) =
+                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                        run,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                        ambient,
+                    );
+                if is_bracket_arrow_boundary(&item, baseline, caller_stops, outer_boundary)
+                    || token_kind(&item) == Some(TokenKind::Arrow)
+                    || is_type_nud(&item)
+                {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| bracket_arrow_recovery_draft(RecoveryKind::Error, range, unexpected),
+    )
+}
+
+fn emit_bracket_arrow_missing(i: &mut RewriteIn, item: &Item, item_origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        bracket_arrow_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn bracket_arrow_recovery_draft(
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::Type(TypeRole::BracketRowArrow);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

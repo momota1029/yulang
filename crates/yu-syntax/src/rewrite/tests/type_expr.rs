@@ -14,6 +14,7 @@ use crate::session::{
 };
 use chasa_recover::Recoverable as _;
 
+mod bracket_arrow_recovery;
 mod bracket_recovery;
 mod pe_recovery;
 mod pv_recovery;
@@ -8906,9 +8907,16 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
         2
     );
 
-    let (green, exit) = run_type("T [e\n  @]");
+    let (green, exit, records) = run_type_with_recoveries("T [e\n  @]", None);
     assert_eq!(green.to_string(), "T [e");
     assert!(matches!(exit, Some(Err(Either::Left(_)))));
+    assert_eq!(
+        records,
+        [
+            bracket_recovery::close(0, 4..4, None),
+            bracket_arrow_recovery::arrow(1, 4..4, false),
+        ]
+    );
     let root = SyntaxNode::new_root(green);
     assert!(
         !root
@@ -8919,7 +8927,7 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
         root.descendants()
             .filter(|node| node.kind() == SyntaxKind::Missing)
             .count(),
-        1
+        2
     );
 }
 
@@ -9001,9 +9009,17 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
     }
 
     for (source, parsed) in [("T [e) U]", "T [e)"), ("T [e)\nU]", "T [e)")] {
-        let (green, exit) = run_type(source);
+        let (green, exit, records) = run_type_with_recoveries(source, None);
         assert_eq!(green.to_string(), parsed, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Left(_)))), "{source:?}");
+        assert_eq!(
+            records,
+            [
+                bracket_recovery::close(0, 4..5, Some(Delimiter::Parenthesis)),
+                bracket_recovery::close(1, 5..5, None),
+                bracket_arrow_recovery::arrow(2, 5..5, false),
+            ]
+        );
         let root = SyntaxNode::new_root(green);
         assert_eq!(
             root.descendants()
@@ -9016,7 +9032,7 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
-            1,
+            2,
             "{source:?}"
         );
     }

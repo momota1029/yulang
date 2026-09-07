@@ -1,3 +1,4 @@
+use super::bracket_arrow_recovery::arrow;
 use super::*;
 
 fn row_record(
@@ -155,14 +156,29 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 close(1, 5..6, Some(Delimiter::Parenthesis)),
             ],
         ),
-        ("T [", vec![item(0, 3..3, false), close(1, 3..3, None)]),
-        ("T [A", vec![close(0, 4..4, None)]),
-        ("T [@", vec![item(0, 3..4, true), close(1, 4..4, None)]),
+        (
+            "T [",
+            vec![
+                item(0, 3..3, false),
+                close(1, 3..3, None),
+                arrow(2, 3..3, false),
+            ],
+        ),
+        ("T [A", vec![close(0, 4..4, None), arrow(1, 4..4, false)]),
+        (
+            "T [@",
+            vec![
+                item(0, 3..4, true),
+                close(1, 4..4, None),
+                arrow(2, 4..4, false),
+            ],
+        ),
         (
             "T [A)",
             vec![
                 close(0, 4..5, Some(Delimiter::Parenthesis)),
                 close(1, 5..5, None),
+                arrow(2, 5..5, false),
             ],
         ),
     ] {
@@ -175,7 +191,10 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
             row.children()
                 .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
                 .count(),
-            expected.len()
+            expected
+                .iter()
+                .filter(|record| record.site.role != GrammarRole::Type(TypeRole::BracketRowArrow))
+                .count()
         );
         for error in row
             .children()
@@ -195,7 +214,8 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
             None,
         )],
     );
-    let root = assert_complete_type_recovery("F(T [A)", 0, &[close(0, 6..6, None)]);
+    let root =
+        assert_complete_type_recovery("F(T [A)", 0, &[close(0, 6..6, None), arrow(1, 6..6, false)]);
     let native = root
         .descendants_with_tokens()
         .find(|child| child.kind() == SyntaxKind::RParen)
@@ -209,6 +229,7 @@ fn bracket_row_close_retry_does_not_reenter_the_item_list() {
         let expected = [
             close(0, origin + 4..origin + 5, Some(Delimiter::Parenthesis)),
             close(1, origin + 5..origin + 5, None),
+            arrow(2, origin + 5..origin + 5, false),
         ];
         let frozen = frozen_recovery_ids(&expected);
         for (input, records) in [
@@ -243,7 +264,7 @@ fn bracket_row_close_retry_does_not_reenter_the_item_list() {
 
 #[test]
 fn bracket_row_boundaries_preserve_the_complete_current_item_in_every_phase() {
-    for (prefix, expected) in [
+    for (prefix, mut expected) in [
         ("T [", vec![item(0, 3..3, false), close(1, 3..3, None)]),
         ("T [A", vec![close(0, 4..4, None)]),
         ("T [A,", vec![item(0, 5..5, false), close(1, 5..5, None)]),
@@ -257,6 +278,11 @@ fn bracket_row_boundaries_preserve_the_complete_current_item_in_every_phase() {
             ],
         ),
     ] {
+        expected.push(arrow(
+            expected.len() as u32,
+            prefix.len()..prefix.len(),
+            false,
+        ));
         for (payload, stops, outer) in [
             ("else", crate::rewrite::operator::STOP_ELSE, 0),
             (":", STOP_COLON, 0),
@@ -321,7 +347,11 @@ fn bracket_row_fence_and_structured_pv_keep_native_boundaries() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    let expected = [item(0, 7..8, true), close(1, 9..9, None)];
+    let expected = [
+        item(0, 7..8, true),
+        close(1, 9..9, None),
+        arrow(2, 9..9, false),
+    ];
     let frozen = frozen_recovery_ids(&expected);
     for (input, records) in [
         (None, expected.as_slice()),

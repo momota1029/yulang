@@ -12,7 +12,10 @@ requirement and local-close representation below. The corrected role register
 and accepted grammar remain. BracketRow construction is now complete under
 `2026-09-08-successor-bracket-row-current-item-recovery.md`, which also replaces
 its retry-leading/eighth-terminal and local-close representation requirements.
-Row-arrow and aggregate O6/public certification are separate open work.
+Row-arrow construction is complete under
+`2026-09-08-successor-bracket-arrow-current-item-recovery.md`, which supersedes
+the remaining T4A retry-leading/eighth-terminal requirement. Distinct T7c
+embedded evidence and aggregate O6/public certification remain open.
 
 Drafted-by: primary from T4 architecture preflight after T3 local construction
 
