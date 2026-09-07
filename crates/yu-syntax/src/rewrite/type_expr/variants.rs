@@ -71,7 +71,6 @@ pub(super) fn type_effect_row_normalized(
         baseline,
         TypeDelimitedOwner::EffectRow,
         type_ml,
-        TypeOuterBoundary::NONE,
         outer_closes,
         caller_stops,
         pipe_lexical,

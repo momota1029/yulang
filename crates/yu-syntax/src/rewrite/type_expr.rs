@@ -2040,7 +2040,6 @@ fn type_bracket_row_normalized(
         baseline,
         TypeDelimitedOwner::BracketRow,
         type_ml,
-        TypeOuterBoundary::NONE,
         outer_closes,
         caller_stops,
         pipe_lexical,
@@ -2160,7 +2159,6 @@ fn type_group_normalized(
         baseline,
         TypeDelimitedOwner::ParenthesizedGroup,
         type_ml,
-        TypeOuterBoundary::NONE,
         outer_closes,
         caller_stops,
         pipe_lexical,
@@ -2214,7 +2212,6 @@ fn type_call_tail_normalized(
         baseline,
         TypeDelimitedOwner::Call,
         type_ml,
-        outer_boundary,
         outer_closes,
         caller_stops,
         pipe_lexical,
@@ -2389,8 +2386,11 @@ fn type_path_tail_normalized(
             ambient,
         );
     }
-    if is_type_caller_boundary(&segment, caller_stops)
-        || is_type_outer_boundary(&segment, outer_boundary)
+    // A same-line initial name belongs to the path, including contextual words.
+    // Newline attachment and malformed retry retain outer-owner precedence.
+    if (!is_type_path_segment(&segment) || segment.leading_view().contains_line_break())
+        && (is_type_caller_boundary(&segment, caller_stops)
+            || is_type_outer_boundary(&segment, outer_boundary))
     {
         let at = segment.extent(item_origin).recovery_range().start;
         emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {

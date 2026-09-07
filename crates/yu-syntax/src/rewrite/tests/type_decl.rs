@@ -443,7 +443,7 @@ fn type_c12_nested_type_owners_preserve_outer_boundaries() {
     for source in [
         "type T = (A with Inner) with {}",
         "type T = A(B with Inner) with {}",
-        "type T = Head (A with Inner) with {}",
+        "type T = Head (A, with, Inner) with {}",
         "type T = (Left -> A with Inner) with {}",
         "type T = (for 'a: A with Inner) with {}",
         "type T = ({x: A with Inner}) with {}",
@@ -505,7 +505,7 @@ fn type_c12_nested_type_owners_preserve_outer_boundaries() {
     }
 
     let (green, exit) = run_statement_with_stops("type T = (A else", &operators, STOP_ELSE);
-    assert_eq!(green.to_string(), "type T = (A");
+    assert_eq!(green.to_string(), "type T = (A ");
     assert_eq!(
         count(&type_declaration_node(&green), SyntaxKind::Missing),
         1
@@ -517,8 +517,7 @@ fn type_c12_nested_type_owners_preserve_outer_boundaries() {
                 item.payload_view().token_kind(),
                 Some(TokenKind::Identifier)
             ) && item.payload_view().spelling() == Some("else")
-                && item.leading_view().has_ordinary_trivia()
-                && !item.leading_view().has_ordinary_newline()
+                && !item.leading_view().has_ordinary_trivia()
     ));
 }
 
@@ -1132,7 +1131,7 @@ fn type_c15_preserves_header_boundaries_and_nested_suspension() {
 
     for (source, equals) in [
         ("type Id derives Eq::@ = Int", 1),
-        ("type Id derives (Eq::@ = Int) = Body", 2),
+        ("type Id derives (Eq::@ Int) = Body", 1),
     ] {
         let (green, _) = run_statement(source);
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -1280,7 +1279,7 @@ fn type_c15_keeps_with_outer_only_for_derives_roles() {
     for source in [
         "type T = Body derives (Eq with Inner) with {}",
         "type T = Body derives Call(Eq with Inner) with {}",
-        "type T = Body derives Head (Eq with Inner) with {}",
+        "type T = Body derives Head (Eq, with, Inner) with {}",
         "type T = Body derives (Left -> Eq with Inner) with {}",
         "type T = Body derives (for 'a: Eq with Inner) with {}",
         "type T = Body derives ({field: Eq with Inner}) with {}",

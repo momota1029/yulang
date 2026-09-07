@@ -30,9 +30,9 @@ use super::super::{
 };
 use super::{
     TypeMlContext, TypeOuterBoundary, is_type_caller_boundary, is_type_deeper_newline,
-    is_type_implicit_boundary, is_type_mismatched_close, is_type_nud, is_type_outer_boundary,
-    is_type_outer_close, is_type_separator, missing_bracket_row_close, missing_type_close,
-    missing_type_item, type_chain_trivia, type_delimited_baseline, type_expr_from_nud_normalized,
+    is_type_implicit_boundary, is_type_mismatched_close, is_type_nud, is_type_outer_close,
+    is_type_separator, missing_bracket_row_close, missing_type_close, missing_type_item,
+    type_chain_trivia, type_delimited_baseline, type_expr_from_nud_normalized,
     type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
 };
 
@@ -51,7 +51,6 @@ pub(super) fn type_delimited_normalized(
     incoming_baseline: usize,
     owner: TypeDelimitedOwner,
     type_ml: TypeMlContext,
-    call_outer_boundary: TypeOuterBoundary,
     outer_closes: u8,
     caller_stops: Stops,
     pipe_lexical: bool,
@@ -60,9 +59,8 @@ pub(super) fn type_delimited_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    debug_assert!(
-        owner == TypeDelimitedOwner::Call || call_outer_boundary == TypeOuterBoundary::NONE
-    );
+    // Contextual boundaries stay in the enclosing Type expression. A committed
+    // delimiter owns a fresh body, while explicit caller stops remain active.
     let item_type_ml = match owner {
         TypeDelimitedOwner::Call => type_ml,
         TypeDelimitedOwner::ParenthesizedGroup => type_ml.parenthesized_item(),
@@ -103,7 +101,6 @@ pub(super) fn type_delimited_normalized(
         owner,
         true,
         caller_stops,
-        call_outer_boundary,
         outer_closes,
         item_origin,
     ) {
@@ -137,13 +134,8 @@ pub(super) fn type_delimited_normalized(
             );
             return complete(handoff(item), line_entry);
         }
-        if is_delimited_boundary(
-            &item,
-            owner,
-            caller_stops,
-            call_outer_boundary,
-            outer_closes,
-        ) && (owner == TypeDelimitedOwner::Call || !is_type_nud(&item))
+        if is_delimited_boundary(&item, owner, caller_stops, outer_closes)
+            && (owner == TypeDelimitedOwner::Call || !is_type_nud(&item))
         {
             if call_item_pending || owner == TypeDelimitedOwner::BracketRow {
                 emit_delimited_item_missing(&mut i, owner, &item, item_origin);
@@ -166,7 +158,6 @@ pub(super) fn type_delimited_normalized(
                 baseline,
                 caller_stops,
                 outer_closes,
-                call_outer_boundary,
                 item_origin,
                 line_entry,
                 fence,
@@ -199,7 +190,6 @@ pub(super) fn type_delimited_normalized(
                 baseline,
                 caller_stops,
                 outer_closes,
-                call_outer_boundary,
                 item_origin,
                 line_entry,
                 fence,
@@ -225,7 +215,6 @@ pub(super) fn type_delimited_normalized(
                 baseline,
                 caller_stops,
                 outer_closes,
-                call_outer_boundary,
                 item_origin,
                 line_entry,
                 fence,
@@ -249,7 +238,7 @@ pub(super) fn type_delimited_normalized(
             true,
             with_type_outer_close(outer_closes, close),
             caller_stops,
-            call_outer_boundary,
+            TypeOuterBoundary::NONE,
             pipe_lexical,
             item_origin,
             line_entry,
@@ -278,7 +267,6 @@ pub(super) fn type_delimited_normalized(
                     owner,
                     false,
                     caller_stops,
-                    call_outer_boundary,
                     outer_closes,
                     item_origin,
                 ) {
@@ -299,7 +287,6 @@ pub(super) fn type_delimited_normalized(
                     owner,
                     false,
                     caller_stops,
-                    call_outer_boundary,
                     outer_closes,
                     item_origin,
                 ) {
@@ -321,13 +308,7 @@ pub(super) fn type_delimited_normalized(
                     );
                     return complete(handoff(next), line_entry);
                 }
-                if is_delimited_boundary(
-                    &next,
-                    owner,
-                    caller_stops,
-                    call_outer_boundary,
-                    outer_closes,
-                ) {
+                if is_delimited_boundary(&next, owner, caller_stops, outer_closes) {
                     emit_delimited_close_missing(&mut i, owner, &next, item_origin);
                     return complete(handoff(next), line_entry);
                 }
@@ -339,7 +320,6 @@ pub(super) fn type_delimited_normalized(
                         baseline,
                         caller_stops,
                         outer_closes,
-                        call_outer_boundary,
                         item_origin,
                         line_entry,
                         fence,
@@ -356,7 +336,6 @@ pub(super) fn type_delimited_normalized(
                         baseline,
                         caller_stops,
                         outer_closes,
-                        call_outer_boundary,
                         item_origin,
                         line_entry,
                         fence,
@@ -379,7 +358,6 @@ pub(super) fn type_delimited_normalized(
                         baseline,
                         caller_stops,
                         outer_closes,
-                        call_outer_boundary,
                         item_origin,
                         line_entry,
                         fence,
@@ -430,7 +408,6 @@ pub(super) fn type_delimited_normalized(
                         baseline,
                         caller_stops,
                         outer_closes,
-                        call_outer_boundary,
                         item_origin,
                         line_entry,
                         fence,
@@ -492,7 +469,6 @@ fn emit_horizontal_delimited_boundary(
     owner: TypeDelimitedOwner,
     fresh_slot: bool,
     caller_stops: Stops,
-    call_outer_boundary: TypeOuterBoundary,
     outer_closes: u8,
     item_origin: usize,
 ) -> bool {
@@ -500,7 +476,7 @@ fn emit_horizontal_delimited_boundary(
         || item.payload_view().is_boundary()
         || token_kind(item) == Some(close)
         || (fresh_slot && owner != TypeDelimitedOwner::Call && is_type_nud(item))
-        || !(is_delimited_boundary(item, owner, caller_stops, call_outer_boundary, outer_closes)
+        || !(is_delimited_boundary(item, owner, caller_stops, outer_closes)
             || is_type_outer_close(item, outer_closes))
     {
         return false;
@@ -538,7 +514,6 @@ fn retry_type_delimited_item_normalized(
     baseline: usize,
     caller_stops: Stops,
     outer_closes: u8,
-    call_outer_boundary: TypeOuterBoundary,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -553,7 +528,6 @@ fn retry_type_delimited_item_normalized(
             baseline,
             caller_stops,
             outer_closes,
-            call_outer_boundary,
             item_origin,
             line_entry,
             fence,
@@ -595,13 +569,7 @@ fn retry_type_delimited_item_normalized(
             );
             return Err(complete(handoff(item), line_entry));
         }
-        if is_delimited_boundary(
-            &item,
-            owner,
-            caller_stops,
-            call_outer_boundary,
-            outer_closes,
-        ) {
+        if is_delimited_boundary(&item, owner, caller_stops, outer_closes) {
             i.state.finish_node();
             emit_delimited_close_missing(&mut i, owner, &item, item_origin);
             return Err(complete(handoff(item), line_entry));
@@ -616,7 +584,6 @@ fn retry_type_delimited_item_normalized(
                 baseline,
                 caller_stops,
                 outer_closes,
-                call_outer_boundary,
                 item_origin,
                 line_entry,
                 fence,
@@ -668,7 +635,6 @@ fn retry_type_call_argument_normalized(
     baseline: usize,
     caller_stops: Stops,
     outer_closes: u8,
-    call_outer_boundary: TypeOuterBoundary,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -707,7 +673,6 @@ fn retry_type_call_argument_normalized(
                     &item,
                     TypeDelimitedOwner::Call,
                     caller_stops,
-                    call_outer_boundary,
                     outer_closes,
                 )
                 || is_type_separator(&item)
@@ -744,13 +709,7 @@ fn retry_type_call_argument_normalized(
         emit_token_item(&mut i, item);
         return Err(complete(Ok(()), line_entry));
     }
-    if is_delimited_boundary(
-        &item,
-        TypeDelimitedOwner::Call,
-        caller_stops,
-        call_outer_boundary,
-        outer_closes,
-    ) {
+    if is_delimited_boundary(&item, TypeDelimitedOwner::Call, caller_stops, outer_closes) {
         emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
         return Err(complete(handoff(item), line_entry));
     }
@@ -763,7 +722,6 @@ fn retry_type_call_argument_normalized(
             baseline,
             caller_stops,
             outer_closes,
-            call_outer_boundary,
             item_origin,
             line_entry,
             fence,
@@ -784,7 +742,6 @@ fn retry_type_call_argument_normalized(
             baseline,
             caller_stops,
             outer_closes,
-            call_outer_boundary,
             item_origin,
             line_entry,
             fence,
@@ -805,7 +762,6 @@ fn retry_type_call_close_normalized(
     baseline: usize,
     caller_stops: Stops,
     outer_closes: u8,
-    call_outer_boundary: TypeOuterBoundary,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -844,13 +800,7 @@ fn retry_type_call_close_normalized(
             emit_token_item(&mut i, item);
             return complete(Ok(()), line_entry);
         }
-        if is_delimited_boundary(
-            &item,
-            TypeDelimitedOwner::Call,
-            caller_stops,
-            call_outer_boundary,
-            outer_closes,
-        ) {
+        if is_delimited_boundary(&item, TypeDelimitedOwner::Call, caller_stops, outer_closes) {
             emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
             return complete(handoff(item), line_entry);
         }
@@ -917,7 +867,6 @@ fn type_after_separator_normalized(
     baseline: usize,
     caller_stops: Stops,
     outer_closes: u8,
-    call_outer_boundary: TypeOuterBoundary,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -944,7 +893,6 @@ fn type_after_separator_normalized(
         owner,
         true,
         caller_stops,
-        call_outer_boundary,
         outer_closes,
         item_origin,
     ) {
@@ -970,13 +918,8 @@ fn type_after_separator_normalized(
         );
         return Err(complete(handoff(next), line_entry));
     }
-    if is_delimited_boundary(
-        &next,
-        owner,
-        caller_stops,
-        call_outer_boundary,
-        outer_closes,
-    ) && (owner == TypeDelimitedOwner::Call || !is_type_nud(&next))
+    if is_delimited_boundary(&next, owner, caller_stops, outer_closes)
+        && (owner == TypeDelimitedOwner::Call || !is_type_nud(&next))
     {
         emit_delimited_item_missing(&mut i, owner, &next, item_origin);
         emit_delimited_close_missing(&mut i, owner, &next, item_origin);
@@ -1104,13 +1047,10 @@ fn is_delimited_boundary(
     item: &Item,
     owner: TypeDelimitedOwner,
     caller_stops: Stops,
-    call_outer_boundary: TypeOuterBoundary,
     outer_closes: u8,
 ) -> bool {
     is_type_caller_boundary(item, caller_stops)
-        || (owner == TypeDelimitedOwner::Call
-            && (is_type_outer_boundary(item, call_outer_boundary)
-                || is_type_outer_close(item, outer_closes)))
+        || (owner == TypeDelimitedOwner::Call && is_type_outer_close(item, outer_closes))
 }
 
 fn emit_delimited_close_missing(

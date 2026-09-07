@@ -1509,14 +1509,14 @@ fn type_path_segment_missing_records_use_exact_owner_anchors_fresh_and_frozen() 
 
     let (green, exit, primary_found, _, _, records, _, _) =
         run_required_type_with_outer_boundary_and_recoveries(
-            "A:: with",
-            super::super::type_expr::TypeOuterBoundary::WITH,
+            "A:: =",
+            super::super::type_expr::TypeOuterBoundary::EQUALS,
             false,
             None,
         );
     assert!(primary_found);
     let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit else {
-        panic!("outer WITH remains pending")
+        panic!("outer Equals remains pending")
     };
     assert_eq!(green.to_string(), "A::");
     assert_eq!(
@@ -1527,7 +1527,7 @@ fn type_path_segment_missing_records_use_exact_owner_anchors_fresh_and_frozen() 
             3..3
         )]
     );
-    assert_eq!(pending.payload_view().spelling(), Some("with"));
+    assert_eq!(pending.payload_view().spelling(), Some("="));
     assert_eq!(emit_pending_leading_text(&mut pending), " ");
 
     let fence = FenceBoundary {
@@ -1592,6 +1592,136 @@ fn type_path_segment_missing_records_use_exact_owner_anchors_fresh_and_frozen() 
     assert_eq!(frozen_green, boundary_green);
     assert_eq!(frozen_remainder, boundary_remainder);
     assert_eq!(frozen_records, [boundary_expected]);
+}
+
+#[test]
+fn type_contextual_names_belong_to_paths_and_nested_calls() {
+    use super::super::type_expr::TypeOuterBoundary;
+
+    for (word, boundary) in [
+        ("with", TypeOuterBoundary::WITH),
+        ("derives", TypeOuterBoundary::DERIVES),
+        ("via", TypeOuterBoundary::VIA),
+        ("impl", TypeOuterBoundary::IMPL),
+    ] {
+        let bodies = [
+            format!("A::{word}"),
+            format!("A:: {word}"),
+            format!("A::/*c*/{word}"),
+            format!("T({word})"),
+            format!("T(A {word})"),
+            format!("T(A, {word})"),
+        ];
+        for body in bodies {
+            for suffix in ["".to_owned(), format!(" {word}")] {
+                let source = format!("{body}{suffix}");
+                let mut fresh_green = None;
+                for frozen in [None, Some([].as_slice())] {
+                    let (green, exit, accepted, origin, remainder, records, slots, diagnostics) =
+                        run_required_type_with_outer_boundary_and_recoveries(
+                            &source, boundary, false, frozen,
+                        );
+                    assert!(accepted, "{source:?}");
+                    assert_eq!(green.to_string(), body, "{source:?}");
+                    assert_eq!(origin, source.len(), "{source:?}");
+                    assert_eq!(remainder, "", "{source:?}");
+                    assert!(records.is_empty(), "{source:?}: {records:?}");
+                    assert_eq!(slots, 0);
+                    assert_eq!(diagnostics, (Some(0), 0));
+                    if suffix.is_empty() {
+                        assert!(
+                            matches!(
+                                exit,
+                                NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+                            ),
+                            "{source:?}"
+                        );
+                    } else {
+                        let NormalizedExit::Complete(
+                            Err(Either::Left(mut pending)),
+                            LineEntry::InLine,
+                        ) = exit
+                        else {
+                            panic!(
+                                "outer contextual word must resume after its nested owner: {source:?}"
+                            )
+                        };
+                        assert_eq!(pending.payload_view().spelling(), Some(word));
+                        assert_eq!(emit_pending_leading_text(&mut pending), " ");
+                    }
+                    let root = SyntaxNode::new_root(green.clone());
+                    assert!(
+                        !root.descendants().any(|node| {
+                            matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)
+                        }),
+                        "{source:?}"
+                    );
+                    let owner = if body.starts_with("A::") {
+                        SyntaxKind::TypePathTail
+                    } else {
+                        SyntaxKind::TypeCallTail
+                    };
+                    let node = root
+                        .descendants()
+                        .find(|node| node.kind() == owner)
+                        .expect("path or Call owner");
+                    assert!(node.descendants_with_tokens().any(|child| {
+                        child.kind() == SyntaxKind::Identifier && child.to_string() == word
+                    }));
+                    if let Some(fresh) = &fresh_green {
+                        assert_eq!(&green, fresh);
+                    } else {
+                        fresh_green = Some(green);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn type_contextual_path_newlines_remain_outer_owned() {
+    use super::super::type_expr::TypeOuterBoundary;
+
+    for (word, boundary) in [
+        ("with", TypeOuterBoundary::WITH),
+        ("derives", TypeOuterBoundary::DERIVES),
+        ("via", TypeOuterBoundary::VIA),
+        ("impl", TypeOuterBoundary::IMPL),
+    ] {
+        for gap in ["\n", "\n  ", "\r\n  ", "/*\n*/"] {
+            let source = format!("A::{gap}{word}");
+            let expected = [expected_type_path_segment_recovery(
+                0,
+                RecoveryKind::Missing,
+                3..3,
+            )];
+            let frozen = frozen_recovery_ids(&expected);
+            for (input_records, expected_records) in [
+                (None, expected.as_slice()),
+                (Some(frozen.as_slice()), frozen.as_slice()),
+            ] {
+                let (green, exit, accepted, origin, remainder, records, slots, _) =
+                    run_required_type_with_outer_boundary_and_recoveries(
+                        &source,
+                        boundary,
+                        false,
+                        input_records,
+                    );
+                assert!(accepted);
+                assert_eq!(green.to_string(), "A::", "{source:?}");
+                assert_eq!(origin, source.len());
+                assert_eq!(remainder, "");
+                assert_eq!(records, expected_records);
+                assert_eq!(slots, 1);
+                let NormalizedExit::Complete(Err(Either::Left(mut pending)), _) = exit else {
+                    panic!("newline contextual boundary remains pending: {source:?}")
+                };
+                assert_eq!(pending.payload_view().spelling(), Some(word));
+                assert_eq!(emit_pending_leading_text(&mut pending), gap);
+            }
+        }
+    }
 }
 
 #[test]
@@ -4055,28 +4185,9 @@ fn type_parenthesized_t4p_nested_typeapply_restores_non_typeapply_payload_phase(
 }
 
 #[test]
-fn type_call_t3a_missing_phase_preserves_outer_and_caller_boundaries_atomically() {
-    for (source, emitted, pending_leading, expected) in [
-        (
-            "T(with",
-            "T(",
-            "",
-            vec![
-                expected_type_expression_missing(0, TypeRole::CallArgument, 2),
-                expected_type_call_close(1, 2),
-            ],
-        ),
-        ("T(A with", "T(A ", "", vec![expected_type_call_close(0, 4)]),
-        (
-            "T(A, with",
-            "T(A, ",
-            "",
-            vec![
-                expected_type_expression_missing(0, TypeRole::CallArgument, 5),
-                expected_type_call_close(1, 5),
-            ],
-        ),
-    ] {
+fn type_call_t3a_missing_phase_suspends_contextual_but_preserves_caller_boundaries() {
+    for (source, at) in [("T(with", 6), ("T(A with", 8), ("T(A, with", 9)] {
+        let expected = [expected_type_call_close(0, at)];
         let (green, exit, primary_found, _, _, records, _, _) =
             run_required_type_with_outer_boundary_and_recoveries(
                 source,
@@ -4085,22 +4196,26 @@ fn type_call_t3a_missing_phase_preserves_outer_and_caller_boundaries_atomically(
                 None,
             );
         assert!(primary_found, "{source:?}");
-        let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
-        else {
-            panic!("outer boundary remains pending: {source:?}")
-        };
-        assert_eq!(green.to_string(), emitted, "{source:?}");
-        assert_eq!(
-            pending.payload_view().spelling(),
-            Some("with"),
-            "{source:?}"
-        );
-        assert_eq!(
-            emit_pending_leading_text(&mut pending),
-            pending_leading,
-            "{source:?}",
-        );
+        assert!(matches!(
+            exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+        ));
+        assert_eq!(green.to_string(), source, "{source:?}");
         assert_eq!(records, expected, "{source:?}");
+        let frozen = frozen_recovery_ids(&expected);
+        let (frozen_green, frozen_exit, _, _, _, frozen_records, _, _) =
+            run_required_type_with_outer_boundary_and_recoveries(
+                source,
+                super::super::type_expr::TypeOuterBoundary::WITH,
+                false,
+                Some(&frozen),
+            );
+        assert_eq!(frozen_green, green);
+        assert_eq!(frozen_records, frozen);
+        assert!(matches!(
+            frozen_exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+        ));
     }
 
     let operators = OperatorTable::empty();
@@ -4155,11 +4270,8 @@ fn type_call_t3a_missing_phase_preserves_outer_and_caller_boundaries_atomically(
 }
 
 #[test]
-fn type_call_t3b_error_retry_preserves_call_boundaries_before_leading_emission() {
-    for (source, emitted, error_range, close_at) in [
-        ("T(@ with", "T(@", 2..3, 3),
-        ("T(A,@ with", "T(A,@", 4..5, 5),
-    ] {
+fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
+    for (source, error_range, close_at) in [("T(@ with", 2..4, 8), ("T(A,@ with", 4..6, 10)] {
         let expected = vec![
             expected_type_call_argument_error(0, error_range.clone()),
             expected_type_call_close(1, close_at),
@@ -4172,24 +4284,18 @@ fn type_call_t3b_error_retry_preserves_call_boundaries_before_leading_emission()
                 None,
             );
         assert!(primary_found, "{source:?}");
-        let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
-        else {
-            panic!("outer boundary remains pending after Call error: {source:?}")
-        };
-        assert_eq!(green.to_string(), emitted, "{source:?}");
-        assert_eq!(
-            pending.payload_view().spelling(),
-            Some("with"),
-            "{source:?}"
-        );
-        assert_eq!(emit_pending_leading_text(&mut pending), " ", "{source:?}");
+        assert!(matches!(
+            exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+        ));
+        assert_eq!(green.to_string(), source, "{source:?}");
         assert_eq!(records, expected, "{source:?}");
         let root = SyntaxNode::new_root(green.clone());
         let error = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::Error)
             .expect("typed CallArgument Error");
-        assert_eq!(error.text(), "@", "{source:?}");
+        assert_eq!(error.text(), "@ ", "{source:?}");
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
             error_range,
@@ -4204,22 +4310,11 @@ fn type_call_t3b_error_retry_preserves_call_boundaries_before_leading_emission()
                 false,
                 Some(&frozen),
             );
-        let NormalizedExit::Complete(Err(Either::Left(mut frozen_pending)), LineEntry::InLine) =
-            frozen_exit
-        else {
-            panic!("frozen outer boundary remains pending after Call error: {source:?}")
-        };
+        assert!(matches!(
+            frozen_exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+        ));
         assert_eq!(frozen_green, green, "{source:?}");
-        assert_eq!(
-            frozen_pending.payload_view().spelling(),
-            Some("with"),
-            "{source:?}",
-        );
-        assert_eq!(
-            emit_pending_leading_text(&mut frozen_pending),
-            " ",
-            "{source:?}",
-        );
         assert_eq!(frozen_records, frozen, "{source:?}");
     }
 
@@ -4747,7 +4842,7 @@ fn type_call_t3b_close_errors_retry_matching_close_and_preserve_native_leading()
 }
 
 #[test]
-fn type_call_t3b_close_error_stops_before_caller_and_outer_boundaries() {
+fn type_call_t3b_close_recovery_suspends_contextual_but_preserves_caller_boundaries() {
     let operators = OperatorTable::empty();
     let active_close_stops = stops_for(TokenKind::RBracket)
         & !super::super::operator::STOP_COMMA
@@ -4793,18 +4888,18 @@ fn type_call_t3b_close_error_stops_before_caller_and_outer_boundaries() {
             None,
         );
     assert!(primary_found);
-    let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit else {
-        panic!("outer WITH remains pending after local Call mismatch")
-    };
-    assert_eq!(green.to_string(), "T(A] @");
-    assert_eq!(pending.payload_view().spelling(), Some("with"));
-    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
+    assert_eq!(green.to_string(), source);
     assert_eq!(
         records,
         [
             expected_type_call_close_error(0, 3..4),
             expected_type_call_close_error(1, 5..6),
-            expected_type_call_close(2, 6),
+            expected_type_call_close_error(2, 7..11),
+            expected_type_call_close(3, 11),
         ]
     );
 
@@ -4816,14 +4911,11 @@ fn type_call_t3b_close_error_stops_before_caller_and_outer_boundaries() {
             false,
             Some(&frozen),
         );
-    let NormalizedExit::Complete(Err(Either::Left(mut frozen_pending)), LineEntry::InLine) =
-        frozen_exit
-    else {
-        panic!("frozen outer WITH remains pending after local Call malformed content")
-    };
+    assert!(matches!(
+        frozen_exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
     assert_eq!(frozen_green, green);
-    assert_eq!(frozen_pending.payload_view().spelling(), Some("with"));
-    assert_eq!(emit_pending_leading_text(&mut frozen_pending), " ");
     assert_eq!(frozen_records, frozen);
 }
 

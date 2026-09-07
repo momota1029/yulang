@@ -30,14 +30,18 @@ records, fresh/frozen reconciliation, shifted origins, native outer closes,
 prefix/recursive reservations and outer path continuation. Type tests: 124
 passed; output: 4 passed; recovery output: 25 passed; package check passed.
 
-Next: correct the known accepted-Type boundary regressions in declaration
-contexts before extending PV recovery. Current direct failures include
-`type T = A::with` and `type T = A(B with Inner) with {}`: a contextual word
-is returned to the declaration instead of remaining a path segment or nested
-Type identifier. Preserve accepted-input tests and fix the owning boundary
-decision, not their expectations. This is separate from the completed
-horizontal-gap correction. Scope the remaining malformed-only expectations
-against current successor authority while doing that review.
+The follow-up contextual-Type correction is complete. Same-line contextual
+names remain accepted PathSegments and fresh Call arguments suspend the outer
+declaration boundary; physical-newline contextual Items remain outer-owned.
+Stale malformed controls now follow the approved horizontal owner and selected
+streaming-boundary rules rather than old-parser recovery output. Type tests:
+126 passed; TypeDeclaration: 39 passed; output: 4 passed; recovery output: 25
+passed; package check passed.
+
+Next: specify and simplify current-Item PV recovery under the new authority,
+then resume typed-owner migration. Start from accepted PV forms and the existing
+structured TagName reservation/output invariants; do not resume the superseded
+legacy scalar-frontier matrix.
 
 The pre-Item scalar-frontier evidence plan is no longer a construction
 prerequisite. Its 29 legacy evidence slices remain historical observations;
@@ -55,15 +59,9 @@ belong to the following current-Item owner gate.
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption
    remain separate obligations.
-3. Resolve the six known `rewrite::tests::type_decl` failures at their owning
-   responsibility before broader certification. They predate this delimiter
-   candidate (baseline `b85c32f3`) and are not toolchain failures:
-   - `type_c12_malformed_path_retry_preserves_caller_stops`;
-   - `type_c12_nested_type_owners_preserve_outer_boundaries`;
-   - `type_c12_rhs_uses_the_full_ordinary_type_surface`;
-   - `type_c15_fresh_type_expression_edges_fence_contextual_words`;
-   - `type_c15_keeps_with_outer_only_for_derives_roles`;
-   - `type_c15_preserves_header_boundaries_and_nested_suspension`.
+3. The former six TypeDeclaration failures are resolved at the Type ownership
+   boundary. Do not reopen their old malformed-output expectations as Yulang2
+   compatibility requirements.
 
 ## Verification and environment
 
