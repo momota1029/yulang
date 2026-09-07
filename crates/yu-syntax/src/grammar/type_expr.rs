@@ -15681,19 +15681,41 @@ mod tests {
             };
 
         // The caller installs both pieces of incoming state.  This pins just
-        // the `+` valid/wrong fence-termination pair: the local PV owns the
-        // physical newline and its actual close, while its caller-owned fence
-        // remains available to that caller after the episode returns.
-        for (source, fence, valid_name) in [
+        // the `+`/`@@` valid/wrong fence-termination pairs: the local PV owns
+        // the physical newline and its actual close, while its caller-owned
+        // fence remains available to that caller after the episode returns.
+        for (source, fence, valid_name, tag_error, newline, last_tag) in [
             (
                 ":{A+\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 4 },
                 true,
+                3..4,
+                4..5,
+                5..9,
+            ),
+            (
+                ":{A@@\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 5 },
+                true,
+                3..5,
+                5..6,
+                6..10,
             ),
             (
                 ":{123+\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 6 },
                 false,
+                5..6,
+                6..7,
+                7..11,
+            ),
+            (
+                ":{123@@\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 7 },
+                false,
+                5..7,
+                7..8,
+                8..12,
             ),
         ] {
             let stops = StopSet::default().with(StopKind::Newline);
@@ -15773,11 +15795,11 @@ mod tests {
                     matches!(&first.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3)),
                     "{source:?}",
                 );
-                assert_eq!(last.range, 5..9, "{source:?}");
+                assert_eq!(last.range, last_tag.clone(), "{source:?}");
             } else {
                 assert_eq!(first.range, 2..5, "{source:?}");
                 assert!(matches!(first.name, Recovered::Incomplete), "{source:?}");
-                assert_eq!(last.range, 7..11, "{source:?}");
+                assert_eq!(last.range, last_tag.clone(), "{source:?}");
             }
             assert!(matches!(last.name, Recovered::Incomplete), "{source:?}");
 
@@ -15843,11 +15865,7 @@ mod tests {
                     (depth, part.kind(), range)
                 })
                 .collect::<Vec<_>>();
-            let (newline, tag_one, tag_two) = if valid_name {
-                (4..5, 2..3, 5..9)
-            } else {
-                (6..7, 2..5, 7..11)
-            };
+            let tag_one = if valid_name { 2..3 } else { 2..5 };
             let mut expected_shape = vec![
                 (0, SyntaxKind::Root, 0..end),
                 (1, SyntaxKind::TypeExpression, 0..end),
@@ -15863,17 +15881,13 @@ mod tests {
                     .extend([(4, SyntaxKind::Error, 2..5), (5, SyntaxKind::Unknown, 2..5)]);
             }
             expected_shape.extend([
-                (
-                    3,
-                    SyntaxKind::PolymorphicVariantTag,
-                    if valid_name { 3..4 } else { 5..6 },
-                ),
-                (4, SyntaxKind::Error, if valid_name { 3..4 } else { 5..6 }),
-                (5, SyntaxKind::Unknown, if valid_name { 3..4 } else { 5..6 }),
+                (3, SyntaxKind::PolymorphicVariantTag, tag_error.clone()),
+                (4, SyntaxKind::Error, tag_error.clone()),
+                (5, SyntaxKind::Unknown, tag_error.clone()),
                 (3, SyntaxKind::Newline, newline),
-                (3, SyntaxKind::PolymorphicVariantTag, tag_two.clone()),
-                (4, SyntaxKind::Error, tag_two.clone()),
-                (5, SyntaxKind::Unknown, tag_two),
+                (3, SyntaxKind::PolymorphicVariantTag, last_tag.clone()),
+                (4, SyntaxKind::Error, last_tag.clone()),
+                (5, SyntaxKind::Unknown, last_tag.clone()),
                 (3, SyntaxKind::RBrace, end - 1..end),
             ]);
             assert_eq!(shape, expected_shape, "{source:?}");
@@ -15882,13 +15896,13 @@ mod tests {
                     record(
                         0,
                         TypeRole::PolymorphicVariantTag,
-                        3..4,
+                        tag_error.clone(),
                         ExpectedSyntax::Identifier,
                     ),
                     record(
                         1,
                         TypeRole::PolymorphicVariantTagName,
-                        5..9,
+                        last_tag,
                         ExpectedSyntax::Identifier,
                     ),
                 ]
@@ -15903,13 +15917,13 @@ mod tests {
                     record(
                         1,
                         TypeRole::PolymorphicVariantTag,
-                        5..6,
+                        tag_error,
                         ExpectedSyntax::Identifier,
                     ),
                     record(
                         2,
                         TypeRole::PolymorphicVariantTagName,
-                        7..11,
+                        last_tag,
                         ExpectedSyntax::Identifier,
                     ),
                 ]
