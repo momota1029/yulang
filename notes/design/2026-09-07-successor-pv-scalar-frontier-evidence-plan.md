@@ -264,6 +264,12 @@ The wrong-head rows retain only their TagName Error, while valid spaced has no
 recovery. This records no successor admission, no other primary class, and no
 general payload policy.
 
+The twenty-seventh bounded cell records the parallel Parenthesized vocabulary:
+`:{123(F)}`, `:{123 (F)}`, `:{A(F)}`, and `:{A (F)}` each admit one complete
+Parenthesized payload containing `F`. Adjacent has the Missing boundary and
+spaced retains payload Whitespace; wrong rows retain only their TagName Error.
+This establishes no other primary class or successor policy.
+
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
 ambient-balance style.  It must not update a rewrite expectation or treat a
