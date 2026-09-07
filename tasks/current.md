@@ -110,6 +110,18 @@ private Call/Parenthesized/EffectRow construction pass is now authorized.  The
 phase-aware owner gap correction must retain all stated T3/T4P behavior and
 proof controls; T4E construction remains excluded.
 
+The in-progress successor candidate exposed one excluded outer carrier:
+`:{(A }` moves Parenthesized's local close frontier as authorized and therefore
+would extend the enclosing PolymorphicVariantTagName Error.  Direct legacy
+evidence is now execution-pinned by
+`legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned`:
+the no-gap Error is `2..4`, the horizontal form is `2..5`, and legacy keeps the
+actual PV close native/lossless but flattens the malformed primary to
+`Error > Unknown` with no inner P/Whitespace/Missing record.  M1 specification
+review is clean.  This proves the outer extent but does not authorize a
+successor PV recovery-oracle change; the candidate remains unintegrated until a
+narrow reviewed addendum and fresh user decision resolve that scope.
+
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
 artificial declaration witness was added.  T4E1/E3, the eighth terminal,

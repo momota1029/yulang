@@ -13775,6 +13775,171 @@ mod tests {
     }
 
     #[test]
+    fn legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned() {
+        use crate::session::{
+            CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
+            UnexpectedCategory, UnexpectedSyntax,
+        };
+        use std::sync::Arc;
+
+        for (base, expected_errors) in [
+            (
+                ":{(A}",
+                vec![(TypeRole::PolymorphicVariantTagName, 2..4, "(A")],
+            ),
+            (
+                ":{(A }",
+                vec![(TypeRole::PolymorphicVariantTagName, 2..5, "(A ")],
+            ),
+            (
+                ":{( }",
+                vec![(TypeRole::PolymorphicVariantTagName, 2..4, "( ")],
+            ),
+            (
+                ":{(A, }",
+                vec![(TypeRole::PolymorphicVariantTagName, 2..6, "(A, ")],
+            ),
+            (
+                ":{(A )}",
+                vec![(TypeRole::PolymorphicVariantTagName, 2..6, "(A )")],
+            ),
+            (
+                ":{@ (A}",
+                vec![
+                    (TypeRole::PolymorphicVariantTag, 2..4, "@ "),
+                    (TypeRole::PolymorphicVariantTagName, 4..6, "(A"),
+                ],
+            ),
+        ] {
+            for continuation in ["", "::Next"] {
+                let source = format!("{base}{continuation}");
+                let (remainder, ast) = parse_prefix(&source);
+                assert_eq!(remainder, "", "{source:?}");
+                assert_eq!(ast.range, 0..source.len());
+                assert!(ast.leading_effect_row.is_none());
+                assert!(ast.arrow.is_none());
+                if continuation.is_empty() {
+                    assert!(ast.postfix.is_empty());
+                } else {
+                    assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(_)]));
+                }
+                let TypePrimary::PolymorphicVariant(variant) = ast.complete_primary() else {
+                    panic!("complete PV primary: {source:?}")
+                };
+                let at = base.len() - 1;
+                assert_eq!(variant.colon, 0..1);
+                assert_eq!(variant.open, 1..2);
+                assert_eq!(variant.range, 0..base.len());
+                assert!(
+                    matches!(&variant.close, Recovered::Complete(range) if *range == (at..at + 1))
+                );
+                assert!(variant.trailing_comma.is_none());
+                assert!(
+                    matches!(variant.tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
+                    name: Recovered::Incomplete, payloads, range,
+                })] if payloads.is_empty() && *range == (2..at))
+                );
+
+                let root = parse_direct(&source);
+                assert_eq!(root.to_string(), source);
+                let pv = root
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+                    .unwrap();
+                let children = pv.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(
+                    children
+                        .iter()
+                        .map(|child| child.kind())
+                        .collect::<Vec<_>>(),
+                    [
+                        SyntaxKind::Colon,
+                        SyntaxKind::LBrace,
+                        SyntaxKind::PolymorphicVariantTag,
+                        SyntaxKind::RBrace,
+                    ]
+                );
+                let close = children[3].as_token().expect("actual PV close token");
+                assert_eq!(close.text(), "}");
+                assert_eq!(usize::from(close.text_range().start()), at);
+                assert_eq!(usize::from(close.text_range().end()), at + 1);
+                assert_eq!(close.parent().as_ref(), Some(&pv));
+                let tag = children[2].as_node().unwrap();
+                assert_eq!(usize::from(tag.text_range().start()), 2);
+                assert_eq!(usize::from(tag.text_range().end()), at);
+                let errors = tag.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(errors.len(), expected_errors.len());
+                for (error, (_, range, text)) in errors.iter().zip(&expected_errors) {
+                    assert_eq!(error.kind(), SyntaxKind::Error);
+                    assert_eq!(error.to_string(), *text);
+                    assert_eq!(usize::from(error.text_range().start()), range.start);
+                    assert_eq!(usize::from(error.text_range().end()), range.end);
+                    let contents = error
+                        .as_node()
+                        .unwrap()
+                        .children_with_tokens()
+                        .collect::<Vec<_>>();
+                    assert_eq!(contents.len(), 1);
+                    let unknown = contents[0]
+                        .as_token()
+                        .expect("legacy flattened malformed primary");
+                    assert_eq!(unknown.kind(), SyntaxKind::Unknown);
+                    assert_eq!(unknown.text(), *text);
+                    assert_eq!(unknown.text_range(), error.text_range());
+                }
+                // Legacy flattens this malformed primary. Even the consumed
+                // horizontal gap is inside Unknown, not a native Whitespace
+                // child; it publishes neither a group nor inner recoveries.
+                assert!(!root.descendants_with_tokens().any(|element| matches!(
+                    element.kind(),
+                    SyntaxKind::ParenthesizedTypeGroup
+                        | SyntaxKind::Whitespace
+                        | SyntaxKind::Missing
+                )));
+                if !continuation.is_empty() {
+                    let tail = root
+                        .descendants()
+                        .find(|node| node.kind() == SyntaxKind::TypePathTail)
+                        .unwrap();
+                    assert_eq!(tail.text().to_string(), continuation);
+                    assert_eq!(usize::from(tail.text_range().start()), base.len());
+                }
+                let expected_records = expected_errors
+                    .iter()
+                    .enumerate()
+                    .map(|(index, (role, range, _))| {
+                        let role = GrammarRole::Type(*role);
+                        CommittedRecoveryRecord {
+                            id: DiagnosticId(index as u32),
+                            site: RecoverySiteKey {
+                                role,
+                                range: range.clone(),
+                            },
+                            kind: RecoveryKind::Error,
+                            unexpected: Arc::from([UnexpectedSyntax::Token {
+                                range: range.clone(),
+                                category: UnexpectedCategory::OtherCharacter,
+                            }]),
+                            expectations: Arc::from([SyntaxExpectation {
+                                role,
+                                expected: ExpectedSyntax::Identifier,
+                                range: range.clone(),
+                                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                            }]),
+                            primary_expectation: 0,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    parse_direct_recovered(&source),
+                    expected_records,
+                    "{source:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn polymorphic_variant_type_uses_phase_specific_recovery_roles() {
         let leading = parse_direct_recovered(":{,,A}");
         assert_eq!(
