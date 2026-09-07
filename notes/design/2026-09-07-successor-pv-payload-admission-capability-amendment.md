@@ -202,12 +202,16 @@ prove:
    original three `::Next` controls, caller/outer boundary handoff, and
    rejection/mismatch invariants.
 
-Before the ambient prerequisite can become Reviewed, it must additionally map
-every root, indented, inline, braced, virtual-statement, and Yumark visibility
-transition against legacy; prove the view cannot escape an active call frame;
-and add seeded visible/dedent/If, nested-If, and barrier controls at distinct
-initial/retry positions.  Its initial implementation, if approved, changes no
-PV admission or recovery output; scalar admission remains a later gate.
+Before the ambient prerequisite can become Reviewed for a virtual-statement or
+Yumark caller, it must additionally map that visibility transition against
+legacy or record a user decision that explicitly supersedes an unavailable
+legacy observation.  An ordinary-only carrier may instead preserve an explicit
+unavailable context through those callers; it does not settle their policy and
+does not make this prerequisite Reviewed for them.  Every approved carrier
+still must prove the view cannot escape an active call frame and add seeded
+visible/dedent/If, nested-If, and barrier controls at distinct initial/retry
+positions.  Its initial implementation, if approved, changes no PV admission
+or recovery output; scalar admission remains a later gate.
 
 The direct parser is hot.  A new arbitrary raw traversal and unknown aggregate
 frequency trigger independent performance review.  Timing budget is zero until

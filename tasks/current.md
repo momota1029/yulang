@@ -41,6 +41,19 @@ heredoc / nested / fence-restoration rows and a separate production cell bridge
 must be pinned or explicitly selected before an ambient carrier may enter those
 owners.
 
+`2026-09-07-successor-ambient-claim-context-prerequisite-amendment.md` is the
+new M3 Draft for that first prerequisite.  It separates legacy's pure ambient
+claim query from all source observation, fixes the ordinary root/indented /
+inline / braced / If propagation inventory, including retirement before an
+owned Else body and outer Type tail.  The first possible gate carries an
+explicit unavailable context through virtual/Yumark paths, so it cannot choose
+root/braced/inherited semantics or enable ambient-sensitive payload admission
+there.  The virtual-root proposal remains a later separate decision.  Initial
+compiler/recovery and specification review, repaired specification delta, and
+the final compiler `None`-propagation closure are clean.  The sole active
+decision is §6.2: authorize the recommended ordinary-only carrier gate or
+defer it.  No source construction has begun.
+
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology
 amendments.  The migrated sites are the two ArrowRhs Missing branches and the
