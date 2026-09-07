@@ -140,6 +140,15 @@ the E same-carrier range/evidence cells under the recorded recommendation
 delegation, but E/P proof and the distinct Call head-admission
 architecture/evidence gate must both close before shared integration.
 
+`legacy_polymorphic_variant_primary_completion_preflight` now execution-pins
+that distinct Call cause: numeric/group/EffectRow/record heads finish at their
+primary boundary, external `(`/`::`/`->`/application suffixes become PV payload
+forms, while tails wholly inside a composite primary stay within its flat
+TagName Error.  Both forall controls confirm that a forall body belongs to its
+primary.  M1 specification review is clean.  The next safe gate compares base
+and candidate successor facts, then reviews a private PV wrong-kind
+primary-completion correction; no delimiter/PV special case is authorized.
+
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
 artificial declaration witness was added.  T4E1/E3, the eighth terminal,

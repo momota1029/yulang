@@ -13775,6 +13775,307 @@ mod tests {
     }
 
     #[test]
+    fn legacy_polymorphic_variant_primary_completion_preflight() {
+        use crate::session::{
+            CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
+            UnexpectedCategory, UnexpectedSyntax,
+        };
+        use std::sync::Arc;
+
+        // Tag admission parses one primary, not its outer postfix chain.
+        // Forall is admitted by the same parse_type_primary_in_context(true)
+        // dispatch; its body belongs to that primary and is flattened with it.
+        for (base, name_end, valid_name, payload) in [
+            (":{123::T}", 5, false, Some((7, false, SyntaxKind::Error))),
+            (":{123->T}", 5, false, Some((7, false, SyntaxKind::Error))),
+            (
+                ":{123 T}",
+                5,
+                false,
+                Some((6, false, SyntaxKind::Whitespace)),
+            ),
+            (":{A(T)}", 3, true, Some((3, true, SyntaxKind::Missing))),
+            (":{A::T}", 3, true, Some((5, false, SyntaxKind::Error))),
+            (":{A->T}", 3, true, Some((5, false, SyntaxKind::Error))),
+            (":{(A)(B)}", 5, false, Some((5, true, SyntaxKind::Missing))),
+            (":{(A)::T}", 5, false, Some((7, false, SyntaxKind::Error))),
+            (":{(A)->T}", 5, false, Some((7, false, SyntaxKind::Error))),
+            (
+                ":{(A) B}",
+                5,
+                false,
+                Some((6, false, SyntaxKind::Whitespace)),
+            ),
+            (":{(A(B))}", 8, false, None),
+            (":{(A::B)}", 8, false, None),
+            (":{(A->B)}", 8, false, None),
+            (":{(A B)}", 7, false, None),
+            (":{'[A](B)}", 6, false, Some((6, true, SyntaxKind::Missing))),
+            (
+                ":{{a: A(B)}(C)}",
+                11,
+                false,
+                Some((11, true, SyntaxKind::Missing)),
+            ),
+            (":{for 'a: A(B)}", 14, false, None),
+            (":{for 'a: A->B}", 14, false, None),
+        ] {
+            let continuations: &[&str] = if matches!(base, ":{123::T}" | ":{(A)(B)}" | ":{(A(B))}")
+            {
+                &["", "::Next"]
+            } else {
+                &[""]
+            };
+            for continuation in continuations {
+                let source = format!("{base}{continuation}");
+                let at = base.len() - 1;
+                let (remainder, ast) = parse_prefix(&source);
+                assert_eq!(remainder, "", "{source:?}");
+                assert_eq!(ast.range, 0..source.len());
+                assert!(ast.leading_effect_row.is_none() && ast.arrow.is_none());
+                if continuation.is_empty() {
+                    assert!(ast.postfix.is_empty());
+                } else {
+                    let [TypePostfixTail::Path(path)] = ast.postfix.as_slice() else {
+                        panic!("outer path: {source:?}")
+                    };
+                    assert_eq!(path.range, base.len()..source.len());
+                    assert_eq!(path.separator, base.len()..base.len() + 2);
+                    assert!(
+                        matches!(&path.segment, Recovered::Complete(TypePathSegment::Identifier(word)) if word.text() == "Next" && word.range() == (base.len() + 2..source.len()))
+                    );
+                }
+                let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                    panic!("PV primary: {source:?}")
+                };
+                assert_eq!(pv.range, 0..base.len());
+                assert_eq!(pv.colon, 0..1);
+                assert_eq!(pv.open, 1..2);
+                assert!(pv.trailing_comma.is_none());
+                assert!(matches!(&pv.close, Recovered::Complete(range) if *range == (at..at + 1)));
+                let [Recovered::Complete(tag)] = pv.tags.as_slice() else {
+                    panic!("one tag: {source:?}")
+                };
+                assert_eq!(tag.range, 2..at);
+                if valid_name {
+                    assert!(
+                        matches!(&tag.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3))
+                    );
+                } else {
+                    assert!(matches!(tag.name, Recovered::Incomplete));
+                }
+                if let Some((start, grouped, boundary_kind)) = payload {
+                    let [Recovered::Complete(payload)] = tag.payloads.as_slice() else {
+                        panic!("one payload: {source:?}")
+                    };
+                    assert_eq!(payload.range, name_end..at);
+                    if boundary_kind == SyntaxKind::Whitespace {
+                        assert!(
+                            matches!(&payload.boundary, Recovered::Complete(range) if *range == (name_end..start))
+                        );
+                    } else {
+                        assert!(matches!(payload.boundary, Recovered::Incomplete));
+                    }
+                    let Recovered::Complete(expr) = &payload.type_expr else {
+                        panic!("payload expression: {source:?}")
+                    };
+                    assert_eq!(expr.range, start..at);
+                    assert!(
+                        expr.leading_effect_row.is_none()
+                            && expr.postfix.is_empty()
+                            && expr.arrow.is_none()
+                    );
+                    let atom = if grouped {
+                        let TypePrimary::Parenthesized(group) = expr.complete_primary() else {
+                            panic!("parenthesized payload: {source:?}")
+                        };
+                        assert_eq!(group.range, start..at);
+                        assert_eq!(group.open, start..start + 1);
+                        assert!(
+                            matches!(&group.close, Recovered::Complete(range) if *range == (at - 1..at))
+                        );
+                        assert!(group.trailing_explicit_separator.is_none());
+                        let [Recovered::Complete(inner)] = group.elements.as_slice() else {
+                            panic!("single payload element")
+                        };
+                        assert_eq!(inner.range, start + 1..at - 1);
+                        assert!(
+                            inner.leading_effect_row.is_none()
+                                && inner.postfix.is_empty()
+                                && inner.arrow.is_none()
+                        );
+                        inner.clone()
+                    } else {
+                        expr.as_ref().clone()
+                    };
+                    assert!(
+                        matches!(atom.complete_primary(), TypePrimary::Atom(TypeAtom::Identifier(word)) if word.range() == atom.range && word.text() == &source[atom.range.clone()])
+                    );
+                } else {
+                    assert!(tag.payloads.is_empty());
+                }
+
+                let root = parse_direct(&source);
+                assert_eq!(root.to_string(), source);
+                let pv_node = root
+                    .descendants()
+                    .find(|n| n.kind() == SyntaxKind::PolymorphicVariantType)
+                    .unwrap();
+                let children = pv_node.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(
+                    children.iter().map(|n| n.kind()).collect::<Vec<_>>(),
+                    [
+                        SyntaxKind::Colon,
+                        SyntaxKind::LBrace,
+                        SyntaxKind::PolymorphicVariantTag,
+                        SyntaxKind::RBrace
+                    ]
+                );
+                assert_eq!(children[3].as_token().unwrap().text(), "}");
+                assert_eq!(usize::from(children[3].text_range().start()), at);
+                assert_eq!(usize::from(children[3].text_range().end()), at + 1);
+                let tag_node = children[2].as_node().unwrap();
+                assert_eq!(tag_node.text().to_string(), base[2..at]);
+                let tag_children = tag_node.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(tag_children.len(), 1 + usize::from(payload.is_some()));
+                assert_eq!(
+                    tag_children[0].kind(),
+                    if valid_name {
+                        SyntaxKind::Identifier
+                    } else {
+                        SyntaxKind::Error
+                    }
+                );
+                assert_eq!(tag_children[0].to_string(), base[2..name_end]);
+                let mut sites = vec![];
+                if !valid_name {
+                    sites.push((
+                        TypeRole::PolymorphicVariantTagName,
+                        RecoveryKind::Error,
+                        2..name_end,
+                        ExpectedSyntax::Identifier,
+                    ));
+                }
+                if let Some((start, grouped, boundary_kind)) = payload {
+                    let node = tag_children[1].as_node().unwrap();
+                    assert_eq!(node.kind(), SyntaxKind::PolymorphicVariantPayload);
+                    assert_eq!(node.text().to_string(), base[name_end..at]);
+                    assert_eq!(usize::from(node.text_range().start()), name_end);
+                    let parts = node.children_with_tokens().collect::<Vec<_>>();
+                    assert_eq!(
+                        parts.iter().map(|n| n.kind()).collect::<Vec<_>>(),
+                        [boundary_kind, SyntaxKind::TypeExpression]
+                    );
+                    assert_eq!(parts[0].to_string(), base[name_end..start]);
+                    assert_eq!(parts[1].to_string(), base[start..at]);
+                    assert_eq!(usize::from(parts[1].text_range().start()), start);
+                    let expr = parts[1].as_node().unwrap();
+                    let expected_nodes = if grouped {
+                        vec![
+                            SyntaxKind::TypeExpression,
+                            SyntaxKind::ParenthesizedTypeGroup,
+                            SyntaxKind::TypeExpression,
+                        ]
+                    } else {
+                        vec![SyntaxKind::TypeExpression]
+                    };
+                    assert_eq!(
+                        expr.descendants().map(|n| n.kind()).collect::<Vec<_>>(),
+                        expected_nodes
+                    );
+                    let tokens = expr
+                        .descendants_with_tokens()
+                        .filter_map(|n| n.into_token())
+                        .collect::<Vec<_>>();
+                    let expected_tokens = if grouped {
+                        vec![
+                            (SyntaxKind::LParen, start..start + 1),
+                            (SyntaxKind::Identifier, start + 1..at - 1),
+                            (SyntaxKind::RParen, at - 1..at),
+                        ]
+                    } else {
+                        vec![(SyntaxKind::Identifier, start..at)]
+                    };
+                    assert_eq!(tokens.len(), expected_tokens.len());
+                    for (token, (kind, range)) in tokens.iter().zip(expected_tokens) {
+                        assert_eq!(token.kind(), kind);
+                        assert_eq!(usize::from(token.text_range().start()), range.start);
+                        assert_eq!(usize::from(token.text_range().end()), range.end);
+                        assert_eq!(token.text(), &base[range]);
+                    }
+                    if boundary_kind != SyntaxKind::Whitespace {
+                        sites.push((
+                            TypeRole::PolymorphicVariantPayloadBoundary,
+                            if boundary_kind == SyntaxKind::Error {
+                                RecoveryKind::Error
+                            } else {
+                                RecoveryKind::Missing
+                            },
+                            name_end..start,
+                            ExpectedSyntax::TypePayloadBoundary,
+                        ));
+                    }
+                }
+                // All malformed-primary internals are one flat Unknown;
+                // none of their Call/path/arrow/application structure survives.
+                for error in root.descendants().filter(|n| n.kind() == SyntaxKind::Error) {
+                    let parts = error.children_with_tokens().collect::<Vec<_>>();
+                    assert_eq!(parts.len(), 1);
+                    assert_eq!(parts[0].kind(), SyntaxKind::Unknown);
+                    assert_eq!(parts[0].text_range(), error.text_range());
+                }
+                assert!(!root.descendants().any(|n| matches!(
+                    n.kind(),
+                    SyntaxKind::TypeCallTail
+                        | SyntaxKind::TypeArrowTail
+                        | SyntaxKind::TypeApplyArgument
+                )));
+                let paths = root
+                    .descendants()
+                    .filter(|n| n.kind() == SyntaxKind::TypePathTail)
+                    .collect::<Vec<_>>();
+                assert_eq!(paths.len(), usize::from(!continuation.is_empty()));
+                if let Some(path) = paths.first() {
+                    assert_eq!(path.text().to_string(), *continuation);
+                    assert_eq!(usize::from(path.text_range().start()), base.len());
+                    assert_eq!(path.parent().unwrap().parent().unwrap(), root);
+                }
+                let records = sites
+                    .into_iter()
+                    .enumerate()
+                    .map(|(id, (role, kind, range, expected))| {
+                        let role = GrammarRole::Type(role);
+                        CommittedRecoveryRecord {
+                            id: DiagnosticId(id as u32),
+                            site: RecoverySiteKey {
+                                role,
+                                range: range.clone(),
+                            },
+                            kind,
+                            unexpected: if kind == RecoveryKind::Error {
+                                Arc::from([UnexpectedSyntax::Token {
+                                    range: range.clone(),
+                                    category: UnexpectedCategory::OtherCharacter,
+                                }])
+                            } else {
+                                Arc::from([])
+                            },
+                            expectations: Arc::from([SyntaxExpectation {
+                                role,
+                                expected,
+                                range,
+                                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                            }]),
+                            primary_expectation: 0,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(parse_direct_recovered(&source), records, "{source:?}");
+            }
+        }
+    }
+
+    #[test]
     fn legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned() {
         use crate::session::{
             CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
