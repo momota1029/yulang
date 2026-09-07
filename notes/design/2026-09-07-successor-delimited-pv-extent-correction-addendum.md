@@ -1,6 +1,6 @@
 # Successor delimited PV structured-Error extent correction addendum
 
-Status: Reviewed; fresh user decision required
+Status: Authoritative; bounded construction approved
 
 Date: 2026-09-07
 
@@ -9,6 +9,17 @@ PolymorphicVariantTagName Error carrier
 
 Reviewed-by: M3 independent compiler/recovery and specification review; one
 batched Draft repair followed by clean compiler/specification delta review
+
+Approved-by: user
+
+Approved-at: 2026-09-07
+
+User-directed decision: select §5 option 1.  Authorize exactly the §2--3
+same-carrier, three-phase private successor range/evidence correction and its
+integration proof.  The user further directs that future comparably narrow,
+fully reviewed, direct-compatibility corrections proceed under their documented
+recommended option; a material semantic, public-surface, or scope expansion
+still requires an explicit fresh decision.
 
 Scope: one causal private successor range correction for the existing
 `PolymorphicVariantTagName` structured Error when it already encloses an
@@ -161,16 +172,14 @@ user decision.  After approval and construction, independent regression review
 must cover the bounded structured-PV sibling surface; compiler/specification
 delta review then closes the gate.
 
-## 5. User decision after review
+## 5. User decision
 
-After M3 review, select one option:
+The user selected option 1 on 2026-09-07.  The existing TagName Error may
+advance across the §2 same-carrier three-phase Parenthesized-owned horizontal
+bytes, matching direct legacy extent while preserving every other PV recovery
+fact.
 
-1. **Permit the same-carrier three-phase extent correction (recommended).**
-   Authorize §2--3.  The existing TagName Error advances to include the
-   already-approved P-owned horizontal bytes, matching direct legacy extent
-   while preserving every other PV recovery fact.
-2. **Decline the extension.** Keep the existing PV recovery oracle unchanged.
-   The base delimited correction remains Authoritative outside this unresolved
-   P-in-structured-PV interaction, but do not integrate the current shared
-   candidate until architecture resolves that interaction.  Do not clamp the
-   Error or create a PV special case.
+Option 2 was not selected.  It would retain the existing PV recovery oracle,
+leave the base delimited correction Authoritative outside this interaction, and
+return this P-in-structured-PV interaction to architecture without clamping
+the Error or creating a PV special case.

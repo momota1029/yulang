@@ -122,8 +122,10 @@ review is clean.  The Reviewed
 `2026-09-07-successor-delimited-pv-extent-correction-addendum.md` now covers
 the known Initial/post-separator/post-item Parenthesized phases and precisely
 limits conditional supersession to their existing TagName Error
-range/evidence.  The candidate remains unintegrated until a fresh user decision
-accepts or declines that PV recovery-oracle extension.
+range/evidence.  The candidate remained unintegrated until this fresh decision.
+The user selected the recommended extent correction, so its one private
+integration/proof pass is now authorized; regression plus compiler/specification
+delta review must close the bounded PV sibling surface before integration.
 
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
