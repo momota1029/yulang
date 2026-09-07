@@ -85,6 +85,16 @@ unavailable only with a concrete reason and without inferring a policy from it.
 | retained structural siblings | numeric apparent Call, non-atomic external/internal tails, repeated payload, prefix and recursive reservation, and every authorized P/E extent row remain exact fresh/frozen controls |
 | unavailable callers | virtual normal/heredoc/nested/fence and Yumark production-cell rows remain unavailable until a separate policy/evidence decision; a future observer must decline under carrier `None` |
 
+The first bounded wrong-head slice is complete in
+`legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned`:
+`:{123+:{B}}`, `:{123@@:{B}}`, and `:{123::/*c*/:{B}}` pin their complete
+wrong-kind name recovery, scalar payload-boundary recovery, and inline nested
+PV retry; `:{123::\r\n:{B}}` separately pins its three tag-loop recoveries.
+All four rows pin AST, full CST preorder/ranges, ordered recoveries, native
+close/full consumption, and AST/direct episode-frame balance.  This leaves the
+wrong-head decline and EOF counterparts, plus every other matrix family,
+open.
+
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
 ambient-balance style.  It must not update a rewrite expectation or treat a
