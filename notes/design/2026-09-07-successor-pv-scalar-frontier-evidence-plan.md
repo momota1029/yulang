@@ -60,7 +60,7 @@ The following direct controls are retained rather than rewritten:
 | scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership |
 | primary and reservation boundary | `legacy_polymorphic_variant_primary_completion_preflight` | non-atomic primary external/internal tails, selected `::Next`, numeric apparent Call, prefix, and recursive PV ownership |
 | P and E carriers | `legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned` and `legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned` | P/E ordinary-gap extent facts, E rows, numeric apparent-Call distinction, prefix/nested cells, and `::Next` continuations |
-| ambient continuation | direct polymorphic-variant `it3`/`nt5` plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}` can remain ambient despite no active stop bit; frames must balance |
+| ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial control, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, plus strict-dedent initial `:{A\\nelse: 0}` under baseline 2, can remain ambient despite no active stop bit; frames must balance |
 
 These controls do not prove a general retry grammar.  In particular, their
 valid-name scalar examples do not characterize equivalent wrong-head, fence,
@@ -70,7 +70,7 @@ The current direct PV ambient coverage is deliberately narrower than the
 ordinary provenance matrix: it installs a root scope with one visible
 companion.  Query-level `ParseLocal` indented/dedent and nested-companion tests
 are not PV AST/CST/recovery evidence.  They therefore do not discharge the
-indented strict-dedent, nested-If identity, accepted-own-Else retirement, or
+strict-dedent retry, nested-If identity, accepted-own-Else retirement, or
 post-completed-If outer-tail cells below.
 
 ## 3. Required direct evidence matrix
@@ -87,7 +87,7 @@ unavailable only with a concrete reason and without inferring a policy from it.
 | wrong-head scalar runs | `+`, `@@`, `::/*c*/`, and CRLF after a wrong head; admitted nested-PV retry, decline, native-close, and EOF counterparts where legacy exposes them |
 | spacing and no-retry | wrong-head spaced malformed surface; each named multi-token/comment spelling whose no-retry result would be used by a future classifier |
 | fence-qualified scalar rows | valid and wrong heads at inline retry/decline and CRLF/fence termination, or an explicit direct unavailability result for each |
-| ordinary ambient provenance | root visible/no-stop initial and retry are already pinned; add initial/retry under indented strict-dedent, nested-If identity, own Else, and outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
+| ordinary ambient provenance | root visible/no-stop initial and retry and indented strict-dedent initial are already pinned; add strict-dedent retry and initial/retry under nested-If identity, own Else, and outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
 | retry primary vocabulary | adjacent and spaced forms for every primary class proposed for admission, with leading BracketRow explicitly classified rather than silently inherited |
 | retained structural siblings | numeric apparent Call, non-atomic external/internal tails, repeated payload, prefix and recursive reservation, and every authorized P/E extent row remain exact fresh/frozen controls |
 | unavailable callers | virtual normal/heredoc/nested/fence and Yumark production-cell rows remain unavailable until a separate policy/evidence decision; a future observer must decline under carrier `None` |
@@ -119,6 +119,15 @@ The empty-trivia payload judge declines the run without a payload, then the
 outer PV tag loop owns the second malformed tag.  The EOF rows pin the missing
 outer-brace record.  This establishes no disposition for other spellings,
 ambient contexts, fences, or successor behavior.
+
+The fifth bounded slice pins the initial indented strict-dedent provenance
+cell.  Under a root scope plus indented statement baseline 2, with no If
+companion or stop frame, `:{A\\nelse: 0}` begins with no ambient claim and has
+one at byte 3 when the PV prefix stops before the newline.  The row pins the
+AST, direct prefix CST and sole outer-brace Missing record, source
+reconstruction with the exact `\\nelse: 0` remainder, and LIFO scope/frame
+balance.  It does not establish a strict-dedent retry spelling, an If/Else
+claim, or a successor policy.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
