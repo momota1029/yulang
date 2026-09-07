@@ -94,8 +94,12 @@ post-explicit-separator legacy baseline is now execution-pinned by
 Call, Parenthesized, and EffectRow cover initial, comma, and semicolon slots;
 generic caller `}` stays raw while owner-local Whitespace precedes the Item and
 close Missing nodes, and matching local closes retain the same owner-local gap
-with no recovery.  M1 pre-write and delta specification review are clean after
-one test-only repair.  This evidence authorizes no T3/T4P repair or T4E
+with no recovery.  Nested outer-close controls now prove the same phase rule:
+the inner owner publishes its Item then close Missing after the gap while the
+outer `]`/`)` remains an actual close and continues through its own row/arrow
+or group.  M1 pre-write and delta specification review are clean after one
+test-only repair and one outer-close characterization extension.  This evidence
+authorizes no T3/T4P repair or T4E
 implementation.  The immediate next action is a reviewed correction that
 separates ASOB whole-gap handoff from delimited-owner horizontal-trivia
 consumption before raw generic caller/outer payload handoff, followed by a

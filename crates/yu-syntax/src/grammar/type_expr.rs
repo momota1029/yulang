@@ -9951,6 +9951,92 @@ mod tests {
             assert_boundary_records(&records, owner, at, false);
         }
 
+        // Nested outer closes must survive every fresh-slot phase after the
+        // immediate owner consumes its horizontal gap.
+        for (source, owner, at, first_item) in [
+            ("G T[( ]->U", Owner::Parenthesized, 6, None),
+            ("G T[(F, ]->U", Owner::Parenthesized, 8, Some(5..6)),
+            ("G T[(F; ]->U", Owner::Parenthesized, 8, Some(5..6)),
+            ("G T[T( ]->U", Owner::Call, 7, None),
+            ("G T[T(F, ]->U", Owner::Call, 9, Some(6..7)),
+            ("G T[T(F; ]->U", Owner::Call, 9, Some(6..7)),
+            ("G ('[ )", Owner::EffectRow, 6, None),
+            ("G ('[F, )", Owner::EffectRow, 8, Some(5..6)),
+            ("G ('[F; )", Owner::EffectRow, 8, Some(5..6)),
+        ] {
+            let ast = parse(source);
+            assert_eq!(ast.range, 0..source.len(), "{source:?}");
+            let argument = match ast.postfix.as_slice() {
+                [TypePostfixTail::Apply(argument)] => &argument.argument,
+                _ => panic!("outer TypeApply shape for {source:?}: {ast:#?}"),
+            };
+            let (inner, outer_kind, outer_close_kind) = match owner {
+                Owner::Parenthesized | Owner::Call => {
+                    let arrow = argument.arrow.as_ref().expect("outer arrow tail");
+                    let row = arrow.argument_effect.as_ref().expect("outer BracketRow");
+                    assert_eq!(row.close, Recovered::Complete(at..at + 1));
+                    assert_eq!(arrow.arrow, Recovered::Complete(at + 1..at + 3));
+                    match &arrow.rhs {
+                        Recovered::Complete(rhs) => assert_plain_atom(rhs, at + 3..at + 4),
+                        _ => panic!("complete arrow RHS for {source:?}: {arrow:#?}"),
+                    }
+                    let inner = match row.items.as_slice() {
+                        [Recovered::Complete(inner)] => inner.clone(),
+                        _ => panic!("one complete BracketRow item for {source:?}: {row:#?}"),
+                    };
+                    (inner, SyntaxKind::BracketRow, SyntaxKind::RBracket)
+                }
+                Owner::EffectRow => match argument.complete_primary() {
+                    TypePrimary::Parenthesized(group) => {
+                        assert_eq!(group.close, Recovered::Complete(at..at + 1));
+                        assert!(argument.postfix.is_empty());
+                        assert!(argument.arrow.is_none());
+                        let inner = match group.elements.as_slice() {
+                            [Recovered::Complete(inner)] => inner.clone(),
+                            _ => panic!("one complete outer group item for {source:?}: {group:#?}"),
+                        };
+                        (
+                            inner,
+                            SyntaxKind::ParenthesizedTypeGroup,
+                            SyntaxKind::RParen,
+                        )
+                    }
+                    _ => panic!("outer Parenthesized shape for {source:?}: {argument:#?}"),
+                },
+            };
+            let (slots, close) = match owner {
+                Owner::Parenthesized => match inner.complete_primary() {
+                    TypePrimary::Parenthesized(group) => (group.elements, group.close),
+                    _ => panic!("inner Parenthesized for {source:?}: {inner:#?}"),
+                },
+                Owner::Call => match inner.postfix.as_slice() {
+                    [TypePostfixTail::Call(call)] => (call.arguments.clone(), call.close.clone()),
+                    _ => panic!("inner Call for {source:?}: {inner:#?}"),
+                },
+                Owner::EffectRow => match inner.complete_primary() {
+                    TypePrimary::EffectRow(row) => (row.items, row.close),
+                    _ => panic!("inner EffectRow for {source:?}: {inner:#?}"),
+                },
+            };
+            let mut expected_slots = first_item.into_iter().map(Some).collect::<Vec<_>>();
+            expected_slots.push(None);
+            assert_slots(&slots, &expected_slots);
+            assert_eq!(close, Recovered::Incomplete, "{source:?}");
+            assert_boundary_records(&parse_direct_recovered(source), owner, at, true);
+            let direct = parse_direct(source);
+            assert_eq!(direct.to_string(), source, "{source:?}");
+            assert_owner_gap(&direct, owner, at, true);
+            let outer = direct
+                .descendants()
+                .find(|node| node.kind() == outer_kind)
+                .unwrap();
+            let outer_close = outer.children_with_tokens().last().expect("outer close");
+            assert!(outer_close.as_token().is_some(), "{source:?}");
+            assert_eq!(outer_close.kind(), outer_close_kind, "{source:?}");
+            assert_eq!(usize::from(outer_close.text_range().start()), at);
+            assert_eq!(usize::from(outer_close.text_range().end()), at + 1);
+        }
+
         for (source, owner, slots, close, owner_range) in [
             ("G ( )", Owner::Parenthesized, vec![], 4..5, 2..5),
             ("G T( )", Owner::Call, vec![], 5..6, 3..6),
