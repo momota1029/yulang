@@ -277,6 +277,18 @@ the Missing boundary and spaced retains payload Whitespace; wrong rows retain
 only their TagName Error. This establishes no other primary class or successor
 policy.
 
+The twenty-ninth matrix row records concrete direct unavailability for leading
+BracketRow, rather than silently inheriting a result from another primary.
+For `:{123[e] T}`, `:{123 [e] T}`, `:{A[e] T}`, and `:{A [e] T}`, each of the
+legacy AST, direct CST, and direct recovery entry points deterministically
+reaches `polymorphic_variant.rs:455` at
+`assert!(context.consume_payload_type())`; consequently no AST/CST/recovery
+result exists to execution-pin. The immediate cause is that `PayloadJudge::Candidate`
+recognizes the surface while `parse_type_primary_in_context` excludes
+`LeadingBracketRow` and returns false. This is not an observed decline or
+payload policy, does not establish a successor/rewrite result, and must not be
+repaired without a separate reviewed and user-approved capability decision.
+
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
 ambient-balance style.  It must not update a rewrite expectation or treat a
