@@ -18827,4 +18827,280 @@ mod tests {
             source,
         );
     }
+
+    #[test]
+    fn legacy_polymorphic_variant_named_record_vocabulary_is_execution_pinned() {
+        use crate::session::DiagnosticId;
+
+        for (source, wrong, boundary, record, field, name, colon, value, recovery) in [
+            (
+                ":{123{a: F}}",
+                true,
+                None,
+                5..11,
+                6..10,
+                6..7,
+                7..8,
+                9..10,
+                vec![
+                    (
+                        TypeRole::PolymorphicVariantTagName,
+                        RecoveryKind::Error,
+                        2..5,
+                    ),
+                    (
+                        TypeRole::PolymorphicVariantPayloadBoundary,
+                        RecoveryKind::Missing,
+                        5..5,
+                    ),
+                ],
+            ),
+            (
+                ":{123 {a: F}}",
+                true,
+                Some(5..6),
+                6..12,
+                7..11,
+                7..8,
+                8..9,
+                10..11,
+                vec![(
+                    TypeRole::PolymorphicVariantTagName,
+                    RecoveryKind::Error,
+                    2..5,
+                )],
+            ),
+            (
+                ":{A{a: F}}",
+                false,
+                None,
+                3..9,
+                4..8,
+                4..5,
+                5..6,
+                7..8,
+                vec![(
+                    TypeRole::PolymorphicVariantPayloadBoundary,
+                    RecoveryKind::Missing,
+                    3..3,
+                )],
+            ),
+            (
+                ":{A {a: F}}",
+                false,
+                Some(3..4),
+                4..10,
+                5..9,
+                5..6,
+                6..7,
+                8..9,
+                vec![],
+            ),
+        ] {
+            let end = source.len();
+            let ast = parse(source);
+            assert_eq!(ast.range, 0..end, "{source:?}");
+            assert!(
+                ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none(),
+                "{source:?}"
+            );
+            let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                panic!("PV: {source:?}")
+            };
+            assert_eq!(
+                (pv.range.clone(), pv.colon.clone(), pv.open.clone()),
+                (0..end, 0..1, 1..2),
+                "{source:?}"
+            );
+            assert!(
+                pv.trailing_comma.is_none()
+                    && matches!(&pv.close, Recovered::Complete(range) if *range == (end - 1..end)),
+                "{source:?}"
+            );
+            let [Recovered::Complete(tag)] = pv.tags.as_slice() else {
+                panic!("tag: {source:?}")
+            };
+            assert_eq!(tag.range, 2..end - 1, "{source:?}");
+            assert!(
+                if wrong {
+                    matches!(tag.name, Recovered::Incomplete)
+                } else {
+                    matches!(&tag.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3))
+                },
+                "{source:?}"
+            );
+            let [Recovered::Complete(payload)] = tag.payloads.as_slice() else {
+                panic!("payload: {source:?}")
+            };
+            assert_eq!(
+                payload.range,
+                boundary.clone().map_or(record.start, |range| range.start)..record.end,
+                "{source:?}"
+            );
+            match (&payload.boundary, &boundary) {
+                (Recovered::Incomplete, None) => {}
+                (Recovered::Complete(actual), Some(expected)) => {
+                    assert_eq!(actual, expected, "{source:?}")
+                }
+                _ => panic!("boundary: {source:?}"),
+            }
+            let Recovered::Complete(expr) = &payload.type_expr else {
+                panic!("expr: {source:?}")
+            };
+            assert_eq!(expr.range, record, "payload record expression: {source:?}");
+            assert!(
+                expr.leading_effect_row.is_none()
+                    && expr.postfix.is_empty()
+                    && expr.arrow.is_none(),
+                "{source:?}"
+            );
+            let TypePrimary::Record(parsed) = expr.complete_primary() else {
+                panic!("record: {source:?}")
+            };
+            assert_eq!(
+                (parsed.range.clone(), parsed.open.clone()),
+                (record.clone(), record.start..record.start + 1),
+                "{source:?}"
+            );
+            assert!(
+                parsed.trailing_comma.is_none()
+                    && matches!(&parsed.close, Recovered::Complete(range) if *range == (record.end - 1..record.end)),
+                "{source:?}"
+            );
+            let [Recovered::Complete(parsed_field)] = parsed.fields.as_slice() else {
+                panic!("field: {source:?}")
+            };
+            assert_eq!(parsed_field.range, field, "{source:?}");
+            assert!(
+                matches!(&parsed_field.name, Recovered::Complete(word) if word.text() == "a" && word.range() == name)
+                    && matches!(&parsed_field.colon, Recovered::Complete(range) if *range == colon),
+                "{source:?}"
+            );
+            let Recovered::Complete(field_expr) = &parsed_field.type_expr else {
+                panic!("field expression: {source:?}")
+            };
+            assert_eq!(field_expr.range, value, "{source:?}");
+            assert!(
+                field_expr.leading_effect_row.is_none()
+                    && field_expr.postfix.is_empty()
+                    && field_expr.arrow.is_none(),
+                "{source:?}"
+            );
+            assert!(
+                matches!(field_expr.complete_primary(), TypePrimary::Atom(TypeAtom::Identifier(word)) if word.text() == "F" && word.range() == value),
+                "{source:?}"
+            );
+
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            let shape = root
+                .descendants_with_tokens()
+                .map(|part| {
+                    let depth = match &part {
+                        rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                        rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                    };
+                    (
+                        depth,
+                        part.kind(),
+                        usize::from(part.text_range().start())
+                            ..usize::from(part.text_range().end()),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let name_end = if wrong { 5 } else { 3 };
+            let mut expected = vec![
+                (0, SyntaxKind::Root, 0..end),
+                (1, SyntaxKind::TypeExpression, 0..end),
+                (2, SyntaxKind::PolymorphicVariantType, 0..end),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..end - 1),
+            ];
+            if wrong {
+                expected.extend([(4, SyntaxKind::Error, 2..5), (5, SyntaxKind::Unknown, 2..5)]);
+            } else {
+                expected.push((4, SyntaxKind::Identifier, 2..3));
+            }
+            expected.push((4, SyntaxKind::PolymorphicVariantPayload, name_end..end - 1));
+            expected.push((
+                5,
+                if boundary.is_some() {
+                    SyntaxKind::Whitespace
+                } else {
+                    SyntaxKind::Missing
+                },
+                boundary.clone().unwrap_or(name_end..name_end),
+            ));
+            expected.extend([
+                (5, SyntaxKind::TypeExpression, record.clone()),
+                (6, SyntaxKind::NamedRecordType, record.clone()),
+                (7, SyntaxKind::LBrace, record.start..record.start + 1),
+                (7, SyntaxKind::TypeRecordField, field.clone()),
+                (8, SyntaxKind::Identifier, name.clone()),
+                (8, SyntaxKind::Colon, colon.clone()),
+                (8, SyntaxKind::Whitespace, colon.end..value.start),
+                (8, SyntaxKind::TypeExpression, value.clone()),
+                (9, SyntaxKind::Identifier, value),
+                (7, SyntaxKind::RBrace, record.end - 1..record.end),
+                (3, SyntaxKind::RBrace, end - 1..end),
+            ]);
+            assert_eq!(shape, expected, "{source:?}");
+            let records = parse_direct_recovered(source);
+            assert_eq!(records.len(), recovery.len(), "{source:?}");
+            for (id, (actual, (role, kind, range))) in records.iter().zip(recovery).enumerate() {
+                let grammar_role = GrammarRole::Type(role);
+                assert_eq!(
+                    (
+                        actual.id,
+                        actual.site.role,
+                        actual.site.range.clone(),
+                        actual.kind,
+                        actual.primary_expectation
+                    ),
+                    (
+                        DiagnosticId(id as u32),
+                        grammar_role,
+                        range.clone(),
+                        kind,
+                        0
+                    ),
+                    "{source:?}"
+                );
+                let expected = if role == TypeRole::PolymorphicVariantPayloadBoundary {
+                    ExpectedSyntax::TypePayloadBoundary
+                } else {
+                    ExpectedSyntax::Identifier
+                };
+                assert_eq!(actual.expectations.len(), 1, "{source:?}");
+                assert_eq!(
+                    (
+                        actual.expectations[0].role,
+                        actual.expectations[0].expected,
+                        actual.expectations[0].range.clone(),
+                        actual.expectations[0].sources
+                    ),
+                    (
+                        grammar_role,
+                        expected,
+                        range.clone(),
+                        ExpectationSources::COMMITTED_RECOVERY_RULE
+                    ),
+                    "{source:?}"
+                );
+                if kind == RecoveryKind::Missing {
+                    assert!(actual.unexpected.is_empty(), "{source:?}");
+                } else {
+                    assert_eq!(
+                        actual.unexpected.as_ref(),
+                        [UnexpectedSyntax::Token {
+                            range,
+                            category: UnexpectedCategory::OtherCharacter
+                        }],
+                        "{source:?}"
+                    );
+                }
+            }
+        }
+    }
 }

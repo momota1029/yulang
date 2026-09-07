@@ -65,16 +65,19 @@ active-newline fence preservation, including their two-byte local Newlines.
 The twenty-sixth classifies valid/wrong adjacent and spaced leading EffectRow/
 BracketRow payloads, including their Missing-versus-Whitespace boundaries.
 The twenty-seventh records the equivalent Parenthesized four-row vocabulary.
+The twenty-eighth records the equivalent NamedRecord four-row vocabulary,
+including its complete `a: F` field.
 Direct PV ambient evidence
 pins root visible/no-stop initial/retry, indented strict-dedent initial/
 recovery-continuation, nested-If inner initial/recovery-continuation,
 accepted-own-Else initial/recovery-continuation, and post-completed-If
 outer-tail initial/recovery-continuation; query-only indented/dedent tests are
 not a substitute.  The ordinary ambient-provenance row's named cells are
-complete.  Its immediate next action is to map one concrete remaining
-fence-qualified scalar source/result, then receive a pre-write specification
-audit before adding a direct-evidence slice; its status does not authorize
-rewrite-source changes or alter the two-file delimiter integration block.
+complete. Its immediate next action is to map one concrete remaining primary
+vocabulary or fence-qualified scalar source/result, then receive a pre-write
+specification audit before adding a direct-evidence slice; its status does not
+authorize rewrite-source changes or alter the two-file delimiter integration
+block.
 
 `2026-09-07-successor-pv-payload-admission-capability-amendment.md` remains a
 Draft problem record, not a construction gate.  Initial M3 review found that

@@ -270,6 +270,13 @@ Parenthesized payload containing `F`. Adjacent has the Missing boundary and
 spaced retains payload Whitespace; wrong rows retain only their TagName Error.
 This establishes no other primary class or successor policy.
 
+The twenty-eighth bounded cell records the parallel NamedRecord vocabulary:
+`:{123{a: F}}`, `:{123 {a: F}}`, `:{A{a: F}}`, and `:{A {a: F}}` each admit
+one complete NamedRecord payload with its complete `a: F` field. Adjacent has
+the Missing boundary and spaced retains payload Whitespace; wrong rows retain
+only their TagName Error. This establishes no other primary class or successor
+policy.
+
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
 ambient-balance style.  It must not update a rewrite expectation or treat a
