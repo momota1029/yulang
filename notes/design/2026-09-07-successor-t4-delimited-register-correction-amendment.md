@@ -1,7 +1,7 @@
 # Successor T4 delimited recovery register correction amendment
 
 Status: Authoritative; inherited P/E scope superseded by the T4 type-ML
-successor; T4P resumes only under that successor
+successor; T4P local construction complete under that successor
 
 Date: 2026-09-07
 
@@ -309,8 +309,8 @@ gate gains construction credit from the discarded candidate.
 `2026-09-07-successor-t4-inherited-type-ml-correction-amendment.md` is now
 Authoritative.  It supersedes this amendment only for the outer-TypeApply
 inherited Parenthesized/EffectRow separator premise, its bounded private
-provenance context, and the resulting T4P construction order.  It lifts this
-section's suspension for T4P only after that successor's §3 direct legacy
-baselines.  The original finite-register correction, its eighth-terminal
-proposal, and every T4E/T4B/T4A/T7c and excluded-scope boundary remain governed
-by their stated gates.
+provenance context, and the resulting T4P construction order.  Its §3 direct
+legacy baselines and one local T4P construction pass completed on 2026-09-07 at
+`7ed1d35b` and `3bedfbef`, respectively.  The original finite-register
+correction, its eighth-terminal proposal, and every T4E/T4B/T4A/T7c and
+excluded-scope boundary remain governed by their stated gates.

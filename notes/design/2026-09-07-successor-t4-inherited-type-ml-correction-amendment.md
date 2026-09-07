@@ -1,6 +1,6 @@
 # Successor T4 inherited type-ML correction amendment
 
-Status: Authoritative; T4P local construction only
+Status: Authoritative; T4P local construction complete
 
 Date: 2026-09-07
 
@@ -197,7 +197,7 @@ priority, `G ('[F A])` (EffectRowSeparator `7..7`), and
 BracketRow-forwarding EffectRow witness.  T4B and T4A do not receive
 construction authority.
 
-For each affected owner, local O3/O4 evidence must prove:
+For each affected owner, local O3 evidence must prove:
 
 - exact AST/CST source order: owner-owned trivia, Missing node, then second
   TypeExpression, with the matching close afterward;
@@ -229,6 +229,17 @@ facts with successor records in source order, prove frame pop and exact
 trivia/Missing topology, and parse a clean following `\ref(C)`.  Embedded
 offsets remain unverified until those direct legacy baselines execute.
 
+The direct legacy baselines were execution-pinned at `7ed1d35b`.  The one
+authorized T4P local construction pass completed at `3bedfbef` on 2026-09-07.
+It replaces the normalized TypeExpression cone's loose `type_ml: bool` with the
+private by-value context in §2; activates only immediate Parenthesized items
+from an outer-TypeApply provenance; preserves Call's existing T3
+phase-preserving behavior; and forwards dormant provenance through the named
+nonreactive owners.  The completed local proof includes exact direct CST
+topology/ranges, native trivia, priority, fresh/frozen, RB-T seeded-state,
+rejection, handoff, restoration, and no-EffectRow/BracketRow-publication
+controls.  It grants neither T4E nor owner-complete T4/O4 credit.
+
 ## 4. Cost, rollback, and review gate
 
 The private by-value context replaces a bool through the existing normalized
@@ -244,14 +255,20 @@ contradicts a listed witness, provenance leaks into an exit value or fails to
 cross a nested owner inside the lexical outer argument, a caller/outer boundary
 is consumed, the separator is published by TypeApply rather than its delimited
 owner, a nonreactive owner publishes a separator, an Error/topology exception
-leaks, or the T4B audit finds a dependency that cannot remain excluded.  Any
-implementation returns to clean commit `b70951c2` while retaining this Draft.
+leaks, or the T4B audit finds a dependency that cannot remain excluded.  A
+later scoped implementation may return to clean commit `b70951c2` while
+retaining this Authoritative amendment.
 
-M3 compiler/recovery, specification, and performance review closed with three
-bounded repair rounds.  The final specification finding restored T3's unchanged
-provenance-blind, phase-preserving Call transition; architecture adjudicated the
-exact transition and the targeted independent specification closure is clean.
-The user approved the narrow outer-TypeApply-only option.  T4P may now execute
-its direct legacy baselines and then its one local construction pass.  T4E,
-NonTypeApply PV/declaration P/E parity, T4B/T4A, T7c certification, O4, O6,
-public/Yumark, and production expected-output changes remain excluded.
+M3 compiler/recovery, specification, and performance review closed the
+authority design with three bounded repair rounds.  The final specification
+finding restored T3's unchanged provenance-blind, phase-preserving Call
+transition; architecture adjudicated the exact transition and the targeted
+independent specification closure was clean.  The user approved the narrow
+outer-TypeApply-only option.  M3 implementation review then closed T4P after
+two test-evidence-only repair rounds and clean compiler/recovery, specification,
+and regression deltas; no repair changed production routing.  The final focused
+T4P/T3/legacy controls, package check, format check, and diff check passed;
+timing usage is zero.  T4E, NonTypeApply PV/declaration P/E parity (including
+the currently unconstructible declaration incoming-Outer witness), T4B/T4A,
+T7c certification, O4, O6, public/Yumark, and production expected-output
+changes remain excluded.

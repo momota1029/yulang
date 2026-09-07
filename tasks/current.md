@@ -53,7 +53,7 @@ T4e, and T4g misclassify valid same-line TypeApply as separator recovery, and
 T4h has the wrong Arrow expectation.  M3 compiler/specification/performance
 review closed after one authority repair and clean delta; the active objective's
 recommended-proposal authority approved the corrected finite register and
-eighth terminal/CST boundary.  T4P is now suspended: the first implementation
+eighth terminal/CST boundary.  T4P was then suspended: the first implementation
 preflight execution-pinned an authority contradiction.  Standalone `(A B)` and
 `'[A B]` remain zero-recovery TypeApply controls, but inherited outer-TypeApply
 contexts require `G (F A)` to publish ParenthesizedSeparator Missing `5..5`
@@ -67,10 +67,21 @@ preserves standalone TypeApply controls while restoring only the outer-TypeApply
 inherited-context Parenthesized/EffectRow separator witnesses.  The user chose
 the narrow outer-TypeApply-only option after M3 compiler/recovery,
 specification, and performance review; the final T3 Call wording correction has
-a clean independent specification closure.  T4P alone is the next gate: first
-execution-pin its required direct legacy baselines, then make one local
-construction pass.  T4E, NonTypeApply PV/declaration P/E parity, T4B/T4A, T7c,
-O4/O6, public/Yumark, and production expected-output scope remain excluded.
+a clean independent specification closure.  Its direct legacy baselines were
+execution-pinned at `7ed1d35b`, and its one authorized T4P local construction
+pass completed at `3bedfbef` after M3 implementation review, two
+test-evidence-only repairs, and clean compiler/recovery, specification, and
+regression deltas.  The private by-value context activates Parenthesized only
+for outer-TypeApply provenance, preserves T3 Call's phase, and keeps
+EffectRow/BracketRow publication excluded.  Focused T4P/T3/legacy checks,
+package check, format, and diff check passed with zero timing processes.
+
+T4E is the next unstarted owner gate but remains excluded until its direct
+legacy baseline and construction authority are separately established.
+NonTypeApply PV/declaration P/E parity remains Open; the current successor
+declaration ingress cannot construct incoming dormant Outer provenance, so no
+artificial declaration witness was added.  T4B/T4A, T7c, O4/O6,
+public/Yumark, and production expected-output scope remain excluded.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
