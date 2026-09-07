@@ -1,5 +1,6 @@
 //! Forall type owner and its local recovery.
 
+use super::super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -36,6 +37,7 @@ pub(super) fn type_forall_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::ForallType.into());
     emit_token_item(&mut i, keyword);
@@ -52,6 +54,7 @@ pub(super) fn type_forall_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -71,6 +74,7 @@ fn type_forall_head_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (binder, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -78,6 +82,7 @@ fn type_forall_head_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     if binder.payload_view().is_boundary() {
         let binder = type_forall_missing_binder(i.rb(), binder, true);
@@ -102,6 +107,7 @@ fn type_forall_head_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if !is_forall_binder(&binder) {
@@ -122,6 +128,7 @@ fn type_forall_head_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_forall_outer_separator(&binder, outer_separators)
@@ -154,6 +161,7 @@ fn type_forall_head_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -172,6 +180,7 @@ fn type_forall_head_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -189,6 +198,7 @@ fn type_forall_after_binder_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     loop {
         let (mut next, next_origin, next_line_entry) = type_item_with_pipe_lexical_normalized(
@@ -197,6 +207,7 @@ fn type_forall_after_binder_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         item_origin = next_origin;
         line_entry = next_line_entry;
@@ -222,6 +233,7 @@ fn type_forall_after_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_forall_binder(&next) {
@@ -246,6 +258,7 @@ fn type_forall_after_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_type_outer_boundary(&next, outer_boundary) {
@@ -282,6 +295,7 @@ fn type_forall_after_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         return type_forall_malformed_after_binder_normalized(
@@ -298,6 +312,7 @@ fn type_forall_after_binder_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 }
@@ -317,6 +332,7 @@ fn type_forall_first_separator_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_forall_separator_binder(i.rb(), separator);
     let (next, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
@@ -325,6 +341,7 @@ fn type_forall_first_separator_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     if next.payload_view().is_boundary() {
         return complete(handoff(next), line_entry);
@@ -355,6 +372,7 @@ fn type_forall_first_separator_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if token_kind(&next) == Some(TokenKind::Colon) {
@@ -371,6 +389,7 @@ fn type_forall_first_separator_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_forall_binder(&next) {
@@ -389,6 +408,7 @@ fn type_forall_first_separator_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_type_nud(&next) {
@@ -408,6 +428,7 @@ fn type_forall_first_separator_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -426,6 +447,7 @@ fn type_forall_continuation_separator_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_forall_separator_binder(i.rb(), separator);
     type_forall_after_binder_normalized(
@@ -441,6 +463,7 @@ fn type_forall_continuation_separator_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -459,6 +482,7 @@ fn type_forall_first_malformed_binder_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -492,6 +516,7 @@ fn type_forall_first_malformed_binder_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -518,6 +543,7 @@ fn type_forall_first_malformed_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if item.payload_view().is_eof()
@@ -550,6 +576,7 @@ fn type_forall_first_malformed_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if nested_depth == 0 && is_forall_binder(&item) {
@@ -570,6 +597,7 @@ fn type_forall_first_malformed_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -590,6 +618,7 @@ fn type_forall_malformed_after_binder_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let retry_binder = i
         .rb()
@@ -624,6 +653,7 @@ fn type_forall_malformed_after_binder_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     type_forall_retry_colon_or_body_normalized(
@@ -640,6 +670,7 @@ fn type_forall_malformed_after_binder_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -733,6 +764,7 @@ fn type_forall_retry_binder_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -766,6 +798,7 @@ fn type_forall_retry_binder_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -790,6 +823,7 @@ fn type_forall_retry_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if nested_depth == 0
@@ -812,6 +846,7 @@ fn type_forall_retry_binder_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if item.payload_view().is_eof()
@@ -846,6 +881,7 @@ fn type_forall_retry_colon_or_body_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -877,6 +913,7 @@ fn type_forall_retry_colon_or_body_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -901,6 +938,7 @@ fn type_forall_retry_colon_or_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if item.payload_view().is_eof()
@@ -931,6 +969,7 @@ fn type_forall_retry_colon_or_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if nested_depth == 0 && is_type_nud(&item) {
@@ -949,6 +988,7 @@ fn type_forall_retry_colon_or_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -997,6 +1037,7 @@ fn type_forall_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_token_item(&mut i, colon);
     let (mut body, mut item_origin, mut line_entry) = type_nud_item_with_pipe_lexical_normalized(
@@ -1005,6 +1046,7 @@ fn type_forall_body_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     if body.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -1038,6 +1080,7 @@ fn type_forall_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         if body.payload_view().is_boundary() {
             return complete(handoff(body), line_entry);
@@ -1068,6 +1111,7 @@ fn type_forall_body_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -1082,6 +1126,7 @@ fn type_forall_retry_body_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     if item.payload_view().is_boundary() {
         return (item, item_origin, line_entry);
@@ -1100,6 +1145,7 @@ fn type_forall_retry_body_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary()
             || is_type_nud(&item)

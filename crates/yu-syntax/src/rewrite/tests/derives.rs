@@ -87,6 +87,7 @@ fn run_derives_normalized<'source>(
             item_origin,
             next_line_entry,
             fence,
+            Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
         )
     };
     builder.finish_node();

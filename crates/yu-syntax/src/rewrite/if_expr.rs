@@ -1,5 +1,6 @@
 //! Direct ownership for NUD `if` expressions and their arm boundaries.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -42,6 +43,7 @@ pub(super) fn if_nud(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -57,8 +59,11 @@ pub(super) fn if_nud_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     keyword.emit_all_remaining_leading(&mut *i.state);
+    let companion = ambient.view.map(|view| view.if_companion(baseline));
+    let arm_ambient = ambient.map(|view| view.with_if(companion.as_ref().unwrap()));
     i.state.start_node(SyntaxKind::IfExpression.into());
     let entry = suffix_marker(i.rb());
     let exit = if_arm_normalized(
@@ -71,6 +76,7 @@ pub(super) fn if_nud_normalized(
         item_origin,
         line_entry,
         fence,
+        arm_ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     let entry = suffix_marker(i.rb());
@@ -82,6 +88,8 @@ pub(super) fn if_nud_normalized(
         line_handoff,
         item_origin,
         fence,
+        arm_ambient,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -95,6 +103,7 @@ pub(super) fn if_nud_normalized(
         exit,
         item_origin,
         fence,
+        ambient.if_outer_tail(),
     )
 }
 
@@ -107,6 +116,8 @@ fn if_continuations_normalized(
     line_handoff: StatementLineHandoff,
     mut item_origin: usize,
     fence: Option<&FenceBoundary>,
+    arm_ambient: AmbientClaimContext<'_>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     loop {
         let NormalizedExit::Complete(Err(Either::Left(mut keyword)), line_entry) = exit else {
@@ -131,6 +142,7 @@ fn if_continuations_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                arm_ambient,
             ),
             SyntaxKind::ElseKw => else_arm_normalized(
                 i.rb(),
@@ -141,6 +153,7 @@ fn if_continuations_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ),
             _ => unreachable!("only if-continuation keyword kinds are selected"),
         };
@@ -197,6 +210,7 @@ fn if_arm_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::IfArm.into());
     emit_contextual_keyword(&mut i, keyword, keyword_kind);
@@ -211,6 +225,7 @@ fn if_arm_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
 
@@ -236,6 +251,7 @@ fn if_arm_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         exit => missing_if_arm_normalized(i.rb(), exit, condition_missing),
@@ -253,6 +269,7 @@ fn condition_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, bool) {
     let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -280,6 +297,7 @@ fn condition_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     i.state.finish_node();
@@ -324,7 +342,10 @@ fn else_arm_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    #[cfg(test)]
+    ambient.observe(super::ambient_claim::ProofSite::ElseBody);
     i.state.start_node(SyntaxKind::ElseArm.into());
     emit_contextual_keyword(&mut i, keyword, SyntaxKind::ElseKw);
 
@@ -352,6 +373,7 @@ fn else_arm_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         inline_body_item_normalized(
@@ -363,6 +385,7 @@ fn else_arm_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     };
     i.state.finish_node();
@@ -378,11 +401,20 @@ fn colon_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if introduced_body_indentation_normalized(i.rb(), item_origin, fence)
         .is_some_and(|indentation| indentation > baseline)
     {
-        indented_statement_block_normalized(i, baseline, stops, item_origin, line_entry, fence)
+        indented_statement_block_normalized(
+            i,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
     } else {
         inline_body_normalized(
             i,
@@ -392,6 +424,7 @@ fn colon_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     }
 }
@@ -405,6 +438,7 @@ fn inline_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -424,6 +458,7 @@ fn inline_body_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -437,6 +472,7 @@ fn inline_body_item_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -460,6 +496,7 @@ fn inline_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -494,6 +531,7 @@ fn inline_body_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 

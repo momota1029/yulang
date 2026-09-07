@@ -1,5 +1,8 @@
 //! Shared direct declaration-variant sequence and payload construction.
 
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -18,7 +21,9 @@ use super::{
     },
     operator::STOP_WITH,
     struct_decl::{FieldList, FieldOuterClose, declaration_fields_normalized},
-    type_expr::{TypeMlContext, TypeOuterBoundary, required_variant_payload_type_normalized},
+    type_expr::{
+        TypeMlContext, TypeOuterBoundary, required_variant_payload_type_normalized_with_ambient,
+    },
     yumark::FenceBoundary,
 };
 
@@ -71,6 +76,7 @@ pub(super) fn declaration_variant_sequence_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     debug_assert_eq!(token_kind(&introducer), Some(form.introducer()));
     emit_token_item(&mut i, introducer);
@@ -113,6 +119,7 @@ pub(super) fn declaration_variant_sequence_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -134,6 +141,7 @@ fn drive_variant_sequence(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let mut slot = Slot::Initial;
     let mut accepted_leading_pipe = false;
@@ -211,6 +219,7 @@ fn drive_variant_sequence(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item = parsed.item;
         item_origin = parsed.item_origin;
@@ -293,6 +302,7 @@ fn parse_variant(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> ParsedVariant {
     i.state.start_node(SyntaxKind::EnumVariant.into());
     item.emit_all_remaining_leading(&mut *i.state);
@@ -348,6 +358,7 @@ fn parse_variant(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         i.state.finish_node();
         return parsed;
@@ -377,6 +388,7 @@ fn parse_variant(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = fields.item_origin;
         match fields.exit {
@@ -419,6 +431,7 @@ fn parse_variant(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item = parsed.item;
         item_origin = parsed.item_origin;
@@ -467,9 +480,10 @@ fn parse_payload_type(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> ParsedVariant {
     let entry = suffix_marker(i.rb());
-    let (exit, _) = required_variant_payload_type_normalized(
+    let (exit, _) = required_variant_payload_type_normalized_with_ambient(
         i.rb(),
         primary,
         baseline,
@@ -487,6 +501,7 @@ fn parse_payload_type(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     match exit {
@@ -610,6 +625,7 @@ pub(super) fn declaration_variant_sequence_witness(
             item_origin,
             line_entry,
             fence,
+            Some(AmbientClaimView::root_statement(baseline)).into(),
         )
     })
 }

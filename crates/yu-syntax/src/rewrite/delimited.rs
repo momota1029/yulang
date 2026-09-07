@@ -1,5 +1,6 @@
 //! Shared direct-delimited owner and local item recovery.
 
+use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -35,6 +36,7 @@ pub(super) fn parenthesized_nud_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedExpression.into());
@@ -51,6 +53,7 @@ pub(super) fn parenthesized_nud_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -64,6 +67,7 @@ pub(super) fn parenthesized_nud_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -79,6 +83,7 @@ pub(super) fn delimited_items_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let mut stops = stops_for(close);
     if record_spread {
@@ -145,6 +150,7 @@ pub(super) fn delimited_items_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             item_origin = advanced_origin(item_origin, entry, i.rb());
             match delimited_successor_normalized(
@@ -189,6 +195,7 @@ pub(super) fn delimited_items_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         if item_node.is_some() {
@@ -302,6 +309,7 @@ fn record_spread_item_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
@@ -344,6 +352,7 @@ fn record_spread_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         rhs.emit_all_remaining_leading(&mut *i.state);

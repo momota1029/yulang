@@ -1,5 +1,6 @@
 //! Type delimiter recovery shared by groups, calls, effect rows, and bracket rows.
 
+use super::super::ambient_claim::AmbientClaimContext;
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -57,6 +58,7 @@ pub(super) fn type_delimited_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     debug_assert!(
         owner == TypeDelimitedOwner::Call || call_outer_boundary == TypeOuterBoundary::NONE
@@ -78,6 +80,7 @@ pub(super) fn type_delimited_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -155,6 +158,7 @@ pub(super) fn type_delimited_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             );
         }
         if owner == TypeDelimitedOwner::BracketRow && is_type_mismatched_close(&item, close) {
@@ -169,6 +173,7 @@ pub(super) fn type_delimited_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             );
         }
         if is_type_separator(&item) {
@@ -186,6 +191,7 @@ pub(super) fn type_delimited_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -211,6 +217,7 @@ pub(super) fn type_delimited_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -234,6 +241,7 @@ pub(super) fn type_delimited_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         item = match exit {
@@ -246,6 +254,7 @@ pub(super) fn type_delimited_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     );
                 item_origin = next_origin;
                 line_entry = next_line_entry;
@@ -296,6 +305,7 @@ pub(super) fn type_delimited_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     );
                 }
                 if is_type_separator(&next) {
@@ -312,6 +322,7 @@ pub(super) fn type_delimited_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     ) {
                         Ok((next, next_origin, next_line_entry)) => {
                             item_origin = next_origin;
@@ -334,6 +345,7 @@ pub(super) fn type_delimited_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     ) {
                         Ok((next, next_origin, next_line_entry)) => {
                             item_origin = next_origin;
@@ -356,6 +368,7 @@ pub(super) fn type_delimited_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     );
                 } else if owner == TypeDelimitedOwner::BracketRow
                     && is_type_deeper_newline(baseline, next.leading_view())
@@ -383,6 +396,7 @@ pub(super) fn type_delimited_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     ) {
                         Ok((next, next_origin, next_line_entry)) => {
                             item_origin = next_origin;
@@ -443,6 +457,7 @@ fn retry_type_delimited_item_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     if owner == TypeDelimitedOwner::Call {
         return retry_type_call_argument_normalized(
@@ -457,6 +472,7 @@ fn retry_type_delimited_item_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
     }
     debug_assert!(!item.payload_view().is_boundary());
@@ -469,6 +485,7 @@ fn retry_type_delimited_item_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -518,6 +535,7 @@ fn retry_type_delimited_item_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             );
         }
         if is_type_implicit_boundary(baseline, item.leading_view()) {
@@ -550,6 +568,7 @@ fn retry_type_delimited_item_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             ));
         }
     }
@@ -568,6 +587,7 @@ fn retry_type_call_argument_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     debug_assert!(!item.payload_view().is_boundary());
     let mut error_extent: Option<std::ops::Range<usize>> = None;
@@ -592,6 +612,7 @@ fn retry_type_call_argument_normalized(
                     line_entry,
                     fence,
                     pipe_lexical,
+                    ambient,
                 );
 
             let boundary = item.payload_view().is_boundary()
@@ -661,6 +682,7 @@ fn retry_type_call_argument_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
     }
     if item.payload_view().is_eof() {
@@ -681,6 +703,7 @@ fn retry_type_call_argument_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         ));
     }
     debug_assert!(is_type_nud(&item));
@@ -701,6 +724,7 @@ fn retry_type_call_close_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     debug_assert!(is_type_mismatched_close(&item, close));
     loop {
@@ -724,6 +748,7 @@ fn retry_type_call_close_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
@@ -765,6 +790,7 @@ fn retry_bracket_row_close_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     debug_assert!(!item.payload_view().is_boundary());
     loop {
@@ -777,6 +803,7 @@ fn retry_bracket_row_close_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -809,6 +836,7 @@ fn type_after_separator_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     let (mut next, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -816,6 +844,7 @@ fn type_after_separator_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     if next.payload_view().is_boundary() {
         emit_delimited_item_missing(&mut i, owner, &next, item_origin);
@@ -872,6 +901,7 @@ fn type_after_separator_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         ));
     }
     if is_type_nud(&next) {

@@ -1,5 +1,6 @@
 //! Direct canonical BindingStatement construction.
 
+use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -176,6 +177,7 @@ pub(super) fn binding_statement_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::BindingStatement.into());
     i.state.start_node(SyntaxKind::BindingHeader.into());
@@ -190,6 +192,7 @@ pub(super) fn binding_statement_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     let mut item = match exit {
@@ -229,6 +232,7 @@ pub(super) fn binding_statement_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     i.state.finish_node();
@@ -244,6 +248,7 @@ fn binding_target_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let stops = pattern_stops_from_owner(owner_stops)
         | super::pattern::PATTERN_STOP_COMMA
@@ -288,6 +293,7 @@ fn binding_target_normalized(
         item_origin,
         next_line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -300,11 +306,18 @@ fn binding_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
-        Some(indentation) if indentation > baseline => {
-            indented_statement_block_normalized(i, baseline, stops, item_origin, line_entry, fence)
-        }
+        Some(indentation) if indentation > baseline => indented_statement_block_normalized(
+            i,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        ),
         Some(_) => {
             emit_missing(&mut i, LeadingTrivia::default());
             let (item, _, line_entry) = binding_statement_item_normalized(
@@ -325,6 +338,7 @@ fn binding_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
     }
 }
@@ -338,6 +352,7 @@ fn inline_binding_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -369,6 +384,7 @@ fn inline_binding_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -402,6 +418,7 @@ fn inline_binding_body_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 

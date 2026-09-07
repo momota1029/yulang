@@ -1,5 +1,6 @@
 //! Isolated RuleSequenceCore construction before RuleExpression dispatch.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 mod expression_list;
 
 use reborrow_generic::Reborrow as _;
@@ -132,7 +133,15 @@ pub(super) fn rule_body_witness(
     origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> RuleWitnessExit {
-    match rule_body_normalized(i, opener, current, origin, line_entry, fence) {
+    match rule_body_normalized(
+        i,
+        opener,
+        current,
+        origin,
+        line_entry,
+        fence,
+        Some(AmbientClaimView::root_statement(0)).into(),
+    ) {
         NormalizedRuleWitnessExit::Complete(_) => RuleWitnessExit::Complete,
         NormalizedRuleWitnessExit::Returned(item, _) => RuleWitnessExit::Returned(item),
         NormalizedRuleWitnessExit::Deferred(item, _) => RuleWitnessExit::Deferred(item),
@@ -148,7 +157,15 @@ pub(super) fn rule_body_normalized_witness(
     origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> (RuleWitnessExit, LineEntry) {
-    match rule_body_normalized(i, opener, current, origin, line_entry, fence) {
+    match rule_body_normalized(
+        i,
+        opener,
+        current,
+        origin,
+        line_entry,
+        fence,
+        Some(AmbientClaimView::root_statement(0)).into(),
+    ) {
         NormalizedRuleWitnessExit::Complete(line_entry) => (RuleWitnessExit::Complete, line_entry),
         NormalizedRuleWitnessExit::Returned(item, line_entry) => {
             (RuleWitnessExit::Returned(item), line_entry)
@@ -166,6 +183,7 @@ fn rule_body_normalized(
     mut origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedRuleWitnessExit {
     debug_assert!(is_token(&opener, TokenKind::LBrace));
     i.state.start_node(SyntaxKind::RuleBody.into());
@@ -178,6 +196,7 @@ fn rule_body_normalized(
         RuleFrame::Body,
         &mut origin,
         fence,
+        ambient,
     );
     let exit = match exit {
         SequenceExit::Stop(close, line_entry) if is_token(&close, TokenKind::RBrace) => {
@@ -221,7 +240,15 @@ pub(super) fn expression_list_handoff_witness(
     origin: usize,
 ) -> RuleWitnessExit {
     let mut origin = origin;
-    match expression_list(i, current, close, &mut origin, LineEntry::InLine, None) {
+    match expression_list(
+        i,
+        current,
+        close,
+        &mut origin,
+        LineEntry::InLine,
+        None,
+        Some(AmbientClaimView::root_statement(0)).into(),
+    ) {
         ExpressionListExit::Close(item, _) | ExpressionListExit::Returned(item, _) => {
             RuleWitnessExit::Returned(item)
         }
@@ -250,6 +277,7 @@ fn rule_alternation(
     frame: RuleFrame,
     origin: &mut usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> SequenceExit {
     i.state.start_node(SyntaxKind::RuleAlternation.into());
     i.state.start_node(SyntaxKind::RuleSequence.into());
@@ -266,7 +294,7 @@ fn rule_alternation(
             i.state.start_node(SyntaxKind::RuleSequence.into());
         }
 
-        let exit = rule_sequence(i.rb(), current, line_entry, frame, origin, fence);
+        let exit = rule_sequence(i.rb(), current, line_entry, frame, origin, fence, ambient);
 
         match exit {
             SequenceExit::Deferred(item, line_entry) => {
@@ -300,6 +328,7 @@ pub(super) fn rule_literal_sequence_normalized(
     origin: &mut usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> RuleLiteralSequenceExit {
     let (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     i.state.start_node(SyntaxKind::RuleSequence.into());
@@ -310,6 +339,7 @@ pub(super) fn rule_literal_sequence_normalized(
         RuleFrame::LiteralInterpolation,
         origin,
         fence,
+        ambient,
     );
     i.state.finish_node();
     match exit {
@@ -333,6 +363,7 @@ fn rule_sequence(
     frame: RuleFrame,
     origin: &mut usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> SequenceExit {
     loop {
         if !matches!(frame, RuleFrame::LiteralInterpolation)
@@ -345,7 +376,7 @@ fn rule_sequence(
             return SequenceExit::Stop(current, line_entry);
         }
         if is_rule_atom_start(&current) {
-            match rule_item(i.rb(), current, line_entry, frame, origin, fence) {
+            match rule_item(i.rb(), current, line_entry, frame, origin, fence, ambient) {
                 ItemExit::Continue(next, next_line_entry) => {
                     current = next;
                     line_entry = next_line_entry;
@@ -369,6 +400,7 @@ fn rule_item(
     frame: RuleFrame,
     origin: &mut usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> ItemExit {
     i.state.start_node(SyntaxKind::RuleItem.into());
     let (mut current, mut line_entry) = if is_token(&current, TokenKind::LParen) {
@@ -383,6 +415,7 @@ fn rule_item(
             },
             origin,
             fence,
+            ambient,
         );
         match nested {
             SequenceExit::Stop(close, line_entry) if is_token(&close, TokenKind::RParen) => {
@@ -407,6 +440,7 @@ fn rule_item(
             mode,
             *origin,
             fence,
+            ambient,
         );
         *origin = advanced_origin(*origin, entry, i.rb());
         match exit {
@@ -429,6 +463,7 @@ fn rule_item(
             origin,
             first_line_entry,
             fence,
+            ambient,
         ) {
             ExpressionListExit::Close(close, line_entry) => {
                 emit_item_as(&mut i, close, SyntaxKind::RBracket);
@@ -453,7 +488,15 @@ fn rule_item(
             i.state.start_node(SyntaxKind::RuleCapture.into());
             emit_item_as(&mut i, current, SyntaxKind::Equals);
             let (right, right_line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
-            match required_rule_item(i.rb(), right, right_line_entry, frame, origin, fence) {
+            match required_rule_item(
+                i.rb(),
+                right,
+                right_line_entry,
+                frame,
+                origin,
+                fence,
+                ambient,
+            ) {
                 ItemExit::Continue(next, line_entry) => {
                     i.state.finish_node();
                     i.state.finish_node();
@@ -506,7 +549,15 @@ fn rule_item(
             emit_item_as(&mut i, current, open_kind);
             let (first, first_line_entry) =
                 first_list_item(i.rb(), close, origin, line_entry, fence);
-            match expression_list(i.rb(), first, close, origin, first_line_entry, fence) {
+            match expression_list(
+                i.rb(),
+                first,
+                close,
+                origin,
+                first_line_entry,
+                fence,
+                ambient,
+            ) {
                 ExpressionListExit::Close(close, next_line_entry) => {
                     emit_item_as(&mut i, close, close_kind);
                     i.state.finish_node();
@@ -538,20 +589,21 @@ fn required_rule_item(
     frame: RuleFrame,
     origin: &mut usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> ItemExit {
     loop {
         if carries_outer_literal_quote(frame)
             && is_outer_literal_quote(&current)
             && is_rule_atom_start(&current)
         {
-            return rule_item(i, current, line_entry, frame, origin, fence);
+            return rule_item(i, current, line_entry, frame, origin, fence, ambient);
         }
         if is_rule_stop(&current, frame) {
             emit_missing(&mut i);
             return ItemExit::Continue(current, line_entry);
         }
         if is_rule_atom_start(&current) {
-            return rule_item(i, current, line_entry, frame, origin, fence);
+            return rule_item(i, current, line_entry, frame, origin, fence, ambient);
         }
         emit_unexpected(&mut i, current);
         (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);

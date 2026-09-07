@@ -1,5 +1,6 @@
 //! Direct ownership for the paired NUD `case` and `catch` expressions.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -72,6 +73,7 @@ pub(super) fn case_like_nud(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -88,6 +90,7 @@ pub(super) fn case_like_nud_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(family.expression_node().into());
@@ -102,6 +105,7 @@ pub(super) fn case_like_nud_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -115,6 +119,7 @@ pub(super) fn case_like_nud_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -128,6 +133,7 @@ fn case_like_head_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let scrutinee_stops = outer_stops | STOP_COLON | family.scrutinee_extra_stops();
     let (mut item, next_origin, next_line_entry) = case_head_item(
@@ -170,6 +176,7 @@ fn case_like_head_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -195,6 +202,7 @@ fn case_like_head_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         NormalizedExit::Complete(Err(Either::Left(open)), line_entry)
@@ -209,6 +217,7 @@ fn case_like_head_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         NormalizedExit::Complete(exit, line_entry) => {
@@ -267,6 +276,7 @@ fn colon_block_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(family.block_node().into());
     emit_token_item(&mut i, colon);
@@ -286,6 +296,7 @@ fn colon_block_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Some(arm_indent) if arm_indent > baseline => arm_sequence_normalized(
@@ -297,6 +308,7 @@ fn colon_block_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(_) => wrong_indent_block_normalized(i.rb(), family, item_origin, line_entry, fence),
     };
@@ -327,7 +339,9 @@ fn catch_braced_block_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let ambient = ambient.map(AmbientClaimView::braced);
     i.state.start_node(SyntaxKind::CatchBlock.into());
     emit_token_item(&mut i, open);
     let exit = arm_sequence_normalized(
@@ -339,6 +353,7 @@ fn catch_braced_block_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -375,6 +390,7 @@ fn arm_sequence_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let first_stops = policy.first_pattern_stops(outer_stops);
     let (mut item, next_origin, next_line_entry) =
@@ -398,6 +414,7 @@ fn arm_sequence_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         let next = match exit {
@@ -447,6 +464,7 @@ fn arm_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(family.arm_node().into());
     let entry = suffix_marker(i.rb());
@@ -459,6 +477,7 @@ fn arm_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     let item =
@@ -495,6 +514,7 @@ fn arm_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         match arm_successor_normalized(i.rb(), exit, first_stops, item_origin, line_entry, fence) {
@@ -521,6 +541,7 @@ fn arm_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         Ok((item, item_origin, line_entry))
@@ -545,6 +566,7 @@ fn arm_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else if token_kind(&item) == Some(TokenKind::Arrow) {
         let mut arrow = item;
@@ -560,6 +582,7 @@ fn arm_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         missing_arrow_then_body_normalized(
@@ -571,6 +594,7 @@ fn arm_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     };
     item_origin = advanced_origin(item_origin, entry, i.rb());
@@ -628,6 +652,7 @@ fn guard_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(family.guard_node().into());
@@ -657,6 +682,7 @@ fn guard_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -674,6 +700,7 @@ fn missing_arrow_then_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if !implicit_delimited_newline(arm_baseline, item.leading_view()) {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -688,6 +715,7 @@ fn missing_arrow_then_body_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -700,6 +728,7 @@ fn arm_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if introduced_body_indentation_normalized(i.rb(), item_origin, fence)
         .is_some_and(|indentation| indentation > arrow_baseline)
@@ -711,6 +740,7 @@ fn arm_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         let (item, item_origin, line_entry) = expression_item(
@@ -731,6 +761,7 @@ fn arm_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     }
 }
@@ -745,6 +776,7 @@ fn arm_inline_body_item_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -770,6 +802,7 @@ fn arm_inline_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -805,6 +838,7 @@ fn arm_inline_body_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 

@@ -1,5 +1,6 @@
 //! Rule-owned ordinary expression lists for bracket atoms, calls, and indices.
 
+use super::super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -36,6 +37,7 @@ pub(super) fn expression_list(
     origin: &mut usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> ExpressionListExit {
     let stops = stops_for(close) | STOP_LINE_BREAK;
     let mut needs_expression = true;
@@ -112,6 +114,7 @@ pub(super) fn expression_list(
                 *origin,
                 line_entry,
                 fence,
+                ambient,
             );
             *origin = advanced_origin(*origin, entry, i.rb());
             (current, line_entry) = match exit {

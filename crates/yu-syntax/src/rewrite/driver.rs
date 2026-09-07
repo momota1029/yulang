@@ -1,5 +1,6 @@
 //! Direct expression ownership and Item handoff for the isolated rewrite.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -72,6 +73,7 @@ pub(super) fn expr(i: RewriteIn) -> Option<TailExit> {
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(0)).into(),
     )
     .map(ordinary_exit)
 }
@@ -86,6 +88,7 @@ pub(super) fn expr_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> Option<NormalizedExit> {
     let (nud, item_origin, line_entry) =
         optional_nud_item(i.rb(), item_origin, line_entry, fence, baseline, stops)?;
@@ -100,6 +103,7 @@ pub(super) fn expr_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     ))
 }
 
@@ -123,6 +127,7 @@ pub(super) fn expr_from_nud(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -137,6 +142,7 @@ pub(super) fn expr_from_nud_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
     let exit = append_nud(
@@ -150,6 +156,7 @@ pub(super) fn expr_from_nud_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -167,6 +174,7 @@ fn append_nud(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if is_expression_rule_literal_opener(&nud) {
         return append_rule_literal_nud(
@@ -180,6 +188,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if let Some(mode) = string_mode_from_opener(&nud) {
@@ -195,6 +204,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_contextual_word(i.rb(), &nud, "case") {
@@ -210,6 +220,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_contextual_word(i.rb(), &nud, "catch") {
@@ -225,6 +236,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_contextual_word(i.rb(), &nud, "if") {
@@ -239,6 +251,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     match token_kind(&nud) {
@@ -254,6 +267,7 @@ fn append_nud(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Some(TokenKind::Integer) => {
@@ -268,6 +282,7 @@ fn append_nud(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Some(TokenKind::LParen) => parenthesized_nud_normalized(
@@ -281,6 +296,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::LBrace) => braced_nud_normalized(
             i,
@@ -293,6 +309,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::Operator) => operator_nud(
             i,
@@ -305,6 +322,7 @@ fn append_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
     }
@@ -323,10 +341,17 @@ fn append_string_literal_nud(
     item_origin: usize,
     _line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
-    let exit =
-        string_literal_with_virtual_statements_normalized(i.rb(), opener, mode, item_origin, fence);
+    let exit = string_literal_with_virtual_statements_normalized(
+        i.rb(),
+        opener,
+        mode,
+        item_origin,
+        fence,
+        ambient,
+    );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     match exit {
         NormalizedStringLiteralExit::Complete(line_entry) => scan_tail_after_accept_normalized(
@@ -339,6 +364,7 @@ fn append_string_literal_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedStringLiteralExit::Boundary(item, line_entry) => {
             complete(handoff(item), line_entry)
@@ -358,9 +384,17 @@ fn append_rule_literal_nud(
     item_origin: usize,
     _line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
-    let exit = rule_literal_normalized(i.rb(), opener, item_origin, LineEntry::InLine, fence);
+    let exit = rule_literal_normalized(
+        i.rb(),
+        opener,
+        item_origin,
+        LineEntry::InLine,
+        fence,
+        ambient,
+    );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     match exit {
         NormalizedRuleLiteralExit::Complete(line_entry) => scan_tail_after_accept_normalized(
@@ -373,6 +407,7 @@ fn append_rule_literal_nud(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedRuleLiteralExit::Boundary(item, line_entry) => {
             complete(handoff(item), line_entry)
@@ -401,6 +436,7 @@ pub(super) fn required_expr_after_accept(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -415,6 +451,7 @@ fn required_expr_after_accept_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -436,6 +473,7 @@ fn required_expr_after_accept_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -459,6 +497,7 @@ pub(super) fn required_expr_item(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -474,6 +513,7 @@ pub(super) fn required_expr_item_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -496,6 +536,7 @@ pub(super) fn required_expr_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_unread_operand_boundary(&item) {
@@ -535,6 +576,7 @@ pub(super) fn required_expr_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_unread_operand_boundary(&item) {
@@ -576,6 +618,7 @@ pub(super) fn scan_tail_after_accept(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -590,6 +633,7 @@ pub(super) fn scan_tail_after_accept_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -611,6 +655,7 @@ pub(super) fn scan_tail_after_accept_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -641,6 +686,7 @@ pub(super) fn continue_normalized_tail(
     exit: NormalizedExit,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match exit {
         NormalizedExit::Complete(Ok(()), line_entry) => scan_tail_after_accept_normalized(
@@ -653,6 +699,7 @@ pub(super) fn continue_normalized_tail(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => tail_normalized(
             i,
@@ -665,6 +712,7 @@ pub(super) fn continue_normalized_tail(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
             complete(Err(Either::Right(end)), line_entry)
@@ -693,6 +741,7 @@ pub(super) fn tail(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -708,6 +757,7 @@ pub(super) fn tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -725,6 +775,7 @@ pub(super) fn tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if item.leading_view().is_grammar_empty() {
@@ -741,6 +792,7 @@ pub(super) fn tail_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 );
             }
             Some(TokenKind::LBracket) => {
@@ -755,6 +807,7 @@ pub(super) fn tail_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 );
             }
             _ => {}
@@ -773,6 +826,7 @@ pub(super) fn tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         Some(TokenKind::PathSeparator) => {
@@ -787,6 +841,7 @@ pub(super) fn tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         Some(TokenKind::Operator) if is_led_operator(&item) => {
@@ -801,6 +856,7 @@ pub(super) fn tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         _ => {}
@@ -816,6 +872,7 @@ pub(super) fn tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if token_kind(&item) == Some(TokenKind::Colon) {
@@ -829,6 +886,7 @@ pub(super) fn tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     complete(handoff(item), line_entry)
@@ -875,6 +933,7 @@ fn ml_argument(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::MlArgument.into());
     let entry = suffix_marker(i.rb());
@@ -889,6 +948,7 @@ fn ml_argument(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     let child_origin = advanced_origin(item_origin, entry, i.rb());
@@ -902,6 +962,7 @@ fn ml_argument(
         exit,
         child_origin,
         fence,
+        ambient,
     )
 }
 
@@ -917,6 +978,7 @@ fn operator_nud(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match operator_use(&operator) {
         Some(OperatorUse::Prefix(right)) => {
@@ -933,6 +995,7 @@ fn operator_nud(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             let item_origin = advanced_origin(item_origin, entry, i.rb());
             continue_normalized_tail(
@@ -945,6 +1008,7 @@ fn operator_nud(
                 rhs,
                 item_origin,
                 fence,
+                ambient,
             )
         }
         Some(OperatorUse::Nullfix) => {
@@ -959,6 +1023,7 @@ fn operator_nud(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         _ => unreachable!("the NUD scanner accepts only prefix and nullfix operators"),
@@ -977,6 +1042,7 @@ fn operator_tail(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match operator_use(&operator) {
         Some(OperatorUse::Infix { left, right }) => {
@@ -996,6 +1062,7 @@ fn operator_tail(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             let item_origin = advanced_origin(item_origin, entry, i.rb());
             continue_normalized_tail(
@@ -1008,6 +1075,7 @@ fn operator_tail(
                 rhs,
                 item_origin,
                 fence,
+                ambient,
             )
         }
         Some(OperatorUse::Suffix(left)) => {
@@ -1025,6 +1093,7 @@ fn operator_tail(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         _ => unreachable!("the LED scanner accepts only infix and suffix operators"),

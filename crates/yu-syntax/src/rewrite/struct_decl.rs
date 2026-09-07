@@ -1,5 +1,6 @@
 //! Direct canonical `struct` declaration construction.
 
+use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -84,6 +85,7 @@ pub(super) fn struct_declaration_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::StructDeclaration.into());
     if item_word(&intro) == Some("struct") {
@@ -160,6 +162,7 @@ pub(super) fn struct_declaration_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -175,6 +178,7 @@ fn header_from_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if stops & STOP_WITH != 0 && is_word(&item, "with") {
         return complete(handoff(item), line_entry);
@@ -190,6 +194,7 @@ fn header_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         return header_from_item_normalized(
             i,
@@ -200,6 +205,7 @@ fn header_from_item_normalized(
             next_origin,
             next_entry,
             fence,
+            ambient,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -211,6 +217,7 @@ fn header_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     parse_body_item_normalized(
@@ -222,6 +229,7 @@ fn header_from_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -322,6 +330,7 @@ fn parse_body_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -352,6 +361,7 @@ fn parse_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::LParen) => parse_delimited_fields_normalized(
             i,
@@ -363,10 +373,19 @@ fn parse_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::Colon) => {
             emit_token_item(&mut i, item);
-            parse_indented_fields_normalized(i, baseline, stops, item_origin, line_entry, fence)
+            parse_indented_fields_normalized(
+                i,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
         }
         _ if body_boundary(i.rb(), &item, baseline, stops) || type_starter(&item) => {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -381,6 +400,7 @@ fn parse_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
     }
 }
@@ -395,6 +415,7 @@ fn recover_body_introducer_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -434,6 +455,7 @@ fn recover_body_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if body_boundary(i.rb(), &item, baseline, stops) || type_starter(&item) {
@@ -487,6 +509,7 @@ fn parse_delimited_fields_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let result = declaration_fields_normalized(
         i.rb(),
@@ -499,6 +522,7 @@ fn parse_delimited_fields_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     match result.exit {
         NormalizedExit::Complete(Ok(()), line_entry) => trailing_normalized(
@@ -509,6 +533,7 @@ fn parse_delimited_fields_normalized(
             result.item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         exit => exit,
     }
@@ -529,6 +554,7 @@ pub(super) fn declaration_fields_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> DeclarationFieldExit {
     emit_token_item(&mut i, open);
     let (mut item, item_origin, line_entry) = field_item_normalized(
@@ -558,6 +584,7 @@ pub(super) fn declaration_fields_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -569,6 +596,7 @@ fn parse_indented_fields_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let Some(block_indent) = introduced_body_indentation_normalized(i.rb(), item_origin, fence)
     else {
@@ -625,6 +653,7 @@ fn parse_indented_fields_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
     .exit
 }
@@ -641,6 +670,7 @@ fn field_sequence_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> DeclarationFieldExit {
     let mut need_field = true;
     let mut after_comma = false;
@@ -803,6 +833,7 @@ fn field_sequence_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 );
                 (item, item_origin, line_entry) = match exit {
                     (
@@ -833,6 +864,7 @@ fn field_sequence_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 ),
                 Some(FieldList::NamedBrace) | None => named_field_normalized(
                     i.rb(),
@@ -844,6 +876,7 @@ fn field_sequence_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 ),
             };
             (item, item_origin, line_entry) = match exit {
@@ -874,6 +907,7 @@ fn named_field_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, usize) {
     i.state.start_node(SyntaxKind::StructField.into());
     if raw_name(&item) {
@@ -917,6 +951,7 @@ fn named_field_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -938,6 +973,7 @@ fn named_field_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         i.state.finish_node();
         return (exit, item_origin);
@@ -988,6 +1024,7 @@ fn named_field_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if type_starter(&item)
@@ -1003,6 +1040,7 @@ fn named_field_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             i.state.finish_node();
             return (exit, item_origin);
@@ -1026,6 +1064,7 @@ fn recover_named_field_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, usize) {
     i.state.start_node(SyntaxKind::StructField.into());
     i.state.start_node(SyntaxKind::Error.into());
@@ -1066,6 +1105,7 @@ fn recover_named_field_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if raw_name(&item) || field_boundary(i.rb(), &item, baseline, stops, delimited) {
@@ -1085,6 +1125,7 @@ fn named_field_rhs_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, usize) {
     let (mut primary, item_origin, line_entry) = struct_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -1115,6 +1156,7 @@ fn named_field_rhs_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     (exit, item_origin)
@@ -1130,6 +1172,7 @@ fn named_type_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, usize) {
     let close = delimited.map_or(0, |list| with_type_outer_close(0, list.close()));
     let entry = suffix_marker(i.rb());
@@ -1143,6 +1186,7 @@ fn named_type_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     (exit, advanced_origin(item_origin, entry, i))
 }
@@ -1156,6 +1200,7 @@ fn tuple_field_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, usize) {
     i.state.start_node(SyntaxKind::StructField.into());
     let entry = suffix_marker(i.rb());
@@ -1169,6 +1214,7 @@ fn tuple_field_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -1351,6 +1397,7 @@ fn trailing_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = struct_item_normalized(
         i.rb(),
@@ -1371,6 +1418,7 @@ fn trailing_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -1384,6 +1432,7 @@ fn trailing_from_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff) {
         let (next, next_origin, next_entry) = derives_clause_normalized(
@@ -1396,6 +1445,7 @@ fn trailing_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         return trailing_from_item_normalized(
             i,
@@ -1406,6 +1456,7 @@ fn trailing_from_item_normalized(
             next_origin,
             next_entry,
             fence,
+            ambient,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -1417,6 +1468,7 @@ fn trailing_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     complete(handoff(item), line_entry)

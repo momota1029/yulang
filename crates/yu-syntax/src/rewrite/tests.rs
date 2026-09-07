@@ -34,6 +34,7 @@ use super::{
 };
 
 mod act_decl;
+mod ambient_claim;
 mod binding;
 mod case_like;
 mod cast_decl;
@@ -134,6 +135,7 @@ fn run_normalized<'source>(
         item_origin,
         line_entry,
         fence,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     (finish_with_discarded_recoveries(builder), exit, input)
@@ -187,6 +189,7 @@ fn run_statement_normalized<'source>(
         item_origin,
         line_entry,
         fence,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     (finish_with_discarded_recoveries(builder), exit, input)
@@ -538,6 +541,7 @@ fn run_type_normalized_with_recoveries<'source, 'frozen>(
         item_origin,
         line_entry,
         fence,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     let (green, recoveries) = builder.finish_with_recoveries();
@@ -581,6 +585,7 @@ fn run_pattern_normalized<'source>(
         line_entry,
         fence,
         stops,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     (finish_with_discarded_recoveries(builder), exit, input)

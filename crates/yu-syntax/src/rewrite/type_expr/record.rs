@@ -1,5 +1,6 @@
 //! Named record type owner and its local recovery.
 
+use super::super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -42,6 +43,7 @@ pub(super) fn type_record_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::NamedRecordType.into());
     emit_token_item(&mut i, open);
@@ -56,6 +58,7 @@ pub(super) fn type_record_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -72,6 +75,7 @@ pub(super) fn type_record_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -86,6 +90,7 @@ fn type_record_fields_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut item, next_origin, next_line_entry) = type_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -93,6 +98,7 @@ fn type_record_fields_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -126,6 +132,7 @@ fn type_record_fields_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             )
         {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -145,6 +152,7 @@ fn type_record_fields_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -162,6 +170,7 @@ fn type_record_fields_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -182,6 +191,7 @@ fn type_record_fields_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         } else if token_kind(&item) == Some(TokenKind::Colon) {
             item.emit_all_remaining_leading(&mut *i.state);
@@ -196,6 +206,7 @@ fn type_record_fields_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         } else if type_record_malformed_name_colon_normalized(
             i.rb(),
@@ -203,6 +214,7 @@ fn type_record_fields_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         ) && item.leading_view().indentation_after_newline().is_none()
         {
             type_record_malformed_name_normalized(
@@ -216,6 +228,7 @@ fn type_record_fields_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         } else {
             (item, item_origin, line_entry) = match retry_type_record_field_normalized(
@@ -227,6 +240,7 @@ fn type_record_fields_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -244,6 +258,7 @@ fn type_record_fields_normalized(
             pipe_lexical,
             item_origin,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, successor_entry, i.rb());
         (item, line_entry) = match successor {
@@ -265,6 +280,7 @@ fn type_record_field_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeRecordField.into());
     emit_token_item(&mut i, name);
@@ -274,6 +290,7 @@ fn type_record_field_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -316,6 +333,7 @@ fn type_record_field_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             i.state.finish_node();
             return exit;
@@ -332,6 +350,7 @@ fn type_record_field_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         i.state.finish_node();
         return exit;
@@ -348,6 +367,7 @@ fn type_record_field_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -365,6 +385,7 @@ fn type_record_missing_name_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeRecordField.into());
     emit_missing(&mut i, LeadingTrivia::default());
@@ -379,6 +400,7 @@ fn type_record_missing_name_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -390,6 +412,7 @@ fn type_record_malformed_name_colon_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    _ambient: AmbientClaimContext<'_>,
 ) -> bool {
     i.rb()
         .map(
@@ -462,6 +485,7 @@ fn type_record_malformed_name_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::TypeRecordField.into());
@@ -480,6 +504,7 @@ fn type_record_malformed_name_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -499,6 +524,7 @@ fn type_record_malformed_name_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             i.state.finish_node();
             return exit;
@@ -535,6 +561,7 @@ fn type_record_field_head_after_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    _ambient: AmbientClaimContext<'_>,
 ) -> bool {
     i.rb()
         .map(
@@ -568,6 +595,7 @@ pub(super) fn type_record_next_field_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> bool {
     is_type_record_field_name(item)
         && item.leading_view().indentation_after_newline().is_none()
@@ -578,6 +606,7 @@ pub(super) fn type_record_next_field_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         )
 }
 
@@ -591,6 +620,7 @@ fn retry_type_record_field_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::Error.into());
@@ -608,6 +638,7 @@ fn retry_type_record_field_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -636,6 +667,7 @@ fn retry_type_record_field_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if token_kind(&item) == Some(TokenKind::Colon)
@@ -656,6 +688,7 @@ fn retry_type_record_field_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             )
         {
             i.state.finish_node();
@@ -705,6 +738,7 @@ fn retry_type_record_colon_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -719,6 +753,7 @@ fn retry_type_record_colon_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -737,6 +772,7 @@ fn retry_type_record_colon_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if !type_chain_trivia(item.leading_view(), baseline)
@@ -762,6 +798,7 @@ fn retry_type_record_colon_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -778,6 +815,7 @@ fn type_record_rhs_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut rhs, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -785,6 +823,7 @@ fn type_record_rhs_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -816,6 +855,7 @@ fn type_record_rhs_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         if rhs.payload_view().is_boundary() {
             return complete(handoff(rhs), line_entry);
@@ -842,6 +882,7 @@ fn type_record_rhs_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -853,6 +894,7 @@ fn type_record_after_comma_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     let (mut next, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -860,6 +902,7 @@ fn type_record_after_comma_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     if next.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -882,6 +925,7 @@ fn type_record_after_comma_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         )
     {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -908,6 +952,7 @@ fn retry_type_record_separator_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     i.state.start_node(SyntaxKind::Error.into());
     let mut nested_depth = 0usize;
@@ -924,6 +969,7 @@ fn retry_type_record_separator_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -952,6 +998,7 @@ fn retry_type_record_separator_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_type_record_field_start(&item) && nested_depth == 0 {
@@ -998,6 +1045,7 @@ fn type_record_successor_normalized(
     pipe_lexical: bool,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, LineEntry), NormalizedExit> {
     match exit {
         NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
@@ -1018,6 +1066,7 @@ fn type_record_successor_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ) {
                 Ok((next, _, line_entry)) => Ok((next, line_entry)),
                 Err(exit) => Err(exit),
@@ -1038,6 +1087,7 @@ fn type_record_successor_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             ) =>
         {
             next.emit_all_remaining_leading(&mut *i.state);
@@ -1063,6 +1113,7 @@ fn type_record_successor_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ) {
                 Ok((next, _, line_entry)) => Ok((next, line_entry)),
                 Err(exit) => Err(exit),
@@ -1081,6 +1132,7 @@ fn type_record_successor_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ) {
                 Ok((next, _, line_entry)) => Ok((next, line_entry)),
                 Err(exit) => Err(exit),

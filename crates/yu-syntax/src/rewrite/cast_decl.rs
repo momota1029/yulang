@@ -1,5 +1,6 @@
 //! Private isolated direct standalone `cast` declaration construction.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 use reborrow_generic::Reborrow as _;
 
@@ -27,7 +28,7 @@ use super::{
     statement::{StatementLineHandoff, indented_statement_block_normalized},
     type_expr::{
         TypeOuterBoundary, is_type_nud,
-        required_type_expr_with_caller_stops_and_outer_boundary_normalized,
+        required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient,
     },
     yumark::FenceBoundary,
 };
@@ -81,6 +82,7 @@ pub(super) fn cast_declaration_witness(
             item_origin,
             line_entry,
             fence,
+            Some(AmbientClaimView::root_statement(baseline)).into(),
         )
     })
 }
@@ -174,6 +176,7 @@ pub(super) fn cast_declaration_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::CastDeclaration.into());
     if item_word(&intro) == Some("cast") {
@@ -215,6 +218,7 @@ pub(super) fn cast_declaration_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -230,6 +234,7 @@ fn cast_pattern_introducer_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -243,6 +248,7 @@ fn cast_pattern_introducer_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if cast_token_kind(&item) == Some(TokenKind::Colon) && cast_gap_allowed(&item, baseline) {
@@ -257,6 +263,7 @@ fn cast_pattern_introducer_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if cast_token_kind(&item) == Some(TokenKind::RParen) {
@@ -290,6 +297,7 @@ fn cast_pattern_introducer_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_pattern_nud(&item, 0) {
@@ -305,6 +313,7 @@ fn cast_pattern_introducer_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     i.state.start_node(SyntaxKind::Error.into());
@@ -330,6 +339,7 @@ fn cast_pattern_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
@@ -343,6 +353,7 @@ fn cast_pattern_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if slot_outer_boundary(i.rb(), &item, baseline, stops)
@@ -383,6 +394,7 @@ fn cast_pattern_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -399,6 +411,7 @@ fn cast_pattern_value_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if slot_outer_boundary(i.rb(), &item, baseline, stops)
         && !(has_local_close && cast_token_kind(&item) == Some(TokenKind::RParen))
@@ -424,6 +437,7 @@ fn cast_pattern_value_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, child_entry, i.rb());
     let (item, line_entry) = successor_item(exit);
@@ -438,6 +452,7 @@ fn cast_pattern_value_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     cast_pattern_close_normalized(
@@ -450,6 +465,7 @@ fn cast_pattern_value_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -464,6 +480,7 @@ fn cast_after_incomplete_pattern_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match cast_transition(i.rb(), &item, baseline, stops, has_local_close) {
         CastTransition::LocalClose => {
@@ -478,6 +495,7 @@ fn cast_after_incomplete_pattern_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         CastTransition::Target => {
@@ -491,6 +509,7 @@ fn cast_after_incomplete_pattern_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         CastTransition::Form => {
@@ -504,6 +523,7 @@ fn cast_after_incomplete_pattern_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         CastTransition::OuterBoundary | CastTransition::Other => {
@@ -524,6 +544,7 @@ fn cast_pattern_close_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let transition = cast_transition(i.rb(), &item, baseline, stops, has_local_close);
     if !has_local_close {
@@ -538,6 +559,7 @@ fn cast_pattern_close_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ),
             CastTransition::Form => cast_form_normalized(
                 i,
@@ -548,6 +570,7 @@ fn cast_pattern_close_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ),
             CastTransition::OuterBoundary | CastTransition::LocalClose => {
                 complete(handoff(item), line_entry)
@@ -561,6 +584,7 @@ fn cast_pattern_close_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ),
         };
     }
@@ -576,6 +600,7 @@ fn cast_pattern_close_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if matches!(transition, CastTransition::Target | CastTransition::Form) {
@@ -592,6 +617,7 @@ fn cast_pattern_close_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         } else {
             cast_form_normalized(
@@ -603,6 +629,7 @@ fn cast_pattern_close_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         };
     }
@@ -639,6 +666,7 @@ fn cast_pattern_close_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if matches!(transition, CastTransition::Target | CastTransition::Form) {
@@ -655,6 +683,7 @@ fn cast_pattern_close_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 )
             } else {
                 cast_form_normalized(
@@ -666,6 +695,7 @@ fn cast_pattern_close_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 )
             };
         }
@@ -690,6 +720,7 @@ fn target_after_local_close_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = cast_item_normalized(
         i.rb(),
@@ -709,6 +740,7 @@ fn target_after_local_close_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -722,6 +754,7 @@ fn cast_target_introducer_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let transition = cast_transition(i.rb(), &item, baseline, stops, false);
     if transition == CastTransition::Form {
@@ -736,6 +769,7 @@ fn cast_target_introducer_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if transition == CastTransition::OuterBoundary {
@@ -764,6 +798,7 @@ fn cast_target_introducer_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_type_nud(&item) {
@@ -778,6 +813,7 @@ fn cast_target_introducer_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -805,6 +841,7 @@ fn cast_target_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if transition == CastTransition::OuterBoundary {
@@ -842,6 +879,7 @@ fn cast_target_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -857,6 +895,7 @@ fn cast_target_type_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let transition = cast_transition(i.rb(), &item, baseline, stops, false);
     if transition != CastTransition::OuterBoundary {
@@ -867,16 +906,18 @@ fn cast_target_type_normalized(
         }
     }
     let child_entry = suffix_marker(i.rb());
-    let (exit, type_complete) = required_type_expr_with_caller_stops_and_outer_boundary_normalized(
-        i.rb(),
-        item,
-        baseline,
-        stops,
-        TypeOuterBoundary::EQUALS,
-        item_origin,
-        line_entry,
-        fence,
-    );
+    let (exit, type_complete) =
+        required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
+            i.rb(),
+            item,
+            baseline,
+            stops,
+            TypeOuterBoundary::EQUALS,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
     item_origin = advanced_origin(item_origin, child_entry, i.rb());
     let (item, line_entry) = successor_item(exit);
     i.state.finish_node();
@@ -891,6 +932,7 @@ fn cast_target_type_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         complete(handoff(item), line_entry)
@@ -907,6 +949,7 @@ fn cast_form_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -933,6 +976,7 @@ fn cast_form_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 );
                 i.state.finish_node();
                 return exit;
@@ -971,6 +1015,7 @@ fn cast_form_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if slot_outer_boundary(i.rb(), &item, baseline, stops)
@@ -995,11 +1040,18 @@ fn cast_definition_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
-        Some(indentation) if indentation > baseline => {
-            indented_statement_block_normalized(i, baseline, stops, item_origin, line_entry, fence)
-        }
+        Some(indentation) if indentation > baseline => indented_statement_block_normalized(
+            i,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        ),
         Some(_) => {
             emit_missing(&mut i, LeadingTrivia::default());
             let (item, _, line_entry) = cast_item_normalized(
@@ -1021,6 +1073,7 @@ fn cast_definition_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
     }
 }
@@ -1034,6 +1087,7 @@ fn cast_inline_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut item, mut item_origin, mut line_entry) = expression_item(
         i.rb(),
@@ -1070,6 +1124,7 @@ fn cast_inline_body_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -1109,6 +1164,7 @@ fn cast_inline_body_normalized(
                 next_origin,
                 next_line_entry,
                 fence,
+                ambient,
             );
         }
         item_origin = next_origin;

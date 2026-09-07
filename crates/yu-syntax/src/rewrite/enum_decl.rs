@@ -1,5 +1,6 @@
 //! Private direct `enum` declaration construction.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -63,6 +64,7 @@ pub(super) fn enum_declaration_witness(
             item_origin,
             line_entry,
             fence,
+            Some(AmbientClaimView::root_statement(baseline)).into(),
         )
     })
 }
@@ -183,6 +185,7 @@ pub(super) fn enum_declaration_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::EnumDeclaration.into());
     if item_word(&intro) == Some("enum") {
@@ -249,6 +252,7 @@ pub(super) fn enum_declaration_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Ok(Some(body)) => parse_body_item_normalized(
@@ -260,6 +264,7 @@ pub(super) fn enum_declaration_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Err(boundary) => complete(handoff(boundary), line_entry),
     };
@@ -384,6 +389,7 @@ fn header_from_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if stops & STOP_WITH != 0 && is_word(&item, "with") {
         return complete(handoff(item), line_entry);
@@ -399,6 +405,7 @@ fn header_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         return header_from_item_normalized(
             i,
@@ -409,6 +416,7 @@ fn header_from_item_normalized(
             next_origin,
             next_entry,
             fence,
+            ambient,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -420,6 +428,7 @@ fn header_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     parse_body_item_normalized(
@@ -431,6 +440,7 @@ fn header_from_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -444,6 +454,7 @@ fn parse_body_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if implicit_bodyless_boundary(i.rb(), &item, baseline, stops) {
         return complete(handoff(item), line_entry);
@@ -465,6 +476,7 @@ fn parse_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::Colon) => parse_variant_body_normalized(
             i,
@@ -477,6 +489,7 @@ fn parse_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::Equals) => {
             let form =
@@ -496,6 +509,7 @@ fn parse_body_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         _ => recover_body_introducer_normalized(
@@ -507,6 +521,7 @@ fn parse_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
     }
 }
@@ -523,6 +538,7 @@ fn parse_variant_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = declaration_variant_sequence_normalized(
@@ -535,6 +551,7 @@ fn parse_variant_body_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     match (form, exit) {
@@ -547,6 +564,7 @@ fn parse_variant_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         (
@@ -561,6 +579,7 @@ fn parse_variant_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         (
@@ -575,6 +594,7 @@ fn parse_variant_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         (_, exit) => exit,
@@ -591,6 +611,7 @@ fn recover_body_introducer_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -623,6 +644,7 @@ fn recover_body_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -637,6 +659,7 @@ fn trailing_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = enum_item_normalized(
         i.rb(),
@@ -657,6 +680,7 @@ fn trailing_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -670,6 +694,7 @@ fn trailing_from_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff) {
         let (next, next_origin, next_entry) = derives_clause_normalized(
@@ -682,6 +707,7 @@ fn trailing_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         return trailing_from_item_normalized(
             i,
@@ -692,6 +718,7 @@ fn trailing_from_item_normalized(
             next_origin,
             next_entry,
             fence,
+            ambient,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -703,6 +730,7 @@ fn trailing_from_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     complete(handoff(item), line_entry)

@@ -10,6 +10,7 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     RewriteIn, Stops,
+    ambient_claim::AmbientClaimContext,
     current_item::LineEntry,
     driver::{Either, NormalizedExit, advanced_origin, suffix_marker, token_kind},
     emit::{emit_missing, emit_token_item},
@@ -53,6 +54,7 @@ pub(super) fn virtual_statement_block_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> VirtualStatementBlockExit {
     let baseline = 0;
     let stops: Stops = stops_for(TokenKind::RBrace) | STOP_COMMA | STOP_SEMICOLON;
@@ -153,6 +155,7 @@ pub(super) fn virtual_statement_block_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             item_origin = advanced_origin(item_origin, entry, i.rb());
             (item, item_origin, line_entry) =

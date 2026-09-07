@@ -121,6 +121,7 @@ fn virtual_statement_block_returns_the_exact_unmodified_close_item() {
         400,
         LineEntry::InLine,
         Some(&plain_fence()),
+        None.into(),
     );
     builder.finish_node();
     let green = builder.finish();
@@ -244,6 +245,7 @@ fn virtual_statement_block_returns_exact_fence_boundary_origin_and_line_entry() 
         origin,
         LineEntry::InLine,
         Some(&fence),
+        None.into(),
     );
     builder.finish_node();
     builder.finish_node();

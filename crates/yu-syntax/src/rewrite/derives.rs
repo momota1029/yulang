@@ -1,6 +1,7 @@
 //! One direct-CST `DerivesClause`, shared by declaration attachment and
 //! companion-item owners.
 
+use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -18,7 +19,8 @@ use super::{
     lexer::{scan_identifier, scan_type_nud_payload},
     statement::StatementLineHandoff,
     type_expr::{
-        TypeOuterBoundary, required_type_expr_with_caller_stops_and_outer_boundary_normalized,
+        TypeOuterBoundary,
+        required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient,
     },
     yumark::FenceBoundary,
 };
@@ -34,6 +36,7 @@ pub(super) fn derives_clause_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     debug_assert!(is_word(&keyword, "derives"));
     i.state.start_node(SyntaxKind::DerivesClause.into());
@@ -48,6 +51,7 @@ pub(super) fn derives_clause_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     loop {
         if !clause_gap_continues(i.rb(), &next, baseline, caller_stops, line_handoff) {
@@ -65,6 +69,7 @@ pub(super) fn derives_clause_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             continue;
         }
@@ -95,6 +100,7 @@ fn required_role_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     let (primary, item_origin, line_entry) =
         next_clause_item_normalized(i.rb(), item_origin, line_entry, fence, false);
@@ -103,7 +109,7 @@ fn required_role_normalized(
         return (primary, item_origin, line_entry);
     }
     let child_entry = suffix_marker(i.rb());
-    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+    let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
         i.rb(),
         primary,
         baseline,
@@ -112,6 +118,7 @@ fn required_role_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, child_entry, i.rb());
     successor_after_type_normalized(i, exit, item_origin, fence)

@@ -1,5 +1,6 @@
 //! Direct owners for Pattern's three comma-or-layout delimited primaries.
 
+use super::super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -74,6 +75,7 @@ pub(super) fn parenthesized_pattern(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     pattern_delimited(
         i,
@@ -89,6 +91,7 @@ pub(super) fn parenthesized_pattern(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -105,6 +108,7 @@ pub(super) fn list_pattern(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     pattern_delimited(
         i,
@@ -120,6 +124,7 @@ pub(super) fn list_pattern(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -136,6 +141,7 @@ pub(super) fn record_pattern(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     pattern_delimited(
         i,
@@ -151,6 +157,7 @@ pub(super) fn record_pattern(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -169,6 +176,7 @@ fn pattern_delimited(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(owner.node().into());
     emit_token_item(&mut i, open);
@@ -211,6 +219,7 @@ fn pattern_delimited(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 );
             }
             if is_carried_caller_close(caller_closes, &item) {
@@ -277,6 +286,7 @@ fn pattern_delimited(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 ),
                 Owner::List => list_item(
                     i.rb(),
@@ -289,6 +299,7 @@ fn pattern_delimited(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 ),
                 Owner::Record => record_item(
                     i.rb(),
@@ -301,6 +312,7 @@ fn pattern_delimited(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 ),
             };
             item_origin = advanced_origin(item_origin, entry, i.rb());
@@ -349,6 +361,7 @@ fn pattern_delimited(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_carried_caller_close(caller_closes, &item) {
@@ -407,6 +420,7 @@ fn finish_delimited_pattern(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let mut tail_completion = PatternCompletion::Complete;
     let exit = if own_recovery_consumed_error && recovered_primary_tail_stops != 0 {
@@ -430,6 +444,7 @@ fn finish_delimited_pattern(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
     } else {
@@ -444,6 +459,7 @@ fn finish_delimited_pattern(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     };
     *completion = contents_completion;
@@ -469,6 +485,7 @@ fn list_item(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if token_kind(&item) != Some(TokenKind::DotDot) {
         return pattern_from_item_recording_with_policy_normalized(
@@ -484,6 +501,7 @@ fn list_item(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     i.state.start_node(SyntaxKind::ListPatternSpreadItem.into());
@@ -507,6 +525,7 @@ fn list_item(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -524,6 +543,7 @@ fn record_item(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if token_kind(&item) == Some(TokenKind::DotDot) {
         i.state
@@ -548,6 +568,7 @@ fn record_item(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         i.state.finish_node();
         return exit;
@@ -592,6 +613,7 @@ fn record_item(
             nested_origin,
             nested_line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(nested_origin, entry, i.rb());
         record_default_after_pattern(
@@ -602,6 +624,7 @@ fn record_item(
             line_handoff,
             item_origin,
             fence,
+            ambient,
         )
     } else if !item.payload_view().is_boundary()
         && !has_newline(item.leading_view())
@@ -615,6 +638,7 @@ fn record_item(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         complete(handoff(item), line_entry)
@@ -632,6 +656,7 @@ fn record_default_after_pattern(
     line_handoff: StatementLineHandoff,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = match exit {
         NormalizedExit::Complete(Ok(()), line_entry) => {
@@ -657,6 +682,7 @@ fn record_default_after_pattern(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         complete(handoff(item), line_entry)
@@ -672,6 +698,7 @@ fn record_default_after_equals(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_token_item(&mut i, equals);
     let expression_stops = stops_for(TokenKind::RBrace);
@@ -702,6 +729,7 @@ fn record_default_after_equals(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     rhs.emit_all_remaining_leading(&mut *i.state);

@@ -1,5 +1,6 @@
 //! Effect-row and polymorphic-variant type primaries.
 
+use super::super::ambient_claim::AmbientClaimContext;
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -47,6 +48,7 @@ pub(super) fn type_effect_row_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::EffectRowType.into());
     emit_token_item(&mut i, apostrophe);
@@ -56,6 +58,7 @@ pub(super) fn type_effect_row_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     debug_assert_eq!(token_kind(&open), Some(TokenKind::LBracket));
@@ -75,6 +78,7 @@ pub(super) fn type_effect_row_normalized(
         item_origin,
         next_line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -91,6 +95,7 @@ pub(super) fn type_effect_row_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -109,7 +114,10 @@ pub(super) fn type_polymorphic_variant_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    #[cfg(test)]
+    ambient.observe(super::super::ambient_claim::ProofSite::PolymorphicVariant);
     i.state
         .start_node(SyntaxKind::PolymorphicVariantType.into());
     emit_token_item(&mut i, colon);
@@ -120,6 +128,7 @@ pub(super) fn type_polymorphic_variant_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     debug_assert_eq!(token_kind(&open), Some(TokenKind::LBrace));
@@ -138,6 +147,7 @@ pub(super) fn type_polymorphic_variant_normalized(
         item_origin,
         next_line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -154,6 +164,7 @@ pub(super) fn type_polymorphic_variant_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -177,6 +188,7 @@ fn type_polymorphic_variant_tags_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut item, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -184,6 +196,7 @@ fn type_polymorphic_variant_tags_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -231,6 +244,7 @@ fn type_polymorphic_variant_tags_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             );
             continue;
         }
@@ -249,6 +263,7 @@ fn type_polymorphic_variant_tags_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             );
             continue;
         }
@@ -264,6 +279,7 @@ fn type_polymorphic_variant_tags_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             );
             continue;
         }
@@ -285,6 +301,7 @@ fn type_polymorphic_variant_tags_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         } else if is_type_nud(&item) {
             type_polymorphic_variant_wrong_kind_tag_normalized(
@@ -298,6 +315,7 @@ fn type_polymorphic_variant_tags_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         } else {
             type_polymorphic_variant_malformed_tag_normalized(
@@ -311,6 +329,7 @@ fn type_polymorphic_variant_tags_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         };
         item_origin = advanced_origin(item_origin, entry, i.rb());
@@ -328,6 +347,7 @@ fn type_polymorphic_variant_tags_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     );
                 item_origin = next_origin;
                 line_entry = next_line_entry;
@@ -370,6 +390,7 @@ fn type_polymorphic_variant_tag_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
     let exit = type_polymorphic_variant_tag_after_name_normalized(
@@ -383,6 +404,7 @@ fn type_polymorphic_variant_tag_normalized(
         outer_closes,
         caller_stops,
         pipe_lexical,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -400,6 +422,7 @@ fn type_polymorphic_variant_wrong_kind_tag_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
     let exit = type_polymorphic_variant_tag_after_wrong_kind_normalized(
@@ -413,6 +436,7 @@ fn type_polymorphic_variant_wrong_kind_tag_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -430,6 +454,7 @@ fn type_polymorphic_variant_tag_after_name_normalized(
     outer_closes: u8,
     caller_stops: Stops,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_token_item(&mut i, name);
     let (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
@@ -438,6 +463,7 @@ fn type_polymorphic_variant_tag_after_name_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     type_polymorphic_variant_tag_payloads_normalized(
         i,
@@ -451,6 +477,7 @@ fn type_polymorphic_variant_tag_after_name_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -466,6 +493,7 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let successor_origin = item_origin;
     let exit = emit_structured_recovery_error_from_item(
@@ -495,6 +523,7 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
                 successor_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             let post_origin = advanced_origin(successor_origin, entry, nested.rb());
             let end = structured_tag_name_end(&exit, post_origin);
@@ -513,6 +542,7 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
         pipe_lexical,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -528,6 +558,7 @@ fn type_polymorphic_variant_malformed_tag_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PolymorphicVariantTag.into());
     let (next, next_origin, next_line_entry) = emit_recovery_error_run(
@@ -547,6 +578,7 @@ fn type_polymorphic_variant_malformed_tag_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     );
                 if is_type_polymorphic_variant_tag_safe(&item) {
                     let range = run_start.expect("an NT-8 Error run is nonempty")..run_end;
@@ -580,6 +612,7 @@ fn type_polymorphic_variant_malformed_tag_normalized(
                     outer_closes,
                     caller_stops,
                     pipe_lexical,
+                    ambient,
                 )
             } else {
                 type_polymorphic_variant_tag_after_wrong_kind_normalized(
@@ -593,6 +626,7 @@ fn type_polymorphic_variant_malformed_tag_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 )
             }
         };
@@ -681,6 +715,7 @@ fn type_polymorphic_variant_tag_payloads_after_head_normalized(
     pipe_lexical: bool,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let NormalizedExit::Complete(exit, line_entry) = exit else {
         unreachable!("normalized Type owners do not defer")
@@ -692,6 +727,7 @@ fn type_polymorphic_variant_tag_payloads_after_head_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         ),
         Err(Either::Left(item)) if item.payload_view().is_boundary() => {
             return complete(handoff(item), line_entry);
@@ -714,6 +750,7 @@ fn type_polymorphic_variant_tag_payloads_after_head_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -730,6 +767,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     loop {
         if item.payload_view().is_boundary() {
@@ -754,6 +792,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             item_origin = advanced_origin(item_origin, entry, i.rb());
             let NormalizedExit::Complete(exit, next_line_entry) = exit else {
@@ -769,6 +808,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
                             line_entry,
                             fence,
                             pipe_lexical,
+                            ambient,
                         );
                     item_origin = next_origin;
                     line_entry = next_line_entry;
@@ -795,6 +835,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         let NormalizedExit::Complete(exit, next_line_entry) = exit else {
@@ -810,6 +851,7 @@ fn type_polymorphic_variant_tag_payloads_normalized(
                         line_entry,
                         fence,
                         pipe_lexical,
+                        ambient,
                     );
                 item_origin = next_origin;
                 line_entry = next_line_entry;
@@ -839,6 +881,7 @@ fn type_polymorphic_variant_payload_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
@@ -861,6 +904,7 @@ fn type_polymorphic_variant_payload_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -878,6 +922,7 @@ fn type_polymorphic_variant_malformed_payload_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
@@ -901,6 +946,7 @@ fn type_polymorphic_variant_malformed_payload_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary() {
             i.state.finish_node();
@@ -933,6 +979,7 @@ fn type_polymorphic_variant_malformed_payload_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         i.state.finish_node();
         return exit;

@@ -5,6 +5,7 @@
 //! direct canonical Statement and Derives-run items, and its local
 //! separators/brace close.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -64,6 +65,7 @@ pub(super) fn declaration_companion_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     debug_assert!(is_contextual_word(i.rb(), &with_keyword, "with"));
 
@@ -86,6 +88,7 @@ pub(super) fn declaration_companion_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -100,6 +103,7 @@ fn companion_after_keyword(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if introducer_boundary(i.rb(), &item, baseline, caller_stops) {
         if !item.payload_view().is_boundary() && !item.leading_view().has_ordinary_newline() {
@@ -114,11 +118,27 @@ fn companion_after_keyword(
     match token_kind(&item) {
         Some(TokenKind::Colon) => {
             emit_token_item(&mut i, item);
-            colon_form(i, baseline, caller_stops, item_origin, line_entry, fence)
+            colon_form(
+                i,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
         }
         Some(TokenKind::LBrace) => {
             emit_token_item(&mut i, item);
-            braced_form(i, baseline, caller_stops, item_origin, line_entry, fence)
+            braced_form(
+                i,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
         }
         _ if !matches!(admission, CompanionItemAdmission::Rejected) => {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -131,6 +151,7 @@ fn companion_after_keyword(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         _ => retry_introducer(
@@ -141,6 +162,7 @@ fn companion_after_keyword(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
     }
 }
@@ -154,6 +176,7 @@ fn retry_introducer(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     emit_token_item(&mut i, item);
@@ -190,11 +213,27 @@ fn retry_introducer(
             return match token_kind(&item) {
                 Some(TokenKind::Colon) => {
                     emit_token_item(&mut i, item);
-                    colon_form(i, baseline, caller_stops, item_origin, line_entry, fence)
+                    colon_form(
+                        i,
+                        baseline,
+                        caller_stops,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        ambient,
+                    )
                 }
                 Some(TokenKind::LBrace) => {
                     emit_token_item(&mut i, item);
-                    braced_form(i, baseline, caller_stops, item_origin, line_entry, fence)
+                    braced_form(
+                        i,
+                        baseline,
+                        caller_stops,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        ambient,
+                    )
                 }
                 _ => inline_form_from_item(
                     i,
@@ -205,6 +244,7 @@ fn retry_introducer(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 ),
             };
         }
@@ -220,6 +260,7 @@ fn colon_form(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut item, item_origin, line_entry) = statement_item_normalized(
         i.rb(),
@@ -245,6 +286,7 @@ fn colon_form(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if companion_body_boundary(i.rb(), &item, baseline, caller_stops) {
@@ -264,6 +306,7 @@ fn colon_form(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -277,6 +320,7 @@ fn inline_form_from_item(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let slot = companion_item_slot(
         i.rb(),
@@ -288,6 +332,7 @@ fn inline_form_from_item(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     if !slot.complete {
         return slot.exit;
@@ -324,7 +369,9 @@ fn indented_form_from_item(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let ambient = ambient.map(|view| view.statement(block_indent));
     i.state
         .start_node(SyntaxKind::DeclarationCompanionIndentedBody.into());
     item.emit_all_remaining_leading(&mut *i.state);
@@ -369,6 +416,7 @@ fn indented_form_from_item(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = slot.item_origin;
         if !slot.complete {
@@ -415,7 +463,9 @@ fn braced_form(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let ambient = ambient.map(AmbientClaimView::braced);
     let local_stops = caller_stops | stops_for(TokenKind::RBrace);
     let (mut item, next_origin, next_entry) = statement_item_normalized(
         i.rb(),
@@ -521,6 +571,7 @@ fn braced_form(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = parsed.item_origin;
         let (next, next_origin, next_entry, carried_admission) = successor_item(
@@ -557,6 +608,7 @@ fn companion_item_slot(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> SlotExit {
     if matches!(admission, CompanionItemAdmission::Derives) {
         return derives_run_slot(
@@ -568,6 +620,7 @@ fn companion_item_slot(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     statement_slot(
@@ -583,6 +636,7 @@ fn companion_item_slot(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -596,6 +650,7 @@ fn derives_run_slot(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> SlotExit {
     loop {
         // A comma after a role belongs to DerivesClause even where the outer
@@ -610,6 +665,7 @@ fn derives_run_slot(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         if !is_word(&item, "derives") || derives_separator_before(&item, layout) {
             let pending_admission = if let CompanionLayout::Indented { block_indent } = layout
@@ -653,6 +709,7 @@ fn statement_slot(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> SlotExit {
     i.state.start_node(SyntaxKind::Statement.into());
     if let Some(admission) = admission {
@@ -667,6 +724,7 @@ fn statement_slot(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         i.state.finish_node();
@@ -712,6 +770,7 @@ fn statement_slot(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if let Some(admission) =
@@ -730,6 +789,7 @@ fn statement_slot(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             item_origin = advanced_origin(item_origin, entry, i.rb());
             i.state.finish_node();
@@ -1064,5 +1124,6 @@ pub(super) fn declaration_companion_witness(
         item_origin,
         next_line_entry,
         fence,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }

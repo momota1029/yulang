@@ -159,6 +159,7 @@ fn run_rule_literal_normalized<'source>(
         origin + 2,
         LineEntry::InLine,
         fence,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     (builder.finish(), exit, input)

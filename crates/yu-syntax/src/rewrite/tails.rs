@@ -1,5 +1,6 @@
 //! Direct fixed continuations over already-owned Items.
 
+use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -42,6 +43,7 @@ pub(super) fn colon_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if matches!(ml_mode, MlMode::None) || !chain_continuation(colon.leading_view(), baseline) {
         return complete(handoff(colon), line_entry);
@@ -74,9 +76,18 @@ pub(super) fn colon_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
-        indented_statement_block_normalized(i.rb(), baseline, stops, item_origin, line_entry, fence)
+        indented_statement_block_normalized(
+            i.rb(),
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
     };
     i.state.finish_node();
     exit
@@ -94,6 +105,7 @@ fn inline_colon_argument_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
@@ -115,6 +127,7 @@ fn inline_colon_argument_normalized(
             line_handoff,
             item_origin,
             fence,
+            ambient,
         );
     }
     if inline_colon_boundary(i.rb(), &item, baseline, stops) {
@@ -145,6 +158,7 @@ fn inline_colon_argument_normalized(
                 line_handoff,
                 item_origin,
                 fence,
+                ambient,
             );
         }
         if inline_colon_boundary(i.rb(), &item, baseline, stops) {
@@ -168,6 +182,7 @@ fn inline_colon_argument_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     inline_colon_successor_normalized(
@@ -179,6 +194,7 @@ fn inline_colon_argument_normalized(
         line_handoff,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -192,6 +208,7 @@ fn inline_colon_successor_normalized(
     line_handoff: StatementLineHandoff,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match exit {
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
@@ -223,6 +240,7 @@ fn inline_colon_successor_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         exit => exit,
@@ -298,6 +316,7 @@ pub(super) fn with_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::WithBodyTail.into());
@@ -339,6 +358,7 @@ pub(super) fn with_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         } else {
             let entry = suffix_marker(i.rb());
@@ -352,6 +372,7 @@ pub(super) fn with_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             let item_origin = advanced_origin(item_origin, entry, i.rb());
             with_inline_terminal_normalized(i.rb(), exit, baseline, stops, item_origin, fence)
@@ -388,6 +409,7 @@ pub(super) fn with_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     };
 
@@ -406,6 +428,7 @@ fn with_inline_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) =
         statement_item_for_tail_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
@@ -420,6 +443,7 @@ fn with_inline_body_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -435,6 +459,7 @@ fn with_inline_item_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
@@ -470,6 +495,7 @@ fn with_inline_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -510,6 +536,7 @@ fn with_inline_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -641,6 +668,7 @@ pub(super) fn call_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
@@ -656,6 +684,7 @@ pub(super) fn call_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -669,6 +698,7 @@ pub(super) fn call_tail_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -684,6 +714,7 @@ pub(super) fn index_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
     emit_token_item(&mut i, open);
@@ -699,6 +730,7 @@ pub(super) fn index_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -712,6 +744,7 @@ pub(super) fn index_tail_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -727,6 +760,7 @@ pub(super) fn dot_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (next, item_origin, line_entry) = super::driver::expression_item(
         i.rb(),
@@ -755,6 +789,7 @@ pub(super) fn dot_tail_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 );
             }
             Some(TokenKind::LBrace) => {
@@ -773,6 +808,7 @@ pub(super) fn dot_tail_normalized(
                     item_origin,
                     line_entry,
                     fence,
+                    ambient,
                 );
             }
             _ => {}
@@ -790,6 +826,7 @@ pub(super) fn dot_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -806,6 +843,7 @@ fn field_tail_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::FieldTail.into());
     emit_token_item(&mut i, dot);
@@ -825,6 +863,7 @@ fn field_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if name.payload_view().is_boundary()
@@ -855,6 +894,7 @@ fn field_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -874,6 +914,7 @@ fn projection_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(node.into());
     emit_token_item(&mut i, dot);
@@ -890,6 +931,7 @@ fn projection_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -903,6 +945,7 @@ fn projection_tail_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -918,6 +961,7 @@ pub(super) fn path_tail_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PathTail.into());
     emit_token_item(&mut i, separator);
@@ -943,6 +987,7 @@ pub(super) fn path_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if segment.payload_view().is_boundary() {
@@ -973,6 +1018,7 @@ pub(super) fn path_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 

@@ -1,5 +1,6 @@
 //! Direct canonical `mod` declaration construction.
 
+use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -80,6 +81,7 @@ pub(super) fn mod_declaration_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::ModDeclaration.into());
 
@@ -154,6 +156,7 @@ pub(super) fn mod_declaration_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -306,6 +309,7 @@ fn parse_body_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -336,6 +340,7 @@ fn parse_body_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             let item_origin = advanced_origin(item_origin, entry, i.rb());
             match exit {
@@ -355,6 +360,7 @@ fn parse_body_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         _ if admission.is_some() => {
@@ -369,6 +375,7 @@ fn parse_body_item_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         _ => recover_body_introducer_normalized(
@@ -380,6 +387,7 @@ fn parse_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
     }
 }
@@ -394,6 +402,7 @@ fn recover_body_introducer_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -422,6 +431,7 @@ fn recover_body_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if let Some(admission) =
@@ -438,6 +448,7 @@ fn recover_body_introducer_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -452,11 +463,18 @@ fn parse_colon_body_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
-        Some(indentation) if indentation > baseline => {
-            indented_statement_block_normalized(i, baseline, stops, item_origin, line_entry, fence)
-        }
+        Some(indentation) if indentation > baseline => indented_statement_block_normalized(
+            i,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        ),
         Some(_) => {
             emit_missing(&mut i, LeadingTrivia::default());
             let (item, _, next_entry) =
@@ -482,6 +500,7 @@ fn parse_colon_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
     }
@@ -497,6 +516,7 @@ fn parse_inline_body_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() || item.payload_view().is_eof() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -524,6 +544,7 @@ fn parse_inline_body_item_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -537,6 +558,7 @@ fn parse_inline_body_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -550,6 +572,7 @@ fn recover_inline_body_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     loop {
         emit_token_item(&mut i, item);
@@ -589,6 +612,7 @@ fn recover_inline_body_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -605,6 +629,7 @@ fn parse_inline_statement_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = canonical_statement_from_admission_normalized(
@@ -617,6 +642,7 @@ fn parse_inline_statement_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     match exit {

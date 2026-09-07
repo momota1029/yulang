@@ -91,6 +91,7 @@ fn run_type_declaration_with_handoff(
             0,
             super::super::current_item::LineEntry::InLine,
             None,
+            Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
         ));
     if let Err(Either::Right(end)) = &mut exit {
         emit_end(&mut builder, end);

@@ -6,11 +6,12 @@ use crate::syntax_kind::SyntaxKind;
 
 use super::{
     RewriteIn,
-    driver::{Either, TailExit, handoff, token_kind},
+    current_item::LineEntry,
+    driver::{Either, TailExit, handoff, ordinary_exit, token_kind},
     emit::{emit_end, emit_fragmented_item, emit_token_item},
     item::{Item, PendingBoundary, TokenKind},
     lexer::{scan_trivia, statement_item_after_trivia},
-    statement::{is_canonical_statement_nud, statement_from_item},
+    statement::{is_canonical_statement_nud, statement_from_item_normalized},
 };
 
 /// Composes the currently closed canonical statement surface beneath one cell
@@ -35,7 +36,16 @@ pub(super) fn yulang_code_cell_witness(
             return Ok(finish_at_boundary(i, terminal));
         }
 
-        let exit = statement_from_item(i.rb(), item, 0, 0);
+        let exit = ordinary_exit(statement_from_item_normalized(
+            i.rb(),
+            item,
+            0,
+            0,
+            0,
+            LineEntry::InLine,
+            None,
+            None.into(),
+        ));
         match exit {
             Ok(()) => {
                 let leading = scan_trivia(i.rb());

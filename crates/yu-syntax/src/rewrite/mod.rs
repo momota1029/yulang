@@ -6,6 +6,7 @@
 use chasa_recover::In;
 
 mod act_decl;
+mod ambient_claim;
 mod binding;
 mod case_like;
 mod cast_decl;

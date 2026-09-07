@@ -218,6 +218,7 @@ where
         mode,
         part_origin,
         Some(fence),
+        None.into(),
     ) {
         NormalizedStringLiteralExit::Complete(_) => StringLiteralExit::Complete,
         NormalizedStringLiteralExit::Boundary(item, _) => StringLiteralExit::Boundary(item),
@@ -230,6 +231,7 @@ pub(super) fn string_literal_with_virtual_statements_normalized(
     mode: StringMode,
     part_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: super::ambient_claim::AmbientClaimContext<'_>,
 ) -> NormalizedStringLiteralExit {
     string_literal_with_interpolation_body(
         i,
@@ -242,6 +244,7 @@ pub(super) fn string_literal_with_virtual_statements_normalized(
             body_origin,
             line_entry,
             fence,
+            ambient.unavailable(),
         ) {
             VirtualStatementBlockExit::Close(item, line_entry) => {
                 InterpolationBodyExit::Close { item, line_entry }

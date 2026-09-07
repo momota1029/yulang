@@ -76,6 +76,7 @@ fn run_required_pattern_with_context<'source>(
         next_origin,
         next_line_entry,
         fence,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     (builder.finish_with_recoveries().0, exit, completion, input)
@@ -142,6 +143,7 @@ fn run_l7_pattern_with_context<'source>(
         line_entry,
         fence,
         0,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     (builder.finish_with_recoveries().0, exit, input)

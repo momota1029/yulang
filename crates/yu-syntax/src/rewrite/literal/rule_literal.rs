@@ -1,5 +1,6 @@
 //! L7 RuleLiteral construction shared by Expression and Pattern owners.
 
+use super::super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use unicode_ident::is_xid_continue;
 
 use super::*;
@@ -80,7 +81,14 @@ pub(in crate::rewrite) fn rule_literal_witness(
     part_origin: usize,
     fence: &FenceBoundary,
 ) -> RuleLiteralExit {
-    match rule_literal_normalized(i, opener, part_origin, LineEntry::InLine, Some(fence)) {
+    match rule_literal_normalized(
+        i,
+        opener,
+        part_origin,
+        LineEntry::InLine,
+        Some(fence),
+        Some(AmbientClaimView::root_statement(0)).into(),
+    ) {
         NormalizedRuleLiteralExit::Complete(_) => RuleLiteralExit::Complete,
         NormalizedRuleLiteralExit::Boundary(item, _) => RuleLiteralExit::Boundary(item),
     }
@@ -92,6 +100,7 @@ pub(in crate::rewrite) fn rule_literal_normalized(
     mut part_origin: usize,
     _line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedRuleLiteralExit {
     i.state.start_node(SyntaxKind::RuleLiteral.into());
     let mut opener = opener;
@@ -145,6 +154,7 @@ pub(in crate::rewrite) fn rule_literal_normalized(
                     &mut part_origin,
                     LineEntry::InLine,
                     fence,
+                    ambient,
                 ) {
                     RuleLiteralSequenceExit::Close(mut close, _) => {
                         close.emit_all_remaining_leading(&mut *i.state);

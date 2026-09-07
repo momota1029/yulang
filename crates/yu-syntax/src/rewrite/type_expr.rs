@@ -1,5 +1,6 @@
 //! Standalone source-free direct TypeExpression core.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -165,8 +166,101 @@ pub(super) struct RequiredTypeFreshPrimaryPolicy {
     pub(super) owns_bare_left_brace: bool,
 }
 
+/// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+pub(super) fn type_nud_item_normalized(
+    i: RewriteIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    type_nud_item_normalized_with_ambient(
+        i,
+        item_origin,
+        line_entry,
+        fence,
+        Some(AmbientClaimView::root_statement(0)).into(),
+    )
+}
+
+/// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
+    required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
+        i,
+        primary,
+        baseline,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
+    )
+}
+
+/// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
+    required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
+        i,
+        primary,
+        baseline,
+        caller_stops,
+        outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
+    )
+}
+
+/// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+pub(super) fn required_variant_payload_type_normalized(
+    i: RewriteIn,
+    primary: Item,
+    baseline: usize,
+    type_ml: TypeMlContext,
+    outer_boundary: TypeOuterBoundary,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (NormalizedExit, bool) {
+    required_variant_payload_type_normalized_with_ambient(
+        i,
+        primary,
+        baseline,
+        type_ml,
+        outer_boundary,
+        item_origin,
+        line_entry,
+        fence,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
+    )
+}
+
 pub(super) fn type_expr(i: RewriteIn) -> Option<TailExit> {
-    type_expr_normalized(i, 0, LineEntry::InLine, None).map(ordinary_exit)
+    type_expr_normalized(
+        i,
+        0,
+        LineEntry::InLine,
+        None,
+        Some(AmbientClaimView::root_statement(0)).into(),
+    )
+    .map(ordinary_exit)
 }
 
 pub(super) fn type_expr_normalized(
@@ -174,6 +268,7 @@ pub(super) fn type_expr_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> Option<NormalizedExit> {
     let entry = suffix_marker(i.rb());
     let CurrentItem {
@@ -211,6 +306,7 @@ pub(super) fn type_expr_normalized(
         item_origin,
         next_line_entry,
         fence,
+        ambient,
     ))
 }
 
@@ -258,6 +354,7 @@ pub(super) fn type_expr_with_caller_stops_for_test(
         item_origin,
         next_line_entry,
         None,
+        Some(AmbientClaimView::root_statement(0)).into(),
     );
     let successor_origin = advanced_origin(item_origin, continuation_entry, i.rb());
     Some((exit, successor_origin))
@@ -328,6 +425,7 @@ pub(super) fn type_expr_with_context_and_boundaries_for_test(
         item_origin,
         next_line_entry,
         fence,
+        Some(AmbientClaimView::root_statement(0)).into(),
     );
     let successor_origin = advanced_origin(item_origin, continuation_entry, i.rb());
     Some((exit, successor_origin))
@@ -356,6 +454,7 @@ pub(super) fn required_type_expr(i: RewriteIn, primary: Item, baseline: usize) -
             0,
             LineEntry::InLine,
             None,
+            Some(AmbientClaimView::root_statement(baseline)).into(),
         )
         .0,
     )
@@ -384,6 +483,7 @@ pub(super) fn required_type_expr_with_boundary(
             0,
             LineEntry::InLine,
             None,
+            Some(AmbientClaimView::root_statement(baseline)).into(),
         )
         .0,
     )
@@ -400,6 +500,7 @@ pub(super) fn required_type_expr_with_boundary_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     required_type_expr_inner_normalized(
         i,
@@ -416,6 +517,7 @@ pub(super) fn required_type_expr_with_boundary_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
     .0
 }
@@ -450,6 +552,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     );
     (ordinary_exit(exit), primary_found)
 }
@@ -476,12 +579,13 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     );
     (ordinary_exit(exit), primary_found)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
     i: RewriteIn,
     primary: Item,
     baseline: usize,
@@ -490,6 +594,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, bool) {
     required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
         i,
@@ -501,6 +606,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -515,6 +621,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, bool) {
     required_type_expr_inner_normalized(
         i,
@@ -531,6 +638,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -538,7 +646,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
 /// positional payload items while the contextual outer boundary remains
 /// suspended by every nested TypeExpression episode.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn required_variant_payload_type_normalized(
+pub(super) fn required_variant_payload_type_normalized_with_ambient(
     i: RewriteIn,
     primary: Item,
     baseline: usize,
@@ -547,6 +655,7 @@ pub(super) fn required_variant_payload_type_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, bool) {
     required_type_expr_inner_normalized(
         i,
@@ -563,6 +672,7 @@ pub(super) fn required_variant_payload_type_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -573,6 +683,7 @@ pub(super) fn required_type_expr_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     required_type_expr_inner_normalized(
         i,
@@ -589,11 +700,12 @@ pub(super) fn required_type_expr_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
     .0
 }
 
-pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
+pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
     i: RewriteIn,
     primary: Item,
     baseline: usize,
@@ -601,6 +713,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, bool) {
     required_type_expr_inner_normalized(
         i,
@@ -617,6 +730,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -636,6 +750,7 @@ fn required_type_expr_inner_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, bool) {
     if primary.payload_view().is_boundary() {
         i.state.start_node(SyntaxKind::TypeExpression.into());
@@ -671,6 +786,7 @@ fn required_type_expr_inner_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ),
             true,
         );
@@ -693,6 +809,7 @@ fn required_type_expr_inner_normalized(
                     line_entry,
                     fence,
                     pipe_lexical,
+                    ambient,
                 );
             if primary.payload_view().is_boundary()
                 || is_required_type_boundary(
@@ -736,6 +853,7 @@ fn required_type_expr_inner_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         true,
     )
@@ -894,6 +1012,7 @@ fn type_expr_from_nud_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if primary.payload_view().is_boundary() {
         return complete(handoff(primary), line_entry);
@@ -914,6 +1033,7 @@ fn type_expr_from_nud_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         i.state.finish_node();
         return exit;
@@ -932,6 +1052,7 @@ fn type_expr_from_nud_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -960,6 +1081,7 @@ fn type_expr_from_primary(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -978,6 +1100,7 @@ fn type_expr_from_primary_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeExpression.into());
     let exit = type_expr_from_primary_started_normalized(
@@ -994,6 +1117,7 @@ fn type_expr_from_primary_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -1024,6 +1148,7 @@ fn type_expr_from_primary_started(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -1042,6 +1167,7 @@ fn type_expr_from_primary_started_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match token_kind(&primary) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Integer) => {
@@ -1059,6 +1185,7 @@ fn type_expr_from_primary_started_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Some(TokenKind::LParen) => type_group_normalized(
@@ -1075,6 +1202,7 @@ fn type_expr_from_primary_started_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::LBrace) => type_record_normalized(
             i.rb(),
@@ -1090,6 +1218,7 @@ fn type_expr_from_primary_started_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::Forall) => type_forall_normalized(
             i.rb(),
@@ -1105,6 +1234,7 @@ fn type_expr_from_primary_started_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::EffectRowApostrophe) => type_effect_row_normalized(
             i.rb(),
@@ -1120,6 +1250,7 @@ fn type_expr_from_primary_started_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::PolymorphicVariantColon) => type_polymorphic_variant_normalized(
             i.rb(),
@@ -1135,6 +1266,7 @@ fn type_expr_from_primary_started_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     }
@@ -1145,8 +1277,9 @@ fn type_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
-    type_item_with_pipe_lexical_normalized(i, item_origin, line_entry, fence, false)
+    type_item_with_pipe_lexical_normalized(i, item_origin, line_entry, fence, false, ambient)
 }
 
 fn type_item_with_pipe_lexical_normalized(
@@ -1155,6 +1288,7 @@ fn type_item_with_pipe_lexical_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    _ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     let entry = suffix_marker(i.rb());
     let CurrentItem {
@@ -1186,13 +1320,14 @@ fn type_item_with_pipe_lexical_normalized(
     )
 }
 
-pub(super) fn type_nud_item_normalized(
+pub(super) fn type_nud_item_normalized_with_ambient(
     i: RewriteIn,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
-    type_nud_item_with_pipe_lexical_normalized(i, item_origin, line_entry, fence, false)
+    type_nud_item_with_pipe_lexical_normalized(i, item_origin, line_entry, fence, false, ambient)
 }
 
 fn type_nud_item_with_pipe_lexical_normalized(
@@ -1201,6 +1336,7 @@ fn type_nud_item_with_pipe_lexical_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    _ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     let entry = suffix_marker(i.rb());
     let CurrentItem {
@@ -1243,6 +1379,7 @@ fn type_nud_item_with_pipe_lexical_normalized_in_error_run(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    _ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     run.lexical(|mut lex| {
         let entry_pointer = lex.remainder().as_ptr() as usize;
@@ -1289,6 +1426,7 @@ fn type_item_with_pipe_lexical_normalized_in_error_run(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    _ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     run.lexical(|mut lex| {
         let entry_pointer = lex.remainder().as_ptr() as usize;
@@ -1352,6 +1490,7 @@ fn scan_type_tail(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -1369,6 +1508,7 @@ fn scan_type_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -1376,6 +1516,7 @@ fn scan_type_tail_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     type_tail_normalized(
         i,
@@ -1391,6 +1532,7 @@ fn scan_type_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -1419,6 +1561,7 @@ fn type_tail(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -1437,6 +1580,7 @@ fn type_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -1467,6 +1611,7 @@ fn type_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         Some(TokenKind::LParen) if item.leading_view().is_grammar_empty() => {
@@ -1484,6 +1629,7 @@ fn type_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         Some(TokenKind::PathSeparator) => {
@@ -1501,6 +1647,7 @@ fn type_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         Some(TokenKind::LBracket) => {
@@ -1518,6 +1665,7 @@ fn type_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         _ => {}
@@ -1531,6 +1679,7 @@ fn type_tail_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         ),
         Some(TypeApplyBoundary::DeclarationNamedFields) => {
             super::struct_decl::named_declaration_fields_next_field_candidate(
@@ -1560,6 +1709,7 @@ fn type_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     complete(handoff(item), line_entry)
@@ -1580,6 +1730,7 @@ fn type_leading_bracket_row_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = type_bracket_row_normalized(
@@ -1593,6 +1744,7 @@ fn type_leading_bracket_row_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     match exit {
@@ -1612,6 +1764,7 @@ fn type_leading_bracket_row_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -1643,6 +1796,7 @@ fn type_leading_bracket_row_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
@@ -1653,6 +1807,7 @@ fn type_leading_bracket_row_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             ) {
                 Ok(next) => next,
                 Err(exit) => return exit,
@@ -1679,6 +1834,7 @@ fn type_leading_bracket_row_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 }
@@ -1690,6 +1846,7 @@ fn retry_leading_bracket_row_head_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     let entry = suffix_marker(i.rb());
     let Some(suffix) = i.token(|lex| {
@@ -1713,6 +1870,7 @@ fn retry_leading_bracket_row_head_normalized(
                 next_line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             ))
         }
         BalancedBracketSuffix::Boundary { accepted, pending } => {
@@ -1742,6 +1900,7 @@ fn retry_leading_bracket_row_head_error_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -1756,6 +1915,7 @@ fn retry_leading_bracket_row_head_error_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if head.payload_view().is_boundary() {
             i.state.finish_node();
@@ -1786,6 +1946,7 @@ fn retry_leading_bracket_row_head_error_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if token_kind(&head) == Some(TokenKind::LBracket) {
@@ -1810,6 +1971,7 @@ fn type_bracket_arrow_tail_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     open.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
@@ -1825,6 +1987,7 @@ fn type_bracket_arrow_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     let exit = match exit {
@@ -1841,6 +2004,7 @@ fn type_bracket_arrow_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
             emit_missing(&mut i, LeadingTrivia::default());
@@ -1866,6 +2030,7 @@ fn type_bracket_row_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::BracketRow.into());
     emit_token_item(&mut i, open);
@@ -1882,6 +2047,7 @@ fn type_bracket_row_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -1901,6 +2067,7 @@ fn type_bracket_arrow_after_row_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut arrow, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -1908,6 +2075,7 @@ fn type_bracket_arrow_after_row_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     if arrow.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -1935,6 +2103,7 @@ fn type_bracket_arrow_after_row_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_type_nud(&arrow) {
@@ -1954,6 +2123,7 @@ fn type_bracket_arrow_after_row_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_type_rhs_boundary(&arrow) {
@@ -1978,6 +2148,7 @@ fn type_group_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedTypeGroup.into());
@@ -1996,6 +2167,7 @@ fn type_group_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -2012,6 +2184,7 @@ fn type_group_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -2030,6 +2203,7 @@ fn type_call_tail_normalized(
     mut item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeCallTail.into());
     emit_token_item(&mut i, open);
@@ -2047,6 +2221,7 @@ fn type_call_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -2063,6 +2238,7 @@ fn type_call_tail_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -2109,6 +2285,7 @@ fn type_arrow_rhs(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -2122,6 +2299,7 @@ fn retry_type_rhs(i: RewriteIn, item: Item, baseline: usize, caller_stops: Stops
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     )
     .0
 }
@@ -2150,6 +2328,7 @@ fn continue_type_tail(
         complete(exit, LineEntry::InLine),
         0,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -2168,6 +2347,7 @@ fn type_path_tail_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypePathTail.into());
     emit_token_item(&mut i, separator);
@@ -2177,6 +2357,7 @@ fn type_path_tail_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -2205,6 +2386,7 @@ fn type_path_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if is_type_caller_boundary(&segment, caller_stops)
@@ -2229,6 +2411,7 @@ fn type_path_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if !type_chain_trivia(segment.leading_view(), baseline) || is_type_path_boundary(&segment) {
@@ -2252,6 +2435,7 @@ fn type_path_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if !is_type_path_segment(&segment) {
@@ -2268,6 +2452,7 @@ fn type_path_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         if is_type_caller_boundary(&segment, caller_stops)
             || is_type_outer_boundary(&segment, outer_boundary)
@@ -2287,6 +2472,7 @@ fn type_path_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if !type_chain_trivia(segment.leading_view(), baseline)
@@ -2307,6 +2493,7 @@ fn type_path_tail_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -2326,6 +2513,7 @@ fn type_path_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     emit_token_item(&mut i, segment);
@@ -2343,6 +2531,7 @@ fn type_path_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -2357,6 +2546,7 @@ fn retry_type_path_segment_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     let mut error_extent: Option<std::ops::Range<usize>> = None;
     emit_recovery_error_run(
@@ -2380,6 +2570,7 @@ fn retry_type_path_segment_normalized(
                 line_entry,
                 fence,
                 pipe_lexical,
+                ambient,
             );
             if item.payload_view().is_boundary()
                 || is_type_caller_boundary(&item, caller_stops)
@@ -2451,6 +2642,7 @@ fn type_apply_argument_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeApplyArgument.into());
     argument.emit_all_remaining_leading(&mut *i.state);
@@ -2469,6 +2661,7 @@ fn type_apply_argument_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -2485,6 +2678,7 @@ fn type_apply_argument_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -2503,6 +2697,7 @@ fn type_arrow_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeArrowTail.into());
     let exit = type_arrow_rhs_normalized(
@@ -2519,6 +2714,7 @@ fn type_arrow_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -2539,6 +2735,7 @@ fn type_arrow_rhs_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_token_item(&mut i, arrow);
     let (mut rhs, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
@@ -2547,6 +2744,7 @@ fn type_arrow_rhs_normalized(
         line_entry,
         fence,
         pipe_lexical,
+        ambient,
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
@@ -2590,6 +2788,7 @@ fn type_arrow_rhs_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if rhs.payload_view().is_boundary()
@@ -2613,6 +2812,7 @@ fn type_arrow_rhs_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -2626,6 +2826,7 @@ fn retry_type_arrow_rhs_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     let mut error_extent: Option<std::ops::Range<usize>> = None;
     emit_recovery_error_run(
@@ -2650,6 +2851,7 @@ fn retry_type_arrow_rhs_normalized(
                     line_entry,
                     fence,
                     pipe_lexical,
+                    ambient,
                 );
             if item.payload_view().is_boundary()
                 || is_type_nud(&item)
@@ -2692,6 +2894,7 @@ fn retry_type_rhs_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -2706,6 +2909,7 @@ fn retry_type_rhs_normalized(
             line_entry,
             fence,
             pipe_lexical,
+            ambient,
         );
         if item.payload_view().is_boundary()
             || is_type_nud(&item)
@@ -2733,6 +2937,7 @@ fn continue_type_tail_normalized(
     exit: NormalizedExit,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match exit {
         NormalizedExit::Complete(Ok(()), line_entry) => scan_type_tail_normalized(
@@ -2748,6 +2953,7 @@ fn continue_type_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => type_tail_normalized(
             i,
@@ -2763,6 +2969,7 @@ fn continue_type_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
             complete(Err(Either::Right(end)), line_entry)

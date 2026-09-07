@@ -1,5 +1,6 @@
 //! Source-free direct Pattern construction.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
@@ -27,7 +28,8 @@ use super::{
     statement::StatementLineHandoff,
     type_expr::{
         required_type_expr_normalized,
-        required_type_expr_with_caller_stops_and_completion_normalized, type_nud_item_normalized,
+        required_type_expr_with_caller_stops_and_completion_normalized_with_ambient,
+        type_nud_item_normalized_with_ambient,
     },
     yumark::FenceBoundary,
 };
@@ -166,7 +168,14 @@ pub(super) fn pattern(i: RewriteIn) -> TailExit {
 }
 
 pub(super) fn pattern_with_stops(i: RewriteIn, stops: PatternStops) -> TailExit {
-    ordinary_exit(pattern_normalized(i, 0, LineEntry::InLine, None, stops))
+    ordinary_exit(pattern_normalized(
+        i,
+        0,
+        LineEntry::InLine,
+        None,
+        stops,
+        Some(AmbientClaimView::root_statement(0)).into(),
+    ))
 }
 
 pub(super) fn pattern_normalized(
@@ -175,6 +184,7 @@ pub(super) fn pattern_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     stops: PatternStops,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) =
         pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
@@ -188,6 +198,7 @@ pub(super) fn pattern_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -202,6 +213,7 @@ fn pattern_from_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     pattern_from_item_with_completion_normalized(
         i,
@@ -213,6 +225,7 @@ fn pattern_from_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
     .0
 }
@@ -239,6 +252,7 @@ fn pattern_from_item_with_completion_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, PatternCompletion) {
     let mut completion = PatternCompletion::Incomplete;
     let exit = pattern_from_item_recording_normalized(
@@ -252,6 +266,7 @@ fn pattern_from_item_with_completion_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     (exit, completion)
 }
@@ -268,6 +283,7 @@ fn pattern_from_item_recording_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     pattern_from_item_recording_with_policy_normalized(
         i,
@@ -282,6 +298,7 @@ fn pattern_from_item_recording_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -299,6 +316,7 @@ fn pattern_from_item_recording_with_policy_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let baseline = delimited_baseline(baseline, item.leading_view());
     i.state.start_node(SyntaxKind::Pattern.into());
@@ -315,6 +333,7 @@ fn pattern_from_item_recording_with_policy_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -334,6 +353,7 @@ fn pattern_from_item_core_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         *completion = PatternCompletion::Incomplete;
@@ -362,6 +382,7 @@ fn pattern_from_item_core_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         recover_pattern_primary_normalized(
@@ -377,6 +398,7 @@ fn pattern_from_item_core_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     }
 }
@@ -397,6 +419,7 @@ pub(super) fn pattern_from_entry_item(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -416,6 +439,7 @@ pub(super) fn pattern_from_entry_item_with_completion(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     );
     PatternOutcome {
         exit: ordinary_exit(exit),
@@ -433,6 +457,7 @@ pub(super) fn pattern_from_entry_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     required_pattern_from_entry_item_with_policy_normalized(
         i,
@@ -445,6 +470,7 @@ pub(super) fn pattern_from_entry_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
     .0
 }
@@ -459,6 +485,7 @@ pub(super) fn pattern_from_entry_item_with_completion_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, PatternCompletion) {
     required_pattern_from_entry_item_with_policy_normalized(
         i,
@@ -471,6 +498,7 @@ pub(super) fn pattern_from_entry_item_with_completion_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -486,6 +514,7 @@ pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, PatternCompletion) {
     let stops = stops | caller_closes.pattern_stops();
     let mut completion = PatternCompletion::Incomplete;
@@ -502,6 +531,7 @@ pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     (exit, completion)
 }
@@ -520,6 +550,7 @@ fn recover_pattern_primary_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     *completion = PatternCompletion::Incomplete;
     if item.payload_view().is_boundary() {
@@ -548,6 +579,7 @@ fn recover_pattern_primary_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -582,6 +614,7 @@ fn recover_pattern_primary_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         if is_pattern_nud(&item, stops) {
@@ -601,6 +634,7 @@ fn recover_pattern_primary_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -618,6 +652,7 @@ fn pattern_from_primary_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     pattern_from_primary_with_recovered_tail_stops_normalized(
         i,
@@ -632,6 +667,7 @@ fn pattern_from_primary_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -649,10 +685,11 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().spelling() == Some("\"") {
         let entry = suffix_marker(i.rb());
-        let exit = rule_literal_normalized(i.rb(), item, item_origin, line_entry, fence);
+        let exit = rule_literal_normalized(i.rb(), item, item_origin, line_entry, fence, ambient);
         item_origin = advanced_origin(item_origin, entry, i.rb());
         return match exit {
             NormalizedRuleLiteralExit::Complete(line_entry) => scan_pattern_tail_normalized(
@@ -666,6 +703,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ),
             NormalizedRuleLiteralExit::Boundary(item, line_entry) => {
                 *completion = PatternCompletion::Incomplete;
@@ -681,6 +719,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             mode,
             item_origin,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         return match exit {
@@ -695,6 +734,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             ),
             NormalizedStringLiteralExit::Boundary(item, line_entry) => {
                 *completion = PatternCompletion::Incomplete;
@@ -718,6 +758,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Some(TokenKind::Integer) => {
@@ -735,6 +776,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Some(TokenKind::Colon | TokenKind::PatternSymbolColon) => {
@@ -764,6 +806,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             )
         }
         Some(TokenKind::LParen) => parenthesized_pattern(
@@ -779,6 +822,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::LBracket) => list_pattern(
             i,
@@ -792,6 +836,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         Some(TokenKind::LBrace) => record_pattern(
             i,
@@ -805,6 +850,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         _ => unreachable!("the Pattern NUD judge accepted only Pattern primaries"),
     }
@@ -885,6 +931,7 @@ fn scan_pattern_tail_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) =
         pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
@@ -900,6 +947,7 @@ fn scan_pattern_tail_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -916,6 +964,7 @@ fn pattern_tail_normalized(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -966,6 +1015,7 @@ fn pattern_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
     if token_kind(&item) == Some(TokenKind::Pipe) && minimum <= PatternPrecedence::Alternation {
@@ -996,6 +1046,7 @@ fn pattern_tail_normalized(
             rhs_origin,
             rhs_line_entry,
             fence,
+            ambient,
         );
         item_origin = advanced_origin(rhs_origin, entry, i.rb());
         i.state.finish_node();
@@ -1010,6 +1061,7 @@ fn pattern_tail_normalized(
             completion,
             item_origin,
             fence,
+            ambient,
         );
     }
     if token_kind(&item) == Some(TokenKind::Colon)
@@ -1029,6 +1081,7 @@ fn pattern_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
         i.state.finish_node();
         return exit;
@@ -1095,6 +1148,7 @@ fn continue_pattern_tail_normalized(
     completion: &mut PatternCompletion,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match exit {
         NormalizedExit::Complete(Ok(()), line_entry) => scan_pattern_tail_normalized(
@@ -1108,6 +1162,7 @@ fn continue_pattern_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => pattern_tail_normalized(
             i,
@@ -1121,6 +1176,7 @@ fn continue_pattern_tail_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         ),
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
             complete(Err(Either::Right(end)), line_entry)
@@ -1139,9 +1195,10 @@ fn pattern_type_annotation_rhs_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut primary, item_origin, line_entry) =
-        type_nud_item_normalized(i.rb(), item_origin, line_entry, fence);
+        type_nud_item_normalized_with_ambient(i.rb(), item_origin, line_entry, fence, ambient);
     if !primary.payload_view().is_boundary()
         && !implicit_delimited_newline(baseline, primary.leading_view())
         && !token_kind(&primary).is_some_and(|kind| caller_closes.contains(kind))
@@ -1150,22 +1207,24 @@ fn pattern_type_annotation_rhs_normalized(
     }
     let caller_stops = caller_closes.type_stops();
     if stops & PATTERN_STOP_IN != 0 {
-        let (exit, primary_found) = required_type_expr_with_caller_stops_and_completion_normalized(
-            i,
-            primary,
-            baseline,
-            caller_stops | STOP_IN,
-            item_origin,
-            line_entry,
-            fence,
-        );
+        let (exit, primary_found) =
+            required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
+                i,
+                primary,
+                baseline,
+                caller_stops | STOP_IN,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            );
         if primary_found {
             *completion = PatternCompletion::Complete;
         }
         exit
     } else if caller_stops != 0 {
         *completion = PatternCompletion::Complete;
-        required_type_expr_with_caller_stops_and_completion_normalized(
+        required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
             i,
             primary,
             baseline,
@@ -1173,11 +1232,20 @@ fn pattern_type_annotation_rhs_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
         .0
     } else {
         *completion = PatternCompletion::Complete;
-        required_type_expr_normalized(i, primary, baseline, item_origin, line_entry, fence)
+        required_type_expr_normalized(
+            i,
+            primary,
+            baseline,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
     }
 }
 

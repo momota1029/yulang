@@ -1,5 +1,6 @@
 //! Direct canonical statements and their closed sequence owners.
 
+use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
@@ -61,6 +62,7 @@ pub(super) fn statement(i: RewriteIn, baseline: usize, stops: Stops) -> TailExit
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -71,10 +73,21 @@ pub(super) fn statement_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let ambient = ambient.map(|view| view.statement(baseline));
     let (item, item_origin, line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-    statement_from_item_normalized(i, item, baseline, stops, item_origin, line_entry, fence)
+    statement_from_item_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
 }
 
 pub(super) fn statement_from_item(
@@ -91,6 +104,7 @@ pub(super) fn statement_from_item(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -103,7 +117,9 @@ pub(super) fn statement_from_item_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let ambient = ambient.map(|view| view.statement(baseline));
     let Some(admission) =
         classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
     else {
@@ -119,6 +135,7 @@ pub(super) fn statement_from_item_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -138,6 +155,7 @@ pub(super) fn canonical_statement(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(baseline)).into(),
     ))
 }
 
@@ -151,6 +169,7 @@ pub(super) fn canonical_statement_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
         .expect("canonical Statement wrapper requires an admitted Item");
@@ -164,6 +183,7 @@ pub(super) fn canonical_statement_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -178,6 +198,7 @@ pub(super) fn canonical_statement_from_admission_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Statement.into());
     let exit = canonical_statement_contents_from_admission_normalized(
@@ -190,6 +211,7 @@ pub(super) fn canonical_statement_from_admission_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -208,6 +230,7 @@ pub(super) fn canonical_statement_contents_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
         .expect("canonical Statement contents require an admitted Item");
@@ -221,6 +244,7 @@ pub(super) fn canonical_statement_contents_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -235,6 +259,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     match admission.0 {
         StatementFamily::Struct => {
@@ -247,6 +272,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             return exit;
         }
@@ -260,6 +286,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Error => {
@@ -272,6 +299,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Mod => {
@@ -284,6 +312,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
             return exit;
         }
@@ -297,6 +326,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Role => {
@@ -309,6 +339,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Impl => {
@@ -321,6 +352,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Cast => {
@@ -333,6 +365,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Act => {
@@ -345,6 +378,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::For => {
@@ -357,6 +391,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Binding => {
@@ -369,6 +404,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
         StatementFamily::Use => {
@@ -394,6 +430,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
         }
     }
@@ -495,6 +532,7 @@ pub(super) fn indented_statement_block(i: RewriteIn, base_indent: usize, stops: 
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(base_indent)).into(),
     ))
 }
 
@@ -505,6 +543,7 @@ pub(super) fn indented_statement_block_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (mut item, item_origin, line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, base_indent, stops);
@@ -518,6 +557,7 @@ pub(super) fn indented_statement_block_normalized(
     let block_indent = indentation_after_newline(item.leading_view())
         .filter(|&indentation| indentation > base_indent)
         .expect("C2 admission proved a strictly indented block opening");
+    let ambient = ambient.map(|view| view.statement(block_indent));
 
     item.emit_all_remaining_leading(&mut *i.state);
     let exit = statement_sequence_normalized(
@@ -530,6 +570,7 @@ pub(super) fn indented_statement_block_normalized(
         line_entry,
         fence,
         true,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -550,6 +591,7 @@ pub(super) fn braced_nud_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = braced_statement_block_normalized(
@@ -559,6 +601,7 @@ pub(super) fn braced_nud_normalized(
         item_origin,
         line_entry,
         fence,
+        ambient,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     continue_normalized_tail(
@@ -571,6 +614,7 @@ pub(super) fn braced_nud_normalized(
         exit,
         item_origin,
         fence,
+        ambient,
     )
 }
 
@@ -588,6 +632,7 @@ pub(super) fn braced_statement_block(
         0,
         LineEntry::InLine,
         None,
+        Some(AmbientClaimView::root_statement(incoming_baseline)).into(),
     ))
 }
 
@@ -598,7 +643,9 @@ pub(super) fn braced_statement_block_normalized(
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let ambient = ambient.map(AmbientClaimView::braced);
     i.state
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
     emit_token_item(&mut i, open);
@@ -628,6 +675,7 @@ pub(super) fn braced_statement_block_normalized(
         line_entry,
         fence,
         true,
+        ambient,
     );
     i.state.finish_node();
     exit
@@ -644,6 +692,7 @@ fn statement_sequence_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     mut first: bool,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let mut known_admission = None;
     loop {
@@ -662,6 +711,7 @@ fn statement_sequence_normalized(
                     fence,
                     first,
                     known_admission,
+                    ambient,
                 );
                 item_origin = advanced_origin(item_origin, entry, i.rb());
                 (item, line_entry) = match indented_statement_successor_normalized(
@@ -698,6 +748,7 @@ fn statement_sequence_normalized(
                     fence,
                     first,
                     known_admission,
+                    ambient,
                 );
                 item_origin = advanced_origin(item_origin, entry, i.rb());
                 (item, line_entry, item_origin, known_admission) =
@@ -748,6 +799,7 @@ fn indented_statement_slot_normalized(
     fence: Option<&FenceBoundary>,
     first: bool,
     known_admission: Option<Option<StatementAdmission>>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
@@ -779,6 +831,7 @@ fn indented_statement_slot_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -810,6 +863,7 @@ fn indented_statement_slot_normalized(
         next_origin,
         next_line_entry,
         fence,
+        ambient,
     )
 }
 
@@ -904,6 +958,7 @@ fn braced_statement_slot_normalized(
     fence: Option<&FenceBoundary>,
     first: bool,
     known_admission: Option<Option<StatementAdmission>>,
+    ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return braced_terminal_normalized(i, item, line_entry);
@@ -925,6 +980,7 @@ fn braced_statement_slot_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         );
     }
 
@@ -954,6 +1010,7 @@ fn braced_statement_slot_normalized(
             item_origin,
             line_entry,
             fence,
+            ambient,
         )
     } else {
         complete(handoff(item), line_entry)
