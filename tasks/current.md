@@ -11,12 +11,11 @@ Parenthesized/EffectRow/NamedRecord/nested-PV producer endings; it preserves
 their internal child expressions and hands every external tail to existing PV
 payload handling.  It excludes leading BracketRow, valid tag names, public/O6,
 and all legacy topology changes.  This is a material recovery/scope expansion,
-so the recorded narrow-correction delegation does not apply: construction is
-blocked only on a fresh user choice between the reviewed option 1 repair and
-option 2 intentional divergence.  The separately authorized shared delimited
-candidate remains unstaged in `type_expr/delimited.rs` and its focused tests;
-no integration may occur until this head-completion decision and its proof
-gate close.
+so the recorded narrow-correction delegation did not apply.  The user selected
+option 1 on 2026-09-07; one M3 bounded construction/proof pass is active.  The
+separately authorized shared delimited candidate remains unstaged in
+`type_expr/delimited.rs` and its focused tests; integration requires this
+head-completion proof gate and its stated sibling evidence to close.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology

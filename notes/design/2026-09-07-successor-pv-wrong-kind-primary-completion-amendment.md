@@ -1,6 +1,6 @@
 # Successor PV wrong-kind primary-completion amendment
 
-Status: Reviewed; awaiting fresh user choice
+Status: Authoritative; bounded construction approved
 
 Date: 2026-09-07
 
@@ -10,6 +10,10 @@ an isolated base/candidate successor comparison
 Reviewed-by: M3 independent compiler/recovery and specification review; one
 batched Draft repair followed by clean compiler/recovery and specification
 delta review
+
+Approved-by: user
+
+Approved-at: 2026-09-07
 
 Scope: the private `PolymorphicVariantTagName` wrong-kind recovery path only.
 It proposes that this path parse exactly one accepted Type primary before it
@@ -177,6 +181,6 @@ requires an intentional successor-recovery divergence record before cutover.
 The recorded recommendation delegation is inapplicable.  This proposal changes
 the PV head-completion invariant, payload ownership, and possible recovery
 record sequences, so it is a material recovery/scope expansion rather than a
-same-carrier range/evidence correction.  A fresh explicit user choice is
-required after independent Draft review closes; until that choice is recorded,
-it authorizes no implementation.
+same-carrier range/evidence correction.  The user selected option 1 on
+2026-09-07.  The §2–3 bounded construction is now authorized; all stated proof
+obligations and exclusions remain mandatory.
