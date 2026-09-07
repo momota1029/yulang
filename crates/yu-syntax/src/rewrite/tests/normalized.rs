@@ -3299,7 +3299,7 @@ fn normalized_type_forall_returns_each_phase_boundary_after_only_owned_recovery(
 }
 
 #[test]
-fn normalized_type_forall_malformed_probe_stops_before_outer_transition() {
+fn normalized_type_forall_malformed_run_stops_before_outer_transition() {
     let fence = active_fence();
     let origin = 2900;
     let accepted = "> > for 'a @";
@@ -3309,7 +3309,7 @@ fn normalized_type_forall_malformed_probe_stops_before_outer_transition() {
     let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
         exit
     else {
-        panic!("the malformed-phase probe must return the exact transition boundary")
+        panic!("the malformed-phase run must return the exact transition boundary")
     };
     let root = SyntaxNode::new_root(green);
 
@@ -3334,13 +3334,14 @@ fn normalized_type_forall_malformed_probe_stops_before_outer_transition() {
 }
 
 #[test]
-fn normalized_type_forall_enters_polymorphic_variants_from_body_and_recovery_slots() {
+fn normalized_type_forall_resolves_colon_before_rhs_polymorphic_variants() {
     let fence = active_fence();
-    for (accepted, expected_error, expected_missing) in [
-        ("> > for 'a :{A}", 0, 1),
-        ("> > for 'a: :{A}", 0, 0),
-        ("> > for 'a @ :{A}", 1, 0),
-        ("> > for 'a: @ :{A}", 1, 0),
+    for (accepted, expected_error, expected_missing, variants, records) in [
+        ("> > for 'a :{A}", 0, 1, 0, 1),
+        ("> > for 'a: :{A}", 0, 0, 1, 0),
+        ("> > for 'a @ :{A}", 1, 1, 0, 1),
+        ("> > for 'a @ : :{A}", 1, 0, 1, 0),
+        ("> > for 'a: @ :{A}", 1, 0, 1, 0),
     ] {
         let source = format!("{accepted}\n> > ```\nouter");
         let (green, exit, remainder) =
@@ -3348,7 +3349,7 @@ fn normalized_type_forall_enters_polymorphic_variants_from_body_and_recovery_slo
         let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
             exit
         else {
-            panic!("the forall owner must parse the nested polymorphic variant: {accepted:?}")
+            panic!("the forall owner must parse its record or variant body: {accepted:?}")
         };
         let root = SyntaxNode::new_root(green);
 
@@ -3359,7 +3360,14 @@ fn normalized_type_forall_enters_polymorphic_variants_from_body_and_recovery_slo
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
                 .count(),
-            1,
+            variants,
+            "{accepted:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::NamedRecordType)
+                .count(),
+            records,
             "{accepted:?}"
         );
         assert_eq!(

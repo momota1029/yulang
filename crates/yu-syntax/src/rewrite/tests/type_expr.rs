@@ -16,6 +16,7 @@ use chasa_recover::Recoverable as _;
 
 mod bracket_arrow_recovery;
 mod bracket_recovery;
+mod forall_recovery;
 mod leading_row_recovery;
 mod pe_recovery;
 mod pv_recovery;
@@ -5787,17 +5788,10 @@ fn forall_type_recovers_root_separators_as_its_own_malformed_phase() {
 
 #[test]
 fn forall_type_separator_recovery_keeps_first_binder_and_continuation_phases_distinct() {
-    for (source, consumed, separator) in [("for, T", "for,", ","), ("for; T", "for;", ";")] {
+    for (source, malformed) in [("for, T", ", T"), ("for; T", "; T")] {
         let (green, exit) = run_type(source);
-        assert_eq!(green.to_string(), consumed, "{source:?}");
-        assert!(matches!(
-            exit,
-            Some(Err(Either::Left(item)))
-                if item.payload_view().token_kind() == Some(TokenKind::Identifier)
-                    && item.payload_view().spelling() == Some("T")
-                    && item.leading_view().has_ordinary_trivia()
-                    && !item.leading_view().has_ordinary_newline()
-        ));
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let forall = SyntaxNode::new_root(green)
             .descendants()
             .find(|node| node.kind() == SyntaxKind::ForallType)
@@ -5805,8 +5799,8 @@ fn forall_type_separator_recovery_keeps_first_binder_and_continuation_phases_dis
         let error = forall
             .descendants()
             .find(|node| node.kind() == SyntaxKind::Error)
-            .expect("separator error");
-        assert_eq!(error.text().to_string(), separator, "{source:?}");
+            .expect("malformed first binder");
+        assert_eq!(error.text().to_string(), malformed, "{source:?}");
         assert_eq!(
             error.parent().map(|node| node.kind()),
             Some(SyntaxKind::ForallTypeBinder),
@@ -6081,7 +6075,7 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
         ("for @ 'a: T", "@", 0, 2),
         ("for @: T", "@", 0, 1),
         ("for 'a @", "@", 0, 1),
-        ("for 'a @ 'b: T", "@", 0, 3),
+        ("for 'a @ 'b: T", "@", 0, 2),
         ("for 'a @: T", "@", 0, 1),
         ("for 'a @ T", "@", 0, 1),
         ("for 'a: @", "@", 0, 1),
@@ -6171,7 +6165,7 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::ForallTypeBinder)
             .count(),
-        3
+        2
     );
 
     let nested = run_type("for (@: T) 'a: T").0;

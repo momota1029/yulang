@@ -92,10 +92,18 @@ Type: 176; normalized Type/unmatched head: 27; declaration: 39; output: 4;
 recovery output: 25; package check passed. The T5f EOF witness transcription
 contradiction is corrected in the design without claiming embedded proof.
 
-Next: forall recovery. The remaining required-Type Missing sites in `type_expr.rs` are
-caller-owned slots, not automatically Primary records; retain that distinction
-in the typed-output ledger. The old eighth-terminal proposal is not a required
-prerequisite. No public dispatch has been switched yet.
+Forall-owned construction is complete under
+`2026-09-08-successor-forall-current-item-recovery.md`: phase-owned forward
+Errors replace the role lookahead, with typed Binder/Boundary/Colon/Body and
+exact mandatory-colon ownership. Ten new typed tests passed; full Type: 186;
+normalized Type/unmatched head: 27; declaration: 39; output: 4; recovery
+output: 25; package check passed. No repair round was needed.
+
+Next: the two remaining required-Type Missing sites in `type_expr.rs` and
+their caller contracts. They are caller-owned slots, not automatically Primary
+records; retain that distinction in the typed-output ledger. The old
+eighth-terminal proposal is not a required prerequisite. No public dispatch
+has been switched yet.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
@@ -103,9 +111,10 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Complete the remaining Type-owned recovery sites (forall) and their parent
-   helper call sites. PV-local construction does not
-   certify raw recovery still emitted by a nested non-PV owner.
+1. Finish the caller-owned required-Type helper sites and the Type/PV ledger,
+   then migrate the remaining mutually recursive Expression/Pattern/Statement/
+   declaration/literal owners. Local Type construction does not certify raw
+   recovery still emitted by another owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption
