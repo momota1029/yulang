@@ -53,12 +53,12 @@ ownership.  A second slice pins spaced `+`/`@@` no-retry native/EOF behavior;
 the third pins spaced-comment native close versus EOF prefix/remainder as a
 distinct path; the fourth pins unspaced `+`/`@@` outer-tag no-retry
 native/EOF behavior.  Direct PV ambient evidence pins root visible/no-stop
-initial/retry and indented strict-dedent initial; query-only indented/dedent
-tests are not a substitute.  Its immediate next action is to establish one
-concrete strict-dedent retry source/result and receive a pre-write
-specification audit before adding that distinct slice; its status does not
-authorize rewrite-source changes or alter the two-file delimiter integration
-block.
+initial/retry and indented strict-dedent initial/recovery-continuation;
+query-only indented/dedent tests are not a substitute.  Its immediate next
+action is to establish one concrete nested-If identity direct source/result and
+receive a pre-write specification audit before adding that distinct slice; its
+status does not authorize rewrite-source changes or alter the two-file
+delimiter integration block.
 
 `2026-09-07-successor-pv-payload-admission-capability-amendment.md` remains a
 Draft problem record, not a construction gate.  Initial M3 review found that
