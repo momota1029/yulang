@@ -41,22 +41,19 @@ heredoc / nested / fence-restoration rows and a separate production cell bridge
 must be pinned or explicitly selected before an ambient carrier may enter those
 owners.
 
-`2026-09-07-successor-ambient-claim-context-prerequisite-amendment.md` is the
-new M3 Draft for that first prerequisite.  It separates legacy's pure ambient
-claim query from all source observation, fixes the ordinary root/indented /
-inline / braced / If propagation inventory, including retirement before an
-owned Else body and outer Type tail.  The first possible gate carries an
-explicit unavailable context through virtual/Yumark paths, so it cannot choose
-root/braced/inherited semantics or enable ambient-sensitive payload admission
-there.  The virtual-root proposal remains a later separate decision.  Initial
-compiler/recovery and specification review, repaired specification delta, and
-the final compiler `None`-propagation closure are clean.  The sole active
-decision, §6.2 option 1, was selected on 2026-09-07.  One private
-ordinary-only construction/proof pass is authorized: propagate the immutable
-carrier, preserve virtual/Yumark `None`, and add only internal lifetime /
-unavailable-boundary controls.  `claims`, PV output/admission, scalar
+`2026-09-07-successor-ambient-claim-context-prerequisite-amendment.md` has
+completed its one Authoritative private ordinary-only construction/proof pass
+at `b85c32f3`.  The immutable carrier reaches the fixed ordinary Statement,
+declaration, Type, and recursive Type/PV inventory; root/indented replacement,
+inline forwarding, braced clear, and own-Else/outer-tail restoration now have
+actual-entrance controls.  Virtual interpolation and the Yumark witness keep
+the explicitly unavailable `None` context.  The test-only source-free proof
+hook observes those entrances; non-test builds stay transparent around the
+logical optional view.  Fresh M3 compiler/recovery, specification, and
+regression delta reviews are clean.  `claims`, PV output/admission, scalar
 observation, virtual policy, production Yumark, public scope, and legacy
-grammar remain excluded.
+grammar remain excluded.  The next scalar payload-admission construction is
+still blocked on its separate Draft and a new reviewed/user-approved gate.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology

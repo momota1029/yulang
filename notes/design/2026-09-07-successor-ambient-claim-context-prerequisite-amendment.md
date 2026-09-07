@@ -1,7 +1,6 @@
 # Successor ambient-claim context prerequisite amendment
 
-Status: Authoritative; one private ordinary-only construction/proof pass
-authorized
+Status: Authoritative; ordinary-only construction/proof pass complete
 
 Date: 2026-09-07
 
@@ -324,6 +323,35 @@ private ordinary-only construction/proof pass under §5.  The implementation
 must preserve virtual/Yumark `None`, keep `claims` unused, and make no PV
 payload/output, scalar-observer, virtual-policy, production-cell, public, or
 legacy-grammar change.
+
+### 6.3 Construction/proof completion
+
+The authorized private pass completed at `b85c32f3` on 2026-09-07.  It adds a
+by-value `AmbientClaimContext` that is transparent around exactly the logical
+`Option<AmbientClaimView>` in non-test builds; its test-only immutable function
+pointer is a source-free proof hook and is not parser state.  The fixed §3
+inventory now threads the context through Statement, declaration, Type, and
+recursive Type/PV owners.  Ordinary ingress creates `Some`, all nested
+transitions use the stipulated map behavior, braced owners clear a present
+view, and virtual interpolation/Yumark enter with `None`.
+
+Actual-entrance controls prove unavailable virtual Type/PV paths, recursive
+ordinary Type/PV forwarding, and own-Else/outer-tail retirement.  They catch a
+private sentinel only after observing the received carrier, so dropped hooks or
+wrong `Some`/`None`/frame chains cannot pass merely through unchanged output.
+`claims` remains unused outside carrier unit tests; no PV output/admission,
+scalar observer, recovery/output/Item state, source retention, allocation, or
+public behavior was added.
+
+The first implementation review found that output-only controls could not prove
+actual propagation.  One bounded proof-control repair followed, and fresh M3
+compiler/recovery, specification, and regression delta reviews were clean.
+The staged carrier-only tree passed format, non-test package check, and all 12
+carrier controls.  Its full `yu-syntax` library run had 1300 pass, 9 fail, and
+2 ignored; the unmodified `HEAD` comparison had the same 9 failures (1288
+pass, 9 fail, 2 ignored), so the pass adds no failure.  The failures are the
+existing nested-delimiter residual, not this carrier.  The unrelated dirty
+horizontal-delimiter candidate and `tests/type_expr.rs` remain excluded.
 
 The later pre-Item scalar observer remains separately blocked by the PV
 payload-admission capability amendment: it needs a finite raw scalar grammar,
