@@ -582,7 +582,18 @@ pub(super) struct PathSegmentRetryLeadingPrefix {
     range: std::ops::Range<usize>,
 }
 
+pub(super) struct CallArgumentRetryLeadingPrefix {
+    end_part: usize,
+    range: std::ops::Range<usize>,
+}
+
 impl PathSegmentRetryLeadingPrefix {
+    pub(super) fn range(&self) -> std::ops::Range<usize> {
+        self.range.clone()
+    }
+}
+
+impl CallArgumentRetryLeadingPrefix {
     pub(super) fn range(&self) -> std::ops::Range<usize> {
         self.range.clone()
     }
@@ -776,6 +787,46 @@ impl Item {
         prefix: PathSegmentRetryLeadingPrefix,
     ) {
         debug_assert_eq!(self.first_unemitted_leading, 0);
+        self.emit_leading_prefix_with(output, prefix.end_part, |_, _| {});
+    }
+
+    /// Validates the complete same-line leading prefix which a CallArgument
+    /// Error may own before retrying this Item's Type-primary payload.
+    pub(super) fn call_argument_retry_leading_prefix(
+        &self,
+        successor_origin: usize,
+    ) -> Option<CallArgumentRetryLeadingPrefix> {
+        if self.first_unemitted_leading != 0
+            || self.physical_leading.is_empty()
+            || self.fragments.is_some()
+            || self.payload_text().is_none()
+            || self.physical_leading.iter().any(|part| {
+                matches!(
+                    part.kind,
+                    TriviaKind::Newline | TriviaKind::LineComment | TriviaKind::YmQuotePrefix
+                ) || part.text.contains(['\r', '\n'])
+            })
+        {
+            return None;
+        }
+        let extent = self.extent(successor_origin);
+        let range = extent.remaining();
+        let payload = extent.payload();
+        (!range.is_empty() && range.end == payload.start).then_some(
+            CallArgumentRetryLeadingPrefix {
+                end_part: self.physical_leading.len(),
+                range,
+            },
+        )
+    }
+
+    pub(super) fn emit_call_argument_retry_leading_prefix(
+        &mut self,
+        output: &mut RewriteOutput,
+        prefix: CallArgumentRetryLeadingPrefix,
+    ) {
+        debug_assert_eq!(self.first_unemitted_leading, 0);
+        debug_assert_eq!(prefix.end_part, self.physical_leading.len());
         self.emit_leading_prefix_with(output, prefix.end_part, |_, _| {});
     }
 

@@ -38,16 +38,17 @@ credit; the aggregate T2 matrix row remains Open until O6 successor-Yumark
 adoption proves actual embedded AST/direct fact equality and successor
 topology.  Public cutover remains excluded.
 
-T3a TypeCall local construction is complete under the Authoritative T3
-amendment.  It migrates only CallArgument, CallArgumentSeparator, and TypeCall
-close Missing records plus Call-only inherited type-ML separator recovery.
-M3 compiler/recovery, specification, and regression review found two priority
-defects; one repair and delta review are clean.  Focused T3a/TypeExpression/
-legacy-call checks, package check, formatting, and diff check passed with zero
-timing processes.  The next ordered gate is T3b CallArgument Error completion:
-the seventh CallArgument-only terminal and direct-child topology exception.
-No other owner gains authority, and the aggregate T3 matrix row remains Open
-until O6 real successor-Yumark fact equality.
+T3 TypeCall local construction is complete under the Authoritative amendment.
+T3a migrates CallArgument, CallArgumentSeparator, and TypeCall-close Missing
+records plus Call-only inherited type-ML separator recovery.  T3b adds the
+seventh CallArgument-only terminal, native Error-child exception, and Call
+close Error recovery.  M3 compiler/recovery, specification, and regression
+review found and closed priority/close-continuation/test-evidence defects in
+two bounded repair rounds.  Focused T3a/T3b/TypeExpression/output/legacy-call
+checks, package check, formatting, and diff check passed with zero timing
+processes.  No other owner gains authority, and the aggregate T3 matrix row
+remains Open until O6 real successor-Yumark fact equality.  The next candidate
+needs a fresh preflight from the remaining T4 finite owner register.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→

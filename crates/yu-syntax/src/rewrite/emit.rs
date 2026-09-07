@@ -32,10 +32,17 @@ pub(super) struct ErrorRunOutput<'a, 'source, 'recover, 'operators, 'output, 'fr
 enum ErrorRunSeal {
     RecordThroughRetryLeading(UnexpectedCategory),
     PathSegmentRetryLeadingPrefix(UnexpectedCategory),
+    CallArgumentRetryLeadingPrefix(UnexpectedCategory),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PathSegmentRetryLeadingSeal {
+    Ineligible,
+    Sealed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CallArgumentRetryLeadingSeal {
     Ineligible,
     Sealed,
 }
@@ -146,6 +153,39 @@ impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
         PathSegmentRetryLeadingSeal::Sealed
     }
 
+    /// Emits one eligible complete same-line leading prefix from the same
+    /// borrowed CallArgument retry Item, then seals the equal Error/record
+    /// extent. Payload and boundary eligibility remain the Call owner's fact.
+    pub(super) fn seal_call_argument_retry_leading_prefix(
+        &mut self,
+        retry: &mut Item,
+        successor_origin: usize,
+        category: UnexpectedCategory,
+    ) -> CallArgumentRetryLeadingSeal {
+        self.assert_unsealed();
+        assert!(
+            self.unexpected.is_empty(),
+            "CallArgument retry-leading sealing replaces ordinary unexpected evidence"
+        );
+        let error_node_extent = self
+            .error_node_extent
+            .as_ref()
+            .expect("CallArgument retry-leading sealing requires a nonempty Error body");
+        let Some(prefix) = retry.call_argument_retry_leading_prefix(successor_origin) else {
+            return CallArgumentRetryLeadingSeal::Ineligible;
+        };
+        let prefix_range = prefix.range();
+        if prefix_range.start != error_node_extent.end {
+            return CallArgumentRetryLeadingSeal::Ineligible;
+        }
+        let sealed_extent = error_node_extent.start..prefix_range.end;
+        retry.emit_call_argument_retry_leading_prefix(&mut *self.input.state, prefix);
+        self.error_node_extent = Some(sealed_extent.clone());
+        self.record_extent = Some(sealed_extent);
+        self.sealed = Some(ErrorRunSeal::CallArgumentRetryLeadingPrefix(category));
+        CallArgumentRetryLeadingSeal::Sealed
+    }
+
     fn include_extent(&mut self, next: Range<usize>) {
         self.assert_unsealed();
         assert!(next.start < next.end, "an Error-run segment is nonempty");
@@ -246,6 +286,14 @@ pub(super) fn emit_recovery_error_run<R>(
             }])
         }
         Some(ErrorRunSeal::PathSegmentRetryLeadingPrefix(category)) => {
+            assert!(unexpected.is_empty());
+            assert_eq!(range, error_node_extent);
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category,
+            }])
+        }
+        Some(ErrorRunSeal::CallArgumentRetryLeadingPrefix(category)) => {
             assert!(unexpected.is_empty());
             assert_eq!(range, error_node_extent);
             Arc::from([UnexpectedSyntax::Token {

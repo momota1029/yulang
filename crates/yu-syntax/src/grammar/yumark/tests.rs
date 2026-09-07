@@ -3432,6 +3432,184 @@ fn gate3b_path_segment_legacy_local_baselines_pin_error_and_continuation() {
 }
 
 #[test]
+fn gate3b_type_call_legacy_local_baselines_pin_error_and_continuation() {
+    for (source, role, expected, error_range, error_text, retry_range) in [
+        (
+            "T(@ A)",
+            GrammarRole::Type(TypeRole::CallArgument),
+            ExpectedSyntax::TypeExpression,
+            2..4,
+            "@ ",
+            Some(4..5),
+        ),
+        (
+            "T(@@A)",
+            GrammarRole::Type(TypeRole::CallArgument),
+            ExpectedSyntax::TypeExpression,
+            2..4,
+            "@@",
+            Some(4..5),
+        ),
+        (
+            "T(@/*c*/ A)",
+            GrammarRole::Type(TypeRole::CallArgument),
+            ExpectedSyntax::TypeExpression,
+            2..9,
+            "@/*c*/ ",
+            Some(9..10),
+        ),
+        (
+            "T(@ , A)",
+            GrammarRole::Type(TypeRole::CallArgument),
+            ExpectedSyntax::TypeExpression,
+            2..3,
+            "@",
+            Some(6..7),
+        ),
+        (
+            "T(@ @@A)",
+            GrammarRole::Type(TypeRole::CallArgument),
+            ExpectedSyntax::TypeExpression,
+            2..6,
+            "@ @@",
+            Some(6..7),
+        ),
+        (
+            "T(A] )",
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::TypeCall,
+                delimiter: Delimiter::Parenthesis,
+            },
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            3..4,
+            "]",
+            None,
+        ),
+    ] {
+        let mut ast_input = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        let mut ast_sink = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let ast = crate::grammar::type_expr::parse_type_expression(
+            In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut))
+                .set_local(&mut ast_local),
+        )
+        .expect("legacy AST TypeExpression");
+        assert_eq!(ast.range(), 0..source.len(), "AST continuation: {source:?}");
+        assert_eq!(ast_input.remainder(), "", "AST remainder: {source:?}");
+        assert_eq!(
+            ast_local.type_expression_episode_depth(),
+            0,
+            "AST episode: {source:?}"
+        );
+        assert!(ast_sink.take_merged().is_none(), "AST sink: {source:?}");
+        assert!(!ast_cut, "AST cut: {source:?}");
+
+        let mut direct_input = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        let mut direct_sink = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_input,
+            &mut direct_sink,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        let parsed = crate::grammar::type_expr::commit_direct_type_expression(&mut committed)
+            .expect("legacy direct TypeExpression");
+        assert_eq!(parsed.range(), 0..source.len(), "direct range: {source:?}");
+        committed.finish_node();
+        let output = committed.into_output();
+        assert_eq!(direct_input.remainder(), "", "direct remainder: {source:?}");
+        assert_eq!(
+            direct_local.type_expression_episode_depth(),
+            0,
+            "direct episode: {source:?}"
+        );
+        assert!(
+            direct_sink.take_merged().is_none(),
+            "direct sink: {source:?}"
+        );
+        assert!(!direct_cut, "direct cut: {source:?}");
+        let [record] = output.committed_recoveries() else {
+            panic!("one legacy direct TypeCall recovery: {source:?}")
+        };
+        assert_eq!(record.site.role, role, "record role: {source:?}");
+        assert_eq!(record.site.range, error_range, "record range: {source:?}");
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            &*record.unexpected,
+            [UnexpectedSyntax::Token {
+                range: error_range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }],
+            "unexpected: {source:?}"
+        );
+        assert_eq!(record.primary_expectation, 0);
+        assert_eq!(record.expectations.len(), 1);
+        assert_eq!(record.expectations[0].role, role);
+        assert_eq!(record.expectations[0].expected, expected);
+        assert_eq!(record.expectations[0].range, error_range);
+        assert_eq!(
+            record.expectations[0].sources,
+            ExpectationSources::COMMITTED_RECOVERY_RULE
+        );
+
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source, "lossless direct: {source:?}");
+        let call = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+            .expect("legacy direct TypeCallTail");
+        let error = call
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("legacy direct TypeCall Error");
+        assert_eq!(error.text(), error_text, "Error text: {source:?}");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            error_range,
+            "Error range: {source:?}"
+        );
+        let tokens = error
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .collect::<Vec<_>>();
+        let [token] = tokens.as_slice() else {
+            panic!("one coalesced legacy TypeCall Unknown: {source:?}")
+        };
+        assert_eq!(token.kind(), SyntaxKind::Unknown);
+        assert_eq!(token.text(), error_text);
+        if let Some(retry_range) = retry_range {
+            let retry = call
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| {
+                    token.kind() == SyntaxKind::Identifier
+                        && token.text() == "A"
+                        && (usize::from(token.text_range().start())
+                            ..usize::from(token.text_range().end()))
+                            == retry_range
+                })
+                .expect("legacy TypeCall retries A in the same owner");
+            assert!(!retry.parent_ancestors().any(|ancestor| ancestor == error));
+        }
+        let close = call
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::RParen)
+            .expect("legacy matching TypeCall close");
+        assert_eq!(
+            usize::from(close.text_range().start())..usize::from(close.text_range().end()),
+            source.len() - 1..source.len(),
+            "matching close: {source:?}"
+        );
+    }
+}
+
+#[test]
 fn gate3b_path_segment_legacy_direct_baselines_pin_continuation_without_ast_fact_equality() {
     for (source, error_range, error_text, retry_in_path, retry_in_apply) in [
         ("\\ref({type T = A::@})", 18..19, "@", false, false),

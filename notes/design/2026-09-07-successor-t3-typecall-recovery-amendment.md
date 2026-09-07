@@ -27,14 +27,14 @@ completion that current output authority cannot express.  It does not authorize
 ParenthesizedTypeGroup, EffectRow, BracketRow, T4--T7/PV1, Yumark/session
 transport, public dispatch, legacy production changes, or cutover.
 
-Implementation status: T3a local Call Missing/inherited type-ML construction
-completed on 2026-09-07 after M3 compiler/recovery, specification, and
-regression implementation review, one batched repair, and clean delta review.
-It covers only §§1--2.  Focused T3a/TypeExpression/legacy-call tests,
-`cargo check -p yu-syntax`, formatting, and diff checks passed; static cost is
-bounded and timing usage is zero.  T3b's seventh terminal and Error topology,
-O6 real successor-Yumark fact equality, all non-Call owners, and public cutover
-remain deferred.
+Implementation status: T3a and T3b local Call construction completed on
+2026-09-07.  T3a passed M3 compiler/recovery, specification, and regression
+implementation review, one batched repair, and clean delta review.  T3b passed
+the same panel after one repair and a test-only micro-delta.  Focused T3a/T3b,
+TypeExpression/output/legacy-call tests, `cargo check -p yu-syntax`,
+formatting, and diff checks passed; static cost is bounded and timing usage is
+zero.  O6 real successor-Yumark fact equality, all non-Call owners, and public
+cutover remain deferred.
 
 Governing sources:
 

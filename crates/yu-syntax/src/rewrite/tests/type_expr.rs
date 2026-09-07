@@ -96,6 +96,46 @@ fn expected_type_call_close(id: u32, at: usize) -> CommittedRecoveryRecord {
     }
 }
 
+fn expected_type_call_close_error(id: u32, range: Range<usize>) -> CommittedRecoveryRecord {
+    let role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::TypeCall,
+        delimiter: Delimiter::Parenthesis,
+    };
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Error,
+        unexpected: Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            )),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+fn expected_type_call_argument_error(id: u32, range: Range<usize>) -> CommittedRecoveryRecord {
+    expected_type_expression_error(
+        id,
+        TypeRole::CallArgument,
+        range.clone(),
+        Arc::from([UnexpectedSyntax::Token {
+            range,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    )
+}
+
 fn expected_type_call_separator(id: u32, at: usize) -> CommittedRecoveryRecord {
     let role = GrammarRole::Type(TypeRole::CallArgumentSeparator);
     let range = at..at;
@@ -2767,6 +2807,14 @@ fn type_call_t3a_inherited_ml_retries_arguments_after_owned_trivia_and_close_win
             close_range,
             "{source:?}",
         );
+        if source.contains('\n') || source.contains('\r') {
+            assert!(
+                call.children_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| token.kind() == SyntaxKind::Newline),
+                "Call owns retry newline outside Error: {source:?}",
+            );
+        }
 
         let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
         let (frozen_green, _, frozen_records) = run_type_with_recoveries(source, Some(&frozen));
@@ -2937,12 +2985,15 @@ fn type_call_t3a_missing_phase_preserves_outer_and_caller_boundaries_atomically(
 }
 
 #[test]
-fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emission() {
+fn type_call_t3b_error_retry_preserves_call_boundaries_before_leading_emission() {
     for (source, emitted, error_range, close_at) in [
         ("T(@ with", "T(@", 2..3, 3),
         ("T(A,@ with", "T(A,@", 4..5, 5),
     ] {
-        let expected = vec![expected_type_call_close(0, close_at)];
+        let expected = vec![
+            expected_type_call_argument_error(0, error_range.clone()),
+            expected_type_call_close(1, close_at),
+        ];
         let (green, exit, primary_found, _, _, records, _, _) =
             run_required_type_with_outer_boundary_and_recoveries(
                 source,
@@ -2953,7 +3004,7 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
         assert!(primary_found, "{source:?}");
         let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
         else {
-            panic!("outer boundary remains pending after raw Call error: {source:?}")
+            panic!("outer boundary remains pending after Call error: {source:?}")
         };
         assert_eq!(green.to_string(), emitted, "{source:?}");
         assert_eq!(
@@ -2967,7 +3018,7 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
         let error = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::Error)
-            .expect("raw CallArgument Error");
+            .expect("typed CallArgument Error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -2986,7 +3037,7 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
         let NormalizedExit::Complete(Err(Either::Left(mut frozen_pending)), LineEntry::InLine) =
             frozen_exit
         else {
-            panic!("frozen outer boundary remains pending after raw Call error: {source:?}")
+            panic!("frozen outer boundary remains pending after Call error: {source:?}")
         };
         assert_eq!(frozen_green, green, "{source:?}");
         assert_eq!(
@@ -3005,7 +3056,10 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
     for (source, call_text, error_range, close_at) in
         [("[T(@ ]", "(@", 3..4, 4), ("[T(A,@ ]", "(A,@", 5..6, 6)]
     {
-        let expected = vec![expected_type_call_close(0, close_at)];
+        let expected = vec![
+            expected_type_call_argument_error(0, error_range.clone()),
+            expected_type_call_close(1, close_at),
+        ];
         let (green, exit, records) = run_type_with_recoveries(source, None);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
@@ -3019,7 +3073,7 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
         let error = call
             .descendants()
             .find(|node| node.kind() == SyntaxKind::Error)
-            .expect("raw CallArgument Error");
+            .expect("typed CallArgument Error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -3059,7 +3113,7 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
         .expect("accepted TypeCall");
         let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
         else {
-            panic!("caller close remains pending after raw Call error: {source:?}")
+            panic!("caller close remains pending after Call error: {source:?}")
         };
         output.finish_node();
         let (green, records) = output.finish_with_recoveries();
@@ -3073,13 +3127,16 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
         assert_eq!(input, " tail", "{source:?}");
         assert_eq!(
             records,
-            [expected_type_call_close(0, close_at)],
+            [
+                expected_type_call_argument_error(0, error_range.clone()),
+                expected_type_call_close(1, close_at),
+            ],
             "{source:?}"
         );
         let error = SyntaxNode::new_root(green)
             .descendants()
             .find(|node| node.kind() == SyntaxKind::Error)
-            .expect("raw CallArgument Error");
+            .expect("typed CallArgument Error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -3090,7 +3147,7 @@ fn type_call_t3a_raw_error_retry_preserves_call_boundaries_before_leading_emissi
 }
 
 #[test]
-fn type_call_t3a_abstract_boundary_uses_the_pending_coordinate_for_both_missing_slots() {
+fn type_call_t3b_abstract_boundary_preserves_typed_error_and_pending_coordinate() {
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -3135,7 +3192,10 @@ fn type_call_t3a_abstract_boundary_uses_the_pending_coordinate_for_both_missing_
     assert_eq!(frozen_records, frozen);
 
     let source = "> > T(@\n> > ```\nouter\n";
-    let expected = vec![expected_type_call_close(0, 8)];
+    let expected = vec![
+        expected_type_call_argument_error(0, 6..7),
+        expected_type_call_close(1, 8),
+    ];
     let (green, exit, remainder, records) = run_type_normalized_with_recoveries(
         source,
         0,
@@ -3147,7 +3207,7 @@ fn type_call_t3a_abstract_boundary_uses_the_pending_coordinate_for_both_missing_
     let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
         exit
     else {
-        panic!("TypeCall raw error preserves the abstract fence boundary")
+        panic!("TypeCall Error preserves the abstract fence boundary")
     };
     assert!(boundary.payload_view().is_boundary());
     assert_eq!(remainder, "> > ```\nouter\n");
@@ -3155,7 +3215,7 @@ fn type_call_t3a_abstract_boundary_uses_the_pending_coordinate_for_both_missing_
     let error = SyntaxNode::new_root(green.clone())
         .descendants()
         .find(|node| node.kind() == SyntaxKind::Error)
-        .expect("raw CallArgument Error");
+        .expect("typed CallArgument Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
         usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -3176,15 +3236,15 @@ fn type_call_t3a_abstract_boundary_uses_the_pending_coordinate_for_both_missing_
 }
 
 #[test]
-fn type_call_t3a_keeps_error_output_raw_and_maps_missing_records_from_shifted_origin() {
+fn type_call_t3b_publishes_argument_error_and_maps_missing_records_from_shifted_origin() {
     let (green, exit, records) = run_type_with_recoveries("T(@A)", None);
     assert_eq!(green.to_string(), "T(@A)");
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
-    assert!(records.is_empty());
+    assert_eq!(records, [expected_type_call_argument_error(0, 2..3)]);
     let error = SyntaxNode::new_root(green)
         .descendants()
         .find(|node| node.kind() == SyntaxKind::Error)
-        .expect("raw CallArgument Error");
+        .expect("typed CallArgument Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
         error
@@ -3221,6 +3281,380 @@ fn type_call_t3a_keeps_error_output_raw_and_maps_missing_records_from_shifted_or
             .collect::<Vec<_>>(),
         [2..2, 2..2],
     );
+}
+
+#[test]
+fn type_call_t3b_argument_errors_keep_exact_native_children_and_continuation() {
+    let cases = [
+        ("T(@A)", 2..3, vec![(SyntaxKind::Unknown, "@")], vec!["A"]),
+        (
+            "T(@ A)",
+            2..4,
+            vec![(SyntaxKind::Unknown, "@"), (SyntaxKind::Whitespace, " ")],
+            vec!["A"],
+        ),
+        (
+            "T(@@A)",
+            2..4,
+            vec![(SyntaxKind::Unknown, "@"), (SyntaxKind::Unknown, "@")],
+            vec!["A"],
+        ),
+        (
+            "T(@/*c*/ A)",
+            2..9,
+            vec![
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::BlockComment, "/*c*/"),
+                (SyntaxKind::Whitespace, " "),
+            ],
+            vec!["A"],
+        ),
+        (
+            "T(@ @@A)",
+            2..6,
+            vec![
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::Whitespace, " "),
+                (SyntaxKind::Unknown, "@"),
+                (SyntaxKind::Unknown, "@"),
+            ],
+            vec!["A"],
+        ),
+        (
+            "T(@ , A)",
+            2..3,
+            vec![(SyntaxKind::Unknown, "@")],
+            vec!["A"],
+        ),
+        (
+            "T(@\n  A)",
+            2..3,
+            vec![(SyntaxKind::Unknown, "@")],
+            vec!["A"],
+        ),
+        (
+            "T(@\r\n  A)",
+            2..3,
+            vec![(SyntaxKind::Unknown, "@")],
+            vec!["A"],
+        ),
+        ("T(@\n  )", 2..3, vec![(SyntaxKind::Unknown, "@")], vec![]),
+    ];
+
+    for (source, error_range, expected_children, expected_arguments) in cases {
+        let expected = expected_type_call_argument_error(0, error_range.clone());
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(records, [expected.clone()], "{source:?}");
+        let root = SyntaxNode::new_root(green.clone());
+        let call = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+            .expect("TypeCallTail");
+        let error = call
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("CallArgument Error");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            error_range,
+            "{source:?}",
+        );
+        assert_eq!(
+            error
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned()))
+                .collect::<Vec<_>>(),
+            expected_children
+                .iter()
+                .map(|(kind, text)| (*kind, (*text).to_owned()))
+                .collect::<Vec<_>>(),
+            "{source:?}",
+        );
+        assert_eq!(
+            call.children()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            expected_arguments,
+            "{source:?}",
+        );
+        if source == "T(@ , A)" {
+            let space = call
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| {
+                    token.kind() == SyntaxKind::Whitespace
+                        && usize::from(token.text_range().start()) == 3
+                })
+                .expect("Call-owned gap before separator");
+            assert_eq!(
+                usize::from(space.text_range().start())..usize::from(space.text_range().end()),
+                3..4
+            );
+            let comma = call
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Comma)
+                .expect("Call-owned explicit separator");
+            assert_eq!(
+                usize::from(comma.text_range().start())..usize::from(comma.text_range().end()),
+                4..5
+            );
+        }
+
+        let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
+        let (frozen_green, frozen_exit, frozen_records) =
+            run_type_with_recoveries(source, Some(&frozen));
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert!(
+            matches!(frozen_exit, Some(Err(Either::Right(_)))),
+            "{source:?}"
+        );
+        assert_eq!(frozen_records, frozen, "{source:?}");
+    }
+}
+
+#[test]
+fn type_call_t3b_argument_error_maps_global_records_without_shifting_local_cst() {
+    let source = "T(@ A)";
+    let (green, exit, remainder, records) =
+        run_type_normalized_with_recoveries(source, 13, LineEntry::InLine, None, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    assert!(matches!(
+        exit,
+        Some(NormalizedExit::Complete(
+            Err(Either::Right(_)),
+            LineEntry::InLine
+        ))
+    ));
+    assert_eq!(records, [expected_type_call_argument_error(0, 15..17)]);
+    let error = SyntaxNode::new_root(green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("CallArgument Error");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        2..4,
+    );
+}
+
+#[test]
+fn type_call_t3b_frozen_error_mismatch_preserves_diagnostic_cursor_and_slot() {
+    let mut mismatched = expected_type_call_argument_error(7, 2..4);
+    mismatched.site.range = 2..3;
+    Arc::make_mut(&mut mismatched.unexpected)[0] = UnexpectedSyntax::Token {
+        range: 2..3,
+        category: UnexpectedCategory::OtherCharacter,
+    };
+    Arc::make_mut(&mut mismatched.expectations)[0].range = 2..3;
+    let operators = OperatorTable::empty();
+    let mut input = "T(@ A)";
+    let mut recover = Recover::new(&operators);
+    let frozen = [mismatched];
+    let mut output = GreenNodeBuilder::reconcile(&frozen);
+    output.start_node(SyntaxKind::Root.into());
+    let before_diagnostics = output.diagnostic_position();
+    let before_slots = output.recovery_slot_count();
+    assert_eq!(before_diagnostics, (Some(8), 0));
+    assert_eq!(before_slots, 0);
+    let mismatch = catch_unwind(AssertUnwindSafe(|| {
+        let _ = super::super::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+    }));
+    assert!(mismatch.is_err());
+    assert_eq!(output.diagnostic_position(), before_diagnostics);
+    assert_eq!(output.recovery_slot_count(), before_slots);
+    drop(output);
+}
+
+#[test]
+fn type_call_t3b_close_errors_retry_matching_close_and_preserve_native_leading() {
+    let cases = [
+        (
+            "T(])",
+            vec![expected_type_call_close_error(0, 2..3)],
+            Some(3..4),
+        ),
+        (
+            "T(A]",
+            vec![
+                expected_type_call_close_error(0, 3..4),
+                expected_type_call_close(1, 4),
+            ],
+            None,
+        ),
+        (
+            "T(A] )",
+            vec![expected_type_call_close_error(0, 3..4)],
+            Some(5..6),
+        ),
+        (
+            "T(A]/*c*/)",
+            vec![expected_type_call_close_error(0, 3..4)],
+            Some(9..10),
+        ),
+        (
+            "T(A]] )",
+            vec![
+                expected_type_call_close_error(0, 3..4),
+                expected_type_call_close_error(1, 4..5),
+            ],
+            Some(6..7),
+        ),
+        (
+            "T(A] @)",
+            vec![
+                expected_type_call_close_error(0, 3..4),
+                expected_type_call_close_error(1, 5..6),
+            ],
+            Some(6..7),
+        ),
+        (
+            "T(A] @",
+            vec![
+                expected_type_call_close_error(0, 3..4),
+                expected_type_call_close_error(1, 5..6),
+                expected_type_call_close(2, 6),
+            ],
+            None,
+        ),
+    ];
+
+    for (source, expected, close_range) in cases {
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(records, expected, "{source:?}");
+        let root = SyntaxNode::new_root(green.clone());
+        let call = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+            .expect("TypeCallTail");
+        let errors = call
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors
+                .iter()
+                .map(|error| {
+                    error
+                        .children_with_tokens()
+                        .filter_map(|element| element.into_token())
+                        .map(|token| (token.kind(), token.text().to_owned()))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+            expected
+                .iter()
+                .filter(|record| record.kind == RecoveryKind::Error)
+                .map(|record| vec![(
+                    SyntaxKind::Unknown,
+                    source[record.site.range.clone()].to_owned()
+                )])
+                .collect::<Vec<_>>(),
+            "{source:?}",
+        );
+        assert_eq!(
+            call.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::RParen)
+                .map(|token| {
+                    usize::from(token.text_range().start())..usize::from(token.text_range().end())
+                }),
+            close_range,
+            "{source:?}",
+        );
+
+        let frozen = frozen_recovery_ids(&expected);
+        let (frozen_green, _, frozen_records) = run_type_with_recoveries(source, Some(&frozen));
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert_eq!(frozen_records, frozen, "{source:?}");
+    }
+}
+
+#[test]
+fn type_call_t3b_close_error_stops_before_caller_and_outer_boundaries() {
+    let operators = OperatorTable::empty();
+    let active_close_stops = stops_for(TokenKind::RBracket)
+        & !super::super::operator::STOP_COMMA
+        & !super::super::operator::STOP_SEMICOLON;
+    let source = "T(A} ] tail";
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let (exit, _) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+        In::new(&mut input, &mut recover, &mut output),
+        active_close_stops,
+        0,
+        0,
+    )
+    .expect("accepted TypeCall");
+    let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit else {
+        panic!("caller close remains pending after local Call mismatch")
+    };
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), "T(A}");
+    assert_eq!(
+        records,
+        [
+            expected_type_call_close_error(0, 3..4),
+            expected_type_call_close(1, 4),
+        ]
+    );
+    assert_eq!(
+        pending.payload_view().token_kind(),
+        Some(TokenKind::RBracket)
+    );
+    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+    assert_eq!(input, " tail");
+
+    let source = "T(A] @ with";
+    let (green, exit, primary_found, _, _, records, _, _) =
+        run_required_type_with_outer_boundary_and_recoveries(
+            source,
+            super::super::type_expr::TypeOuterBoundary::WITH,
+            false,
+            None,
+        );
+    assert!(primary_found);
+    let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit else {
+        panic!("outer WITH remains pending after local Call mismatch")
+    };
+    assert_eq!(green.to_string(), "T(A] @");
+    assert_eq!(pending.payload_view().spelling(), Some("with"));
+    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+    assert_eq!(
+        records,
+        [
+            expected_type_call_close_error(0, 3..4),
+            expected_type_call_close_error(1, 5..6),
+            expected_type_call_close(2, 6),
+        ]
+    );
+
+    let frozen = frozen_recovery_ids(&records);
+    let (frozen_green, frozen_exit, _, _, _, frozen_records, _, _) =
+        run_required_type_with_outer_boundary_and_recoveries(
+            source,
+            super::super::type_expr::TypeOuterBoundary::WITH,
+            false,
+            Some(&frozen),
+        );
+    let NormalizedExit::Complete(Err(Either::Left(mut frozen_pending)), LineEntry::InLine) =
+        frozen_exit
+    else {
+        panic!("frozen outer WITH remains pending after local Call malformed content")
+    };
+    assert_eq!(frozen_green, green);
+    assert_eq!(frozen_pending.payload_view().spelling(), Some("with"));
+    assert_eq!(emit_pending_leading_text(&mut frozen_pending), " ");
+    assert_eq!(frozen_records, frozen);
 }
 
 #[test]

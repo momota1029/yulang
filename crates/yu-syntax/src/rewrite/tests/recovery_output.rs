@@ -19,8 +19,8 @@ use crate::{
 
 use super::super::{
     emit::{
-        PathSegmentRetryLeadingSeal, emit_recovery_error_item, emit_recovery_error_run,
-        emit_recovery_missing,
+        CallArgumentRetryLeadingSeal, PathSegmentRetryLeadingSeal, emit_recovery_error_item,
+        emit_recovery_error_run, emit_recovery_missing,
     },
     item::{
         Boundary, ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary,
@@ -1279,15 +1279,262 @@ fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
     assert_eq!(records[0].site.range, 10..13);
     assert_eq!(records[0].unexpected.len(), 2);
 
-    const ERROR_RUN_CAPABILITY: [&str; 6] = [
+    const ERROR_RUN_CAPABILITY: [&str; 7] = [
         "lexical",
         "emit_item_as",
         "emit_literal_segment",
         "append_unexpected",
         "seal_record_through_retry_leading",
         "seal_path_segment_retry_leading_prefix",
+        "seal_call_argument_retry_leading_prefix",
     ];
-    assert_eq!(ERROR_RUN_CAPABILITY.len(), 6);
+    assert_eq!(ERROR_RUN_CAPABILITY.len(), 7);
+}
+
+#[test]
+fn call_argument_retry_leading_seal_emits_the_complete_native_prefix() {
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut retry = Item::plain(
+        LeadingTrivia::ordinary(
+            vec![
+                Trivia::whitespace(" ".into()),
+                Trivia::block_comment("/*a*/".into()),
+                Trivia::whitespace(" ".into()),
+            ]
+            .into_boxed_slice(),
+        ),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "A".into(),
+        }),
+    );
+    let sealed = emit_recovery_error_run(
+        In::new(&mut input, &mut recover, &mut output),
+        |run| {
+            run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+            let sealed = run.seal_call_argument_retry_leading_prefix(
+                &mut retry,
+                9,
+                UnexpectedCategory::OtherCharacter,
+            );
+            assert_eq!(sealed, CallArgumentRetryLeadingSeal::Sealed);
+            assert!(catch_unwind(AssertUnwindSafe(|| run.lexical(|mut lex| lex.next()))).is_err());
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.emit_item_as(unknown_item("!"), 9, SyntaxKind::Unknown)
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.emit_literal_segment("!", 8..9, SyntaxKind::Unknown)
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: 0..8,
+                        category: UnexpectedCategory::OtherCharacter,
+                    })
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.seal_record_through_retry_leading(
+                        &retry,
+                        9,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.seal_path_segment_retry_leading_prefix(
+                        &mut retry,
+                        9,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.seal_call_argument_retry_leading_prefix(
+                        &mut retry,
+                        9,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                }))
+                .is_err()
+            );
+            sealed
+        },
+        |range, unexpected| {
+            let role = GrammarRole::Type(TypeRole::CallArgument);
+            RecoveryDraft::new(
+                RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                RecoveryKind::Error,
+                unexpected,
+                Arc::from([expectation(
+                    role,
+                    ExpectedSyntax::TypeExpression,
+                    range,
+                    ExpectationSources::COMMITTED_RECOVERY_RULE,
+                )]),
+                0,
+            )
+        },
+    );
+    assert_eq!(sealed, CallArgumentRetryLeadingSeal::Sealed);
+    assert_eq!(retry.leading_view().remaining_physical_parts(), 0);
+    retry.emit_payload(&mut output, SyntaxKind::Identifier);
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), "@ /*a*/ A");
+    assert_eq!(records[0].site.range, 0..8);
+    assert_eq!(
+        records[0].unexpected,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 0..8,
+            category: UnexpectedCategory::OtherCharacter,
+        }])
+    );
+    let root = SyntaxNode::new_root(green);
+    let error = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("CallArgument Error");
+    assert_eq!(
+        error
+            .children_with_tokens()
+            .map(|element| (element.kind(), element.to_string()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Unknown, "@".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::BlockComment, "/*a*/".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn call_argument_retry_leading_ineligibility_is_atomic_and_keeps_the_run_open() {
+    fn token_retry(leading: Box<[Trivia]>) -> Item {
+        Item::plain(
+            LeadingTrivia::ordinary(leading),
+            Payload::Token(Token {
+                kind: TokenKind::Identifier,
+                text: "A".into(),
+            }),
+        )
+    }
+
+    fn reject(mut retry: Item, successor_origin: usize) {
+        let control = format!("{retry:?}");
+        let operators = OperatorTable::empty();
+        let mut input = "";
+        let mut recover = Recover::new(&operators);
+        let mut output = RewriteOutput::new();
+        output.start_node(SyntaxKind::Root.into());
+        let result = emit_recovery_error_run(
+            In::new(&mut input, &mut recover, &mut output),
+            |run| {
+                run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+                let result = run.seal_call_argument_retry_leading_prefix(
+                    &mut retry,
+                    successor_origin,
+                    UnexpectedCategory::OtherCharacter,
+                );
+                assert_eq!(result, CallArgumentRetryLeadingSeal::Ineligible);
+                assert_eq!(format!("{retry:?}"), control);
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: 0..1,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                result
+            },
+            |range, unexpected| {
+                singleton_draft(
+                    LiteralRole::RuleUnexpectedItem,
+                    RecoveryKind::Error,
+                    range,
+                    unexpected,
+                    ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                )
+            },
+        );
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(result, CallArgumentRetryLeadingSeal::Ineligible);
+        assert_eq!(green.to_string(), "@");
+        assert_eq!(records[0].site.range, 0..1);
+    }
+
+    reject(token_retry(Vec::new().into_boxed_slice()), 2);
+    reject(
+        token_retry(vec![Trivia::newline("\n".into())].into_boxed_slice()),
+        3,
+    );
+    reject(
+        token_retry(vec![Trivia::newline("\r\n".into())].into_boxed_slice()),
+        4,
+    );
+    reject(
+        token_retry(vec![Trivia::line_comment("//x".into())].into_boxed_slice()),
+        5,
+    );
+    reject(
+        Item::plain(
+            LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+            Payload::Eof,
+        ),
+        1,
+    );
+    reject(
+        Item::plain(
+            LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+            Payload::Boundary(PendingBoundary::new(
+                1..2,
+                Boundary::Stop(StopKind::RightParenthesis),
+            )),
+        ),
+        1,
+    );
+    reject(
+        token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        4,
+    );
+
+    let carrier_origin = 1;
+    let carrier = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice(),
+        )),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "A".into(),
+        }),
+        Some(vec![ForeignSplit::quote_prefix(3, 2)]),
+        carrier_origin,
+    )
+    .expect("carrier retry Item");
+    reject(carrier, 7);
+
+    let mut partial = token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice());
+    let mut prefix_output = RewriteOutput::new();
+    partial.emit_leading_prefix_with(&mut prefix_output, 1, |_, _| {});
+    reject(partial, 2);
 }
 
 #[test]

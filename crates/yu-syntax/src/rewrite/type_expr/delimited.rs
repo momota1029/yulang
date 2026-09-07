@@ -8,6 +8,7 @@ use crate::{
     session::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
         PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
+        UnexpectedCategory, UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -18,7 +19,10 @@ use super::super::{
     driver::{
         Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_recovery_missing, emit_token_item},
+    emit::{
+        CallArgumentRetryLeadingSeal, emit_missing, emit_recovery_error_item,
+        emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+    },
     item::{Item, LeadingTrivia, TokenKind},
     output::RecoveryDraft,
     yumark::FenceBoundary,
@@ -129,6 +133,21 @@ pub(super) fn type_delimited_normalized(
             }
             let exit = missing_delimited_close(i, item, owner, baseline, item_origin);
             return complete(exit, line_entry);
+        }
+        if owner == TypeDelimitedOwner::Call && is_type_mismatched_close(&item, close) {
+            return retry_type_call_close_normalized(
+                i,
+                item,
+                close,
+                baseline,
+                caller_stops,
+                outer_closes,
+                call_outer_boundary,
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+            );
         }
         if owner == TypeDelimitedOwner::BracketRow && is_type_mismatched_close(&item, close) {
             item.emit_all_remaining_leading(&mut *i.state);
@@ -255,6 +274,21 @@ pub(super) fn type_delimited_normalized(
                 ) {
                     emit_delimited_close_missing(&mut i, owner, &next, item_origin);
                     return complete(handoff(next), line_entry);
+                }
+                if owner == TypeDelimitedOwner::Call && is_type_mismatched_close(&next, close) {
+                    return retry_type_call_close_normalized(
+                        i,
+                        next,
+                        close,
+                        baseline,
+                        caller_stops,
+                        outer_closes,
+                        call_outer_boundary,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                    );
                 }
                 if is_type_separator(&next) {
                     emit_token_item(&mut i, next);
@@ -396,6 +430,21 @@ fn retry_type_delimited_item_normalized(
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
+    if owner == TypeDelimitedOwner::Call {
+        return retry_type_call_argument_normalized(
+            i,
+            item,
+            close,
+            baseline,
+            caller_stops,
+            outer_closes,
+            call_outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
+    }
     debug_assert!(!item.payload_view().is_boundary());
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -489,6 +538,207 @@ fn retry_type_delimited_item_normalized(
                 pipe_lexical,
             ));
         }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_type_call_argument_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    close: TokenKind,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_closes: u8,
+    call_outer_boundary: TypeOuterBoundary,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
+) -> Result<(Item, usize, LineEntry), NormalizedExit> {
+    debug_assert!(!item.payload_view().is_boundary());
+    let mut error_extent: Option<std::ops::Range<usize>> = None;
+    (item, item_origin, line_entry) = emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let extent = run.emit_item_as(item, item_origin, SyntaxKind::Unknown);
+            let item_extent = extent.recovery_range();
+            if let Some(error_extent) = &mut error_extent {
+                assert_eq!(
+                    error_extent.end, item_extent.start,
+                    "a CallArgument malformed run remains physically contiguous"
+                );
+                error_extent.end = item_extent.end;
+            } else {
+                error_extent = Some(item_extent);
+            }
+            (item, item_origin, line_entry) =
+                super::type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                );
+
+            let boundary = item.payload_view().is_boundary()
+                || token_kind(&item) == Some(close)
+                || is_delimited_boundary(
+                    &item,
+                    TypeDelimitedOwner::Call,
+                    caller_stops,
+                    call_outer_boundary,
+                    outer_closes,
+                )
+                || is_type_separator(&item)
+                || item.payload_view().is_eof()
+                || is_type_mismatched_close(&item, close);
+            if boundary || is_type_nud(&item) {
+                let sealed = !boundary
+                    && run.seal_call_argument_retry_leading_prefix(
+                        &mut item,
+                        item_origin,
+                        UnexpectedCategory::OtherCharacter,
+                    ) == CallArgumentRetryLeadingSeal::Sealed;
+                if !sealed {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: error_extent
+                            .clone()
+                            .expect("a CallArgument Error emits a malformed Item"),
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                }
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| {
+            super::type_expression_error_draft(TypeRole::CallArgument, range, unexpected)
+        },
+    );
+
+    if item.payload_view().is_boundary() {
+        emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
+        return Err(complete(handoff(item), line_entry));
+    }
+    if token_kind(&item) == Some(close) {
+        emit_token_item(&mut i, item);
+        return Err(complete(Ok(()), line_entry));
+    }
+    if is_delimited_boundary(
+        &item,
+        TypeDelimitedOwner::Call,
+        caller_stops,
+        call_outer_boundary,
+        outer_closes,
+    ) {
+        emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
+        return Err(complete(handoff(item), line_entry));
+    }
+    if is_type_separator(&item) {
+        emit_token_item(&mut i, item);
+        return type_after_separator_normalized(
+            i,
+            close,
+            TypeDelimitedOwner::Call,
+            baseline,
+            caller_stops,
+            outer_closes,
+            call_outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
+    }
+    if item.payload_view().is_eof() {
+        let exit =
+            missing_delimited_close(i, item, TypeDelimitedOwner::Call, baseline, item_origin);
+        return Err(complete(exit, line_entry));
+    }
+    if is_type_mismatched_close(&item, close) {
+        return Err(retry_type_call_close_normalized(
+            i,
+            item,
+            close,
+            baseline,
+            caller_stops,
+            outer_closes,
+            call_outer_boundary,
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        ));
+    }
+    debug_assert!(is_type_nud(&item));
+    item.emit_all_remaining_leading(&mut *i.state);
+    Ok((item, item_origin, line_entry))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_type_call_close_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    close: TokenKind,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_closes: u8,
+    call_outer_boundary: TypeOuterBoundary,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
+) -> NormalizedExit {
+    debug_assert!(is_type_mismatched_close(&item, close));
+    loop {
+        item.emit_all_remaining_leading(&mut *i.state);
+        let range = item.extent(item_origin).recovery_range();
+        let unexpected = UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        };
+        emit_recovery_error_item(
+            i.rb(),
+            item,
+            item_origin,
+            SyntaxKind::Unknown,
+            unexpected,
+            |range, unexpected| type_call_close_recovery_draft(range, unexpected),
+        );
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+        );
+        if item.payload_view().is_boundary() {
+            emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
+            return complete(handoff(item), line_entry);
+        }
+        if token_kind(&item) == Some(close) {
+            emit_token_item(&mut i, item);
+            return complete(Ok(()), line_entry);
+        }
+        if is_delimited_boundary(
+            &item,
+            TypeDelimitedOwner::Call,
+            caller_stops,
+            call_outer_boundary,
+            outer_closes,
+        ) {
+            emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
+            return complete(handoff(item), line_entry);
+        }
+        if item.payload_view().is_eof() {
+            let exit =
+                missing_delimited_close(i, item, TypeDelimitedOwner::Call, baseline, item_origin);
+            return complete(exit, line_entry);
+        }
+        // Once a local mismatched close transfers control to the Call close
+        // slot, every non-boundary Item before the actual close is malformed
+        // close content owned by that slot.  Keep advancing here so an
+        // ordinary malformed Item cannot manufacture an early Missing close
+        // and escape to the outer Type parser.
     }
 }
 
@@ -755,6 +1005,33 @@ fn emit_delimited_close_missing(
             0,
         )
     });
+}
+
+fn type_call_close_recovery_draft(
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::TypeCall,
+        delimiter: Delimiter::Parenthesis,
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        RecoveryKind::Error,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            )),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 fn emit_parenthesized_mismatched_close_missing(
