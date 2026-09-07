@@ -57,7 +57,7 @@ The following direct controls are retained rather than rewritten:
 | --- | --- | --- |
 | conditional payload admission | `legacy_polymorphic_variant_conditional_payload_admission_is_execution_pinned` | valid/wrong-head `::` and `->` retry, dangling `::`, visible no-stop `else` decline, spaced valid-name boundary, repeated payload, newline, native close, and EOF |
 | colon overlap | `legacy_polymorphic_variant_payload_colon_overlap_is_execution_pinned` | valid/wrong-head `::{B}` and `:::{B}` split at the retry colon |
-| scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned`, `legacy_polymorphic_variant_payload_scalar_fence_termination_is_execution_pinned`, `legacy_polymorphic_variant_payload_comment_fence_overwrite_is_execution_pinned`, and `legacy_polymorphic_variant_payload_scalar_crlf_fence_termination_is_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership, plus wrong-head inline nested-PV retry at native close/outer EOF, distinct CRLF tag-loop outer EOF, unspaced comment native/prefix no-retry ownership, exact valid/wrong `+`/`@@`/`->` LF/CRLF and bare-`::` LF active-newline caller-fence pairs, and the distinct comment-trivia fence overwrite |
+| scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned`, `legacy_polymorphic_variant_payload_scalar_fence_termination_is_execution_pinned`, `legacy_polymorphic_variant_payload_comment_fence_overwrite_is_execution_pinned`, and `legacy_polymorphic_variant_payload_scalar_crlf_fence_termination_is_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership, plus wrong-head inline nested-PV retry at native close/outer EOF, distinct CRLF tag-loop outer EOF, unspaced comment native/prefix no-retry ownership, exact valid/wrong `+`/`@@`/`->`/bare-`::` LF/CRLF active-newline caller-fence pairs, and the distinct comment-trivia fence overwrite |
 | primary and reservation boundary | `legacy_polymorphic_variant_primary_completion_preflight` | non-atomic primary external/internal tails, selected `::Next`, numeric apparent Call, prefix, and recursive PV ownership |
 | P and E carriers | `legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned` and `legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned` | P/E ordinary-gap extent facts, E rows, numeric apparent-Call distinction, prefix/nested cells, and `::Next` continuations |
 | ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial and recovery-continuation, nested-If initial/recovery-continuation, actual-If accepted-own-Else initial/recovery-continuation, and post-completed-If outer-tail initial/recovery-continuation controls, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, strict-dedent initial `:{A\nelse: 0}` and recovery-continuation `:{123\nelse: 0}` under baseline 2, nested outer(0)/inner(5) same-line initial `:{A else: 0}` and recovery-continuation `:{A::else: 0}` selecting inner, actual-If `if condition:\n  type T = :{A\nelse: value` and `if condition:\n  type T = :{A::\nelse: value`, and outer-tail `if outer:\n  if inner:\n    value\n  type T = :{A\nelse: value` / `if outer:\n  if inner:\n    value\n  type T = :{A::\nelse: value`; their PV recoveries precede the relevant accepted Else and frames must balance |
@@ -229,8 +229,8 @@ its full sources; the PV locally owns its Newline and actual RBrace, emits no
 payload node, and has the exact valid/wrong tag Error sequences. The outer
 state remains unchanged through each episode, then the harness alone clears
 the fence and pops the outer stop frame. This establishes neither a
-retry/decline classification, a distinct colon-overlap control, bare-`::`
-CRLF behavior, nor any rewrite behavior.
+retry/decline classification, a distinct colon-overlap control, nor any
+rewrite behavior.
 
 The seventeenth bounded cell records the distinct comment-trivia overwrite,
 not another preservation result.  With the same outer `StopKind::Newline`,
@@ -246,13 +246,15 @@ the overwrite and emit two-byte PV-local Newlines `10..12` / `12..14` as
 separate direct rows.
 
 The eighteenth bounded cell pins separate CRLF preservation pairs for `+`,
-`@@`, and `->`. With the outer `StopKind::Newline` and incoming fences at
-bytes 4 / 6, `:{A+\r\n:{B}}` / `:{123+\r\n:{B}}` preserve their exact outer
-fences and stops; `:{A@@\r\n:{B}}` / `:{123@@\r\n:{B}}` and
-`:{A->\r\n:{B}}` / `:{123->\r\n:{B}}` do so at bytes 5 / 7. Their PVs locally
-own two-byte Newlines, final malformed tags, and actual RBraces, with no
-payload node. This establishes only the direct CRLF pairs; it neither
-parameterizes the LF cells nor determines a retry/decline or rewrite rule.
+`@@`, `->`, and bare `::`. With the outer `StopKind::Newline` and incoming
+fences at bytes 4 / 6, `:{A+\r\n:{B}}` / `:{123+\r\n:{B}}` preserve their exact
+outer fences and stops; `:{A@@\r\n:{B}}` / `:{123@@\r\n:{B}}`,
+`:{A->\r\n:{B}}` / `:{123->\r\n:{B}}`, and `:{A::\r\n:{B}}` /
+`:{123::\r\n:{B}}` do so at bytes 5 / 7. Their PVs locally own two-byte
+Newlines, final malformed tags, and actual RBraces, with no payload node. This
+establishes only the direct CRLF pairs; it neither parameterizes the LF cells,
+changes the distinct colon-overlap control, nor determines a retry/decline or
+rewrite rule.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
