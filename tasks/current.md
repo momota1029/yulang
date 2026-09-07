@@ -24,14 +24,13 @@ without replay/buffering before a fresh user decision.  The separately
 authorized shared delimited candidate remains unstaged in
 `type_expr/delimited.rs` and its focused tests.
 
-`2026-09-07-successor-pv-payload-admission-capability-amendment.md` is now the
-Draft design gate.  Existing direct facilities cannot observe an arbitrary
-malformed suffix and its retry eligibility without completed-Item rescan,
-retained run, or committed output; their context also cannot represent the
-pinned ambient `else` claim without an active stop.  The Draft therefore
-proposes no implementation yet: it needs a reviewed finite raw witness,
-ambient-claim provenance, no-retention/replay proof, and hot-path aggregate
-work bound before a fresh user decision can choose compatibility or divergence.
+`2026-09-07-successor-pv-payload-admission-capability-amendment.md` remains a
+Draft problem record, not a construction gate.  Initial M3 review found that
+`:{A::{B}}` needs its retry boundary inside successor's completed `::`
+PathSeparator Item, so a suffix witness begins too late.  Four colon-overlap
+rows are now execution-pinned.  A replacement must establish a pre-Item scalar
+boundary, position-sensitive ambient claim, zero allocation/no retention, and
+an aggregate work proof before independent review and a fresh user decision.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology

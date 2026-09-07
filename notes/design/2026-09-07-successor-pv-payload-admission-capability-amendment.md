@@ -1,6 +1,6 @@
 # Successor PV payload-admission capability amendment
 
-Status: Draft
+Status: Draft; architecture re-entry required
 
 Date: 2026-09-07
 
@@ -20,23 +20,25 @@ Depends-on:
 - direct legacy evidence `4ff97ddc` in
   `crates/yu-syntax/src/grammar/type_expr.rs`.
 
-## 1. Confirmed owner and compatibility table
+## 1. Pinned rows and unproven classes
 
 The primary-completion construction proved that its primary boundary is causal,
 but refuted its payload premise.  After `:{123}` completes as a wrong-kind PV
 tag head, successor `type_polymorphic_variant_tag_payloads_after_head_normalized`
 does not admit an unspaced `::` payload boundary.  It hands that Item back to
-outer tag recovery.  Direct legacy instead makes payload admission conditional
-on a later retry primary and distinguishes the following cases:
+outer tag recovery.  Direct legacy makes payload admission conditional on a
+later retry primary.  The following table is a design inventory, not a
+generalized confirmed compatibility table: each row identifies the direct
+evidence currently pinned and its remaining characterization boundary.
 
-| following surface | direct legacy disposition |
+| proposed class | currently pinned direct fact / evidence limit |
 | --- | --- |
-| owner boundary, physical newline, native close, or EOF | stop payload admission without consuming it; owner/caller handles the boundary |
-| adjacent admissible primary | ordinary payload; an unspaced adjacency has a missing payload boundary |
-| unspaced invalid run with a non-ambient admissible retry primary | payload-boundary Error over the invalid run, then a retried payload expression |
-| unspaced invalid run with no retry primary | decline payload admission; outer tag recovery owns the run |
-| unspaced invalid run whose retry has an ambient owner claim | decline payload admission; outer caller ownership wins even without an active stop bit |
-| spaced invalid run | payload-owned whitespace boundary, payload Type Error over the invalid run, then retry only when one is admissible |
+| owner boundary, physical newline, native close, or EOF | valid-name `A` rows only; wrong-head, comment, CRLF, and fence forms remain uncharacterized |
+| adjacent admissible primary | existing primary bases named in the primary-completion evidence only |
+| unspaced invalid retry | valid/wrong-head `::` and `->` rows, plus the four colon-overlap rows below |
+| unspaced invalid run with no retry | valid/wrong-head dangling `::` only |
+| ambient retry | visible no-stop `else` row only |
+| spaced invalid run | valid-name `::{T}` row only |
 
 `legacy_polymorphic_variant_conditional_payload_admission_is_execution_pinned`
 records twelve exact rows: valid and wrong-kind `::`/`->` retries, valid and
@@ -46,6 +48,14 @@ newline, native close, and EOF.  It fixes AST slots/ranges, complete direct CST
 preorder/token extents, ordered recovery records/evidence, close ownership,
 payload shape, caller remainder, and ambient-context balance.  The nested-PV
 external-tail row `:{:{A}(B)}` is separately pinned at `b6349f9c`.
+
+`legacy_polymorphic_variant_payload_colon_overlap_is_execution_pinned` pins
+the four additional sources `:{A::{B}}`, `:{123::{B}}`, `:{A:::{B}}`, and
+`:{123:::{B}}`.  Legacy stops the scalar malformed run at the colon that starts
+the nested `:{B}`: in `::{B}` it emits one-colon PayloadBoundary Error and
+retries at the second colon; in `:::{B}` it emits a two-colon error and retries
+at the third.  This directly contradicts a witness that begins only after a
+successor-completed `::` PathSeparator Item.
 
 For example, `:{123::T}` requires TagName Error `2..5`, then a sibling
 `PolymorphicVariantPayload` with PayloadBoundary Error `5..7` and payload `T`
@@ -74,67 +84,56 @@ facility can provide that fact under current rules:
    no ambient-owner claim independent of stops.  The pinned `else` row proves
    such a claim is semantically material.
 
+The initial suffix-only proposal has a concrete contradiction: successor scans
+the first `::{B}` colon pair as one PathSeparator Item, while legacy must split
+that surface before the second colon so it can retry nested `:{B}`.  A witness
+starting after the completed Item sees `{B}` and cannot recover the lost retry
+boundary without forbidden replay or retained source state.
+
 Deleting the leading-trivia guard, handling `::`/`->` specially, unconditionally
 consuming a malformed run, or making the rule wrong-kind-only violates at least
 one §1 row.  Retrospective CST wrapping/splitting, emitted-output rollback,
 Item cloning, retaining a run/source slice, and replay are likewise forbidden.
 
-## 3. Proposed capability boundary
+## 3. Re-entry boundary
 
-This Draft proposes a prerequisite, not a construction authorization.  If it
-can be reviewed soundly, the shared PV payload judge may receive two private,
-non-owning observations before it emits a malformed current Item:
+This is not a reviewable construction.  The suffix-only witness is withdrawn.
+A replacement Draft must decide whether a bounded, source-only observation can
+occur *before* Item construction at the scalar malformed-run boundary, and
+whether that observation is within the SCC's candidate-token/prospective-trivia
+authority or requires a separately approved extension.  It must also map an
+ambient owner claim by live position, not by a payload-entry boolean: legacy
+can change that claim as the probe advances through trivia and retry surfaces.
 
-1. a source-only malformed-suffix admission witness, starting at the live raw
-   suffix after the current invalid Item and returning only a finite decision:
-   `RetryNonAmbient`, `NoRetry`, or `AmbientRetry`; and
-2. an explicit ambient payload-owner claim threaded from the owning Type/PV
-   context, distinct from active punctuation stops.
-
-The witness may read raw bytes while its lexical transaction is live but must
-not advance the live cursor, construct or complete an Item, touch recovery or
-output, return an offset/spelling/source slice, retain a cache/run, or assign
-CST/trivia/diagnostic ownership.  It is not a general lexer and cannot consume
-the current invalid Item.  Ordinary scanning remains solely responsible for
-the subsequent actual run emission and payload retry.
-
-The shared payload judge would then retain the §1 order:
-
-```text
-outer/physical boundary -> raw handoff
-ordinary candidate -> existing payload admission
-invalid + empty trivia + NoRetry/AmbientRetry -> tag/caller handoff
-invalid + empty trivia + RetryNonAmbient -> boundary Error + retry payload
-invalid + nonempty trivia -> payload Type Error, retry only when applicable
-```
-
-This does not authorize a particular raw recognizer, a context carrier layout,
-or any payload-loop implementation.  The SCC amendment permits only its named
-candidate-token/prospective-trivia re-observation.  Therefore extending it to
-an arbitrary malformed-suffix traversal, and representing the ambient claim,
-are both new decisions that require explicit approval.  An inability to prove
-them under the following gates rejects this proposal rather than weakening the
-legacy table.
+Any replacement observation must neither allocate nor retain an `Item`,
+`Token`, `Trivia`, `LeadingTrivia`, `TriviaRun`, boxed slice, source-owned text,
+offset, run, cache, recovery record, or output/checkpoint state.  It may not
+advance a live cursor, construct/complete an Item, mutate recovery/output, or
+assign CST/trivia/diagnostic ownership.  The ordinary scanner must remain the
+sole owner of emitted bytes.  No payload-loop implementation is authorized by
+this record.
 
 ## 4. Required capability proof and cost gate
 
-Before this Draft can become Reviewed, its construction route must prove:
+Before a replacement Draft can become Reviewed, its construction route must
+prove:
 
-1. a finite raw-witness grammar that matches `consume_invalid_run`'s exact
-   stop/retry boundaries without allocating Items or mutating input/recovery/
-   output; direct legacy evidence must first cover every newly named
-   multi-token, comment, CRLF/fence, and retry-classification row;
-2. the complete ambient-claim provenance map for every reachable PV payload
-   caller, including the visible-no-stop `else` control, and why normal stops
-   are neither overloaded nor silently reinterpreted;
-3. no completed Item, source slice, run, offset, cache, recovery record, or
-   output checkpoint crosses the probe boundary; decline preserves the current
-   Item and all cursors, while a committed frozen mismatch retains the existing
-   discard-only reservation contract;
-4. an aggregate work bound for repeated payloads and declines.  The witness
-   plus ordinary consume may traverse the same malformed run twice; it must
-   account for every such traversal and prove no unbounded re-probe of the
-   same live bytes across owner transitions; and
+1. a finite pre-Item scalar-observation grammar that matches
+   `consume_invalid_run`'s exact stop/retry boundary, including the split
+   required by `::{B}` and `:::{B}`.  Direct legacy evidence must first cover
+   every newly named multi-token, comment, CRLF/fence, and retry-classification
+   row;
+2. the complete, position-sensitive ambient-claim provenance map for every
+   reachable PV payload caller, including the visible-no-stop `else` control,
+   and why normal stops are neither overloaded nor silently reinterpreted;
+3. no allocation or retention of Item/Token/trivia/source/run/offset/cache/
+   recovery/output/checkpoint state crosses the probe boundary; decline
+   preserves all cursors, while a committed frozen mismatch retains the
+   existing discard-only reservation contract;
+4. an aggregate work bound for `M` malformed bytes later consumed, `W` witness
+   bytes, `A` admissions or declines, and `C` retry classifications.  It must
+   prove `W <= c * M` for a fixed constant `c`, account for each `A` and `C`,
+   and establish that valid input keeps its current work; and
 5. fresh/frozen exact proof for all §1 rows, prefix/malformed tag/recursive
    reservation controls, Parenthesized/EffectRow extents, valid-name siblings,
    original three `::Next` controls, caller/outer boundary handoff, and
@@ -145,7 +144,7 @@ frequency trigger independent performance review.  Timing budget is zero until
 static analysis establishes a concrete implementation and a timing result could
 change a decision; no benchmark is authorized by this Draft.
 
-## 5. Scope and alternatives
+## 5. Status and scope
 
 If later authorized, construction may be limited to the shared PV payload
 adapter, its immediate lexical/context dependencies, and focused private
@@ -155,18 +154,10 @@ owners, raw close/caller handoff, and all delimiter scopes.  It may not alter
 legacy parser behavior, public/root dispatch, AST/HIR, fixtures/goldens,
 O6/public certification, or implement a broad lexer/cache/replay facility.
 
-Option 1 (recommended only if §§3–4 close): approve a narrowly specified
-source-only witness and ambient-claim prerequisite, then allow a subsequent
-shared payload-adapter construction gate.  This restores the legacy conditional
-admission table without a wrong-kind exception.
-
-Option 2: retain intentional successor divergence after the primary boundary.
-This leaves unspaced malformed payloads tag-owned, prevents integration of the
-primary-completion/delimited interaction through those rows, and requires a
-cutover reconciliation decision.
-
-This is a material recovery, context, and hot-path traversal decision.  The
-recorded recommendation delegation and the blocked primary-completion approval
-do not authorize it.  Independent compiler/recovery, specification, and
-performance review must close a concrete capability design before a fresh user
-choice; until then this Draft authorizes no implementation.
+Independent compiler/recovery, specification, and performance review rejected
+the initial Draft because its suffix boundary is too late, its compatibility
+claims overgeneralize the present evidence, its ambient observation lacks
+position provenance, and its allocation/work contract is incomplete.  No user
+choice is requested from this rejected construction shape.  A replacement
+capability design must close §§3–4 before independent review and a fresh user
+decision; until then this Draft authorizes no implementation.

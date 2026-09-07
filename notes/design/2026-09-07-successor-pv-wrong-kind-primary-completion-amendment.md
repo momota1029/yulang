@@ -212,6 +212,9 @@ now pinned by
 valid/wrong-head unspaced retry and dangling runs, ambient retry rejection,
 spaced recovery, repeated payload, newline/native-close/EOF boundaries, AST,
 direct CST, exact ordered records, close ownership, and caller remainder.  The
-next gate is a new reviewed material addendum that either supplies a sound
-no-replay/no-buffer retry witness or stops this path before any further
-construction.
+separate `legacy_polymorphic_variant_payload_colon_overlap_is_execution_pinned`
+test fixes `::{B}` and `:::{B}` retry splitting: legacy retries at the second
+or third colon respectively, even where successor has completed a
+PathSeparator Item.  The next gate is a new reviewed material addendum that
+either supplies a sound no-replay/no-buffer retry witness or stops this path
+before any further construction.

@@ -14086,6 +14086,205 @@ mod tests {
     }
 
     #[test]
+    fn legacy_polymorphic_variant_payload_colon_overlap_is_execution_pinned() {
+        use crate::session::{
+            CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
+            UnexpectedCategory, UnexpectedSyntax,
+        };
+        use std::sync::Arc;
+
+        // Normal ::T and dangling :: controls live in the conditional-admission
+        // matrix above. Here legacy stops its scalar invalid run at the colon
+        // starting :{, including inside what successor scans as PathSeparator.
+        for (source, name_end, primary_start) in [
+            (":{A::{B}}", 3, 4),
+            (":{123::{B}}", 5, 6),
+            (":{A:::{B}}", 3, 5),
+            (":{123:::{B}}", 5, 7),
+        ] {
+            let end = source.len();
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let ast = i.run(from_fn(parse_type_expression)).unwrap();
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+            drop(i);
+            assert_eq!(local.type_expression_episode_depth(), 0);
+            assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+            assert_eq!(ast.range, 0..end);
+            assert!(
+                ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none()
+            );
+            let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                panic!("{source:?}")
+            };
+            assert_eq!(pv.range, 0..end);
+            assert_eq!(pv.colon, 0..1);
+            assert_eq!(pv.open, 1..2);
+            assert!(pv.trailing_comma.is_none());
+            assert!(matches!(&pv.close, Recovered::Complete(range) if *range == (end - 1..end)));
+            let [Recovered::Complete(tag)] = pv.tags.as_slice() else {
+                panic!("outer tag: {source:?}")
+            };
+            assert_eq!(tag.range, 2..end - 1);
+            if name_end == 5 {
+                assert!(matches!(tag.name, Recovered::Incomplete));
+            } else {
+                assert!(
+                    matches!(&tag.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3))
+                );
+            }
+            let [Recovered::Complete(payload)] = tag.payloads.as_slice() else {
+                panic!("outer payload: {source:?}")
+            };
+            assert_eq!(payload.range, name_end..end - 1);
+            assert!(matches!(payload.boundary, Recovered::Incomplete));
+            let Recovered::Complete(expr) = &payload.type_expr else {
+                panic!("payload expression: {source:?}")
+            };
+            assert_eq!(expr.range, primary_start..end - 1);
+            assert!(
+                expr.leading_effect_row.is_none()
+                    && expr.postfix.is_empty()
+                    && expr.arrow.is_none()
+            );
+            let TypePrimary::PolymorphicVariant(nested) = expr.complete_primary() else {
+                panic!("nested PV: {source:?}")
+            };
+            assert_eq!(nested.range, primary_start..end - 1);
+            assert_eq!(nested.colon, primary_start..primary_start + 1);
+            assert_eq!(nested.open, primary_start + 1..primary_start + 2);
+            assert!(nested.trailing_comma.is_none());
+            assert!(
+                matches!(&nested.close, Recovered::Complete(range) if *range == (end - 2..end - 1))
+            );
+            let [Recovered::Complete(nested_tag)] = nested.tags.as_slice() else {
+                panic!("nested tag: {source:?}")
+            };
+            assert_eq!(nested_tag.range, primary_start + 2..primary_start + 3);
+            assert!(nested_tag.payloads.is_empty());
+            assert!(
+                matches!(&nested_tag.name, Recovered::Complete(word) if word.text() == "B" && word.range() == (primary_start + 2..primary_start + 3))
+            );
+
+            let mut input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            commit_direct_type_expression(&mut committed).unwrap();
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "",
+                "{source:?}"
+            );
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(local.type_expression_episode_depth(), 0);
+            assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+            assert_eq!(root.to_string(), source);
+            let mut shape = vec![
+                (0, SyntaxKind::Root, 0..end),
+                (1, SyntaxKind::TypeExpression, 0..end),
+                (2, SyntaxKind::PolymorphicVariantType, 0..end),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..end - 1),
+            ];
+            let mut sites = vec![];
+            if name_end == 5 {
+                shape.extend([(4, SyntaxKind::Error, 2..5), (5, SyntaxKind::Unknown, 2..5)]);
+                sites.push((
+                    TypeRole::PolymorphicVariantTagName,
+                    2..5,
+                    ExpectedSyntax::Identifier,
+                ));
+            } else {
+                shape.push((4, SyntaxKind::Identifier, 2..3));
+            }
+            shape.extend([
+                (4, SyntaxKind::PolymorphicVariantPayload, name_end..end - 1),
+                (5, SyntaxKind::Error, name_end..primary_start),
+                (6, SyntaxKind::Unknown, name_end..primary_start),
+                (5, SyntaxKind::TypeExpression, primary_start..end - 1),
+                (
+                    6,
+                    SyntaxKind::PolymorphicVariantType,
+                    primary_start..end - 1,
+                ),
+                (7, SyntaxKind::Colon, primary_start..primary_start + 1),
+                (7, SyntaxKind::LBrace, primary_start + 1..primary_start + 2),
+                (
+                    7,
+                    SyntaxKind::PolymorphicVariantTag,
+                    primary_start + 2..primary_start + 3,
+                ),
+                (
+                    8,
+                    SyntaxKind::Identifier,
+                    primary_start + 2..primary_start + 3,
+                ),
+                (7, SyntaxKind::RBrace, end - 2..end - 1),
+                (3, SyntaxKind::RBrace, end - 1..end),
+            ]);
+            sites.push((
+                TypeRole::PolymorphicVariantPayloadBoundary,
+                name_end..primary_start,
+                ExpectedSyntax::TypePayloadBoundary,
+            ));
+            let actual_shape = root
+                .descendants_with_tokens()
+                .map(|part| {
+                    let depth = match &part {
+                        rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                        rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                    };
+                    let range = usize::from(part.text_range().start())
+                        ..usize::from(part.text_range().end());
+                    assert_eq!(part.to_string(), source[range.clone()]);
+                    (depth, part.kind(), range)
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(actual_shape, shape, "{source:?}");
+            let expected_records = sites
+                .into_iter()
+                .enumerate()
+                .map(|(id, (role, range, expected))| {
+                    let role = GrammarRole::Type(role);
+                    CommittedRecoveryRecord {
+                        id: DiagnosticId(id as u32),
+                        site: RecoverySiteKey {
+                            role,
+                            range: range.clone(),
+                        },
+                        kind: RecoveryKind::Error,
+                        unexpected: Arc::from([UnexpectedSyntax::Token {
+                            range: range.clone(),
+                            category: UnexpectedCategory::OtherCharacter,
+                        }]),
+                        expectations: Arc::from([SyntaxExpectation {
+                            role,
+                            expected,
+                            range,
+                            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                        }]),
+                        primary_expectation: 0,
+                    }
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(records, expected_records, "{source:?}");
+        }
+    }
+
+    #[test]
     fn legacy_polymorphic_variant_primary_completion_preflight() {
         use crate::session::{
             CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
