@@ -88,10 +88,18 @@ generic caller stops/outer closes retain raw payload but the immediate delimited
 owner consumes the horizontal gap and anchors its local close Missing after it;
 ASOB retains the whole gap.  T4P provenance/separator construction and T3
 separator/provenance/T3b remain retained, but T4P P/E and T3a Call
-boundary-priority certification are reopened.  Immediate safe work is to
-execution-pin the shared initial and post-explicit-separator horizontal-gap
-phases before drafting a reviewed correction.  No T3/T4P repair or T4E
-implementation may begin without that successor and fresh user approval.
+boundary-priority certification are reopened.  The required initial and
+post-explicit-separator legacy baseline is now execution-pinned by
+`legacy_delimited_fresh_slot_horizontal_gap_phases_are_execution_pinned`:
+Call, Parenthesized, and EffectRow cover initial, comma, and semicolon slots;
+generic caller `}` stays raw while owner-local Whitespace precedes the Item and
+close Missing nodes, and matching local closes retain the same owner-local gap
+with no recovery.  M1 pre-write and delta specification review are clean after
+one test-only repair.  This evidence authorizes no T3/T4P repair or T4E
+implementation.  The immediate next action is a reviewed correction that
+separates ASOB whole-gap handoff from delimited-owner horizontal-trivia
+consumption before raw generic caller/outer payload handoff, followed by a
+fresh user decision.
 
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no

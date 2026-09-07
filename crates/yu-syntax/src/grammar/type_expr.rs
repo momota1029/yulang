@@ -9538,6 +9538,73 @@ mod tests {
             EffectRow,
         }
 
+        fn parse_caller_stop_cst(source: &str) -> SyntaxNode {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(StopSet::default().with(StopKind::RightBrace));
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            commit_direct_type_expression(&mut committed).expect("direct caller-stop prefix");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "}",
+                "{source:?}",
+            );
+            committed.finish_node();
+            let root = SyntaxNode::new_root(committed.into_output().finish_prefix());
+            assert_eq!(root.to_string(), source[..source.len() - 1], "{source:?}");
+            root
+        }
+
+        fn assert_owner_gap(root: &SyntaxNode, owner: Owner, at: usize, missing: bool) {
+            let (kind, close) = match owner {
+                Owner::Call => (SyntaxKind::TypeCallTail, SyntaxKind::RParen),
+                Owner::Parenthesized => (SyntaxKind::ParenthesizedTypeGroup, SyntaxKind::RParen),
+                Owner::EffectRow => (SyntaxKind::EffectRowType, SyntaxKind::RBracket),
+            };
+            let owner = root.descendants().find(|node| node.kind() == kind).unwrap();
+            let children = owner.children_with_tokens().collect::<Vec<_>>();
+            let gap_index = children
+                .iter()
+                .position(|child| child.kind() == SyntaxKind::Whitespace)
+                .expect("horizontal gap is a direct delimited-owner child");
+            let gap = children[gap_index]
+                .as_token()
+                .expect("native whitespace token");
+            assert_eq!(gap.text(), " ");
+            assert_eq!(usize::from(gap.text_range().start()), at - 1);
+            assert_eq!(usize::from(gap.text_range().end()), at);
+            let after_gap = &children[gap_index + 1..];
+            if missing {
+                let missing_children = after_gap
+                    .iter()
+                    .filter(|child| child.kind() == SyntaxKind::Missing)
+                    .collect::<Vec<_>>();
+                assert_eq!(missing_children.len(), 2, "{owner:#?}");
+                assert_eq!(after_gap.last().unwrap().kind(), SyntaxKind::Missing);
+                for child in missing_children {
+                    assert!(child.as_node().is_some());
+                    assert_eq!(child.kind(), SyntaxKind::Missing);
+                    assert_eq!(usize::from(child.text_range().start()), at);
+                    assert_eq!(usize::from(child.text_range().end()), at);
+                }
+            } else {
+                assert_eq!(after_gap.len(), 1, "{owner:#?}");
+                assert!(after_gap[0].as_token().is_some());
+                assert_eq!(after_gap[0].kind(), close);
+                assert_eq!(usize::from(after_gap[0].text_range().start()), at);
+                assert_eq!(usize::from(after_gap[0].text_range().end()), at + 1);
+            }
+        }
+
         fn assert_plain_atom(expression: &TypeExpression<'_>, expected_range: Range<usize>) {
             assert!(
                 matches!(expression, TypeExpression {
@@ -9801,6 +9868,7 @@ mod tests {
                 parse_direct_prefix_with_outer_stop(source, StopKind::RightBrace);
             assert_eq!(direct_remainder, "}", "direct {source:?}");
             assert_boundary_records(&records, owner, at, true);
+            assert_owner_gap(&parse_caller_stop_cst(source), owner, at, true);
         }
 
         for (source, owner, slots, owner_range, at) in [
@@ -9907,9 +9975,12 @@ mod tests {
             ("G '[F; ]", Owner::EffectRow, vec![Some(4..5)], 7..8, 2..8),
         ] {
             let ast = parse(source);
+            let close_start = close.start;
             assert_outer_shape(source, &ast, owner, &slots, Some(close), owner_range);
             assert!(parse_direct_recovered(source).is_empty(), "{source:?}");
-            assert_eq!(parse_direct(source).to_string(), source, "{source:?}");
+            let direct = parse_direct(source);
+            assert_eq!(direct.to_string(), source, "{source:?}");
+            assert_owner_gap(&direct, owner, close_start, false);
         }
     }
 
