@@ -206,7 +206,12 @@ unconditional malformed-run consume, a wrong-kind-only adapter, range clamping,
 or a retrospective CST split are rejected.
 
 No primary-completion source or expectation was integrated.  The pre-existing
-shared delimited candidate remains isolated.  The next gate is direct legacy
-characterization of the conditional payload-admission table, followed by a new
-reviewed material addendum that either supplies a sound no-replay/no-buffer
-retry witness or stops this path before any further construction.
+shared delimited candidate remains isolated.  Direct legacy characterization is
+now pinned by
+`legacy_polymorphic_variant_conditional_payload_admission_is_execution_pinned`:
+valid/wrong-head unspaced retry and dangling runs, ambient retry rejection,
+spaced recovery, repeated payload, newline/native-close/EOF boundaries, AST,
+direct CST, exact ordered records, close ownership, and caller remainder.  The
+next gate is a new reviewed material addendum that either supplies a sound
+no-replay/no-buffer retry witness or stops this path before any further
+construction.

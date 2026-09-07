@@ -15,11 +15,13 @@ so the recorded narrow-correction delegation did not apply.  The user selected
 option 1 on 2026-09-07, but its construction refuted the assumption that the
 unchanged PV payload judge accepts unspaced `::`/`->` after a completed wrong
 kind primary: it emits a second Tag Error instead of the legacy payload-boundary
-Error.  The primary candidate was reverted before integration.  Active work is
-now direct legacy evidence for conditional malformed payload admission and a
-new M3 payload-adapter design; it must establish an admissible non-ambient
-retry witness without replay/buffering before a fresh user decision.  The
-separately authorized shared delimited candidate remains unstaged in
+Error.  The primary candidate was reverted before integration.  The direct
+legacy payload-admission matrix is now execution-pinned: only an invalid run
+that reaches an admissible non-ambient retry primary becomes payload recovery;
+dangling and ambient retry remain tag/caller-owned.  The active gate is a new
+M3 payload-adapter design.  It must establish a sound admissible retry witness
+without replay/buffering before a fresh user decision.  The separately
+authorized shared delimited candidate remains unstaged in
 `type_expr/delimited.rs` and its focused tests.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
