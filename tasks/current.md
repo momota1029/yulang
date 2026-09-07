@@ -100,10 +100,14 @@ outer `]`/`)` remains an actual close and continues through its own row/arrow
 or group.  M1 pre-write and delta specification review are clean after one
 test-only repair and one outer-close characterization extension.  This evidence
 authorizes no T3/T4P repair or T4E
-implementation.  The immediate next action is a reviewed correction that
-separates ASOB whole-gap handoff from delimited-owner horizontal-trivia
-consumption before raw generic caller/outer payload handoff, followed by a
-fresh user decision.
+implementation.  The Reviewed
+`2026-09-07-successor-delimited-boundary-priority-correction.md` now separates
+ASOB whole-gap handoff from delimited-owner horizontal-trivia consumption before
+raw generic caller/outer payload handoff.  M3 compiler/recovery and
+specification review closed after two bounded Draft repairs and clean deltas.
+It authorizes no construction: a fresh user choice between its §6
+legacy-compatible correction and intentional successor divergence is the next
+required action.
 
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
