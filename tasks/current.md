@@ -62,16 +62,15 @@ T4P candidate was discarded.  A narrow correction, M3 review, and fresh user
 decision are required before T4P/T4E resume; T4B/T4A, T7c certification, O6,
 and public cutover remain gated.
 
-The new Draft `2026-09-07-successor-t4-inherited-type-ml-correction-amendment.md`
+The Authoritative `2026-09-07-successor-t4-inherited-type-ml-correction-amendment.md`
 preserves standalone TypeApply controls while restoring only the outer-TypeApply
-inherited-context Parenthesized/EffectRow separator witnesses.  It proposes no
-new Error capability and leaves T4B/T4A excluded.  The user selected its narrow
-outer-TypeApply-only option, but the third M3 delta review found the Draft had
-to state T3 Call's unchanged active-context behavior exactly.  That correction
-has returned the Draft to design; no T4 code may resume until the revised Draft
-receives a fresh independent M3 review.  NonTypeApply PV/declaration P/E parity
-remains explicitly Open and no local checkpoint can close T4P/T4E ownership or
-O4.
+inherited-context Parenthesized/EffectRow separator witnesses.  The user chose
+the narrow outer-TypeApply-only option after M3 compiler/recovery,
+specification, and performance review; the final T3 Call wording correction has
+a clean independent specification closure.  T4P alone is the next gate: first
+execution-pin its required direct legacy baselines, then make one local
+construction pass.  T4E, NonTypeApply PV/declaration P/E parity, T4B/T4A, T7c,
+O4/O6, public/Yumark, and production expected-output scope remain excluded.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→

@@ -1,17 +1,27 @@
 # Successor T4 inherited type-ML correction amendment
 
-Status: Draft
+Status: Authoritative; T4P local construction only
 
 Date: 2026-09-07
 
 Drafted-by: primary after the T4P §5 architecture return
 
+Reviewed-by: M3 compiler/recovery, specification, and performance review;
+three bounded repair rounds, architecture return for the retained T3 Call
+transition, and clean targeted specification closure
+
+Approved-by: user (narrow outer-TypeApply-only option)
+
+Approved-at: 2026-09-07
+
 Scope: correct only the inherited outer-TypeApply type-ML premise that
 invalidated the approved T4 correction amendment's Parenthesized and EffectRow
 separator evidence.  It defines one private provenance-bearing context required
 to preserve that scope, but no new Error terminal, CST topology exception, or
-public interface.  It does not authorize implementation or expected-output
-changes before M3 review and a fresh user decision.
+public interface.  It authorizes only T4P local construction after the required
+direct legacy baselines in §3.  T4E remains an ordered later gate, and no local
+checkpoint authorizes owner-complete T4, O4, public/Yumark, or production
+expected-output changes.
 
 Governing sources:
 
@@ -164,14 +174,14 @@ parity: `:{Tag (F A)}`, `:{Tag '[F A]}`, `enum E = Tag X (F A)`, and
 `enum E = Tag '[F A]` are source-derived characterization controls.  Their
 legacy baselines must run before any semantic expectation is assigned.  They
 remain Open for a later reviewed scope expansion; consequently this amendment
-can authorize only T4P/T4E local construction, never owner-complete or O4
+can authorize only T4P local construction, never owner-complete T4 or O4
 certification.  BracketRow's own analogous reaction remains a T4B preflight
 audit item rather than authority here.
 
 ## 3. Ordered construction and evidence
 
-T4P remains the first construction slice, but cannot begin until this Draft is
-Authoritative.  Before successor expectations, it execution-pins every
+T4P is the authorized first construction slice.  Before successor expectations,
+it execution-pins every
 source-derived Parenthesized tuple in §1--2, including `(F A)`, `(A{})`, CRLF,
 priority, `G ((F A))` (inner ParenthesizedSeparator `6..6`),
 `G T((F A))` (ParenthesizedSeparator `7..7`, Call publishes nothing), and
@@ -179,8 +189,8 @@ priority, `G ((F A))` (inner ParenthesizedSeparator `6..6`),
 T4P also preserves the T3 controls: `G T(F A)` retains its one
 CallArgumentSeparator Missing at `6..6`; `T(F A)` remains one ordinary Call
 argument with no recovery; and `G T((F A))` has only the named
-ParenthesizedSeparator, not a Call record.  T4E remains a later ordered slice
-and first execution-pins all its
+ParenthesizedSeparator, not a Call record.  T4E remains excluded as a later
+ordered slice; it first execution-pins all its
 source-derived EffectRow tuples, including same-line `G '[F A]`, CRLF,
 priority, `G ('[F A])` (EffectRowSeparator `7..7`), and
 `G T('[F A])` (EffectRowSeparator `8..8`, Call publishes nothing), plus a
@@ -237,7 +247,11 @@ owner, a nonreactive owner publishes a separator, an Error/topology exception
 leaks, or the T4B audit finds a dependency that cannot remain excluded.  Any
 implementation returns to clean commit `b70951c2` while retaining this Draft.
 
-This Draft requires M3 compiler/recovery, specification, and performance
-review.  Because the false premise is material, their Reviewed recommendation
-must present the corrected behavior and remaining alternatives to the user for
-a fresh approval before any T4P/T4E implementation or expected-output change.
+M3 compiler/recovery, specification, and performance review closed with three
+bounded repair rounds.  The final specification finding restored T3's unchanged
+provenance-blind, phase-preserving Call transition; architecture adjudicated the
+exact transition and the targeted independent specification closure is clean.
+The user approved the narrow outer-TypeApply-only option.  T4P may now execute
+its direct legacy baselines and then its one local construction pass.  T4E,
+NonTypeApply PV/declaration P/E parity, T4B/T4A, T7c certification, O4, O6,
+public/Yumark, and production expected-output changes remain excluded.

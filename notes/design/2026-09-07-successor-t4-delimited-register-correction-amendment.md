@@ -1,6 +1,7 @@
 # Successor T4 delimited recovery register correction amendment
 
-Status: Authoritative; T4P suspended pending narrow correction
+Status: Authoritative; inherited P/E scope superseded by the T4 type-ML
+successor; T4P resumes only under that successor
 
 Date: 2026-09-07
 
@@ -302,3 +303,14 @@ standalone controls from the inherited-context separator witnesses, define the
 bounded Parenthesized/EffectRow propagation, receive M3 review, and obtain a
 fresh user decision.  No other T4 cell, the eighth-terminal proposal, or later
 gate gains construction credit from the discarded candidate.
+
+## 7. Successor disposition
+
+`2026-09-07-successor-t4-inherited-type-ml-correction-amendment.md` is now
+Authoritative.  It supersedes this amendment only for the outer-TypeApply
+inherited Parenthesized/EffectRow separator premise, its bounded private
+provenance context, and the resulting T4P construction order.  It lifts this
+section's suspension for T4P only after that successor's §3 direct legacy
+baselines.  The original finite-register correction, its eighth-terminal
+proposal, and every T4E/T4B/T4A/T7c and excluded-scope boundary remain governed
+by their stated gates.
