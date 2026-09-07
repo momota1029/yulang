@@ -62,6 +62,8 @@ separate comment-trivia overwrite from physical-newline fence to comment-run
 start, including exact LF and CRLF rows.
 The eighteenth separately pins valid/wrong `+`/`@@`/`->`/bare-`::` CRLF
 active-newline fence preservation, including their two-byte local Newlines.
+The twenty-sixth classifies valid/wrong adjacent and spaced leading EffectRow/
+BracketRow payloads, including their Missing-versus-Whitespace boundaries.
 Direct PV ambient evidence
 pins root visible/no-stop initial/retry, indented strict-dedent initial/
 recovery-continuation, nested-If inner initial/recovery-continuation,

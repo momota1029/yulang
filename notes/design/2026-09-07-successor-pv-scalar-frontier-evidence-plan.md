@@ -256,6 +256,14 @@ establishes only the direct CRLF pairs; it neither parameterizes the LF cells,
 changes the distinct colon-overlap control, nor determines a retry/decline or
 rewrite rule.
 
+The twenty-sixth bounded cell classifies leading EffectRow/BracketRow payload
+vocabulary directly: `:{123'[F]}`, `:{123 '[F]}`, `:{A'[F]}`, and
+`:{A '[F]}` all admit one EffectRow payload containing `F`. Adjacent rows own
+a Missing payload boundary; spaced rows retain their payload-owned Whitespace.
+The wrong-head rows retain only their TagName Error, while valid spaced has no
+recovery. This records no successor admission, no other primary class, and no
+general payload policy.
+
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
 ambient-balance style.  It must not update a rewrite expectation or treat a
