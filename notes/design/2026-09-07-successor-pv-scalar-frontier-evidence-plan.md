@@ -92,8 +92,7 @@ wrong-kind name recovery, scalar payload-boundary recovery, and inline nested
 PV retry; `:{123::\r\n:{B}}` separately pins its three tag-loop recoveries.
 All four rows pin AST, full CST preorder/ranges, ordered recoveries, native
 close/full consumption, and AST/direct episode-frame balance.  This leaves the
-remaining wrong-head decline and EOF counterparts, plus every other matrix
-family, open.
+other unpinned wrong-head dispositions and every other matrix family open.
 
 The second bounded slice pins the spaced wrong-head no-retry forms
 `:{123 +}` / `:{123 +` and `:{123 @@}` / `:{123 @@`.  In all four, the space
@@ -107,6 +106,12 @@ EOF it remains the actual prefix remainder after the outer missing brace at
 offset 8.  The row pins both AST/direct frame balance, native/full CST and
 recovery, plus prefix CST/recovery/remainder.  It establishes no generalized
 comment, fence, or successor policy.
+
+The fourth bounded slice pins unspaced wrong-head `+`/`@@` native/EOF forms.
+The empty-trivia payload judge declines the run without a payload, then the
+outer PV tag loop owns the second malformed tag.  The EOF rows pin the missing
+outer-brace record.  This establishes no disposition for other spellings,
+ambient contexts, fences, or successor behavior.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and

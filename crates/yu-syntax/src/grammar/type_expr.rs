@@ -15090,6 +15090,101 @@ mod tests {
                 missing_close(2, 8..8),
             ],
         );
+
+        // Without horizontal trivia, the malformed scalar run is declined by
+        // the payload judge and remains for the outer PV tag loop.  It is not
+        // a payload recovery and cannot be treated as the spaced rows above.
+        for (source, run_end, native_close) in [
+            (":{123+}", 6, true),
+            (":{123@@}", 7, true),
+            (":{123+", 6, false),
+            (":{123@@", 7, false),
+        ] {
+            let end = source.len();
+            let ast = parse(source);
+            assert_eq!(ast.range, 0..end);
+            assert!(
+                ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none()
+            );
+            let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                panic!("unspaced wrong-head PV: {source:?}")
+            };
+            assert_eq!(pv.range, 0..end);
+            assert_eq!(pv.colon, 0..1);
+            assert_eq!(pv.open, 1..2);
+            assert!(pv.trailing_comma.is_none());
+            if native_close {
+                assert!(
+                    matches!(&pv.close, Recovered::Complete(range) if *range == (run_end..end))
+                );
+            } else {
+                assert!(matches!(pv.close, Recovered::Incomplete));
+            }
+            let [Recovered::Complete(first), Recovered::Incomplete] = pv.tags.as_slice() else {
+                panic!("unspaced wrong-head tags: {source:?}")
+            };
+            assert_eq!(first.range, 2..5);
+            assert!(matches!(first.name, Recovered::Incomplete));
+            assert!(first.payloads.is_empty());
+
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source);
+            let shape = root
+                .descendants_with_tokens()
+                .map(|part| {
+                    let depth = match &part {
+                        rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                        rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                    };
+                    let range = usize::from(part.text_range().start())
+                        ..usize::from(part.text_range().end());
+                    assert_eq!(part.to_string(), source[range.clone()]);
+                    (depth, part.kind(), range)
+                })
+                .collect::<Vec<_>>();
+            let mut expected_shape = vec![
+                (0, SyntaxKind::Root, 0..end),
+                (1, SyntaxKind::TypeExpression, 0..end),
+                (2, SyntaxKind::PolymorphicVariantType, 0..end),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..5),
+                (4, SyntaxKind::Error, 2..5),
+                (5, SyntaxKind::Unknown, 2..5),
+                (3, SyntaxKind::PolymorphicVariantTag, 5..run_end),
+                (4, SyntaxKind::Error, 5..run_end),
+                (5, SyntaxKind::Unknown, 5..run_end),
+            ];
+            expected_shape.push(if native_close {
+                (3, SyntaxKind::RBrace, run_end..end)
+            } else {
+                (3, SyntaxKind::Missing, run_end..run_end)
+            });
+            assert_eq!(shape, expected_shape, "{source:?}");
+
+            let mut expected_records = vec![
+                record(
+                    0,
+                    TypeRole::PolymorphicVariantTagName,
+                    2..5,
+                    ExpectedSyntax::Identifier,
+                ),
+                record(
+                    1,
+                    TypeRole::PolymorphicVariantTag,
+                    5..run_end,
+                    ExpectedSyntax::Identifier,
+                ),
+            ];
+            if !native_close {
+                expected_records.push(missing_close(2, run_end..run_end));
+            }
+            assert_eq!(
+                parse_direct_recovered(source),
+                expected_records,
+                "{source:?}",
+            );
+        }
     }
 
     #[test]

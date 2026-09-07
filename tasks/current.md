@@ -51,8 +51,9 @@ evidence only.  Its first direct slice pins wrong-head `+`, `@@`, comment, and
 CRLF scalar-run behavior in legacy, including the separate CRLF tag-loop
 ownership.  A second slice pins spaced `+`/`@@` no-retry native/EOF behavior;
 the third pins spaced-comment native close versus EOF prefix/remainder as a
-distinct path.  Its immediate next action is a pre-write specification audit
-of a remaining direct legacy gap slice; its status does not authorize
+distinct path; the fourth pins unspaced `+`/`@@` outer-tag no-retry
+native/EOF behavior.  Its immediate next action is a pre-write specification
+audit of a remaining direct legacy gap slice; its status does not authorize
 rewrite-source changes or alter the two-file delimiter integration block.
 
 `2026-09-07-successor-pv-payload-admission-capability-amendment.md` remains a
