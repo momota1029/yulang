@@ -1,10 +1,16 @@
 # Successor T4 delimited recovery register correction amendment
 
-Status: Authoritative; inherited P/E scope superseded by the T4 type-ML
-successor; T4P core construction complete and P/E boundary-priority
-certification suspended under that successor
+Status: Authoritative in retained scope; P/E provenance and recovery machinery
+partially superseded by the T4 type-ML and 2026-09-08 current-Item successors
 
 Date: 2026-09-07
+
+Current scope note (2026-09-08): the recovery-authority amendment closes the
+shared horizontal correction. `2026-09-08-successor-pe-current-item-recovery.md`
+selects P/E current-Item recovery, superseding their retry-leading/eighth-terminal
+requirement and local-close representation below. The corrected role register
+and accepted grammar remain; BracketRow/row-arrow and aggregate O6/public
+certification are separate open work.
 
 Drafted-by: primary from T4 architecture preflight after T3 local construction
 

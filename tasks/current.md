@@ -45,11 +45,18 @@ operation and preserve explicit caller Items. Wrong-kind heads retain tight
 Type tails inside one structured Error. Type tests: 134 passed; declaration,
 output/RB and package checks remain green.
 
-Next: resume the remaining Type-owner migration, starting with shared
-Parenthesized/EffectRow item, separator and close sites. Select bounded
-current-Item recovery where the old eighth-terminal proposal exists solely to
-copy malformed leading ownership. Preserve accepted Type-ML provenance and
-the completed Call/PV/structured-output contracts.
+Parenthesized/EffectRow-owned construction is complete under
+`2026-09-08-successor-pe-current-item-recovery.md`. Item, separator and close
+sites now publish typed records; Error retries emit leading at the P/E owner,
+preserve complete caller/fence Items, and recover unclaimed closes locally.
+EffectRow activates only the approved OuterTypeApply provenance. Type tests:
+141 passed; declaration: 39; output: 4; recovery output: 25; package check
+passed. Call and structured PV contracts remain green.
+
+Next: BracketRow item/separator/close, then the mandatory row arrow and leading
+head. Retain accepted row grammar, attachment and newline/caller boundaries;
+select a current-Item recovery rule explicitly before migrating the raw sites.
+The old eighth-terminal proposal is not a required prerequisite.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
@@ -57,7 +64,7 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Complete the remaining Type-owned recovery sites (P/E/BracketRow, row arrow,
+1. Complete the remaining Type-owned recovery sites (BracketRow, row arrow/head,
    record and forall). PV-local construction does not certify raw recovery
    still emitted by a nested non-PV owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,

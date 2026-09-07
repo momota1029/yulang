@@ -130,7 +130,7 @@ impl TypeMlContext {
         }
     }
 
-    pub(super) fn parenthesized_item(self) -> Self {
+    pub(super) fn delimited_item(self) -> Self {
         Self {
             stop_here: self.provenance == TypeMlProvenance::OuterTypeApply,
             ..self

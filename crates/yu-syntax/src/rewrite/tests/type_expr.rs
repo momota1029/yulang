@@ -14,6 +14,7 @@ use crate::session::{
 };
 use chasa_recover::Recoverable as _;
 
+mod pe_recovery;
 mod pv_recovery;
 
 fn top_type_expression(green: &GreenNode) -> SyntaxNode {
@@ -690,26 +691,24 @@ fn parenthesized_group(green: &GreenNode) -> SyntaxNode {
         .expect("parenthesized Type group")
 }
 
-fn assert_outer_parenthesized_close(source: &str) {
+fn assert_outer_parenthesized_close(source: &str, item_error: Option<Range<usize>>) {
     let close_at = source.find('}').expect("outer right brace");
+    let mut expected = vec![expected_type_error(
+        0,
+        TypeRole::PolymorphicVariantTagName,
+        2..close_at,
+    )];
+    if let Some(range) = item_error {
+        expected.push(pe_recovery::item(1, false, range, true));
+    }
+    expected.push(expected_parenthesized_close(
+        expected.len() as u32,
+        close_at,
+    ));
     let (green, exit, records) = run_type_with_recoveries(source, None);
     assert_eq!(green.to_string(), source, "{source:?}");
     assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
-    assert_eq!(
-        records
-            .iter()
-            .filter(|record| {
-                record.site.role
-                    == (GrammarRole::ClosingDelimiter {
-                        owner: ConstructRole::ParenthesizedTypeGroup,
-                        delimiter: Delimiter::Parenthesis,
-                    })
-            })
-            .cloned()
-            .collect::<Vec<_>>(),
-        [expected_parenthesized_close(1, close_at)],
-        "{source:?}"
-    );
+    assert_eq!(records, expected, "{source:?}");
     assert_eq!(
         parenthesized_group(&green)
             .children()
@@ -720,22 +719,43 @@ fn assert_outer_parenthesized_close(source: &str) {
     );
 }
 
-fn assert_local_parenthesized_close(source: &str, emitted: &str) {
-    let (green, exit, remainder, records) =
-        run_type_normalized_with_recoveries(source, 0, LineEntry::InLine, None, None);
-    assert_eq!(green.to_string(), emitted, "{source:?}");
-    let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine)) = exit else {
-        panic!("local mismatched close must remain pending: {source:?}")
-    };
-    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBracket));
-    assert!(item.leading_view().is_grammar_empty());
-    assert_eq!(remainder, "");
-    assert!(records.is_empty());
-    assert!(
-        !parenthesized_group(&green)
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Missing)
+fn assert_local_parenthesized_close(source: &str, item_error: Option<Range<usize>>) {
+    // An unclaimed close belongs to P/E recovery, not to an unknown caller.
+    let at = source.find(']').expect("unclaimed mismatched close");
+    let mut expected = Vec::new();
+    if let Some(range) = item_error {
+        expected.push(pe_recovery::item(0, false, range, true));
+    }
+    expected.push(pe_recovery::close(
+        expected.len() as u32,
+        false,
+        at..at + 1,
+        Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+            Delimiter::Bracket,
+        ))),
+    ));
+    expected.push(expected_parenthesized_close(
+        expected.len() as u32,
+        source.len(),
+    ));
+    let root = assert_complete_type_recovery(source, 0, &expected);
+    let group = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
+        .unwrap();
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
     );
+    assert!(group.children().any(|node| {
+        node.kind() == SyntaxKind::Error
+            && node
+                .first_token()
+                .is_some_and(|token| token.kind() == SyntaxKind::RBracket)
+    }));
 }
 
 #[test]
@@ -3895,7 +3915,7 @@ fn type_parenthesized_t4p_seeded_abstract_boundary_is_unconsumed_fresh_and_froze
 }
 
 #[test]
-fn type_parenthesized_t4p_provenance_crosses_nonreactive_owners_without_sibling_records() {
+fn type_parenthesized_t4p_provenance_routes_each_delimited_owner_record() {
     for (source, separator_at) in [
         ("G ((F A))", 6),
         ("G T((F A))", 7),
@@ -3931,16 +3951,19 @@ fn type_parenthesized_t4p_provenance_crosses_nonreactive_owners_without_sibling_
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     assert_eq!(records, [expected_type_call_separator(0, 6)]);
 
-    for source in ["G '[F A]", "G T[F A]->U"] {
+    for (source, expected) in [
+        ("G '[F A]", vec![pe_recovery::separator(0, true, 6)]),
+        ("G T[F A]->U", vec![]),
+    ] {
         let (green, exit, records) = run_type_with_recoveries(source, None);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
-        assert!(records.is_empty(), "{source:?}: {records:#?}");
+        assert_eq!(records, expected, "{source:?}");
         assert!(
             records.iter().all(|record| {
                 !matches!(
                     record.site.role,
-                    GrammarRole::Type(TypeRole::EffectRowSeparator | TypeRole::BracketRowSeparator)
+                    GrammarRole::Type(TypeRole::BracketRowSeparator)
                 )
             }),
             "{source:?}: {records:#?}"
@@ -3980,7 +4003,10 @@ fn type_parenthesized_t4p_provenance_crosses_nonreactive_owners_without_sibling_
                     &[
                         (SyntaxKind::Apostrophe, 2..3),
                         (SyntaxKind::LBracket, 3..4),
-                        (SyntaxKind::TypeExpression, 4..7),
+                        (SyntaxKind::TypeExpression, 4..5),
+                        (SyntaxKind::Whitespace, 5..6),
+                        (SyntaxKind::Missing, 6..6),
+                        (SyntaxKind::TypeExpression, 6..7),
                         (SyntaxKind::RBracket, 7..8),
                     ],
                 );
@@ -4020,14 +4046,16 @@ fn type_parenthesized_t4p_provenance_crosses_nonreactive_owners_without_sibling_
             }
             _ => unreachable!(),
         }
-        assert!(
-            !SyntaxNode::new_root(green.clone())
+        assert_eq!(
+            SyntaxNode::new_root(green.clone())
                 .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+                .filter(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+                .count(),
+            expected.len(),
             "{source:?}",
         );
 
-        let frozen = [];
+        let frozen = frozen_recovery_ids(&expected);
         let (frozen_green, frozen_exit, frozen_records) =
             run_type_with_recoveries(source, Some(&frozen));
         assert_eq!(frozen_green, green, "{source:?}");
@@ -4035,7 +4063,7 @@ fn type_parenthesized_t4p_provenance_crosses_nonreactive_owners_without_sibling_
             matches!(frozen_exit, Some(Err(Either::Right(_)))),
             "{source:?}",
         );
-        assert!(frozen_records.is_empty(), "{source:?}: {frozen_records:#?}");
+        assert_eq!(frozen_records, frozen, "{source:?}");
     }
 }
 
@@ -6446,9 +6474,7 @@ fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
                 (":{'[F, }", 7, Some(6), 2),
                 (":{'[F; }", 7, Some(6), 2),
                 (":{'[F }", 6, Some(5), 1),
-                // No-gap E handoff is outside the horizontal correction. Its
-                // existing partial row has no close Missing until the E gate.
-                (":{'[F}", 5, None, 0),
+                (":{'[F}", 5, None, 1),
                 (":{'[F ]}", 7, Some(5), 0),
             ],
         ),
@@ -6473,10 +6499,15 @@ fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
                     TypeRole::PolymorphicVariantTagName,
                     origin + 2..at,
                 )];
-                if owner == SyntaxKind::TypeCallTail && missing_count == 2 {
+                if missing_count == 2 {
                     expected.push(expected_type_expression_missing(
                         1,
-                        TypeRole::CallArgument,
+                        match owner {
+                            SyntaxKind::TypeCallTail => TypeRole::CallArgument,
+                            SyntaxKind::ParenthesizedTypeGroup => TypeRole::ParenthesizedItem,
+                            SyntaxKind::EffectRowType => TypeRole::EffectRowItem,
+                            _ => unreachable!(),
+                        },
                         at,
                     ));
                 }
@@ -6486,9 +6517,16 @@ fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
                             expected.push(expected_type_call_close(expected.len() as u32, at))
                         }
                         SyntaxKind::ParenthesizedTypeGroup => {
-                            expected.push(expected_parenthesized_close(1, at));
+                            expected.push(expected_parenthesized_close(expected.len() as u32, at));
                         }
-                        SyntaxKind::EffectRowType => {}
+                        SyntaxKind::EffectRowType => {
+                            expected.push(pe_recovery::close(
+                                expected.len() as u32,
+                                true,
+                                at..at,
+                                None,
+                            ));
+                        }
                         _ => unreachable!(),
                     }
                 }
@@ -6591,6 +6629,7 @@ fn shared_delimited_pv_prefix_and_recursive_reservations_keep_owned_ranges() {
             vec![
                 expected_type_error(0, TypeRole::PolymorphicVariantTag, 2..3),
                 expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..8),
+                pe_recovery::close(2, true, 8..8, None),
             ],
         ),
         (
@@ -6606,6 +6645,7 @@ fn shared_delimited_pv_prefix_and_recursive_reservations_keep_owned_ranges() {
             vec![
                 expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..9),
                 expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..8),
+                pe_recovery::close(2, true, 8..8, None),
             ],
         ),
     ] {
@@ -6865,26 +6905,26 @@ fn polymorphic_variant_structured_frozen_mismatches_reject_each_position() {
 
 #[test]
 fn parenthesized_close_initial() {
-    assert_outer_parenthesized_close(":{(}");
-    assert_local_parenthesized_close("(]", "(");
+    assert_outer_parenthesized_close(":{(}", None);
+    assert_local_parenthesized_close("(]", None);
 }
 
 #[test]
 fn parenthesized_close_post_head() {
-    assert_outer_parenthesized_close(":{(A}");
-    assert_local_parenthesized_close("(A]", "(A");
+    assert_outer_parenthesized_close(":{(A}", None);
+    assert_local_parenthesized_close("(A]", None);
 }
 
 #[test]
 fn parenthesized_close_malformed_retry() {
-    assert_outer_parenthesized_close(":{(@}");
-    assert_local_parenthesized_close("(@]", "(@");
+    assert_outer_parenthesized_close(":{(@}", Some(3..4));
+    assert_local_parenthesized_close("(@]", Some(1..2));
 }
 
 #[test]
 fn parenthesized_close_after_separator() {
-    assert_outer_parenthesized_close(":{(A,}");
-    assert_local_parenthesized_close("(A,]", "(A,");
+    assert_outer_parenthesized_close(":{(A,}", None);
+    assert_local_parenthesized_close("(A,]", None);
 }
 
 #[test]
@@ -6978,16 +7018,45 @@ fn parenthesized_close_nonclose_caller_boundary() {
 }
 
 #[test]
-fn parenthesized_close_active_caller_close_is_raw_and_preserves_successor() {
+fn parenthesized_close_active_caller_close_is_typed_and_preserves_successor() {
     let operators = OperatorTable::empty();
     let active_close_stops = stops_for(TokenKind::RBracket)
         & !super::super::operator::STOP_COMMA
         & !super::super::operator::STOP_SEMICOLON;
-    for (source, emitted, missing_count) in [
-        ("( ] tail", "( ", 2),
-        ("(A ] tail", "(A ", 1),
-        ("(@ ] tail", "(@", 1),
-        ("(A, ] tail", "(A, ", 2),
+    for (source, emitted, missing_count, expected) in [
+        (
+            "( ] tail",
+            "( ",
+            2,
+            vec![
+                pe_recovery::item(0, false, 2..2, false),
+                expected_parenthesized_close(1, 2),
+            ],
+        ),
+        (
+            "(A ] tail",
+            "(A ",
+            1,
+            vec![expected_parenthesized_close(0, 3)],
+        ),
+        (
+            "(@ ] tail",
+            "(@",
+            1,
+            vec![
+                pe_recovery::item(0, false, 1..2, true),
+                expected_parenthesized_close(1, 2),
+            ],
+        ),
+        (
+            "(A, ] tail",
+            "(A, ",
+            2,
+            vec![
+                pe_recovery::item(0, false, 4..4, false),
+                expected_parenthesized_close(1, 4),
+            ],
+        ),
     ] {
         let mut input = source;
         let mut recover = Recover::new(&operators);
@@ -7035,9 +7104,9 @@ fn parenthesized_close_active_caller_close_is_raw_and_preserves_successor() {
             missing_count,
             "{source:?}"
         );
-        assert!(records.is_empty(), "{source:?}");
-        assert_eq!(slots, 0, "{source:?}");
-        assert_eq!(diagnostics, (Some(0), 0), "{source:?}");
+        assert_eq!(records, expected, "{source:?}");
+        assert_eq!(slots, expected.len(), "{source:?}");
+        assert_eq!(diagnostics, (Some(expected.len() as u32), 0), "{source:?}");
         assert_eq!(item, control_item, "{source:?}");
         assert_eq!(
             item.payload_view().token_kind(),
@@ -7068,9 +7137,9 @@ fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
     ] {
         for (slot, fresh_slot) in [("", true), ("F", false), ("F,", true), ("F;", true)] {
             for gap in [" ", " \t "] {
-                for (payload, caller_stops, outer_closes, explicit_close) in [
-                    ("}", stops_for(TokenKind::RBrace), 0, true),
-                    (":", super::super::operator::STOP_COLON, 0, false),
+                for (payload, caller_stops, outer_closes) in [
+                    ("}", stops_for(TokenKind::RBrace), 0),
+                    (":", super::super::operator::STOP_COLON, 0),
                     (
                         if outer_close == TokenKind::RBracket {
                             "]"
@@ -7079,7 +7148,6 @@ fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
                         },
                         0,
                         super::super::type_expr::with_type_outer_close(0, outer_close),
-                        false,
                     ),
                 ] {
                     let caller_stops = caller_stops
@@ -7095,10 +7163,21 @@ fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
                             expected_type_call_close(1, at),
                         ],
                         SyntaxKind::TypeCallTail => vec![expected_type_call_close(0, at)],
-                        SyntaxKind::ParenthesizedTypeGroup if !explicit_close => {
+                        SyntaxKind::ParenthesizedTypeGroup if fresh_slot => vec![
+                            pe_recovery::item(0, false, at..at, false),
+                            expected_parenthesized_close(1, at),
+                        ],
+                        SyntaxKind::ParenthesizedTypeGroup => {
                             vec![expected_parenthesized_close(0, at)]
                         }
-                        _ => vec![],
+                        SyntaxKind::EffectRowType if fresh_slot => vec![
+                            pe_recovery::item(0, true, at..at, false),
+                            pe_recovery::close(1, true, at..at, None),
+                        ],
+                        SyntaxKind::EffectRowType => {
+                            vec![pe_recovery::close(0, true, at..at, None)]
+                        }
+                        _ => unreachable!(),
                     };
                     for (context_label, context) in t4p_seeded_contexts() {
                         let fresh = run_contextual_type_snapshot(
@@ -7359,10 +7438,12 @@ fn shared_delimited_horizontal_correction_preserves_nonhorizontal_handoff() {
             assert_eq!(run.successor_origin, control_origin);
             assert_eq!(line, control_line);
             assert_eq!(run.remainder, remainder);
-            let expected = if owner == SyntaxKind::TypeCallTail {
-                vec![expected_type_call_close(0, prefix.len())]
-            } else {
-                vec![]
+            let at = prefix.len();
+            let expected = match owner {
+                SyntaxKind::TypeCallTail => vec![expected_type_call_close(0, at)],
+                SyntaxKind::ParenthesizedTypeGroup => vec![expected_parenthesized_close(0, at)],
+                SyntaxKind::EffectRowType => vec![pe_recovery::close(0, true, at..at, None)],
+                _ => unreachable!(),
             };
             assert_eq!(run.records, expected);
             let frozen = frozen_recovery_ids(&expected);
@@ -7449,8 +7530,15 @@ fn shared_delimited_horizontal_fresh_outer_closes_continue_in_their_actual_owner
                 expected_type_expression_missing(0, TypeRole::CallArgument, at),
                 expected_type_call_close(1, at),
             ],
-            SyntaxKind::ParenthesizedTypeGroup => vec![expected_parenthesized_close(0, at)],
-            _ => vec![],
+            SyntaxKind::ParenthesizedTypeGroup => vec![
+                pe_recovery::item(0, false, at..at, false),
+                expected_parenthesized_close(1, at),
+            ],
+            SyntaxKind::EffectRowType => vec![
+                pe_recovery::item(0, true, at..at, false),
+                pe_recovery::close(1, true, at..at, None),
+            ],
+            _ => unreachable!(),
         };
         assert_eq!(records, expected, "{source:?}");
         let root = SyntaxNode::new_root(green.clone());
@@ -7507,11 +7595,14 @@ fn shared_delimited_horizontal_fresh_outer_closes_continue_in_their_actual_owner
 }
 
 #[test]
-fn type_delimited_owner_routing_keeps_effect_and_bracket_close_recovery_raw() {
-    for source in ["'[A", "[e"] {
+fn type_delimited_owner_routing_types_effect_but_keeps_bracket_close_recovery_raw() {
+    for (source, expected) in [
+        ("'[A", vec![pe_recovery::close(0, true, 3..3, None)]),
+        ("[e", vec![]),
+    ] {
         let (green, _, records) = run_type_with_recoveries(source, None);
         assert_eq!(green.to_string(), source, "{source:?}");
-        assert!(records.is_empty(), "{source:?}");
+        assert_eq!(records, expected, "{source:?}");
         assert!(
             SyntaxNode::new_root(green)
                 .descendants()

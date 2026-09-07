@@ -1,9 +1,15 @@
 # Successor T4 inherited type-ML correction amendment
 
-Status: Authoritative; T4P core local construction complete; P/E
-boundary-priority certification suspended by direct legacy contradiction
+Status: Authoritative for inherited Type-ML provenance; shared horizontal
+correction complete under the 2026-09-08 recovery-authority amendment
 
 Date: 2026-09-07
+
+Current scope note (2026-09-08): the historical recovery-equality suspension
+below is superseded by the current recovery authority. Remaining P/E Item,
+Separator and Close construction is governed by
+`2026-09-08-successor-pe-current-item-recovery.md`, retaining this document's
+OuterTypeApply-only activation. Aggregate O6/public certification stays open.
 
 Drafted-by: primary after the T4P §5 architecture return
 
