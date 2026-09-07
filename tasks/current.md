@@ -18,11 +18,12 @@ may certify only this local subproof.  The aggregate T2 matrix row remains
 Open until O6 successor-Yumark adoption proves actual embedded AST/direct fact
 equality and the successor topology; O7 public cutover is still excluded.
 
-The filtered `derives` test has one known, separate T1 test-harness residual:
-`derives_normalized_recovers_role_and_via_slots_before_the_fence` still calls
-raw `builder.finish()` despite the already-published T1 `Type(Primary)`
-recovery.  Its later independent repair must retain and assert that exact
-record with `finish_with_recoveries()`; it must not discard or weaken it.
+The separate T1 `derives` test-harness residual is resolved: only
+`derives_normalized_recovers_role_and_via_slots_before_the_fence` now retains
+and asserts the pre-existing `Type(Primary)` record with
+`finish_with_recoveries()`.  All other derives harness paths still use raw
+`finish()` so accidental record publication remains a failure; production
+parser/output behavior did not change.
 
 The immediate parser-migration candidate is T2b PathSegment preflight.  It
 must remain an independent owner slice: no T2a evidence grants it construction

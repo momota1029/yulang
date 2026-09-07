@@ -1,4 +1,5 @@
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use super::*;
 use crate::rewrite::{
@@ -10,6 +11,16 @@ use crate::rewrite::{
     type_expr::TypeOuterBoundary,
     yumark::{FenceOpener, FencePrefixPolicy},
 };
+use crate::session::{
+    DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind, RecoverySiteKey,
+    SyntaxExpectation, TypeRole, UnexpectedCategory, UnexpectedSyntax,
+};
+
+#[derive(Clone, Copy)]
+enum RecoveryHandling {
+    Reject,
+    Retain,
+}
 
 fn active_fence() -> FenceBoundary {
     FenceBoundary {
@@ -32,7 +43,15 @@ fn run_derives_normalized<'source>(
     fence: Option<&FenceBoundary>,
     line_handoff: StatementLineHandoff,
     role_boundary: TypeOuterBoundary,
-) -> (GreenNode, Item, usize, LineEntry, &'source str) {
+    recovery_handling: RecoveryHandling,
+) -> (
+    GreenNode,
+    Item,
+    usize,
+    LineEntry,
+    &'source str,
+    Vec<CommittedRecoveryRecord>,
+) {
     let mut input = source;
     let mut recover = Recover::new(operators);
     let mut builder = GreenNodeBuilder::new();
@@ -71,7 +90,35 @@ fn run_derives_normalized<'source>(
         )
     };
     builder.finish_node();
-    (builder.finish(), pending, item_origin, line_entry, input)
+    let (green, recoveries) = match recovery_handling {
+        RecoveryHandling::Reject => (builder.finish(), Vec::new()),
+        RecoveryHandling::Retain => builder.finish_with_recoveries(),
+    };
+    (green, pending, item_origin, line_entry, input, recoveries)
+}
+
+fn required_type_primary_error_record() -> CommittedRecoveryRecord {
+    let role = GrammarRole::Type(TypeRole::Primary);
+    let range = 6211..6213;
+    CommittedRecoveryRecord {
+        id: DiagnosticId(0),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Error,
+        unexpected: Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::TypeExpression,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
 }
 
 fn header_role_boundary() -> TypeOuterBoundary {
@@ -108,7 +155,7 @@ fn derives_normalized_streams_crlf_prefixes_comma_and_raw_via() {
     let origin = 6100;
     let accepted = "> > derives Eq,\r\n> >   Debug via key";
     let source = format!("{accepted}\r\n> > ```\r\nouter");
-    let (green, boundary, actual_origin, line_entry, remainder) = run_derives_normalized(
+    let (green, boundary, actual_origin, line_entry, remainder, _) = run_derives_normalized(
         &source,
         &operators,
         origin,
@@ -116,6 +163,7 @@ fn derives_normalized_streams_crlf_prefixes_comma_and_raw_via() {
         Some(&fence),
         StatementLineHandoff::OrdinaryLayout,
         header_role_boundary(),
+        RecoveryHandling::Reject,
     );
     assert_eq!(green.to_string(), accepted);
     assert_eq!(remainder, "> > ```\r\nouter");
@@ -135,26 +183,34 @@ fn derives_normalized_streams_crlf_prefixes_comma_and_raw_via() {
 fn derives_normalized_recovers_role_and_via_slots_before_the_fence() {
     let fence = active_fence();
     let operators = OperatorTable::empty();
-    for (accepted, missing, errors) in [
-        ("> > derives", 1, 0),
-        ("> > derives Eq, via", 2, 0),
-        ("> > derives @ Role via @ target", 0, 2),
+    for (accepted, missing, errors, expected_recoveries) in [
+        ("> > derives", 1, 0, Vec::new()),
+        ("> > derives Eq, via", 2, 0, Vec::new()),
+        (
+            "> > derives @ Role via @ target",
+            0,
+            2,
+            vec![required_type_primary_error_record()],
+        ),
     ] {
         let source = format!("{accepted}\n> > ```\nouter");
-        let (green, boundary, item_origin, line_entry, remainder) = run_derives_normalized(
-            &source,
-            &operators,
-            6200,
-            LineEntry::PhysicalStart,
-            Some(&fence),
-            StatementLineHandoff::OrdinaryLayout,
-            header_role_boundary(),
-        );
+        let (green, boundary, item_origin, line_entry, remainder, recoveries) =
+            run_derives_normalized(
+                &source,
+                &operators,
+                6200,
+                LineEntry::PhysicalStart,
+                Some(&fence),
+                StatementLineHandoff::OrdinaryLayout,
+                header_role_boundary(),
+                RecoveryHandling::Retain,
+            );
         assert_eq!(green.to_string(), accepted, "{accepted:?}");
         assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
         assert_eq!(line_entry, LineEntry::PhysicalStart, "{accepted:?}");
         assert_eq!(count(&green, SyntaxKind::Missing), missing, "{accepted:?}");
         assert_eq!(count(&green, SyntaxKind::Error), errors, "{accepted:?}");
+        assert_eq!(recoveries, expected_recoveries, "{accepted:?}");
         let (leading, pending) = emit_terminal_leading_text(boundary);
         assert_eq!(leading, "\n", "{accepted:?}");
         assert_eq!(pending.coordinate(), item_origin, "{accepted:?}");
@@ -167,7 +223,7 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
     let operators = OperatorTable::empty();
     for (word, remainder) in [("with", " tail"), ("impl", " P"), ("=", " Body")] {
         let source = format!("> > derives Eq {word}{remainder}");
-        let (green, mut pending, item_origin, line_entry, actual_remainder) =
+        let (green, mut pending, item_origin, line_entry, actual_remainder, _) =
             run_derives_normalized(
                 &source,
                 &operators,
@@ -176,6 +232,7 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
                 Some(&fence),
                 StatementLineHandoff::OrdinaryLayout,
                 header_role_boundary(),
+                RecoveryHandling::Reject,
             );
         assert_eq!(green.to_string(), "> > derives Eq", "{word:?}");
         assert_eq!(pending.payload_view().spelling(), Some(word), "{word:?}");
@@ -198,7 +255,7 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
         ),
         ("> > derives Eq", "", LineEntry::InLine, ""),
     ] {
-        let (green, boundary, item_origin, line_entry, remainder) = run_derives_normalized(
+        let (green, boundary, item_origin, line_entry, remainder, _) = run_derives_normalized(
             source,
             &operators,
             6350,
@@ -206,6 +263,7 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
             Some(&fence),
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
+            RecoveryHandling::Reject,
         );
         assert_eq!(green.to_string(), "> > derives Eq", "{source:?}");
         assert_eq!(remainder, expected_remainder, "{source:?}");
@@ -229,7 +287,7 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
         (StatementLineHandoff::CatchBracedArm, "\n  "),
     ] {
         let source = format!("derives{gap}next");
-        let (green, mut pending, item_origin, line_entry, remainder) = run_derives_normalized(
+        let (green, mut pending, item_origin, line_entry, remainder, _) = run_derives_normalized(
             &source,
             &operators,
             6400,
@@ -237,6 +295,7 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
             None,
             handoff,
             header_role_boundary(),
+            RecoveryHandling::Reject,
         );
         assert_eq!(green.to_string(), "derives", "{handoff:?}");
         assert_eq!(count(&green, SyntaxKind::Missing), 1, "{handoff:?}");
@@ -252,7 +311,7 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
     }
 
     let source = "derives (Eq via Inner) via key";
-    let (green, pending, item_origin, line_entry, remainder) = run_derives_normalized(
+    let (green, pending, item_origin, line_entry, remainder, _) = run_derives_normalized(
         source,
         &operators,
         6500,
@@ -260,6 +319,7 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
         None,
         StatementLineHandoff::OrdinaryLayout,
         header_role_boundary(),
+        RecoveryHandling::Reject,
     );
     assert_eq!(green.to_string(), source);
     assert!(pending.payload_view().is_eof());
