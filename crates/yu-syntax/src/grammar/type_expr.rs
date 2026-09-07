@@ -56,6 +56,11 @@ impl TypeExpression<'_> {
     }
 
     #[cfg(test)]
+    pub(crate) fn primary(&self) -> &Recovered<TypePrimary<'_>> {
+        &self.primary
+    }
+
+    #[cfg(test)]
     fn complete_primary(&self) -> TypePrimary<'_> {
         match &self.primary {
             Recovered::Complete(primary) => primary.clone(),
@@ -237,11 +242,47 @@ pub(crate) struct PolymorphicVariantType<'source> {
     range: Range<usize>,
 }
 
+#[cfg(test)]
+impl PolymorphicVariantType<'_> {
+    pub(crate) fn ast_parts(
+        &self,
+    ) -> (
+        &Range<usize>,
+        &Range<usize>,
+        &[Recovered<PolymorphicVariantTag<'_>>],
+        &Option<Range<usize>>,
+        &Recovered<Range<usize>>,
+        &Range<usize>,
+    ) {
+        (
+            &self.colon,
+            &self.open,
+            &self.tags,
+            &self.trailing_comma,
+            &self.close,
+            &self.range,
+        )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PolymorphicVariantTag<'source> {
     name: Recovered<WordSpan<'source>>,
     payloads: Vec<Recovered<PolymorphicVariantPayload<'source>>>,
     range: Range<usize>,
+}
+
+#[cfg(test)]
+impl PolymorphicVariantTag<'_> {
+    pub(crate) fn ast_parts(
+        &self,
+    ) -> (
+        &Recovered<WordSpan<'_>>,
+        &[Recovered<PolymorphicVariantPayload<'_>>],
+        &Range<usize>,
+    ) {
+        (&self.name, &self.payloads, &self.range)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

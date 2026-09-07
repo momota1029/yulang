@@ -1910,6 +1910,18 @@ impl TypeDeclaration<'_> {
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
     }
+
+    #[cfg(test)]
+    pub(crate) fn equality_rhs(&self) -> Option<(&Range<usize>, &TypeExpression<'_>)> {
+        let Recovered::Complete(TypeDeclarationForm::Equality {
+            equals: Recovered::Complete(equals),
+            rhs: Recovered::Complete(rhs),
+        }) = &self.form
+        else {
+            return None;
+        };
+        Some((equals, rhs))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

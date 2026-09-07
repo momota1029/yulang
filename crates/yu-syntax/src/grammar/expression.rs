@@ -10016,6 +10016,7 @@ mod tests {
 
     use crate::{
         SyntaxKind, SyntaxNode,
+        grammar::type_expr::TypePrimary,
         input::SourceInput,
         operator::{BindingPower, OperatorDeclaration, OperatorFixities},
         session::{
@@ -13445,6 +13446,266 @@ mod tests {
                 .any(|node| node.kind() == SyntaxKind::ElseArm),
         );
         assert_eq!(root.to_string(), source);
+    }
+
+    #[test]
+    fn accepted_else_retires_its_if_companion_after_a_pv_type_prefix() {
+        use crate::session::DiagnosticId;
+        use std::sync::Arc;
+
+        let source = "if condition:\n  type T = :{A\nelse: value";
+        let table = canonical_operator_table();
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let outer = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        assert_eq!(local.if_expression_companion_depth(), 1);
+        assert_eq!(
+            local.if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let keyword = i.run(scan_word).expect("If keyword");
+        let if_expression = parse_if_expression(&table, keyword, 0, &mut i);
+        assert_eq!(i.pos(), 40);
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.if_expression_companion_depth(), 1);
+        assert_eq!(
+            i.local.if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(i.local.stop_set(), None);
+        assert_eq!(i.local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(if_expression.range, 0..40);
+        let [arm] = if_expression.arms.as_slice() else {
+            panic!("one initial If arm")
+        };
+        assert_eq!(arm.range, 0..28);
+        let Recovered::Complete(ColonIntroducedArmBody {
+            colon: Recovered::Complete(colon),
+            rhs: Recovered::Complete(ArmBodyRhs::Indented(block)),
+            range,
+        }) = &arm.body
+        else {
+            panic!("indented initial If arm")
+        };
+        assert_eq!(*colon, 12..13);
+        assert_eq!(*range, 12..28);
+        let [Recovered::Complete(Statement::Type(declaration))] = block.statements() else {
+            panic!("one Type declaration in the initial arm")
+        };
+        assert_eq!(declaration.range(), 16..28);
+        let Some((equals, rhs)) = declaration.equality_rhs() else {
+            panic!("complete equality Type declaration RHS")
+        };
+        assert_eq!(*equals, 23..24);
+        assert_eq!(rhs.range(), 25..28);
+        assert!(rhs.postfix().is_empty());
+        assert_eq!(rhs.arrow(), None);
+        let Recovered::Complete(TypePrimary::PolymorphicVariant(variant)) = rhs.primary() else {
+            panic!("complete polymorphic-variant Type RHS")
+        };
+        let (colon, open, tags, trailing_comma, close, variant_range) = variant.ast_parts();
+        assert_eq!(*colon, 25..26);
+        assert_eq!(*open, 26..27);
+        let [Recovered::Complete(tag)] = tags else {
+            panic!("one complete polymorphic-variant tag")
+        };
+        let (name, payloads, tag_range) = tag.ast_parts();
+        assert!(matches!(
+            name,
+            Recovered::Complete(name) if name.text() == "A" && name.range() == (27..28)
+        ));
+        assert!(payloads.is_empty());
+        assert_eq!(*tag_range, 27..28);
+        assert_eq!(*trailing_comma, None);
+        assert_eq!(*close, Recovered::Incomplete);
+        assert_eq!(*variant_range, 25..28);
+        let else_arm = if_expression.else_arm.expect("accepted own Else arm");
+        assert_eq!(else_arm.range, 29..40);
+        assert!(matches!(
+            else_arm.body,
+            Recovered::Complete(ElseArmBody::Colon(ColonIntroducedArmBody {
+                colon: Recovered::Complete(range),
+                rhs: Recovered::Complete(ArmBodyRhs::Inline(chain)),
+                range: body_range,
+            })) if range == (33..34) && chain.range == (35..40) && body_range == (33..40)
+        ));
+        drop(i);
+        assert!(expectations.take_merged().is_none());
+        assert_eq!(local.if_expression_companion_depth(), 1);
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let outer = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        assert_eq!(local.if_expression_companion_depth(), 1);
+        assert_eq!(
+            local.if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        committed.start_node(SyntaxKind::OperatorChain);
+        let keyword = committed
+            .probe(|probe| probe.input().run(scan_word))
+            .expect("direct If keyword");
+        commit_if_expression(&table, keyword, 0, &mut committed);
+        assert_eq!(committed.probe(|probe| probe.input().pos()), 40);
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "",);
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.if_expression_companion_depth()),
+            1,
+        );
+        assert_eq!(
+            committed.probe(|probe| {
+                probe
+                    .input()
+                    .local
+                    .if_expression_companion()
+                    .map(|frame| frame.id())
+            }),
+            Some(outer),
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.stop_set()),
+            None,
+        );
+        assert_eq!(
+            committed.probe(|probe| {
+                probe
+                    .input()
+                    .local
+                    .type_expression_scoped_stop_frames()
+                    .count()
+            }),
+            0,
+        );
+        committed.finish_node();
+        committed.finish_node();
+        let output = committed.into_output();
+        let records = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        let shape = root
+            .descendants_with_tokens()
+            .map(|part| {
+                let depth = match &part {
+                    rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                    rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                };
+                let range =
+                    usize::from(part.text_range().start())..usize::from(part.text_range().end());
+                assert_eq!(part.to_string(), source[range.clone()]);
+                (depth, part.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                (0, SyntaxKind::Root, 0..40),
+                (1, SyntaxKind::OperatorChain, 0..40),
+                (2, SyntaxKind::IfExpression, 0..40),
+                (3, SyntaxKind::IfArm, 0..28),
+                (4, SyntaxKind::IfKw, 0..2),
+                (4, SyntaxKind::Whitespace, 2..3),
+                (4, SyntaxKind::Condition, 3..12),
+                (5, SyntaxKind::OperatorChain, 3..12),
+                (6, SyntaxKind::IdentifierExpression, 3..12),
+                (7, SyntaxKind::Identifier, 3..12),
+                (4, SyntaxKind::Colon, 12..13),
+                (4, SyntaxKind::IndentedStatementBlock, 13..28),
+                (5, SyntaxKind::Newline, 13..14),
+                (5, SyntaxKind::Whitespace, 14..16),
+                (5, SyntaxKind::Statement, 16..28),
+                (6, SyntaxKind::TypeDeclaration, 16..28),
+                (7, SyntaxKind::TypeKw, 16..20),
+                (7, SyntaxKind::Whitespace, 20..21),
+                (7, SyntaxKind::Identifier, 21..22),
+                (7, SyntaxKind::Whitespace, 22..23),
+                (7, SyntaxKind::Equals, 23..24),
+                (7, SyntaxKind::Whitespace, 24..25),
+                (7, SyntaxKind::TypeExpression, 25..28),
+                (8, SyntaxKind::PolymorphicVariantType, 25..28),
+                (9, SyntaxKind::Colon, 25..26),
+                (9, SyntaxKind::LBrace, 26..27),
+                (9, SyntaxKind::PolymorphicVariantTag, 27..28),
+                (10, SyntaxKind::Identifier, 27..28),
+                (9, SyntaxKind::Missing, 28..28),
+                (3, SyntaxKind::Newline, 28..29),
+                (3, SyntaxKind::ElseArm, 29..40),
+                (4, SyntaxKind::ElseKw, 29..33),
+                (4, SyntaxKind::Colon, 33..34),
+                (4, SyntaxKind::Whitespace, 34..35),
+                (4, SyntaxKind::OperatorChain, 35..40),
+                (5, SyntaxKind::IdentifierExpression, 35..40),
+                (6, SyntaxKind::Identifier, 35..40),
+            ],
+        );
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::PolymorphicVariantType,
+            delimiter: Delimiter::Brace,
+        };
+        assert_eq!(
+            records,
+            vec![CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: 28..28,
+                },
+                kind: RecoveryKind::Missing,
+                unexpected: Arc::from([]),
+                expectations: Arc::from([SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Brace,
+                    )),
+                    range: 28..28,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            }],
+        );
+        assert_eq!(local.if_expression_companion_depth(), 1);
+        assert_eq!(
+            local.if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(local.stop_set(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(outer)
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
     }
 
     #[test]
