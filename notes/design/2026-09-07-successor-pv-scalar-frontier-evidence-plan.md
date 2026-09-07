@@ -57,7 +57,7 @@ The following direct controls are retained rather than rewritten:
 | --- | --- | --- |
 | conditional payload admission | `legacy_polymorphic_variant_conditional_payload_admission_is_execution_pinned` | valid/wrong-head `::` and `->` retry, dangling `::`, visible no-stop `else` decline, spaced valid-name boundary, repeated payload, newline, native close, and EOF |
 | colon overlap | `legacy_polymorphic_variant_payload_colon_overlap_is_execution_pinned` | valid/wrong-head `::{B}` and `:::{B}` split at the retry colon |
-| scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership |
+| scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership, plus wrong-head inline nested-PV retry at native close and outer EOF |
 | primary and reservation boundary | `legacy_polymorphic_variant_primary_completion_preflight` | non-atomic primary external/internal tails, selected `::Next`, numeric apparent Call, prefix, and recursive PV ownership |
 | P and E carriers | `legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned` and `legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned` | P/E ordinary-gap extent facts, E rows, numeric apparent-Call distinction, prefix/nested cells, and `::Next` continuations |
 | ambient continuation | direct polymorphic-variant `it3`/`nt5`, strict-dedent initial and recovery-continuation, nested-If initial/recovery-continuation, actual-If accepted-own-Else initial/recovery-continuation, and post-completed-If outer-tail initial/recovery-continuation controls, plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}`, strict-dedent initial `:{A\nelse: 0}` and recovery-continuation `:{123\nelse: 0}` under baseline 2, nested outer(0)/inner(5) same-line initial `:{A else: 0}` and recovery-continuation `:{A::else: 0}` selecting inner, actual-If `if condition:\n  type T = :{A\nelse: value` and `if condition:\n  type T = :{A::\nelse: value`, and outer-tail `if outer:\n  if inner:\n    value\n  type T = :{A\nelse: value` / `if outer:\n  if inner:\n    value\n  type T = :{A::\nelse: value`; their PV recoveries precede the relevant accepted Else and frames must balance |
@@ -193,6 +193,15 @@ second tag slot whose `::` is the Error at `46..48`, then the Missing Brace at
 CST/recovery topology, full consumption, and zero-depth/no-stop LIFO cleanup
 prove structural restoration without any preexisting companion or internal
 identity hook.
+
+The thirteenth bounded slice pins outer-EOF counterparts of the wrong-head
+inline nested-PV retries.  `:{123+:{B}`, `:{123@@:{B}`, and
+`:{123::/*c*/:{B}` retain the complete wrong-kind tag Error and respective
+payload-boundary Error, then complete their nested PV through its own RBrace;
+only the enclosing PV close is Missing at the source end.  AST/direct full
+topology, ordered recovery records, source reconstruction, and episode/frame
+balance are exact.  CRLF remains a distinct tag-loop path and is not inferred
+from these rows.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and

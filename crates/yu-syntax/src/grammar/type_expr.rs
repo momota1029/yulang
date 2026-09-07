@@ -15226,6 +15226,135 @@ mod tests {
                 "{source:?}",
             );
         }
+
+        // EOF preserves the admitted inline nested-PV retry for each scalar
+        // spelling.  Only the outer PV close becomes missing; CRLF remains a
+        // distinct tag-loop path above.
+        for (source, scalar_end, nested_start) in [
+            (":{123+:{B}", 6, 6),
+            (":{123@@:{B}", 7, 7),
+            (":{123::/*c*/:{B}", 12, 12),
+        ] {
+            let end = source.len();
+            let ast = parse(source);
+            assert_eq!(ast.range, 0..end);
+            assert!(
+                ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none()
+            );
+            let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                panic!("outer EOF PV: {source:?}")
+            };
+            assert_eq!(pv.range, 0..end);
+            assert_eq!(pv.colon, 0..1);
+            assert_eq!(pv.open, 1..2);
+            assert!(pv.trailing_comma.is_none());
+            assert!(matches!(pv.close, Recovered::Incomplete));
+            let [Recovered::Complete(tag)] = pv.tags.as_slice() else {
+                panic!("outer EOF tag: {source:?}")
+            };
+            assert_eq!(tag.range, 2..end);
+            assert!(matches!(tag.name, Recovered::Incomplete));
+            let [Recovered::Complete(payload)] = tag.payloads.as_slice() else {
+                panic!("outer EOF payload: {source:?}")
+            };
+            assert_eq!(payload.range, 5..end);
+            assert!(matches!(payload.boundary, Recovered::Incomplete));
+            let Recovered::Complete(expr) = &payload.type_expr else {
+                panic!("outer EOF payload expression: {source:?}")
+            };
+            assert_eq!(expr.range, nested_start..end);
+            assert!(
+                expr.leading_effect_row.is_none()
+                    && expr.postfix.is_empty()
+                    && expr.arrow.is_none()
+            );
+            let TypePrimary::PolymorphicVariant(nested) = expr.complete_primary() else {
+                panic!("nested EOF PV: {source:?}")
+            };
+            assert_eq!(nested.range, nested_start..end);
+            assert_eq!(nested.colon, nested_start..nested_start + 1);
+            assert_eq!(nested.open, nested_start + 1..nested_start + 2);
+            assert!(nested.trailing_comma.is_none());
+            assert!(
+                matches!(&nested.close, Recovered::Complete(range) if *range == (end - 1..end))
+            );
+            let [Recovered::Complete(nested_tag)] = nested.tags.as_slice() else {
+                panic!("nested EOF tag: {source:?}")
+            };
+            assert_eq!(nested_tag.range, nested_start + 2..nested_start + 3);
+            assert!(nested_tag.payloads.is_empty());
+            assert!(
+                matches!(&nested_tag.name, Recovered::Complete(word) if word.text() == "B" && word.range() == (nested_start + 2..nested_start + 3))
+            );
+
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source);
+            let shape = root
+                .descendants_with_tokens()
+                .map(|part| {
+                    let depth = match &part {
+                        rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                        rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                    };
+                    let range = usize::from(part.text_range().start())
+                        ..usize::from(part.text_range().end());
+                    assert_eq!(part.to_string(), source[range.clone()]);
+                    (depth, part.kind(), range)
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                shape,
+                vec![
+                    (0, SyntaxKind::Root, 0..end),
+                    (1, SyntaxKind::TypeExpression, 0..end),
+                    (2, SyntaxKind::PolymorphicVariantType, 0..end),
+                    (3, SyntaxKind::Colon, 0..1),
+                    (3, SyntaxKind::LBrace, 1..2),
+                    (3, SyntaxKind::PolymorphicVariantTag, 2..end),
+                    (4, SyntaxKind::Error, 2..5),
+                    (5, SyntaxKind::Unknown, 2..5),
+                    (4, SyntaxKind::PolymorphicVariantPayload, 5..end),
+                    (5, SyntaxKind::Error, 5..scalar_end),
+                    (6, SyntaxKind::Unknown, 5..scalar_end),
+                    (5, SyntaxKind::TypeExpression, nested_start..end),
+                    (6, SyntaxKind::PolymorphicVariantType, nested_start..end),
+                    (7, SyntaxKind::Colon, nested_start..nested_start + 1),
+                    (7, SyntaxKind::LBrace, nested_start + 1..nested_start + 2),
+                    (
+                        7,
+                        SyntaxKind::PolymorphicVariantTag,
+                        nested_start + 2..nested_start + 3,
+                    ),
+                    (
+                        8,
+                        SyntaxKind::Identifier,
+                        nested_start + 2..nested_start + 3,
+                    ),
+                    (7, SyntaxKind::RBrace, end - 1..end),
+                    (3, SyntaxKind::Missing, end..end),
+                ],
+                "{source:?}",
+            );
+            assert_eq!(
+                parse_direct_recovered(source),
+                vec![
+                    record(
+                        0,
+                        TypeRole::PolymorphicVariantTagName,
+                        2..5,
+                        ExpectedSyntax::Identifier,
+                    ),
+                    record(
+                        1,
+                        TypeRole::PolymorphicVariantPayloadBoundary,
+                        5..scalar_end,
+                        ExpectedSyntax::TypePayloadBoundary,
+                    ),
+                    missing_close(2, end..end),
+                ],
+                "{source:?}",
+            );
+        }
     }
 
     #[test]
