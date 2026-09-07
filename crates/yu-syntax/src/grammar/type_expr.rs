@@ -13817,6 +13817,7 @@ mod tests {
                 false,
                 Some((11, true, SyntaxKind::Missing)),
             ),
+            (":{:{A}(B)}", 6, false, Some((6, true, SyntaxKind::Missing))),
             (":{for 'a: A(B)}", 14, false, None),
             (":{for 'a: A->B}", 14, false, None),
         ] {
