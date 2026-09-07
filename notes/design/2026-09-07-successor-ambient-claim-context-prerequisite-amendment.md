@@ -1,6 +1,7 @@
 # Successor ambient-claim context prerequisite amendment
 
-Status: Reviewed; awaiting user selection for the ordinary-only carrier gate
+Status: Authoritative; one private ordinary-only construction/proof pass
+authorized
 
 Date: 2026-09-07
 
@@ -317,6 +318,12 @@ Option 1 is recommended because it resolves the independently owned ambient
 context prerequisite without preselecting the currently unobservable virtual
 semantics.  A later scalar-observation or virtual/Yumark gate still needs its
 own Reviewed design and user decision.
+
+User decision: option 1 selected on 2026-09-07.  This authorizes exactly one
+private ordinary-only construction/proof pass under §5.  The implementation
+must preserve virtual/Yumark `None`, keep `claims` unused, and make no PV
+payload/output, scalar-observer, virtual-policy, production-cell, public, or
+legacy-grammar change.
 
 The later pre-Item scalar observer remains separately blocked by the PV
 payload-admission capability amendment: it needs a finite raw scalar grammar,

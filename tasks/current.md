@@ -51,8 +51,12 @@ root/braced/inherited semantics or enable ambient-sensitive payload admission
 there.  The virtual-root proposal remains a later separate decision.  Initial
 compiler/recovery and specification review, repaired specification delta, and
 the final compiler `None`-propagation closure are clean.  The sole active
-decision is §6.2: authorize the recommended ordinary-only carrier gate or
-defer it.  No source construction has begun.
+decision, §6.2 option 1, was selected on 2026-09-07.  One private
+ordinary-only construction/proof pass is authorized: propagate the immutable
+carrier, preserve virtual/Yumark `None`, and add only internal lifetime /
+unavailable-boundary controls.  `claims`, PV output/admission, scalar
+observation, virtual policy, production Yumark, public scope, and legacy
+grammar remain excluded.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology
