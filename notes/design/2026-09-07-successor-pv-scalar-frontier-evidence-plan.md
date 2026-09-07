@@ -99,10 +99,14 @@ The second bounded slice pins the spaced wrong-head no-retry forms
 `:{123 +}` / `:{123 +` and `:{123 @@}` / `:{123 @@`.  In all four, the space
 is the complete payload boundary and the scalar run is a payload-owned
 TypeExpression recovery; the EOF rows additionally pin the missing outer-brace
-record.  Direct observation rejected the proposed unified spaced
-`::/*c*/` spelling: legacy terminates its payload at `::` and handles the
-comment through a distinct path.  That comment row remains open and cannot be
-inferred from this slice.
+record.
+
+The third bounded slice pins the distinct spaced `::/*c*/` path.  With native
+`}` the comment is PV-local close trivia after the payload's `::` error; with
+EOF it remains the actual prefix remainder after the outer missing brace at
+offset 8.  The row pins both AST/direct frame balance, native/full CST and
+recovery, plus prefix CST/recovery/remainder.  It establishes no generalized
+comment, fence, or successor policy.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
