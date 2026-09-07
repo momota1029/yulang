@@ -56,10 +56,10 @@ native/EOF behavior; the third pins spaced-comment native close versus EOF
 prefix/remainder as a distinct path; the fourth pins unspaced `+`/`@@`
 outer-tag no-retry native/EOF behavior; the fifteenth pins unspaced-comment
 native close versus EOF prefix/remainder as a distinct path; the sixteenth
-pins only the valid/wrong `+`/`@@`/`->` LF active-newline pairs with explicitly
-incoming, preserved caller fences; the seventeenth records the separate
-comment-trivia overwrite from physical-newline fence to comment-run start,
-including exact LF and CRLF rows.
+pins only the valid/wrong `+`/`@@`/`->`/bare-`::` LF active-newline pairs with
+explicitly incoming, preserved caller fences; the seventeenth records the
+separate comment-trivia overwrite from physical-newline fence to comment-run
+start, including exact LF and CRLF rows.
 The eighteenth separately pins valid/wrong `+`/`@@`/`->` CRLF active-newline
 fence preservation, including their two-byte local Newlines.  Direct PV ambient evidence
 pins root visible/no-stop initial/retry, indented strict-dedent initial/
