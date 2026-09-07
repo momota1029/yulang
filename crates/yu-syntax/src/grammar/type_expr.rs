@@ -15447,6 +15447,205 @@ mod tests {
                 "{source:?}",
             );
         }
+
+        // Without horizontal trivia, `::/*c*/` stays in the outer tag loop.
+        // Native close owns the comment as PV-local trivia; at EOF the prefix
+        // stops before that comment instead of treating it as a payload.
+        let source = ":{123::/*c*/}";
+        let ast = parse(source);
+        assert_eq!(ast.range, 0..13);
+        assert!(ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none());
+        let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+            panic!("unspaced comment native PV")
+        };
+        assert_eq!(pv.range, 0..13);
+        assert_eq!(pv.colon, 0..1);
+        assert_eq!(pv.open, 1..2);
+        assert!(pv.trailing_comma.is_none());
+        assert!(matches!(&pv.close, Recovered::Complete(range) if *range == (12..13)));
+        let [Recovered::Complete(first), Recovered::Incomplete] = pv.tags.as_slice() else {
+            panic!("unspaced comment native tags")
+        };
+        assert_eq!(first.range, 2..5);
+        assert!(matches!(first.name, Recovered::Incomplete));
+        assert!(first.payloads.is_empty());
+
+        let root = parse_direct(source);
+        assert_eq!(root.to_string(), source);
+        let shape = root
+            .descendants_with_tokens()
+            .map(|part| {
+                let depth = match &part {
+                    rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                    rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                };
+                let range =
+                    usize::from(part.text_range().start())..usize::from(part.text_range().end());
+                assert_eq!(part.to_string(), source[range.clone()]);
+                (depth, part.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                (0, SyntaxKind::Root, 0..13),
+                (1, SyntaxKind::TypeExpression, 0..13),
+                (2, SyntaxKind::PolymorphicVariantType, 0..13),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..5),
+                (4, SyntaxKind::Error, 2..5),
+                (5, SyntaxKind::Unknown, 2..5),
+                (3, SyntaxKind::PolymorphicVariantTag, 5..7),
+                (4, SyntaxKind::Error, 5..7),
+                (5, SyntaxKind::Unknown, 5..7),
+                (3, SyntaxKind::BlockComment, 7..12),
+                (3, SyntaxKind::RBrace, 12..13),
+            ],
+        );
+        assert_eq!(
+            parse_direct_recovered(source),
+            vec![
+                record(
+                    0,
+                    TypeRole::PolymorphicVariantTagName,
+                    2..5,
+                    ExpectedSyntax::Identifier,
+                ),
+                record(
+                    1,
+                    TypeRole::PolymorphicVariantTag,
+                    5..7,
+                    ExpectedSyntax::Identifier,
+                ),
+            ],
+        );
+
+        let source = ":{123::/*c*/";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let ast = i
+            .run(from_fn(parse_type_expression))
+            .expect("unspaced comment EOF AST prefix");
+        assert_eq!(i.input.remainder(), "/*c*/");
+        drop(i);
+        assert_eq!(local.type_expression_episode_depth(), 0);
+        assert_eq!(local.type_expression_episode_policy(), None);
+        assert_eq!(local.type_expression_scoped_stop_frames().count(), 0);
+        assert_eq!(ast.range, 0..7);
+        assert!(ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none());
+        let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+            panic!("unspaced comment EOF PV")
+        };
+        assert_eq!(pv.range, 0..7);
+        assert_eq!(pv.colon, 0..1);
+        assert_eq!(pv.open, 1..2);
+        assert!(pv.trailing_comma.is_none());
+        assert!(matches!(pv.close, Recovered::Incomplete));
+        let [Recovered::Complete(first), Recovered::Incomplete] = pv.tags.as_slice() else {
+            panic!("unspaced comment EOF tags")
+        };
+        assert_eq!(first.range, 2..5);
+        assert!(matches!(first.name, Recovered::Incomplete));
+        assert!(first.payloads.is_empty());
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("unspaced comment direct prefix");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "/*c*/",
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.type_expression_episode_depth()),
+            0,
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.type_expression_episode_policy()),
+            None,
+        );
+        assert_eq!(
+            committed.probe(|probe| {
+                probe
+                    .input()
+                    .local
+                    .type_expression_scoped_stop_frames()
+                    .count()
+            }),
+            0,
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        let records = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_prefix());
+        assert_eq!(root.to_string(), ":{123::");
+        assert_eq!(format!("{root}/*c*/"), source);
+        let shape = root
+            .descendants_with_tokens()
+            .map(|part| {
+                let depth = match &part {
+                    rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                    rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                };
+                let range =
+                    usize::from(part.text_range().start())..usize::from(part.text_range().end());
+                assert_eq!(part.to_string(), source[range.clone()]);
+                (depth, part.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                (0, SyntaxKind::Root, 0..7),
+                (1, SyntaxKind::TypeExpression, 0..7),
+                (2, SyntaxKind::PolymorphicVariantType, 0..7),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..5),
+                (4, SyntaxKind::Error, 2..5),
+                (5, SyntaxKind::Unknown, 2..5),
+                (3, SyntaxKind::PolymorphicVariantTag, 5..7),
+                (4, SyntaxKind::Error, 5..7),
+                (5, SyntaxKind::Unknown, 5..7),
+                (3, SyntaxKind::Missing, 7..7),
+            ],
+        );
+        assert_eq!(
+            records,
+            vec![
+                record(
+                    0,
+                    TypeRole::PolymorphicVariantTagName,
+                    2..5,
+                    ExpectedSyntax::Identifier,
+                ),
+                record(
+                    1,
+                    TypeRole::PolymorphicVariantTag,
+                    5..7,
+                    ExpectedSyntax::Identifier,
+                ),
+                missing_close(2, 7..7),
+            ],
+        );
     }
 
     #[test]
