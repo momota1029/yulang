@@ -16302,6 +16302,14 @@ mod tests {
                 7..11,
             ),
             (
+                ":{A->\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 5 },
+                true,
+                3..5,
+                5..7,
+                7..11,
+            ),
+            (
                 ":{123+\r\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 6 },
                 false,
@@ -16311,6 +16319,14 @@ mod tests {
             ),
             (
                 ":{123@@\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 7 },
+                false,
+                5..7,
+                7..9,
+                9..13,
+            ),
+            (
+                ":{123->\r\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 7 },
                 false,
                 5..7,
