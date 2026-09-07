@@ -138,6 +138,44 @@ assign CST/trivia/diagnostic ownership.  The ordinary scanner must remain the
 sole owner of emitted bytes.  No payload-loop implementation is authorized by
 this record.
 
+### 3.1 Virtual-statement and Yumark classification remains a separate decision
+
+Architecture tracing establishes a narrower fact than a visibility policy.
+The Authoritative literal-cone addendum defines a `VirtualStatementBlock` as a
+root-style `Statement*` owner, while direct legacy treats interpolation parsing
+as opaque at its internal Type/PV decisions.  Neither fact proves that a
+virtual statement inherits the enclosing ordinary statement's baseline or
+If-companion chain.  In particular, the braced-owner controls justify clearing
+an ordinary braced block; they do not classify a virtual statement block.
+
+The currently recommended, but unapproved, candidate is to seed a virtual
+statement block with a virtual-root baseline at its own start and no inherited
+If companions, then restore the caller's immutable view at its return.  A
+nested interpolation would establish its own seed.  If such a virtual block is
+inside a Yumark fence, the fence would not apply a second reset: it would
+retain the view selected by the virtual owner until that virtual boundary
+returns.  This is a candidate interface rule only; it authorizes neither a
+carrier implementation nor a payload decision.
+
+The current `yumark_cell::yulang_code_cell_witness` reaches an isolated
+statement entry at `(0, 0)`.  It can exercise a root seed in a test, but it
+does not establish a production embedded-Yulang ingress or a virtual/Yumark
+ambient policy.  No future production cell policy is implied here.
+
+Before this class can be admitted to the ambient prerequisite, direct legacy
+or an explicit user decision must settle all of the following:
+
+1. an enclosing visible baseline/If companion around a normal and a heredoc
+   interpolation, including restore of the outer view after interpolation;
+2. a local If companion created inside the virtual block;
+3. nested interpolation and a fence-terminated interpolation, proving which
+   view each return restores; and
+4. a future production Yulang-cell bridge independently from the test witness.
+
+Until then, no code may classify virtual statements as ordinary braced owners,
+inherit their outer companions, or treat the test-only cell witness as a
+production policy proof.
+
 ## 4. Required capability proof and cost gate
 
 Before a replacement Draft can become Reviewed, its construction route must

@@ -33,7 +33,13 @@ A replacement first needs a rollback-safe, immutable call-stack ambient view
 (statement baseline plus visible If companions), then a pre-Item scalar
 boundary, zero allocation/no retention, and an aggregate work proof before
 independent review and a fresh user decision.  Virtual-statement/Yumark
-barriers remain an explicit unproven context map.
+barriers remain an explicit unproven context map.  Architecture confirms only
+that `VirtualStatementBlock` is root-style and legacy interpolation is opaque;
+the current candidate seeds a virtual root with no inherited companions and
+does not add a second Yumark-fence reset.  It is not yet a decision: normal /
+heredoc / nested / fence-restoration rows and a separate production cell bridge
+must be pinned or explicitly selected before an ambient carrier may enter those
+owners.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology
