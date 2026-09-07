@@ -1,6 +1,6 @@
 # Successor PV wrong-kind primary-completion amendment
 
-Status: Authoritative; bounded construction approved
+Status: Authoritative; construction blocked by §2 payload-adapter contradiction
 
 Date: 2026-09-07
 
@@ -184,3 +184,29 @@ record sequences, so it is a material recovery/scope expansion rather than a
 same-carrier range/evidence correction.  The user selected option 1 on
 2026-09-07.  The §2–3 bounded construction is now authorized; all stated proof
 obligations and exclusions remain mandatory.
+
+## 6. Construction contradiction
+
+The authorized primary-completion construction was attempted and reverted
+before integration.  It correctly ends `:{123::T}`'s TagName Error at `2..5`,
+but the unchanged `type_polymorphic_variant_tag_payloads_after_head_normalized`
+does not admit the unspaced `::` as a payload boundary.  It instead returns
+that Item to outer tag recovery, which publishes a
+`PolymorphicVariantTag` Error at `5..7`.  Direct legacy instead publishes the
+existing `PolymorphicVariantPayloadBoundary` Error at `5..7` followed by the
+payload `T`.
+
+This refutes §2's premise that the unchanged payload judge already owns
+external `::`/`->` recovery.  The primary-completion policy itself remains a
+valid causal boundary, but construction cannot continue under this amendment:
+the compatible payload decision is conditional on an admissible non-ambient
+retry primary, while the current successor malformed-payload loop emits before
+it can prove that witness.  A token-specific `::`/`->` special case, an
+unconditional malformed-run consume, a wrong-kind-only adapter, range clamping,
+or a retrospective CST split are rejected.
+
+No primary-completion source or expectation was integrated.  The pre-existing
+shared delimited candidate remains isolated.  The next gate is direct legacy
+characterization of the conditional payload-admission table, followed by a new
+reviewed material addendum that either supplies a sound no-replay/no-buffer
+retry witness or stops this path before any further construction.

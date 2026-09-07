@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-2026-09-07: active gate is the Reviewed
+2026-09-07: active gate is the Authoritative-but-blocked
 `2026-09-07-successor-pv-wrong-kind-primary-completion-amendment.md`.
 `62324e98` proves that a wrong-kind PV tag head ends at exactly one Type
 primary, while the current successor continues its full Type-expression tail
@@ -12,10 +12,15 @@ their internal child expressions and hands every external tail to existing PV
 payload handling.  It excludes leading BracketRow, valid tag names, public/O6,
 and all legacy topology changes.  This is a material recovery/scope expansion,
 so the recorded narrow-correction delegation did not apply.  The user selected
-option 1 on 2026-09-07; one M3 bounded construction/proof pass is active.  The
+option 1 on 2026-09-07, but its construction refuted the assumption that the
+unchanged PV payload judge accepts unspaced `::`/`->` after a completed wrong
+kind primary: it emits a second Tag Error instead of the legacy payload-boundary
+Error.  The primary candidate was reverted before integration.  Active work is
+now direct legacy evidence for conditional malformed payload admission and a
+new M3 payload-adapter design; it must establish an admissible non-ambient
+retry witness without replay/buffering before a fresh user decision.  The
 separately authorized shared delimited candidate remains unstaged in
-`type_expr/delimited.rs` and its focused tests; integration requires this
-head-completion proof gate and its stated sibling evidence to close.
+`type_expr/delimited.rs` and its focused tests.
 
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology
