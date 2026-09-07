@@ -3097,14 +3097,15 @@ fn normalized_type_named_record_next_field_probe_stops_before_outer_colon() {
 }
 
 #[test]
-fn normalized_type_named_record_enters_nested_polymorphic_variants_at_each_field_slot() {
+fn normalized_type_named_record_resolves_colon_before_rhs_polymorphic_variants() {
     let fence = active_fence();
-    for (accepted, expected_error, expected_missing) in [
-        ("> > {a :{A}}", 0, 1),
-        ("> > {a @ :{A}}", 1, 0),
-        ("> > {a: :{A}}", 0, 0),
-        ("> > {a: A :{B}}", 0, 0),
-        ("> > {a: @ :{B}}", 1, 0),
+    for (accepted, expected_error, expected_missing, expected_variants, expected_records) in [
+        ("> > {a :{A}}", 0, 1, 0, 2),
+        ("> > {a @ :{A}}", 1, 1, 0, 2),
+        ("> > {a @ : :{A}}", 1, 0, 1, 1),
+        ("> > {a: :{A}}", 0, 0, 1, 1),
+        ("> > {a: A :{B}}", 0, 0, 1, 1),
+        ("> > {a: @ :{B}}", 1, 0, 1, 1),
     ] {
         let source = format!("{accepted}\n> > ```\nouter");
         let (green, exit, actual_remainder) =
@@ -3112,7 +3113,7 @@ fn normalized_type_named_record_enters_nested_polymorphic_variants_at_each_field
         let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
             exit
         else {
-            panic!("the record must parse the nested polymorphic variant: {accepted:?}")
+            panic!("the record must resolve the colon and nested RHS: {accepted:?}")
         };
         let root = SyntaxNode::new_root(green);
 
@@ -3123,7 +3124,14 @@ fn normalized_type_named_record_enters_nested_polymorphic_variants_at_each_field
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
                 .count(),
-            1,
+            expected_variants,
+            "{accepted:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::NamedRecordType)
+                .count(),
+            expected_records,
             "{accepted:?}"
         );
         assert_eq!(

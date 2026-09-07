@@ -76,11 +76,19 @@ fence Items remain pending. Type tests: 159; normalized Type/unmatched head:
 The matrix's T7a/T7b EffectRow/leading-row spelling error has a recorded narrow
 correction, not an embedded-certification claim.
 
-Next: named-record and forall recovery. The remaining required-Type Missing
-sites in `type_expr.rs` are caller-owned slots, not automatically Primary
-records; retain that distinction in the typed-output ledger. The old
-eighth-terminal proposal is not a required prerequisite. No public dispatch
-has been switched yet.
+Named-record field-internal construction is complete under
+`2026-09-08-successor-record-field-current-item-recovery.md`: Name, Colon and
+Type records, shared forward colon/RHS recovery and exact field-colon ownership.
+The accepted empty-trivia nested record `{a:{b:B}}` now parses correctly;
+actual PV RHS remains distinct. Type tests: 167; normalized Type/unmatched head:
+27; declaration: 39; output: 4; recovery output: 25; package check passed.
+
+Next: named-record whole-field, separator and close recovery, including a
+preflight of its existing malformed-name authority probe/depth policy, then
+forall. The remaining required-Type Missing sites in `type_expr.rs` are
+caller-owned slots, not automatically Primary records; retain that distinction
+in the typed-output ledger. The old eighth-terminal proposal is not a required
+prerequisite. No public dispatch has been switched yet.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
@@ -88,9 +96,9 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Complete the remaining Type-owned recovery sites (record and forall) and
-   their parent helper call sites. PV-local construction does not certify raw
-   recovery still emitted by a nested non-PV owner.
+1. Complete the remaining Type-owned recovery sites (record sequence/close and
+   forall) and their parent helper call sites. PV-local construction does not
+   certify raw recovery still emitted by a nested non-PV owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption

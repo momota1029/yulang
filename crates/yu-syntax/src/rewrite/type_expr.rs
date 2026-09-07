@@ -2340,21 +2340,6 @@ fn type_arrow_rhs(
     ))
 }
 
-fn retry_type_rhs(i: RewriteIn, item: Item, baseline: usize, caller_stops: Stops) -> Item {
-    retry_type_rhs_normalized(
-        i,
-        item,
-        baseline,
-        caller_stops,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    )
-    .0
-}
-
 fn continue_type_tail(
     i: RewriteIn,
     baseline: usize,
@@ -2939,44 +2924,6 @@ fn retry_type_arrow_rhs_normalized(
     )
 }
 
-fn retry_type_rhs_normalized(
-    mut i: RewriteIn,
-    mut item: Item,
-    baseline: usize,
-    caller_stops: Stops,
-    pipe_lexical: bool,
-    mut item_origin: usize,
-    mut line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-) -> (Item, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-            ambient,
-        );
-        if item.payload_view().is_boundary()
-            || is_type_nud(&item)
-            || !type_chain_trivia(item.leading_view(), baseline)
-            || is_type_rhs_boundary(&item)
-            || is_type_caller_boundary(&item, caller_stops)
-        {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn continue_type_tail_normalized(
     i: RewriteIn,
@@ -3054,10 +3001,6 @@ pub(super) fn is_type_nud(item: &Item) -> bool {
 
 fn is_type_record_field_name(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Identifier)
-}
-
-fn is_type_record_field_start(item: &Item) -> bool {
-    is_type_record_field_name(item) || token_kind(item) == Some(TokenKind::Colon)
 }
 
 fn is_type_polymorphic_variant_tag_name(item: &Item) -> bool {

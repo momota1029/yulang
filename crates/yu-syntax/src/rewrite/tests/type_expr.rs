@@ -19,6 +19,7 @@ mod bracket_recovery;
 mod leading_row_recovery;
 mod pe_recovery;
 mod pv_recovery;
+mod record_field_recovery;
 
 fn top_type_expression(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
