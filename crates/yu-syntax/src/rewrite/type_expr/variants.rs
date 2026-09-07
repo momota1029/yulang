@@ -67,6 +67,8 @@ pub(super) fn type_effect_row_normalized(
         TokenKind::RBracket,
         baseline,
         TypeDelimitedOwner::EffectRow,
+        false,
+        TypeOuterBoundary::NONE,
         outer_closes,
         caller_stops,
         pipe_lexical,

@@ -7,7 +7,7 @@ use reborrow_generic::Reborrow as _;
 use crate::{
     session::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
     },
     syntax_kind::SyntaxKind,
 };
@@ -25,9 +25,9 @@ use super::super::{
 };
 use super::{
     TypeOuterBoundary, is_type_caller_boundary, is_type_deeper_newline, is_type_implicit_boundary,
-    is_type_mismatched_close, is_type_nud, is_type_outer_close, is_type_separator,
-    missing_bracket_row_close, missing_type_close, missing_type_item, type_chain_trivia,
-    type_delimited_baseline, type_expr_from_nud_normalized,
+    is_type_mismatched_close, is_type_nud, is_type_outer_boundary, is_type_outer_close,
+    is_type_separator, missing_bracket_row_close, missing_type_close, missing_type_item,
+    type_chain_trivia, type_delimited_baseline, type_expr_from_nud_normalized,
     type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
 };
 
@@ -45,6 +45,8 @@ pub(super) fn type_delimited_normalized(
     close: TokenKind,
     incoming_baseline: usize,
     owner: TypeDelimitedOwner,
+    inherited_type_ml: bool,
+    call_outer_boundary: TypeOuterBoundary,
     outer_closes: u8,
     caller_stops: Stops,
     pipe_lexical: bool,
@@ -52,6 +54,12 @@ pub(super) fn type_delimited_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
+    debug_assert!(
+        owner == TypeDelimitedOwner::Call
+            || (!inherited_type_ml && call_outer_boundary == TypeOuterBoundary::NONE)
+    );
+    let call_item_type_ml = owner == TypeDelimitedOwner::Call && inherited_type_ml;
+    let mut call_item_pending = owner == TypeDelimitedOwner::Call;
     let (mut item, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
         item_origin,
@@ -64,8 +72,11 @@ pub(super) fn type_delimited_normalized(
     let baseline = type_delimited_baseline(incoming_baseline, item.leading_view());
 
     if item.payload_view().is_boundary() {
-        if owner == TypeDelimitedOwner::BracketRow {
-            emit_missing(&mut i, LeadingTrivia::default());
+        if matches!(
+            owner,
+            TypeDelimitedOwner::Call | TypeDelimitedOwner::BracketRow
+        ) {
+            emit_delimited_item_missing(&mut i, owner, &item, item_origin);
         }
         emit_delimited_close_missing(&mut i, owner, &item, item_origin);
         return complete(handoff(item), line_entry);
@@ -98,14 +109,24 @@ pub(super) fn type_delimited_normalized(
             );
             return complete(handoff(item), line_entry);
         }
-        if is_type_caller_boundary(&item, caller_stops) && !is_type_nud(&item) {
-            if owner == TypeDelimitedOwner::BracketRow {
-                emit_missing(&mut i, LeadingTrivia::default());
+        if is_delimited_boundary(
+            &item,
+            owner,
+            caller_stops,
+            call_outer_boundary,
+            outer_closes,
+        ) && (owner == TypeDelimitedOwner::Call || !is_type_nud(&item))
+        {
+            if call_item_pending || owner == TypeDelimitedOwner::BracketRow {
+                emit_delimited_item_missing(&mut i, owner, &item, item_origin);
             }
             emit_delimited_close_missing(&mut i, owner, &item, item_origin);
             return complete(handoff(item), line_entry);
         }
         if item.payload_view().is_eof() {
+            if call_item_pending {
+                item = missing_delimited_item(i.rb(), item, owner, item_origin);
+            }
             let exit = missing_delimited_close(i, item, owner, baseline, item_origin);
             return complete(exit, line_entry);
         }
@@ -124,7 +145,7 @@ pub(super) fn type_delimited_normalized(
             );
         }
         if is_type_separator(&item) {
-            item = missing_type_item(i.rb(), item);
+            item = missing_delimited_item(i.rb(), item, owner, item_origin);
             emit_token_item(&mut i, item);
             (item, item_origin, line_entry) = match type_after_separator_normalized(
                 i.rb(),
@@ -133,6 +154,7 @@ pub(super) fn type_delimited_normalized(
                 baseline,
                 caller_stops,
                 outer_closes,
+                call_outer_boundary,
                 item_origin,
                 line_entry,
                 fence,
@@ -141,12 +163,14 @@ pub(super) fn type_delimited_normalized(
                 Ok(next) => next,
                 Err(exit) => return exit,
             };
+            call_item_pending = owner == TypeDelimitedOwner::Call;
             continue;
         }
         if !is_type_nud(&item) {
             if owner != TypeDelimitedOwner::BracketRow && is_type_mismatched_close(&item, close) {
                 return complete(handoff(item), line_entry);
             }
+            call_item_pending = false;
             (item, item_origin, line_entry) = match retry_type_delimited_item_normalized(
                 i.rb(),
                 item,
@@ -155,6 +179,7 @@ pub(super) fn type_delimited_normalized(
                 baseline,
                 caller_stops,
                 outer_closes,
+                call_outer_boundary,
                 item_origin,
                 line_entry,
                 fence,
@@ -166,17 +191,18 @@ pub(super) fn type_delimited_normalized(
             continue;
         }
 
+        call_item_pending = false;
         let entry = suffix_marker(i.rb());
         let exit = type_expr_from_nud_normalized(
             i.rb(),
             item,
             baseline,
-            false,
+            call_item_type_ml,
             None,
             true,
             with_type_outer_close(outer_closes, close),
             caller_stops,
-            TypeOuterBoundary::NONE,
+            call_outer_boundary,
             pipe_lexical,
             item_origin,
             line_entry,
@@ -220,7 +246,13 @@ pub(super) fn type_delimited_normalized(
                     );
                     return complete(handoff(next), line_entry);
                 }
-                if is_type_caller_boundary(&next, caller_stops) {
+                if is_delimited_boundary(
+                    &next,
+                    owner,
+                    caller_stops,
+                    call_outer_boundary,
+                    outer_closes,
+                ) {
                     emit_delimited_close_missing(&mut i, owner, &next, item_origin);
                     return complete(handoff(next), line_entry);
                 }
@@ -233,6 +265,7 @@ pub(super) fn type_delimited_normalized(
                         baseline,
                         caller_stops,
                         outer_closes,
+                        call_outer_boundary,
                         item_origin,
                         line_entry,
                         fence,
@@ -254,6 +287,7 @@ pub(super) fn type_delimited_normalized(
                         baseline,
                         caller_stops,
                         outer_closes,
+                        call_outer_boundary,
                         item_origin,
                         line_entry,
                         fence,
@@ -302,6 +336,7 @@ pub(super) fn type_delimited_normalized(
                         baseline,
                         caller_stops,
                         outer_closes,
+                        call_outer_boundary,
                         item_origin,
                         line_entry,
                         fence,
@@ -322,6 +357,16 @@ pub(super) fn type_delimited_normalized(
                 } else if is_type_implicit_boundary(baseline, next.leading_view()) {
                     let mut next = next;
                     next.emit_all_remaining_leading(&mut *i.state);
+                    next
+                } else if call_item_type_ml
+                    && !next.leading_view().is_grammar_empty()
+                    && (!next.leading_view().contains_line_break()
+                        || is_type_deeper_newline(baseline, next.leading_view()))
+                    && is_type_nud(&next)
+                {
+                    let mut next = next;
+                    next.emit_all_remaining_leading(&mut *i.state);
+                    emit_call_separator_missing(&mut i, &next, item_origin);
                     next
                 } else {
                     return complete(handoff(next), line_entry);
@@ -345,6 +390,7 @@ fn retry_type_delimited_item_normalized(
     baseline: usize,
     caller_stops: Stops,
     outer_closes: u8,
+    call_outer_boundary: TypeOuterBoundary,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -383,7 +429,13 @@ fn retry_type_delimited_item_normalized(
             );
             return Err(complete(handoff(item), line_entry));
         }
-        if is_type_caller_boundary(&item, caller_stops) {
+        if is_delimited_boundary(
+            &item,
+            owner,
+            caller_stops,
+            call_outer_boundary,
+            outer_closes,
+        ) {
             i.state.finish_node();
             emit_delimited_close_missing(&mut i, owner, &item, item_origin);
             return Err(complete(handoff(item), line_entry));
@@ -398,6 +450,7 @@ fn retry_type_delimited_item_normalized(
                 baseline,
                 caller_stops,
                 outer_closes,
+                call_outer_boundary,
                 item_origin,
                 line_entry,
                 fence,
@@ -487,6 +540,7 @@ fn type_after_separator_normalized(
     baseline: usize,
     caller_stops: Stops,
     outer_closes: u8,
+    call_outer_boundary: TypeOuterBoundary,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -500,7 +554,7 @@ fn type_after_separator_normalized(
         pipe_lexical,
     );
     if next.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_delimited_item_missing(&mut i, owner, &next, item_origin);
         emit_delimited_close_missing(&mut i, owner, &next, item_origin);
         return Err(complete(handoff(next), line_entry));
     }
@@ -524,13 +578,20 @@ fn type_after_separator_normalized(
         );
         return Err(complete(handoff(next), line_entry));
     }
-    if is_type_caller_boundary(&next, caller_stops) && !is_type_nud(&next) {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if is_delimited_boundary(
+        &next,
+        owner,
+        caller_stops,
+        call_outer_boundary,
+        outer_closes,
+    ) && (owner == TypeDelimitedOwner::Call || !is_type_nud(&next))
+    {
+        emit_delimited_item_missing(&mut i, owner, &next, item_origin);
         emit_delimited_close_missing(&mut i, owner, &next, item_origin);
         return Err(complete(handoff(next), line_entry));
     }
     if next.payload_view().is_eof() {
-        next = missing_type_item(i.rb(), next);
+        next = missing_delimited_item(i.rb(), next, owner, item_origin);
         return Err(complete(
             missing_delimited_close(i, next, owner, baseline, item_origin),
             line_entry,
@@ -568,9 +629,83 @@ fn missing_delimited_close(
             emit_delimited_close_missing(&mut i, owner, &item, item_origin);
             handoff(item)
         }
+        TypeDelimitedOwner::Call => {
+            item.emit_all_remaining_leading(&mut *i.state);
+            emit_delimited_close_missing(&mut i, owner, &item, item_origin);
+            handoff(item)
+        }
         TypeDelimitedOwner::BracketRow => missing_bracket_row_close(i, item, baseline),
-        TypeDelimitedOwner::Call | TypeDelimitedOwner::EffectRow => missing_type_close(i, item),
+        TypeDelimitedOwner::EffectRow => missing_type_close(i, item),
     }
+}
+
+fn missing_delimited_item(
+    mut i: RewriteIn,
+    mut item: Item,
+    owner: TypeDelimitedOwner,
+    item_origin: usize,
+) -> Item {
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_delimited_item_missing(&mut i, owner, &item, item_origin);
+    item
+}
+
+fn emit_delimited_item_missing(
+    i: &mut RewriteIn,
+    owner: TypeDelimitedOwner,
+    item: &Item,
+    item_origin: usize,
+) {
+    if owner != TypeDelimitedOwner::Call {
+        emit_missing(i, LeadingTrivia::default());
+        return;
+    }
+    let at = delimited_missing_anchor(item, item_origin);
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        super::type_expression_missing_draft(TypeRole::CallArgument, range)
+    });
+}
+
+fn emit_call_separator_missing(i: &mut RewriteIn, item: &Item, item_origin: usize) {
+    let at = delimited_missing_anchor(item, item_origin);
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        let role = GrammarRole::Type(TypeRole::CallArgumentSeparator);
+        RecoveryDraft::new(
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::DelimitedSequenceSeparator,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+}
+
+fn delimited_missing_anchor(item: &Item, item_origin: usize) -> usize {
+    item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    )
+}
+
+fn is_delimited_boundary(
+    item: &Item,
+    owner: TypeDelimitedOwner,
+    caller_stops: Stops,
+    call_outer_boundary: TypeOuterBoundary,
+    outer_closes: u8,
+) -> bool {
+    is_type_caller_boundary(item, caller_stops)
+        || (owner == TypeDelimitedOwner::Call
+            && (is_type_outer_boundary(item, call_outer_boundary)
+                || is_type_outer_close(item, outer_closes)))
 }
 
 fn emit_delimited_close_missing(
@@ -579,14 +714,27 @@ fn emit_delimited_close_missing(
     item: &Item,
     item_origin: usize,
 ) {
-    if owner != TypeDelimitedOwner::ParenthesizedGroup {
+    if !matches!(
+        owner,
+        TypeDelimitedOwner::Call | TypeDelimitedOwner::ParenthesizedGroup
+    ) {
         emit_missing(i, LeadingTrivia::default());
         return;
     }
-    let at = item.extent(item_origin).recovery_range().start;
+    let at = if owner == TypeDelimitedOwner::Call {
+        delimited_missing_anchor(item, item_origin)
+    } else {
+        item.extent(item_origin).recovery_range().start
+    };
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
         let role = GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::ParenthesizedTypeGroup,
+            owner: match owner {
+                TypeDelimitedOwner::Call => ConstructRole::TypeCall,
+                TypeDelimitedOwner::ParenthesizedGroup => ConstructRole::ParenthesizedTypeGroup,
+                TypeDelimitedOwner::EffectRow | TypeDelimitedOwner::BracketRow => {
+                    unreachable!("only typed delimited close owners reach this branch")
+                }
+            },
             delimiter: Delimiter::Parenthesis,
         };
         RecoveryDraft::new(
