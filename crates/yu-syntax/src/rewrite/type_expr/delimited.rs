@@ -28,10 +28,10 @@ use super::super::{
     yumark::FenceBoundary,
 };
 use super::{
-    TypeOuterBoundary, is_type_caller_boundary, is_type_deeper_newline, is_type_implicit_boundary,
-    is_type_mismatched_close, is_type_nud, is_type_outer_boundary, is_type_outer_close,
-    is_type_separator, missing_bracket_row_close, missing_type_close, missing_type_item,
-    type_chain_trivia, type_delimited_baseline, type_expr_from_nud_normalized,
+    TypeMlContext, TypeOuterBoundary, is_type_caller_boundary, is_type_deeper_newline,
+    is_type_implicit_boundary, is_type_mismatched_close, is_type_nud, is_type_outer_boundary,
+    is_type_outer_close, is_type_separator, missing_bracket_row_close, missing_type_close,
+    missing_type_item, type_chain_trivia, type_delimited_baseline, type_expr_from_nud_normalized,
     type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
 };
 
@@ -49,7 +49,7 @@ pub(super) fn type_delimited_normalized(
     close: TokenKind,
     incoming_baseline: usize,
     owner: TypeDelimitedOwner,
-    inherited_type_ml: bool,
+    type_ml: TypeMlContext,
     call_outer_boundary: TypeOuterBoundary,
     outer_closes: u8,
     caller_stops: Stops,
@@ -59,10 +59,18 @@ pub(super) fn type_delimited_normalized(
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
     debug_assert!(
-        owner == TypeDelimitedOwner::Call
-            || (!inherited_type_ml && call_outer_boundary == TypeOuterBoundary::NONE)
+        owner == TypeDelimitedOwner::Call || call_outer_boundary == TypeOuterBoundary::NONE
     );
-    let call_item_type_ml = owner == TypeDelimitedOwner::Call && inherited_type_ml;
+    let item_type_ml = match owner {
+        TypeDelimitedOwner::Call => type_ml,
+        TypeDelimitedOwner::ParenthesizedGroup => type_ml.parenthesized_item(),
+        TypeDelimitedOwner::EffectRow | TypeDelimitedOwner::BracketRow => type_ml.dormant(),
+    };
+    let inherited_separator = match owner {
+        TypeDelimitedOwner::Call => type_ml.stops_tail(),
+        TypeDelimitedOwner::ParenthesizedGroup => item_type_ml.stops_tail(),
+        TypeDelimitedOwner::EffectRow | TypeDelimitedOwner::BracketRow => false,
+    };
     let mut call_item_pending = owner == TypeDelimitedOwner::Call;
     let (mut item, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
@@ -216,7 +224,7 @@ pub(super) fn type_delimited_normalized(
             i.rb(),
             item,
             baseline,
-            call_item_type_ml,
+            item_type_ml,
             None,
             true,
             with_type_outer_close(outer_closes, close),
@@ -392,7 +400,13 @@ pub(super) fn type_delimited_normalized(
                     let mut next = next;
                     next.emit_all_remaining_leading(&mut *i.state);
                     next
-                } else if call_item_type_ml
+                } else if owner == TypeDelimitedOwner::ParenthesizedGroup
+                    && next.leading_view().is_grammar_empty()
+                    && is_type_nud(&next)
+                {
+                    emit_inherited_separator_missing(&mut i, owner, &next, item_origin);
+                    next
+                } else if inherited_separator
                     && !next.leading_view().is_grammar_empty()
                     && (!next.leading_view().contains_line_break()
                         || is_type_deeper_newline(baseline, next.leading_view()))
@@ -400,7 +414,7 @@ pub(super) fn type_delimited_normalized(
                 {
                     let mut next = next;
                     next.emit_all_remaining_leading(&mut *i.state);
-                    emit_call_separator_missing(&mut i, &next, item_origin);
+                    emit_inherited_separator_missing(&mut i, owner, &next, item_origin);
                     next
                 } else {
                     return complete(handoff(next), line_entry);
@@ -916,10 +930,22 @@ fn emit_delimited_item_missing(
     });
 }
 
-fn emit_call_separator_missing(i: &mut RewriteIn, item: &Item, item_origin: usize) {
+fn emit_inherited_separator_missing(
+    i: &mut RewriteIn,
+    owner: TypeDelimitedOwner,
+    item: &Item,
+    item_origin: usize,
+) {
+    let role = match owner {
+        TypeDelimitedOwner::Call => TypeRole::CallArgumentSeparator,
+        TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
+        TypeDelimitedOwner::EffectRow | TypeDelimitedOwner::BracketRow => {
+            unreachable!("only inherited Type-ML separator owners reach this branch")
+        }
+    };
     let at = delimited_missing_anchor(item, item_origin);
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        let role = GrammarRole::Type(TypeRole::CallArgumentSeparator);
+        let role = GrammarRole::Type(role);
         RecoveryDraft::new(
             RecoverySiteKey {
                 role,

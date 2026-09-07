@@ -79,6 +79,83 @@ impl TypeOuterBoundary {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum TypeMlProvenance {
+    #[default]
+    None,
+    NonTypeApply,
+    OuterTypeApply,
+}
+
+/// Lexical Type-ML phase carried only through normalized Type construction.
+///
+/// Provenance stays live while `stop_here` is dormant so nonreactive owners
+/// can forward an outer TypeApply scope to a nested delimited owner.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct TypeMlContext {
+    provenance: TypeMlProvenance,
+    stop_here: bool,
+}
+
+impl TypeMlContext {
+    pub(super) const INACTIVE: Self = Self {
+        provenance: TypeMlProvenance::None,
+        stop_here: false,
+    };
+
+    fn outer_type_apply_argument() -> Self {
+        Self {
+            provenance: TypeMlProvenance::OuterTypeApply,
+            stop_here: true,
+        }
+    }
+
+    pub(super) fn enter_non_type_apply(self) -> Self {
+        Self {
+            provenance: match self.provenance {
+                TypeMlProvenance::OuterTypeApply => TypeMlProvenance::OuterTypeApply,
+                TypeMlProvenance::None | TypeMlProvenance::NonTypeApply => {
+                    TypeMlProvenance::NonTypeApply
+                }
+            },
+            stop_here: true,
+        }
+    }
+
+    pub(super) fn dormant(self) -> Self {
+        Self {
+            stop_here: false,
+            ..self
+        }
+    }
+
+    pub(super) fn parenthesized_item(self) -> Self {
+        Self {
+            stop_here: self.provenance == TypeMlProvenance::OuterTypeApply,
+            ..self
+        }
+    }
+
+    fn stops_tail(self) -> bool {
+        self.stop_here
+    }
+
+    #[cfg(test)]
+    pub(super) fn outer_active_for_test() -> Self {
+        Self::outer_type_apply_argument()
+    }
+
+    #[cfg(test)]
+    pub(super) fn outer_dormant_for_test() -> Self {
+        Self::outer_type_apply_argument().dormant()
+    }
+
+    #[cfg(test)]
+    pub(super) fn non_type_apply_active_for_test() -> Self {
+        Self::INACTIVE.enter_non_type_apply()
+    }
+}
+
 /// Slot-local ownership adjustments for a fresh mandatory Type primary.
 ///
 /// The policy is deliberately not propagated into accepted tails or nested
@@ -124,7 +201,7 @@ pub(super) fn type_expr_normalized(
         i,
         primary,
         0,
-        false,
+        TypeMlContext::INACTIVE,
         None,
         false,
         0,
@@ -171,7 +248,7 @@ pub(super) fn type_expr_with_caller_stops_for_test(
         i.rb(),
         primary,
         0,
-        false,
+        TypeMlContext::INACTIVE,
         None,
         false,
         outer_closes,
@@ -181,6 +258,76 @@ pub(super) fn type_expr_with_caller_stops_for_test(
         item_origin,
         next_line_entry,
         None,
+    );
+    let successor_origin = advanced_origin(item_origin, continuation_entry, i.rb());
+    Some((exit, successor_origin))
+}
+
+#[cfg(test)]
+pub(super) fn type_expr_with_context_for_test(
+    i: RewriteIn,
+    type_ml: TypeMlContext,
+    item_origin: usize,
+) -> Option<(NormalizedExit, usize)> {
+    type_expr_with_context_and_boundaries_for_test(
+        i,
+        type_ml,
+        0,
+        0,
+        item_origin,
+        LineEntry::InLine,
+        None,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(super) fn type_expr_with_context_and_boundaries_for_test(
+    mut i: RewriteIn,
+    type_ml: TypeMlContext,
+    caller_stops: Stops,
+    outer_closes: u8,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<(NormalizedExit, usize)> {
+    let entry = suffix_marker(i.rb());
+    let CurrentItem {
+        item: primary,
+        next_line_entry,
+    } = i.token(|lex| {
+        let current = current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |lex, leading, origin, fence, _| scan_type_nud_payload(lex, leading, origin, fence),
+        )?;
+        if current.item.payload_view().is_boundary()
+            || current.item.payload_view().is_eof()
+            || !current.item.leading_view().is_grammar_empty()
+            || !is_type_nud(&current.item)
+        {
+            return None;
+        }
+        Some(current)
+    })?;
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    let continuation_entry = suffix_marker(i.rb());
+    let exit = type_expr_from_nud_normalized(
+        i.rb(),
+        primary,
+        0,
+        type_ml,
+        None,
+        false,
+        outer_closes,
+        caller_stops,
+        TypeOuterBoundary::NONE,
+        false,
+        item_origin,
+        next_line_entry,
+        fence,
     );
     let successor_origin = advanced_origin(item_origin, continuation_entry, i.rb());
     Some((exit, successor_origin))
@@ -204,7 +351,7 @@ pub(super) fn required_type_expr(i: RewriteIn, primary: Item, baseline: usize) -
             0,
             TypeOuterBoundary::NONE,
             RequiredTypeFreshPrimaryPolicy::default(),
-            false,
+            TypeMlContext::INACTIVE,
             false,
             0,
             LineEntry::InLine,
@@ -232,7 +379,7 @@ pub(super) fn required_type_expr_with_boundary(
             0,
             TypeOuterBoundary::NONE,
             RequiredTypeFreshPrimaryPolicy::default(),
-            false,
+            TypeMlContext::INACTIVE,
             false,
             0,
             LineEntry::InLine,
@@ -264,7 +411,7 @@ pub(super) fn required_type_expr_with_boundary_normalized(
         0,
         TypeOuterBoundary::NONE,
         RequiredTypeFreshPrimaryPolicy::default(),
-        false,
+        TypeMlContext::INACTIVE,
         pipe_lexical,
         item_origin,
         line_entry,
@@ -298,7 +445,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion(
         caller_stops,
         TypeOuterBoundary::NONE,
         RequiredTypeFreshPrimaryPolicy::default(),
-        false,
+        TypeMlContext::INACTIVE,
         false,
         0,
         LineEntry::InLine,
@@ -324,7 +471,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary(
         caller_stops,
         outer_boundary,
         RequiredTypeFreshPrimaryPolicy::default(),
-        false,
+        TypeMlContext::INACTIVE,
         false,
         0,
         LineEntry::InLine,
@@ -379,7 +526,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
         caller_stops,
         outer_boundary,
         fresh_primary_policy,
-        false,
+        TypeMlContext::INACTIVE,
         false,
         item_origin,
         line_entry,
@@ -395,7 +542,7 @@ pub(super) fn required_variant_payload_type_normalized(
     i: RewriteIn,
     primary: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     outer_boundary: TypeOuterBoundary,
     item_origin: usize,
     line_entry: LineEntry,
@@ -437,7 +584,7 @@ pub(super) fn required_type_expr_normalized(
         0,
         TypeOuterBoundary::NONE,
         RequiredTypeFreshPrimaryPolicy::default(),
-        false,
+        TypeMlContext::INACTIVE,
         false,
         item_origin,
         line_entry,
@@ -465,7 +612,7 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
         caller_stops,
         TypeOuterBoundary::NONE,
         RequiredTypeFreshPrimaryPolicy::default(),
-        false,
+        TypeMlContext::INACTIVE,
         false,
         item_origin,
         line_entry,
@@ -484,7 +631,7 @@ fn required_type_expr_inner_normalized(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
     fresh_primary_policy: RequiredTypeFreshPrimaryPolicy,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -737,7 +884,7 @@ fn type_expr_from_nud_normalized(
     mut i: RewriteIn,
     primary: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -792,7 +939,7 @@ fn type_expr_from_primary(
     i: RewriteIn,
     primary: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -821,7 +968,7 @@ fn type_expr_from_primary_normalized(
     mut i: RewriteIn,
     primary: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -856,7 +1003,7 @@ fn type_expr_from_primary_started(
     i: RewriteIn,
     primary: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -885,7 +1032,7 @@ fn type_expr_from_primary_started_normalized(
     mut i: RewriteIn,
     primary: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -948,6 +1095,7 @@ fn type_expr_from_primary_started_normalized(
             i.rb(),
             primary,
             baseline,
+            type_ml,
             apply_boundary,
             outer_separators,
             outer_closes,
@@ -1184,7 +1332,7 @@ fn type_item_with_pipe_lexical_normalized_in_error_run(
 fn scan_type_tail(
     i: RewriteIn,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1211,7 +1359,7 @@ fn scan_type_tail(
 fn scan_type_tail_normalized(
     mut i: RewriteIn,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1250,7 +1398,7 @@ fn type_tail(
     i: RewriteIn,
     item: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1279,7 +1427,7 @@ fn type_tail_normalized(
     mut i: RewriteIn,
     item: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1300,7 +1448,7 @@ fn type_tail_normalized(
     {
         return complete(handoff(item), line_entry);
     }
-    if type_ml && !item.leading_view().is_grammar_empty() {
+    if type_ml.stops_tail() && !item.leading_view().is_grammar_empty() {
         return complete(handoff(item), line_entry);
     }
     match token_kind(&item) {
@@ -1309,6 +1457,7 @@ fn type_tail_normalized(
                 i.rb(),
                 item,
                 baseline,
+                type_ml,
                 apply_boundary,
                 outer_separators,
                 outer_closes,
@@ -1359,6 +1508,7 @@ fn type_tail_normalized(
                 i.rb(),
                 item,
                 baseline,
+                type_ml,
                 apply_boundary,
                 outer_separators,
                 outer_closes,
@@ -1400,6 +1550,7 @@ fn type_tail_normalized(
             i,
             item,
             baseline,
+            type_ml,
             apply_boundary,
             outer_separators,
             outer_closes,
@@ -1419,7 +1570,7 @@ fn type_leading_bracket_row_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1435,6 +1586,7 @@ fn type_leading_bracket_row_normalized(
         i.rb(),
         open,
         baseline,
+        type_ml.dormant(),
         outer_closes,
         caller_stops,
         pipe_lexical,
@@ -1580,7 +1732,7 @@ fn retry_leading_bracket_row_head_error_normalized(
     mut i: RewriteIn,
     mut head: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1648,6 +1800,7 @@ fn type_bracket_arrow_tail_normalized(
     mut i: RewriteIn,
     mut open: Item,
     baseline: usize,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1665,6 +1818,7 @@ fn type_bracket_arrow_tail_normalized(
         i.rb(),
         open,
         baseline,
+        type_ml.dormant(),
         outer_closes,
         caller_stops,
         pipe_lexical,
@@ -1677,6 +1831,7 @@ fn type_bracket_arrow_tail_normalized(
         NormalizedExit::Complete(Ok(()), line_entry) => type_bracket_arrow_after_row_normalized(
             i.rb(),
             baseline,
+            type_ml.dormant(),
             apply_boundary,
             outer_separators,
             outer_closes,
@@ -1704,6 +1859,7 @@ fn type_bracket_row_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
+    type_ml: TypeMlContext,
     outer_closes: u8,
     caller_stops: Stops,
     pipe_lexical: bool,
@@ -1718,7 +1874,7 @@ fn type_bracket_row_normalized(
         TokenKind::RBracket,
         baseline,
         TypeDelimitedOwner::BracketRow,
-        false,
+        type_ml,
         TypeOuterBoundary::NONE,
         outer_closes,
         caller_stops,
@@ -1735,6 +1891,7 @@ fn type_bracket_row_normalized(
 fn type_bracket_arrow_after_row_normalized(
     mut i: RewriteIn,
     baseline: usize,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1768,6 +1925,7 @@ fn type_bracket_arrow_after_row_normalized(
             i,
             arrow,
             baseline,
+            type_ml,
             apply_boundary,
             outer_separators,
             outer_closes,
@@ -1786,7 +1944,7 @@ fn type_bracket_arrow_after_row_normalized(
             i,
             arrow,
             baseline,
-            false,
+            type_ml,
             apply_boundary,
             outer_separators,
             outer_closes,
@@ -1810,7 +1968,7 @@ fn type_group_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1830,7 +1988,7 @@ fn type_group_normalized(
         TokenKind::RParen,
         baseline,
         TypeDelimitedOwner::ParenthesizedGroup,
-        false,
+        type_ml,
         TypeOuterBoundary::NONE,
         outer_closes,
         caller_stops,
@@ -1862,7 +2020,7 @@ fn type_call_tail_normalized(
     mut i: RewriteIn,
     open: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1941,6 +2099,7 @@ fn type_arrow_rhs(
         i,
         arrow,
         baseline,
+        TypeMlContext::INACTIVE,
         apply_boundary,
         outer_separators,
         outer_closes,
@@ -1970,7 +2129,7 @@ fn retry_type_rhs(i: RewriteIn, item: Item, baseline: usize, caller_stops: Stops
 fn continue_type_tail(
     i: RewriteIn,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -1999,7 +2158,7 @@ fn type_path_tail_normalized(
     mut i: RewriteIn,
     separator: Item,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -2282,6 +2441,7 @@ fn type_apply_argument_normalized(
     mut i: RewriteIn,
     mut argument: Item,
     baseline: usize,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -2299,7 +2459,7 @@ fn type_apply_argument_normalized(
         i.rb(),
         argument,
         baseline,
-        true,
+        TypeMlContext::outer_type_apply_argument(),
         None,
         outer_separators,
         outer_closes,
@@ -2315,7 +2475,7 @@ fn type_apply_argument_normalized(
     continue_type_tail_normalized(
         i,
         baseline,
-        false,
+        type_ml,
         apply_boundary,
         outer_separators,
         outer_closes,
@@ -2333,6 +2493,7 @@ fn type_arrow_tail_normalized(
     mut i: RewriteIn,
     arrow: Item,
     baseline: usize,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -2348,6 +2509,7 @@ fn type_arrow_tail_normalized(
         i.rb(),
         arrow,
         baseline,
+        type_ml.dormant(),
         apply_boundary,
         outer_separators,
         outer_closes,
@@ -2367,6 +2529,7 @@ fn type_arrow_rhs_normalized(
     mut i: RewriteIn,
     arrow: Item,
     baseline: usize,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
@@ -2440,7 +2603,7 @@ fn type_arrow_rhs_normalized(
         i,
         rhs,
         baseline,
-        false,
+        type_ml,
         apply_boundary,
         outer_separators,
         outer_closes,
@@ -2560,7 +2723,7 @@ fn retry_type_rhs_normalized(
 fn continue_type_tail_normalized(
     i: RewriteIn,
     baseline: usize,
-    type_ml: bool,
+    type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
