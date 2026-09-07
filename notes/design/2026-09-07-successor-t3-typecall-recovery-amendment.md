@@ -1,6 +1,8 @@
 # Successor T3 TypeCall recovery amendment
 
-Status: Authoritative
+Status: Authoritative; T3 core local construction complete; T3a post-item
+horizontal caller/outer-boundary certification suspended by direct legacy
+contradiction
 
 Date: 2026-09-07
 
@@ -322,3 +324,28 @@ design after one batched repair and clean compiler/specification delta review.
 If the user approves, T3a is implemented and reviewed as the first coherent
 gate; T3b then follows under the same approved scope.  This Reviewed design
 records no user approval and authorizes no implementation.
+
+## 6. Horizontal-gap boundary-priority implementation suspension
+
+Direct legacy evidence at `c54c78c6` resolves the previously unselected
+post-item anchor class in §2.1 and contradicts the completed successor T3a
+boundary behavior.  After a completed Call argument, a generic caller or outer
+close following ordinary horizontal trivia leaves its payload raw but the Call
+owner emits that trivia and anchors its own close Missing after it.  Thus
+`G T(F ]` leaves raw `]` and publishes TypeCall-close Missing `6..6` after the
+Call owns space `5..6`; `G T[T(F ]->U` analogously publishes at `8..8` before
+BracketRow consumes the `]`.  ASOB remains distinct and preserves the complete
+space-plus-boundary gap before its close Missing.
+
+This is a material architecture-return condition.  It suspends only T3a's
+post-completed-item horizontal caller/outer-boundary CST, frontier, and
+close-Missing range certification.  T3's CallArgument/CallArgumentSeparator
+construction, inherited type-ML behavior, provenance-blind phase preservation,
+matching local close, EOF behavior, and all T3b Error/terminal work remain
+retained.  The shared P/E evidence in `820dca87` and `c54c78c6` shows that no
+T3-only or P/E-only repair is coherent.  This document is not authority for a
+boundary repair until a reviewed, user-approved successor distinguishes ASOB
+whole-gap handoff from immediate-owner horizontal trivia consumption followed
+by raw caller/outer payload handoff.  That successor must first execution-pin
+the corresponding initial and post-explicit-separator horizontal-gap phases;
+they remain uncharacterized here.

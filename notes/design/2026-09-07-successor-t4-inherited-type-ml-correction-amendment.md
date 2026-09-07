@@ -290,10 +290,12 @@ owner trivia before it recognizes a generic caller stop/close or outer close.  T
 This is a material architecture-return condition.  T4P's provenance and
 separator construction at `3bedfbef` remain retained, but its caller/outer
 boundary-priority certification is reopened; the corresponding T4E construction
-is suspended.  This document's P/E priority text is not authority for a repair
-or a future T4E implementation.  Before a new amendment can be drafted,
-execution must pin direct Parenthesized horizontal active-outer-close controls
-and perform a bounded Call sibling audit.  A reviewed, user-approved successor
-must then distinguish abstract whole-gap handoff from delimited-owner trivia
-consumption followed by raw generic stop/close handoff.  T4E1/E3, the eighth terminal,
-T4B/T4A, PV/declaration parity, O4/O6, and public scope remain excluded.
+is suspended.  Direct Parenthesized and Call controls at `c54c78c6` establish
+the same shared horizontal-gap rule and also suspend T3a's matching boundary
+certificate.  This document's P/E priority text is not authority for a repair
+or a future T4E implementation.  A reviewed, user-approved successor must
+distinguish abstract whole-gap handoff from delimited-owner trivia consumption
+followed by raw generic stop/close handoff; it must first execution-pin the
+initial and post-explicit-separator horizontal-gap phases.  T4E1/E3, the eighth
+terminal, T4B/T4A, PV/declaration parity, O4/O6, and public scope remain
+excluded.

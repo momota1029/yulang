@@ -38,16 +38,21 @@ credit; the aggregate T2 matrix row remains Open until O6 successor-Yumark
 adoption proves actual embedded AST/direct fact equality and successor
 topology.  Public cutover remains excluded.
 
-T3 TypeCall local construction is complete under the Authoritative amendment.
-T3a migrates CallArgument, CallArgumentSeparator, and TypeCall-close Missing
-records plus Call-only inherited type-ML separator recovery.  T3b adds the
-seventh CallArgument-only terminal, native Error-child exception, and Call
-close Error recovery.  M3 compiler/recovery, specification, and regression
-review found and closed priority/close-continuation/test-evidence defects in
-two bounded repair rounds.  Focused T3a/T3b/TypeExpression/output/legacy-call
-checks, package check, formatting, and diff check passed with zero timing
-processes.  No other owner gains authority, and the aggregate T3 matrix row
-remains Open until O6 real successor-Yumark fact equality.  The next candidate
+T3 TypeCall core local construction is complete under the Authoritative
+amendment.  T3a migrates CallArgument, CallArgumentSeparator, and TypeCall-close
+Missing records plus Call-only inherited type-ML separator recovery.  T3b adds
+the seventh CallArgument-only terminal, native Error-child exception, and Call
+close Error recovery.  Direct legacy evidence at `c54c78c6` reopened only T3a's
+post-item horizontal caller/outer-boundary CST, frontier, and close-Missing
+range certification: legacy Call emits ordinary horizontal gap before returning
+the raw boundary, whereas the completed successor test retains the gap pending.
+Call separator/provenance, matching close/EOF behavior, and T3b remain retained.
+M3 compiler/recovery, specification, and regression review previously found and
+closed other priority/close-continuation/test-evidence defects in two bounded
+repair rounds.  Focused T3a/T3b/TypeExpression/output/legacy-call checks,
+package check, formatting, and diff check passed with zero timing processes.
+No other owner gains authority, and the aggregate T3 matrix row remains Open
+until O6 real successor-Yumark fact equality.  The next candidate
 is the Authoritative T4 delimited-register correction.  Preflight found that matrix T4b,
 T4e, and T4g misclassify valid same-line TypeApply as separator recovery, and
 T4h has the wrong Arrow expectation.  M3 compiler/specification/performance
@@ -76,16 +81,17 @@ for outer-TypeApply provenance, preserves T3 Call's phase, and keeps
 EffectRow/BracketRow publication excluded.  Focused T4P/T3/legacy checks,
 package check, format, and diff check passed with zero timing processes.
 
-T4E is suspended.  Direct legacy EffectRow evidence at `820dca87` disproved
-the shared P/E priority premise that caller/outer/abstract boundaries hand off
-before any owner trivia mutation: generic caller stops/outer closes retain their
-raw payload but the delimited owner consumes the horizontal gap and anchors its
-local close Missing after that gap; ASOB retains the whole gap.  T4P's core
-provenance/separator construction remains retained, but its caller/outer
-boundary-priority certification is reopened.  Immediate safe work is to
-execution-pin analogous Parenthesized active caller/outer-close controls and audit
-the bounded T3 Call sibling before drafting a reviewed correction.  No T4P repair
-or T4E implementation may begin without that successor and fresh user approval.
+T4E is suspended.  Direct legacy EffectRow evidence at `820dca87` and shared
+Parenthesized/Call evidence at `c54c78c6` disprove the priority premise that
+caller/outer/abstract boundaries hand off before any owner trivia mutation:
+generic caller stops/outer closes retain raw payload but the immediate delimited
+owner consumes the horizontal gap and anchors its local close Missing after it;
+ASOB retains the whole gap.  T4P provenance/separator construction and T3
+separator/provenance/T3b remain retained, but T4P P/E and T3a Call
+boundary-priority certification are reopened.  Immediate safe work is to
+execution-pin the shared initial and post-explicit-separator horizontal-gap
+phases before drafting a reviewed correction.  No T3/T4P repair or T4E
+implementation may begin without that successor and fresh user approval.
 
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
