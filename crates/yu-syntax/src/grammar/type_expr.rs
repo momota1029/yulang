@@ -8839,6 +8839,392 @@ mod tests {
     }
 
     #[test]
+    fn t4e_legacy_effect_row_inherited_type_ml_local_preflight() {
+        fn plain_atom(item: &Recovered<TypeExpression<'_>>) -> bool {
+            matches!(item, Recovered::Complete(TypeExpression {
+                primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))),
+                postfix,
+                arrow: None,
+                ..
+            }) if postfix.is_empty())
+        }
+
+        fn assert_outer_effect_row(
+            source: &str,
+            expected_items: usize,
+            expected_close: Range<usize>,
+        ) {
+            let expression = parse(source);
+            assert!(
+                matches!(expression.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                    if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                        items,
+                        close: Recovered::Complete(close),
+                        ..
+                    }) if items.len() == expected_items
+                        && items.iter().all(plain_atom)
+                        && close == expected_close)),
+                "{source:?}: {expression:#?}",
+            );
+        }
+
+        fn assert_direct(
+            source: &str,
+            expected: Option<(GrammarRole, Range<usize>, RecoveryKind, ExpectedSyntax)>,
+        ) -> SyntaxNode {
+            let records = parse_direct_recovered(source);
+            match expected {
+                Some((role, range, kind, expected_syntax)) => assert!(
+                    matches!(records.as_slice(), [record]
+                        if record.site.role == role
+                            && record.site.range == range
+                            && record.kind == kind
+                            && record.primary_expectation == 0
+                            && record.expectations[0].role == role
+                            && record.expectations[0].range == range
+                            && record.expectations[0].expected == expected_syntax),
+                    "{source:?}: {records:#?}",
+                ),
+                None => assert!(records.is_empty(), "{source:?}: {records:#?}"),
+            }
+            let direct = parse_direct(source);
+            assert_eq!(
+                direct.to_string(),
+                source,
+                "lossless direct CST: {source:?}"
+            );
+            direct
+        }
+
+        fn assert_effect_separator(source: &str, at: usize) -> SyntaxNode {
+            assert_direct(
+                source,
+                Some((
+                    GrammarRole::Type(TypeRole::EffectRowSeparator),
+                    at..at,
+                    RecoveryKind::Missing,
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                )),
+            )
+        }
+
+        fn direct_effect_row(root: &SyntaxNode) -> SyntaxNode {
+            root.descendants()
+                .find(|node| node.kind() == SyntaxKind::EffectRowType)
+                .expect("direct EffectRowType")
+        }
+
+        fn trivia_tokens(node: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>, String)> {
+            node.children_with_tokens()
+                .filter_map(|child| child.into_token())
+                .filter(|token| {
+                    matches!(
+                        token.kind(),
+                        SyntaxKind::Whitespace
+                            | SyntaxKind::Newline
+                            | SyntaxKind::LineComment
+                            | SyntaxKind::BlockComment
+                    )
+                })
+                .map(|token| {
+                    let range = token.text_range();
+                    (
+                        token.kind(),
+                        usize::from(range.start())..usize::from(range.end()),
+                        token.text().to_string(),
+                    )
+                })
+                .collect()
+        }
+
+        let standalone = parse("'[F A]");
+        assert!(
+            matches!(standalone.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                items,
+                close: Recovered::Complete(close),
+                ..
+            }) if matches!(items.as_slice(), [Recovered::Complete(item)]
+                if matches!(item.postfix.as_slice(), [TypePostfixTail::Apply(_)]))
+                && close == (5..6)),
+            "{standalone:#?}",
+        );
+        assert_direct("'[F A]", None);
+
+        for (source, separator_at, close) in [
+            ("G '[F A]", 6, 7..8),
+            ("G '[F\n  A]", 8, 9..10),
+            ("G '[F\r\n  A]", 9, 10..11),
+        ] {
+            assert_outer_effect_row(source, 2, close);
+            assert_effect_separator(source, separator_at);
+        }
+
+        let crlf = assert_effect_separator("G '[F\r\n  A]", 9);
+        let crlf_row = direct_effect_row(&crlf);
+        assert_eq!(
+            crlf_row
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::Apostrophe,
+                SyntaxKind::LBracket,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Newline,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::RBracket,
+            ],
+        );
+        assert_eq!(
+            trivia_tokens(&crlf_row),
+            vec![
+                (SyntaxKind::Newline, 5..7, "\r\n".to_owned()),
+                (SyntaxKind::Whitespace, 7..9, "  ".to_owned()),
+            ],
+        );
+
+        let block_comment_source = "G '[F/*note*/ A]";
+        assert_outer_effect_row(block_comment_source, 2, 15..16);
+        let block_comment = assert_effect_separator(block_comment_source, 14);
+        assert_eq!(
+            trivia_tokens(&direct_effect_row(&block_comment)),
+            vec![
+                (SyntaxKind::BlockComment, 5..13, "/*note*/".to_owned()),
+                (SyntaxKind::Whitespace, 13..14, " ".to_owned()),
+            ],
+        );
+
+        let deeper_line_comment_source = "G '[F // note\n  A]";
+        assert_outer_effect_row(deeper_line_comment_source, 2, 17..18);
+        let deeper_line_comment = assert_effect_separator(deeper_line_comment_source, 16);
+        assert_eq!(
+            trivia_tokens(&direct_effect_row(&deeper_line_comment)),
+            vec![
+                (SyntaxKind::Whitespace, 5..6, " ".to_owned()),
+                (SyntaxKind::LineComment, 6..13, "// note".to_owned()),
+                (SyntaxKind::Newline, 13..14, "\n".to_owned()),
+                (SyntaxKind::Whitespace, 14..16, "  ".to_owned()),
+            ],
+        );
+
+        let equal_line_comment_source = "G '[F // note\nA]";
+        assert_outer_effect_row(equal_line_comment_source, 2, 15..16);
+        let equal_line_comment = assert_direct(equal_line_comment_source, None);
+        assert_eq!(
+            trivia_tokens(&direct_effect_row(&equal_line_comment)),
+            vec![
+                (SyntaxKind::Whitespace, 5..6, " ".to_owned()),
+                (SyntaxKind::LineComment, 6..13, "// note".to_owned()),
+                (SyntaxKind::Newline, 13..14, "\n".to_owned()),
+            ],
+        );
+
+        for (source, close) in [
+            ("G '[F , A]", 9..10),
+            ("G '[F; A]", 8..9),
+            ("G '[F\nA]", 7..8),
+            ("G '[F\r\nA]", 8..9),
+        ] {
+            assert_outer_effect_row(source, 2, close);
+            assert_direct(source, None);
+        }
+
+        assert_outer_effect_row("G '[F\r\n  ]", 1, 9..10);
+        assert_direct("G '[F\r\n  ]", None);
+
+        let eof = parse("G '[F");
+        assert!(
+            matches!(eof.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                    items,
+                    close: Recovered::Incomplete,
+                    range,
+                    ..
+                }) if items.len() == 1 && items.iter().all(plain_atom) && range == (2..5))),
+            "{eof:#?}",
+        );
+        assert_direct(
+            "G '[F",
+            Some((
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::EffectRowType,
+                    delimiter: Delimiter::Bracket,
+                },
+                5..5,
+                RecoveryKind::Missing,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            )),
+        );
+
+        let caller_source = "G '[F )";
+        let (caller_remainder, caller_ast) =
+            parse_prefix_with_outer_stop(caller_source, StopKind::RightParenthesis);
+        assert_eq!(caller_remainder, ")");
+        assert!(
+            matches!(caller_ast.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                    items,
+                    close: Recovered::Incomplete,
+                    range,
+                    ..
+                }) if items.len() == 1 && items.iter().all(plain_atom) && range == (2..6))),
+            "{caller_ast:#?}",
+        );
+        let (caller_remainder, caller_records) =
+            parse_direct_prefix_with_outer_stop(caller_source, StopKind::RightParenthesis);
+        assert_eq!(caller_remainder, ")");
+        assert!(
+            matches!(caller_records.as_slice(), [record]
+            if record.site.role == GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::EffectRowType,
+                delimiter: Delimiter::Bracket,
+            }
+                && record.site.range == (6..6)
+                && record.kind == RecoveryKind::Missing
+                && record.primary_expectation == 0
+                && record.expectations[0].expected
+                    == ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Bracket
+                    ))),
+            "{caller_records:#?}",
+        );
+
+        let outer_close = parse("G ('[F )");
+        assert!(
+            matches!(outer_close.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Complete(close),
+                    ..
+                }) if matches!(elements.as_slice(), [Recovered::Complete(item)]
+                    if matches!(item.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                        items,
+                        close: Recovered::Incomplete,
+                        range,
+                        ..
+                    }) if items.len() == 1 && items.iter().all(plain_atom) && range == (3..7)))
+                        && close == (7..8))),
+            "{outer_close:#?}",
+        );
+        assert_direct(
+            "G ('[F )",
+            Some((
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::EffectRowType,
+                    delimiter: Delimiter::Bracket,
+                },
+                7..7,
+                RecoveryKind::Missing,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            )),
+        );
+
+        let abstract_source = "G '[F else: 0";
+        let mut source_input = SourceInput::new(abstract_source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed =
+            crate::session::Probe::new(i).commit(FullCstOutput::new(abstract_source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("ASOB direct type expression");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            " else: 0",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(
+            matches!(output.committed_recoveries(), [record]
+            if record.site.role == GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::EffectRowType,
+                delimiter: Delimiter::Bracket,
+            }
+                && record.site.range == (5..5)
+                && record.kind == RecoveryKind::Missing
+                && record.primary_expectation == 0
+                && record.expectations[0].expected
+                    == ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Bracket
+                    ))),
+            "{:#?}",
+            output.committed_recoveries(),
+        );
+        drop(output);
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+        let nested_group = parse("G ('[F A])");
+        assert!(
+            matches!(nested_group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Complete(_),
+                    ..
+                }) if matches!(elements.as_slice(), [Recovered::Complete(item)]
+                    if matches!(item.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                        items,
+                        close: Recovered::Complete(_),
+                        ..
+                    }) if items.len() == 2 && items.iter().all(plain_atom))))),
+            "{nested_group:#?}",
+        );
+        assert_effect_separator("G ('[F A])", 7);
+
+        let through_call = parse("G T('[F A])");
+        assert!(
+            matches!(through_call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(call)]
+                    if matches!(call.arguments.as_slice(), [Recovered::Complete(item)]
+                        if matches!(item.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                            items,
+                            close: Recovered::Complete(_),
+                            ..
+                        }) if items.len() == 2 && items.iter().all(plain_atom))))),
+            "{through_call:#?}",
+        );
+        assert_effect_separator("G T('[F A])", 8);
+
+        let through_bracket_row = parse("G T['[F A]]->U");
+        assert!(
+            matches!(through_bracket_row.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.arrow, Some(TypeArrowTail {
+                    argument_effect: Some(BracketRow {
+                        ref items,
+                        close: Recovered::Complete(ref bracket_close),
+                        ..
+                    }),
+                    arrow: Recovered::Complete(ref arrow),
+                    rhs: Recovered::Complete(ref rhs),
+                    ..
+                }) if matches!(items.as_slice(), [Recovered::Complete(item)]
+                    if matches!(item.complete_primary(), TypePrimary::EffectRow(EffectRowType {
+                        items,
+                        close: Recovered::Complete(_),
+                        ..
+                    }) if items.len() == 2 && items.iter().all(plain_atom)))
+                        && *bracket_close == (10..11)
+                        && *arrow == (11..13)
+                        && rhs.range == (13..14))),
+            "{through_bracket_row:#?}",
+        );
+        assert_effect_separator("G T['[F A]]->U", 8);
+    }
+
+    #[test]
     fn call_and_group_recovery_leave_outer_owned_boundaries_unconsumed() {
         let (call_remainder, call_ast) =
             parse_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
