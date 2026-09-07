@@ -127,6 +127,16 @@ The user selected the recommended extent correction, so its one private
 integration/proof pass is now authorized; regression plus compiler/specification
 delta review must close the bounded PV sibling surface before integration.
 
+That sibling audit reached EffectRow and apparent Call forms under the same
+TagName carrier.  Direct legacy evidence is now execution-pinned by
+`legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned`:
+EffectRow rows are flat TagName `Error > Unknown` spans, while all numeric
+apparent-Call rows are instead a TagName Error for `123` followed by a separate
+Parenthesized PV payload and PayloadBoundary Missing--never a legacy Call in
+the TagName Error.  M1 specification review is clean.  This counterfact keeps
+the shared candidate unintegrated: no E/Call successor range/record oracle is
+authorized until architecture resolves their distinct compatibility routes.
+
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
 artificial declaration witness was added.  T4E1/E3, the eighth terminal,
