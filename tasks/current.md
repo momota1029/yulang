@@ -38,14 +38,15 @@ credit; the aggregate T2 matrix row remains Open until O6 successor-Yumark
 adoption proves actual embedded AST/direct fact equality and successor
 topology.  Public cutover remains excluded.
 
-The next candidate is Reviewed T3 TypeCall recovery.  Architecture preflight
+The next candidate is Authoritative T3 TypeCall recovery.  Architecture preflight
 separates T3a typed Call Missing/inherited type-ML separator work from T3b
 CallArgument Error completion: `T(@ A)` needs a seventh, CallArgument-only
 sealed Error terminal because neither the T2a fifth nor T2b sixth operation
 has the required CST ownership.  M3 compiler/recovery, specification, and
 performance review completed with one bounded repair and clean delta review.
-Explicit user approval is now the only requirement before either T3 subgate can
-begin.
+The active replacement objective authorizes its recommended proposal.  T3a
+Call Missing/inherited type-ML construction may begin; T3b remains the ordered
+next gate, and no other owner gains authority.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→

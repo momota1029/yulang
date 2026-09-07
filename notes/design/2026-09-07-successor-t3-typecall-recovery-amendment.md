@@ -1,6 +1,6 @@
 # Successor T3 TypeCall recovery amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-07
 
@@ -8,6 +8,17 @@ Drafted-by: primary from T3 architecture preflight after T2b local construction
 
 Reviewed-by: M3 compiler/recovery, specification, and performance review; one
 batched Draft repair followed by clean compiler/specification delta review
+
+Approved-by: user
+
+Approved-at: 2026-09-07
+
+User-directed decision: the active replacement objective authorizes proceeding
+with the recommended reviewed proposal unless a material issue requires a
+different user decision.  Adopt both bounded, ordered T3 subgates exactly as
+specified: T3a Call Missing/inherited type-ML construction, then T3b's
+CallArgument-only seventh terminal and direct-child exception.  All scope
+exclusions and O6 timing remain in force.
 
 Scope: a bounded successor migration for `TypeDelimitedOwner::Call` only.  It
 proposes two ordered local construction subgates: T3a typed Call Missing slots
