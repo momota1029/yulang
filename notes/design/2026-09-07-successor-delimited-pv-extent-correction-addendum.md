@@ -1,6 +1,12 @@
 # Successor delimited PV structured-Error extent correction addendum
 
-Status: Authoritative; bounded construction approved
+Status: Authoritative; bounded private construction complete
+
+Implementation update (2026-09-08):
+`2026-09-08-successor-recovery-authority-amendment.md` §§4--6 records the
+completed successor ownership, extent and continuation proof. Its scoped
+supersession removes legacy-malformed equality as an integration prerequisite.
+New typed EffectRow ownership and public/O6 certification remain separate.
 
 Date: 2026-09-07
 

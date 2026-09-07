@@ -437,6 +437,62 @@ fn run_contextual_type_snapshot<'source, 'frozen>(
     }
 }
 
+fn assert_complete_type_recovery(
+    source: &str,
+    origin: usize,
+    expected: &[CommittedRecoveryRecord],
+) -> SyntaxNode {
+    let run = |frozen| {
+        run_contextual_type_snapshot(
+            source,
+            super::super::type_expr::TypeMlContext::INACTIVE,
+            0,
+            0,
+            origin,
+            LineEntry::InLine,
+            None,
+            frozen,
+        )
+    };
+    let fresh = run(None);
+    assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
+    assert_eq!(fresh.records, expected, "{source:?}, origin={origin}");
+    assert_eq!(fresh.successor_origin, origin + source.len(), "{source:?}");
+    assert_eq!(fresh.remainder, "", "{source:?}");
+    assert_eq!(fresh.slots, expected.len());
+    assert_eq!(fresh.diagnostics, (Some(expected.len() as u32), 0));
+    assert_eq!(fresh.mark, ());
+    assert!(fresh.same_operators);
+    let NormalizedExit::Complete(Err(Either::Right(fresh_end)), fresh_line) = &fresh.exit else {
+        panic!("complete Type must return EOF: {source:?}")
+    };
+    assert_eq!(*fresh_line, LineEntry::InLine);
+
+    let frozen = frozen_recovery_ids(expected);
+    let replay = run(Some(&frozen));
+    assert_eq!(replay.green, fresh.green, "{source:?}");
+    assert_eq!(replay.records, frozen, "{source:?}");
+    assert_eq!(replay.successor_origin, fresh.successor_origin);
+    assert_eq!(replay.remainder, fresh.remainder);
+    assert_eq!(replay.slots, frozen.len());
+    assert_eq!(
+        replay.diagnostics,
+        (
+            Some(frozen.last().map_or(0, |record| record.id.0 + 1)),
+            frozen.len()
+        )
+    );
+    assert_eq!(replay.mark, ());
+    assert!(replay.same_operators);
+    let NormalizedExit::Complete(Err(Either::Right(replayed_end)), replay_line) = &replay.exit
+    else {
+        panic!("frozen Type must return EOF: {source:?}")
+    };
+    assert_eq!(replayed_end, fresh_end);
+    assert_eq!(replay_line, fresh_line);
+    SyntaxNode::new_root(fresh.green)
+}
+
 fn assert_parenthesized_t4p_topology(green: &GreenNode, expected: &[(SyntaxKind, Range<usize>)]) {
     let group = SyntaxNode::new_root(green.clone())
         .descendants()
@@ -3535,7 +3591,7 @@ fn type_parenthesized_t4p_seeded_owned_boundaries_preserve_pending_item_frontier
                 Some(TokenKind::RBrace),
             ),
         ] {
-            let expected = expected_parenthesized_close(0, 2);
+            let expected = expected_parenthesized_close(0, 3);
             let fresh = run_contextual_type_snapshot(
                 source,
                 context,
@@ -3548,7 +3604,7 @@ fn type_parenthesized_t4p_seeded_owned_boundaries_preserve_pending_item_frontier
             );
             assert_eq!(
                 fresh.green.to_string(),
-                "sentinel(F",
+                "sentinel(F ",
                 "{context_label}, {boundary_label}",
             );
             let NormalizedExit::Complete(Err(Either::Left(mut pending)), line_entry) = fresh.exit
@@ -3556,8 +3612,15 @@ fn type_parenthesized_t4p_seeded_owned_boundaries_preserve_pending_item_frontier
                 panic!("pending boundary: {context_label}, {boundary_label}")
             };
             let control_source = &source[2..];
-            let (control, control_origin, control_line, control_remainder, mark, same_operators) =
-                scan_type_item_control(control_source, 2, &OperatorTable::empty());
+            let (
+                mut control,
+                control_origin,
+                control_line,
+                control_remainder,
+                mark,
+                same_operators,
+            ) = scan_type_item_control(control_source, 2, &OperatorTable::empty());
+            assert_eq!(emit_pending_leading_text(&mut control), " ");
             assert_eq!(pending, control, "{context_label}, {boundary_label}");
             assert_eq!(
                 fresh.successor_origin, control_origin,
@@ -3571,14 +3634,14 @@ fn type_parenthesized_t4p_seeded_owned_boundaries_preserve_pending_item_frontier
                 line_entry, control_line,
                 "{context_label}, {boundary_label}"
             );
-            assert_eq!(pending.leading_view().remaining_physical_parts(), 1);
-            assert!(pending.leading_view().has_ordinary_trivia());
+            assert_eq!(pending.leading_view().remaining_physical_parts(), 0);
+            assert!(!pending.leading_view().has_ordinary_trivia());
             assert!(!pending.leading_view().has_ordinary_newline());
             assert_eq!(pending.payload_view().spelling(), spelling);
             if let Some(token_kind) = token_kind {
                 assert_eq!(pending.payload_view().token_kind(), Some(token_kind));
             }
-            assert_eq!(emit_pending_leading_text(&mut pending), " ");
+            assert_eq!(emit_pending_leading_text(&mut pending), "");
             assert_eq!(fresh.records, [expected.clone()]);
             assert_eq!(fresh.slots, 1);
             assert_eq!(fresh.diagnostics, (Some(1), 0));
@@ -4003,14 +4066,14 @@ fn type_call_t3a_missing_phase_preserves_outer_and_caller_boundaries_atomically(
                 expected_type_call_close(1, 2),
             ],
         ),
-        ("T(A with", "T(A", " ", vec![expected_type_call_close(0, 3)]),
+        ("T(A with", "T(A ", "", vec![expected_type_call_close(0, 4)]),
         (
             "T(A, with",
-            "T(A,",
-            " ",
+            "T(A, ",
+            "",
             vec![
-                expected_type_expression_missing(0, TypeRole::CallArgument, 4),
-                expected_type_call_close(1, 4),
+                expected_type_expression_missing(0, TypeRole::CallArgument, 5),
+                expected_type_call_close(1, 5),
             ],
         ),
     ] {
@@ -4047,19 +4110,19 @@ fn type_call_t3a_missing_phase_preserves_outer_and_caller_boundaries_atomically(
     for (source, emitted, expected) in [
         (
             "T( ] tail",
-            "T(",
+            "T( ",
             vec![
-                expected_type_expression_missing(0, TypeRole::CallArgument, 2),
-                expected_type_call_close(1, 2),
+                expected_type_expression_missing(0, TypeRole::CallArgument, 3),
+                expected_type_call_close(1, 3),
             ],
         ),
-        ("T(A ] tail", "T(A", vec![expected_type_call_close(0, 3)]),
+        ("T(A ] tail", "T(A ", vec![expected_type_call_close(0, 4)]),
         (
             "T(A, ] tail",
-            "T(A,",
+            "T(A, ",
             vec![
-                expected_type_expression_missing(0, TypeRole::CallArgument, 4),
-                expected_type_call_close(1, 4),
+                expected_type_expression_missing(0, TypeRole::CallArgument, 5),
+                expected_type_call_close(1, 5),
             ],
         ),
     ] {
@@ -4085,7 +4148,7 @@ fn type_call_t3a_missing_phase_preserves_outer_and_caller_boundaries_atomically(
             pending.payload_view().token_kind(),
             Some(TokenKind::RBracket)
         );
-        assert_eq!(emit_pending_leading_text(&mut pending), " ", "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut pending), "", "{source:?}");
         assert_eq!(input, " tail", "{source:?}");
         assert_eq!(records, expected, "{source:?}");
     }
@@ -6264,6 +6327,286 @@ fn polymorphic_variant_type_recovers_outer_tag_positions() {
 }
 
 #[test]
+fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
+    // Selected successor contracts: recovery-authority amendment §4 and its
+    // retained P/E extent tables. Numeric Calls are one TagName recovery, not
+    // the legacy numeric-head/separate-payload split.
+    for (owner, owner_start, rows) in [
+        (
+            SyntaxKind::ParenthesizedTypeGroup,
+            2,
+            [
+                (":{( }", 4, Some(3), 2),
+                (":{(A, }", 6, Some(5), 2),
+                (":{(A; }", 6, Some(5), 2),
+                (":{(A }", 5, Some(4), 1),
+                (":{(A}", 4, None, 1),
+                (":{(A )}", 6, Some(4), 0),
+            ],
+        ),
+        (
+            SyntaxKind::EffectRowType,
+            2,
+            [
+                (":{'[ }", 5, Some(4), 2),
+                (":{'[F, }", 7, Some(6), 2),
+                (":{'[F; }", 7, Some(6), 2),
+                (":{'[F }", 6, Some(5), 1),
+                // No-gap E handoff is outside the horizontal correction. Its
+                // existing partial row has no close Missing until the E gate.
+                (":{'[F}", 5, None, 0),
+                (":{'[F ]}", 7, Some(5), 0),
+            ],
+        ),
+        (
+            SyntaxKind::TypeCallTail,
+            5,
+            [
+                (":{123( }", 7, Some(6), 2),
+                (":{123(F, }", 9, Some(8), 2),
+                (":{123(F; }", 9, Some(8), 2),
+                (":{123(F }", 8, Some(7), 1),
+                (":{123(F}", 7, None, 1),
+                (":{123(F )}", 9, Some(7), 0),
+            ],
+        ),
+    ] {
+        for (base, end, gap_start, missing_count) in rows {
+            for origin in [0, 23] {
+                let at = origin + end;
+                let mut expected = vec![expected_type_error(
+                    0,
+                    TypeRole::PolymorphicVariantTagName,
+                    origin + 2..at,
+                )];
+                if owner == SyntaxKind::TypeCallTail && missing_count == 2 {
+                    expected.push(expected_type_expression_missing(
+                        1,
+                        TypeRole::CallArgument,
+                        at,
+                    ));
+                }
+                if missing_count > 0 {
+                    match owner {
+                        SyntaxKind::TypeCallTail => {
+                            expected.push(expected_type_call_close(expected.len() as u32, at))
+                        }
+                        SyntaxKind::ParenthesizedTypeGroup => {
+                            expected.push(expected_parenthesized_close(1, at));
+                        }
+                        SyntaxKind::EffectRowType => {}
+                        _ => unreachable!(),
+                    }
+                }
+                for suffix in ["", "::Next"] {
+                    let source = format!("{base}{suffix}");
+                    let root = assert_complete_type_recovery(&source, origin, &expected);
+                    let errors = root
+                        .descendants()
+                        .filter(|node| node.kind() == SyntaxKind::Error)
+                        .collect::<Vec<_>>();
+                    assert_eq!(errors.len(), 1, "{source:?}");
+                    let error = &errors[0];
+                    assert_eq!(error.text().to_string(), &base[2..end]);
+                    assert_eq!(usize::from(error.text_range().start()), 8 + 2);
+                    assert_eq!(usize::from(error.text_range().end()), 8 + end);
+                    let delimited = error
+                        .descendants()
+                        .find(|node| node.kind() == owner)
+                        .expect("delimited owner inside TagName Error");
+                    assert_eq!(delimited.text().to_string(), &base[owner_start..end]);
+                    assert_eq!(usize::from(delimited.text_range().start()), 8 + owner_start);
+                    let gaps = delimited
+                        .children_with_tokens()
+                        .filter(|child| child.kind() == SyntaxKind::Whitespace)
+                        .collect::<Vec<_>>();
+                    assert_eq!(gaps.len(), usize::from(gap_start.is_some()));
+                    if let Some(start) = gap_start {
+                        assert_eq!(gaps[0].to_string(), " ");
+                        assert_eq!(usize::from(gaps[0].text_range().start()), 8 + start);
+                        assert_eq!(usize::from(gaps[0].text_range().end()), 8 + start + 1);
+                    }
+                    let missing = delimited
+                        .children()
+                        .filter(|node| node.kind() == SyntaxKind::Missing)
+                        .collect::<Vec<_>>();
+                    assert_eq!(missing.len(), missing_count, "{source:?}");
+                    for node in missing {
+                        assert!(node.text_range().is_empty());
+                        assert_eq!(usize::from(node.text_range().start()), 8 + end);
+                    }
+                    if base[..end].ends_with([')', ']']) {
+                        let close = if owner == SyntaxKind::EffectRowType {
+                            SyntaxKind::RBracket
+                        } else {
+                            SyntaxKind::RParen
+                        };
+                        assert!(delimited.children_with_tokens().any(|child| {
+                            child.kind() == close
+                                && usize::from(child.text_range().start()) == 8 + end - 1
+                                && usize::from(child.text_range().end()) == 8 + end
+                        }));
+                    }
+                    let top = root
+                        .children()
+                        .find(|node| node.kind() == SyntaxKind::TypeExpression)
+                        .expect("outer Type expression");
+                    let variant = top
+                        .children()
+                        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+                        .expect("outer PV");
+                    let close = variant
+                        .children_with_tokens()
+                        .find(|child| child.kind() == SyntaxKind::RBrace)
+                        .expect("native outer PV close");
+                    assert_eq!(usize::from(close.text_range().start()), 8 + end);
+                    assert_eq!(usize::from(close.text_range().end()), 8 + end + 1);
+                    assert!(
+                        !error
+                            .descendants_with_tokens()
+                            .any(|child| { child.kind() == SyntaxKind::RBrace })
+                    );
+                    let tails = top
+                        .children()
+                        .filter(|node| node.kind() == SyntaxKind::TypePathTail)
+                        .collect::<Vec<_>>();
+                    assert_eq!(tails.len(), usize::from(!suffix.is_empty()));
+                    if !suffix.is_empty() {
+                        assert_eq!(tails[0].text().to_string(), suffix);
+                        assert_eq!(usize::from(tails[0].text_range().start()), 8 + base.len());
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn shared_delimited_pv_prefix_and_recursive_reservations_keep_owned_ranges() {
+    for (base, expected) in [
+        (
+            ":{@ (A }",
+            vec![
+                expected_type_error(0, TypeRole::PolymorphicVariantTag, 2..3),
+                expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..7),
+                expected_parenthesized_close(2, 7),
+            ],
+        ),
+        (
+            ":{@ '[F }",
+            vec![
+                expected_type_error(0, TypeRole::PolymorphicVariantTag, 2..3),
+                expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..8),
+            ],
+        ),
+        (
+            ":{:{(A }}",
+            vec![
+                expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..8),
+                expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..7),
+                expected_parenthesized_close(2, 7),
+            ],
+        ),
+        (
+            ":{:{'[F }}",
+            vec![
+                expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..9),
+                expected_type_error(1, TypeRole::PolymorphicVariantTagName, 4..8),
+            ],
+        ),
+    ] {
+        for suffix in ["", "::Next"] {
+            let source = format!("{base}{suffix}");
+            let root = assert_complete_type_recovery(&source, 0, &expected);
+            let errors = root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .collect::<Vec<_>>();
+            let error_records = expected
+                .iter()
+                .filter(|record| record.kind == RecoveryKind::Error)
+                .collect::<Vec<_>>();
+            assert_eq!(errors.len(), error_records.len());
+            for (node, record) in errors.iter().zip(error_records) {
+                assert_eq!(
+                    usize::from(node.text_range().start()),
+                    8 + record.site.range.start
+                );
+                assert_eq!(
+                    usize::from(node.text_range().end()),
+                    8 + record.site.range.end
+                );
+                assert_eq!(node.text().to_string(), &base[record.site.range.clone()]);
+            }
+            assert_eq!(
+                errors[0].descendants().any(|node| node == errors[1]),
+                base.starts_with(":{:{")
+            );
+            for variant in root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            {
+                assert!(variant.children_with_tokens().any(|child| {
+                    child.kind() == SyntaxKind::RBrace
+                        && child.text_range().end() == variant.text_range().end()
+                }));
+            }
+            let top = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::TypeExpression)
+                .expect("outer Type expression");
+            assert_eq!(
+                top.children()
+                    .filter(|node| node.kind() == SyntaxKind::TypePathTail)
+                    .count(),
+                usize::from(!suffix.is_empty())
+            );
+        }
+    }
+}
+
+#[test]
+fn shared_delimited_recovery_preserves_accepted_numeric_and_pv_types() {
+    // Numeric Type atoms and tight Calls are accepted by the standalone Type
+    // grammar. The PV controls have valid names and whitespace-separated payloads.
+    for (source, owner) in [
+        ("123", None),
+        ("123(F)", Some(SyntaxKind::TypeCallTail)),
+        ("(F)", Some(SyntaxKind::ParenthesizedTypeGroup)),
+        ("'[F]", Some(SyntaxKind::EffectRowType)),
+        (":{A}", Some(SyntaxKind::PolymorphicVariantType)),
+        (":{A (F)}", Some(SyntaxKind::ParenthesizedTypeGroup)),
+        (":{A '[F]}", Some(SyntaxKind::EffectRowType)),
+    ] {
+        let root = assert_complete_type_recovery(source, 0, &[]);
+        assert!(
+            !root
+                .descendants()
+                .any(|node| { matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing) }),
+            "{source:?}"
+        );
+        if let Some(owner) = owner {
+            assert!(root.descendants().any(|node| node.kind() == owner));
+        }
+        if source.starts_with("123") {
+            let top = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::TypeExpression)
+                .expect("accepted numeric Type");
+            assert!(top.children_with_tokens().any(|child| {
+                child.kind() == SyntaxKind::Integer && child.to_string() == "123"
+            }));
+            assert_eq!(
+                top.children()
+                    .filter(|node| node.kind() == SyntaxKind::TypeCallTail)
+                    .count(),
+                usize::from(owner.is_some())
+            );
+        }
+    }
+}
+
+#[test]
 fn polymorphic_variant_structured_tag_name_orders_fresh_and_frozen_recovery() {
     let source = ":{@ (A}";
     let (green, exit, records) = run_type_with_recoveries(source, None);
@@ -6475,11 +6818,11 @@ fn parenthesized_close_trivia_prefixed_outer_anchor() {
     assert_eq!(
         records,
         [
-            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..4),
-            expected_parenthesized_close(1, 4),
+            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..5),
+            expected_parenthesized_close(1, 5),
         ]
     );
-    assert_eq!(parenthesized_group(&green).text().to_string(), "(A");
+    assert_eq!(parenthesized_group(&green).text().to_string(), "(A ");
 }
 
 #[test]
@@ -6529,15 +6872,15 @@ fn parenthesized_close_nonclose_caller_boundary() {
     .expect("accepted parenthesized Type");
     output.finish_node();
     let (green, records) = output.finish_with_recoveries();
-    assert_eq!(green.to_string(), "(A");
+    assert_eq!(green.to_string(), "(A ");
     let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
         panic!("active non-close caller boundary must remain pending")
     };
     assert_eq!(item.payload_view().spelling(), Some("with"));
-    assert_eq!(item.leading_view().remaining_physical_parts(), 1);
+    assert_eq!(item.leading_view().remaining_physical_parts(), 0);
     assert_eq!(input, "");
     assert_eq!(successor_origin, 7);
-    assert_eq!(records, [expected_parenthesized_close(0, 2)]);
+    assert_eq!(records, [expected_parenthesized_close(0, 3)]);
 }
 
 #[test]
@@ -6547,10 +6890,10 @@ fn parenthesized_close_active_caller_close_is_raw_and_preserves_successor() {
         & !super::super::operator::STOP_COMMA
         & !super::super::operator::STOP_SEMICOLON;
     for (source, emitted, missing_count) in [
-        ("( ] tail", "(", 1),
-        ("(A ] tail", "(A", 1),
+        ("( ] tail", "( ", 2),
+        ("(A ] tail", "(A ", 1),
         ("(@ ] tail", "(@", 1),
-        ("(A, ] tail", "(A,", 2),
+        ("(A, ] tail", "(A, ", 2),
     ] {
         let mut input = source;
         let mut recover = Recover::new(&operators);
@@ -6573,11 +6916,22 @@ fn parenthesized_close_active_caller_close_is_raw_and_preserves_successor() {
         let NormalizedExit::Complete(Err(Either::Left(item)), line_entry) = exit else {
             panic!("active caller-owned close must remain pending: {source:?}")
         };
+        let before_gap = emitted.trim_end();
         let control_source = source
-            .strip_prefix(emitted)
+            .strip_prefix(before_gap)
             .expect("emitted prefix belongs to source");
-        let (control_item, control_origin, control_line, control_remainder, mark, same_operators) =
-            scan_type_item_control(control_source, emitted.len(), &operators);
+        let (
+            mut control_item,
+            control_origin,
+            control_line,
+            control_remainder,
+            mark,
+            same_operators,
+        ) = scan_type_item_control(control_source, before_gap.len(), &operators);
+        let gap_emitted = emitted.ends_with(' ');
+        if gap_emitted {
+            assert_eq!(emit_pending_leading_text(&mut control_item), " ");
+        }
         assert_eq!(green.to_string(), emitted, "{source:?}");
         assert_eq!(
             parenthesized_group(&green)
@@ -6596,14 +6950,465 @@ fn parenthesized_close_active_caller_close_is_raw_and_preserves_successor() {
             Some(TokenKind::RBracket),
             "{source:?}"
         );
-        assert_eq!(item.leading_view().remaining_physical_parts(), 1);
-        assert!(item.leading_view().has_ordinary_trivia());
+        assert_eq!(
+            item.leading_view().remaining_physical_parts(),
+            usize::from(!gap_emitted)
+        );
+        assert_eq!(item.leading_view().has_ordinary_trivia(), !gap_emitted);
         assert!(!item.leading_view().has_ordinary_newline());
         assert_eq!(input, control_remainder, "{source:?}");
         assert_eq!(successor_origin, control_origin, "{source:?}");
         assert_eq!(line_entry, control_line, "{source:?}");
         assert_eq!(mark, ());
         assert!(same_operators);
+    }
+}
+
+#[test]
+fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
+    let origin = 23;
+    for (owner, opener, outer_close) in [
+        (SyntaxKind::TypeCallTail, "T(", TokenKind::RBracket),
+        (SyntaxKind::ParenthesizedTypeGroup, "(", TokenKind::RBracket),
+        (SyntaxKind::EffectRowType, "'[", TokenKind::RParen),
+    ] {
+        for (slot, fresh_slot) in [("", true), ("F", false), ("F,", true), ("F;", true)] {
+            for gap in [" ", " \t "] {
+                for (payload, caller_stops, outer_closes, explicit_close) in [
+                    ("}", stops_for(TokenKind::RBrace), 0, true),
+                    (":", super::super::operator::STOP_COLON, 0, false),
+                    (
+                        if outer_close == TokenKind::RBracket {
+                            "]"
+                        } else {
+                            ")"
+                        },
+                        0,
+                        super::super::type_expr::with_type_outer_close(0, outer_close),
+                        false,
+                    ),
+                ] {
+                    let caller_stops = caller_stops
+                        & !super::super::operator::STOP_COMMA
+                        & !super::super::operator::STOP_SEMICOLON;
+                    let prefix = format!("{opener}{slot}");
+                    let emitted = format!("{prefix}{gap}");
+                    let source = format!("{emitted}{payload} tail");
+                    let at = origin + emitted.len();
+                    let expected = match owner {
+                        SyntaxKind::TypeCallTail if fresh_slot => vec![
+                            expected_type_expression_missing(0, TypeRole::CallArgument, at),
+                            expected_type_call_close(1, at),
+                        ],
+                        SyntaxKind::TypeCallTail => vec![expected_type_call_close(0, at)],
+                        SyntaxKind::ParenthesizedTypeGroup if !explicit_close => {
+                            vec![expected_parenthesized_close(0, at)]
+                        }
+                        _ => vec![],
+                    };
+                    for (context_label, context) in t4p_seeded_contexts() {
+                        let fresh = run_contextual_type_snapshot(
+                            &source,
+                            context,
+                            caller_stops,
+                            outer_closes,
+                            origin,
+                            LineEntry::InLine,
+                            None,
+                            None,
+                        );
+                        assert_eq!(
+                            fresh.green.to_string(),
+                            format!("sentinel{emitted}"),
+                            "{source:?}, {context_label}"
+                        );
+                        assert_eq!(fresh.records, expected, "{source:?}, {context_label}");
+                        assert_eq!(fresh.slots, expected.len());
+                        assert_eq!(fresh.diagnostics, (Some(expected.len() as u32), 0));
+                        assert_eq!(fresh.mark, ());
+                        assert!(fresh.same_operators);
+                        let NormalizedExit::Complete(Err(Either::Left(mut pending)), line) =
+                            fresh.exit
+                        else {
+                            panic!("raw boundary: {source:?}")
+                        };
+                        let (mut control, control_origin, control_line, remainder, _, _) =
+                            scan_type_item_control(
+                                &source[prefix.len()..],
+                                origin + prefix.len(),
+                                &OperatorTable::empty(),
+                            );
+                        assert_eq!(emit_pending_leading_text(&mut control), gap);
+                        assert_eq!(pending, control, "{source:?}");
+                        assert_eq!(pending.payload_view().spelling(), Some(payload));
+                        assert_eq!(emit_pending_leading_text(&mut pending), "");
+                        assert_eq!(fresh.successor_origin, control_origin);
+                        assert_eq!(line, control_line);
+                        assert_eq!(fresh.remainder, remainder);
+                        assert_eq!(remainder, " tail");
+                        let node = SyntaxNode::new_root(fresh.green.clone())
+                            .descendants()
+                            .find(|node| node.kind() == owner)
+                            .expect("immediate owner");
+                        let children = node
+                            .children_with_tokens()
+                            .filter(|child| {
+                                child.kind() == SyntaxKind::Whitespace
+                                    || child.kind() == SyntaxKind::Missing
+                            })
+                            .collect::<Vec<_>>();
+                        assert_eq!(children.len(), if fresh_slot { 3 } else { 2 }, "{source:?}");
+                        assert_eq!(children[0].kind(), SyntaxKind::Whitespace);
+                        assert_eq!(children[0].to_string(), gap);
+                        assert_eq!(
+                            usize::from(children[0].text_range().start()),
+                            8 + prefix.len()
+                        );
+                        assert_eq!(
+                            usize::from(children[0].text_range().end()),
+                            8 + emitted.len()
+                        );
+                        for missing in &children[1..] {
+                            assert_eq!(missing.kind(), SyntaxKind::Missing);
+                            assert_eq!(
+                                usize::from(missing.text_range().start()),
+                                8 + emitted.len()
+                            );
+                            assert!(missing.text_range().is_empty());
+                        }
+                        assert!(
+                            !node
+                                .descendants()
+                                .any(|node| node.kind() == SyntaxKind::Error)
+                        );
+                        let frozen = frozen_recovery_ids(&expected);
+                        let replay = run_contextual_type_snapshot(
+                            &source,
+                            context,
+                            caller_stops,
+                            outer_closes,
+                            origin,
+                            LineEntry::InLine,
+                            None,
+                            Some(&frozen),
+                        );
+                        assert_eq!(replay.green, fresh.green);
+                        assert_eq!(replay.records, frozen);
+                        assert_eq!(replay.slots, frozen.len());
+                        assert_eq!(replay.diagnostics.1, frozen.len());
+                        assert_eq!(replay.successor_origin, control_origin);
+                        assert_eq!(replay.remainder, remainder);
+                        assert_eq!(replay.mark, ());
+                        assert!(replay.same_operators);
+                        let NormalizedExit::Complete(Err(Either::Left(replayed)), replay_line) =
+                            replay.exit
+                        else {
+                            panic!("frozen raw boundary: {source:?}")
+                        };
+                        assert_eq!(replayed, control);
+                        assert_eq!(replay_line, line);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn shared_delimited_horizontal_local_closes_and_fresh_else_keep_owner_admission() {
+    for (owner, opener, close) in [
+        (SyntaxKind::TypeCallTail, "T(", ")"),
+        (SyntaxKind::ParenthesizedTypeGroup, "(", ")"),
+        (SyntaxKind::EffectRowType, "'[", "]"),
+    ] {
+        for slot in ["", "F", "F,", "F;"] {
+            let source = format!("{opener}{slot} \t{close}");
+            let (green, _, records) = run_type_with_recoveries(&source, None);
+            assert_eq!(green.to_string(), source);
+            assert!(records.is_empty());
+            let node = SyntaxNode::new_root(green.clone())
+                .descendants()
+                .find(|node| node.kind() == owner)
+                .expect("immediate owner");
+            let children = node.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children[children.len() - 2].kind(), SyntaxKind::Whitespace);
+            assert_eq!(children[children.len() - 2].to_string(), " \t");
+            assert_eq!(children.last().unwrap().to_string(), close);
+            assert!(
+                !node
+                    .descendants()
+                    .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            );
+            let (replayed, _, frozen_records) = run_type_with_recoveries(&source, Some(&[]));
+            assert_eq!(replayed, green);
+            assert!(frozen_records.is_empty());
+        }
+        for slot in ["", "F,", "F;"] {
+            let source = format!("{opener}{slot} else{close}");
+            let context = super::super::type_expr::TypeMlContext::INACTIVE;
+            let run = run_contextual_type_snapshot(
+                &source,
+                context,
+                super::super::operator::STOP_ELSE,
+                0,
+                0,
+                LineEntry::InLine,
+                None,
+                None,
+            );
+            let frozen = frozen_recovery_ids(&run.records);
+            let replay = run_contextual_type_snapshot(
+                &source,
+                context,
+                super::super::operator::STOP_ELSE,
+                0,
+                0,
+                LineEntry::InLine,
+                None,
+                Some(&frozen),
+            );
+            assert_eq!(replay.green, run.green);
+            assert_eq!(replay.records, frozen);
+            assert_eq!(replay.slots, run.slots);
+            assert_eq!(replay.diagnostics.1, frozen.len());
+            assert_eq!(replay.successor_origin, run.successor_origin);
+            assert_eq!(replay.remainder, run.remainder);
+            match (&run.exit, &replay.exit) {
+                (
+                    NormalizedExit::Complete(Err(Either::Left(item)), line),
+                    NormalizedExit::Complete(Err(Either::Left(replayed)), replay_line),
+                ) => {
+                    assert_eq!(replayed, item);
+                    assert_eq!(replay_line, line);
+                }
+                (
+                    NormalizedExit::Complete(Err(Either::Right(end)), line),
+                    NormalizedExit::Complete(Err(Either::Right(replayed)), replay_line),
+                ) => {
+                    assert_eq!(replayed.item, end.item);
+                    assert_eq!(replay_line, line);
+                }
+                _ => panic!("fresh/frozen caller-stop exit: {source:?}"),
+            }
+            if owner == SyntaxKind::TypeCallTail {
+                let prefix = format!("{opener}{slot} ");
+                assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
+                assert_eq!(
+                    run.records,
+                    [
+                        expected_type_expression_missing(0, TypeRole::CallArgument, prefix.len()),
+                        expected_type_call_close(1, prefix.len()),
+                    ]
+                );
+                let NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::InLine) =
+                    run.exit
+                else {
+                    panic!("Call retains explicit ELSE stop")
+                };
+                assert_eq!(pending.payload_view().spelling(), Some("else"));
+                assert!(pending.leading_view().is_grammar_empty());
+                assert_eq!(run.remainder, close);
+            } else {
+                assert_eq!(run.green.to_string(), format!("sentinel{source}"));
+                assert!(run.records.is_empty());
+                assert_eq!(run.slots, 0);
+                assert_eq!(run.diagnostics, (Some(0), 0));
+                assert!(
+                    SyntaxNode::new_root(run.green)
+                        .descendants_with_tokens()
+                        .any(|element| element.kind() == SyntaxKind::Identifier
+                            && element.to_string() == "else")
+                );
+                assert_eq!(run.remainder, "");
+            }
+        }
+    }
+}
+
+#[test]
+fn shared_delimited_horizontal_correction_preserves_nonhorizontal_handoff() {
+    let caller_stops = stops_for(TokenKind::RBrace)
+        & !super::super::operator::STOP_COMMA
+        & !super::super::operator::STOP_SEMICOLON;
+    for (prefix, owner) in [
+        ("T(F", SyntaxKind::TypeCallTail),
+        ("(F", SyntaxKind::ParenthesizedTypeGroup),
+        ("'[F", SyntaxKind::EffectRowType),
+    ] {
+        for leading in [" /* gap */ ", "\n ", "\r\n ", " // gap\n "] {
+            let source = format!("{prefix}{leading}}} tail");
+            let run = run_contextual_type_snapshot(
+                &source,
+                super::super::type_expr::TypeMlContext::INACTIVE,
+                caller_stops,
+                0,
+                0,
+                LineEntry::InLine,
+                None,
+                None,
+            );
+            assert_eq!(
+                run.green.to_string(),
+                format!("sentinel{prefix}"),
+                "{source:?}"
+            );
+            let NormalizedExit::Complete(Err(Either::Left(mut pending)), line) = run.exit else {
+                panic!("nonhorizontal boundary remains pending: {source:?}")
+            };
+            let (control, control_origin, control_line, remainder, _, _) = scan_type_item_control(
+                &source[prefix.len()..],
+                prefix.len(),
+                &OperatorTable::empty(),
+            );
+            assert_eq!(pending, control);
+            assert_eq!(emit_pending_leading_text(&mut pending), leading);
+            assert_eq!(run.successor_origin, control_origin);
+            assert_eq!(line, control_line);
+            assert_eq!(run.remainder, remainder);
+            let expected = if owner == SyntaxKind::TypeCallTail {
+                vec![expected_type_call_close(0, prefix.len())]
+            } else {
+                vec![]
+            };
+            assert_eq!(run.records, expected);
+            let frozen = frozen_recovery_ids(&expected);
+            let replay = run_contextual_type_snapshot(
+                &source,
+                super::super::type_expr::TypeMlContext::INACTIVE,
+                caller_stops,
+                0,
+                0,
+                LineEntry::InLine,
+                None,
+                Some(&frozen),
+            );
+            assert_eq!(replay.green, run.green);
+            assert_eq!(replay.records, frozen);
+            let NormalizedExit::Complete(Err(Either::Left(replayed)), replay_line) = replay.exit
+            else {
+                panic!("frozen nonhorizontal boundary: {source:?}")
+            };
+            assert_eq!(replayed, control);
+            assert_eq!(replay_line, line);
+        }
+    }
+}
+
+#[test]
+fn shared_delimited_horizontal_fresh_outer_closes_continue_in_their_actual_owner() {
+    for (owner, source, at, close_kind) in [
+        (
+            SyntaxKind::ParenthesizedTypeGroup,
+            "G T[( ]->U",
+            6,
+            SyntaxKind::RBracket,
+        ),
+        (
+            SyntaxKind::ParenthesizedTypeGroup,
+            "G T[(F, ]->U",
+            8,
+            SyntaxKind::RBracket,
+        ),
+        (
+            SyntaxKind::ParenthesizedTypeGroup,
+            "G T[(F; ]->U",
+            8,
+            SyntaxKind::RBracket,
+        ),
+        (
+            SyntaxKind::TypeCallTail,
+            "G T[T( ]->U",
+            7,
+            SyntaxKind::RBracket,
+        ),
+        (
+            SyntaxKind::TypeCallTail,
+            "G T[T(F, ]->U",
+            9,
+            SyntaxKind::RBracket,
+        ),
+        (
+            SyntaxKind::TypeCallTail,
+            "G T[T(F; ]->U",
+            9,
+            SyntaxKind::RBracket,
+        ),
+        (SyntaxKind::EffectRowType, "G ('[ )", 6, SyntaxKind::RParen),
+        (
+            SyntaxKind::EffectRowType,
+            "G ('[F, )",
+            8,
+            SyntaxKind::RParen,
+        ),
+        (
+            SyntaxKind::EffectRowType,
+            "G ('[F; )",
+            8,
+            SyntaxKind::RParen,
+        ),
+    ] {
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let expected = match owner {
+            SyntaxKind::TypeCallTail => vec![
+                expected_type_expression_missing(0, TypeRole::CallArgument, at),
+                expected_type_call_close(1, at),
+            ],
+            SyntaxKind::ParenthesizedTypeGroup => vec![expected_parenthesized_close(0, at)],
+            _ => vec![],
+        };
+        assert_eq!(records, expected, "{source:?}");
+        let root = SyntaxNode::new_root(green.clone());
+        let inner = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .unwrap();
+        let children = inner
+            .children_with_tokens()
+            .filter(|child| matches!(child.kind(), SyntaxKind::Whitespace | SyntaxKind::Missing))
+            .collect::<Vec<_>>();
+        assert_eq!(children.len(), 3, "{source:?}");
+        assert_eq!(children[0].kind(), SyntaxKind::Whitespace);
+        assert_eq!(children[0].to_string(), " ");
+        assert_eq!(usize::from(children[0].text_range().end()), at);
+        for child in &children[1..] {
+            assert_eq!(child.kind(), SyntaxKind::Missing);
+            assert_eq!(usize::from(child.text_range().start()), at);
+            assert!(child.text_range().is_empty());
+        }
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error)
+        );
+        let outer_close = root
+            .descendants_with_tokens()
+            .find(|element| element.kind() == close_kind)
+            .unwrap();
+        assert_eq!(usize::from(outer_close.text_range().start()), at);
+        assert!(
+            !inner
+                .descendants_with_tokens()
+                .any(|element| element == outer_close)
+        );
+        if close_kind == SyntaxKind::RBracket {
+            assert!(
+                root.descendants_with_tokens()
+                    .any(|element| element.kind() == SyntaxKind::Arrow)
+            );
+            assert!(
+                root.descendants_with_tokens()
+                    .any(|element| element.kind() == SyntaxKind::Identifier
+                        && element.to_string() == "U")
+            );
+        }
+        let frozen = frozen_recovery_ids(&expected);
+        let (replayed, replay_exit, frozen_records) =
+            run_type_with_recoveries(source, Some(&frozen));
+        assert_eq!(replayed, green);
+        assert_eq!(frozen_records, frozen);
+        assert!(matches!(replay_exit, Some(Err(Either::Right(_)))));
     }
 }
 
@@ -6737,7 +7542,7 @@ fn rb_pv_rejected_candidate_preservation() {
 #[test]
 fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     let operators = OperatorTable::empty();
-    let frozen = [expected_parenthesized_close(0, 2)];
+    let frozen = [expected_parenthesized_close(0, 3)];
 
     let mut candidate_input: &'static str = "(A with";
     let mut candidate_recover = Recover::new(&operators);
@@ -6769,7 +7574,7 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
 
     let (
-        control_item,
+        mut control_item,
         control_origin,
         control_line,
         control_input,
@@ -6785,6 +7590,7 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     control_output.start_node(SyntaxKind::TypeExpression.into());
     control_output.token(SyntaxKind::Identifier.into(), "A");
     control_output.finish_node();
+    control_item.emit_all_remaining_leading(&mut control_output);
     control_output.start_node(SyntaxKind::Missing.into());
     control_output.finish_node();
     commit_record_draft(&mut control_output, &frozen[0]);
@@ -6808,8 +7614,8 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     assert!(candidate_operators && control_operators);
     assert_eq!(candidate_records, frozen);
     assert_eq!(candidate_item.payload_view().spelling(), Some("with"));
-    assert_eq!(candidate_item.leading_view().remaining_physical_parts(), 1);
-    assert!(candidate_item.leading_view().has_ordinary_trivia());
+    assert_eq!(candidate_item.leading_view().remaining_physical_parts(), 0);
+    assert!(!candidate_item.leading_view().has_ordinary_trivia());
     assert!(!candidate_item.leading_view().has_ordinary_newline());
     assert_eq!(candidate_line, LineEntry::InLine);
     assert_eq!(candidate_input, "");

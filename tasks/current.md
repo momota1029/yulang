@@ -21,20 +21,23 @@ existing atomic public/root cutover. Private construction is not that cutover.
   Do not restart agent panels merely to continue this task. Deterministic
   verification and honest reporting of review scope remain required.
 
-## Active gate
+## Current gate and immediate next action
 
-Integrate the shared Call/Parenthesized/EffectRow ordinary-horizontal boundary
-correction under the new authority amendment §4 and its referenced P/E addenda.
-The retained candidate is in:
+The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
+complete under the recovery authority amendment §4 and the retained P/E
+addenda. Selected P/E/numeric-Call structured Error controls cover exact
+records, fresh/frozen reconciliation, shifted origins, native outer closes,
+prefix/recursive reservations and outer path continuation. Type tests: 124
+passed; output: 4 passed; recovery output: 25 passed; package check passed.
 
-- `crates/yu-syntax/src/rewrite/type_expr/delimited.rs`;
-- `crates/yu-syntax/src/rewrite/tests/type_expr.rs`.
-
-Next: complete the selected P/E/numeric-Call structured Error controls,
-fresh/frozen reconciliation, native outer-close and suffix continuation;
-run focused checks, inspect the bounded diff, and commit. No PV producer change,
-new EffectRow typed owner, leading-BracketRow admission, or public cutover is
-part of this delimiter gate.
+Next: correct the known accepted-Type boundary regressions in declaration
+contexts before extending PV recovery. Current direct failures include
+`type T = A::with` and `type T = A(B with Inner) with {}`: a contextual word
+is returned to the declaration instead of remaining a path segment or nested
+Type identifier. Preserve accepted-input tests and fix the owning boundary
+decision, not their expectations. This is separate from the completed
+horizontal-gap correction. Scope the remaining malformed-only expectations
+against current successor authority while doing that review.
 
 The pre-Item scalar-frontier evidence plan is no longer a construction
 prerequisite. Its 29 legacy evidence slices remain historical observations;

@@ -1,6 +1,6 @@
 # Accepted-input compatibility and successor recovery authority
 
-Status: Authoritative; bounded delimiter construction next
+Status: Authoritative; §4 private delimiter integration complete
 
 Date: 2026-09-08
 
@@ -257,3 +257,28 @@ After delimiter integration, specify a bounded current-Item PV recovery gate
 and continue the existing typed-owner migration. Completion of the remaining
 owner ledger, header/full and embedded consistency, and atomic public cutover
 still determines completion of the parser replacement.
+
+## 6. Delimiter integration evidence
+
+The §4 private gate is complete on 2026-09-08. Production changes remain in
+the shared delimiter owner only. Tests cover its phase-aware horizontal
+ownership and unchanged nonhorizontal/fence/caller cases, all selected P/E and
+numeric rows, outer `::Next`, shifted recovery coordinates, prefix/recursive
+reservation ordering, native closes and accepted controls. The no-gap E row
+retains its existing no-Missing handoff; it is not an eligible horizontal row
+and does not acquire T4E behavior from this gate.
+
+Primary verification under the user's no-subagent direction:
+
+- `cargo test -p yu-syntax --lib rewrite::tests::type_expr:: -- --test-threads=1`:
+  124 passed, including the selected structured carriers and RB controls;
+- the same command with `rewrite::tests::output::`: 4 passed;
+- the same command with `rewrite::tests::recovery_output::`: 25 passed;
+- `cargo check -p yu-syntax` and scoped rustfmt/diff checks: passed.
+
+The existing test binary's declaration filter still has 33 passes and the same
+six known failures, now localized to contextual-boundary/continuation behavior
+rather than a build or output-harness defect. No declaration expectation was
+changed. Their accepted-input cases are the next owning-responsibility repair.
+No workspace/public certification or benchmark was run; measurements remain
+zero. No new independent implementation review is claimed for this pass.

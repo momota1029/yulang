@@ -96,6 +96,19 @@ pub(super) fn type_delimited_normalized(
         emit_delimited_close_missing(&mut i, owner, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
+    if emit_horizontal_delimited_boundary(
+        &mut i,
+        &mut item,
+        close,
+        owner,
+        true,
+        caller_stops,
+        call_outer_boundary,
+        outer_closes,
+        item_origin,
+    ) {
+        return complete(handoff(item), line_entry);
+    }
     if token_kind(&item) == Some(close) || !is_explicit_type_caller_close(&item, caller_stops) {
         item.emit_all_remaining_leading(&mut *i.state);
     }
@@ -247,7 +260,7 @@ pub(super) fn type_delimited_normalized(
         item = match exit {
             NormalizedExit::Complete(Ok(()), next_line_entry) => {
                 line_entry = next_line_entry;
-                let (next, next_origin, next_line_entry) =
+                let (mut next, next_origin, next_line_entry) =
                     type_nud_item_with_pipe_lexical_normalized(
                         i.rb(),
                         item_origin,
@@ -258,12 +271,38 @@ pub(super) fn type_delimited_normalized(
                     );
                 item_origin = next_origin;
                 line_entry = next_line_entry;
+                if emit_horizontal_delimited_boundary(
+                    &mut i,
+                    &mut next,
+                    close,
+                    owner,
+                    false,
+                    caller_stops,
+                    call_outer_boundary,
+                    outer_closes,
+                    item_origin,
+                ) {
+                    return complete(handoff(next), line_entry);
+                }
                 next
             }
-            NormalizedExit::Complete(Err(Either::Left(next)), next_line_entry) => {
+            NormalizedExit::Complete(Err(Either::Left(mut next)), next_line_entry) => {
                 line_entry = next_line_entry;
                 if next.payload_view().is_boundary() {
                     emit_delimited_close_missing(&mut i, owner, &next, item_origin);
+                    return complete(handoff(next), line_entry);
+                }
+                if emit_horizontal_delimited_boundary(
+                    &mut i,
+                    &mut next,
+                    close,
+                    owner,
+                    false,
+                    caller_stops,
+                    call_outer_boundary,
+                    outer_closes,
+                    item_origin,
+                ) {
                     return complete(handoff(next), line_entry);
                 }
                 if token_kind(&next) == Some(close) {
@@ -441,6 +480,53 @@ pub(super) fn type_delimited_normalized(
             _ => unreachable!("normalized Type owners do not defer"),
         };
     }
+}
+
+/// The accepted owner keeps a horizontal gap at a raw caller/outer boundary.
+/// Fresh slots additionally miss their item; completed slots only miss a close.
+#[allow(clippy::too_many_arguments)]
+fn emit_horizontal_delimited_boundary(
+    i: &mut RewriteIn,
+    item: &mut Item,
+    close: TokenKind,
+    owner: TypeDelimitedOwner,
+    fresh_slot: bool,
+    caller_stops: Stops,
+    call_outer_boundary: TypeOuterBoundary,
+    outer_closes: u8,
+    item_origin: usize,
+) -> bool {
+    if owner == TypeDelimitedOwner::BracketRow
+        || item.payload_view().is_boundary()
+        || token_kind(item) == Some(close)
+        || (fresh_slot && owner != TypeDelimitedOwner::Call && is_type_nud(item))
+        || !(is_delimited_boundary(item, owner, caller_stops, call_outer_boundary, outer_closes)
+            || is_type_outer_close(item, outer_closes))
+    {
+        return false;
+    }
+    // The lexer coalesces a space/tab run into one Whitespace part. Requiring
+    // that single remaining part excludes comments, newlines and fence carriers.
+    let leading = item.leading_view();
+    if leading.remaining_physical_parts() != 1 || !leading.has_ordinary_horizontal_gap() {
+        return false;
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    if fresh_slot {
+        emit_delimited_item_missing(i, owner, item, item_origin);
+    }
+    if owner == TypeDelimitedOwner::ParenthesizedGroup && is_type_mismatched_close(item, close) {
+        emit_parenthesized_mismatched_close_missing(
+            i,
+            item,
+            outer_closes,
+            caller_stops,
+            item_origin,
+        );
+    } else {
+        emit_delimited_close_missing(i, owner, item, item_origin);
+    }
+    true
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -849,6 +935,19 @@ fn type_after_separator_normalized(
     if next.payload_view().is_boundary() {
         emit_delimited_item_missing(&mut i, owner, &next, item_origin);
         emit_delimited_close_missing(&mut i, owner, &next, item_origin);
+        return Err(complete(handoff(next), line_entry));
+    }
+    if emit_horizontal_delimited_boundary(
+        &mut i,
+        &mut next,
+        close,
+        owner,
+        true,
+        caller_stops,
+        call_outer_boundary,
+        outer_closes,
+        item_origin,
+    ) {
         return Err(complete(handoff(next), line_entry));
     }
     if token_kind(&next) == Some(close) {
