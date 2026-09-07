@@ -106,12 +106,29 @@ Item cloning, retaining a run/source slice, and replay are likewise forbidden.
 ## 3. Re-entry boundary
 
 This is not a reviewable construction.  The suffix-only witness is withdrawn.
-A replacement Draft must decide whether a bounded, source-only observation can
-occur *before* Item construction at the scalar malformed-run boundary, and
-whether that observation is within the SCC's candidate-token/prospective-trivia
-authority or requires a separately approved extension.  It must also map an
-ambient owner claim by live position, not by a payload-entry boolean: legacy
-can change that claim as the probe advances through trivia and retry surfaces.
+A replacement must use two ordered prerequisites rather than attach an
+ambient boolean to the scalar observer.
+
+First, an ambient-context prerequisite must establish an immutable,
+call-stack-only `AmbientClaimView`: the nearest visible statement baseline plus
+the visible chain of active If-companion frames.  Root/indented statement
+owners replace the baseline, inline owners forward the view, braced owners
+start an empty view, and an If arm temporarily prepends its companion before
+returning to its caller's view.  The query receives separately derived
+position evidence (`has_physical_newline`, following indentation, and following
+word) and returns only a boolean claim.  It must not use stop bits, retain
+source, escape through an Item/exit/record/cache, or add mutable scope state to
+`Recover`; ordinary return makes its frames rollback-safe.  The exact
+virtual-statement/Yumark barrier map remains unproven, so this is a candidate
+decomposition rather than an implementation authorization.
+
+Only after that prerequisite is proven may a replacement decide whether a
+bounded, source-only observation can occur *before* Item construction at the
+scalar malformed-run boundary, and whether that observation is within the
+SCC's candidate-token/prospective-trivia authority or requires a separately
+approved extension.  Initial and retry positions must query the ambient view
+independently; legacy can change the claim as the probe advances through trivia
+and retry surfaces.
 
 Any replacement observation must neither allocate nor retain an `Item`,
 `Token`, `Trivia`, `LeadingTrivia`, `TriviaRun`, boxed slice, source-owned text,
@@ -147,6 +164,13 @@ prove:
    original three `::Next` controls, caller/outer boundary handoff, and
    rejection/mismatch invariants.
 
+Before the ambient prerequisite can become Reviewed, it must additionally map
+every root, indented, inline, braced, virtual-statement, and Yumark visibility
+transition against legacy; prove the view cannot escape an active call frame;
+and add seeded visible/dedent/If, nested-If, and barrier controls at distinct
+initial/retry positions.  Its initial implementation, if approved, changes no
+PV admission or recovery output; scalar admission remains a later gate.
+
 The direct parser is hot.  A new arbitrary raw traversal and unknown aggregate
 frequency trigger independent performance review.  Timing budget is zero until
 static analysis establishes a concrete implementation and a timing result could
@@ -167,5 +191,6 @@ the initial Draft because its suffix boundary is too late, its compatibility
 claims overgeneralize the present evidence, its ambient observation lacks
 position provenance, and its allocation/work contract is incomplete.  No user
 choice is requested from this rejected construction shape.  A replacement
-capability design must close §§3–4 before independent review and a fresh user
+capability design must first close the ambient prerequisite, then the scalar
+frontier/probe proof in §§3–4, before independent review and a fresh user
 decision; until then this Draft authorizes no implementation.
