@@ -46,6 +46,11 @@ aggregate bounded work.  No payload observation, virtual policy, or resumption
 of the primary-completion candidate is authorized until a replacement M3 Draft
 is independently reviewed and a fresh user decision is recorded.
 
+`2026-09-07-successor-pv-scalar-frontier-evidence-plan.md` is Reviewed for
+evidence only.  Its immediate next action is a pre-write specification audit
+of one direct legacy gap slice; its status does not authorize rewrite-source
+changes or alter the two-file delimiter integration block.
+
 `2026-09-07-successor-pv-payload-admission-capability-amendment.md` remains a
 Draft problem record, not a construction gate.  Initial M3 review found that
 `:{A::{B}}` needs its retry boundary inside successor's completed `::`
