@@ -60,11 +60,18 @@ The following direct controls are retained rather than rewritten:
 | scalar ownership | `legacy_polymorphic_variant_payload_scalar_run_boundaries_are_execution_pinned` | valid-name `->`, `+`, `@@`, atomic `::/*c*/`, and CRLF boundary ownership |
 | primary and reservation boundary | `legacy_polymorphic_variant_primary_completion_preflight` | non-atomic primary external/internal tails, selected `::Next`, numeric apparent Call, prefix, and recursive PV ownership |
 | P and E carriers | `legacy_polymorphic_variant_structured_parenthesized_gap_extents_are_execution_pinned` and `legacy_polymorphic_variant_effect_and_call_gap_carriers_are_execution_pinned` | P/E ordinary-gap extent facts, E rows, numeric apparent-Call distinction, prefix/nested cells, and `::Next` continuations |
-| ambient continuation | direct polymorphic-variant `it3`/`nt5` controls | visible same-line/newline `else` can remain ambient despite no active stop bit; frames must balance |
+| ambient continuation | direct polymorphic-variant `it3`/`nt5` plus conditional-payload controls | root visible/no-stop initial same-line/newline `else` and retry `:{A::else: 0}` can remain ambient despite no active stop bit; frames must balance |
 
 These controls do not prove a general retry grammar.  In particular, their
 valid-name scalar examples do not characterize equivalent wrong-head, fence,
 or virtual rows.
+
+The current direct PV ambient coverage is deliberately narrower than the
+ordinary provenance matrix: it installs a root scope with one visible
+companion.  Query-level `ParseLocal` indented/dedent and nested-companion tests
+are not PV AST/CST/recovery evidence.  They therefore do not discharge the
+indented strict-dedent, nested-If identity, accepted-own-Else retirement, or
+post-completed-If outer-tail cells below.
 
 ## 3. Required direct evidence matrix
 
@@ -80,7 +87,7 @@ unavailable only with a concrete reason and without inferring a policy from it.
 | wrong-head scalar runs | `+`, `@@`, `::/*c*/`, and CRLF after a wrong head; admitted nested-PV retry, decline, native-close, and EOF counterparts where legacy exposes them |
 | spacing and no-retry | wrong-head spaced malformed surface; each named multi-token/comment spelling whose no-retry result would be used by a future classifier |
 | fence-qualified scalar rows | valid and wrong heads at inline retry/decline and CRLF/fence termination, or an explicit direct unavailability result for each |
-| ordinary ambient provenance | initial and retry positions under root/indent/dedent, visible and nested If, own Else and outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
+| ordinary ambient provenance | root visible/no-stop initial and retry are already pinned; add initial/retry under indented strict-dedent, nested-If identity, own Else, and outer-tail restoration; retain the no-stop `else` distinction rather than encoding it in stops |
 | retry primary vocabulary | adjacent and spaced forms for every primary class proposed for admission, with leading BracketRow explicitly classified rather than silently inherited |
 | retained structural siblings | numeric apparent Call, non-atomic external/internal tails, repeated payload, prefix and recursive reservation, and every authorized P/E extent row remain exact fresh/frozen controls |
 | unavailable callers | virtual normal/heredoc/nested/fence and Yumark production-cell rows remain unavailable until a separate policy/evidence decision; a future observer must decline under carrier `None` |
