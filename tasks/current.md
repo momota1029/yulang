@@ -118,9 +118,12 @@ evidence is now execution-pinned by
 the no-gap Error is `2..4`, the horizontal form is `2..5`, and legacy keeps the
 actual PV close native/lossless but flattens the malformed primary to
 `Error > Unknown` with no inner P/Whitespace/Missing record.  M1 specification
-review is clean.  This proves the outer extent but does not authorize a
-successor PV recovery-oracle change; the candidate remains unintegrated until a
-narrow reviewed addendum and fresh user decision resolve that scope.
+review is clean.  The Reviewed
+`2026-09-07-successor-delimited-pv-extent-correction-addendum.md` now covers
+the known Initial/post-separator/post-item Parenthesized phases and precisely
+limits conditional supersession to their existing TagName Error
+range/evidence.  The candidate remains unintegrated until a fresh user decision
+accepts or declines that PV recovery-oracle extension.
 
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
