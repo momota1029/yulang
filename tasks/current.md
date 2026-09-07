@@ -1,5 +1,23 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
+2026-09-07: active gate is the Reviewed
+`2026-09-07-successor-pv-wrong-kind-primary-completion-amendment.md`.
+`62324e98` proves that a wrong-kind PV tag head ends at exactly one Type
+primary, while the current successor continues its full Type-expression tail
+inside the structured TagName Error.  M3 compiler/recovery and specification
+review closed after one batched Draft repair and clean deltas.  The recommended
+private repair threads a `ReturnPrimary` policy only through immediate
+Parenthesized/EffectRow/NamedRecord/nested-PV producer endings; it preserves
+their internal child expressions and hands every external tail to existing PV
+payload handling.  It excludes leading BracketRow, valid tag names, public/O6,
+and all legacy topology changes.  This is a material recovery/scope expansion,
+so the recorded narrow-correction delegation does not apply: construction is
+blocked only on a fresh user choice between the reviewed option 1 repair and
+option 2 intentional divergence.  The separately authorized shared delimited
+candidate remains unstaged in `type_expr/delimited.rs` and its focused tests;
+no integration may occur until this head-completion decision and its proof
+gate close.
+
 2026-09-07: T2a ArrowRhs local successor construction is complete under the
 Authoritative retry-leading, evidence-timing, and one-cell CST-topology
 amendments.  The migrated sites are the two ArrowRhs Missing branches and the
