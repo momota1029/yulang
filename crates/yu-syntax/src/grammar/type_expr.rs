@@ -15681,9 +15681,10 @@ mod tests {
             };
 
         // The caller installs both pieces of incoming state.  This pins just
-        // the `+`/`@@` valid/wrong fence-termination pairs: the local PV owns
-        // the physical newline and its actual close, while its caller-owned
-        // fence remains available to that caller after the episode returns.
+        // the `+`/`@@`/`->` valid/wrong fence-termination pairs: the local PV
+        // owns the physical newline and its actual close, while its
+        // caller-owned fence remains available to that caller after the
+        // episode returns.
         for (source, fence, valid_name, tag_error, newline, last_tag) in [
             (
                 ":{A+\n:{B}}",
@@ -15702,6 +15703,14 @@ mod tests {
                 6..10,
             ),
             (
+                ":{A->\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 5 },
+                true,
+                3..5,
+                5..6,
+                6..10,
+            ),
+            (
                 ":{123+\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 6 },
                 false,
@@ -15711,6 +15720,14 @@ mod tests {
             ),
             (
                 ":{123@@\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 7 },
+                false,
+                5..7,
+                7..8,
+                8..12,
+            ),
+            (
+                ":{123->\n:{B}}",
                 TypeMalformedCallerBoundaryFence { trivia_start: 7 },
                 false,
                 5..7,
