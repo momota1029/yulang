@@ -65,9 +65,13 @@ and public cutover remain gated.
 The new Draft `2026-09-07-successor-t4-inherited-type-ml-correction-amendment.md`
 preserves standalone TypeApply controls while restoring only the outer-TypeApply
 inherited-context Parenthesized/EffectRow separator witnesses.  It proposes no
-new Error capability and leaves T4B/T4A excluded.  M3 compiler/recovery,
-specification, and performance review must close before a fresh user decision;
-no T4 code may resume during this Draft gate.
+new Error capability and leaves T4B/T4A excluded.  The user selected its narrow
+outer-TypeApply-only option, but the third M3 delta review found the Draft had
+to state T3 Call's unchanged active-context behavior exactly.  That correction
+has returned the Draft to design; no T4 code may resume until the revised Draft
+receives a fresh independent M3 review.  NonTypeApply PV/declaration P/E parity
+remains explicitly Open and no local checkpoint can close T4P/T4E ownership or
+O4.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→

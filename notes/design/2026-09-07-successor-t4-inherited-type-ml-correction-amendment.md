@@ -96,7 +96,11 @@ NonTypeApply scope entered while OuterTypeApply is live retains the latter
 provenance and restores the caller value on lexical return.  A nested
 TypeApply inside NonTypeApply temporarily enters OuterTypeApply and restores
 NonTypeApply afterward.  `stop_here` retains the existing nonempty-trivia tail
-stop; T3 Call derives its authorized child stop phase from that active context.
+stop.  Call is provenance-blind and phase-preserving: it captures its incoming
+`TypeMlContext` and passes that identical value to every immediate CallArgument
+attempt and retry.  Thus active `{ OuterTypeApply, true }` retains T3's
+authorized CallArgumentSeparator behavior, while dormant
+`{ OuterTypeApply, false }` does not reactivate solely from provenance.
 
 The value is lexical and by-value: it is not stored in `Item`, `Recover`,
 `NormalizedExit`, session-local state, a record, or output.  Every probe and
@@ -104,12 +108,13 @@ exit restores it by construction.  Provenance is threaded unchanged through
 every nested owner for the full lexical outer-TypeApply argument; a nonreactive
 owner carries dormant OuterTypeApply provenance rather than erasing it.  Only
 ParenthesizedGroup and EffectRow derive `stop_here = true` for their immediate
-delimited item parsing when that provenance is OuterTypeApply.  Call, arrow
-RHS, forall, NamedRecord, PolymorphicVariant, declaration payload, BracketRow,
-and other owners publish no new separator from this amendment, but they forward
-the dormant provenance so a later nested P/E can react.  Candidate probes never
-construct OuterTypeApply, and every outer continuation retains its pre-argument
-value.
+delimited item parsing when that provenance is OuterTypeApply.  Call preserves
+its captured context for each direct CallArgument under its existing T3 rule;
+after an argument returns it never adopts a child-derived phase.  Other
+nonreactive owners forward dormant provenance so a later nested P/E can react.
+No Call role, trigger, range, or terminal is added by this amendment.  Candidate
+probes never construct OuterTypeApply, and every outer continuation retains its
+pre-argument value.
 
 After each completed item stops at active inherited type-ML, the direct
 delimited owner applies this exact priority before a separator Missing:
@@ -143,13 +148,15 @@ Item may emit eligible leading before its close-Missing path.  The direct owner,
 rather than outer TypeApply, retains delimiter frame, Item frontier, trivia,
 Missing record, and retry ownership.
 
-Only ParenthesizedGroup and EffectRow act on `OuterTypeApply` provenance by
-activating an immediate item stop and publishing their own separator Missing.
-Call retains T3's active-stop behavior but publishes no new record; NamedRecord,
-PolymorphicVariant, BracketRow, BracketRowArrow, arrow, forall, and declaration
-owners remain nonreactive while forwarding dormant provenance.  In particular,
-`G T[F A]->U` gains no BracketRowSeparator under this amendment, though its
-provenance must reach any nested P/E.
+Only ParenthesizedGroup and EffectRow newly act on `OuterTypeApply` provenance
+by activating an immediate item stop and publishing their own separator Missing.
+Call retains its already-authorized T3 behavior: whenever its incoming
+`stop_here` is active, it may publish the existing CallArgumentSeparator and
+Call slots using the unchanged T3 priority.  NamedRecord, PolymorphicVariant,
+BracketRow, BracketRowArrow, arrow, forall, and declaration owners remain
+nonreactive while forwarding dormant provenance.  In particular, `G T[F A]->U`
+gains no BracketRowSeparator under this amendment, though its provenance must
+reach any nested P/E.
 
 Legacy global `type_ml_arg` may make P/E react to a standalone NonTypeApply
 PV/declaration origin too.  This amendment deliberately does not claim that
@@ -169,7 +176,11 @@ source-derived Parenthesized tuple in §1--2, including `(F A)`, `(A{})`, CRLF,
 priority, `G ((F A))` (inner ParenthesizedSeparator `6..6`),
 `G T((F A))` (ParenthesizedSeparator `7..7`, Call publishes nothing), and
 `G T[(F A)]->U` (ParenthesizedSeparator `7..7`, BracketRow publishes nothing).
-T4E remains a later ordered slice and first execution-pins all its
+T4P also preserves the T3 controls: `G T(F A)` retains its one
+CallArgumentSeparator Missing at `6..6`; `T(F A)` remains one ordinary Call
+argument with no recovery; and `G T((F A))` has only the named
+ParenthesizedSeparator, not a Call record.  T4E remains a later ordered slice
+and first execution-pins all its
 source-derived EffectRow tuples, including same-line `G '[F A]`, CRLF,
 priority, `G ('[F A])` (EffectRowSeparator `7..7`), and
 `G T('[F A])` (EffectRowSeparator `8..8`, Call publishes nothing), plus a
@@ -199,7 +210,8 @@ For each affected owner, local O3/O4 evidence must prove:
 - actual-close, caller stop, outer close, EOF, and abstract-boundary priority
   controls with no separator record or boundary consumption; and
 - standalone `(A B)` / `'[A B]` zero-recovery controls plus unchanged T1--T3,
-  Call, named-record, forall, PV, and valid TypeApply cases.
+  including the exact T3 Call active/dormant-context controls, Call,
+  named-record, forall, PV, and valid TypeApply cases.
 
 The aggregate T4/T7c matrix remains Open.  O6 must later execute real
 successor Yumark for both inherited-context witnesses, compare actual embedded
