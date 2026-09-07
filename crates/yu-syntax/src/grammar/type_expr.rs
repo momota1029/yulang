@@ -9225,6 +9225,311 @@ mod tests {
     }
 
     #[test]
+    fn legacy_delimited_horizontal_gap_boundary_ownership_is_execution_pinned() {
+        fn assert_plain_atom(expression: &TypeExpression<'_>, range: Range<usize>) {
+            assert!(
+                matches!(expression, TypeExpression {
+                    primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))),
+                    postfix,
+                    arrow: None,
+                    range: actual,
+                    ..
+                } if postfix.is_empty() && *actual == range),
+                "{expression:#?}",
+            );
+        }
+
+        fn assert_close_record(
+            records: &[crate::session::CommittedRecoveryRecord],
+            owner: ConstructRole,
+            at: usize,
+        ) {
+            let role = GrammarRole::ClosingDelimiter {
+                owner,
+                delimiter: Delimiter::Parenthesis,
+            };
+            assert!(
+                matches!(records, [record]
+                if record.site.role == role
+                    && record.site.range == (at..at)
+                    && record.kind == RecoveryKind::Missing
+                    && record.primary_expectation == 0
+                    && record.expectations[0].role == role
+                    && record.expectations[0].range == (at..at)
+                    && record.expectations[0].expected
+                        == ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                            Delimiter::Parenthesis
+                        ))),
+                "{records:#?}",
+            );
+        }
+
+        fn parse_ambient_ast<'source>(source: &'source str) -> (String, TypeExpression<'source>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let expression = i
+                .run(from_fn(parse_type_expression))
+                .expect("ambient AST type expression");
+            let remainder = i.input.remainder().to_owned();
+            drop(i);
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+            (remainder, expression)
+        }
+
+        fn parse_ambient_direct(
+            source: &str,
+        ) -> (String, Vec<crate::session::CommittedRecoveryRecord>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            commit_direct_type_expression(&mut committed).expect("ambient direct type expression");
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output.committed_recoveries().to_vec();
+            drop(output);
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(companion)
+            );
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+            (remainder, records)
+        }
+
+        let parenthesized_caller_source = "G (F ]";
+        let (ast_remainder, parenthesized_caller) =
+            parse_prefix_with_outer_stop(parenthesized_caller_source, StopKind::RightBracket);
+        assert_eq!(ast_remainder, "]");
+        assert!(
+            matches!(parenthesized_caller.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Incomplete,
+                    range,
+                    ..
+                }) if matches!(elements.as_slice(), [Recovered::Complete(item)]
+                    if {
+                        assert_plain_atom(item, 3..4);
+                        true
+                    }) && range == (2..5))),
+            "{parenthesized_caller:#?}",
+        );
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(
+            parenthesized_caller_source,
+            StopKind::RightBracket,
+        );
+        assert_eq!(direct_remainder, "]");
+        assert_close_record(&records, ConstructRole::ParenthesizedTypeGroup, 5);
+
+        let call_caller_source = "G T(F ]";
+        let (ast_remainder, call_caller) =
+            parse_prefix_with_outer_stop(call_caller_source, StopKind::RightBracket);
+        assert_eq!(ast_remainder, "]");
+        assert!(
+            matches!(call_caller.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                    arguments,
+                    close: Recovered::Incomplete,
+                    range,
+                    ..
+                })] if matches!(arguments.as_slice(), [Recovered::Complete(item)]
+                    if {
+                        assert_plain_atom(item, 4..5);
+                        true
+                    }) && *range == (3..6))),
+            "{call_caller:#?}",
+        );
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(call_caller_source, StopKind::RightBracket);
+        assert_eq!(direct_remainder, "]");
+        assert_close_record(&records, ConstructRole::TypeCall, 6);
+
+        let parenthesized_outer_source = "G T[(F ]->U";
+        let parenthesized_outer = parse(parenthesized_outer_source);
+        assert!(
+            matches!(parenthesized_outer.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.arrow, Some(TypeArrowTail {
+                    argument_effect: Some(BracketRow {
+                        ref items,
+                        close: Recovered::Complete(ref row_close),
+                        ..
+                    }),
+                    arrow: Recovered::Complete(ref arrow),
+                    rhs: Recovered::Complete(ref rhs),
+                    ..
+                }) if matches!(items.as_slice(), [Recovered::Complete(item)]
+                    if matches!(item.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                        elements,
+                        close: Recovered::Incomplete,
+                        range,
+                        ..
+                    }) if matches!(elements.as_slice(), [Recovered::Complete(inner)]
+                        if {
+                            assert_plain_atom(inner, 5..6);
+                            true
+                        }) && range == (4..7)))
+                        && *row_close == (7..8)
+                        && *arrow == (8..10)
+                        && rhs.range == (10..11))),
+            "{parenthesized_outer:#?}",
+        );
+        let records = parse_direct_recovered(parenthesized_outer_source);
+        assert_close_record(&records, ConstructRole::ParenthesizedTypeGroup, 7);
+        assert_eq!(
+            parse_direct(parenthesized_outer_source).to_string(),
+            parenthesized_outer_source,
+        );
+
+        let call_outer_source = "G T[T(F ]->U";
+        let call_outer = parse(call_outer_source);
+        assert!(
+            matches!(call_outer.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.arrow, Some(TypeArrowTail {
+                    argument_effect: Some(BracketRow {
+                        ref items,
+                        close: Recovered::Complete(ref row_close),
+                        ..
+                    }),
+                    arrow: Recovered::Complete(ref arrow),
+                    rhs: Recovered::Complete(ref rhs),
+                    ..
+                }) if matches!(items.as_slice(), [Recovered::Complete(item)]
+                    if matches!(item.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                        arguments,
+                        close: Recovered::Incomplete,
+                        range,
+                        ..
+                    })] if matches!(arguments.as_slice(), [Recovered::Complete(inner)]
+                        if {
+                            assert_plain_atom(inner, 6..7);
+                            true
+                        }) && *range == (5..8)))
+                        && *row_close == (8..9)
+                        && *arrow == (9..11)
+                        && rhs.range == (11..12))),
+            "{call_outer:#?}",
+        );
+        let records = parse_direct_recovered(call_outer_source);
+        assert_close_record(&records, ConstructRole::TypeCall, 8);
+        assert_eq!(
+            parse_direct(call_outer_source).to_string(),
+            call_outer_source
+        );
+
+        let local_parenthesized_source = "G (F )";
+        let local_parenthesized = parse(local_parenthesized_source);
+        assert!(
+            matches!(local_parenthesized.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Complete(close),
+                    range,
+                    ..
+                }) if matches!(elements.as_slice(), [Recovered::Complete(item)]
+                    if {
+                        assert_plain_atom(item, 3..4);
+                        true
+                    }) && close == (5..6) && range == (2..6))),
+            "{local_parenthesized:#?}",
+        );
+        assert!(parse_direct_recovered(local_parenthesized_source).is_empty());
+        assert_eq!(
+            parse_direct(local_parenthesized_source).to_string(),
+            local_parenthesized_source,
+        );
+
+        let local_call_source = "G T(F )";
+        let local_call = parse(local_call_source);
+        assert!(
+            matches!(local_call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                    arguments,
+                    close: Recovered::Complete(close),
+                    range,
+                    ..
+                })] if matches!(arguments.as_slice(), [Recovered::Complete(item)]
+                    if {
+                        assert_plain_atom(item, 4..5);
+                        true
+                    }) && *close == (6..7) && *range == (3..7))),
+            "{local_call:#?}",
+        );
+        assert!(parse_direct_recovered(local_call_source).is_empty());
+        assert_eq!(
+            parse_direct(local_call_source).to_string(),
+            local_call_source
+        );
+
+        let parenthesized_ambient_source = "G (F else: 0";
+        let (ast_remainder, parenthesized_ambient) =
+            parse_ambient_ast(parenthesized_ambient_source);
+        assert_eq!(ast_remainder, " else: 0");
+        assert!(
+            matches!(parenthesized_ambient.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    elements,
+                    close: Recovered::Incomplete,
+                    range,
+                    ..
+                }) if matches!(elements.as_slice(), [Recovered::Complete(item)]
+                    if {
+                        assert_plain_atom(item, 3..4);
+                        true
+                    }) && range == (2..4))),
+            "{parenthesized_ambient:#?}",
+        );
+        let (direct_remainder, records) = parse_ambient_direct(parenthesized_ambient_source);
+        assert_eq!(direct_remainder, " else: 0");
+        assert_close_record(&records, ConstructRole::ParenthesizedTypeGroup, 4);
+
+        let call_ambient_source = "G T(F else: 0";
+        let (ast_remainder, call_ambient) = parse_ambient_ast(call_ambient_source);
+        assert_eq!(ast_remainder, " else: 0");
+        assert!(
+            matches!(call_ambient.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+                if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                    arguments,
+                    close: Recovered::Incomplete,
+                    range,
+                    ..
+                })] if matches!(arguments.as_slice(), [Recovered::Complete(item)]
+                    if {
+                        assert_plain_atom(item, 4..5);
+                        true
+                    }) && *range == (3..5))),
+            "{call_ambient:#?}",
+        );
+        let (direct_remainder, records) = parse_ambient_direct(call_ambient_source);
+        assert_eq!(direct_remainder, " else: 0");
+        assert_close_record(&records, ConstructRole::TypeCall, 5);
+    }
+
+    #[test]
     fn call_and_group_recovery_leave_outer_owned_boundaries_unconsumed() {
         let (call_remainder, call_ast) =
             parse_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
