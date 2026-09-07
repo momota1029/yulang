@@ -13,18 +13,20 @@ use super::judge::{
     ActiveClose, ChunkContext, ChunkKind, DocumentMarker, DocumentMarkerKind, TerminatorKind,
     judge_block_close, judge_chunk, judge_document_marker, judge_line_document_extent,
 };
+use super::{YumarkBlock, YumarkInline};
 use crate::{
     SyntaxKind, SyntaxNode,
+    grammar::declaration::Recovered,
     grammar::expression::probe_rejected_fixed_tail_recovery_episode_for_test,
     input::SourceInput,
     operator::{BindingPower, OperatorDeclaration, OperatorFixities, OperatorTable},
     session::{
         BracedStatementBlockRole, ConstructRole, DeclarationCompanionRole, DeclarationRole,
-        Delimiter, DerivesRole, ExpectedSyntax, ExpressionRole, FullCstOutput, GrammarRole,
-        IfExpressionRole, LineState, ParseLocal, ParseLocalValueSnapshot, Probe,
-        PunctuationEvidence, RecoveryKind, RecoverySiteSpec, YumarkEmbeddedOuterKind,
-        YumarkEmbeddedRecoveryFact, YumarkEnvelopeStop, YumarkFrame, YumarkInlineClose,
-        YumarkOwner, YumarkSlot, YumarkSyntaxEvidence,
+        Delimiter, DerivesRole, ExpectationSources, ExpectedSyntax, ExpressionRole, FullCstOutput,
+        GrammarRole, IfExpressionRole, LineState, ParseLocal, ParseLocalValueSnapshot, Probe,
+        PunctuationEvidence, RecoveryKind, RecoverySiteSpec, TypeRole, UnexpectedCategory,
+        UnexpectedSyntax, YumarkEmbeddedOuterKind, YumarkEmbeddedRecoveryFact, YumarkEnvelopeStop,
+        YumarkFrame, YumarkInlineClose, YumarkOwner, YumarkSlot, YumarkSyntaxEvidence,
     },
 };
 
@@ -3293,6 +3295,201 @@ fn gate3b_derives_via_target_episode() {
             }));
         }
     }
+}
+
+#[test]
+fn gate3b_arrow_rhs_legacy_outer_structure_and_direct_recovery_baseline() {
+    let source = "\\ref({type T = A ->@ B})";
+
+    let mut ast_input = SourceInput::new(source);
+    let mut ast_local = ParseLocal::new();
+    ast_local.set_line(LineState {
+        at_line_start: true,
+        ..LineState::default()
+    });
+    let mut ast_sink = chasa::LatestSink::new();
+    let mut ast_cut = false;
+    let mut i =
+        In::new(&mut ast_input, &mut ast_sink, IsCut::new(&mut ast_cut)).set_local(&mut ast_local);
+    let ast = parse_gate3_ast(
+        &OperatorTable::empty(),
+        Gate3Envelope {
+            base_column: 0,
+            stop: YumarkEnvelopeStop::BlockDocument,
+        },
+        &mut i,
+    );
+    assert_eq!(ast.document.range, 0..source.len());
+    assert_eq!(i.input.remainder(), "");
+    assert_eq!(i.local.yumark_frame_depth(), 0);
+    assert_eq!(ast.work.frame_pushes, ast.work.frame_pops);
+    let [Recovered::Complete(YumarkBlock::Paragraph(paragraph))] = ast.document.blocks.as_slice()
+    else {
+        panic!("one complete legacy Yumark paragraph")
+    };
+    assert_eq!(paragraph.range, 0..source.len());
+    assert_eq!(&source[paragraph.range.clone()], source);
+    let [Recovered::Complete(YumarkInline::Reference(reference))] =
+        paragraph.document.items.as_slice()
+    else {
+        panic!("one complete legacy inline reference")
+    };
+    assert_eq!(reference.backslash, 0..1);
+    assert_eq!(reference.name, Recovered::Complete(1..4));
+    assert_eq!(reference.range, 0..source.len());
+    assert_eq!(&source[reference.range.clone()], source);
+    let arguments = reference
+        .arguments
+        .as_ref()
+        .expect("legacy inline reference arguments");
+    assert_eq!(arguments.range, 4..source.len());
+    assert_eq!(arguments.close, Recovered::Complete(23..24));
+    assert_eq!(&source[arguments.range.clone()], "({type T = A ->@ B})");
+    drop(i);
+    assert!(ast_sink.take_merged().is_none());
+
+    let mut direct_input = SourceInput::new(source);
+    let mut direct_local = ParseLocal::new();
+    direct_local.set_line(LineState {
+        at_line_start: true,
+        ..LineState::default()
+    });
+    let mut direct_sink = chasa::LatestSink::new();
+    let mut direct_cut = false;
+    let i = In::new(
+        &mut direct_input,
+        &mut direct_sink,
+        IsCut::new(&mut direct_cut),
+    )
+    .set_local(&mut direct_local);
+    let direct = commit_gate3_direct(
+        source,
+        &OperatorTable::empty(),
+        Gate3Envelope {
+            base_column: 0,
+            stop: YumarkEnvelopeStop::BlockDocument,
+        },
+        i,
+    );
+    assert_eq!(direct.range, 0..source.len());
+    assert_eq!(direct.remainder, "");
+    assert_eq!(direct.frame_depth, 0);
+    assert_eq!(direct.work.frame_pushes, direct.work.frame_pops);
+    let [record] = direct.output.committed_recoveries() else {
+        panic!("one legacy direct ArrowRhs recovery")
+    };
+    assert_eq!(record.site.role, GrammarRole::Type(TypeRole::ArrowRhs));
+    assert_eq!(record.site.range, 19..21);
+    assert_eq!(record.kind, RecoveryKind::Error);
+    assert_eq!(
+        &*record.unexpected,
+        [UnexpectedSyntax::Token {
+            range: 19..21,
+            category: UnexpectedCategory::OtherCharacter,
+        }]
+    );
+    assert_eq!(record.expectations.len(), 1);
+    assert_eq!(record.primary_expectation, 0);
+    assert_eq!(
+        record.expectations[0].role,
+        GrammarRole::Type(TypeRole::ArrowRhs)
+    );
+    assert_eq!(
+        record.expectations[0].expected,
+        ExpectedSyntax::TypeExpression
+    );
+    assert_eq!(record.expectations[0].range, 19..21);
+    assert_eq!(
+        record.expectations[0].sources,
+        ExpectationSources::COMMITTED_RECOVERY_RULE
+    );
+    assert!(direct_sink.take_merged().is_none());
+
+    let root = SyntaxNode::new_root(direct.output.finish_prefix());
+    assert_eq!(root.to_string(), source);
+    let inline_reference = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::YmInlineRef)
+        .expect("legacy direct inline reference");
+    assert_eq!(
+        usize::from(inline_reference.text_range().start())
+            ..usize::from(inline_reference.text_range().end()),
+        0..source.len(),
+    );
+    let arguments = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::YmYulangArgs)
+        .expect("legacy direct Yulang arguments");
+    assert_eq!(
+        usize::from(arguments.text_range().start())..usize::from(arguments.text_range().end()),
+        4..source.len(),
+    );
+    let declaration = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+        .expect("legacy direct Type declaration");
+    assert_eq!(declaration.text(), "type T = A ->@ B");
+    let error = declaration
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("legacy direct ArrowRhs Error");
+    assert_eq!(error.text(), "@ ");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        19..21,
+    );
+    assert_eq!(&source[20..21], " ");
+    let legacy_error_tokens = error
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .collect::<Vec<_>>();
+    let [legacy_error_token] = legacy_error_tokens.as_slice() else {
+        panic!("one legacy Error-owned ArrowRhs token")
+    };
+    assert_eq!(legacy_error_token.kind(), SyntaxKind::Unknown);
+    assert_eq!(legacy_error_token.text(), "@ ");
+    assert_eq!(
+        usize::from(legacy_error_token.text_range().start())
+            ..usize::from(legacy_error_token.text_range().end()),
+        19..21,
+    );
+    assert!(
+        legacy_error_token
+            .parent_ancestors()
+            .any(|ancestor| ancestor == error)
+    );
+    let rhs = declaration
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B")
+        .expect("legacy direct Arrow RHS");
+    assert_eq!(
+        usize::from(rhs.text_range().start())..usize::from(rhs.text_range().end()),
+        21..22,
+    );
+    assert!(!rhs.parent_ancestors().any(|ancestor| ancestor == error));
+    assert_eq!(
+        usize::from(error.text_range().end()),
+        usize::from(rhs.text_range().start())
+    );
+    let close_brace = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::RBrace)
+        .expect("legacy direct braced-expression close");
+    assert_eq!(
+        close_brace.parent().map(|parent| parent.kind()),
+        Some(SyntaxKind::BracedStatementBlockExpression)
+    );
+    let close_paren = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::RParen)
+        .expect("legacy direct Yumark close");
+    assert_eq!(
+        close_paren.parent().map(|parent| parent.kind()),
+        Some(SyntaxKind::YmYulangArgs)
+    );
 }
 
 #[test]

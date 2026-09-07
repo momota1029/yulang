@@ -1253,13 +1253,365 @@ fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
     assert_eq!(records[0].site.range, 10..13);
     assert_eq!(records[0].unexpected.len(), 2);
 
-    const ERROR_RUN_CAPABILITY: [&str; 4] = [
+    const ERROR_RUN_CAPABILITY: [&str; 5] = [
         "lexical",
         "emit_item_as",
         "emit_literal_segment",
         "append_unexpected",
+        "seal_record_through_retry_leading",
     ];
-    assert_eq!(ERROR_RUN_CAPABILITY.len(), 4);
+    assert_eq!(ERROR_RUN_CAPABILITY.len(), 5);
+}
+
+#[test]
+fn retry_leading_seal_extends_only_the_record_and_preserves_the_borrowed_item() {
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    let retry = Item::plain(
+        LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+    );
+    let control = Item::plain(
+        LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+    );
+    let sealed = emit_recovery_error_run(
+        In::new(&mut input, &mut recover, &mut output),
+        |run| {
+            run.emit_literal_segment("@", 4..5, SyntaxKind::Unknown);
+            run.seal_record_through_retry_leading(&retry, 7, UnexpectedCategory::OtherCharacter)
+        },
+        |range, unexpected| {
+            singleton_draft(
+                LiteralRole::RuleUnexpectedItem,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            )
+        },
+    );
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert!(sealed);
+    assert_eq!(retry, control);
+    assert_eq!(green.to_string(), "@");
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].site.range, 4..6);
+    assert_eq!(
+        records[0].unexpected,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 4..6,
+            category: UnexpectedCategory::OtherCharacter,
+        }])
+    );
+}
+
+#[test]
+fn retry_leading_seal_rejects_ineligible_items_without_changing_normal_runs() {
+    fn token_retry(leading: Box<[Trivia]>) -> Item {
+        Item::plain(
+            LeadingTrivia::ordinary(leading),
+            Payload::Token(Token {
+                kind: TokenKind::Identifier,
+                text: "B".into(),
+            }),
+        )
+    }
+
+    fn reject(text: &str, error_range: Range<usize>, retry: Item, successor_origin: usize) {
+        let operators = OperatorTable::empty();
+        let mut input = "";
+        let mut recover = Recover::new(&operators);
+        let mut output = RewriteOutput::new();
+        output.start_node(SyntaxKind::Root.into());
+        let sealed = emit_recovery_error_run(
+            In::new(&mut input, &mut recover, &mut output),
+            |run| {
+                run.emit_literal_segment(text, error_range.clone(), SyntaxKind::Unknown);
+                let sealed = run.seal_record_through_retry_leading(
+                    &retry,
+                    successor_origin,
+                    UnexpectedCategory::OtherCharacter,
+                );
+                assert!(!sealed);
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: error_range.clone(),
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                sealed
+            },
+            |range, unexpected| {
+                singleton_draft(
+                    LiteralRole::RuleUnexpectedItem,
+                    RecoveryKind::Error,
+                    range,
+                    unexpected,
+                    ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                )
+            },
+        );
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert!(!sealed);
+        assert_eq!(green.to_string(), text);
+        assert_eq!(records[0].site.range, error_range);
+        assert_eq!(records[0].unexpected.len(), 1);
+    }
+
+    reject(
+        "@",
+        0..1,
+        token_retry(vec![Trivia::newline("\n".into())].into_boxed_slice()),
+        3,
+    );
+    reject(
+        "@",
+        0..1,
+        token_retry(vec![Trivia::newline("\r\n".into())].into_boxed_slice()),
+        4,
+    );
+    reject("@", 0..1, token_retry(Vec::new().into_boxed_slice()), 2);
+    reject(
+        "@",
+        0..1,
+        Item::plain(
+            LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+            Payload::Boundary(PendingBoundary::new(
+                2..3,
+                Boundary::Stop(StopKind::RightParenthesis),
+            )),
+        ),
+        2,
+    );
+    reject(
+        "@",
+        0..1,
+        Item::plain(
+            LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+            Payload::Eof,
+        ),
+        2,
+    );
+    reject(
+        "@",
+        0..1,
+        token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        4,
+    );
+    reject(
+        "@B",
+        0..2,
+        token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        3,
+    );
+    reject(
+        "@B",
+        0..2,
+        token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        2,
+    );
+
+    let carrier_origin = 1;
+    let carrier_comment = "/*a\n> b*/";
+    let carrier = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![
+                Trivia::block_comment(carrier_comment.into()),
+                Trivia::whitespace(" ".into()),
+            ]
+            .into_boxed_slice(),
+        )),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+        Some(vec![ForeignSplit::quote_prefix(
+            carrier_origin + "/*a\n".len(),
+            2,
+        )]),
+        carrier_origin,
+    )
+    .expect("carrier retry Item");
+    reject(
+        "@",
+        0..1,
+        carrier,
+        carrier_origin + carrier_comment.len() + 2,
+    );
+
+    let mut quote_leading = PhysicalLeadingTrivia::default();
+    quote_leading.push_quote_prefix("> ".into());
+    let quote = Item::finish(
+        quote_leading,
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+        Some(vec![ForeignSplit::quote_prefix(1, 2)]),
+        1,
+    )
+    .expect("quote-prefix retry Item");
+    reject("@", 0..1, quote, 4);
+
+    let operators = OperatorTable::empty();
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut partial = token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice());
+    partial.emit_leading_prefix_with(&mut output, 1, |_, _| {});
+    emit_recovery_error_run(
+        In::new(&mut input, &mut recover, &mut output),
+        |run| {
+            run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+            assert!(!run.seal_record_through_retry_leading(
+                &partial,
+                3,
+                UnexpectedCategory::OtherCharacter,
+            ));
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range: 0..1,
+                category: UnexpectedCategory::OtherCharacter,
+            });
+        },
+        |range, unexpected| {
+            singleton_draft(
+                LiteralRole::RuleUnexpectedItem,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            )
+        },
+    );
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), " @");
+    assert_eq!(records[0].site.range, 0..1);
+}
+
+#[test]
+fn retry_leading_seal_requires_empty_evidence_and_is_terminal_for_every_operation() {
+    let operators = OperatorTable::empty();
+    let mut input = "x";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    let retry = Item::plain(
+        LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "B".into(),
+        }),
+    );
+    emit_recovery_error_run(
+        In::new(&mut input, &mut recover, &mut output),
+        |run| {
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| run.seal_record_through_retry_leading(
+                    &retry,
+                    3,
+                    UnexpectedCategory::OtherCharacter,
+                )))
+                .is_err()
+            );
+            run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+            assert!(run.seal_record_through_retry_leading(
+                &retry,
+                3,
+                UnexpectedCategory::OtherCharacter,
+            ));
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| run.seal_record_through_retry_leading(
+                    &retry,
+                    3,
+                    UnexpectedCategory::OtherCharacter,
+                )))
+                .is_err()
+            );
+            assert!(catch_unwind(AssertUnwindSafe(|| run.lexical(|mut lex| lex.next()))).is_err());
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.emit_item_as(unknown_item("!"), 4, SyntaxKind::Unknown)
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.emit_literal_segment("!", 3..4, SyntaxKind::Unknown)
+                }))
+                .is_err()
+            );
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: 0..1,
+                        category: UnexpectedCategory::OtherCharacter,
+                    })
+                }))
+                .is_err()
+            );
+        },
+        |range, unexpected| {
+            singleton_draft(
+                LiteralRole::RuleUnexpectedItem,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            )
+        },
+    );
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), "@");
+    assert_eq!(input, "x");
+    assert_eq!(records[0].site.range, 0..2);
+
+    let mut input = "";
+    let mut recover = Recover::new(&operators);
+    let mut output = RewriteOutput::new();
+    output.start_node(SyntaxKind::Root.into());
+    emit_recovery_error_run(
+        In::new(&mut input, &mut recover, &mut output),
+        |run| {
+            run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range: 0..1,
+                category: UnexpectedCategory::OtherCharacter,
+            });
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| run.seal_record_through_retry_leading(
+                    &retry,
+                    3,
+                    UnexpectedCategory::OtherCharacter,
+                )))
+                .is_err()
+            );
+        },
+        |range, unexpected| {
+            singleton_draft(
+                LiteralRole::RuleUnexpectedItem,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            )
+        },
+    );
+    output.finish_node();
+    let (_, records) = output.finish_with_recoveries();
+    assert_eq!(records[0].site.range, 0..1);
 }
 
 #[test]

@@ -3,7 +3,7 @@
 use std::{ops::Range, sync::Arc};
 
 use crate::{
-    session::{RecoveryKind, UnexpectedSyntax},
+    session::{RecoveryKind, UnexpectedCategory, UnexpectedSyntax},
     syntax_kind::SyntaxKind,
 };
 
@@ -17,16 +17,20 @@ use super::{
 /// Sealed capability for one total malformed run.
 ///
 /// Its private `RewriteIn` cannot escape. The body can only perform total
-/// lexical work, emit already-owned run bytes, and append explicit unexpected
-/// evidence; node and diagnostic operations remain owned by the helper.
+/// lexical work, emit already-owned run bytes, append explicit unexpected
+/// evidence, or terminally seal one record through eligible retry leading;
+/// node and diagnostic operations remain owned by the helper.
 pub(super) struct ErrorRunOutput<'a, 'source, 'recover, 'operators, 'output, 'frozen> {
     input: RewriteIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
-    extent: Option<Range<usize>>,
+    error_node_extent: Option<Range<usize>>,
+    record_extent: Option<Range<usize>>,
     unexpected: Vec<UnexpectedSyntax>,
+    sealed_category: Option<UnexpectedCategory>,
 }
 
 impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
     pub(super) fn lexical<O>(&mut self, operation: impl FnOnce(LexIn) -> O) -> O {
+        self.assert_unsealed();
         self.input
             .token(|lex| Some(operation(lex)))
             .expect("an Error-run lexical operation is total")
@@ -38,6 +42,7 @@ impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
         successor_origin: usize,
         kind: SyntaxKind,
     ) -> ItemExtent {
+        self.assert_unsealed();
         let extent = item.extent(successor_origin);
         self.include_extent(extent.recovery_range());
         item.emit_remaining(&mut *self.input.state, kind);
@@ -50,6 +55,7 @@ impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
         range: Range<usize>,
         kind: SyntaxKind,
     ) {
+        self.assert_unsealed();
         assert!(!text.is_empty(), "an Error literal segment is nonempty");
         assert_eq!(
             range.end.checked_sub(range.start),
@@ -61,20 +67,61 @@ impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
     }
 
     pub(super) fn append_unexpected(&mut self, unexpected: UnexpectedSyntax) {
+        self.assert_unsealed();
         self.unexpected.push(unexpected);
     }
 
+    /// Extends only the committed diagnostic record through one unchanged
+    /// retry Item's contiguous same-line leading. Success makes this
+    /// capability terminal; ineligible Items leave it open and unchanged.
+    pub(super) fn seal_record_through_retry_leading(
+        &mut self,
+        retry: &Item,
+        successor_origin: usize,
+        category: UnexpectedCategory,
+    ) -> bool {
+        self.assert_unsealed();
+        assert!(
+            self.unexpected.is_empty(),
+            "retry-leading sealing replaces ordinary unexpected evidence"
+        );
+        let error_node_extent = self
+            .error_node_extent
+            .as_ref()
+            .expect("retry-leading sealing requires a nonempty Error body");
+        let Some(suffix) = retry.retry_leading_diagnostic_suffix(successor_origin) else {
+            return false;
+        };
+        if suffix.start != error_node_extent.end {
+            return false;
+        }
+        let record_extent = error_node_extent.start..suffix.end;
+        debug_assert!(record_extent.start < record_extent.end);
+        self.record_extent = Some(record_extent);
+        self.sealed_category = Some(category);
+        true
+    }
+
     fn include_extent(&mut self, next: Range<usize>) {
+        self.assert_unsealed();
         assert!(next.start < next.end, "an Error-run segment is nonempty");
-        if let Some(extent) = &mut self.extent {
+        if let Some(extent) = &mut self.error_node_extent {
             assert_eq!(
                 extent.end, next.start,
                 "Error-run segments remain in physical source order"
             );
             extent.end = next.end;
         } else {
-            self.extent = Some(next);
+            self.error_node_extent = Some(next);
         }
+        self.record_extent = self.error_node_extent.clone();
+    }
+
+    fn assert_unsealed(&self) {
+        assert!(
+            self.sealed_category.is_none(),
+            "a sealed retry-leading Error run is terminal"
+        );
     }
 }
 
@@ -127,18 +174,35 @@ pub(super) fn emit_recovery_error_run<R>(
     i.state.start_node(SyntaxKind::Error.into());
     let mut run = ErrorRunOutput {
         input: i,
-        extent: None,
+        error_node_extent: None,
+        record_extent: None,
         unexpected: Vec::new(),
+        sealed_category: None,
     };
     let result = body(&mut run);
     let ErrorRunOutput {
         input,
-        extent,
+        error_node_extent,
+        record_extent,
         unexpected,
+        sealed_category,
     } = run;
     input.state.finish_node();
-    let range = extent.expect("an Error run emits a nonempty physical extent");
-    let unexpected: Arc<[UnexpectedSyntax]> = unexpected.into();
+    let error_node_extent =
+        error_node_extent.expect("an Error run emits a nonempty physical extent");
+    let range = record_extent.expect("an Error run records its emitted physical extent");
+    let unexpected: Arc<[UnexpectedSyntax]> = if let Some(category) = sealed_category {
+        assert!(unexpected.is_empty());
+        assert_eq!(range.start, error_node_extent.start);
+        assert!(range.end > error_node_extent.end);
+        Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category,
+        }])
+    } else {
+        assert_eq!(range, error_node_extent);
+        unexpected.into()
+    };
     let draft = make_draft(range.clone(), unexpected.clone());
     draft.assert_emission(RecoveryKind::Error, &range, &unexpected);
     input.state.commit_recovery(draft);

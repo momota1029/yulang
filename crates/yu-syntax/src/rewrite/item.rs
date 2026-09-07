@@ -346,6 +346,13 @@ impl<'item> PayloadView<'item> {
             Payload::Boundary(boundary) if boundary.kind() == &Boundary::EofAfterTrivia
         )
     }
+
+    pub(super) fn pending_boundary(self) -> Option<&'item PendingBoundary> {
+        match self.payload {
+            Payload::Boundary(boundary) => Some(boundary),
+            Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -675,6 +682,33 @@ impl Item {
             remaining: remaining_start..leading_end,
             payload: leading_end..payload_end,
         }
+    }
+
+    /// Returns the only retry-leading suffix that may extend a recovery
+    /// record without moving any byte into its Error node.
+    ///
+    /// The query is source-free and leaves the borrowed Item unchanged. It is
+    /// deliberately stricter than ordinary grammar trivia classification:
+    /// every leading part must still be owned, same-line, and carrier-free.
+    pub(super) fn retry_leading_diagnostic_suffix(
+        &self,
+        successor_origin: usize,
+    ) -> Option<std::ops::Range<usize>> {
+        if self.first_unemitted_leading != 0
+            || self.physical_leading.is_empty()
+            || self.fragments.is_some()
+            || self.payload_text().is_none()
+            || self.physical_leading.iter().any(|part| {
+                matches!(part.kind, TriviaKind::Newline | TriviaKind::YmQuotePrefix)
+                    || part.text.contains(['\r', '\n'])
+            })
+        {
+            return None;
+        }
+        let extent = self.extent(successor_origin);
+        let suffix = extent.remaining();
+        let payload = extent.payload();
+        (!suffix.is_empty() && suffix.end == payload.start).then_some(suffix)
     }
 
     pub(super) fn emit_all_remaining_leading(&mut self, output: &mut RewriteOutput) {

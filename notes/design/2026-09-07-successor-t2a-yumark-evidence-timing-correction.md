@@ -150,4 +150,9 @@ is authorized here.
 
 M3 review covers compiler/recovery ownership, specification conformance, and
 the matrix/test-contract regression boundary.  The user-selected direction is
-not implemented until the reviewed correction records approval.
+implemented only after the reviewed correction records approval.
+
+Implementation status: the 2026-09-07 T2a local successor construction now
+supplies the direct/CST/Item/frozen/RB-T subproof required here.  It does not
+claim embedded AST/direct fact equality or matrix-row certification.  Those
+facts remain exclusively for real successor-Yumark convergence at O6.

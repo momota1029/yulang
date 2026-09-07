@@ -25,7 +25,10 @@ use super::{
         Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, ordinary_exit,
         suffix_marker, token_kind,
     },
-    emit::{ErrorRunOutput, emit_missing, emit_recovery_error_run, emit_token_item},
+    emit::{
+        ErrorRunOutput, emit_missing, emit_recovery_error_run, emit_recovery_missing,
+        emit_token_item,
+    },
     item::{Item, LeadingTrivia, LeadingView, TokenKind},
     lexer::{
         BalancedBracketSuffix, is_operator_shaped_unknown, scan_balanced_bracket_suffix_normalized,
@@ -530,7 +533,7 @@ fn required_type_expr_inner_normalized(
         i.rb(),
         |run| loop {
             let category = required_type_primary_unexpected_category(&primary);
-            let kind = required_type_primary_error_syntax_kind(&primary);
+            let kind = type_recovery_error_syntax_kind(&primary);
             let extent = run.emit_item_as(primary, item_origin, kind);
             run.append_unexpected(UnexpectedSyntax::Token {
                 range: extent.recovery_range(),
@@ -557,7 +560,7 @@ fn required_type_expr_inner_normalized(
                 return (primary, item_origin, line_entry);
             }
         },
-        |range, unexpected| required_type_primary_error_draft(range, unexpected),
+        |range, unexpected| type_expression_error_draft(TypeRole::Primary, range, unexpected),
     );
     if primary.payload_view().is_boundary()
         || is_required_type_boundary(
@@ -591,11 +594,12 @@ fn required_type_expr_inner_normalized(
     )
 }
 
-fn required_type_primary_error_draft(
+fn type_expression_error_draft(
+    role: TypeRole,
     range: std::ops::Range<usize>,
     unexpected: Arc<[UnexpectedSyntax]>,
 ) -> RecoveryDraft {
-    let role = GrammarRole::Type(TypeRole::Primary);
+    let role = GrammarRole::Type(role);
     RecoveryDraft::new(
         RecoverySiteKey {
             role,
@@ -603,6 +607,25 @@ fn required_type_primary_error_draft(
         },
         RecoveryKind::Error,
         unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::TypeExpression,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn type_expression_missing_draft(role: TypeRole, range: std::ops::Range<usize>) -> RecoveryDraft {
+    let role = GrammarRole::Type(role);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        RecoveryKind::Missing,
+        Arc::from([]),
         Arc::from([SyntaxExpectation {
             role,
             expected: ExpectedSyntax::TypeExpression,
@@ -658,7 +681,7 @@ fn required_type_primary_unexpected_category(item: &Item) -> UnexpectedCategory 
     }
 }
 
-fn required_type_primary_error_syntax_kind(item: &Item) -> SyntaxKind {
+fn type_recovery_error_syntax_kind(item: &Item) -> SyntaxKind {
     match token_kind(item).expect("a required Type-primary Error contains lexical Items") {
         TokenKind::Identifier => SyntaxKind::Identifier,
         TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
@@ -1221,7 +1244,7 @@ fn type_tail_normalized(
                 outer_separators,
                 outer_closes,
                 caller_stops,
-                TypeOuterBoundary::NONE,
+                outer_boundary,
                 pipe_lexical,
                 item_origin,
                 line_entry,
@@ -2203,7 +2226,21 @@ fn type_arrow_rhs_normalized(
     item_origin = next_origin;
     line_entry = next_line_entry;
     if rhs.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        let at = rhs
+            .payload_view()
+            .pending_boundary()
+            .expect("a boundary Item retains its inspected boundary")
+            .coordinate();
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+            type_expression_missing_draft(TypeRole::ArrowRhs, range)
+        });
+        return complete(handoff(rhs), line_entry);
+    }
+    if is_type_outer_boundary(&rhs, outer_boundary) {
+        let at = rhs.extent(item_origin).recovery_range().start;
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+            type_expression_missing_draft(TypeRole::ArrowRhs, range)
+        });
         return complete(handoff(rhs), line_entry);
     }
     if !type_chain_trivia(rhs.leading_view(), baseline)
@@ -2211,22 +2248,30 @@ fn type_arrow_rhs_normalized(
         || is_type_caller_boundary(&rhs, caller_stops)
     {
         rhs.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        let at = rhs.extent(item_origin).recovery_range().start;
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+            type_expression_missing_draft(TypeRole::ArrowRhs, range)
+        });
         return complete(handoff(rhs), line_entry);
     }
     if !is_type_nud(&rhs) {
-        (rhs, item_origin, line_entry) = retry_type_rhs_normalized(
+        (rhs, item_origin, line_entry) = retry_type_arrow_rhs_normalized(
             i.rb(),
             rhs,
             baseline,
             caller_stops,
+            outer_boundary,
             pipe_lexical,
             item_origin,
             line_entry,
             fence,
         );
     }
-    if is_type_caller_boundary(&rhs, caller_stops) || !is_type_nud(&rhs) {
+    if rhs.payload_view().is_boundary()
+        || is_type_caller_boundary(&rhs, caller_stops)
+        || is_type_outer_boundary(&rhs, outer_boundary)
+        || !is_type_nud(&rhs)
+    {
         return complete(handoff(rhs), line_entry);
     }
     type_expr_from_nud_normalized(
@@ -2243,6 +2288,73 @@ fn type_arrow_rhs_normalized(
         item_origin,
         line_entry,
         fence,
+    )
+}
+
+fn retry_type_arrow_rhs_normalized(
+    mut i: RewriteIn,
+    mut item: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    pipe_lexical: bool,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let mut error_extent: Option<std::ops::Range<usize>> = None;
+    emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = type_recovery_error_syntax_kind(&item);
+            let extent = run.emit_item_as(item, item_origin, kind);
+            let item_extent = extent.recovery_range();
+            if let Some(error_extent) = &mut error_extent {
+                assert_eq!(
+                    error_extent.end, item_extent.start,
+                    "an Arrow-RHS malformed run remains physically contiguous"
+                );
+                error_extent.end = item_extent.end;
+            } else {
+                error_extent = Some(item_extent);
+            }
+            (item, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                );
+            if item.payload_view().is_boundary()
+                || is_type_nud(&item)
+                || !type_chain_trivia(item.leading_view(), baseline)
+                || is_type_rhs_boundary(&item)
+                || is_type_caller_boundary(&item, caller_stops)
+                || is_type_outer_boundary(&item, outer_boundary)
+            {
+                let is_owned_retry = !item.payload_view().is_boundary()
+                    && is_type_nud(&item)
+                    && !is_type_caller_boundary(&item, caller_stops)
+                    && !is_type_outer_boundary(&item, outer_boundary);
+                let sealed = is_owned_retry
+                    && run.seal_record_through_retry_leading(
+                        &item,
+                        item_origin,
+                        UnexpectedCategory::OtherCharacter,
+                    );
+                if !sealed {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: error_extent
+                            .clone()
+                            .expect("an Arrow-RHS Error emits a malformed Item"),
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                }
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| type_expression_error_draft(TypeRole::ArrowRhs, range, unexpected),
     )
 }
 

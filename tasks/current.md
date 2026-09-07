@@ -1,32 +1,32 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-2026-09-07: user selected the successor-evidence timing correction for T2a
-ArrowRhs.  `2026-09-07-successor-t2a-yumark-evidence-timing-correction.md` is
-now Authoritative after M3 compiler/specification/regression review: O3a retains
-the local direct/CST/Item/RB-T proof, while the matrix's actual embedded
-AST/direct fact equality is preserved for successor Yumark convergence at O6.
-No legacy owner-adoption publication, grammar/session change, or public
-dispatch is authorized by this direction.  The direct candidate remains
-unstaged while the real WITH outer-boundary handoff repair and implementation
-review complete.
+2026-09-07: T2a ArrowRhs local successor construction is complete under the
+Authoritative retry-leading, evidence-timing, and one-cell CST-topology
+amendments.  The migrated sites are the two ArrowRhs Missing branches and the
+contiguous malformed ArrowRhs Error run.  The latter uses the fifth sealed
+Error-run terminal operation only for its permitted same-line retry leading.
+The literal `A ->@ B` now has successor Error CST `@` at `4..5`, retry-owned
+space `5..6`, RHS `B` at `6..7`, and the unchanged Error record/unexpected
+range `4..6`; the shifted local run maps that record to `19..21`.  The actual
+legacy Yumark baseline remains intentionally distinct with Error CST `@ ` at
+`19..21`.
 
-2026-09-07: the authorized T2a legacy-Yumark baseline exposed a separate
-architecture contradiction.  Actual legacy embedded direct output has
-`Error("@ ")` at `19..21`, whereas the approved successor candidate has
-`Error("@")` and leaves the space on the retry Item while retaining the same
-record range.  Current authority does not supersede exact CST compatibility;
-T2a receives no construction/migration credit and remains unstaged pending a
-user decision between an explicit one-cell successor CST delta and a redesign
-that preserves the actual legacy topology.  The timing correction remains
-authority for embedded-fact timing only; it does not resolve this CST issue.
+M3 compiler/recovery, specification, and regression implementation-delta
+review are clean.  The focused TypeExpression/output/legacy-baseline checks,
+package check, formatting, and diff check passed; timing usage is zero.  O4
+may certify only this local subproof.  The aggregate T2 matrix row remains
+Open until O6 successor-Yumark adoption proves actual embedded AST/direct fact
+equality and the successor topology; O7 public cutover is still excluded.
 
-2026-09-07: user selected the one-cell successor CST delta.  Draft
-`2026-09-07-successor-t2a-embedded-cst-topology-amendment.md` makes
-`Error("@")` plus retry-owned space intentional for T2 ArrowRhs while keeping
-the record tuple exact; it is now Authoritative after M3 compiler/
-specification/regression review.  The candidate remains unstaged while exact
-green-tree whitespace-parentage assertions and implementation delta review
-complete.  No sibling owner or legacy parser change is authorized.
+The filtered `derives` test has one known, separate T1 test-harness residual:
+`derives_normalized_recovers_role_and_via_slots_before_the_fence` still calls
+raw `builder.finish()` despite the already-published T1 `Type(Primary)`
+recovery.  Its later independent repair must retain and assert that exact
+record with `finish_with_recoveries()`; it must not discard or weaken it.
+
+The immediate parser-migration candidate is T2b PathSegment preflight.  It
+must remain an independent owner slice: no T2a evidence grants it construction
+or certification credit.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→

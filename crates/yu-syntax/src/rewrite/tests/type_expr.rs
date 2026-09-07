@@ -75,7 +75,16 @@ fn expected_required_type_primary_error(
     range: Range<usize>,
     unexpected: Arc<[UnexpectedSyntax]>,
 ) -> CommittedRecoveryRecord {
-    let role = GrammarRole::Type(TypeRole::Primary);
+    expected_type_expression_error(id, TypeRole::Primary, range, unexpected)
+}
+
+fn expected_type_expression_error(
+    id: u32,
+    role: TypeRole,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> CommittedRecoveryRecord {
+    let role = GrammarRole::Type(role);
     CommittedRecoveryRecord {
         id: DiagnosticId(id),
         site: RecoverySiteKey {
@@ -84,6 +93,27 @@ fn expected_required_type_primary_error(
         },
         kind: RecoveryKind::Error,
         unexpected,
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::TypeExpression,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+fn expected_type_expression_missing(id: u32, role: TypeRole, at: usize) -> CommittedRecoveryRecord {
+    let role = GrammarRole::Type(role);
+    let range = at..at;
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Missing,
+        unexpected: Arc::from([]),
         expectations: Arc::from([SyntaxExpectation {
             role,
             expected: ExpectedSyntax::TypeExpression,
@@ -164,6 +194,82 @@ fn run_required_type_with_recoveries<'source, 'frozen>(
     (green, exit, primary_found, input, records)
 }
 
+fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
+    source: &'source str,
+    outer_boundary: super::super::type_expr::TypeOuterBoundary,
+    pipe_lexical: bool,
+    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
+) -> (
+    GreenNode,
+    NormalizedExit,
+    bool,
+    usize,
+    &'source str,
+    Vec<CommittedRecoveryRecord>,
+    usize,
+    (Option<u32>, usize),
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut output = match frozen {
+        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        None => GreenNodeBuilder::new(),
+    };
+    output.start_node(SyntaxKind::Root.into());
+    let (primary, primary_successor, line_entry) =
+        super::super::type_expr::type_nud_item_normalized(
+            In::new(&mut input, &mut recover, &mut output),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+    let continuation_entry =
+        super::super::driver::suffix_marker(In::new(&mut input, &mut recover, &mut output));
+    let (exit, primary_found) = if pipe_lexical {
+        super::super::type_expr::required_variant_payload_type_normalized(
+            In::new(&mut input, &mut recover, &mut output),
+            primary,
+            0,
+            false,
+            outer_boundary,
+            primary_successor,
+            line_entry,
+            None,
+        )
+    } else {
+        super::super::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+            In::new(&mut input, &mut recover, &mut output),
+            primary,
+            0,
+            0,
+            outer_boundary,
+            primary_successor,
+            line_entry,
+            None,
+        )
+    };
+    let successor_origin = super::super::driver::advanced_origin(
+        primary_successor,
+        continuation_entry,
+        In::new(&mut input, &mut recover, &mut output),
+    );
+    let slots = output.recovery_slot_count();
+    let diagnostics = output.diagnostic_position();
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    (
+        green,
+        exit,
+        primary_found,
+        successor_origin,
+        input,
+        records,
+        slots,
+        diagnostics,
+    )
+}
+
 fn commit_record_draft(output: &mut GreenNodeBuilder<'_>, record: &CommittedRecoveryRecord) {
     output.commit_recovery(super::super::output::RecoveryDraft::new(
         record.site.clone(),
@@ -185,6 +291,15 @@ fn scan_type_item_control<'source>(
     item_origin: usize,
     operators: &OperatorTable,
 ) -> (Item, usize, LineEntry, &'source str, (), bool) {
+    scan_type_item_control_with_pipe_lexical(source, item_origin, operators, false)
+}
+
+fn scan_type_item_control_with_pipe_lexical<'source>(
+    source: &'source str,
+    item_origin: usize,
+    operators: &OperatorTable,
+    pipe_lexical: bool,
+) -> (Item, usize, LineEntry, &'source str, (), bool) {
     let mut input = source;
     let mut recover = Recover::new(operators);
     let mark = recover.mark();
@@ -197,7 +312,13 @@ fn scan_type_item_control<'source>(
         item_origin,
         LineEntry::InLine,
         None,
-        |lex, leading, origin, fence, _| {
+        |mut lex, leading, origin, fence, _| {
+            if pipe_lexical && let Some(pipe) = lex.token(super::super::lexer::scan_exact_pipe) {
+                return Some(super::super::current_item::AcceptedPayload {
+                    payload: super::super::current_item::CurrentPayload::Token(pipe),
+                    next_line_entry: LineEntry::InLine,
+                });
+            }
             super::super::lexer::scan_type_nud_payload(lex, leading, origin, fence)
         },
     )
@@ -657,6 +778,126 @@ fn rb_t_required_type_probe_rejection_preserves_output_and_input() {
 }
 
 #[test]
+fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
+    let operators = OperatorTable::empty();
+    let frozen = [expected_type_expression_error(
+        7,
+        TypeRole::ArrowRhs,
+        4..5,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 4..5,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    )];
+
+    let mut candidate_input = "A ->@ with";
+    let mut candidate_recover = Recover::new(&operators);
+    let candidate_mark = candidate_recover.mark();
+    let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
+    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    candidate_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut candidate_output);
+    let (primary, primary_origin, primary_line) = super::super::type_expr::type_nud_item_normalized(
+        In::new(
+            &mut candidate_input,
+            &mut candidate_recover,
+            &mut candidate_output,
+        ),
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    let continuation_entry = super::super::driver::suffix_marker(In::new(
+        &mut candidate_input,
+        &mut candidate_recover,
+        &mut candidate_output,
+    ));
+    let (candidate_exit, primary_found) =
+        super::super::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+            In::new(
+                &mut candidate_input,
+                &mut candidate_recover,
+                &mut candidate_output,
+            ),
+            primary,
+            0,
+            0,
+            super::super::type_expr::TypeOuterBoundary::WITH,
+            primary_origin,
+            primary_line,
+            None,
+        );
+    let candidate_origin = super::super::driver::advanced_origin(
+        primary_origin,
+        continuation_entry,
+        In::new(
+            &mut candidate_input,
+            &mut candidate_recover,
+            &mut candidate_output,
+        ),
+    );
+    let NormalizedExit::Complete(Err(Either::Left(candidate_item)), candidate_line) =
+        candidate_exit
+    else {
+        panic!("outer-owned Arrow retry must remain pending")
+    };
+    assert!(primary_found);
+    let candidate_slots = candidate_output.recovery_slot_count();
+    let candidate_diagnostics = candidate_output.diagnostic_position();
+    candidate_output.finish_node();
+    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+
+    let (
+        control_item,
+        control_origin,
+        control_line,
+        control_input,
+        control_mark,
+        control_operators,
+    ) = scan_type_item_control(" with", 5, &operators);
+    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    control_output.start_node(SyntaxKind::Root.into());
+    seed_identifier(&mut control_output);
+    control_output.start_node(SyntaxKind::TypeExpression.into());
+    control_output.token(SyntaxKind::Identifier.into(), "A");
+    control_output.start_node(SyntaxKind::TypeArrowTail.into());
+    control_output.token(SyntaxKind::Whitespace.into(), " ");
+    control_output.token(SyntaxKind::Arrow.into(), "->");
+    control_output.start_node(SyntaxKind::Error.into());
+    control_output.token(SyntaxKind::Unknown.into(), "@");
+    control_output.finish_node();
+    commit_record_draft(&mut control_output, &frozen[0]);
+    control_output.finish_node();
+    control_output.finish_node();
+    let control_slots = control_output.recovery_slot_count();
+    let control_diagnostics = control_output.diagnostic_position();
+    control_output.finish_node();
+    let (control_green, control_records) = control_output.finish_with_recoveries();
+
+    assert_eq!(candidate_green, control_green);
+    assert_eq!(candidate_records, control_records);
+    assert_eq!(candidate_records, frozen);
+    assert_eq!(candidate_slots, control_slots);
+    assert_eq!(candidate_slots, 1);
+    assert_eq!(candidate_diagnostics, control_diagnostics);
+    assert_eq!(candidate_diagnostics, (Some(8), 1));
+    assert_eq!(candidate_input, control_input);
+    assert_eq!(candidate_input, "");
+    assert_eq!(candidate_item, control_item);
+    assert_eq!(candidate_item.payload_view().spelling(), Some("with"));
+    assert_eq!(candidate_item.leading_view().remaining_physical_parts(), 1);
+    assert!(candidate_item.leading_view().has_ordinary_trivia());
+    assert!(!candidate_item.leading_view().has_ordinary_newline());
+    assert_eq!(candidate_origin, control_origin);
+    assert_eq!(candidate_origin, 10);
+    assert_eq!(candidate_line, control_line);
+    assert_eq!(candidate_line, LineEntry::InLine);
+    assert_eq!(candidate_mark, control_mark);
+    assert_eq!(candidate_mark, ());
+    assert!(candidate_operators && control_operators);
+}
+
+#[test]
 fn ordinary_type_payload_does_not_classify_pipe_as_a_contextual_separator() {
     let (green, exit) = run_type("T | U");
     assert_eq!(green.to_string(), "T");
@@ -932,6 +1173,667 @@ fn type_arrow_tail_recovers_its_mandatory_rhs() {
             (SyntaxKind::Arrow, "->".to_owned()),
             (SyntaxKind::Newline, "\n".to_owned()),
         ]
+    );
+}
+
+#[test]
+fn type_arrow_rhs_publishes_fresh_and_frozen_extended_error_records() {
+    let source = "A ->@ B";
+    let expected = expected_type_expression_error(
+        0,
+        TypeRole::ArrowRhs,
+        4..6,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 4..6,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    );
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert_eq!(records, [expected.clone()]);
+
+    let arrow = SyntaxNode::new_root(green.clone())
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+        .expect("Arrow tail");
+    let error = arrow
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("Arrow-RHS Error");
+    assert_eq!(error.text(), "@");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        4..5
+    );
+    let rhs_expression = arrow
+        .children()
+        .find(|node| node.kind() == SyntaxKind::TypeExpression)
+        .expect("retried Arrow RHS expression");
+    assert_eq!(rhs_expression.text(), " B");
+    let retry_space = rhs_expression
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| {
+            let range =
+                usize::from(token.text_range().start())..usize::from(token.text_range().end());
+            token.kind() == SyntaxKind::Whitespace && range == (5..6)
+        })
+        .expect("retry-owned Arrow RHS space");
+    assert_eq!(retry_space.text(), " ");
+    assert!(
+        retry_space
+            .parent_ancestors()
+            .any(|ancestor| ancestor == rhs_expression)
+    );
+    assert!(
+        !retry_space
+            .parent_ancestors()
+            .any(|ancestor| ancestor == error)
+    );
+    let rhs = rhs_expression
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B")
+        .expect("retried Arrow RHS");
+    assert_eq!(
+        usize::from(rhs.text_range().start())..usize::from(rhs.text_range().end()),
+        6..7
+    );
+    assert!(
+        rhs.parent_ancestors()
+            .any(|ancestor| ancestor == rhs_expression)
+    );
+
+    let frozen_expected = expected_type_expression_error(
+        7,
+        TypeRole::ArrowRhs,
+        4..6,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 4..6,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    );
+    let (frozen_green, frozen_exit, frozen_records) =
+        run_type_with_recoveries(source, Some(std::slice::from_ref(&frozen_expected)));
+    assert_eq!(frozen_green, green);
+    assert!(matches!(frozen_exit, Some(Err(Either::Right(_)))));
+    assert_eq!(frozen_records, [frozen_expected]);
+}
+
+#[test]
+fn type_arrow_rhs_shifted_origin_keeps_local_cst_and_global_recovery_extent() {
+    let source = "A ->@ B";
+    let item_origin = 15;
+    let expected = expected_type_expression_error(
+        0,
+        TypeRole::ArrowRhs,
+        19..21,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 19..21,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    );
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries(source, item_origin, LineEntry::InLine, None, None);
+
+    assert!(primary_found);
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+    ));
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), source);
+    assert_eq!(records, [expected]);
+
+    let root = SyntaxNode::new_root(green);
+    let arrow = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+        .expect("shifted Arrow tail");
+    let error = arrow
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .expect("shifted Arrow-RHS Error");
+    assert_eq!(error.text(), "@");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        4..5,
+    );
+    let rhs_expression = arrow
+        .children()
+        .find(|node| node.kind() == SyntaxKind::TypeExpression)
+        .expect("shifted retried Arrow RHS expression");
+    let retry_space = rhs_expression
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| {
+            let range =
+                usize::from(token.text_range().start())..usize::from(token.text_range().end());
+            token.kind() == SyntaxKind::Whitespace && range == (5..6)
+        })
+        .expect("shifted retry-owned Arrow RHS space");
+    assert_eq!(retry_space.text(), " ");
+    assert!(
+        retry_space
+            .parent_ancestors()
+            .any(|ancestor| ancestor == rhs_expression)
+    );
+    assert!(
+        !retry_space
+            .parent_ancestors()
+            .any(|ancestor| ancestor == error)
+    );
+    let rhs = rhs_expression
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B")
+        .expect("shifted Arrow RHS");
+    assert_eq!(
+        usize::from(rhs.text_range().start())..usize::from(rhs.text_range().end()),
+        6..7,
+    );
+    assert!(
+        rhs.parent_ancestors()
+            .any(|ancestor| ancestor == rhs_expression)
+    );
+
+    assert_eq!(item_origin + 4..item_origin + 5, 19..20);
+    assert_eq!(item_origin + 5..item_origin + 6, 20..21);
+    assert_eq!(item_origin + 6..item_origin + 7, 21..22);
+}
+
+#[test]
+fn type_arrow_rhs_frozen_mismatch_preserves_the_diagnostic_cursor_and_slot() {
+    let source = "A ->@ B";
+    let mut mismatched = expected_type_expression_error(
+        7,
+        TypeRole::ArrowRhs,
+        4..6,
+        Arc::from([UnexpectedSyntax::Token {
+            range: 4..6,
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+    );
+    mismatched.site.range = 4..5;
+    Arc::make_mut(&mut mismatched.unexpected)[0] = UnexpectedSyntax::Token {
+        range: 4..5,
+        category: UnexpectedCategory::OtherCharacter,
+    };
+    Arc::make_mut(&mut mismatched.expectations)[0].range = 4..5;
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let frozen = [mismatched];
+    let mut output = GreenNodeBuilder::reconcile(&frozen);
+    output.start_node(SyntaxKind::Root.into());
+    let before_diagnostics = output.diagnostic_position();
+    let before_slots = output.recovery_slot_count();
+    assert_eq!(before_diagnostics, (Some(8), 0));
+    assert_eq!(before_slots, 0);
+    let mismatch = catch_unwind(AssertUnwindSafe(|| {
+        let _ = super::super::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+    }));
+    assert!(mismatch.is_err());
+    assert_eq!(output.diagnostic_position(), before_diagnostics);
+    assert_eq!(output.recovery_slot_count(), before_slots);
+    drop(output);
+}
+
+#[test]
+fn type_arrow_rhs_record_extension_obeys_retry_leading_eligibility() {
+    for (source, error_text, error_range, record_range, rhs_start) in [
+        ("A ->@B", "@", 4..5, 4..5, Some(5)),
+        ("A ->@ . B", "@ .", 4..7, 4..8, Some(8)),
+        ("A ->@   B", "@", 4..5, 4..8, Some(8)),
+        ("A ->@/*c*/ B", "@", 4..5, 4..11, Some(11)),
+        ("A ->@\n  B", "@", 4..5, 4..5, None),
+        ("A ->@\r\n  B", "@", 4..5, 4..5, None),
+        ("A ->@", "@", 4..5, 4..5, None),
+    ] {
+        let expected = expected_type_expression_error(
+            0,
+            TypeRole::ArrowRhs,
+            record_range.clone(),
+            Arc::from([UnexpectedSyntax::Token {
+                range: record_range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+        );
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert_eq!(records, [expected], "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let error = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("Arrow-RHS Error");
+        assert_eq!(error.text(), error_text, "{source:?}");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            error_range,
+            "{source:?}"
+        );
+        if error_text == "@ ." {
+            assert_eq!(
+                error
+                    .children_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .map(|token| (token.kind(), token.text().to_owned()))
+                    .collect::<Vec<_>>(),
+                [
+                    (SyntaxKind::Unknown, "@".to_owned()),
+                    (SyntaxKind::Whitespace, " ".to_owned()),
+                    (SyntaxKind::Dot, ".".to_owned()),
+                ],
+                "{source:?}"
+            );
+        }
+        if let Some(rhs_start) = rhs_start {
+            let rhs = root
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B")
+                .expect("retried Arrow RHS");
+            assert_eq!(
+                usize::from(rhs.text_range().start()),
+                rhs_start,
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn type_arrow_rhs_preserves_pending_boundaries_after_error() {
+    let operators = OperatorTable::empty();
+    for (source, error_text, error_range) in [("A ->@ )", "@", 4..5), ("A ->@ . )", "@ .", 4..7)] {
+        let expected = expected_type_expression_error(
+            0,
+            TypeRole::ArrowRhs,
+            error_range.clone(),
+            Arc::from([UnexpectedSyntax::Token {
+                range: error_range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+        );
+        let mut input = source;
+        let mut recover = Recover::new(&operators);
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let (exit, successor_origin) =
+            super::super::type_expr::type_expr_with_caller_stops_for_test(
+                In::new(&mut input, &mut recover, &mut output),
+                super::super::operator::stops_for(TokenKind::RParen),
+                0,
+                0,
+            )
+            .expect("accepted Arrow Type");
+        let NormalizedExit::Complete(Err(Either::Left(item)), line_entry) = exit else {
+            panic!("right parenthesis must remain pending: {source:?}")
+        };
+        let slots = output.recovery_slot_count();
+        let diagnostics = output.diagnostic_position();
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+
+        let pending_source = &source[error_range.end..];
+        let (control, control_origin, control_line, control_input, mark, same_operators) =
+            scan_type_item_control(pending_source, error_range.end, &operators);
+        assert_eq!(green.to_string(), &source[..error_range.end], "{source:?}");
+        assert_eq!(records, [expected], "{source:?}");
+        assert_eq!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::Error)
+                .expect("Arrow-RHS Error")
+                .text(),
+            error_text,
+            "{source:?}"
+        );
+        assert_eq!(item, control, "{source:?}");
+        assert_eq!(successor_origin, control_origin, "{source:?}");
+        assert_eq!(line_entry, control_line, "{source:?}");
+        assert_eq!(input, control_input, "{source:?}");
+        assert_eq!(mark, ());
+        assert!(same_operators);
+        assert_eq!(slots, 1);
+        assert_eq!(diagnostics, (Some(1), 0));
+    }
+}
+
+#[test]
+fn type_arrow_rhs_preserves_real_with_outer_boundaries_before_and_after_error() {
+    let operators = OperatorTable::empty();
+    for (source, emitted, pending_start, error_range) in [
+        ("A -> with", "A ->", 4, None),
+        ("A ->@ with", "A ->@", 5, Some(4..5)),
+    ] {
+        let expected = match &error_range {
+            Some(range) => expected_type_expression_error(
+                0,
+                TypeRole::ArrowRhs,
+                range.clone(),
+                Arc::from([UnexpectedSyntax::Token {
+                    range: range.clone(),
+                    category: UnexpectedCategory::OtherCharacter,
+                }]),
+            ),
+            None => expected_type_expression_missing(0, TypeRole::ArrowRhs, pending_start),
+        };
+        let (green, exit, primary_found, successor_origin, remainder, records, slots, diagnostics) =
+            run_required_type_with_outer_boundary_and_recoveries(
+                source,
+                super::super::type_expr::TypeOuterBoundary::WITH,
+                false,
+                None,
+            );
+        let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
+        else {
+            panic!("WITH must remain pending after Arrow: {source:?}")
+        };
+        let (control, control_origin, control_line, control_remainder, mark, same_operators) =
+            scan_type_item_control(&source[pending_start..], pending_start, &operators);
+        assert!(primary_found, "{source:?}");
+        assert_eq!(green.to_string(), emitted, "{source:?}");
+        assert_eq!(records, [expected], "{source:?}");
+        assert_eq!(pending, control, "{source:?}");
+        assert_eq!(
+            pending.payload_view().spelling(),
+            Some("with"),
+            "{source:?}"
+        );
+        assert_eq!(pending.leading_view().remaining_physical_parts(), 1);
+        assert!(pending.leading_view().has_ordinary_trivia());
+        assert_eq!(emit_pending_leading_text(&mut pending), " ");
+        assert_eq!(successor_origin, control_origin, "{source:?}");
+        assert_eq!(LineEntry::InLine, control_line, "{source:?}");
+        assert_eq!(remainder, control_remainder, "{source:?}");
+        assert_eq!(slots, 1, "{source:?}");
+        assert_eq!(diagnostics, (Some(1), 0), "{source:?}");
+        assert_eq!(mark, ());
+        assert!(same_operators);
+        let root = SyntaxNode::new_root(green.clone());
+        match &error_range {
+            Some(range) => {
+                let error = root
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::Error)
+                    .expect("Arrow-RHS Error");
+                assert_eq!(error.text(), "@");
+                assert_eq!(
+                    usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+                    range.clone()
+                );
+            }
+            None => assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::Missing)
+                    .count(),
+                1
+            ),
+        }
+
+        let frozen_expected = match error_range {
+            Some(range) => expected_type_expression_error(
+                7,
+                TypeRole::ArrowRhs,
+                range.clone(),
+                Arc::from([UnexpectedSyntax::Token {
+                    range,
+                    category: UnexpectedCategory::OtherCharacter,
+                }]),
+            ),
+            None => expected_type_expression_missing(7, TypeRole::ArrowRhs, pending_start),
+        };
+        let (
+            frozen_green,
+            frozen_exit,
+            frozen_primary_found,
+            frozen_origin,
+            frozen_remainder,
+            frozen_records,
+            frozen_slots,
+            frozen_diagnostics,
+        ) = run_required_type_with_outer_boundary_and_recoveries(
+            source,
+            super::super::type_expr::TypeOuterBoundary::WITH,
+            false,
+            Some(std::slice::from_ref(&frozen_expected)),
+        );
+        let NormalizedExit::Complete(Err(Either::Left(frozen_pending)), LineEntry::InLine) =
+            frozen_exit
+        else {
+            panic!("frozen WITH must remain pending after Arrow: {source:?}")
+        };
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert!(frozen_primary_found, "{source:?}");
+        assert_eq!(frozen_pending, control, "{source:?}");
+        assert_eq!(frozen_origin, control_origin, "{source:?}");
+        assert_eq!(frozen_remainder, control_remainder, "{source:?}");
+        assert_eq!(frozen_records, [frozen_expected], "{source:?}");
+        assert_eq!(frozen_slots, 1, "{source:?}");
+        assert_eq!(frozen_diagnostics, (Some(8), 1), "{source:?}");
+    }
+}
+
+#[test]
+fn type_arrow_rhs_preserves_non_nud_outer_boundaries_after_error() {
+    let operators = OperatorTable::empty();
+    for (source, outer_boundary, pipe_lexical, pending_kind) in [
+        (
+            "A ->@ = Body",
+            super::super::type_expr::TypeOuterBoundary::EQUALS,
+            false,
+            TokenKind::Equals,
+        ),
+        (
+            "A ->@ | Body",
+            super::super::type_expr::TypeOuterBoundary::PIPE,
+            true,
+            TokenKind::Pipe,
+        ),
+        (
+            "A ->@ : Body",
+            super::super::type_expr::TypeOuterBoundary::STRUCT_BODY,
+            false,
+            TokenKind::Colon,
+        ),
+    ] {
+        let expected = expected_type_expression_error(
+            0,
+            TypeRole::ArrowRhs,
+            4..5,
+            Arc::from([UnexpectedSyntax::Token {
+                range: 4..5,
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+        );
+        let (green, exit, primary_found, successor_origin, remainder, records, slots, diagnostics) =
+            run_required_type_with_outer_boundary_and_recoveries(
+                source,
+                outer_boundary,
+                pipe_lexical,
+                None,
+            );
+        let NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine) = exit
+        else {
+            panic!("outer boundary must remain pending after Arrow Error: {source:?}")
+        };
+        let (control, control_origin, control_line, control_remainder, mark, same_operators) =
+            scan_type_item_control_with_pipe_lexical(&source[5..], 5, &operators, pipe_lexical);
+
+        assert!(primary_found, "{source:?}");
+        assert_eq!(green.to_string(), "A ->@", "{source:?}");
+        assert_eq!(records, [expected], "{source:?}");
+        assert_eq!(pending, control, "{source:?}");
+        assert_eq!(pending.payload_view().token_kind(), Some(pending_kind));
+        assert_eq!(pending.leading_view().remaining_physical_parts(), 1);
+        assert!(pending.leading_view().has_ordinary_trivia());
+        assert!(!pending.leading_view().has_ordinary_newline());
+        assert_eq!(emit_pending_leading_text(&mut pending), " ");
+        assert_eq!(successor_origin, control_origin, "{source:?}");
+        assert_eq!(successor_origin, 7, "{source:?}");
+        assert_eq!(control_line, LineEntry::InLine, "{source:?}");
+        assert_eq!(remainder, control_remainder, "{source:?}");
+        assert_eq!(remainder, " Body", "{source:?}");
+        assert_eq!(slots, 1, "{source:?}");
+        assert_eq!(diagnostics, (Some(1), 0), "{source:?}");
+        assert_eq!(mark, ());
+        assert!(same_operators);
+
+        let root = SyntaxNode::new_root(green);
+        let error = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("Arrow-RHS Error");
+        assert_eq!(error.text(), "@", "{source:?}");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            4..5,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn type_arrow_rhs_missing_records_use_post_emission_and_abstract_coordinates() {
+    for (source, emitted, at) in [("A->", "A->", 3), ("A-> )", "A-> ", 4)] {
+        let expected = expected_type_expression_missing(0, TypeRole::ArrowRhs, at);
+        let (green, exit, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), emitted, "{source:?}");
+        assert!(matches!(exit, Some(Err(_))), "{source:?}");
+        assert_eq!(records, [expected.clone()], "{source:?}");
+        let (frozen_green, _, frozen_records) =
+            run_type_with_recoveries(source, Some(std::slice::from_ref(&expected)));
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert_eq!(frozen_records, [expected], "{source:?}");
+    }
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let source = "> > A ->\n> > ```\nouter\n";
+    let expected = expected_type_expression_missing(0, TypeRole::ArrowRhs, 9);
+    let (green, exit, remainder, records) = run_type_normalized_with_recoveries(
+        source,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        None,
+    );
+    assert_eq!(green.to_string(), "> > A ->");
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+        exit
+    else {
+        panic!("Arrow RHS must preserve the abstract fence boundary")
+    };
+    assert!(boundary.payload_view().is_boundary());
+    assert!(boundary.leading_view().has_ordinary_newline());
+    assert_eq!(remainder, "> > ```\nouter\n");
+    assert_eq!(records, [expected.clone()]);
+    let (frozen_green, _, frozen_remainder, frozen_records) = run_type_normalized_with_recoveries(
+        source,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+        Some(std::slice::from_ref(&expected)),
+    );
+    assert_eq!(frozen_green, green);
+    assert_eq!(frozen_remainder, remainder);
+    assert_eq!(frozen_records, [expected]);
+}
+
+#[test]
+fn type_arrow_rhs_fenced_boundaries_and_carriers_do_not_extend_error_records() {
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (source, emitted, remainder, has_rhs) in [
+        (
+            "> > A ->@\n> > ```\nouter\n",
+            "> > A ->@",
+            "> > ```\nouter\n",
+            false,
+        ),
+        (
+            "> > A ->@\n> >   B\n> > ```\nouter\n",
+            "> > A ->@\n> >   B",
+            "> > ```\nouter\n",
+            true,
+        ),
+    ] {
+        let expected = expected_type_expression_error(
+            0,
+            TypeRole::ArrowRhs,
+            8..9,
+            Arc::from([UnexpectedSyntax::Token {
+                range: 8..9,
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+        );
+        let (green, exit, actual_remainder, records) = run_type_normalized_with_recoveries(
+            source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+            None,
+        );
+        assert_eq!(green.to_string(), emitted, "{source:?}");
+        let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("Arrow recovery must preserve the fence boundary: {source:?}")
+        };
+        assert!(boundary.payload_view().is_boundary(), "{source:?}");
+        assert!(boundary.leading_view().has_ordinary_newline(), "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(records, [expected], "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let error = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .expect("Arrow-RHS Error");
+        assert_eq!(error.text(), "@", "{source:?}");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            8..9,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Identifier && token.text() == "B"),
+            has_rhs,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn type_arrow_rhs_valid_control_has_no_recovery() {
+    let source = "A -> B";
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(records.is_empty());
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
     );
 }
 

@@ -236,3 +236,9 @@ User approved the fifth sealed terminal operation, the retained ArrowRhs
 whole-run evidence convention, and the T2a-only implementation scope on
 2026-09-07. No other owner migration, public dispatch, or legacy cutover is
 authorized by that approval.
+
+Implementation status: on 2026-09-07, the only authorized T2a ArrowRhs
+consumer completed its local construction evidence.  The fifth operation is
+used only for the named contiguous retry-leading Error run; all exclusions in
+this amendment remain in force.  O6 successor-Yumark fact equality and O7
+public cutover remain future gates.

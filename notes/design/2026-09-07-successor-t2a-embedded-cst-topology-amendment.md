@@ -143,5 +143,11 @@ recovery-only `O(L)` in retry-leading parts, with zero timing processes.
 M3 compiler/recovery, specification, and regression review must confirm that
 the supersession is one-cell, the matrix fact contract remains intact, Item
 frontier ownership is preserved, and no sibling receives credit.  The
-user-selected topology is not implemented until this reviewed amendment
+user-selected topology is implemented only after this reviewed amendment
 records approval.
+
+Implementation status: the 2026-09-07 T2a local successor construction now
+asserts the exact one-cell Error/whitespace/RHS parentage in fresh, frozen, and
+shifted local runs, and retains the distinct legacy embedded baseline.  It
+does not certify any other retry-leading control, T2b PathSegment, O6 embedded
+fact equality, or O7 public topology.
