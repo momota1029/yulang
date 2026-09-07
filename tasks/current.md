@@ -48,7 +48,13 @@ two bounded repair rounds.  Focused T3a/T3b/TypeExpression/output/legacy-call
 checks, package check, formatting, and diff check passed with zero timing
 processes.  No other owner gains authority, and the aggregate T3 matrix row
 remains Open until O6 real successor-Yumark fact equality.  The next candidate
-needs a fresh preflight from the remaining T4 finite owner register.
+is the Authoritative T4 delimited-register correction.  Preflight found that matrix T4b,
+T4e, and T4g misclassify valid same-line TypeApply as separator recovery, and
+T4h has the wrong Arrow expectation.  M3 compiler/specification/performance
+review closed after one authority repair and clean delta; the active objective's
+recommended-proposal authority approves the corrected finite register and
+eighth terminal/CST boundary.  Only T4P Parenthesized implementation is now
+open; T4E/T4B/T4A, T7c certification, O6, and public cutover remain gated.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
