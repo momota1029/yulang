@@ -22,7 +22,8 @@ On approval, it supersedes within the isolated successor rewrite only:
   `2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md` and
   `2026-09-02-yu-syntax-expression-tail-handoff-addendum.md`;
 - `2026-09-03-yu-syntax-rewrite-direct-functions-no-iscut-amendment.md`'s
-  `Recover` root source, `RowanSink`, range, and borrowed result decisions;
+  `Recover` root source, `RowanSink`, range, and borrowed result decisions,
+  and its any-`S` `In::check` bridge (replaced by the narrow operations in §2);
 - the isolated-rewrite parts of Gate 4 evidence that require a legacy AST or
   source range. Its syntax and ownership controls, including the E5
   `x[a(b)]` correction, remain in force as CST controls.
@@ -107,8 +108,8 @@ receives a short unit-state reborrow.
 
 The free parser form has `ParserOnce<I, R, ()>` and is for tuple, choice, and
 `maybe` composition. `In::check` remains unit-state-only. `In::token(f)` is
-the separate outer-state convenience spelling: it constructs the same private
-short `S = ()` reborrow as `check`, then runs `token(f)`. Thus `f` cannot
+the separate outer-state convenience spelling: it constructs a private
+short `S = ()` reborrow, then runs `token(f)`. Thus `f` cannot
 observe, checkpoint, or mutate Rowan state. A token procedure is a small
 lexical recognizer, not an excuse to make an expression, a delimiter owner, or
 an arbitrary recursive parser speculative.

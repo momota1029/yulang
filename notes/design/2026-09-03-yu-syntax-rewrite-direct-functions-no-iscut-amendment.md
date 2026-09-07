@@ -1,6 +1,14 @@
 # Authoritative: successor rewrite direct functions and no-`IsCut` correction
 
-Status: Authoritative
+Status: Authoritative; outer-state `check` bridge superseded
+
+Current composition authority: §2 and the implementation-status section of
+`2026-09-03-yu-syntax-minimal-rewrite-token-transaction-amendment.md` supersede
+the any-`S` `In::check` paragraph below. `check` is unit-state-only; only the
+narrow `token`, `maybe`, and `then` operations construct private unit-state
+reborrows from an outer-state handle. The no-`IsCut` and direct-function
+decisions remain in force. This locator was clarified on 2026-09-08; it does
+not change the library API or reopen the completed token-transaction gate.
 
 Scope: `chasa-recover` 0.2 を使う isolated successor rewrite の parser-function
 composition と recoverable state に限る。Yulang の表面文法、AST/CST、diagnostic、recovery
