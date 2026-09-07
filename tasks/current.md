@@ -76,12 +76,22 @@ for outer-TypeApply provenance, preserves T3 Call's phase, and keeps
 EffectRow/BracketRow publication excluded.  Focused T4P/T3/legacy checks,
 package check, format, and diff check passed with zero timing processes.
 
-T4E is the next unstarted owner gate but remains excluded until its direct
-legacy baseline and construction authority are separately established.
+T4E is suspended.  Direct legacy EffectRow evidence at `820dca87` disproved
+the shared P/E priority premise that caller/outer/abstract boundaries hand off
+before any owner trivia mutation: generic caller stops/outer closes retain their
+raw payload but the delimited owner consumes the horizontal gap and anchors its
+local close Missing after that gap; ASOB retains the whole gap.  T4P's core
+provenance/separator construction remains retained, but its caller/outer
+boundary-priority certification is reopened.  Immediate safe work is to
+execution-pin analogous Parenthesized active caller/outer-close controls and audit
+the bounded T3 Call sibling before drafting a reviewed correction.  No T4P repair
+or T4E implementation may begin without that successor and fresh user approval.
+
 NonTypeApply PV/declaration P/E parity remains Open; the current successor
 declaration ingress cannot construct incoming dormant Outer provenance, so no
-artificial declaration witness was added.  T4B/T4A, T7c, O4/O6,
-public/Yumark, and production expected-output scope remain excluded.
+artificial declaration witness was added.  T4E1/E3, the eighth terminal,
+T4B/T4A, T7c, O4/O6, public/Yumark, and production expected-output scope remain
+excluded.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→

@@ -1,7 +1,8 @@
 # Successor T4 delimited recovery register correction amendment
 
 Status: Authoritative; inherited P/E scope superseded by the T4 type-ML
-successor; T4P local construction complete under that successor
+successor; T4P core construction complete and P/E boundary-priority
+certification suspended under that successor
 
 Date: 2026-09-07
 

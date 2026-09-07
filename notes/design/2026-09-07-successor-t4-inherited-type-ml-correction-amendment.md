@@ -1,6 +1,7 @@
 # Successor T4 inherited type-ML correction amendment
 
-Status: Authoritative; T4P local construction complete
+Status: Authoritative; T4P core local construction complete; P/E
+boundary-priority certification suspended by direct legacy contradiction
 
 Date: 2026-09-07
 
@@ -273,3 +274,26 @@ timing usage is zero.  T4E, NonTypeApply PV/declaration P/E parity (including
 the currently unconstructible declaration incoming-Outer witness), T4B/T4A,
 T7c certification, O4, O6, public/Yumark, and production expected-output
 changes remain excluded.
+
+## 5. Boundary-priority implementation suspension
+
+Direct legacy evidence at `820dca87` contradicts §2's unqualified rule that
+caller, outer, and abstract boundaries hand off before any trivia/frontier
+mutation.  After a completed item, the shared legacy Parenthesized/EffectRow
+driver checks an abstract pending boundary first; otherwise it consumes ordinary
+owner trivia before it recognizes a generic caller stop/close or outer close.  Thus
+`G '[F )` emits the EffectRow close Missing at `6..6` after taking the space
+`5..6`, while preserving the raw `)` for the caller.  In contrast,
+`G '[F else: 0` preserves the entire ASOB gap and emits its close Missing at
+`5..5`.
+
+This is a material architecture-return condition.  T4P's provenance and
+separator construction at `3bedfbef` remain retained, but its caller/outer
+boundary-priority certification is reopened; the corresponding T4E construction
+is suspended.  This document's P/E priority text is not authority for a repair
+or a future T4E implementation.  Before a new amendment can be drafted,
+execution must pin direct Parenthesized horizontal active-outer-close controls
+and perform a bounded Call sibling audit.  A reviewed, user-approved successor
+must then distinguish abstract whole-gap handoff from delimited-owner trivia
+consumption followed by raw generic stop/close handoff.  T4E1/E3, the eighth terminal,
+T4B/T4A, PV/declaration parity, O4/O6, and public scope remain excluded.
