@@ -14751,6 +14751,133 @@ mod tests {
                 ),
             ],
         );
+
+        let missing_close = |id: u32, range: std::ops::Range<usize>| {
+            let role = GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            };
+            CommittedRecoveryRecord {
+                id: DiagnosticId(id),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                kind: RecoveryKind::Missing,
+                unexpected: Arc::from([]),
+                expectations: Arc::from([SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Brace,
+                    )),
+                    range,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            }
+        };
+
+        // With an explicit horizontal boundary, the same scalar spellings are
+        // payload-owned malformed TypeExpressions.  They terminate that
+        // payload rather than admitting an inline retry; native and EOF close
+        // ownership therefore stay distinct.
+        for (source, error_end, native_close) in [
+            (":{123 +}", 7, true),
+            (":{123 @@}", 8, true),
+            (":{123 +", 7, false),
+            (":{123 @@", 8, false),
+        ] {
+            let end = source.len();
+            let ast = parse(source);
+            assert_eq!(ast.range, 0..end);
+            assert!(
+                ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none()
+            );
+            let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                panic!("outer PV: {source:?}")
+            };
+            assert_eq!(pv.range, 0..end);
+            assert_eq!(pv.colon, 0..1);
+            assert_eq!(pv.open, 1..2);
+            assert!(pv.trailing_comma.is_none());
+            if native_close {
+                assert!(
+                    matches!(&pv.close, Recovered::Complete(range) if *range == (error_end..end))
+                );
+            } else {
+                assert!(matches!(pv.close, Recovered::Incomplete));
+            }
+            let [Recovered::Complete(tag)] = pv.tags.as_slice() else {
+                panic!("wrong-head tag: {source:?}")
+            };
+            assert_eq!(tag.range, 2..error_end);
+            assert!(matches!(tag.name, Recovered::Incomplete));
+            let [Recovered::Complete(payload)] = tag.payloads.as_slice() else {
+                panic!("payload: {source:?}")
+            };
+            assert_eq!(payload.range, 5..error_end);
+            assert!(matches!(&payload.boundary, Recovered::Complete(range) if *range == (5..6)));
+            assert!(matches!(payload.type_expr, Recovered::Incomplete));
+
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source);
+            let shape = root
+                .descendants_with_tokens()
+                .map(|part| {
+                    let depth = match &part {
+                        rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                        rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                    };
+                    let range = usize::from(part.text_range().start())
+                        ..usize::from(part.text_range().end());
+                    assert_eq!(part.to_string(), source[range.clone()]);
+                    (depth, part.kind(), range)
+                })
+                .collect::<Vec<_>>();
+            let mut expected_shape = vec![
+                (0, SyntaxKind::Root, 0..end),
+                (1, SyntaxKind::TypeExpression, 0..end),
+                (2, SyntaxKind::PolymorphicVariantType, 0..end),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, 2..error_end),
+                (4, SyntaxKind::Error, 2..5),
+                (5, SyntaxKind::Unknown, 2..5),
+                (4, SyntaxKind::PolymorphicVariantPayload, 5..error_end),
+                (5, SyntaxKind::Whitespace, 5..6),
+                (5, SyntaxKind::Error, 6..error_end),
+                (6, SyntaxKind::Unknown, 6..error_end),
+            ];
+            expected_shape.push(if native_close {
+                (3, SyntaxKind::RBrace, error_end..end)
+            } else {
+                (3, SyntaxKind::Missing, error_end..error_end)
+            });
+            assert_eq!(shape, expected_shape, "{source:?}");
+
+            let mut expected_records = vec![
+                record(
+                    0,
+                    TypeRole::PolymorphicVariantTagName,
+                    2..5,
+                    ExpectedSyntax::Identifier,
+                ),
+                record(
+                    1,
+                    TypeRole::PolymorphicVariantPayload,
+                    6..error_end,
+                    ExpectedSyntax::TypeExpression,
+                ),
+            ];
+            if !native_close {
+                expected_records.push(missing_close(2, error_end..error_end));
+            }
+            assert_eq!(
+                parse_direct_recovered(source),
+                expected_records,
+                "{source:?}",
+            );
+        }
     }
 
     #[test]

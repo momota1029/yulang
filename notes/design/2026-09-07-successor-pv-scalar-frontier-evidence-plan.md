@@ -92,8 +92,17 @@ wrong-kind name recovery, scalar payload-boundary recovery, and inline nested
 PV retry; `:{123::\r\n:{B}}` separately pins its three tag-loop recoveries.
 All four rows pin AST, full CST preorder/ranges, ordered recoveries, native
 close/full consumption, and AST/direct episode-frame balance.  This leaves the
-wrong-head decline and EOF counterparts, plus every other matrix family,
-open.
+remaining wrong-head decline and EOF counterparts, plus every other matrix
+family, open.
+
+The second bounded slice pins the spaced wrong-head no-retry forms
+`:{123 +}` / `:{123 +` and `:{123 @@}` / `:{123 @@`.  In all four, the space
+is the complete payload boundary and the scalar run is a payload-owned
+TypeExpression recovery; the EOF rows additionally pin the missing outer-brace
+record.  Direct observation rejected the proposed unified spaced
+`::/*c*/` spelling: legacy terminates its payload at `::` and handles the
+comment through a distinct path.  That comment row remains open and cannot be
+inferred from this slice.
 
 Every new direct assertion follows the existing exact AST, full CST preorder and
 token range, ordered recovery/evidence, actual-close, remainder, and
