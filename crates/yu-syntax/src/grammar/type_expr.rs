@@ -16213,6 +16213,272 @@ mod tests {
     }
 
     #[test]
+    fn legacy_polymorphic_variant_payload_scalar_crlf_fence_termination_is_execution_pinned() {
+        use crate::session::{
+            CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
+            TypeMalformedCallerBoundaryFence, UnexpectedCategory, UnexpectedSyntax,
+        };
+        use std::sync::Arc;
+
+        let record =
+            |id: u32, role: TypeRole, range: std::ops::Range<usize>, expected: ExpectedSyntax| {
+                let role = GrammarRole::Type(role);
+                CommittedRecoveryRecord {
+                    id: DiagnosticId(id),
+                    site: RecoverySiteKey {
+                        role,
+                        range: range.clone(),
+                    },
+                    kind: RecoveryKind::Error,
+                    unexpected: Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }]),
+                    expectations: Arc::from([SyntaxExpectation {
+                        role,
+                        expected,
+                        range,
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    }]),
+                    primary_expectation: 0,
+                }
+            };
+
+        // This is deliberately a CRLF cell, not a parameterization of the
+        // one-byte LF cases above.  The caller's incoming state survives the
+        // PV episode while the PV owns the two-byte physical newline.
+        for (source, fence, valid_name, tag_error, newline, last_tag) in [
+            (
+                ":{A+\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 4 },
+                true,
+                3..4,
+                4..6,
+                6..10,
+            ),
+            (
+                ":{123+\r\n:{B}}",
+                TypeMalformedCallerBoundaryFence { trivia_start: 6 },
+                false,
+                5..6,
+                6..8,
+                8..12,
+            ),
+        ] {
+            let stops = StopSet::default().with(StopKind::Newline);
+            let end = source.len();
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(stops);
+            local.set_type_malformed_caller_boundary(Some(fence));
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            assert_eq!(i.local.stop_set(), Some(stops), "{source:?}");
+            assert_eq!(
+                i.local.type_malformed_caller_boundary(),
+                Some(fence),
+                "{source:?}",
+            );
+            let ast = i
+                .run(from_fn(parse_type_expression))
+                .expect("CRLF-fence AST PV");
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+            assert_eq!(i.local.type_expression_episode_depth(), 0, "{source:?}");
+            assert_eq!(i.local.type_expression_episode_policy(), None, "{source:?}",);
+            assert_eq!(
+                i.local.type_expression_scoped_stop_frames().count(),
+                0,
+                "{source:?}",
+            );
+            assert_eq!(i.local.stop_set(), Some(stops), "{source:?}");
+            assert_eq!(
+                i.local.type_malformed_caller_boundary(),
+                Some(fence),
+                "{source:?}",
+            );
+            i.local.set_type_malformed_caller_boundary(None);
+            assert_eq!(i.local.pop_stop_set(), Some(stops), "{source:?}");
+            assert_eq!(i.local.stop_set(), None, "{source:?}");
+            assert_eq!(i.local.type_malformed_caller_boundary(), None, "{source:?}");
+
+            assert_eq!(ast.range, 0..end, "{source:?}");
+            assert!(
+                ast.leading_effect_row.is_none() && ast.postfix.is_empty() && ast.arrow.is_none(),
+                "{source:?}",
+            );
+            let TypePrimary::PolymorphicVariant(pv) = ast.complete_primary() else {
+                panic!("CRLF-fence outer PV: {source:?}")
+            };
+            assert_eq!(pv.range, 0..end, "{source:?}");
+            assert_eq!(pv.colon, 0..1, "{source:?}");
+            assert_eq!(pv.open, 1..2, "{source:?}");
+            assert!(pv.trailing_comma.is_none(), "{source:?}");
+            assert!(
+                matches!(&pv.close, Recovered::Complete(range) if *range == (end - 1..end)),
+                "{source:?}",
+            );
+            let [
+                Recovered::Complete(first),
+                Recovered::Incomplete,
+                Recovered::Complete(last),
+            ] = pv.tags.as_slice()
+            else {
+                panic!("CRLF-fence tag sequence: {pv:#?}")
+            };
+            assert!(
+                first.payloads.is_empty() && last.payloads.is_empty(),
+                "{source:?}"
+            );
+            if valid_name {
+                assert_eq!(first.range, 2..3, "{source:?}");
+                assert!(
+                    matches!(&first.name, Recovered::Complete(word) if word.text() == "A" && word.range() == (2..3)),
+                    "{source:?}",
+                );
+            } else {
+                assert_eq!(first.range, 2..5, "{source:?}");
+                assert!(matches!(first.name, Recovered::Incomplete), "{source:?}");
+            }
+            assert_eq!(last.range, last_tag.clone(), "{source:?}");
+            assert!(matches!(last.name, Recovered::Incomplete), "{source:?}");
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_stop_set(stops);
+            local.set_type_malformed_caller_boundary(Some(fence));
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.probe(|probe| {
+                assert_eq!(probe.input().local.stop_set(), Some(stops), "{source:?}");
+                assert_eq!(
+                    probe.input().local.type_malformed_caller_boundary(),
+                    Some(fence),
+                    "{source:?}",
+                );
+            });
+            committed.start_node(SyntaxKind::Root);
+            commit_direct_type_expression(&mut committed).expect("CRLF-fence direct PV");
+            committed.probe(|probe| {
+                assert_eq!(probe.input().input.remainder(), "", "{source:?}");
+                let local = &mut probe.input().local;
+                assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+                assert_eq!(local.type_expression_episode_policy(), None, "{source:?}");
+                assert_eq!(
+                    local.type_expression_scoped_stop_frames().count(),
+                    0,
+                    "{source:?}",
+                );
+                assert_eq!(local.stop_set(), Some(stops), "{source:?}");
+                assert_eq!(
+                    local.type_malformed_caller_boundary(),
+                    Some(fence),
+                    "{source:?}",
+                );
+                local.set_type_malformed_caller_boundary(None);
+                assert_eq!(local.pop_stop_set(), Some(stops), "{source:?}");
+                assert_eq!(local.stop_set(), None, "{source:?}");
+                assert_eq!(local.type_malformed_caller_boundary(), None, "{source:?}");
+            });
+            committed.finish_node();
+            let output = committed.into_output();
+            let records = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            let shape = root
+                .descendants_with_tokens()
+                .map(|part| {
+                    let depth = match &part {
+                        rowan::NodeOrToken::Node(node) => node.ancestors().count() - 1,
+                        rowan::NodeOrToken::Token(token) => token.parent_ancestors().count(),
+                    };
+                    let range = usize::from(part.text_range().start())
+                        ..usize::from(part.text_range().end());
+                    assert_eq!(part.to_string(), source[range.clone()]);
+                    (depth, part.kind(), range)
+                })
+                .collect::<Vec<_>>();
+            let tag_one = if valid_name { 2..3 } else { 2..5 };
+            let mut expected_shape = vec![
+                (0, SyntaxKind::Root, 0..end),
+                (1, SyntaxKind::TypeExpression, 0..end),
+                (2, SyntaxKind::PolymorphicVariantType, 0..end),
+                (3, SyntaxKind::Colon, 0..1),
+                (3, SyntaxKind::LBrace, 1..2),
+                (3, SyntaxKind::PolymorphicVariantTag, tag_one),
+            ];
+            if valid_name {
+                expected_shape.push((4, SyntaxKind::Identifier, 2..3));
+            } else {
+                expected_shape
+                    .extend([(4, SyntaxKind::Error, 2..5), (5, SyntaxKind::Unknown, 2..5)]);
+            }
+            expected_shape.extend([
+                (3, SyntaxKind::PolymorphicVariantTag, tag_error.clone()),
+                (4, SyntaxKind::Error, tag_error.clone()),
+                (5, SyntaxKind::Unknown, tag_error.clone()),
+                (3, SyntaxKind::Newline, newline),
+                (3, SyntaxKind::PolymorphicVariantTag, last_tag.clone()),
+                (4, SyntaxKind::Error, last_tag.clone()),
+                (5, SyntaxKind::Unknown, last_tag.clone()),
+                (3, SyntaxKind::RBrace, end - 1..end),
+            ]);
+            assert_eq!(shape, expected_shape, "{source:?}");
+            let expected_records = if valid_name {
+                vec![
+                    record(
+                        0,
+                        TypeRole::PolymorphicVariantTag,
+                        tag_error,
+                        ExpectedSyntax::Identifier,
+                    ),
+                    record(
+                        1,
+                        TypeRole::PolymorphicVariantTagName,
+                        last_tag,
+                        ExpectedSyntax::Identifier,
+                    ),
+                ]
+            } else {
+                vec![
+                    record(
+                        0,
+                        TypeRole::PolymorphicVariantTagName,
+                        2..5,
+                        ExpectedSyntax::Identifier,
+                    ),
+                    record(
+                        1,
+                        TypeRole::PolymorphicVariantTag,
+                        tag_error,
+                        ExpectedSyntax::Identifier,
+                    ),
+                    record(
+                        2,
+                        TypeRole::PolymorphicVariantTagName,
+                        last_tag,
+                        ExpectedSyntax::Identifier,
+                    ),
+                ]
+            };
+            assert_eq!(records, expected_records, "{source:?}");
+        }
+    }
+
+    #[test]
     fn legacy_polymorphic_variant_primary_completion_preflight() {
         use crate::session::{
             CommittedRecoveryRecord, DiagnosticId, RecoverySiteKey, SyntaxExpectation,
