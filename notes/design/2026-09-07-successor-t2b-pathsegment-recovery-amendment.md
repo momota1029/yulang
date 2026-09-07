@@ -1,6 +1,6 @@
 # Successor T2b PathSegment recovery amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-07
 
@@ -9,6 +9,15 @@ Drafted-by: primary from architecture preflight after T2a completion
 Reviewed-by: M3 compiler/recovery, specification, and performance review; two
 batched Draft repairs followed by clean compiler/specification/performance
 delta review on 2026-09-07
+
+Approved-by: user (option 1)
+
+Approved-at: 2026-09-07
+
+User-directed decision: user selected option 1 on 2026-09-07.  Implement the
+reviewed Type(PathSegment)-only continuation, sixth terminal capability,
+owner-local Error child-tokenization delta, and O6 evidence timing exactly as
+bounded below.  All exclusions remain in force.
 
 Scope: one TypeExpression `Type(PathSegment)` successor owner migration for
 the accepted `TypePathTail` after `::`.  It proposes the exact Missing/Error

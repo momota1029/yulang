@@ -25,13 +25,12 @@ and asserts the pre-existing `Type(Primary)` record with
 `finish()` so accidental record publication remains a failure; production
 parser/output behavior did not change.
 
-The immediate parser-migration candidate is the Reviewed T2b PathSegment
-recovery amendment.  Preflight found successor/legacy differences in same-line
-retry continuation and Item-native Error child tokenization, plus T2b's own O6
-embedded-evidence timing requirement.  M3 compiler/specification/performance
-review closed after two repaired Draft deltas; user approval remains required
-before T2b code or expected-output changes begin.  No T2a evidence grants it
-construction or certification credit.
+The immediate parser-migration candidate is the Authoritative T2b PathSegment
+recovery amendment.  User option-1 approval authorizes only the reviewed
+same-line continuation, Item-native Error child tokenization, sixth terminal
+operation, and O6 timing boundary.  T2b implementation may begin; no T2a
+evidence grants it construction or certification credit, and the aggregate T2
+matrix row remains Open until O6.
 
 更新: 2026-09-06（Item emission-ownership frontier amendmentのN0a–N0c完了）→
 2026-09-02（`syntax-reference/`サイト完成→standalone `role`宣言10 gate完走→
