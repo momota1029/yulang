@@ -16,6 +16,7 @@ use chasa_recover::Recoverable as _;
 
 mod bracket_arrow_recovery;
 mod bracket_recovery;
+mod leading_row_recovery;
 mod pe_recovery;
 mod pv_recovery;
 
@@ -4356,6 +4357,7 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
         let expected = vec![
             expected_type_call_argument_error(0, error_range.clone()),
             expected_type_call_close(1, close_at),
+            expected_type_expression_missing(2, TypeRole::LeadingEffectTypeHead, source.len()),
         ];
         let (green, exit, records) = run_type_with_recoveries(source, None);
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -7600,7 +7602,13 @@ fn shared_delimited_horizontal_fresh_outer_closes_continue_in_their_actual_owner
 fn type_delimited_owner_routing_publishes_effect_and_bracket_close_records() {
     for (source, expected) in [
         ("'[A", vec![pe_recovery::close(0, true, 3..3, None)]),
-        ("[e", vec![bracket_recovery::close(0, 2..2, None)]),
+        (
+            "[e",
+            vec![
+                bracket_recovery::close(0, 2..2, None),
+                expected_type_expression_missing(1, TypeRole::LeadingEffectTypeHead, 2),
+            ],
+        ),
     ] {
         let (green, _, records) = run_type_with_recoveries(source, None);
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -8806,14 +8814,7 @@ fn leading_bracket_row_retries_a_balanced_second_row_as_one_error() {
         );
     }
 
-    let (green, exit) = run_type("[e][f");
-    assert_eq!(green.to_string(), "[e]");
-    assert!(matches!(exit, Some(Err(Either::Left(_)))));
-    assert!(
-        !SyntaxNode::new_root(green)
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
-    );
+    assert_complete_type_recovery("[e][f", 0, &[leading_row_recovery::head_error(0, 3..5)]);
 }
 
 #[test]

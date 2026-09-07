@@ -32,8 +32,7 @@ use super::{
     },
     item::{Item, LeadingTrivia, LeadingView, TokenKind},
     lexer::{
-        BalancedBracketSuffix, is_operator_shaped_unknown, scan_balanced_bracket_suffix_normalized,
-        scan_exact_pipe, scan_type_nud_payload, scan_type_payload,
+        is_operator_shaped_unknown, scan_exact_pipe, scan_type_nud_payload, scan_type_payload,
     },
     output::RecoveryDraft,
     yumark::FenceBoundary,
@@ -1750,15 +1749,18 @@ fn type_leading_bracket_row_normalized(
     match exit {
         NormalizedExit::Complete(Ok(()), next_line_entry) => line_entry = next_line_entry,
         NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_recovery_missing(i.rb(), LeadingTrivia::default(), item_origin, |range| {
+                type_expression_missing_draft(TypeRole::LeadingEffectTypeHead, range)
+            });
             return complete(Err(Either::Right(end)), next_line_entry);
         }
         NormalizedExit::Complete(Err(Either::Left(item)), next_line_entry) => {
+            emit_leading_type_head_missing(&mut i, &item, item_origin);
             return complete(handoff(item), next_line_entry);
         }
         _ => unreachable!("normalized Type owners do not defer"),
     }
-    let (mut head, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+    let (mut head, mut item_origin, mut line_entry) = type_nud_item_with_pipe_lexical_normalized(
         i.rb(),
         item_origin,
         line_entry,
@@ -1766,194 +1768,146 @@ fn type_leading_bracket_row_normalized(
         pipe_lexical,
         ambient,
     );
-    item_origin = next_origin;
-    line_entry = next_line_entry;
-    loop {
-        if head.payload_view().is_boundary() {
-            emit_missing(&mut i, LeadingTrivia::default());
-            return complete(handoff(head), line_entry);
-        }
-        if !type_chain_trivia(head.leading_view(), baseline)
-            || is_type_caller_boundary(&head, caller_stops)
-            || is_type_outer_boundary(&head, outer_boundary)
-        {
-            emit_missing(&mut i, LeadingTrivia::default());
-            return complete(handoff(head), line_entry);
-        }
-        if is_type_primary(&head) {
-            head.emit_all_remaining_leading(&mut *i.state);
-            return type_expr_from_primary_started_normalized(
-                i,
-                head,
-                baseline,
-                type_ml,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
-                outer_boundary,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
-        if token_kind(&head) == Some(TokenKind::LBracket) {
-            (head, item_origin, line_entry) = match retry_leading_bracket_row_head_normalized(
-                i.rb(),
-                head,
-                item_origin,
-                line_entry,
-                fence,
-                pipe_lexical,
-                ambient,
-            ) {
-                Ok(next) => next,
-                Err(exit) => return exit,
-            };
-            continue;
-        }
-        if is_type_rhs_boundary(&head) {
-            head.emit_all_remaining_leading(&mut *i.state);
-            emit_missing(&mut i, LeadingTrivia::default());
-            return complete(handoff(head), line_entry);
-        }
+    let mut at_boundary =
+        is_leading_type_head_boundary(&head, baseline, caller_stops, outer_boundary, None);
+    let recovered = !at_boundary && !is_type_primary(&head);
+    if recovered {
         head.emit_all_remaining_leading(&mut *i.state);
-        return retry_leading_bracket_row_head_error_normalized(
-            i,
+        (head, item_origin, line_entry) = retry_leading_type_head_normalized(
+            i.rb(),
             head,
             baseline,
-            type_ml,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
             caller_stops,
             outer_boundary,
-            pipe_lexical,
             item_origin,
             line_entry,
             fence,
+            pipe_lexical,
             ambient,
         );
+        at_boundary =
+            is_leading_type_head_boundary(&head, baseline, caller_stops, outer_boundary, None);
     }
+    if at_boundary {
+        if head.payload_view().is_eof() && type_chain_trivia(head.leading_view(), baseline) {
+            head.emit_all_remaining_leading(&mut *i.state);
+        }
+        if !recovered {
+            emit_leading_type_head_missing(&mut i, &head, item_origin);
+        }
+        return complete(handoff(head), line_entry);
+    }
+    debug_assert!(is_type_primary(&head));
+    head.emit_all_remaining_leading(&mut *i.state);
+    type_expr_from_primary_started_normalized(
+        i,
+        head,
+        baseline,
+        type_ml,
+        apply_boundary,
+        outer_separators,
+        outer_closes,
+        caller_stops,
+        outer_boundary,
+        pipe_lexical,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
 }
 
-fn retry_leading_bracket_row_head_normalized(
-    mut i: RewriteIn,
-    head: Item,
-    mut item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    pipe_lexical: bool,
-    ambient: AmbientClaimContext<'_>,
-) -> Result<(Item, usize, LineEntry), NormalizedExit> {
-    let entry = suffix_marker(i.rb());
-    let Some(suffix) = i.token(|lex| {
-        scan_balanced_bracket_suffix_normalized(lex, item_origin, LineEntry::InLine, fence)
-    }) else {
-        return Err(complete(handoff(head), line_entry));
-    };
-    match suffix {
-        BalancedBracketSuffix::Complete(CurrentItem {
-            item: suffix,
-            next_line_entry,
-        }) => {
-            item_origin = advanced_origin(item_origin, entry, i.rb());
-            i.state.start_node(SyntaxKind::Error.into());
-            emit_token_item(&mut i, head);
-            emit_token_item(&mut i, suffix);
-            i.state.finish_node();
-            Ok(type_nud_item_with_pipe_lexical_normalized(
-                i,
-                item_origin,
-                next_line_entry,
-                fence,
-                pipe_lexical,
-                ambient,
-            ))
-        }
-        BalancedBracketSuffix::Boundary { accepted, pending } => {
-            i.state.start_node(SyntaxKind::Error.into());
-            emit_token_item(&mut i, head);
-            if let Some(accepted) = accepted {
-                emit_token_item(&mut i, accepted.item);
-            }
-            i.state.finish_node();
-            Err(complete(handoff(pending.item), pending.next_line_entry))
-        }
-    }
+fn is_leading_type_head_boundary(
+    item: &Item,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    local_close: Option<TokenKind>,
+) -> bool {
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || !type_chain_trivia(item.leading_view(), baseline)
+        || is_type_caller_boundary(item, caller_stops)
+        || is_type_outer_boundary(item, outer_boundary)
+        || (is_type_separator(item) && local_close.is_none())
+        || (matches!(
+            token_kind(item),
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+        ) && token_kind(item) != local_close)
 }
 
 #[allow(clippy::too_many_arguments)]
-fn retry_leading_bracket_row_head_error_normalized(
-    mut i: RewriteIn,
-    mut head: Item,
+fn retry_leading_type_head_normalized(
+    i: RewriteIn,
+    mut item: Item,
     baseline: usize,
-    type_ml: TypeMlContext,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
-    pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
     ambient: AmbientClaimContext<'_>,
-) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        if head.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(head), line_entry);
-        }
-        emit_token_item(&mut i, head);
-        (head, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-            ambient,
-        );
-        if head.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(head), line_entry);
-        }
-        if !type_chain_trivia(head.leading_view(), baseline)
-            || is_type_rhs_boundary(&head)
-            || is_type_caller_boundary(&head, caller_stops)
-            || is_type_outer_boundary(&head, outer_boundary)
-        {
-            i.state.finish_node();
-            return complete(handoff(head), line_entry);
-        }
-        if is_type_primary(&head) {
-            i.state.finish_node();
-            head.emit_all_remaining_leading(&mut *i.state);
-            return type_expr_from_primary_started_normalized(
-                i,
-                head,
-                baseline,
-                type_ml,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
-                outer_boundary,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
-        if token_kind(&head) == Some(TokenKind::LBracket) {
-            i.state.finish_node();
-            return complete(handoff(head), line_entry);
-        }
-    }
+) -> (Item, usize, LineEntry) {
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            let mut closes = Vec::new();
+            loop {
+                match token_kind(&item) {
+                    Some(TokenKind::LBracket) => closes.push(TokenKind::RBracket),
+                    Some(TokenKind::LParen) => closes.push(TokenKind::RParen),
+                    Some(TokenKind::LBrace) => closes.push(TokenKind::RBrace),
+                    Some(close) if Some(&close) == closes.last() => {
+                        closes.pop();
+                    }
+                    _ => {}
+                }
+                let kind = type_recovery_error_syntax_kind(&item);
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) =
+                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                        run,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                        ambient,
+                    );
+                if is_leading_type_head_boundary(
+                    &item,
+                    baseline,
+                    caller_stops,
+                    outer_boundary,
+                    closes.last().copied(),
+                ) || (closes.is_empty() && is_type_primary(&item))
+                {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| {
+            type_expression_error_draft(TypeRole::LeadingEffectTypeHead, range, unexpected)
+        },
+    )
+}
+
+fn emit_leading_type_head_missing(i: &mut RewriteIn, item: &Item, item_origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        type_expression_missing_draft(TypeRole::LeadingEffectTypeHead, range)
+    });
 }
 
 #[allow(clippy::too_many_arguments)]

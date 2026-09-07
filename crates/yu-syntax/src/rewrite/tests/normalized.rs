@@ -2776,13 +2776,20 @@ fn normalized_type_balanced_head_retry_resynchronizes_before_boundary() {
         root.descendants()
             .all(|node| node.kind() != SyntaxKind::Missing)
     );
+    let error = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .unwrap();
+    assert_eq!(error.text(), "[bad]");
+    assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::LBracket);
+    assert_eq!(error.last_token().unwrap().kind(), SyntaxKind::RBracket);
     let (leading, pending) = emit_terminal_leading_text(boundary);
     assert_eq!(leading, "\n");
     assert_eq!(pending.coordinate(), origin + accepted.len() + 1);
 }
 
 #[test]
-fn ordinary_type_unmatched_balanced_head_keeps_the_suffix_transactional() {
+fn ordinary_type_unmatched_balanced_head_consumes_its_safe_prefix() {
     let operators = OperatorTable::empty();
     let mut input = "[e][bad";
     let mut recover = Recover::new(&operators);
@@ -2790,33 +2797,41 @@ fn ordinary_type_unmatched_balanced_head_keeps_the_suffix_transactional() {
     builder.start_node(SyntaxKind::Root.into());
     let exit = type_expr(In::new(&mut input, &mut recover, &mut builder));
     builder.finish_node();
-    let Some(Err(Either::Left(head))) = exit else {
-        panic!("the unmatched ordinary head must remain pending")
+    let Some(Err(Either::Right(_))) = exit else {
+        panic!("the unmatched ordinary head must reach EOF")
     };
 
-    assert_eq!(builder.finish().to_string(), "[e]");
-    assert_eq!(head.payload_view().spelling(), Some("["));
-    assert_eq!(input, "bad");
+    let (green, records) = builder.finish_with_recoveries();
+    assert_eq!(green.to_string(), "[e][bad");
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].site.range, 3..7);
+    assert_eq!(input, "");
 }
 
 #[test]
 fn normalized_type_unmatched_balanced_head_stops_before_close_and_transition_lines() {
     let fence = active_fence();
     let origin = 2000;
-    for (source, accepted, remainder) in [
+    for (source, accepted, pending_leading, remainder) in [
         (
             "> > [e] [bad\r\n> > ```\nouter]",
-            "> > [e] [bad\r\n",
+            "> > [e] [bad",
+            "\r\n",
             "> > ```\nouter]",
         ),
-        ("> > [e] [bad\n> ]\nafter", "> > [e] [bad\n", "> ]\nafter"),
+        (
+            "> > [e] [bad\n> ]\nafter",
+            "> > [e] [bad",
+            "\n",
+            "> ]\nafter",
+        ),
     ] {
         let (green, exit, actual_remainder) =
             run_type_normalized(source, origin, LineEntry::PhysicalStart, Some(&fence));
         let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
             exit
         else {
-            panic!("the unmatched raw suffix must hand its exact boundary upward: {source:?}")
+            panic!("the unmatched head must hand its exact boundary upward: {source:?}")
         };
         let root = SyntaxNode::new_root(green);
 
@@ -2839,31 +2854,52 @@ fn normalized_type_unmatched_balanced_head_stops_before_close_and_transition_lin
             "{source:?}"
         );
         let (leading, pending) = emit_terminal_leading_text(boundary);
-        assert_eq!(leading, "", "{source:?}");
-        assert_eq!(pending.coordinate(), origin + accepted.len(), "{source:?}");
+        assert_eq!(leading, pending_leading, "{source:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + pending_leading.len(),
+            "{source:?}"
+        );
     }
 }
 
 #[test]
-fn normalized_type_unmatched_balanced_head_emits_continued_prefix_before_boundary() {
+fn normalized_type_unmatched_balanced_head_keeps_continuation_and_boundary_prefixes_distinct() {
     let fence = active_fence();
     let origin = 2100;
-    for first_line in ["bad\n", "bad/*\n"] {
-        let accepted = format!("> > [e] [{first_line}> > still\n");
-        let source = format!("{accepted}> > ```\nouter]");
+    for (accepted, pending_leading, error_tokens) in [
+        (
+            "> > [e] [bad\n> >   still",
+            "\n",
+            vec![
+                (SyntaxKind::LBracket, "["),
+                (SyntaxKind::Identifier, "bad"),
+                (SyntaxKind::Newline, "\n"),
+                (SyntaxKind::YmQuotePrefix, "> > "),
+                (SyntaxKind::Whitespace, "  "),
+                (SyntaxKind::Identifier, "still"),
+            ],
+        ),
+        (
+            "> > [e] [bad",
+            "/*\n> > still\n",
+            vec![(SyntaxKind::LBracket, "["), (SyntaxKind::Identifier, "bad")],
+        ),
+    ] {
+        let source = format!("{accepted}{pending_leading}> > ```\nouter]");
         let (green, exit, remainder) =
             run_type_normalized(&source, origin, LineEntry::PhysicalStart, Some(&fence));
         let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
             exit
         else {
-            panic!("the accepted raw suffix must precede its exact boundary: {source:?}")
+            panic!("the malformed head must precede its exact boundary: {source:?}")
         };
         let root = SyntaxNode::new_root(green);
         let error = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::Error)
             .expect("one malformed bracket-head Error");
-        let error_tokens: Vec<_> = error
+        let actual_tokens: Vec<_> = error
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
             .map(|token| (token.kind(), token.text().to_owned()))
@@ -2872,22 +2908,48 @@ fn normalized_type_unmatched_balanced_head_emits_continued_prefix_before_boundar
         assert_eq!(root.to_string(), accepted, "{source:?}");
         assert_eq!(remainder, "> > ```\nouter]", "{source:?}");
         assert_eq!(
-            error_tokens,
-            [
-                (SyntaxKind::Whitespace, " ".to_owned()),
-                (SyntaxKind::LBracket, "[".to_owned()),
-                (SyntaxKind::Unknown, first_line.to_owned()),
-                (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
-                (SyntaxKind::Unknown, "still\n".to_owned()),
-            ],
+            actual_tokens,
+            error_tokens
+                .into_iter()
+                .map(|(kind, text)| (kind, text.to_owned()))
+                .collect::<Vec<_>>(),
             "{source:?}"
         );
         let (leading, pending) = emit_terminal_leading_text(boundary);
-        assert_eq!(leading, "", "{source:?}");
-        assert_eq!(pending.coordinate(), origin + accepted.len(), "{source:?}");
+        assert_eq!(leading, pending_leading, "{source:?}");
+        assert_eq!(
+            pending.coordinate(),
+            origin + accepted.len() + pending_leading.len(),
+            "{source:?}"
+        );
     }
 }
 
+#[test]
+fn normalized_type_unmatched_head_leaves_equal_indent_foreign_item_pending() {
+    let fence = active_fence();
+    let source = "> > [e] [bad\n> > still\n> > ```\nouter]";
+    let (green, exit, remainder) =
+        run_type_normalized(source, 2100, LineEntry::PhysicalStart, Some(&fence));
+    let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine)) = exit
+    else {
+        panic!("equal-indent continuation is a pending ordinary Item")
+    };
+    assert_eq!(green.to_string(), "> > [e] [bad");
+    assert_eq!(item.payload_view().spelling(), Some("still"));
+    assert_eq!(remainder, "\n> > ```\nouter]");
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    item.emit_all_remaining_leading(&mut output);
+    output.finish_node();
+    let leading = SyntaxNode::new_root(output.finish());
+    assert_eq!(leading.text(), "\n> > ");
+    assert!(
+        leading
+            .children_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::YmQuotePrefix)
+    );
+}
 #[test]
 fn normalized_type_parses_named_record_before_boundary() {
     let fence = active_fence();

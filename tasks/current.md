@@ -67,10 +67,20 @@ a same-slot Missing cascade, and incomplete-row handoff preserves the separate
 arrow slot. Type tests: 152; declaration: 39; output: 4; recovery output: 25;
 package check passed.
 
-Next: LeadingEffectTypeHead recovery in `type_expr.rs`, including wrong-kind
-second leading rows, then record/forall. Preserve accepted row attachment and
-caller/newline/fence boundaries. The old eighth-terminal proposal is not a
-required prerequisite. No public dispatch has been switched yet.
+LeadingEffectTypeHead construction is complete under
+`2026-09-08-successor-leading-row-head-current-item-recovery.md`. One total
+nested-Item Error run replaces the ordinary speculative and dedicated fenced
+balanced-suffix scanners. Every head slot is typed; complete caller/newline/
+fence Items remain pending. Type tests: 159; normalized Type/unmatched head:
+27; declaration: 39; output: 4; recovery output: 25; package check passed.
+The matrix's T7a/T7b EffectRow/leading-row spelling error has a recorded narrow
+correction, not an embedded-certification claim.
+
+Next: named-record and forall recovery. The remaining required-Type Missing
+sites in `type_expr.rs` are caller-owned slots, not automatically Primary
+records; retain that distinction in the typed-output ledger. The old
+eighth-terminal proposal is not a required prerequisite. No public dispatch
+has been switched yet.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
@@ -78,9 +88,9 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Complete the remaining Type-owned recovery sites (leading row head,
-   record and forall). PV-local construction does not certify raw recovery
-   still emitted by a nested non-PV owner.
+1. Complete the remaining Type-owned recovery sites (record and forall) and
+   their parent helper call sites. PV-local construction does not certify raw
+   recovery still emitted by a nested non-PV owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption
@@ -92,10 +102,14 @@ recovery-equality prerequisite.
 ## Verification and environment
 
 Use `cargo test -p yu-syntax --lib rewrite::tests::type_expr:: -- --test-threads=1`
-for this gate, the focused `rewrite::tests::output::` and
+for Type construction. The leading-row gate also ran the known-small
+`rewrite::tests::normalized::normalized_type` and
+`rewrite::tests::normalized::ordinary_type_unmatched` filters. Use the focused
+`rewrite::tests::output::` and
 `rewrite::tests::recovery_output::` filters for output/RB invariants, then one
-`cargo check -p yu-syntax`. Check inventory before broadening. No benchmark is
-needed for the bounded horizontal-gap branch; budget is zero samples/processes.
+`cargo check -p yu-syntax`. Check inventory before broadening. Benchmark budget
+for these bounded owner-local gates is zero samples/processes unless material
+cost uncertainty requires a separately justified measurement.
 
 `cargo xtask check-graph` is the available dependency-direction check, not a
 parser test runner. The workspace-local `crates/chasa-recover` already provides

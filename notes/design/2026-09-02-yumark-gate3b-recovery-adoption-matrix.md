@@ -8,6 +8,15 @@ Scope: finite implementation and evidence inventory for
 `2026-09-02-yumark-gate3b-canonical-recovery-episode-amendment.md`. This is
 that amendment's normative §4/§6 appendix, not a new syntax decision.
 
+Current Type-register navigation (2026-09-08): T4/T7c are corrected by
+`2026-09-07-successor-t4-delimited-register-correction-amendment.md` and its
+current-Item successors. T7a/T7b's quoted EffectRow literals below are replaced
+by bare leading-row witnesses in
+`2026-09-08-successor-leading-row-head-current-item-recovery.md`.
+The historical cells remain for traceability; their aggregate evidence
+obligations remain open. Recovery equality follows the 2026-09-08
+recovery-authority amendment, not a legacy malformed-output oracle.
+
 ## 1. Conventions and common assertions
 
 `R(p)` means `\ref(` + `p` + `)`; payload-local ranges shift by `+5`.
