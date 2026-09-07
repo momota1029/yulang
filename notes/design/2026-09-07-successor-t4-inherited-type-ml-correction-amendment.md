@@ -229,8 +229,9 @@ facts with successor records in source order, prove frame pop and exact
 trivia/Missing topology, and parse a clean following `\ref(C)`.  Embedded
 offsets remain unverified until those direct legacy baselines execute.
 
-The direct legacy baselines were execution-pinned at `7ed1d35b`.  The one
-authorized T4P local construction pass completed at `3bedfbef` on 2026-09-07.
+The direct legacy Parenthesized (T4P) baselines were execution-pinned at
+`7ed1d35b`.  The one authorized T4P local construction pass completed at
+`3bedfbef` on 2026-09-07.
 It replaces the normalized TypeExpression cone's loose `type_ml: bool` with the
 private by-value context in §2; activates only immediate Parenthesized items
 from an outer-TypeApply provenance; preserves Call's existing T3

@@ -67,9 +67,9 @@ preserves standalone TypeApply controls while restoring only the outer-TypeApply
 inherited-context Parenthesized/EffectRow separator witnesses.  The user chose
 the narrow outer-TypeApply-only option after M3 compiler/recovery,
 specification, and performance review; the final T3 Call wording correction has
-a clean independent specification closure.  Its direct legacy baselines were
-execution-pinned at `7ed1d35b`, and its one authorized T4P local construction
-pass completed at `3bedfbef` after M3 implementation review, two
+a clean independent specification closure.  Its direct legacy Parenthesized
+(T4P) baselines were execution-pinned at `7ed1d35b`, and its one authorized
+T4P local construction pass completed at `3bedfbef` after M3 implementation review, two
 test-evidence-only repairs, and clean compiler/recovery, specification, and
 regression deltas.  The private by-value context activates Parenthesized only
 for outer-TypeApply provenance, preserves T3 Call's phase, and keeps
