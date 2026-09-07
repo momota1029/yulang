@@ -20,6 +20,7 @@ mod leading_row_recovery;
 mod pe_recovery;
 mod pv_recovery;
 mod record_field_recovery;
+mod record_sequence_recovery;
 
 fn top_type_expression(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
@@ -5202,12 +5203,8 @@ fn named_record_type_recovers_a_missing_field_before_eof_or_outer_close() {
     );
 
     let (green, exit) = run_type("{a: A,]");
-    assert_eq!(green.to_string(), "{a: A,");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if item.payload_view().token_kind() == Some(TokenKind::RBracket)
-    ));
+    assert_eq!(green.to_string(), "{a: A,]");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
     assert_eq!(
         SyntaxNode::new_root(green)
             .descendants()
@@ -5234,12 +5231,8 @@ fn named_record_type_recovers_a_missing_close() {
     }
 
     let (green, exit) = run_type("{a: A]");
-    assert_eq!(green.to_string(), "{a: A");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if item.payload_view().token_kind() == Some(TokenKind::RBracket)
-    ));
+    assert_eq!(green.to_string(), "{a: A]");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
     assert_eq!(
         SyntaxNode::new_root(green)
             .descendants()

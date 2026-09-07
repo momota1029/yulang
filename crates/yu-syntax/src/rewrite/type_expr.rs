@@ -2301,18 +2301,6 @@ fn type_call_tail_normalized(
     )
 }
 
-fn missing_type_item(mut i: RewriteIn, mut item: Item) -> Item {
-    item.emit_all_remaining_leading(&mut *i.state);
-    emit_missing(&mut i, LeadingTrivia::default());
-    item
-}
-
-fn missing_type_close(mut i: RewriteIn, mut item: Item) -> TailExit {
-    item.emit_all_remaining_leading(&mut *i.state);
-    emit_missing(&mut i, LeadingTrivia::default());
-    handoff(item)
-}
-
 fn type_arrow_rhs(
     i: RewriteIn,
     arrow: Item,
@@ -3118,13 +3106,24 @@ fn type_close_bit(kind: TokenKind) -> u8 {
 }
 
 pub(super) fn is_type_caller_boundary(item: &Item, caller_stops: Stops) -> bool {
-    if token_kind(item).is_some_and(|kind| super::operator::active_stop_item(kind, caller_stops)) {
+    is_type_caller_boundary_parts(
+        token_kind(item),
+        item.payload_view().spelling(),
+        caller_stops,
+    )
+}
+
+fn is_type_caller_boundary_parts(
+    kind: Option<TokenKind>,
+    text: Option<&str>,
+    caller_stops: Stops,
+) -> bool {
+    if kind.is_some_and(|kind| super::operator::active_stop_item(kind, caller_stops)) {
         return true;
     }
-    if item.payload_view().token_kind() != Some(TokenKind::Identifier) {
+    if kind != Some(TokenKind::Identifier) {
         return false;
     }
-    let text = item.payload_view().spelling();
     (caller_stops & super::operator::STOP_WITH != 0 && text == Some("with"))
         || (caller_stops & super::operator::STOP_IN != 0 && text == Some("in"))
         || (caller_stops & super::operator::STOP_ELSIF != 0 && text == Some("elsif"))

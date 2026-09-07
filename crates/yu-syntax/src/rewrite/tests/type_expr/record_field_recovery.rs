@@ -1,16 +1,18 @@
+use super::record_sequence_recovery::close;
 use super::*;
 
-fn field_record(
+pub(super) fn field_record(
     id: u32,
     role: TypeRole,
     range: Range<usize>,
     error: bool,
 ) -> CommittedRecoveryRecord {
     let expected = match role {
-        TypeRole::RecordFieldName => ExpectedSyntax::Identifier,
+        TypeRole::RecordField | TypeRole::RecordFieldName => ExpectedSyntax::Identifier,
         TypeRole::RecordFieldColon => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
         TypeRole::RecordFieldType => ExpectedSyntax::TypeExpression,
-        _ => panic!("only field-internal test records"),
+        TypeRole::RecordFieldSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
+        _ => panic!("only named-record field test records"),
     };
     let role = GrammarRole::Type(role);
     CommittedRecoveryRecord {
@@ -174,9 +176,13 @@ fn record_field_caller_words_are_checked_before_fresh_and_recovered_candidates()
             (" /*é*/else tail", crate::rewrite::operator::STOP_ELSE),
         ] {
             let source = format!("{prefix}{suffix}");
-            let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
+            let expected = [
+                expected.clone(),
+                close(1, prefix.len()..prefix.len(), false),
+            ];
+            let frozen = frozen_recovery_ids(&expected);
             for (input, records) in [
-                (None, std::slice::from_ref(&expected)),
+                (None, expected.as_slice()),
                 (Some(frozen.as_slice()), frozen.as_slice()),
             ] {
                 let run = run_contextual_type_snapshot(
@@ -191,7 +197,7 @@ fn record_field_caller_words_are_checked_before_fresh_and_recovered_candidates()
                 );
                 assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
                 assert_eq!(run.records, records, "{source:?}");
-                assert_eq!(run.slots, 1);
+                assert_eq!(run.slots, 2);
                 let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
                     panic!("caller Item stays pending")
                 };
@@ -249,7 +255,10 @@ fn record_field_colon_is_local_only_in_its_own_mandatory_slot() {
     );
     assert_eq!(
         run.records,
-        [field_record(0, TypeRole::RecordFieldType, 3..3, false)]
+        [
+            field_record(0, TypeRole::RecordFieldType, 3..3, false),
+            close(1, 3..3, false)
+        ]
     );
     assert_eq!(run.green.to_string(), "sentinel{a:");
     let NormalizedExit::Complete(Err(Either::Left(pending)), _) = run.exit else {
@@ -270,7 +279,10 @@ fn record_field_colon_is_local_only_in_its_own_mandatory_slot() {
     );
     assert_eq!(
         run.records,
-        [field_record(0, TypeRole::RecordFieldName, 1..4, true)]
+        [
+            field_record(0, TypeRole::RecordField, 1..4, true),
+            close(1, 4..4, false)
+        ]
     );
     assert_eq!(run.green.to_string(), "sentinel{@ (");
     let NormalizedExit::Complete(Err(Either::Left(pending)), _) = run.exit else {
@@ -299,9 +311,11 @@ fn record_field_fence_handoff_keeps_missing_and_error_anchors_truthful() {
         ("> > {a: @", field_record(0, T, 8..9, true)),
     ] {
         let source = format!("{prefix}\n> > ```\nouter");
-        let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
+        let at = prefix.len() + 1;
+        let expected = [expected, close(1, at..at, false)];
+        let frozen = frozen_recovery_ids(&expected);
         for (input, records) in [
-            (None, std::slice::from_ref(&expected)),
+            (None, expected.as_slice()),
             (Some(frozen.as_slice()), frozen.as_slice()),
         ] {
             let (green, exit, remainder, actual) = run_type_normalized_with_recoveries(
@@ -382,9 +396,11 @@ fn record_field_accepted_controls_keep_full_type_and_layout_grammar() {
 #[test]
 fn record_field_next_head_query_shares_exact_colon_ownership() {
     let source = "{a:A b:{c:C}}";
-    // The separator producer is a later gate; its existing raw Missing stays
-    // distinct from the completed field-internal records checked here.
-    let root = assert_complete_type_recovery(source, 0, &[]);
+    let root = assert_complete_type_recovery(
+        source,
+        0,
+        &[field_record(0, TypeRole::RecordFieldSeparator, 5..5, false)],
+    );
     let record = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::NamedRecordType)

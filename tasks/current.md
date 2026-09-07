@@ -83,9 +83,16 @@ The accepted empty-trivia nested record `{a:{b:B}}` now parses correctly;
 actual PV RHS remains distinct. Type tests: 167; normalized Type/unmatched head:
 27; declaration: 39; output: 4; recovery output: 25; package check passed.
 
-Next: named-record whole-field, separator and close recovery, including a
-preflight of its existing malformed-name authority probe/depth policy, then
-forall. The remaining required-Type Missing sites in `type_expr.rs` are
+Named-record whole-field, separator and close construction is complete under
+`2026-09-08-successor-record-sequence-current-item-recovery.md`. A phase-aware
+owner loop and one typed kind-matching run replace the raw recovery loops.
+The malformed-name probe and immediate handoff preserve nested caller Items;
+all record-owned recovery nodes are typed. Nine sequence tests pass, full
+Type: 176; normalized Type/unmatched head: 27; declaration: 39; output: 4;
+recovery output: 25; package check passed. The T5f EOF witness transcription
+contradiction is corrected in the design without claiming embedded proof.
+
+Next: forall recovery. The remaining required-Type Missing sites in `type_expr.rs` are
 caller-owned slots, not automatically Primary records; retain that distinction
 in the typed-output ledger. The old eighth-terminal proposal is not a required
 prerequisite. No public dispatch has been switched yet.
@@ -96,8 +103,8 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Complete the remaining Type-owned recovery sites (record sequence/close and
-   forall) and their parent helper call sites. PV-local construction does not
+1. Complete the remaining Type-owned recovery sites (forall) and their parent
+   helper call sites. PV-local construction does not
    certify raw recovery still emitted by a nested non-PV owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
@@ -118,6 +125,11 @@ for Type construction. The leading-row gate also ran the known-small
 `cargo check -p yu-syntax`. Check inventory before broadening. Benchmark budget
 for these bounded owner-local gates is zero samples/processes unless material
 cost uncertainty requires a separately justified measurement.
+
+The record-sequence gate's initial test build took 2m24s, with one sampled
+rustc process around 1.8 GiB RSS and available memory; later focused rebuilds
+took 38s and 31s. Test execution remained sub-second. Treat an active rebuild
+separately from a running test suite; preserve the focused serial test budget.
 
 `cargo xtask check-graph` is the available dependency-direction check, not a
 parser test runner. The workspace-local `crates/chasa-recover` already provides

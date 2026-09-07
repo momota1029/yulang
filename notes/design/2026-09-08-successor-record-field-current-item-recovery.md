@@ -14,6 +14,12 @@ in `2026-09-08-successor-recovery-authority-amendment.md`
 
 Drafted-and-checked-by: primary under the user's no-subagent instruction
 
+Follow-up (2026-09-08):
+`2026-09-08-successor-record-sequence-current-item-recovery.md` completes the
+whole-field/separator/close sites and the caller/kind-matching probe preflight
+left open here. Its recorded nested-caller control supersedes this gate's
+temporary malformed-name probe behavior; the internal slot rules remain.
+
 ## Retained grammar and ownership
 
 The architecture's named-record surface grammar and TypeRecordField recovery

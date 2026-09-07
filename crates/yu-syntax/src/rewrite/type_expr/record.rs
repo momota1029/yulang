@@ -6,8 +6,9 @@ use std::sync::Arc;
 
 use crate::{
     session::{
-        ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, TypeRole, UnexpectedCategory, UnexpectedSyntax,
+        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
+        UnexpectedCategory, UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -16,11 +17,10 @@ use super::super::{
     LexIn, RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentPayload, LineEntry},
     driver::{
-        Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, suffix_marker,
-        token_kind,
+        Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item},
-    item::{Item, LeadingTrivia, TokenKind},
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
+    item::{Item, LeadingTrivia, Token, TokenKind},
     lexer::{scan_exact_pipe, scan_type_nud_payload},
     operator::{TriviaObservation, observe_fenced_trivia},
     output::RecoveryDraft,
@@ -28,10 +28,10 @@ use super::super::{
 };
 use super::{
     TypeApplyBoundary, TypeMlContext, TypeOuterBoundary, continue_type_tail_normalized,
-    delimited::is_explicit_type_caller_close, is_type_caller_boundary, is_type_implicit_boundary,
-    is_type_mismatched_close, is_type_nud, is_type_record_field_boundary,
-    is_type_record_field_name, missing_type_close, missing_type_item, type_chain_trivia,
-    type_delimited_baseline, type_expr_from_nud_normalized, type_item_with_pipe_lexical_normalized,
+    is_type_caller_boundary, is_type_caller_boundary_parts, is_type_implicit_boundary,
+    is_type_mismatched_close, is_type_nud, is_type_outer_close, is_type_record_field_boundary,
+    is_type_record_field_name, type_chain_trivia, type_delimited_baseline,
+    type_expr_from_nud_normalized, type_item_with_pipe_lexical_normalized,
     type_nud_item_with_pipe_lexical_normalized,
     type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
     with_type_outer_close,
@@ -88,6 +88,14 @@ pub(super) fn type_record_normalized(
     )
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum RecordPosition {
+    Initial,
+    AfterComma,
+    AfterField,
+    AfterError,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn type_record_fields_normalized(
     mut i: RewriteIn,
@@ -112,28 +120,54 @@ fn type_record_fields_normalized(
     item_origin = next_origin;
     line_entry = next_line_entry;
     let baseline = type_delimited_baseline(incoming_baseline, item.leading_view());
-
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
-    if token_kind(&item) == Some(TokenKind::RBrace)
-        || !is_explicit_type_caller_close(&item, caller_stops)
-    {
-        item.emit_all_remaining_leading(&mut *i.state);
-    }
+    let mut position = RecordPosition::Initial;
 
     loop {
-        if item.payload_view().is_boundary() {
-            emit_missing(&mut i, LeadingTrivia::default());
-            return complete(handoff(item), line_entry);
+        let newline = !item.payload_view().is_boundary()
+            && is_type_implicit_boundary(baseline, item.leading_view());
+        let after_item = matches!(
+            position,
+            RecordPosition::AfterField | RecordPosition::AfterError
+        );
+        let missing_field = position == RecordPosition::AfterComma || (after_item && newline);
+        if item.payload_view().is_boundary() || item.payload_view().is_eof() {
+            return record_boundary_normalized(
+                i,
+                item,
+                baseline,
+                missing_field,
+                item_origin,
+                line_entry,
+            );
         }
         if token_kind(&item) == Some(TokenKind::RBrace) {
             emit_token_item(&mut i, item);
             return complete(Ok(()), line_entry);
         }
-        if is_type_caller_boundary(&item, caller_stops)
-            && !type_record_next_field_normalized(
+        // The local comma owns its slot before an enclosing comma stop.
+        if token_kind(&item) == Some(TokenKind::Comma) {
+            item.emit_all_remaining_leading(&mut *i.state);
+            if matches!(
+                position,
+                RecordPosition::Initial | RecordPosition::AfterComma
+            ) {
+                emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
+            }
+            emit_token_item(&mut i, item);
+            (item, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+                ambient,
+            );
+            position = RecordPosition::AfterComma;
+            continue;
+        }
+
+        let same_line_head = position == RecordPosition::AfterField
+            && type_record_next_field_normalized(
                 i.rb(),
                 &item,
                 baseline,
@@ -142,51 +176,99 @@ fn type_record_fields_normalized(
                 fence,
                 pipe_lexical,
                 ambient,
-            )
+            );
+        let field_position = position != RecordPosition::AfterField || newline;
+        let caller = is_type_caller_boundary(&item, caller_stops);
+        let local_caller_head = caller
+            && field_position
+            && (is_record_colon_kind(token_kind(&item))
+                || (is_type_record_field_name(&item)
+                    && type_record_field_head_after_normalized(
+                        i.rb(),
+                        baseline,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                        ambient,
+                    )));
+        if (caller && !same_line_head && !local_caller_head)
+            || is_type_outer_close(&item, outer_closes)
         {
-            emit_missing(&mut i, LeadingTrivia::default());
-            return complete(handoff(item), line_entry);
-        }
-        if item.payload_view().is_eof() || is_type_mismatched_close(&item, TokenKind::RBrace) {
-            return complete(type_record_missing_close(i, item), line_entry);
-        }
-        if token_kind(&item) == Some(TokenKind::Comma) {
-            item = missing_type_item(i.rb(), item);
-            emit_token_item(&mut i, item);
-            (item, item_origin, line_entry) = match type_record_after_comma_normalized(
-                i.rb(),
-                baseline,
-                caller_stops,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            ) {
-                Ok(next) => next,
-                Err(exit) => return exit,
-            };
-            continue;
-        }
-        if token_kind(&item) == Some(TokenKind::Semicolon) {
-            item.emit_all_remaining_leading(&mut *i.state);
-            (item, item_origin, line_entry) = match retry_type_record_separator_normalized(
-                i.rb(),
+            return record_boundary_normalized(
+                i,
                 item,
                 baseline,
+                missing_field,
+                item_origin,
+                line_entry,
+            );
+        }
+        if is_type_mismatched_close(&item, TokenKind::RBrace) {
+            if missing_field {
+                emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
+            }
+            let caller_owned;
+            (item, item_origin, line_entry, caller_owned) = retry_record_run_normalized(
+                i.rb(),
+                item,
+                RecordErrorSlot::Close,
+                baseline,
+                outer_closes,
                 caller_stops,
                 pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
                 ambient,
-            ) {
-                Ok(next) => next,
-                Err(exit) => return exit,
-            };
+            );
+            if !caller_owned && token_kind(&item) == Some(TokenKind::RBrace) {
+                emit_token_item(&mut i, item);
+                return complete(Ok(()), line_entry);
+            }
+            return record_boundary_normalized(i, item, baseline, false, item_origin, line_entry);
+        }
+        if after_item && newline && !is_type_record_field_start(&item) {
+            return record_boundary_normalized(i, item, baseline, true, item_origin, line_entry);
+        }
+        if same_line_head {
+            item.emit_all_remaining_leading(&mut *i.state);
+            emit_record_field_missing(&mut i, TypeRole::RecordFieldSeparator, &item, item_origin);
+        } else if token_kind(&item) == Some(TokenKind::Semicolon)
+            || (position == RecordPosition::AfterField && !newline)
+        {
+            let caller_owned;
+            (item, item_origin, line_entry, caller_owned) = retry_record_run_normalized(
+                i.rb(),
+                item,
+                RecordErrorSlot::Separator,
+                baseline,
+                outer_closes,
+                caller_stops,
+                pipe_lexical,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            );
+            if caller_owned {
+                let missing_field = is_type_implicit_boundary(baseline, item.leading_view());
+                return record_boundary_normalized(
+                    i,
+                    item,
+                    baseline,
+                    missing_field,
+                    item_origin,
+                    line_entry,
+                );
+            }
+            position = RecordPosition::AfterError;
             continue;
         }
 
+        // This leading is now admitted by the record, not by a failed field
+        // slot or a speculative next-field query.
+        item.emit_all_remaining_leading(&mut *i.state);
         let child_entry = suffix_marker(i.rb());
         let exit = if is_type_record_field_name(&item) {
             type_record_field_normalized(
@@ -203,7 +285,6 @@ fn type_record_fields_normalized(
                 ambient,
             )
         } else if is_record_colon_kind(token_kind(&item)) {
-            item.emit_all_remaining_leading(&mut *i.state);
             type_record_missing_name_normalized(
                 i.rb(),
                 item,
@@ -219,13 +300,13 @@ fn type_record_fields_normalized(
             )
         } else if type_record_malformed_name_colon_normalized(
             i.rb(),
+            &item,
+            caller_stops,
             item_origin,
             line_entry,
             fence,
             pipe_lexical,
-            ambient,
-        ) && item.leading_view().indentation_after_newline().is_none()
-        {
+        ) {
             type_record_malformed_name_normalized(
                 i.rb(),
                 item,
@@ -240,40 +321,53 @@ fn type_record_fields_normalized(
                 ambient,
             )
         } else {
-            (item, item_origin, line_entry) = match retry_type_record_field_normalized(
+            let caller_owned;
+            (item, item_origin, line_entry, caller_owned) = retry_record_run_normalized(
                 i.rb(),
                 item,
+                RecordErrorSlot::Field,
                 baseline,
+                outer_closes,
                 caller_stops,
                 pipe_lexical,
                 item_origin,
                 line_entry,
                 fence,
                 ambient,
-            ) {
-                Ok(next) => next,
-                Err(exit) => return exit,
-            };
+            );
+            if caller_owned {
+                let missing_field = is_type_implicit_boundary(baseline, item.leading_view());
+                return record_boundary_normalized(
+                    i,
+                    item,
+                    baseline,
+                    missing_field,
+                    item_origin,
+                    line_entry,
+                );
+            }
+            position = RecordPosition::AfterError;
             continue;
         };
-
         item_origin = advanced_origin(item_origin, child_entry, i.rb());
-        let successor_entry = suffix_marker(i.rb());
-        let successor = type_record_successor_normalized(
-            i.rb(),
-            exit,
-            baseline,
-            caller_stops,
-            pipe_lexical,
-            item_origin,
-            fence,
-            ambient,
-        );
-        item_origin = advanced_origin(item_origin, successor_entry, i.rb());
-        (item, line_entry) = match successor {
-            Ok(next) => next,
-            Err(exit) => return exit,
+        (item, line_entry) = match exit {
+            NormalizedExit::Complete(Err(Either::Left(next)), line) => (next, line),
+            NormalizedExit::Complete(Err(Either::Right(end)), line) => (end.item, line),
+            NormalizedExit::Complete(Ok(()), line) => {
+                let (next, origin, line) = type_item_with_pipe_lexical_normalized(
+                    i.rb(),
+                    item_origin,
+                    line,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+                item_origin = origin;
+                (next, line)
+            }
+            NormalizedExit::Deferred(..) => unreachable!("normalized Type owners do not defer"),
         };
+        position = RecordPosition::AfterField;
     }
 }
 
@@ -352,151 +446,98 @@ fn type_record_missing_name_normalized(
 
 fn type_record_malformed_name_colon_normalized(
     mut i: RewriteIn,
+    item: &Item,
+    caller_stops: Stops,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
-    _ambient: AmbientClaimContext<'_>,
 ) -> bool {
     i.rb()
-        .map(
-            |lex: LexIn| {
-                Some(type_record_malformed_name_colon_probe(
-                    lex,
-                    item_origin,
-                    line_entry,
-                    fence,
-                    pipe_lexical,
-                ))
-            },
-            |has_colon| has_colon,
-        )
+        .token(|lex| {
+            Some(type_record_malformed_name_colon_probe(
+                lex,
+                token_kind(item),
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+            ))
+        })
         .expect("the malformed-name probe always succeeds")
 }
 
 fn type_record_malformed_name_colon_probe(
     mut i: LexIn,
+    initial_kind: Option<TokenKind>,
+    caller_stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
 ) -> bool {
     let mut source = i.remainder();
-    let mut nested_depth = 0usize;
+    let mut closes = Vec::new();
+    advance_record_nesting(&mut closes, initial_kind);
     loop {
-        let Some((next, next_origin, next_line_entry, kind, indentation)) =
+        let Some((next, next_origin, next_line_entry, token, indentation)) =
             observe_type_item(i.rb(), source, item_origin, line_entry, fence, pipe_lexical)
         else {
             return false;
         };
-        source = next;
-        item_origin = next_origin;
-        line_entry = next_line_entry;
+        let kind = token.as_ref().map(|token| token.kind);
+        let spelling = token.as_ref().map(|token| token.text.as_ref());
         if indentation.is_some() {
             return false;
         }
-        match kind {
-            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
-                nested_depth += 1;
-                continue;
-            }
-            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
-                if nested_depth != 0 =>
-            {
-                nested_depth -= 1;
-                continue;
-            }
-            _ => {}
-        }
-        if nested_depth == 0 && is_record_colon_kind(kind) {
+        if closes.is_empty() && is_record_colon_kind(kind) {
             return true;
         }
-        if nested_depth == 0 && is_type_record_probe_boundary(kind) {
+        if is_record_name_boundary(kind, spelling, closes.last().copied(), caller_stops) {
             return false;
         }
+        advance_record_nesting(&mut closes, kind);
+        source = next;
+        item_origin = next_origin;
+        line_entry = next_line_entry;
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn type_record_malformed_name_normalized(
     mut i: RewriteIn,
-    mut item: Item,
+    item: Item,
     baseline: usize,
     type_ml: TypeMlContext,
     outer_closes: u8,
     caller_stops: Stops,
     pipe_lexical: bool,
-    mut item_origin: usize,
-    mut line_entry: LineEntry,
+    item_origin: usize,
+    line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    item.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::TypeRecordField.into());
-    let (item, item_origin, line_entry, has_colon) = emit_recovery_error_run(
+    let (item, item_origin, line_entry, caller_owned) = retry_record_run_normalized(
         i.rb(),
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            let mut nested_depth = 0usize;
-            let (end, has_colon) = loop {
-                let kind = type_recovery_error_syntax_kind(&item);
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                let has_colon = is_record_colon_kind(token_kind(&item)) && nested_depth == 0;
-                if item.payload_view().is_boundary()
-                    || item.payload_view().is_eof()
-                    || has_colon
-                    || is_type_caller_boundary(&item, caller_stops)
-                {
-                    break (end, has_colon);
-                }
-                let was_nested = nested_depth != 0;
-                match token_kind(&item) {
-                    Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
-                        nested_depth += 1;
-                    }
-                    Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
-                        if nested_depth != 0 =>
-                    {
-                        nested_depth -= 1;
-                    }
-                    _ => {}
-                }
-                if nested_depth == 0
-                    && (is_type_record_field_name(&item)
-                        || (!was_nested && is_type_record_field_boundary(&item))
-                        || is_type_implicit_boundary(baseline, item.leading_view()))
-                {
-                    break (end, false);
-                }
-            };
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range: start..end,
-                category: UnexpectedCategory::OtherCharacter,
-            });
-            (item, item_origin, line_entry, has_colon)
-        },
-        |range, unexpected| {
-            record_field_recovery_draft(
-                TypeRole::RecordFieldName,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
+        item,
+        RecordErrorSlot::Name,
+        baseline,
+        outer_closes,
+        caller_stops,
+        pipe_lexical,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
     );
-    let exit = if has_colon {
+    // The matching-kind probe and the committed run share the same boundary
+    // rule; only a top-level local colon can complete the name skeleton.
+    let exit = if !caller_owned
+        && is_record_colon_kind(token_kind(&item))
+        && !item.leading_view().contains_line_break()
+    {
         emit_token_item(&mut i, item);
         type_record_rhs_normalized(
             i.rb(),
@@ -527,27 +568,34 @@ fn type_record_field_head_after_normalized(
     _ambient: AmbientClaimContext<'_>,
 ) -> bool {
     i.rb()
-        .map(
-            |mut lex: LexIn| {
-                let source = lex.remainder();
-                Some(
-                    observe_type_item(
-                        lex.rb(),
-                        source,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                    )
-                    .is_some_and(|(_, _, _, kind, indentation)| {
-                        is_record_colon_kind(kind)
-                            && indentation.is_none_or(|indentation| indentation > baseline)
-                    }),
-                )
-            },
-            |has_colon| has_colon,
-        )
+        .token(|lex| {
+            Some(type_record_field_head_probe(
+                lex,
+                baseline,
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+            ))
+        })
         .expect("the field-head probe always succeeds")
+}
+
+fn type_record_field_head_probe(
+    mut i: LexIn,
+    baseline: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
+) -> bool {
+    let source = i.remainder();
+    observe_type_item(i.rb(), source, item_origin, line_entry, fence, pipe_lexical).is_some_and(
+        |(_, _, _, token, indentation)| {
+            is_record_colon_kind(token.map(|token| token.kind))
+                && indentation.is_none_or(|indentation| indentation > baseline)
+        },
+    )
 }
 
 pub(super) fn type_record_next_field_normalized(
@@ -573,120 +621,166 @@ pub(super) fn type_record_next_field_normalized(
         )
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum RecordErrorSlot {
+    Field,
+    Separator,
+    Name,
+    Close,
+}
+
+impl RecordErrorSlot {
+    fn role(self) -> GrammarRole {
+        match self {
+            Self::Field => GrammarRole::Type(TypeRole::RecordField),
+            Self::Separator => GrammarRole::Type(TypeRole::RecordFieldSeparator),
+            Self::Name => GrammarRole::Type(TypeRole::RecordFieldName),
+            Self::Close => record_close_role(),
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
-fn retry_type_record_field_normalized(
-    mut i: RewriteIn,
+fn retry_record_run_normalized(
+    i: RewriteIn,
     mut item: Item,
+    slot: RecordErrorSlot,
     baseline: usize,
+    outer_closes: u8,
     caller_stops: Stops,
     pipe_lexical: bool,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-) -> Result<(Item, usize, LineEntry), NormalizedExit> {
+) -> (Item, usize, LineEntry, bool) {
     item.emit_all_remaining_leading(&mut *i.state);
-    i.state.start_node(SyntaxKind::Error.into());
-    let mut nested_depth = 0usize;
-    loop {
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            emit_missing(&mut i, LeadingTrivia::default());
-            return Err(complete(handoff(item), line_entry));
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            let mut closes = Vec::new();
+            let (end, caller_owned) = loop {
+                advance_record_nesting(&mut closes, token_kind(&item));
+                let kind = type_recovery_error_syntax_kind(&item);
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) =
+                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                        run,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                        ambient,
+                    );
+                if item.payload_view().is_boundary() || item.payload_view().is_eof() {
+                    break (end, false);
+                }
+                let kind = token_kind(&item);
+                let local_close = closes.last().copied();
+                let caller = is_type_caller_boundary(&item, caller_stops);
+                if slot == RecordErrorSlot::Name {
+                    let local_colon = local_close.is_none()
+                        && is_record_colon_kind(kind)
+                        && !item.leading_view().contains_line_break();
+                    if item.leading_view().contains_line_break()
+                        || is_record_name_boundary(
+                            kind,
+                            item.payload_view().spelling(),
+                            local_close,
+                            caller_stops,
+                        )
+                    {
+                        break (end, caller && !local_colon);
+                    }
+                    continue;
+                }
+                let matching_nested_close = local_close.is_some() && kind == local_close;
+                let candidate = closes.is_empty()
+                    && slot != RecordErrorSlot::Close
+                    && (is_record_colon_kind(kind)
+                        || (is_type_record_field_name(&item)
+                            && ((slot == RecordErrorSlot::Separator && !caller)
+                                || run.lexical(|lex| {
+                                    type_record_field_head_probe(
+                                        lex,
+                                        baseline,
+                                        item_origin,
+                                        line_entry,
+                                        fence,
+                                        pipe_lexical,
+                                    )
+                                }))));
+                let local_comma = closes.is_empty()
+                    && slot != RecordErrorSlot::Close
+                    && kind == Some(TokenKind::Comma);
+                let record_close = kind == Some(TokenKind::RBrace) && !matching_nested_close;
+                if caller && !candidate && !local_comma && !record_close {
+                    // Preserve this immediate ownership decision: the sequence
+                    // must not reopen a nested caller Item as a fresh field.
+                    break (end, true);
+                }
+                if candidate
+                    || local_comma
+                    || record_close
+                    || (is_record_close_kind(kind)
+                        && !matching_nested_close
+                        && (slot != RecordErrorSlot::Close
+                            || is_type_outer_close(&item, outer_closes)))
+                    || (is_type_implicit_boundary(baseline, item.leading_view())
+                        && !matching_nested_close)
+                {
+                    break (end, false);
+                }
+            };
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range: start..end,
+                category: UnexpectedCategory::OtherCharacter,
+            });
+            (item, item_origin, line_entry, caller_owned)
+        },
+        |range, unexpected| {
+            record_recovery_draft(slot.role(), RecoveryKind::Error, range, unexpected)
+        },
+    )
+}
+
+fn advance_record_nesting(closes: &mut Vec<TokenKind>, kind: Option<TokenKind>) {
+    match kind {
+        Some(TokenKind::LParen) => closes.push(TokenKind::RParen),
+        Some(TokenKind::LBracket) => closes.push(TokenKind::RBracket),
+        Some(TokenKind::LBrace) => closes.push(TokenKind::RBrace),
+        Some(close) if Some(&close) == closes.last() => {
+            closes.pop();
         }
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-            ambient,
-        );
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            emit_missing(&mut i, LeadingTrivia::default());
-            return Err(complete(handoff(item), line_entry));
-        }
-        if item.payload_view().is_eof() {
-            i.state.finish_node();
-            return Err(complete(type_record_missing_close(i, item), line_entry));
-        }
-        if token_kind(&item) == Some(TokenKind::RBrace) && nested_depth == 0 {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            emit_token_item(&mut i, item);
-            return Err(complete(Ok(()), line_entry));
-        }
-        if token_kind(&item) == Some(TokenKind::Comma) && nested_depth == 0 {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            emit_token_item(&mut i, item);
-            return type_record_after_comma_normalized(
-                i,
-                baseline,
-                caller_stops,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
-        if is_record_colon_kind(token_kind(&item))
-            && nested_depth == 0
-            && type_chain_trivia(item.leading_view(), baseline)
-        {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            return Ok((item, item_origin, line_entry));
-        }
-        if is_type_record_field_name(&item)
-            && nested_depth == 0
-            && type_chain_trivia(item.leading_view(), baseline)
-            && type_record_field_head_after_normalized(
-                i.rb(),
-                baseline,
-                item_origin,
-                line_entry,
-                fence,
-                pipe_lexical,
-                ambient,
-            )
-        {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            return Ok((item, item_origin, line_entry));
-        }
-        if nested_depth == 0 && is_type_caller_boundary(&item, caller_stops) {
-            i.state.finish_node();
-            emit_missing(&mut i, LeadingTrivia::default());
-            return Err(complete(handoff(item), line_entry));
-        }
-        let was_nested = nested_depth != 0;
-        match token_kind(&item) {
-            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
-                nested_depth += 1;
-            }
-            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
-                if nested_depth != 0 =>
-            {
-                nested_depth -= 1;
-            }
-            _ => {}
-        }
-        if nested_depth == 0 && !was_nested && is_type_mismatched_close(&item, TokenKind::RBrace) {
-            i.state.finish_node();
-            return Err(complete(type_record_missing_close(i, item), line_entry));
-        }
-        if nested_depth == 0
-            && !was_nested
-            && is_type_implicit_boundary(baseline, item.leading_view())
-        {
-            i.state.finish_node();
-            return Err(complete(handoff(item), line_entry));
-        }
+        _ => {}
     }
+}
+
+fn is_record_close_kind(kind: Option<TokenKind>) -> bool {
+    matches!(
+        kind,
+        Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+    )
+}
+
+fn is_record_name_boundary(
+    kind: Option<TokenKind>,
+    spelling: Option<&str>,
+    local_close: Option<TokenKind>,
+    caller_stops: Stops,
+) -> bool {
+    (local_close.is_none() && is_record_colon_kind(kind))
+        || is_type_caller_boundary_parts(kind, spelling, caller_stops)
+        || (is_record_close_kind(kind) && kind != local_close)
+        || (local_close.is_none()
+            && matches!(
+                kind,
+                Some(TokenKind::Identifier | TokenKind::Comma | TokenKind::Semicolon)
+            ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -905,13 +999,32 @@ fn record_field_recovery_draft(
     range: std::ops::Range<usize>,
     unexpected: Arc<[UnexpectedSyntax]>,
 ) -> RecoveryDraft {
+    record_recovery_draft(GrammarRole::Type(role), kind, range, unexpected)
+}
+
+fn record_recovery_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
     let expected = match role {
-        TypeRole::RecordFieldName => ExpectedSyntax::Identifier,
-        TypeRole::RecordFieldColon => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        TypeRole::RecordFieldType => ExpectedSyntax::TypeExpression,
-        _ => unreachable!("only internal named-record field slots use this draft"),
+        GrammarRole::Type(TypeRole::RecordField | TypeRole::RecordFieldName) => {
+            ExpectedSyntax::Identifier
+        }
+        GrammarRole::Type(TypeRole::RecordFieldColon) => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
+        }
+        GrammarRole::Type(TypeRole::RecordFieldType) => ExpectedSyntax::TypeExpression,
+        GrammarRole::Type(TypeRole::RecordFieldSeparator) => {
+            ExpectedSyntax::DelimitedSequenceSeparator
+        }
+        GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::NamedRecordType,
+            delimiter: Delimiter::Brace,
+        } => ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+        _ => unreachable!("only named-record recovery slots use this draft"),
     };
-    let role = GrammarRole::Type(role);
     RecoveryDraft::new(
         RecoverySiteKey {
             role,
@@ -940,275 +1053,39 @@ fn is_type_record_field_start(item: &Item) -> bool {
     is_type_record_field_name(item) || is_record_colon_kind(token_kind(item))
 }
 
-fn type_record_after_comma_normalized(
-    mut i: RewriteIn,
-    baseline: usize,
-    caller_stops: Stops,
-    pipe_lexical: bool,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-) -> Result<(Item, usize, LineEntry), NormalizedExit> {
-    let (mut next, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
-        i.rb(),
-        item_origin,
-        line_entry,
-        fence,
-        pipe_lexical,
-        ambient,
-    );
-    if next.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(complete(handoff(next), line_entry));
-    }
-    if token_kind(&next) == Some(TokenKind::RBrace) || is_type_record_field_start(&next) {
-        next.emit_all_remaining_leading(&mut *i.state);
-    }
-    if token_kind(&next) == Some(TokenKind::RBrace) {
-        emit_token_item(&mut i, next);
-        return Err(complete(Ok(()), line_entry));
-    }
-    if is_type_caller_boundary(&next, caller_stops)
-        && !type_record_next_field_normalized(
-            i.rb(),
-            &next,
-            baseline,
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-            ambient,
-        )
-    {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(complete(handoff(next), line_entry));
-    }
-    if next.payload_view().is_eof() || is_type_mismatched_close(&next, TokenKind::RBrace) {
-        next = missing_type_item(i.rb(), next);
-        return Err(complete(type_record_missing_close(i, next), line_entry));
-    }
-    Ok((next, item_origin, line_entry))
-}
-
-fn type_record_missing_close(i: RewriteIn, item: Item) -> TailExit {
-    missing_type_close(i, item)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn retry_type_record_separator_normalized(
+fn record_boundary_normalized(
     mut i: RewriteIn,
     mut item: Item,
     baseline: usize,
-    caller_stops: Stops,
-    pipe_lexical: bool,
-    mut item_origin: usize,
-    mut line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-) -> Result<(Item, usize, LineEntry), NormalizedExit> {
-    i.state.start_node(SyntaxKind::Error.into());
-    let mut nested_depth = 0usize;
-    loop {
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            emit_missing(&mut i, LeadingTrivia::default());
-            return Err(complete(handoff(item), line_entry));
-        }
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-            ambient,
-        );
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            emit_missing(&mut i, LeadingTrivia::default());
-            return Err(complete(handoff(item), line_entry));
-        }
-        if item.payload_view().is_eof() {
-            i.state.finish_node();
-            return Err(complete(type_record_missing_close(i, item), line_entry));
-        }
-        if token_kind(&item) == Some(TokenKind::RBrace) && nested_depth == 0 {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            emit_token_item(&mut i, item);
-            return Err(complete(Ok(()), line_entry));
-        }
-        if token_kind(&item) == Some(TokenKind::Comma) && nested_depth == 0 {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            emit_token_item(&mut i, item);
-            return type_record_after_comma_normalized(
-                i,
-                baseline,
-                caller_stops,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
-        if is_type_record_field_start(&item) && nested_depth == 0 {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            return Ok((item, item_origin, line_entry));
-        }
-        if nested_depth == 0 && is_type_caller_boundary(&item, caller_stops) {
-            i.state.finish_node();
-            emit_missing(&mut i, LeadingTrivia::default());
-            return Err(complete(handoff(item), line_entry));
-        }
-        let was_nested = nested_depth != 0;
-        match token_kind(&item) {
-            Some(TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace) => {
-                nested_depth += 1;
-            }
-            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
-                if nested_depth != 0 =>
-            {
-                nested_depth -= 1;
-            }
-            _ => {}
-        }
-        if nested_depth == 0 && !was_nested && is_type_mismatched_close(&item, TokenKind::RBrace) {
-            i.state.finish_node();
-            return Err(complete(type_record_missing_close(i, item), line_entry));
-        }
-        if nested_depth == 0
-            && !was_nested
-            && is_type_implicit_boundary(baseline, item.leading_view())
-        {
-            i.state.finish_node();
-            return Err(complete(handoff(item), line_entry));
-        }
+    missing_field: bool,
+    item_origin: usize,
+    line_entry: LineEntry,
+) -> NormalizedExit {
+    if item.payload_view().is_eof() && type_chain_trivia(item.leading_view(), baseline) {
+        item.emit_all_remaining_leading(&mut *i.state);
     }
+    if missing_field {
+        emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
+    }
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        record_recovery_draft(
+            record_close_role(),
+            RecoveryKind::Missing,
+            range,
+            Arc::from([]),
+        )
+    });
+    complete(handoff(item), line_entry)
 }
 
-fn type_record_successor_normalized(
-    mut i: RewriteIn,
-    exit: NormalizedExit,
-    baseline: usize,
-    caller_stops: Stops,
-    pipe_lexical: bool,
-    item_origin: usize,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-) -> Result<(Item, LineEntry), NormalizedExit> {
-    match exit {
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if next.payload_view().is_boundary() =>
-        {
-            emit_missing(&mut i, LeadingTrivia::default());
-            Err(complete(handoff(next), line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if token_kind(&next) == Some(TokenKind::Comma) =>
-        {
-            emit_token_item(&mut i, next);
-            match type_record_after_comma_normalized(
-                i,
-                baseline,
-                caller_stops,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            ) {
-                Ok((next, _, line_entry)) => Ok((next, line_entry)),
-                Err(exit) => Err(exit),
-            }
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if token_kind(&next) == Some(TokenKind::RBrace) =>
-        {
-            emit_token_item(&mut i, next);
-            Err(complete(Ok(()), line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
-            if type_record_next_field_normalized(
-                i.rb(),
-                &next,
-                baseline,
-                item_origin,
-                line_entry,
-                fence,
-                pipe_lexical,
-                ambient,
-            ) =>
-        {
-            next.emit_all_remaining_leading(&mut *i.state);
-            emit_missing(&mut i, LeadingTrivia::default());
-            Ok((next, line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if is_type_caller_boundary(&next, caller_stops) =>
-        {
-            emit_missing(&mut i, LeadingTrivia::default());
-            Err(complete(handoff(next), line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
-            if token_kind(&next) == Some(TokenKind::Semicolon) =>
-        {
-            next.emit_all_remaining_leading(&mut *i.state);
-            match retry_type_record_separator_normalized(
-                i,
-                next,
-                baseline,
-                caller_stops,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            ) {
-                Ok((next, _, line_entry)) => Ok((next, line_entry)),
-                Err(exit) => Err(exit),
-            }
-        }
-        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
-            if pipe_lexical && token_kind(&next) == Some(TokenKind::Pipe) =>
-        {
-            next.emit_all_remaining_leading(&mut *i.state);
-            match retry_type_record_separator_normalized(
-                i,
-                next,
-                baseline,
-                caller_stops,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            ) {
-                Ok((next, _, line_entry)) => Ok((next, line_entry)),
-                Err(exit) => Err(exit),
-            }
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if is_type_mismatched_close(&next, TokenKind::RBrace) =>
-        {
-            Err(complete(type_record_missing_close(i, next), line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
-            Err(complete(type_record_missing_close(i, end.item), line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(mut next)), line_entry)
-            if is_type_record_field_start(&next)
-                && is_type_implicit_boundary(baseline, next.leading_view()) =>
-        {
-            next.emit_all_remaining_leading(&mut *i.state);
-            Ok((next, line_entry))
-        }
-        NormalizedExit::Complete(exit, line_entry) => Err(complete(exit, line_entry)),
-        _ => unreachable!("normalized Type owners do not defer"),
+fn record_close_role() -> GrammarRole {
+    GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::NamedRecordType,
+        delimiter: Delimiter::Brace,
     }
 }
 
@@ -1219,13 +1096,7 @@ fn observe_type_item<'source>(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     pipe_lexical: bool,
-) -> Option<(
-    &'source str,
-    usize,
-    LineEntry,
-    Option<TokenKind>,
-    Option<usize>,
-)> {
+) -> Option<(&'source str, usize, LineEntry, Option<Token>, Option<usize>)> {
     let TriviaObservation::Visible(visible) =
         observe_fenced_trivia(source, source_origin, line_entry, fence)
     else {
@@ -1246,8 +1117,8 @@ fn observe_type_item<'source>(
     } else {
         scan_type_nud_payload(lex, visible.present, payload_origin, fence)?
     };
-    let kind = match accepted.payload {
-        CurrentPayload::Token(token) => Some(token.kind),
+    let token = match accepted.payload {
+        CurrentPayload::Token(token) => Some(token),
         CurrentPayload::Operator(_) => None,
     };
     let next_origin = payload_origin + visible.source.len() - suffix.len();
@@ -1255,21 +1126,7 @@ fn observe_type_item<'source>(
         suffix,
         next_origin,
         accepted.next_line_entry,
-        kind,
+        token,
         visible.indentation,
     ))
-}
-
-fn is_type_record_probe_boundary(kind: Option<TokenKind>) -> bool {
-    matches!(
-        kind,
-        Some(
-            TokenKind::Identifier
-                | TokenKind::Comma
-                | TokenKind::Semicolon
-                | TokenKind::RBrace
-                | TokenKind::RParen
-                | TokenKind::RBracket
-        )
-    )
 }
