@@ -69,6 +69,14 @@ fn record(
                 VariantDeclarationRole::Separator,
             )),
         ) => ExpectedSyntax::DelimitedSequenceSeparator,
+        GrammarRole::Declaration(
+            DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldSeparator,
+            ))
+            | DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldSeparator,
+            )),
+        ) => ExpectedSyntax::DelimitedSequenceSeparator,
         _ => ExpectedSyntax::Identifier,
     };
     CommittedRecoveryRecord {
@@ -93,6 +101,35 @@ fn record(
             sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
         }]),
         primary_expectation: 0,
+    }
+}
+
+#[test]
+fn typed_variant_field_sequence_uses_the_payload_separator_role() {
+    for owner in [VariantOwner::Enum, VariantOwner::Error] {
+        for (source, role, kind, range) in [(
+            "{V{a:A b:B}}",
+            variant_role(owner, VariantDeclarationRole::NamedFieldSeparator),
+            RecoveryKind::Missing,
+            7..7,
+        )] {
+            let (green, records, _, _) = typed_variant(
+                source,
+                owner,
+                VariantSequenceForm::Braced,
+                false,
+                0,
+                700,
+                None,
+                None,
+                false,
+            );
+            assert_eq!(green.to_string(), source, "{owner:?} {source:?}");
+            assert_eq!(
+                records,
+                [record(role, kind, 700 + range.start..700 + range.end, 0)]
+            );
+        }
     }
 }
 

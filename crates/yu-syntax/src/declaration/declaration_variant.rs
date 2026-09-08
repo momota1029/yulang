@@ -24,7 +24,7 @@ use crate::{
         },
     },
     cursor::{LexIn, SyntaxIn},
-    declaration::struct_decl::{
+    declaration::fields::{
         DeclarationFieldRoles, FieldList, FieldOuterClose, declaration_fields_normalized,
     },
     handoff::{Either, NormalizedExit, complete, handoff},
@@ -495,6 +495,17 @@ fn parse_variant(
                 } else {
                     VariantDeclarationRole::NamedFieldType
                 }),
+                field_separator: owner.role(VariantDeclarationRole::NamedFieldSeparator),
+                close: GrammarRole::ClosingDelimiter {
+                    owner: match list {
+                        FieldList::NamedBrace => ConstructRole::VariantNamedPayload,
+                        FieldList::Tuple => ConstructRole::VariantTuplePayload,
+                    },
+                    delimiter: match list {
+                        FieldList::NamedBrace => Delimiter::Brace,
+                        FieldList::Tuple => Delimiter::Parenthesis,
+                    },
+                },
             },
             item,
             sequence_baseline,

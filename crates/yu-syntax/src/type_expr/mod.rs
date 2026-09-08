@@ -1447,7 +1447,7 @@ fn type_tail_normalized(
             ambient,
         ),
         Some(TypeApplyBoundary::DeclarationNamedFields) => {
-            crate::declaration::struct_decl::named_declaration_fields_next_field_candidate(
+            crate::declaration::fields::named_declaration_fields_next_field_candidate(
                 i.rb(),
                 &item,
                 item_origin,

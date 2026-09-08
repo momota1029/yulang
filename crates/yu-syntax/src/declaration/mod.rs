@@ -9,6 +9,7 @@ pub(super) mod declaration_variant;
 pub(super) mod derives;
 pub(super) mod enum_decl;
 pub(super) mod error_decl;
+pub(super) mod fields;
 pub(super) mod impl_decl;
 pub(super) mod mod_decl;
 pub(super) mod operator_header;

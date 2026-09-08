@@ -4,12 +4,16 @@ use crate::tests::type_expr::required_recovery::{
 use crate::tests::type_expr::*;
 use crate::{
     ambient_claim::AmbientClaimView,
-    declaration::struct_decl::{
+    declaration::fields::{
         DeclarationFieldRoles, FieldList, FieldOuterClose, declaration_fields_normalized,
     },
-    recovery_record::{DeclarationRole, StructRole},
+    recovery_record::{
+        ConstructRole, DeclarationRole, Delimiter, EnumDeclarationRole, ErrorDeclarationRole,
+        GrammarRole, StructRole, VariantDeclarationRole,
+    },
     type_expr::{TypeOuterBoundary, type_nud_item_normalized},
 };
+use std::sync::Arc;
 
 fn equals_error(id: u32, start: usize, text: &str) -> CommittedRecoveryRecord {
     let equals = UnexpectedCategory::Punctuation(PunctuationEvidence::Equals);
@@ -31,6 +35,45 @@ fn equals_error(id: u32, start: usize, text: &str) -> CommittedRecoveryRecord {
             .collect::<Vec<_>>()
             .into(),
     )
+}
+
+fn field_separator_missing(id: u32, role: GrammarRole, at: usize) -> CommittedRecoveryRecord {
+    let mut record = missing(id, role, at);
+    record.expectations = Arc::from([SyntaxExpectation {
+        role,
+        expected: ExpectedSyntax::DelimitedSequenceSeparator,
+        range: at..at,
+        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+    }]);
+    record
+}
+
+fn field_close_missing(
+    id: u32,
+    role: GrammarRole,
+    at: usize,
+    delimiter: Delimiter,
+) -> CommittedRecoveryRecord {
+    let mut record = missing(id, role, at);
+    record.expectations = Arc::from([SyntaxExpectation {
+        role,
+        expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
+        range: at..at,
+        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+    }]);
+    record
+}
+
+fn field_type_missing(id: u32, at: usize) -> CommittedRecoveryRecord {
+    let role = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldType));
+    let mut record = missing(id, role, at);
+    record.expectations = Arc::from([SyntaxExpectation {
+        role,
+        expected: ExpectedSyntax::TypeExpression,
+        range: at..at,
+        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+    }]);
+    record
 }
 
 #[test]
@@ -160,14 +203,34 @@ fn declaration_fields_recover_unclaimed_equals_without_zero_progress_retry() {
                 format!("error E {{A{body}}}"),
             ] {
                 let local_start = source.find(malformed).unwrap();
-                let expected = [equals_error(0, origin + local_start, malformed)];
+                let separator = match source.as_str() {
+                    value if value.starts_with("struct ") => GrammarRole::Declaration(
+                        DeclarationRole::Struct(StructRole::FieldSeparator),
+                    ),
+                    value if value.starts_with("enum ") => GrammarRole::Declaration(
+                        DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                            VariantDeclarationRole::NamedFieldSeparator,
+                        )),
+                    ),
+                    _ => GrammarRole::Declaration(DeclarationRole::Error(
+                        ErrorDeclarationRole::Variant(VariantDeclarationRole::NamedFieldSeparator),
+                    )),
+                };
+                let expected = if raw_missing == 1 {
+                    vec![
+                        field_separator_missing(0, separator, origin + local_start),
+                        equals_error(1, origin + local_start, malformed),
+                    ]
+                } else {
+                    vec![equals_error(0, origin + local_start, malformed)]
+                };
                 let fresh = run_statement_records(&source, origin, None);
                 assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
                 assert_eq!(fresh.remainder, "", "{source:?}");
                 assert_eq!(fresh.successor_origin, origin + source.len());
                 assert_eq!(fresh.records, expected, "{source:?}");
-                assert_eq!(fresh.slots, 1);
-                assert_eq!(fresh.diagnostics, (Some(1), 0));
+                assert_eq!(fresh.slots, expected.len());
+                assert_eq!(fresh.diagnostics, (Some(expected.len() as u32), 0));
                 assert_eq!(fresh.mark, ());
                 assert!(fresh.same_operators);
                 let root = SyntaxNode::new_root(fresh.green.clone());
@@ -214,8 +277,11 @@ fn declaration_fields_recover_unclaimed_equals_without_zero_progress_retry() {
                 assert_same_exit(&fresh.exit, &replay.exit);
                 assert_eq!(replay.successor_origin, fresh.successor_origin);
                 assert_eq!(replay.remainder, fresh.remainder);
-                assert_eq!(replay.slots, 1);
-                assert_eq!(replay.diagnostics, (Some(8), 1));
+                assert_eq!(replay.slots, expected.len());
+                assert_eq!(
+                    replay.diagnostics,
+                    (Some(7 + expected.len() as u32), expected.len())
+                );
             }
         }
     }
@@ -253,6 +319,13 @@ fn run_tuple<'source>(
             field_name: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldName)),
             field_colon: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldColon)),
             field_type: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldType)),
+            field_separator: GrammarRole::Declaration(DeclarationRole::Struct(
+                StructRole::FieldSeparator,
+            )),
+            close: GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::StructTupleFields,
+                delimiter: Delimiter::Parenthesis,
+            },
         },
         open,
         0,
@@ -308,10 +381,33 @@ fn tuple_equals_recovery_preserves_seeded_output_and_complete_close_or_fence_ite
                 Some(&fence),
             ),
         ] {
-            let expected = [
+            let mut expected = vec![
                 missing(0, GrammarRole::Type(TypeRole::ArrowRhs), origin),
                 equals_error(1, origin + 1, "="),
             ];
+            if source.contains(']') {
+                expected.push(field_close_missing(
+                    2,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::StructTupleFields,
+                        delimiter: Delimiter::Parenthesis,
+                    },
+                    origin + 2,
+                    Delimiter::Parenthesis,
+                ));
+            }
+            if fence.is_some() {
+                expected.push(field_type_missing(2, origin + 4));
+                expected.push(field_close_missing(
+                    3,
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::StructTupleFields,
+                        delimiter: Delimiter::Parenthesis,
+                    },
+                    origin + 4,
+                    Delimiter::Parenthesis,
+                ));
+            }
             let fresh = run_tuple(source, origin, fence, None);
             assert_eq!(
                 fresh.green.to_string(),
@@ -321,8 +417,8 @@ fn tuple_equals_recovery_preserves_seeded_output_and_complete_close_or_fence_ite
             assert_eq!(fresh.records, expected, "{source:?}");
             assert_eq!(fresh.remainder, remainder);
             assert_eq!(fresh.successor_origin, origin + next);
-            assert_eq!(fresh.slots, 2);
-            assert_eq!(fresh.diagnostics, (Some(2), 0));
+            assert_eq!(fresh.slots, expected.len());
+            assert_eq!(fresh.diagnostics, (Some(expected.len() as u32), 0));
             assert_eq!(fresh.mark, ());
             assert!(fresh.same_operators);
             if emitted.ends_with(')') {
@@ -359,8 +455,11 @@ fn tuple_equals_recovery_preserves_seeded_output_and_complete_close_or_fence_ite
             let replay = run_tuple(source, origin, fence, Some(&frozen));
             assert_eq!(replay.green, fresh.green);
             assert_eq!(replay.records, frozen);
-            assert_eq!(replay.slots, 2);
-            assert_eq!(replay.diagnostics, (Some(9), 2));
+            assert_eq!(replay.slots, expected.len());
+            assert_eq!(
+                replay.diagnostics,
+                (Some(7 + expected.len() as u32), expected.len())
+            );
             assert_same_exit(&fresh.exit, &replay.exit);
             assert_eq!(replay.successor_origin, fresh.successor_origin);
             assert_eq!(replay.remainder, fresh.remainder);

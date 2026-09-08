@@ -666,13 +666,6 @@ fn struct_named_field_records_are_exact_and_frozen() {
             11..12,
             ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
         ),
-        (
-            "struct S{@ x: T}",
-            StructRole::Field,
-            RecoveryKind::Error,
-            9..10,
-            ExpectedSyntax::Identifier,
-        ),
     ] {
         let (green, _, records) = typed_struct(source, 100, None, 0, None);
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -711,6 +704,51 @@ fn struct_named_field_records_are_exact_and_frozen() {
         assert_eq!(again, green, "{source:?}");
         assert_eq!(frozen, seeded, "{source:?}");
     }
+
+    let (green, _, records) = typed_struct("struct S{@ x: T}", 100, None, 0, None);
+    assert_eq!(green.to_string(), "struct S{@ x: T}");
+    let field = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::Field));
+    let separator = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldSeparator));
+    assert_eq!(
+        records,
+        [
+            CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role: field,
+                    range: 109..110
+                },
+                kind: RecoveryKind::Error,
+                unexpected: Arc::from([UnexpectedSyntax::Token {
+                    range: 109..110,
+                    category: UnexpectedCategory::OtherCharacter,
+                }]),
+                expectations: Arc::from([SyntaxExpectation {
+                    role: field,
+                    expected: ExpectedSyntax::Identifier,
+                    range: 109..110,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            },
+            CommittedRecoveryRecord {
+                id: DiagnosticId(1),
+                site: RecoverySiteKey {
+                    role: separator,
+                    range: 111..111
+                },
+                kind: RecoveryKind::Missing,
+                unexpected: Arc::from([]),
+                expectations: Arc::from([SyntaxExpectation {
+                    role: separator,
+                    expected: ExpectedSyntax::DelimitedSequenceSeparator,
+                    range: 111..111,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            },
+        ]
+    );
 }
 
 #[test]
@@ -763,10 +801,18 @@ fn struct_named_field_runs_keep_per_item_facts_and_active_stops_pending() {
     ] {
         let (green, exit, records) = typed_struct(source, 100, None, stops, None);
         assert_eq!(green.to_string(), text, "{source:?}");
-        assert_eq!(records.len(), 1, "{source:?}");
+        assert_eq!(records.len(), 2, "{source:?}");
         assert_eq!(
             records[0].site.role,
             GrammarRole::Declaration(DeclarationRole::Struct(slot)),
+            "{source:?}",
+        );
+        assert_eq!(
+            records[1].site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: crate::recovery_record::ConstructRole::StructNamedFields,
+                delimiter: crate::recovery_record::Delimiter::Brace,
+            },
             "{source:?}",
         );
         let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
@@ -778,6 +824,65 @@ fn struct_named_field_runs_keep_per_item_facts_and_active_stops_pending() {
             "{source:?}"
         );
     }
+}
+
+#[test]
+fn struct_field_lists_publish_their_own_missing_and_mismatched_close() {
+    use crate::recovery_record::{
+        ConstructRole, Delimiter, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
+    };
+
+    for (source, owner, delimiter, kind, range) in [
+        (
+            "struct S{",
+            ConstructRole::StructNamedFields,
+            Delimiter::Brace,
+            RecoveryKind::Missing,
+            109..109,
+        ),
+        (
+            "struct S(",
+            ConstructRole::StructTupleFields,
+            Delimiter::Parenthesis,
+            RecoveryKind::Missing,
+            109..109,
+        ),
+    ] {
+        let (green, _, records) = typed_struct(source, 100, None, 0, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let role = GrammarRole::ClosingDelimiter { owner, delimiter };
+        assert_eq!(records.len(), 1, "{source:?}");
+        assert_eq!(
+            records[0].site,
+            crate::recovery_record::RecoverySiteKey {
+                role,
+                range: range.clone()
+            }
+        );
+        assert_eq!(records[0].kind, kind, "{source:?}");
+        assert_eq!(
+            records[0].expectations[0].expected,
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
+        );
+        assert_eq!(
+            records[0].unexpected.len(),
+            usize::from(kind == RecoveryKind::Error)
+        );
+    }
+
+    let (green, _, records) = typed_struct("struct S{)", 100, None, 0, None);
+    assert_eq!(green.to_string(), "struct S{)");
+    let role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::StructNamedFields,
+        delimiter: Delimiter::Brace,
+    };
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].site.role, role);
+    assert_eq!(records[0].kind, RecoveryKind::Error);
+    assert_eq!(records[0].site.range, 109..110);
+    assert_eq!(records[1].site.role, role);
+    assert_eq!(records[1].kind, RecoveryKind::Missing);
+    assert_eq!(records[1].site.range, 110..110);
 }
 
 #[test]

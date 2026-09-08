@@ -210,10 +210,6 @@ pub(crate) enum StructRole {
     FieldName,
     FieldColon,
     FieldType,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     FieldSeparator,
 }
 
@@ -242,10 +238,6 @@ pub(crate) enum VariantDeclarationRole {
     NamedFieldName,
     NamedFieldColon,
     NamedFieldType,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     NamedFieldSeparator,
     TupleFieldType,
 }
@@ -359,27 +351,11 @@ pub(crate) enum ConstructRole {
     EffectRowType,
     BracketRow,
     PolymorphicVariantType,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     StructNamedFields,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     StructTupleFields,
     DeclarationCompanion,
     EnumBracedVariantBody,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     VariantNamedPayload,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     VariantTuplePayload,
 }
 
