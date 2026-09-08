@@ -3,7 +3,7 @@
 //! This module deliberately shares declaration parsing with full mode while
 //! feeding the public header-discovery entrypoint.
 
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use chasa::{Back as _, input::IsCut, prelude::In};
 
@@ -26,8 +26,9 @@ pub(crate) struct HeaderDiscovery {
 }
 
 impl HeaderDiscovery {
-    pub(crate) fn into_header_info(self) -> HeaderInfo {
+    pub(crate) fn into_header_info(self, source: Arc<crate::SourceText>) -> HeaderInfo {
         HeaderInfo {
+            source,
             coverage: HeaderCoverage {
                 range: self.coverage,
                 stop: self.stop,

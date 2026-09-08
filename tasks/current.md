@@ -4,8 +4,10 @@ Updated: 2026-09-08. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Objective and current authority
 
-Complete `crates/yu-syntax/src/rewrite/` and replace the old parser through the
-existing atomic public/root cutover. Private construction is not that cutover.
+Prioritize rewrite-owned public header/root connection and atomic old-parser
+removal once the entry paths have sufficient validation functionality. Exhaustive
+private owner completion is no longer an automatic cutover prerequisite;
+deferred rows stay open. Private construction is not itself public cutover.
 
 - `notes/design/2026-09-08-successor-recovery-authority-amendment.md` is the
   current acceptance/recovery authority. Yulang2 is reference evidence only
@@ -21,6 +23,9 @@ existing atomic public/root cutover. Private construction is not that cutover.
   lightest scoped read-only reviewers or one owned implementation worker needed
   for a bounded gate; deterministic verification and honest reporting of review
   scope remain required.
+- `notes/design/2026-09-08-successor-public-cutover-priority-amendment.md`
+  records the current ordering: build rewrite header/root entries, exercise the
+  actual public two-phase path, then remove the legacy parser without fallback.
 
 ## Current gate and immediate next action
 
@@ -313,6 +318,13 @@ bodyless terminal success remains recovery-free and attachment phases remain
 unchanged. Act: 21; companion/indented/virtual/output: 23/7/9/4; package/
 format/diff and independent audits passed. D9c's close-boundary zero-recovery
 contract is pinned fresh/frozen.
+
+Public-cutover foundations are implemented under
+`2026-09-08-successor-public-cutover-priority-amendment.md`. HeaderInfo retains
+private source identity and `parse_file` rejects a distinct source before
+construction; scoped header reconciliation prevents full-only records from
+consuming later frozen header IDs. Header/root rewrite entries, public
+integration and legacy removal remain the immediate gate.
 
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,

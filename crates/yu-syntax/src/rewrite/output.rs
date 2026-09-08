@@ -192,6 +192,7 @@ enum DiagnosticSequence<'frozen> {
         frozen: &'frozen [CommittedRecoveryRecord],
         cursor: usize,
         next_id: Option<u32>,
+        consume_frozen: bool,
     },
 }
 
@@ -202,7 +203,12 @@ impl DiagnosticSequence<'_> {
 
     fn publish(&mut self, draft: RecoveryDraft) -> CommittedRecoveryRecord {
         // Sequential lookup is O(1); exact record comparison is O(E_record).
-        if let Self::Reconcile { frozen, cursor, .. } = self
+        if let Self::Reconcile {
+            frozen,
+            cursor,
+            consume_frozen: true,
+            ..
+        } = self
             && let Some(expected) = frozen.get(*cursor)
         {
             assert_draft_matches_record(&draft, expected);
@@ -262,6 +268,7 @@ impl<'frozen> DiagnosticSequence<'frozen> {
             frozen,
             cursor: 0,
             next_id: maximum.map_or(Some(0), |id| id.checked_add(1)),
+            consume_frozen: true,
         }
     }
 
@@ -270,7 +277,12 @@ impl<'frozen> DiagnosticSequence<'frozen> {
         start: usize,
         spec: StructuredRecoverySpec,
     ) -> (DiagnosticId, Option<&'frozen CommittedRecoveryRecord>) {
-        if let Self::Reconcile { frozen, cursor, .. } = self
+        if let Self::Reconcile {
+            frozen,
+            cursor,
+            consume_frozen: true,
+            ..
+        } = self
             && let Some(expected) = frozen.get(*cursor)
         {
             spec.assert_frozen_prefix(start, expected);
@@ -385,6 +397,28 @@ impl RewriteOutput<'_> {
 }
 
 impl<'frozen> RewriteOutput<'frozen> {
+    /// Full-root records are fresh unless publication enters the shared header scope.
+    pub(super) fn reconcile_scoped(frozen: &'frozen [CommittedRecoveryRecord]) -> Self {
+        let mut output = Self::reconcile(frozen);
+        if let DiagnosticSequence::Reconcile { consume_frozen, .. } = &mut output.diagnostics {
+            *consume_frozen = false;
+        }
+        output
+    }
+
+    pub(super) fn header_reconciliation_scope(&mut self) -> HeaderReconciliationScope<'_, 'frozen> {
+        let previous = match &mut self.diagnostics {
+            DiagnosticSequence::Fresh { .. } => None,
+            DiagnosticSequence::Reconcile { consume_frozen, .. } => {
+                Some(std::mem::replace(consume_frozen, true))
+            }
+        };
+        HeaderReconciliationScope {
+            output: self,
+            previous,
+        }
+    }
+
     pub(super) fn reconcile(frozen: &'frozen [CommittedRecoveryRecord]) -> Self {
         Self {
             builder: GreenNodeBuilder::new(),
@@ -392,6 +426,37 @@ impl<'frozen> RewriteOutput<'frozen> {
             diagnostics: DiagnosticSequence::reconcile(frozen),
             active_structured: None,
             emitted_token_bytes: 0,
+        }
+    }
+}
+
+/// Restores publication mode on normal return, early return and unwinding.
+pub(super) struct HeaderReconciliationScope<'output, 'frozen> {
+    output: &'output mut RewriteOutput<'frozen>,
+    previous: Option<bool>,
+}
+
+impl<'frozen> std::ops::Deref for HeaderReconciliationScope<'_, 'frozen> {
+    type Target = RewriteOutput<'frozen>;
+
+    fn deref(&self) -> &Self::Target {
+        self.output
+    }
+}
+
+impl std::ops::DerefMut for HeaderReconciliationScope<'_, '_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.output
+    }
+}
+
+impl Drop for HeaderReconciliationScope<'_, '_> {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous
+            && let DiagnosticSequence::Reconcile { consume_frozen, .. } =
+                &mut self.output.diagnostics
+        {
+            *consume_frozen = previous;
         }
     }
 }
@@ -559,4 +624,114 @@ fn assert_draft_matches_record(draft: &RecoveryDraft, record: &CommittedRecovery
         draft.primary_expectation, record.primary_expectation,
         "frozen primary expectation mismatch"
     );
+}
+
+#[cfg(test)]
+mod scoped_tests {
+    use super::*;
+    use crate::session::ExpressionRole;
+
+    fn missing(at: usize) -> RecoveryDraft {
+        let role = GrammarRole::Expression(ExpressionRole::Nud);
+        RecoveryDraft::new(
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    }
+
+    #[test]
+    fn scoped_reconciliation_preserves_interleaved_encounter_order() {
+        let frozen = [
+            missing(2).into_record(DiagnosticId(4)),
+            missing(6).into_record(DiagnosticId(8)),
+        ];
+        let mut output = RewriteOutput::reconcile_scoped(&frozen);
+        output.start_node(SyntaxKind::Root.into());
+        output.commit_recovery(missing(0));
+        output
+            .header_reconciliation_scope()
+            .commit_recovery(missing(2));
+        output.commit_recovery(missing(4));
+        output
+            .header_reconciliation_scope()
+            .commit_recovery(missing(6));
+        output.commit_recovery(missing(8));
+        output.finish_node();
+        let (_, records) = output.finish_with_recoveries();
+        assert_eq!(
+            records.iter().map(|r| r.id.0).collect::<Vec<_>>(),
+            [9, 4, 10, 8, 11]
+        );
+        assert_eq!(records[1], frozen[0]);
+        assert_eq!(records[3], frozen[1]);
+    }
+
+    #[test]
+    fn scoped_reconciliation_restores_mode_on_unwind_and_nested_exit() {
+        let frozen = [
+            missing(2).into_record(DiagnosticId(4)),
+            missing(4).into_record(DiagnosticId(6)),
+        ];
+        let mut output = RewriteOutput::reconcile_scoped(&frozen);
+        output.start_node(SyntaxKind::Root.into());
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut scope = output.header_reconciliation_scope();
+                {
+                    let _nested = scope.header_reconciliation_scope();
+                }
+                scope.commit_recovery(missing(2));
+                panic!("leave scope");
+            }))
+            .is_err()
+        );
+        output.commit_recovery(missing(3));
+        output
+            .header_reconciliation_scope()
+            .commit_recovery(missing(4));
+        output.finish_node();
+        let (_, records) = output.finish_with_recoveries();
+        assert_eq!(
+            records.iter().map(|r| r.id.0).collect::<Vec<_>>(),
+            [4, 7, 6]
+        );
+    }
+
+    #[test]
+    fn scoped_reconciliation_applies_to_structured_reservations() {
+        let spec = StructuredRecoverySpec::new(
+            GrammarRole::Expression(ExpressionRole::Nud),
+            UnexpectedCategory::OtherCharacter,
+            ExpectedSyntax::Expression,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+            0,
+        );
+        let frozen = [spec.draft(1, 2).into_record(DiagnosticId(5))];
+        let mut output = RewriteOutput::reconcile_scoped(&frozen);
+        output.start_node(SyntaxKind::Root.into());
+        let first = output.begin_structured_recovery(0, spec);
+        output.token(SyntaxKind::Error.into(), "@");
+        output.complete_structured_recovery(first, 1);
+        {
+            let mut scope = output.header_reconciliation_scope();
+            let shared = scope.begin_structured_recovery(1, spec);
+            scope.token(SyntaxKind::Error.into(), "@");
+            scope.complete_structured_recovery(shared, 2);
+        }
+        output.finish_node();
+        let (_, records) = output.finish_with_recoveries();
+        assert_eq!(records[0].id, DiagnosticId(6));
+        assert_eq!(records[1], frozen[0]);
+    }
 }

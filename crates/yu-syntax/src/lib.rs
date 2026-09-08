@@ -30,11 +30,30 @@ pub use syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken, YulangLanguage};
 pub type SourceText = str;
 
 /// Source-level facts discovered in the syntax preamble.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq)]
 pub struct HeaderInfo {
+    source: Arc<SourceText>,
     coverage: HeaderCoverage,
     imports: Arc<[HeaderImport]>,
     operators: Arc<[HeaderOperator]>,
+}
+
+impl std::fmt::Debug for HeaderInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HeaderInfo")
+            .field("coverage", &self.coverage)
+            .field("imports", &self.imports)
+            .field("operators", &self.operators)
+            .finish()
+    }
+}
+
+impl PartialEq for HeaderInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.coverage == other.coverage
+            && self.imports == other.imports
+            && self.operators == other.operators
+    }
 }
 
 impl HeaderInfo {
@@ -310,12 +329,22 @@ impl BindingPower {
 
 /// Discover leading imports and operator signatures.
 pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
-    grammar::header::discover_header(source.as_ref()).into_header_info()
+    grammar::header::discover_header(source.as_ref()).into_header_info(source)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn header_debug_contains_only_header_facts() {
+        let header = scan_header(Arc::from("private_body_identifier"));
+        assert_eq!(
+            format!("{header:?}"),
+            "HeaderInfo { coverage: HeaderCoverage { range: 0..0, stop: FirstNonHeader }, imports: [], operators: [] }"
+        );
+        assert!(!format!("{header:#?}").contains("private_body_identifier"));
+    }
 
     const LEADING_USE_SOURCE: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),

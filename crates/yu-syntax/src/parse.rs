@@ -141,6 +141,10 @@ pub fn parse_file(
     header: Arc<HeaderInfo>,
     syntax: Arc<SyntaxEnvironment>,
 ) -> ParsedFile {
+    assert!(
+        Arc::ptr_eq(&source, &header.source),
+        "HeaderInfo must originate from the supplied source allocation"
+    );
     // The accepted table is prepared once before the direct root loop. Duplicate
     // capabilities produce construction diagnostics without replacing this
     // parser authority or mutating the table while parsing.
@@ -374,6 +378,41 @@ mod tests {
             BindingPower, OperatorDeclaration, OperatorFixities, compile_full_parse_operators,
         },
     };
+
+    #[test]
+    fn header_source_identity_accepts_shared_allocation_and_cloned_header() {
+        let source: Arc<SourceText> = Arc::from("let x = 1");
+        let header = crate::scan_header(source.clone());
+        for header in [header.clone(), header] {
+            let parsed = parse_file(
+                source.clone(),
+                Arc::new(header),
+                Arc::new(SyntaxEnvironment::default()),
+            );
+            assert_eq!(parsed.source.as_ref(), source.as_ref());
+        }
+    }
+
+    #[test]
+    fn header_source_identity_rejects_distinct_snapshots() {
+        let source: Arc<SourceText> = Arc::from("let x = 1");
+        let header = Arc::new(crate::scan_header(source.clone()));
+        for text in ["let x = 1", "let y = 2"] {
+            let other: Arc<SourceText> = Arc::from(text);
+            assert!(!Arc::ptr_eq(&source, &other));
+            assert_eq!(*header, crate::scan_header(other.clone()));
+            assert!(
+                std::panic::catch_unwind(|| {
+                    parse_file(
+                        other,
+                        header.clone(),
+                        Arc::new(SyntaxEnvironment::default()),
+                    )
+                })
+                .is_err()
+            );
+        }
+    }
 
     #[test]
     fn parse_file_keeps_the_first_local_fixity_and_reports_the_rejected_site() {
