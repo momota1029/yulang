@@ -92,17 +92,21 @@ check, format and diff passed. Static work remains linear in scanned opaque
 bytes plus nesting and accepted prefix metadata; the lazy vector/one box
 conversion is the approved current-Item bound, so benchmark use is zero.
 
-The next separate gate is the boundary-capable root-statement sequence: thread
-the fence through root acquisition, header/operator lookahead and body paths,
-return the entire boundary Item instead of asserting unfenced Root, and give a
-future cell-only wrapper `leading_header = false`. It must not expose the cell
-or add outer Yumark dispatch yet. The sequence never emits a fenced terminal:
-it returns the exact Item at frontier zero. A later `YmYulangCodeCell` terminal
-adapter alone has the item-emission-frontier amendment's narrow authority to
-emit retained body-leading once before handing the boundary facts back to outer
-Yumark. Ordinary source EOF remains a separate emitting terminal. Preserve
-`None` ambient ingress for this private sequence preparation; choosing a
-production Yumark ambient context remains deferred.
+The boundary-capable root-statement sequence M2 gate is complete. Source root
+remains its fixed `None` wrapper and alone emits ordinary EOF leading; the
+private sequence returns every fenced close/transition/EOF Item untouched at
+frontier zero before layout, recovery or header dispatch. Fence reaches
+statement/operator/root-recovery paths and `my`/`lazy` lookahead. Source header
+reconciliation remains concrete; fenced state starts with it disabled and
+ambient `None`. Compiler/recovery and regression review were clean after two
+test-only closure repairs. Full lib passed 1049 with one existing ignored
+manual harness, package check, format and diff passed; no benchmark samples.
+
+Next is the internal `YmYulangCodeCell` wrapper only: it opens the node, calls
+the sequence with the existing immutable host table and disabled header state,
+uses the terminal adapter's narrow frontier authority to emit body-leading once,
+then returns boundary facts. It must not add an outer Yumark document branch,
+AST materializer or public API.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

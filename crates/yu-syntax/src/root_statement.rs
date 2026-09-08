@@ -1,4 +1,4 @@
-//! Source-root statement progression and recovery; child exits retain their current Item.
+//! Root-style statement progression and recovery; terminal exits retain their current Item.
 
 use std::{ops::Range, sync::Arc};
 
@@ -28,6 +28,7 @@ use crate::{
         current_item::LineEntry,
         item::{Item, LeadingTrivia, TokenKind},
         stops::STOP_SEMICOLON,
+        yumark::FenceBoundary,
     },
     sequence::SequenceOwner,
     statement::{self, StatementLineHandoff},
@@ -39,12 +40,71 @@ pub(crate) fn parse_root_statements(
     recover: &mut Recover<'_>,
     output: &mut CstOutput,
 ) {
-    let mut origin = 0;
-    let mut line = LineEntry::PhysicalStart;
-    let mut pending = None;
-    let mut separated = false;
-    let mut leading_header = true;
-    let mut previous = StatementRole::Starter;
+    let (mut terminal, _, _) = root_statement_sequence(
+        source_len,
+        remaining,
+        recover,
+        output,
+        RootStatementState {
+            origin: 0,
+            line: LineEntry::PhysicalStart,
+            pending: None,
+            separated: false,
+            leading_header: true,
+            previous: StatementRole::Starter,
+            ambient: Some(AmbientClaimView::root_statement(0)),
+        },
+        None,
+    );
+    assert!(
+        terminal.payload_view().is_eof(),
+        "an unfenced Root ends at EOF"
+    );
+    terminal.emit_eof_leading(output);
+}
+
+struct RootStatementState {
+    origin: usize,
+    line: LineEntry,
+    pending: Option<Item>,
+    separated: bool,
+    leading_header: bool,
+    previous: StatementRole,
+    ambient: Option<AmbientClaimView<'static>>,
+}
+
+impl RootStatementState {
+    #[cfg(test)]
+    fn fenced(origin: usize, line: LineEntry) -> Self {
+        Self {
+            origin,
+            line,
+            pending: None,
+            separated: false,
+            leading_header: false,
+            previous: StatementRole::Starter,
+            ambient: None,
+        }
+    }
+}
+
+fn root_statement_sequence(
+    source_len: usize,
+    remaining: &mut &str,
+    recover: &mut Recover<'_>,
+    output: &mut CstOutput,
+    state: RootStatementState,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let RootStatementState {
+        mut origin,
+        mut line,
+        mut pending,
+        mut separated,
+        mut leading_header,
+        mut previous,
+        ambient,
+    } = state;
     loop {
         let entered_at_start = line == LineEntry::PhysicalStart;
         let mut i: SyntaxIn = In::new(&mut *remaining, &mut *recover, &mut *output);
@@ -55,7 +115,7 @@ pub(crate) fn parse_root_statements(
                     i.rb(),
                     origin,
                     line,
-                    None,
+                    fence,
                     0,
                     STOP_SEMICOLON,
                 );
@@ -64,14 +124,11 @@ pub(crate) fn parse_root_statements(
                 scanned.0
             }
         };
-        if item.payload_view().is_eof() {
-            item.emit_eof_leading(&mut *i.state);
-            break;
+        // Only the source wrapper or a later cell terminal adapter may emit
+        // terminal leading. Root layout and recovery must not inspect it first.
+        if item.payload_view().is_eof() || item.payload_view().is_boundary() {
+            return (item, origin, line);
         }
-        assert!(
-            !item.payload_view().is_boundary(),
-            "an unfenced Root cannot acquire an abstract fence"
-        );
         let root_line =
             crate::lexical::observation::indentation_after_newline(item.leading_view()) == Some(0);
         let physical_start = (entered_at_start || root_line)
@@ -86,17 +143,19 @@ pub(crate) fn parse_root_statements(
             continue;
         }
         if !separated && !physical_start {
-            let next = root_error(i, item, origin, line, previous, None);
+            let next = root_error(i, item, origin, line, previous, fence);
             pending = Some(next.0);
             origin = next.1;
             line = next.2;
             continue;
         }
-        let is_use = use_decl::use_declaration_selected_normalized(i.rb(), &item, origin, None);
+        let is_use = use_decl::use_declaration_selected_normalized(i.rb(), &item, origin, fence);
         let is_operator = !is_use
             && i.rb()
                 .map(
-                    |lex: crate::cursor::LexIn| Some(header::operator_selected(lex, &item, origin)),
+                    |lex: crate::cursor::LexIn| {
+                        Some(header::operator_selected(lex, &item, origin, fence))
+                    },
                     |x| x,
                 )
                 .unwrap();
@@ -114,7 +173,7 @@ pub(crate) fn parse_root_statements(
                     item,
                     origin,
                     line,
-                    None,
+                    fence,
                 )
             } else {
                 operator_header::operator_header_normalized(
@@ -122,7 +181,7 @@ pub(crate) fn parse_root_statements(
                     item,
                     origin,
                     line,
-                    None,
+                    fence,
                 )
             };
             origin = next_origin;
@@ -130,7 +189,7 @@ pub(crate) fn parse_root_statements(
             let mut i: SyntaxIn = In::new(&mut *remaining, &mut *recover, &mut *output);
             let exit = match next {
                 Some(item) => NormalizedExit::Complete(Err(Either::Left(item)), line),
-                None => operator_body(i.rb(), origin, line),
+                None => operator_body(i.rb(), origin, line, fence, ambient),
             };
             previous = StatementRole::TrailingInput {
                 owner: StatementKind::OperatorDefinition,
@@ -147,7 +206,7 @@ pub(crate) fn parse_root_statements(
                     STOP_SEMICOLON,
                     origin,
                     line,
-                    None,
+                    fence,
                 )
             };
             previous = StatementRole::TrailingInput {
@@ -155,7 +214,7 @@ pub(crate) fn parse_root_statements(
             };
             exit
         } else if let Some(admission) =
-            statement::classify_statement_item_normalized(i.rb(), &item, 0, origin, None)
+            statement::classify_statement_item_normalized(i.rb(), &item, 0, origin, fence)
         {
             previous = admission.root_trailing_role();
             statement::canonical_statement_contents_from_admission_normalized(
@@ -167,12 +226,12 @@ pub(crate) fn parse_root_statements(
                 StatementLineHandoff::OrdinaryLayout,
                 origin,
                 line,
-                None,
-                Some(AmbientClaimView::root_statement(0)).into(),
+                fence,
+                ambient.into(),
                 Some(SequenceOwner::RootStatement),
             )
         } else {
-            let next = root_error(i, item, origin, line, StatementRole::Starter, None);
+            let next = root_error(i, item, origin, line, StatementRole::Starter, fence);
             pending = Some(next.0);
             origin = next.1;
             line = next.2;
@@ -190,17 +249,23 @@ pub(crate) fn parse_root_statements(
     }
 }
 
-fn operator_body(mut i: SyntaxIn, origin: usize, line: LineEntry) -> NormalizedExit {
+fn operator_body(
+    mut i: SyntaxIn,
+    origin: usize,
+    line: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: Option<AmbientClaimView<'_>>,
+) -> NormalizedExit {
     let (mut item, mut origin, mut line) = crate::lexical::expression_item::expression_item(
         i.rb(),
         crate::lexical::operator_scan::OperatorSite::Nud,
         origin,
         line,
-        None,
+        fence,
         0,
         STOP_SEMICOLON,
     );
-    if item.leading_view().contains_line_break() {
+    if !item.payload_view().is_boundary() && item.leading_view().contains_line_break() {
         if let Some(after_newline) = item.leading_view().cut_after_first_ordinary_newline() {
             item.emit_leading_prefix_with(&mut *i.state, after_newline - 1, |_, _| {});
         }
@@ -238,7 +303,9 @@ fn operator_body(mut i: SyntaxIn, origin: usize, line: LineEntry) -> NormalizedE
             },
         );
     }
-    item.emit_all_remaining_leading(&mut *i.state);
+    if !item.payload_view().is_boundary() {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     let role = GrammarRole::Statement(StatementRole::OperatorDefinitionBody);
     if !body_boundary(&item) && !crate::expression::is_nud_item(&item) {
         (item, origin, line) = emit_recovery_error_run(
@@ -259,7 +326,7 @@ fn operator_body(mut i: SyntaxIn, origin: usize, line: LineEntry) -> NormalizedE
                             crate::lexical::operator_scan::OperatorSite::Nud,
                             origin,
                             line,
-                            None,
+                            fence,
                             0,
                             STOP_SEMICOLON,
                         )
@@ -311,8 +378,8 @@ fn operator_body(mut i: SyntaxIn, origin: usize, line: LineEntry) -> NormalizedE
         StatementLineHandoff::OrdinaryLayout,
         origin,
         line,
-        None,
-        Some(AmbientClaimView::root_statement(0)).into(),
+        fence,
+        ambient.into(),
         Some(SequenceOwner::RootStatement),
     )
 }
@@ -499,6 +566,378 @@ fn recovery_draft(
             .collect(),
         0,
     )
+}
+
+#[cfg(test)]
+mod sequence_fence_tests {
+    use super::*;
+    use crate::lexical::{
+        item::{BorrowedTarget, Boundary, StopKind},
+        yumark::{FenceLineDecision, FenceOpener, FencePrefixPolicy, judge_fence_line},
+    };
+    use crate::operator_table::OperatorTable;
+
+    fn fence() -> FenceBoundary {
+        FenceBoundary {
+            opener: FenceOpener {
+                line: 0,
+                marker: 0..3,
+                marker_width: 3,
+            },
+            prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
+            close_column: 0,
+        }
+    }
+
+    #[test]
+    fn sequence_returns_acquired_and_pending_terminals_before_any_root_effect() {
+        for newline in ["\n", "\r\n"] {
+            for suffix in ["> ```\nrest", "outer\nrest", ""] {
+                for preacquired in [false, true] {
+                    let leading = format!(" {newline}> {newline}");
+                    let host = "host α\n";
+                    let start = host.len();
+                    let source = format!("{host}{leading}{suffix}");
+                    let mut remaining = &source[start..];
+                    let operators = OperatorTable::empty();
+                    let mut recover = Recover::new(&operators);
+                    let mut output = CstOutput::new();
+                    output.start_node(SyntaxKind::Root.into());
+                    let fence = fence();
+                    let mut state = RootStatementState::fenced(start, LineEntry::InLine);
+                    // A pending terminal must also precede separator and header state.
+                    state.separated = true;
+                    let before = if preacquired {
+                        let (item, origin, line) = statement::statement_item_normalized(
+                            In::new(&mut remaining, &mut recover, &mut output),
+                            start,
+                            LineEntry::InLine,
+                            Some(&fence),
+                            0,
+                            STOP_SEMICOLON,
+                        );
+                        let facts = item.payload_view().pending_boundary().unwrap().clone();
+                        state.origin = origin;
+                        state.line = line;
+                        state.pending = Some(item);
+                        Some(facts)
+                    } else {
+                        None
+                    };
+                    let (item, origin, line) = root_statement_sequence(
+                        source.len(),
+                        &mut remaining,
+                        &mut recover,
+                        &mut output,
+                        state,
+                        Some(&fence),
+                    );
+                    assert_eq!(remaining, suffix);
+                    assert_eq!(origin, start + leading.len());
+                    assert_eq!(
+                        line,
+                        if suffix.is_empty() {
+                            LineEntry::InLine
+                        } else {
+                            LineEntry::PhysicalStart
+                        }
+                    );
+                    assert_eq!(item.extent(origin).physical(), start..origin);
+                    assert_eq!(item.extent(origin).remaining(), start..origin);
+                    let boundary = item.payload_view().pending_boundary().unwrap();
+                    assert_eq!(boundary.coordinate(), origin);
+                    if let Some(before) = before {
+                        assert_eq!(boundary, &before);
+                    }
+                    match suffix {
+                        "" => assert_eq!(boundary.kind(), &Boundary::EofAfterTrivia),
+                        "outer\nrest" => assert!(matches!(
+                            boundary.kind(),
+                            Boundary::Stop(StopKind::YumarkFence(_))
+                        )),
+                        _ => assert!(matches!(
+                            boundary.kind(),
+                            Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+                        )),
+                    }
+                    output.finish_node();
+                    let (green, records) = output.finish_with_recoveries();
+                    assert_eq!(green.to_string(), "");
+                    assert!(records.is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sequence_statement_and_child_exits_retain_fenced_terminal_leading() {
+        for newline in ["\n", "\r\n"] {
+            for body in [
+                "",
+                "値",
+                "my x = 値",
+                "our x = 値",
+                "値; 終",
+                "値\n> 終",
+                "prefix (?) 70 = 値",
+                "my prefix (?) 70 = 値",
+                "lazy prefix (?) 70 = 値",
+            ] {
+                let body = body.replace('\n', newline);
+                for suffix in ["> ```\nrest", "outer\nrest", ""] {
+                    let emitted = if body.is_empty() {
+                        String::new()
+                    } else {
+                        format!("> {body}")
+                    };
+                    let terminal_leading = if body.is_empty() {
+                        format!("> {newline}")
+                    } else {
+                        newline.to_owned()
+                    };
+                    let source = format!("{emitted}{terminal_leading}{suffix}");
+                    let mut remaining = source.as_str();
+                    let operators = OperatorTable::empty();
+                    let mut recover = Recover::new(&operators);
+                    let mut output = CstOutput::new();
+                    output.start_node(SyntaxKind::Root.into());
+                    let fence = fence();
+                    let (item, origin, _) = root_statement_sequence(
+                        source.len(),
+                        &mut remaining,
+                        &mut recover,
+                        &mut output,
+                        RootStatementState::fenced(0, LineEntry::PhysicalStart),
+                        Some(&fence),
+                    );
+                    assert_eq!(remaining, suffix, "{source:?}");
+                    let FenceLineDecision::Boundary(expected_boundary) =
+                        judge_fence_line(remaining, origin, &fence)
+                    else {
+                        panic!("expected terminal fence boundary: {source:?}");
+                    };
+                    assert_eq!(
+                        item.payload_view().pending_boundary(),
+                        Some(&expected_boundary),
+                        "{source:?}"
+                    );
+                    assert_eq!(origin, emitted.len() + terminal_leading.len());
+                    let extent = item.extent(origin);
+                    assert_eq!(extent.physical(), emitted.len()..origin, "{source:?}");
+                    assert_eq!(extent.remaining(), extent.physical(), "{source:?}");
+                    assert_eq!(
+                        item.payload_view().pending_boundary().unwrap().coordinate(),
+                        origin
+                    );
+                    output.finish_node();
+                    let (green, records) = output.finish_with_recoveries();
+                    assert_eq!(green.to_string(), emitted, "{source:?}");
+                    assert!(records.is_empty(), "{source:?}: {records:?}");
+                    let syntax = crate::syntax_kind::SyntaxNode::new_root(green);
+                    for token in syntax
+                        .descendants_with_tokens()
+                        .filter_map(|e| e.into_token())
+                    {
+                        let range = usize::from(token.text_range().start())
+                            ..usize::from(token.text_range().end());
+                        assert_eq!(token.text(), &source[range]);
+                        if token.kind() == SyntaxKind::YmQuotePrefix {
+                            assert_eq!(token.text(), "> ");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn operator_body_missing_returns_boundary_without_emitting_its_leading() {
+        for newline in ["\n", "\r\n"] {
+            for suffix in ["> ```\nrest", "outer\nrest", ""] {
+                let emitted = "> prefix (?) 70 =";
+                let source = format!("{emitted}{newline}{suffix}");
+                let mut remaining = source.as_str();
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut output = CstOutput::new();
+                output.start_node(SyntaxKind::Root.into());
+                let fence = fence();
+                let (item, origin, _) = root_statement_sequence(
+                    source.len(),
+                    &mut remaining,
+                    &mut recover,
+                    &mut output,
+                    RootStatementState::fenced(0, LineEntry::PhysicalStart),
+                    Some(&fence),
+                );
+                assert_eq!(remaining, suffix);
+                assert_eq!(item.extent(origin).remaining(), emitted.len()..origin);
+                let FenceLineDecision::Boundary(expected_boundary) =
+                    judge_fence_line(remaining, origin, &fence)
+                else {
+                    panic!("expected terminal fence boundary: {source:?}");
+                };
+                assert_eq!(
+                    item.payload_view().pending_boundary(),
+                    Some(&expected_boundary),
+                    "{source:?}"
+                );
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(green.to_string(), emitted);
+                assert_eq!(records.len(), 1);
+                assert_eq!(records[0].kind, RecoveryKind::Missing);
+                assert_eq!(
+                    records[0].site.role,
+                    GrammarRole::Statement(StatementRole::OperatorDefinitionBody)
+                );
+                assert_eq!(records[0].site.range, origin..origin);
+            }
+        }
+    }
+
+    #[test]
+    fn sequence_opaque_recovery_returns_child_boundary_and_keeps_committed_error() {
+        for newline in ["\n", "\r\n"] {
+            for suffix in ["> ```\nrest", "outer\nrest", ""] {
+                let emitted = format!("> ] \"é{newline}> 💥{newline}");
+                let source = format!("{emitted}{suffix}");
+                let mut remaining = source.as_str();
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut output = CstOutput::new();
+                output.start_node(SyntaxKind::Root.into());
+                let fence = fence();
+                let (item, origin, _) = root_statement_sequence(
+                    source.len(),
+                    &mut remaining,
+                    &mut recover,
+                    &mut output,
+                    RootStatementState::fenced(0, LineEntry::PhysicalStart),
+                    Some(&fence),
+                );
+                assert_eq!(remaining, suffix);
+                assert_eq!(origin, emitted.len());
+                assert_eq!(item.extent(origin).physical(), origin..origin);
+                assert_eq!(item.extent(origin).remaining(), origin..origin);
+                let FenceLineDecision::Boundary(expected_boundary) =
+                    judge_fence_line(remaining, origin, &fence)
+                else {
+                    panic!("expected terminal fence boundary: {source:?}");
+                };
+                assert_eq!(
+                    item.payload_view().pending_boundary(),
+                    Some(&expected_boundary),
+                    "{source:?}"
+                );
+                assert_eq!(
+                    item.payload_view().pending_boundary().unwrap().coordinate(),
+                    origin
+                );
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(green.to_string(), emitted);
+                assert_eq!(records.len(), 1);
+                assert_eq!(records[0].kind, RecoveryKind::Error);
+                assert_eq!(
+                    records[0].site.role,
+                    GrammarRole::Statement(StatementRole::Starter)
+                );
+                assert_eq!(records[0].site.range, 2..origin);
+            }
+        }
+    }
+
+    #[test]
+    fn operator_selection_lookahead_respects_fence_and_restores_the_live_suffix() {
+        for newline in ["\n", "\r\n"] {
+            for head in ["my", "lazy", "my lazy"] {
+                for suffix in ["> ```\nrest", "outer\nrest", ""] {
+                    let source = format!("{head} /* é{newline}{suffix}");
+                    let mut remaining = source.as_str();
+                    let operators = OperatorTable::empty();
+                    let mut recover = Recover::new(&operators);
+                    let mut output = CstOutput::new();
+                    output.start_node(SyntaxKind::Root.into());
+                    let fence = fence();
+                    let (item, origin, _) = statement::statement_item_normalized(
+                        In::new(&mut remaining, &mut recover, &mut output),
+                        0,
+                        LineEntry::InLine,
+                        Some(&fence),
+                        0,
+                        STOP_SEMICOLON,
+                    );
+                    let before = remaining;
+                    let i: SyntaxIn = In::new(&mut remaining, &mut recover, &mut output);
+                    let selected = i
+                        .map(
+                            |lex: crate::cursor::LexIn| {
+                                Some(header::operator_selected(lex, &item, origin, Some(&fence)))
+                            },
+                            |x| x,
+                        )
+                        .unwrap();
+                    assert!(!selected, "{source:?}");
+                    assert_eq!(remaining, before);
+                    assert_eq!(item.extent(origin).physical(), 0..origin);
+                    output.finish_node();
+                    let (green, records) = output.finish_with_recoveries();
+                    assert_eq!(green.to_string(), "");
+                    assert!(records.is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unquoted_sequence_keeps_terminal_trivia_while_source_root_emits_eof_trivia() {
+        for newline in ["\n", "\r\n"] {
+            for suffix in ["```\nrest", ""] {
+                let source = format!("値 {newline}{suffix}");
+                let mut remaining = source.as_str();
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut output = CstOutput::new();
+                output.start_node(SyntaxKind::Root.into());
+                let mut fence = fence();
+                fence.prefix_policy = FencePrefixPolicy::None;
+                let (item, origin, _) = root_statement_sequence(
+                    source.len(),
+                    &mut remaining,
+                    &mut recover,
+                    &mut output,
+                    RootStatementState::fenced(0, LineEntry::PhysicalStart),
+                    Some(&fence),
+                );
+                assert_eq!(remaining, suffix);
+                assert_eq!(item.extent(origin).remaining(), "値".len()..origin);
+                let FenceLineDecision::Boundary(expected_boundary) =
+                    judge_fence_line(remaining, origin, &fence)
+                else {
+                    panic!("expected terminal fence boundary: {source:?}");
+                };
+                assert_eq!(
+                    item.payload_view().pending_boundary(),
+                    Some(&expected_boundary),
+                    "{source:?}"
+                );
+                assert_eq!(
+                    item.extent(origin).physical(),
+                    item.extent(origin).remaining()
+                );
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(green.to_string(), "値");
+                assert!(records.is_empty());
+            }
+            let source = format!("値 {newline}");
+            let root =
+                crate::source_file::parse_root_candidate(&source, &OperatorTable::empty(), &[]);
+            assert_eq!(root.green.to_string(), source);
+            assert!(root.committed_recoveries.is_empty());
+        }
+    }
 }
 
 #[cfg(test)]

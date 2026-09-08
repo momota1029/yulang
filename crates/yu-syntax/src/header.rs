@@ -92,7 +92,7 @@ pub(super) fn discover_header_with_frozen(
         let is_operator = !is_use
             && i.rb()
                 .map(
-                    |lex: LexIn| Some(operator_selected(lex, &item, origin)),
+                    |lex: LexIn| Some(operator_selected(lex, &item, origin, None)),
                     |x| x,
                 )
                 .unwrap();
@@ -166,7 +166,12 @@ pub(super) fn discover_header_with_frozen(
     }
 }
 
-pub(super) fn operator_selected(mut i: LexIn, item: &Item, origin: usize) -> bool {
+pub(super) fn operator_selected(
+    mut i: LexIn,
+    item: &Item,
+    origin: usize,
+    fence: Option<&crate::lexical::yumark::FenceBoundary>,
+) -> bool {
     // Statement intro rule 3 reserves `my <word> =` for Binding before
     // interpreting the word as an explicit-private operator modifier.
     if item.payload_view().spelling() == Some("my")
@@ -175,7 +180,7 @@ pub(super) fn operator_selected(mut i: LexIn, item: &Item, origin: usize) -> boo
             item,
             0,
             origin,
-            None,
+            fence,
         )
     {
         return false;
@@ -187,8 +192,12 @@ pub(super) fn operator_selected(mut i: LexIn, item: &Item, origin: usize) -> boo
         let mut selected = false;
         let _: Option<()> = i.token(|mut lex| {
             if matches!(word.as_str(), "my" | "our" | "pub") {
-                let item =
-                    crate::declaration::next_use_item_lex(lex.rb(), &mut position, &mut line, None);
+                let item = crate::declaration::next_use_item_lex(
+                    lex.rb(),
+                    &mut position,
+                    &mut line,
+                    fence,
+                );
                 if item.leading_view().is_grammar_empty()
                     || item.leading_view().contains_line_break()
                 {
@@ -198,7 +207,7 @@ pub(super) fn operator_selected(mut i: LexIn, item: &Item, origin: usize) -> boo
             }
             if word == "lazy" {
                 let item =
-                    crate::declaration::next_use_item_lex(lex, &mut position, &mut line, None);
+                    crate::declaration::next_use_item_lex(lex, &mut position, &mut line, fence);
                 if item.leading_view().is_grammar_empty()
                     || item.leading_view().contains_line_break()
                 {

@@ -560,6 +560,18 @@ future cell state starts with it disabled and retains unavailable `None` ambient
 ingress. Header/operator modifier lookahead must receive the same fence before
 that state can be constructed.
 
+## Boundary-capable root statement sequence
+
+Construction is complete. The private root-style loop returns every fenced
+close, transition and EOF Item before layout, recovery or header effects;
+source root remains the only ordinary-EOF-leading emitter. Fence forwarding now
+covers statement acquisition/admission, operator header/body, Root Error and
+`my`/`lazy` modifier lookahead. Fenced state disables source-header
+reconciliation and retains ambient `None`. M2 compiler/recovery and regression
+reviews were clean after two test-only exact-boundary repairs. Full lib passed
+1049 with one existing ignored manual harness; package check, format and diff
+passed. Cell terminal adapter and outer Yumark integration remain open.
+
 ## Parenthesized operator newline control
 
 - The retained `(a +\nb)` partial-output expectation was stale. At delimiter
