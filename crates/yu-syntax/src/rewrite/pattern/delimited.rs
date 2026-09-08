@@ -23,7 +23,7 @@ use super::{
             token_kind,
         },
         emit::{
-            emit_missing, emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
+            emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
             emit_token_item, token_syntax_kind,
         },
         item::{Item, LeadingTrivia, LeadingView, TokenKind},
@@ -775,6 +775,7 @@ fn record_item(
             baseline,
             record_stops,
             line_handoff,
+            caller_closes,
             item_origin,
             fence,
             ambient,
@@ -788,6 +789,7 @@ fn record_item(
             item,
             baseline,
             line_handoff,
+            caller_closes,
             item_origin,
             line_entry,
             fence,
@@ -807,6 +809,7 @@ fn record_default_after_pattern(
     baseline: usize,
     record_stops: PatternStops,
     line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
@@ -832,6 +835,7 @@ fn record_default_after_pattern(
             item,
             baseline,
             line_handoff,
+            caller_closes,
             item_origin,
             line_entry,
             fence,
@@ -848,6 +852,7 @@ fn record_default_after_equals(
     equals: Item,
     baseline: usize,
     line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -864,11 +869,10 @@ fn record_default_after_equals(
         baseline,
         expression_stops,
     );
-    if rhs.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(rhs), line_entry);
-    }
-    if is_nud_item(&rhs) {
+    let protected = rhs.payload_view().is_boundary()
+        || (token_kind(&rhs) != Some(TokenKind::RBrace)
+            && is_carried_caller_close(caller_closes, &rhs));
+    if !protected && is_nud_item(&rhs) {
         let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
         rhs.emit_all_remaining_leading(&mut *i.state);
         return super::super::driver::expr_from_nud_normalized(
@@ -885,8 +889,17 @@ fn record_default_after_equals(
             ambient,
         );
     }
-    rhs.emit_all_remaining_leading(&mut *i.state);
-    emit_missing(&mut i, LeadingTrivia::default());
+    if !protected {
+        rhs.emit_all_remaining_leading(&mut *i.state);
+    }
+    i.state.start_node(SyntaxKind::OperatorChain.into());
+    emit_pattern_missing(
+        &mut i,
+        PatternRole::RecordDefaultExpression,
+        &rhs,
+        item_origin,
+    );
+    i.state.finish_node();
     complete(handoff(rhs), line_entry)
 }
 

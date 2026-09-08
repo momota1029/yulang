@@ -1,7 +1,8 @@
 # Successor typed recovery callsite ledger
 
 Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
-primary/tail checkpoint `afaa3b24`, followed by delimiter slot publication.
+primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`, followed by
+default-Expression publication.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -13,7 +14,7 @@ no-subagent instruction; self-checks are not independent certification.
 ## Reading the ledger
 
 This is the single accumulating ledger for O3/O4. The Type/PV portion and
-Pattern's primary/tail-slot module map every current publication site to a
+Pattern-owned modules map every current publication site to a
 semantic helper; the remaining O3b SCC is explicitly open.
 Source aliases are relative to `crates/yu-syntax/src/rewrite/`:
 
@@ -24,7 +25,8 @@ Source aliases are relative to `crates/yu-syntax/src/rewrite/`:
   `rewrite::tests::pattern::recovery::`; P's retained caller/policy controls
   are in the parent `rewrite::tests::pattern::` module.
 - `PD` = `pattern/delimited.rs`; the delimiter table's test prefixes are
-  under `rewrite::tests::pattern::recovery::delimited::`.
+  under `rewrite::tests::pattern::recovery::delimited::`, `sequence::`, or
+  `default_expression::`, with the unique function prefix selecting the module.
 - Test names/prefixes are under `rewrite::tests::type_expr::`. `Q` denotes
   its parent test module; a named child such as `pe_recovery` is its module.
   Prefixes denote the existing finite test family, not tests to invent later.
@@ -129,9 +131,10 @@ Item queries. Literal entry probes remain assigned to later SCC/RB work.
 
 ## Pattern delimiter publication
 
-The delimiter-slot and sequence-current-Item amendments govern these internal
-substeps. All entries are construction-only; the raw default row below prevents
-a whole-owner completion claim. Five child roles pass into P's typed kernel;
+The delimiter-slot, sequence-current-Item and default-Expression amendments
+govern these internal substeps. All entries are construction-only; the
+recursive Expression/literal callees prevent a whole-owner completion claim.
+Five child roles pass into P's typed kernel;
 Record's two structured roles reserve before entering their canonical child.
 
 | source location | matrix/addendum row | owner/slot | kind | sentinel/run | range formula | unexpected array | ordered expectations/source flags | primary | continuation/pending Item | recovery-order predecessor | focused test | ordinary control | RB row | migration state |
@@ -150,7 +153,7 @@ Record's two structured roles reserve before entering their canonical child.
 | PD::recover_record_pattern | P7a; structured scope extension | RecordItem | structured E | complete wrong-kind Pattern including its tails | remaining primary start to pending remaining start or successor if empty; byte-delta sealed | other(Rng) | Id / committed | 0 | retry field/spread, consume separator or preserve full caller/fence | reserved before nested records; prior lexical prefix first | record_wrong_kind_literal_*; record_wrong_kind_primaries_*; record_structured_errors_*; sequence_error_fences_* | `{1,a}`, `{(A}`, `{{1}}` / `(A)`, nested accepted literal | RB-P | C |
 | PD::recover_record_pattern | P7e; structured scope extension | RecordSeparator | structured E | wrong-kind Pattern after completed field | same sealed structured Rng | other(Rng) | Sep / committed | 0 | same retry/boundary rule; field-owned same-line colon wins earlier | prior field records, reserved before nested records | record_wrong_kind_primaries_* | `{a 1,b}`, newline Symbol / `{a :tag,b}` | RB-P | C |
 | PD::emit_wrong_close -> close_recovery_draft | P5/P6/P7f; sequence amendment | close(ParenthesizedPattern, Parenthesis) / close(ListPattern, Bracket) / close(RecordPattern, Brace) | E | one unclaimed wrong close in either phase | remaining native Item extent including remaining leading | punctuation Close(actual) over Rng | matching close punctuation / committed | 0 | consume once; preserve phase; actual own close wins before caller bits | preceding item/sequence records | sequence_unclaimed_closes_*; existing caller-close matrix | `(])`, `[)]`, `{]}` / native matching or carried caller close | RB-P | C |
-| PD::record_default_after_equals, two emit_missing calls | P7c | RecordDefaultExpression | raw M | absent/non-NUD default RHS | not yet typed | not yet typed | Expression slot/wrapper remains to certify | n/a | existing Expression/field continuation | preceding field/Pattern records | parent Pattern default controls | `{a=1}` | RB-P / RB-E | Open with Expression SCC |
+| PD::record_default_after_equals -> P::emit_pattern_missing | P7c; default-Expression amendment | RecordDefaultExpression | M | absent/non-NUD default RHS, without entering Expression | B..B after permitted field leading; abstract coordinate or protected caller remaining start | [] | Expression / committed | 0 | empty OperatorChain > Missing; unchanged current Item to sequence; canonical accepted Expression unaffected | earlier nested Pattern; enclosing structured reservation first; before sequence/close | record_default_missing_*; record_default_exact_equals_* | `{a=}`, `{a: =}`, `{a=@ x}` / `{a=1}`, `{a= "x"}` | RB-P / RB-E | C; callee SCC remains open |
 
 The preceding Missing rows' Error counterparts are now mapped separately
 above. Sequence attempts are total committed entries; Item-start queries are
@@ -190,20 +193,20 @@ No public/root/header dispatch has changed.
 Pattern primary, symbol, alias and alternation sites in `pattern.rs` now have
 zero raw Missing/Error constructors. Its two Error-run producers and shared
 Missing producer map above; the existing annotation Type callee is typed.
-Pattern delimiter sequence/close Error publication is also mapped above; no
-raw Pattern Error constructor remains. Its two default-Expression Missing
-calls remain. Next O3b substep: RecordDefaultExpression and literal
-dependencies. Pattern literal ownership reaches the mutually
+Pattern delimiter/default publication is also mapped above; no raw Pattern
+Missing/Error constructor remains. Next O3b substep: Expression required
+operands and their callers, then tails/delimiters and literal dependencies.
+Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
-their construction proceeds: Pattern/delimited/literal; Expression and tails,
+their construction proceeds: Pattern's literal/Expression callees; Expression and tails,
 if/case/Rule/string; canonical Statement and braced/indented/colon/with owners;
 declarations/derives/companions; VirtualStatementBlock; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type
 helper's role transport. No unbounded test suite or fresh benchmark was run
 for the initial inventory. Pattern construction verification now passes the
-expanded 484-test owner/output run, including 40 Pattern tests; benchmark
+expanded 539-test owner/output/literal run, including 54 Pattern tests; benchmark
 usage remains zero samples/processes.

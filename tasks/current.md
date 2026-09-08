@@ -151,9 +151,18 @@ literal elements now share canonical admission and maximal opener Items.
 No raw Pattern Error remains. Pattern 48, expanded owner/output/literal/
 normalized-Pattern 533, package/format/diff checks pass; one repair bundle.
 
-Current gate: O3b SCC construction. Continue with Pattern's two remaining
-RecordDefaultExpression Missing sites and literal/Expression/Statement/
-declaration dependencies. Extend the same ledger
+Pattern default-Expression Missing construction is complete under
+`2026-09-08-successor-pattern-default-expression-publication.md`: typed
+RecordDefaultExpression, the required OperatorChain wrapper, and explicit
+caller-close preservation in both field forms. There are now zero raw
+Pattern-owned recovery constructors. Pattern 54, expanded related set 539,
+package/format/diff checks pass. The exact-Equals lexical contract is unchanged;
+rejected quote-adjacent sources remain covered separately from accepted defaults.
+
+Current gate: O3b SCC construction. Continue with Expression's required
+operand kernel (`driver::required_expr_item_normalized`) and its callers,
+then tails/delimiters and literal/Statement/declaration dependencies. Map
+the immediate roles and boundary rules before editing those owners. Extend the same ledger
 and retain the existing joint construction/certification boundary.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.

@@ -1808,12 +1808,15 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
             .filter_map(|element| element.into_token())
             .any(|token| token.kind() == SyntaxKind::Equals)
     );
+    let expression = field
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("mandatory default Expression product");
+    assert_eq!(expression.to_string(), "");
+    assert_eq!(expression.children().count(), 1);
     assert_eq!(
-        field
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Missing)
-            .count(),
-        1
+        expression.children().next().unwrap().kind(),
+        SyntaxKind::Missing
     );
 
     let (green, exit) = run_pattern("{..}");

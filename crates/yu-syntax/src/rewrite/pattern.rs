@@ -1225,6 +1225,7 @@ fn pattern_recovery_draft(
         PatternRole::ParenthesizedSeparator
         | PatternRole::ListSeparator
         | PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
+        PatternRole::RecordDefaultExpression => ExpectedSyntax::Expression,
         _ => unreachable!("Pattern-owned recovery role"),
     };
     let role = GrammarRole::Pattern(role);

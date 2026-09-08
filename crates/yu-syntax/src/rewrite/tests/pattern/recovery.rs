@@ -16,6 +16,7 @@ use crate::{
 use chasa_recover::Recoverable as _;
 use std::{ops::Range, sync::Arc};
 
+mod default_expression;
 mod delimited;
 mod sequence;
 
@@ -71,6 +72,7 @@ fn record(id: u32, role: PatternRole, range: Range<usize>, error: bool) -> Commi
         | PatternRole::ListSeparator
         | PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
         PatternRole::TypeAnnotation => ExpectedSyntax::TypeExpression,
+        PatternRole::RecordDefaultExpression => ExpectedSyntax::Expression,
         _ => panic!("explicit primary/tail-slot test role"),
     };
     let role = GrammarRole::Pattern(role);
