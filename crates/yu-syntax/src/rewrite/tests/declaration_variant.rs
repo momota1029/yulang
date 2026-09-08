@@ -286,13 +286,32 @@ fn declaration_variant_contextual_pipe_stays_local_to_each_nested_type_owner() {
             count(&root, SyntaxKind::Error) >= 1,
             "{source:?}\n{root:#?}"
         );
-        assert_eq!(
-            root.descendants_with_tokens()
-                .filter_map(|element| element.into_token())
-                .filter(|token| token.kind() == SyntaxKind::Pipe)
-                .count(),
-            2,
-            "{source:?}\n{root:#?}",
+        let bars = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.text() == "|")
+            .collect::<Vec<_>>();
+        assert_eq!(bars.len(), 2, "{source:?}\n{root:#?}");
+        // T3 CallArgument Error retains payload boundaries with Unknown kind;
+        // the current-Item owners retain the native Pipe kind instead.
+        let inner_kind = if owner == SyntaxKind::TypeCallTail {
+            SyntaxKind::Unknown
+        } else {
+            SyntaxKind::Pipe
+        };
+        assert_eq!(bars[0].kind(), inner_kind, "{source:?}\n{root:#?}");
+        assert!(
+            bars[0]
+                .parent_ancestors()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}\n{root:#?}"
+        );
+        assert_eq!(bars[1].kind(), SyntaxKind::Pipe, "{source:?}\n{root:#?}");
+        assert!(
+            !bars[1]
+                .parent_ancestors()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}\n{root:#?}"
         );
     }
 }

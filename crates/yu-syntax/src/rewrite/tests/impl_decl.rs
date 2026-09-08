@@ -181,7 +181,8 @@ fn impl_intro_is_exact_and_visibility_led_rejections_roll_back() {
 #[test]
 fn impl_head_and_description_use_full_nested_type_surface() {
     for source in [
-        "impl F (A -> B) 't;",
+        "impl F (A->B) 't;",
+        "impl F(A -> B) 't;",
         "impl :{A};",
         "impl '[io];",
         "impl [io] Task;",
@@ -210,6 +211,34 @@ fn impl_head_and_description_use_full_nested_type_surface() {
         .expect("description");
     assert_eq!(count(&description, SyntaxKind::NamedRecordType), 1);
     assert_eq!(count(&node, SyntaxKind::BracedStatementBlockExpression), 0);
+}
+
+#[test]
+fn impl_head_retains_inherited_type_ml_stop_before_spaced_arrow() {
+    let source = "impl F (A -> B) 't;";
+    let (green, _, remainder) = run_impl_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert_eq!(
+        node.children()
+            .filter(|child| child.kind() == SyntaxKind::TypeExpression)
+            .count(),
+        1
+    );
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
+    let error = node
+        .descendants()
+        .find(|child| child.kind() == SyntaxKind::Error)
+        .expect("spaced arrow is not a tail in inherited Type-ML");
+    assert_eq!(error.to_string(), "->");
+    assert_eq!(usize::from(error.text_range().start()), 10);
+    assert_eq!(usize::from(error.text_range().end()), 12);
+    assert_eq!(
+        error.parent().unwrap().kind(),
+        SyntaxKind::ParenthesizedTypeGroup
+    );
 }
 
 #[test]

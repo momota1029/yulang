@@ -166,7 +166,8 @@ fn role_intro_is_exact_and_visibility_led_rejections_roll_back() {
 #[test]
 fn role_head_is_one_full_type_and_nested_body_punctuation_is_suspended() {
     for source in [
-        "role F (A -> B) 't;",
+        "role F (A->B) 't;",
+        "role F(A -> B) 't;",
         "role (:{A});",
         "role ({ value: T });",
         "role for 'a: ('a -> :{Some 'a});",
@@ -204,6 +205,34 @@ fn role_head_is_one_full_type_and_nested_body_punctuation_is_suspended() {
     assert_eq!(count(&declaration(&green), SyntaxKind::EffectRowType), 1);
     let (green, _, _) = run_role_declaration("role [io] Task;", 0, 0, LineEntry::InLine, None);
     assert_eq!(count(&declaration(&green), SyntaxKind::BracketRow), 1);
+}
+
+#[test]
+fn role_head_retains_inherited_type_ml_stop_before_spaced_arrow() {
+    let source = "role F (A -> B) 't;";
+    let (green, _, remainder) = run_role_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert_eq!(
+        node.children()
+            .filter(|child| child.kind() == SyntaxKind::TypeExpression)
+            .count(),
+        1
+    );
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
+    let error = node
+        .descendants()
+        .find(|child| child.kind() == SyntaxKind::Error)
+        .expect("spaced arrow is not a tail in inherited Type-ML");
+    assert_eq!(error.to_string(), "->");
+    assert_eq!(usize::from(error.text_range().start()), 10);
+    assert_eq!(usize::from(error.text_range().end()), 12);
+    assert_eq!(
+        error.parent().unwrap().kind(),
+        SyntaxKind::ParenthesizedTypeGroup
+    );
 }
 
 #[test]

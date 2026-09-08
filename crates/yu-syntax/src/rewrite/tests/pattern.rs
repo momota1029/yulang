@@ -699,25 +699,25 @@ fn pattern_caller_closes_map_to_annotation_type_without_leaking_other_stops() {
 }
 
 #[test]
-fn pattern_annotation_type_caller_close_matrix_preserves_pending_leading() {
+fn pattern_annotation_type_caller_close_matrix_owns_horizontal_gap() {
     for (source, caller_closes, close, green_text) in [
         (
             "x: '[A ) tail",
             PatternCallerCloses::RPAREN,
             TokenKind::RParen,
-            "x: '[A",
+            "x: '[A ",
         ),
         (
             "x: (A ] tail",
             PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACKET),
             TokenKind::RBracket,
-            "x: (A",
+            "x: (A ",
         ),
         (
             "x: '[A } tail",
             PatternCallerCloses::RPAREN.union(PatternCallerCloses::RBRACE),
             TokenKind::RBrace,
-            "x: '[A",
+            "x: '[A ",
         ),
     ] {
         let (green, exit, completion, remainder) = run_required_pattern_with_context(
@@ -738,7 +738,49 @@ fn pattern_annotation_type_caller_close_matrix_preserves_pending_leading() {
             panic!("annotation Type caller close must remain pending: {source:?}")
         };
         assert_eq!(item.payload_view().token_kind(), Some(close), "{source:?}");
-        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), "", "{source:?}");
+    }
+}
+
+#[test]
+fn pattern_annotation_type_caller_close_preserves_comment_bearing_gap() {
+    for (source, caller_closes, close, green_text) in [
+        (
+            "x: '[A /*gap*/) tail",
+            PatternCallerCloses::RPAREN,
+            TokenKind::RParen,
+            "x: '[A",
+        ),
+        (
+            "x: (A /*gap*/] tail",
+            PatternCallerCloses::RBRACKET,
+            TokenKind::RBracket,
+            "x: (A",
+        ),
+    ] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), green_text, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("annotation Type caller close must remain pending: {source:?}")
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(close), "{source:?}");
+        assert_eq!(
+            emit_pending_leading_text(&mut item),
+            " /*gap*/",
+            "{source:?}"
+        );
     }
 }
 
@@ -785,11 +827,7 @@ fn pattern_annotation_named_record_type_owns_its_first_same_kind_close() {
         (
             "x: {field } } tail",
             "x: {field }",
-            vec![
-                SyntaxKind::Identifier,
-                SyntaxKind::Whitespace,
-                SyntaxKind::Missing,
-            ],
+            vec![SyntaxKind::Identifier, SyntaxKind::Missing],
         ),
         (
             "x: {field: } } tail",
@@ -797,7 +835,6 @@ fn pattern_annotation_named_record_type_owns_its_first_same_kind_close() {
             vec![
                 SyntaxKind::Identifier,
                 SyntaxKind::Colon,
-                SyntaxKind::Whitespace,
                 SyntaxKind::Missing,
             ],
         ),
@@ -834,6 +871,19 @@ fn pattern_annotation_named_record_type_owns_its_first_same_kind_close() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::NamedRecordType)
             .expect("annotation named-record Type");
+        assert_eq!(
+            record
+                .children_with_tokens()
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            [
+                SyntaxKind::LBrace,
+                SyntaxKind::TypeRecordField,
+                SyntaxKind::Whitespace,
+                SyntaxKind::RBrace
+            ],
+            "{source:?}"
+        );
         assert_eq!(
             record.last_token().map(|token| token.kind()),
             Some(SyntaxKind::RBrace),

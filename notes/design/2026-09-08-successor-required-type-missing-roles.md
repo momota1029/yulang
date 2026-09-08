@@ -1,6 +1,6 @@
 # Caller-owned required-Type Missing roles
 
-Status: Authoritative; private helper publication complete, caller conformance open
+Status: Authoritative; private helper publication and caller controls complete
 
 Date: 2026-09-08
 
@@ -195,3 +195,13 @@ and the sibling Missing-draft conversion were caught in the first package
 check; the new nominal-declaration harness was corrected in the second round.
 No independent review or broad certification. Benchmark budget consumed:
 zero samples/processes. No chasa-recover API change was needed.
+
+### Caller-control closure
+
+`2026-09-08-successor-type-caller-conformance.md` records the pre-write causal
+adjudication against T3, inherited Type-ML, horizontal P/E and record-field
+authority. The five failures were stale expectations, not defects in those
+production branches. All original literals remain covered; three named
+controls were added. The expanded filters now pass 432 with zero failures or
+skips. Tuple progress, matrix D4e, caller-owned raw bypasses and aggregate
+certification remain open; the historical failure report above is retained.

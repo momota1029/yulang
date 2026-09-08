@@ -106,13 +106,15 @@ records remain unchanged. Type: 191 passed; package/format/diff checks passed.
 The Type/PV implementation now has no raw recovery constructors, but the
 complete typed/RB ledger and calling owners' bypass sites are still open.
 
-Current gate: wider caller conformance. The expanded serial owner filters
-passed 424 and failed 5. Exact names and observed mismatches are in the
-required-Type design's checkpoint: nested pipe materialization, inherited
-Type-ML spaced arrows in role/impl heads, P/E Pattern caller-close whitespace,
-and named-record matching-close whitespace. Do not blindly update those
-expectations; resolve each under its governing accepted/recovery contract.
-Static tracing also found a tuple-field `=` nonprogress path: add a bounded
+Wider caller controls are now green under
+`2026-09-08-successor-type-caller-conformance.md`: all five failures were traced
+to stale expectations against the already-approved T3, inherited Type-ML, P/E
+horizontal and record-field rules. Every original literal remains covered;
+accepted tight-arrow/Call and nonhorizontal caller controls were added. The
+expanded serial owner/output filters pass 432, with no failures or skips.
+
+Current gate: tuple-field forward progress. Static tracing found a tuple-field
+`=` nonprogress path: add a bounded
 witness and fix it at the owning admission/sequence boundary before broader
 certification. The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
@@ -123,7 +125,8 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Close the five wider caller failures and tuple nonprogress path, complete
+1. Close the tuple nonprogress path, reconcile matrix D4e's malformed role,
+   complete
    the Type/PV ledger, then migrate the remaining mutually recursive Expression/Pattern/Statement/
    declaration/literal owners. Local Type construction does not certify raw
    recovery still emitted by another owner.
