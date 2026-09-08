@@ -148,16 +148,24 @@ CaseBlock { colon: R<Range>, arms: R<ArmSequence<CaseArm>>, layout, range }
 CatchBlock ::= Colon { colon: R<Range>, arms: R<ArmSequence<CatchArm>>, layout, range }
              | Braced { open, arms: R<ArmSequence<CatchArm>>, close: R<Range>, range }
 ArmSequence<A> { arms: Vec<R<A>>, trailing_comma, range }
-CaseArm { pattern: R<Pattern>, guard, arrow: R<Range>, body: R<ArmBody>, range }
-CatchArm { pattern: R<Pattern>, handler: Option<R<Pattern>>, guard,
+CaseArm { pattern: R<Pattern>, guard:Option<Guard>, arrow: R<Range>, body: R<ArmBody>, range }
+CatchArm { pattern: R<Pattern>, handler: Option<R<Pattern>>, guard:Option<Guard>,
            arrow: R<Range>, body: R<ArmBody>, range }
+Guard { keyword: If(TextSyntax) | Where(TextSyntax),
+        condition:R<Box<OperatorChain>>, range }
 ArmBody ::= Inline(Box<OperatorChain>) | Indented(IndentedBlock)
 ```
 
-Whether an admitted guard skeleton is `Option<Guard { condition: R<_> }>` or
-`Option<R<Guard>>` remains an explicit pre-approval choice. Closing delimiter
-roles map to their corresponding `close`; a failed statement sequence position
-maps to a vector entry, while separator recovery does not.
+The optional guard keyword is positive committed evidence. No keyword gives
+`None`; an admitted `if` or `where` gives `Some(Guard)` and only its mandatory
+`condition` carries `R`. Immediate absence is therefore
+`Some(Guard { condition: Incomplete })`; a malformed run followed by a NUD
+completes that condition with retry noise; a terminal malformed run leaves it
+incomplete without a second Missing. An outer `Option<R<Guard>>` has no
+reachable incomplete-guard event and is not selected. Nested operand recovery
+keeps its own Expression role. Closing delimiter roles map to their
+corresponding `close`; a failed statement sequence position maps to a vector
+entry, while separator recovery does not.
 
 `ExpressionList` is distinct from ordinary call lists:
 
@@ -167,8 +175,26 @@ ExpressionList { open, items: Vec<R<OperatorChain>>,
 ExpressionSeparator { kind: Comma | Newline, range, after_items }
 ```
 
-Its owner must define trailing/repeated separator correspondence explicitly;
-retry Error does not itself add an incomplete item.
+`after_items` is the number of finalized entries, including incomplete ones,
+immediately after any item Missing caused by this separator and before the
+separator itself. The owner retains bounded local pending-product state:
+
+| ExpressionList event | candidate product effect |
+| --- | --- |
+| empty matching close | empty items and separators |
+| NUD admitted while expecting an expression | append complete chain; nested recovery remains inside it |
+| one or more Item Errors | reserve one pending position; append nothing yet |
+| retry NUD after Item Error | finalize that pending position complete |
+| comma/newline while expecting an expression | existing Item Missing finalizes one incomplete entry, then append separator |
+| comma/newline after an expression | append separator only |
+| matching close after a valid separator | no trailing incomplete entry |
+| terminal boundary after Item Error | existing Item Missing finalizes the pending position incomplete |
+| separator Error | append neither item nor separator product |
+| EOF/fence/outer close with protected unread leading | close incomplete; append no separator from the unread leading |
+
+Thus repeated commas/newlines create the currently selected item-Missing
+positions, while one retry after a run of Item Errors completes only one
+position. No recovery scan or diagnostic record count reconstructs this state.
 
 For every ordinary delimited owner—parenthesized primary, Call, Index,
 ProjectionTuple, and ProjectionRecord—an item-role Missing creates one
@@ -195,8 +221,12 @@ Chain availability follows the admitted skeleton rather than Error count:
 | FieldName/PathSegment Error | field/segment is incomplete; the returned identifier is a new outer-tail continuation, not a recovered child |
 
 An accepted Pattern head, tail, or annotation skeleton similarly retains a
-complete Pattern with an incomplete head/child as applicable. No admitted
-head/tail/annotation skeleton yields an incomplete Pattern. This is independent
+complete Pattern with an incomplete head/child as applicable. In particular, a
+Missing/Error primary followed by a **committed** Alias, Alternation, or
+TypeAnnotation skeleton yields `Complete(Pattern { head: Incomplete, .. })`.
+If no primary, tail, or annotation skeleton is committed, Pattern is
+`Incomplete`. A candidate rejected by precedence, active stops, layout or a
+boundary commits nothing and leaves availability unchanged. This is independent
 from the grammar's `PatternCompletion` control state.
 
 ## Type and declaration-helper candidates
@@ -367,21 +397,48 @@ shape, using owned leaves only.
 `UseTree` is structural syntax, never flattened header projection:
 
 ```text
-UseTree { range, form, prefix: UsePath, terminal, aliases, qualifiers }
+UseTree { range, form, prefix: UsePath, terminal, aliases, qualifiers:UseQualifiers }
 UsePath { segments: Vec<R<UseSegment>>, separators: Vec<UseSeparator> }
 UseSegment ::= Word(WordSyntax) | Operator { spelling:R<TextSyntax>, close:R<Range>, range }
-UseTerminal ::= Single | Group { join, group: UseGroup }
-                | Glob { join, without }
+UseTerminal ::= Single | Group { join:Option<UseSeparator>, group: UseGroup }
+                | Glob { join:Option<UseSeparator>, star:Range,
+                         without:Option<UseWithout> }
 UseGroup { delimiter, entries: Vec<R<UseTree>>, close:R<Range>, range }
 UseAlias { target:R<WordSyntax>, range }
-UseQualifiers { version, anchor }
+UseQualifiers { version:Option<UseVersion>, anchor:Option<UseAnchor> }
+UseVersion { spelling:TextSyntax, range }
+UseAnchor { keyword:Range, path:UseAnchorPath, range }
+UseAnchorPath { segments:nonempty Vec<R<WordSyntax>>, separators:Vec<UseSeparator> }
+UseWithout { keyword:Range, entries:nonempty Vec<R<UseExclusion>>, range }
+UseExclusion ::= Segment(UseSegment) | Glob { range } | Group(UseGroup)
 ```
 
 Import Path/Alias/GroupEntry/close roles attach only to their immediate tree
-slot. Group separator recovery remains sequence evidence, not a child. Header
-projection remains a separate all-or-none fact batch and cannot flatten or
-invalidate this product. Exact version/anchor/exclusion fields and projection
-discrepancy require the focused Use-product audit before approval.
+slot. An admitted `with`, `without`, alias, form marker, group opener, glob
+star or operator-name opener retains its own skeleton; its missing mandatory
+child is incomplete and terminal Error does not erase the tree. An inline-gap
+Missing can precede an immediately admitted child, so availability is never
+deduced from a record alone. Group leading/repeated comma creates an incomplete
+entry; a missing comma before an admitted sibling and wrong-close recovery add
+none. Group Error may retry one entry or terminally leave it incomplete. A
+prefix separator followed by a missing segment retains that separator and one
+incomplete segment. Group/glob joins are not prefix separators. Empty prefixes
+remain valid for leading groups/globs and stripped Realm/Band markers, so the
+exact invariant is
+`prefix.separators.len() == prefix.segments.len().saturating_sub(1)`.
+
+`with` anchor paths admit only words joined by slash or `::`; they are not
+general operator-name paths. Versions are raw `TextSyntax`, never normalized
+or semver-validated. `without = None` differs from an admitted `without` with
+an incomplete first exclusion. Exclusion groups carry recursive ordinary
+`UseTree` entries, rather than recursively nesting `UseExclusion`; glob aliases
+remain on the enclosing tree before exclusions.
+
+Header projection remains a separate all-or-none per-declaration fact batch
+and cannot flatten or invalidate this product. A recovery alone does not
+invalidate it, while glob/qualifiers, multiple aliases, or invalid route shape
+can. This Draft neither changes `HeaderImport` nor makes materialization resolve
+qualifiers.
 
 `OperatorDefinition` groups header and body as one syntax product despite their
 approved sibling CST topology:
@@ -419,8 +476,20 @@ rebuilt from `HeaderOperator`.
 
 `SourceRoot { statements: Vec<R<Statement>>, range }` shares declaration
 payloads with nested statements. Root-only operator header/body assembly and
-leading-header projection stay separate. Root malformed entries need an
-explicit sequence-home row; no root Error may be silently attached to a child.
+leading-header projection stay separate. Root availability is published by its
+own driver, never reconstructed from records:
+
+| root event | candidate product effect |
+| --- | --- |
+| Statement admitted | append `Complete(statement)`; recovered mandatory children remain in that statement |
+| `Statement(Starter)` Error | append one terminal `Incomplete` statement position for the full lexical run |
+| `Statement(Separator)` Error | sequence-owned ledger evidence only; append no statement |
+| `Statement(TrailingInput { owner })` Error | sequence-owned ledger evidence only; append no statement or extend the preceding declaration |
+| trivia, semicolon, ordinary EOF, abstract fence | append nothing |
+| OperatorDefinition body recovery | retain it in the logical `OperatorDefinition.body` despite its sibling CST placement |
+
+Thus a root Error never silently attaches to a child, but neither does every
+root-owned Error become a fabricated Error-statement product.
 
 ## Mandatory pre-approval closure
 
@@ -431,10 +500,9 @@ explicit sequence-home row; no root Error may be silently attached to a child.
    form, parameter, derives, companion, variant and field products; and every
    recursive list's exact range/recovery mapping.
 3. Close the explicitly named product choices: missing Pattern head with tails,
-   guard availability carrier, ordinary delimited expression entries,
-   ExpressionList separator correspondence, Use qualifier/exclusion/projection
-   mapping, operator-header signature/failure mapping, and root malformed-entry
-   home.
+   ordinary delimited expression entries, ExpressionList separator
+   correspondence, exact Type/PV availability, operator-header
+   signature/failure mapping, and every field-to-authority locator.
 4. For flat chains, distinguish wholly unavailable initial expressions from
    accepted chains whose operand is missing or terminally malformed; define
    successful retry and nested-operand outcomes without deriving them from an
