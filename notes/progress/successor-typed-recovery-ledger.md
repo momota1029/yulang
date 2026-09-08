@@ -26,6 +26,19 @@ Pattern-owned modules map every current publication site to a
 semantic helper; the remaining O3b SCC is explicitly open.
 Source aliases are relative to `crates/yu-syntax/src/`:
 
+## Syntax-phase topology
+
+- Completed `2026-09-09-syntax-phase-topology.md`. `syntax_environment.rs`
+  owns selected imported inputs/provenance; `syntax_diagnostic.rs` owns typed
+  recovery and construction diagnostics; `full_parse.rs` alone assembles
+  HeaderInfo, the selected environment, direct root construction, and
+  ParsedFile. The generic `parse.rs` source was removed without a compatibility
+  forwarder or public API change.
+- M2 topology review retained private environment identity, one-way dependency
+  direction, and owner-local tests. Environment/diagnostic 5; full parse 9;
+  public boundary 8 passed with one existing ignored manual measurement harness;
+  package, format and diff passed. Benchmark use: zero.
+
 - `T` = `type_expr/mod.rs`; `D` = `type_expr/delimited.rs`;
   `R` = `type_expr/record.rs`; `F` = `type_expr/forall.rs`;
   `V` = `type_expr/variants.rs`.

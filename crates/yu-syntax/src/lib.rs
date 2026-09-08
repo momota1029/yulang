@@ -7,27 +7,30 @@ mod cst_output;
 mod cursor;
 mod declaration;
 mod expression;
+mod full_parse;
 mod handoff;
 mod header;
 mod lexical;
 mod literal;
 mod operator_table;
-mod parse;
 mod pattern;
 mod recovery_record;
 mod rule;
 mod sequence;
 mod source_file;
 mod statement;
+mod syntax_diagnostic;
+mod syntax_environment;
 mod syntax_kind;
 mod type_expr;
 mod virtual_statement_block;
 
+pub use full_parse::{ParsedFile, parse_file};
 pub use operator_table::{OperatorOrigin, OperatorTable};
-pub use parse::{
-    OperatorConflictDiagnostic, ParsedFile, SourceRevision, SyntaxDependencyProvenance,
-    SyntaxDependencySlot, SyntaxDiagnostic, SyntaxDiagnosticCause, SyntaxEnvironment,
-    SyntaxEnvironmentBuildError, SyntaxEnvironmentKey, parse_file,
+pub use syntax_diagnostic::{OperatorConflictDiagnostic, SyntaxDiagnostic, SyntaxDiagnosticCause};
+pub use syntax_environment::{
+    SourceRevision, SyntaxDependencyProvenance, SyntaxDependencySlot, SyntaxEnvironment,
+    SyntaxEnvironmentBuildError, SyntaxEnvironmentKey,
 };
 pub use syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken, YulangLanguage};
 

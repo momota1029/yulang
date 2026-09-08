@@ -35,6 +35,14 @@ output boundaries. Public exports, syntax behavior and test contracts are
 unchanged. Dated design and daily records retain their historical paths;
 current source links and test commands name their direct owners.
 
+The public syntax phase is now split under
+`2026-09-09-syntax-phase-topology.md`: `syntax_environment.rs` owns selected
+inputs/provenance, `syntax_diagnostic.rs` owns diagnostic data, and
+`full_parse.rs` owns their HeaderInfo/root assembly and ParsedFile. The generic
+`parse.rs` source is gone; root API remains unchanged. Environment/diagnostic:
+5; full parse: 9; public boundary: 8 passed with one existing ignored manual
+measurement harness; package/format/diff passed. Benchmark use: zero.
+
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
 Its Missing/Error sites now publish the existing Cast role with the required
