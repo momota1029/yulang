@@ -310,6 +310,7 @@ root and declaration-local owners open.
 | `mod_decl` Name/TestName/BodyIntroducer/Body | `Declaration(Mod(Name/TestName/BodyIntroducer/Body))` | M/E | required identity/body slots or maximal lexical run | only initial `test` marks; retry/pending boundary leading and nested Statement owners stay distinct | `mod_decl::*`, `indented_recovery::*`, `normalized::*` | C |
 | `role_decl` BodyIntroducer/inline Body | `Declaration(Role(BodyIntroducer/Body))` | M/E | required punctuation body slot or maximal lexical run | ordered three-starter union; Head Type and Statement/block children remain native | `role_decl::*`, `type_expr::required_recovery::*` | C |
 | `impl_decl` BodyIntroducer/inline Body | `Declaration(Impl(BodyIntroducer/Body))` | M/E | body punctuation slot or maximal lexical run after complete Description | first colon remains Description; second colon starts Body; child Type/Statement roles remain native | `impl_decl::*`, `indented_recovery::*` | C |
+| `act_decl` BodyIntroducer/inline Body | `Declaration(Act(BodyIntroducer/Body))` | E / M/E | malformed punctuation introducer or absent/maximal lexical body | implicit bodyless terminal succeeds; attachment and child owners remain native | `act_decl::*`, `derives::*`, `declaration_companion::*` | C |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an

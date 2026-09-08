@@ -307,6 +307,13 @@ Impl: 16; required Type: 5; indented/braced/normalized/output: 7/7/83/4;
 package/format/diff and independent audits passed. The CRLF boundary repair
 preserves shallow-newline current-Item handoff in fresh/frozen output.
 
+The Act gate in `2026-09-08-successor-act-current-item-recovery.md` is
+implemented. BodyIntroducer Error and inline Body now publish typed records;
+bodyless terminal success remains recovery-free and attachment phases remain
+unchanged. Act: 21; companion/indented/virtual/output: 23/7/9/4; package/
+format/diff and independent audits passed. D9c's close-boundary zero-recovery
+contract is pinned fresh/frozen.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

@@ -1,5 +1,248 @@
 use super::*;
 
+fn act_record(
+    slot: crate::session::ActDeclarationRole,
+    kind: crate::session::RecoveryKind,
+    range: std::ops::Range<usize>,
+) -> CommittedRecoveryRecord {
+    use crate::session::*;
+    use std::sync::Arc;
+    let role = GrammarRole::Declaration(DeclarationRole::Act(slot));
+    let expected = if slot == ActDeclarationRole::BodyIntroducer {
+        vec![
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        ]
+    } else {
+        vec![ExpectedSyntax::Statement]
+    };
+    CommittedRecoveryRecord {
+        id: DiagnosticId(0),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected: if kind == RecoveryKind::Error {
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }])
+        } else {
+            Arc::from([])
+        },
+        expectations: expected
+            .into_iter()
+            .map(|expected| SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            })
+            .collect::<Vec<_>>()
+            .into(),
+        primary_expectation: 0,
+    }
+}
+
+#[test]
+fn act_typed_runs_retry_each_starter_and_statement_with_exact_records() {
+    use crate::session::{ActDeclarationRole as R, RecoveryKind as K};
+    for (source, slot, range) in [
+        ("act A @ % ;", R::BodyIntroducer, 106..109),
+        ("act A @ {} derives Eq", R::BodyIntroducer, 106..107),
+        ("act A @ : my x = y", R::BodyIntroducer, 106..107),
+        ("act A: @ % my x = y", R::Body, 107..110),
+        ("act 名: @ my x = y", R::Body, 109..110),
+    ] {
+        let (green, _, records, rest) = typed_act(source, None, 0, None);
+        assert_eq!(green.to_string(), source, "{source}");
+        assert_eq!(rest, "");
+        assert_eq!(records, [act_record(slot, K::Error, range)], "{source}");
+        let (again, _, frozen, rest) = typed_act(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(rest, "");
+    }
+}
+
+#[test]
+fn act_typed_absence_and_post_error_boundaries_preserve_whole_items() {
+    use crate::session::{ActDeclarationRole as R, RecoveryKind as K};
+    for (owned, slot, kind, range) in [
+        ("act A:", R::Body, K::Missing, 106..106),
+        ("act A: @", R::Body, K::Error, 107..108),
+        ("act A @", R::BodyIntroducer, K::Error, 106..107),
+    ] {
+        for suffix in ["  ", "  ) tail", "  , tail", "  else tail", "\r\nnext tail"] {
+            let source = format!("{owned}{suffix}");
+            let (green, _, records, _) = typed_act(&source, None, STOP_ELSE, None);
+            assert_eq!(green.to_string(), owned, "{source:?}");
+            assert_eq!(
+                records,
+                [act_record(slot, kind, range.clone())],
+                "{source:?}"
+            );
+            for frozen in [None, Some(records.as_slice())] {
+                let (again, exit, actual, rest) = typed_act(&source, frozen, STOP_ELSE, None);
+                assert_eq!(again, green);
+                assert_eq!(actual, records);
+                let mut item = match exit {
+                    Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
+                    Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
+                    _ => panic!("pending {source:?}"),
+                };
+                let leading = emit_pending_leading_text(&mut item);
+                let payload = item.payload_view().spelling().unwrap_or("");
+                assert_eq!(format!("{owned}{leading}{payload}{rest}"), source);
+            }
+        }
+    }
+    let (green, _, records, _) = typed_act("act A: ;", None, 0, None);
+    assert_eq!(green.to_string(), "act A:");
+    assert_eq!(records, [act_record(R::Body, K::Missing, 106..106)]);
+}
+
+#[test]
+fn act_typed_bodyless_and_attachment_controls_remain_zero_recovery() {
+    for source in [
+        "act A",
+        "act A = B",
+        "act A derives Eq with {}",
+        "act A = B derives Eq with {}",
+        "act A {} derives Eq",
+        "act A: my x = y",
+    ] {
+        let (green, _, records, rest) = typed_act(source, None, 0, None);
+        assert_eq!(green.to_string(), source);
+        assert!(records.is_empty(), "{source}");
+        assert_eq!(rest, "");
+        let (again, _, frozen, _) = typed_act(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
+}
+
+#[test]
+fn act_typed_bodyless_closing_owner_boundary_keeps_the_whole_item() {
+    let source = "act A  } tail";
+    let expected = [];
+    for frozen in [None, Some(expected.as_slice())] {
+        let (green, exit, records, rest) = typed_act(source, frozen, 0, None);
+        assert_eq!(green.to_string(), "act A");
+        assert_eq!(records, expected);
+        assert_eq!(rest, " tail");
+        let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine)) = exit
+        else {
+            panic!("the closing owner's brace must remain pending")
+        };
+        assert_eq!(token_kind(&item), Some(TokenKind::RBrace));
+        let successor = 100 + source.len() - rest.len();
+        assert_eq!(successor, 108);
+        assert_eq!(item.extent(successor).recovery_range(), 105..108);
+        assert_eq!(emit_pending_leading_text(&mut item), "  ");
+        assert_eq!(item.payload_view().spelling(), Some("}"));
+    }
+}
+
+#[test]
+fn act_typed_fence_absence_and_error_keep_crlf_and_abstract_coordinate() {
+    use crate::rewrite::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::session::{ActDeclarationRole as R, RecoveryKind as K};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (owned, expected) in [
+        ("act A", None),
+        ("act A:", Some(act_record(R::Body, K::Missing, 108..108))),
+        (
+            "act A @",
+            Some(act_record(R::BodyIntroducer, K::Error, 106..107)),
+        ),
+        ("act A: @", Some(act_record(R::Body, K::Error, 107..108))),
+    ] {
+        let source = format!("{owned}\r\n> > ```\r\nouter");
+        let expected: Vec<_> = expected.into_iter().collect();
+        for frozen in [None, Some(expected.as_slice())] {
+            let (green, exit, records, rest) = typed_act(&source, frozen, 0, Some(&fence));
+            assert_eq!(green.to_string(), owned);
+            assert_eq!(records, expected);
+            assert_eq!(rest, "> > ```\r\nouter");
+            let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+                exit
+            else {
+                panic!("fence pending")
+            };
+            let (leading, boundary) = emit_terminal_leading_text(item);
+            assert_eq!(leading, "\r\n");
+            assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
+        }
+    }
+}
+
+#[test]
+fn act_typed_shell_preserves_head_source_and_child_owners_without_cascade() {
+    use crate::session::{ActDeclarationRole as R, BindingRole, DeclarationRole, GrammarRole};
+    for (source, role) in [
+        (
+            "act;",
+            GrammarRole::Declaration(DeclarationRole::Act(R::Head)),
+        ),
+        (
+            "act A = ;",
+            GrammarRole::Declaration(DeclarationRole::Act(R::Source)),
+        ),
+        (
+            "act A: my x =",
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+        ),
+    ] {
+        let (green, _, records, _) = typed_act(source, None, 0, None);
+        assert_eq!(records.len(), 1, "{source}");
+        assert_eq!(records[0].site.role, role);
+        let (again, _, frozen, _) = typed_act(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
+}
+
+fn typed_act<'s>(
+    source: &'s str,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> (
+    GreenNode,
+    Option<NormalizedExit>,
+    Vec<CommittedRecoveryRecord>,
+    &'s str,
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = act_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        stops,
+        super::super::statement::StatementLineHandoff::OrdinaryLayout,
+        100,
+        LineEntry::InLine,
+        fence,
+    );
+    builder.finish_node();
+    let (green, records) = builder.finish_with_recoveries();
+    (green, exit, records, input)
+}
+
 fn declaration(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .descendants()
