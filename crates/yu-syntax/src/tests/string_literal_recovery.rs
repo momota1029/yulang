@@ -360,6 +360,91 @@ fn rejected_opener_is_effect_free() {
 }
 
 #[test]
+fn actual_expression_pattern_and_rule_strings_keep_virtual_child_before_literal_parents() {
+    for (source, pattern, at) in [
+        ("\"%{,", false, 3),
+        ("\"\"\"%{,", true, 5),
+        ("~\"{a=\"%{,", false, 8),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new(&operators);
+        let mut input = source;
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        if pattern {
+            pattern_normalized(
+                In::new(&mut input, &mut recover, &mut output),
+                0,
+                LineEntry::InLine,
+                None,
+                0,
+                Some(AmbientClaimView::root_statement(0)).into(),
+            );
+        } else {
+            assert!(
+                expr_normalized(
+                    In::new(&mut input, &mut recover, &mut output),
+                    None,
+                    0,
+                    0,
+                    MlMode::All,
+                    StatementLineHandoff::OrdinaryLayout,
+                    0,
+                    LineEntry::InLine,
+                    None,
+                    Some(AmbientClaimView::root_statement(0)).into(),
+                    None,
+                )
+                .is_some()
+            );
+        }
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(green.to_string(), source);
+        assert_eq!(input, "");
+        // Any enclosing Rule recovery follows this complete Virtual/String cone.
+        assert_eq!(
+            &records[..3],
+            &[
+                super::virtual_statement_block::virtual_record(
+                    0,
+                    crate::recovery_record::StatementRole::Starter,
+                    RecoveryKind::Missing,
+                    at..at
+                ),
+                record(
+                    1,
+                    LiteralRole::StringInterpolationCloseBrace,
+                    RecoveryKind::Missing,
+                    at + 1..at + 1
+                ),
+                record(
+                    2,
+                    LiteralRole::StringTerminator,
+                    RecoveryKind::Missing,
+                    at + 1..at + 1
+                ),
+            ]
+        );
+        let root = SyntaxNode::new_root(green);
+        let missing: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .take(3)
+            .map(|node| node.parent().unwrap().kind())
+            .collect();
+        assert_eq!(
+            missing,
+            [
+                SyntaxKind::Statement,
+                SyntaxKind::StringInterpolation,
+                SyntaxKind::StringLiteral
+            ]
+        );
+    }
+}
+
+#[test]
 fn literal_recovery_preserves_seeded_ids_and_allocates_after_frozen_records() {
     use crate::cst_output::RecoveryDraft;
     let seed = record(
@@ -466,20 +551,29 @@ fn interpolation_child_recovery_precedes_close_and_terminator_without_relabeling
     assert_eq!(
         records,
         [
-            record(
+            super::virtual_statement_block::virtual_record(
                 0,
+                crate::recovery_record::StatementRole::Starter,
+                RecoveryKind::Missing,
+                3..3
+            ),
+            record(
+                1,
                 LiteralRole::StringInterpolationCloseBrace,
                 RecoveryKind::Missing,
                 4..4
             ),
             record(
-                1,
+                2,
                 LiteralRole::StringTerminator,
                 RecoveryKind::Missing,
                 4..4
             )
         ]
     );
+    let (again, frozen, _) = parse("\"%{,", 0, None, Some(&records));
+    assert_eq!(again, green);
+    assert_eq!(frozen, records);
     let root = SyntaxNode::new_root(green);
     let missing: Vec<_> = root
         .descendants()

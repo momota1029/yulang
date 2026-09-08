@@ -236,6 +236,20 @@ recovery remains separate. Focused: 8; literal/Pattern/Rule/Virtual/normalized/
 recovery-output: 35/54/26/9/83/25; package/format/diff pass. Specification and
 regression reviews passed. No benchmark process was used.
 
+The VirtualStatementBlock gate in
+`2026-09-08-successor-virtual-statement-current-item-recovery.md` is
+implemented. Its three raw sites now publish existing Statement Starter /
+Separator records: required Statement, missing inter-Statement separator and
+one maximal lexical Statement Error. Initial/internal Error leading remains
+owned by that Error; retry/boundary leading and borrowed `}` remain pending for
+the existing sequence/Literal owners. Fresh/shifted/frozen/seeded, UTF-8,
+foreign-prefix, protected boundary and caller controls pass. The exact `"%{,`
+literal record order is now Virtual child, interpolation close, terminator;
+the pre-write specification audit derives that addition without changing CST
+topology. M2 compiler/recovery and regression review found no production defect;
+one caller-evidence repair adds actual Expression/Pattern/Rule string paths.
+Yumark production convergence and its AST-product decision remain separate.
+
 The Rule DSL literal gate in
 `2026-09-08-successor-rule-literal-current-item-recovery.md` is implemented.
 Ten Literal roles now publish typed records; Body/Paren newline stops precede

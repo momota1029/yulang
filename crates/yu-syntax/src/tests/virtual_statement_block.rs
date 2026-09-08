@@ -1,4 +1,257 @@
+use crate::recovery_record::{
+    DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind, RecoverySiteKey,
+    StatementRole, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+};
 use crate::tests::support::*;
+use std::{ops::Range, sync::Arc};
+
+pub(super) fn virtual_record(
+    id: u32,
+    role: StatementRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+) -> CommittedRecoveryRecord {
+    let expected = match role {
+        StatementRole::Starter => ExpectedSyntax::Statement,
+        StatementRole::Separator => ExpectedSyntax::StatementSeparator,
+        _ => unreachable!(),
+    };
+    let role = GrammarRole::Statement(role);
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected: if kind == RecoveryKind::Missing {
+            Arc::from([])
+        } else {
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }])
+        },
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+#[test]
+fn virtual_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
+    use RecoveryKind::{Error, Missing};
+    use StatementRole::{Separator, Starter};
+    for (source, slots) in [
+        (
+            ",;}",
+            vec![(Starter, Missing, 0..0), (Starter, Missing, 1..1)],
+        ),
+        (
+            "; ,}",
+            vec![(Starter, Missing, 0..0), (Starter, Missing, 1..1)],
+        ),
+        ("a,}", vec![]),
+        ("a;}", vec![]),
+        ("role R; value}", vec![(Separator, Missing, 7..7)]),
+        (" @ @ α}", vec![(Starter, Error, 0..4)]),
+        (" @ 💥 α}", vec![(Starter, Error, 0..7)]),
+        ("@ role R;}", vec![(Starter, Error, 0..1)]),
+        ("@ \"α\"}", vec![(Starter, Error, 0..1)]),
+        ("a @ value}", vec![(Starter, Error, 1..3)]),
+        (
+            " , @}",
+            vec![(Starter, Missing, 0..0), (Starter, Error, 3..4)],
+        ),
+        (" \t}", vec![]),
+    ] {
+        for origin in [0, 8100] {
+            let expected: Vec<_> = slots
+                .iter()
+                .enumerate()
+                .map(|(id, (role, kind, range))| {
+                    virtual_record(
+                        id as u32,
+                        *role,
+                        *kind,
+                        origin + range.start..origin + range.end,
+                    )
+                })
+                .collect();
+            let mut fresh = None;
+            for frozen in [None, Some(expected.as_slice())] {
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut input = source;
+                let mut output = frozen
+                    .map(GreenNodeBuilder::reconcile)
+                    .unwrap_or_else(GreenNodeBuilder::new);
+                output.start_node(SyntaxKind::Root.into());
+                let exit = virtual_statement_block_normalized(
+                    In::new(&mut input, &mut recover, &mut output),
+                    origin,
+                    LineEntry::InLine,
+                    None,
+                    None.into(),
+                );
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(records, expected, "{source:?} at {origin}");
+                let VirtualStatementBlockExit::Close(item, _) = exit else {
+                    panic!("pending close for {source:?}")
+                };
+                assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBrace));
+                assert_eq!(input, "");
+                if let Some(fresh) = &fresh {
+                    assert_eq!(&green, fresh);
+                } else {
+                    fresh = Some(green);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn virtual_error_keeps_terminal_leading_and_source_suffix() {
+    for (source, leading, remainder, fence) in [
+        (" @ \t}tail", " \t", "tail", None),
+        (" @ \t", " \t", "", None),
+        (" @\n", "\n", "", None),
+        (" @\r\n", "\r\n", "", None),
+        (
+            " @\r\n> > ```\r\nouter",
+            "\r\n",
+            "> > ```\r\nouter",
+            Some(active_fence()),
+        ),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new(&operators);
+        let mut input = source;
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let exit = virtual_statement_block_normalized(
+            In::new(&mut input, &mut recover, &mut output),
+            300,
+            LineEntry::InLine,
+            fence.as_ref(),
+            None.into(),
+        );
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(green.to_string(), " @");
+        assert_eq!(
+            records,
+            [virtual_record(
+                0,
+                StatementRole::Starter,
+                RecoveryKind::Error,
+                300..302
+            )]
+        );
+        let (VirtualStatementBlockExit::Close(mut item, _)
+        | VirtualStatementBlockExit::Boundary(mut item, _)) = exit;
+        let pending_leading = if item.payload_view().is_boundary() {
+            let (leading, boundary) = emit_terminal_leading_text(item);
+            assert_eq!(boundary.coordinate(), 304);
+            leading
+        } else {
+            emit_pending_leading_text(&mut item)
+        };
+        assert_eq!(pending_leading, leading);
+        assert_eq!(input, remainder);
+    }
+}
+
+#[test]
+fn virtual_slots_preserve_seeded_and_frozen_ids_then_allocate_above_them() {
+    for (source, role, kind, range) in [
+        (",}", StatementRole::Starter, RecoveryKind::Missing, 0..0),
+        (
+            "role R; value}",
+            StatementRole::Separator,
+            RecoveryKind::Missing,
+            7..7,
+        ),
+        (" @}", StatementRole::Starter, RecoveryKind::Error, 0..2),
+    ] {
+        let seed = virtual_record(7, StatementRole::Starter, RecoveryKind::Missing, 0..0);
+        let reused = virtual_record(19, role, kind, 100 + range.start..100 + range.end);
+        let frozen = [seed.clone(), reused.clone()];
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new(&operators);
+        let mut output = GreenNodeBuilder::reconcile(&frozen);
+        output.start_node(SyntaxKind::Root.into());
+        output.start_node(SyntaxKind::Missing.into());
+        output.finish_node();
+        output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+            seed.site.clone(),
+            seed.kind,
+            seed.unexpected.clone(),
+            seed.expectations.clone(),
+            0,
+        ));
+        for origin in [100, 200] {
+            let mut input = source;
+            let exit = virtual_statement_block_normalized(
+                In::new(&mut input, &mut recover, &mut output),
+                origin,
+                LineEntry::InLine,
+                None,
+                None.into(),
+            );
+            assert!(matches!(exit, VirtualStatementBlockExit::Close(_, _)));
+        }
+        output.finish_node();
+        let (_, records) = output.finish_with_recoveries();
+        assert_eq!(
+            records,
+            [
+                seed,
+                reused,
+                virtual_record(20, role, kind, 200 + range.start..200 + range.end)
+            ]
+        );
+    }
+}
+
+#[test]
+fn virtual_error_extent_includes_owned_foreign_prefix() {
+    let fence = active_fence();
+    let expected = [virtual_record(
+        0,
+        StatementRole::Starter,
+        RecoveryKind::Error,
+        400..410,
+    )];
+    for frozen in [None, Some(expected.as_slice())] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new(&operators);
+        let mut input = "> > @ 💥 α}";
+        let mut output = frozen
+            .map(GreenNodeBuilder::reconcile)
+            .unwrap_or_else(GreenNodeBuilder::new);
+        output.start_node(SyntaxKind::Root.into());
+        let exit = virtual_statement_block_normalized(
+            In::new(&mut input, &mut recover, &mut output),
+            400,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+            None.into(),
+        );
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(records, expected);
+        assert_eq!(green.to_string(), "> > @ 💥 α");
+        assert!(matches!(exit, VirtualStatementBlockExit::Close(_, _)));
+        assert_eq!(input, "");
+    }
+}
 
 use crate::{
     lexical::yumark::{FenceOpener, FencePrefixPolicy},

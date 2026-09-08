@@ -284,6 +284,19 @@ publication remain their own owners.
 Rule DSL literal recovery is now mapped below. Its ordinary ExpressionList,
 String and Virtual child owners remain separate.
 
+VirtualStatementBlock recovery is now mapped below. It is a distinct
+root-style Statement sequence, not Root or a braced block; its bounded reuse
+of existing Statement roles is recorded in the Virtual current-Item authority.
+
+| source / owner | slot role | M/E | trigger and extent | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- |
+| `virtual_statement_block` initial/after-separator required Statement | `Statement(Starter)` | M | comma or semicolon at a required Statement position | leave Item for the separate separator phase | `virtual_statement_block::*`, `string_literal_recovery::*` | C |
+| `virtual_statement_block` after an admitted Statement | `Statement(Separator)` | M | next admitted Statement without a separator | retry the same Item in after-separator phase | `virtual_statement_block::*` | C |
+| `virtual_statement_block::retry_statement` | `Statement(Starter)` | E | maximal lexical non-Statement run; initial/internal remaining leading is emitted in Error | admitted retry stays outside Error; comma/semicolon/newline/EOF/fence/borrowed close stay pending | `virtual_statement_block::*`, `string_literal_recovery::*` | C |
+
+Virtual has no close recovery: StringLiteral owns its borrowed `}` and parent
+terminator. Virtual records precede those parent records.
+
 | source / owner | slot role | M/E | trigger and extent | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- |
 | `rule.rs` body/paren/capture/name/path/unexpected sites | `RuleBodyCloseBrace`, `RuleParenClose`, `RuleCaptureRightItem`, `RuleFieldName`, `RulePathName`, `RuleUnexpectedItem` | M/E | protected EOF/fence/outer stop or one lexical Item | newline stops before admission; same Rule retry | `rule_literal_recovery::*`, `rule::*` | C |
@@ -330,7 +343,7 @@ independently migrated Pattern owner.
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
 if/case typed-recovery; accepted public Yumark/frame-pop, braced/colon/with raw owners and caller bypasses; remaining declaration shells/fields;
-raw VirtualStatementBlock recovery; all remaining RB-E/P/S/
+all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type
 helper's role transport. No unbounded test suite or fresh benchmark was run
