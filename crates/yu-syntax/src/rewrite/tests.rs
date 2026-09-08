@@ -38,6 +38,7 @@ mod ambient_claim;
 mod binding;
 mod case_like;
 mod cast_decl;
+mod colon_with_recovery;
 mod declaration_companion;
 mod declaration_variant;
 mod delimited_recovery;

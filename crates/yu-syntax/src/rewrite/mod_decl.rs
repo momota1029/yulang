@@ -34,24 +34,35 @@ pub(super) fn mod_declaration_selected_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> bool {
+    i.map(
+        |lex: LexIn| {
+            Some(mod_declaration_selected_lexical(
+                lex.remainder(),
+                item,
+                baseline,
+                item_origin,
+                fence,
+            ))
+        },
+        |selected| selected,
+    )
+    .unwrap_or(false)
+}
+
+pub(super) fn mod_declaration_selected_lexical(
+    source: &str,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("mod") {
         return true;
     }
     if !matches!(item_word(item), Some("my" | "our" | "pub")) {
         return false;
     }
-    i.map(
-        |lex: LexIn| {
-            Some(prefixed_mod_candidate_normalized(
-                lex.remainder(),
-                item_origin,
-                fence,
-                baseline,
-            ))
-        },
-        |selected| selected,
-    )
-    .unwrap_or(false)
+    prefixed_mod_candidate_normalized(source, item_origin, fence, baseline)
 }
 
 fn prefixed_mod_candidate_normalized(

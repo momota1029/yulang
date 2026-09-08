@@ -188,9 +188,19 @@ tails 14; normalized 83; recovery output 25; package check/format/diff pass.
 Specification and regression review found one frozen-cursor test-evidence gap,
 closed by one bounded repair and delta review. No public dispatch changed.
 
-Next, continue Expression Colon/With, then literal/Statement/declaration
-dependencies. Extend the same ledger; retain the current acceptance contracts,
-effect-free optional entry and the atomic public cutover boundary. No benchmark
+The Colon/With inline gate in
+`2026-09-08-successor-expression-colon-with-inline-current-item-recovery.md`
+is implemented. Inline Rhs/InlineArgument and Introducer/Body slots publish
+typed records; With now shares canonical literal-first Statement scanning with
+its sealed retry. The focused filter passes 9; tails 14; normalized 83;
+recovery output 25; package/format/diff pass. Spec/regression reviews found no
+scoped defect. The pre-existing `my role = value` Statement assertion still
+fails identically at baseline `de8e77f3`, so it remains unchanged.
+
+Next, continue Colon/With indented recovery-role transport and the current-depth
+layout outer-sequence correction, then literal/Statement/declaration dependencies.
+Extend the same ledger; retain the current acceptance contracts, effect-free
+optional entry and the atomic public cutover boundary. No benchmark
 sample/process has been used.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.

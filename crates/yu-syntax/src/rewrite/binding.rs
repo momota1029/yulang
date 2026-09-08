@@ -19,43 +19,24 @@ use super::{
         introduced_body_indentation_normalized, is_exact_equals_source, scan_pattern_nud_payload,
         scan_statement_payload, source_declaration_head, source_identifier,
     },
-    mod_decl::mod_declaration_selected_normalized,
     operator::{TriviaObservation, observe_fenced_trivia},
     pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item_normalized, pattern_stops_from_owner},
     statement::{StatementLineHandoff, indented_statement_block_normalized},
-    struct_decl::struct_declaration_selected_normalized,
-    type_decl::type_declaration_selected_normalized,
-    use_decl::use_declaration_selected_normalized,
     yumark::FenceBoundary,
 };
 
 pub(super) fn binding_statement_selected_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     item: &Item,
     baseline: usize,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> bool {
-    let Some(visibility) = visibility_word(item) else {
-        return false;
-    };
-    if use_declaration_selected_normalized(i.rb(), item, item_origin, fence) {
-        return false;
-    }
-    if mod_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-        return false;
-    }
-    if struct_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-        return false;
-    }
-    if type_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-        return false;
-    }
     i.map(
-        |i: LexIn| {
-            Some(binding_follower_normalized(
-                i.remainder(),
-                visibility,
+        |lex: LexIn| {
+            Some(binding_statement_selected_lexical(
+                lex.remainder(),
+                item,
                 baseline,
                 item_origin,
                 fence,
@@ -64,6 +45,44 @@ pub(super) fn binding_statement_selected_normalized(
         |selected| selected,
     )
     .unwrap_or(false)
+}
+
+pub(super) fn binding_statement_selected_lexical(
+    source: &str,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
+    let Some(visibility) = visibility_word(item) else {
+        return false;
+    };
+    if super::use_decl::use_declaration_selected_lexical(source, item, item_origin, fence) {
+        return false;
+    }
+    if super::mod_decl::mod_declaration_selected_lexical(source, item, baseline, item_origin, fence)
+    {
+        return false;
+    }
+    if super::struct_decl::struct_declaration_selected_lexical(
+        source,
+        item,
+        baseline,
+        item_origin,
+        fence,
+    ) {
+        return false;
+    }
+    if super::type_decl::type_declaration_selected_lexical(
+        source,
+        item,
+        baseline,
+        item_origin,
+        fence,
+    ) {
+        return false;
+    }
+    binding_follower_normalized(source, visibility, baseline, item_origin, fence)
 }
 
 fn binding_follower_normalized(

@@ -40,24 +40,33 @@ pub(super) fn use_declaration_selected_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> bool {
+    i.map(
+        |lex: LexIn| {
+            Some(use_declaration_selected_lexical(
+                lex.remainder(),
+                item,
+                item_origin,
+                fence,
+            ))
+        },
+        |selected| selected,
+    )
+    .unwrap_or(false)
+}
+
+pub(super) fn use_declaration_selected_lexical(
+    source: &str,
+    item: &Item,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("use") {
         return true;
     }
     if !matches!(item_word(item), Some("my" | "our" | "pub")) {
         return false;
     }
-    i.map(
-        |lex: LexIn| {
-            Some(prefixed_use_candidate_normalized(
-                lex.remainder(),
-                item_origin,
-                fence,
-                item_word(item) == Some("my"),
-            ))
-        },
-        |selected| selected,
-    )
-    .unwrap_or(false)
+    prefixed_use_candidate_normalized(source, item_origin, fence, item_word(item) == Some("my"))
 }
 
 fn prefixed_use_candidate_normalized(

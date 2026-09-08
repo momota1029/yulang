@@ -6,13 +6,13 @@ use reborrow_generic::Reborrow as _;
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
-    RewriteIn, Stops,
-    act_decl::{act_declaration_normalized, act_declaration_selected_normalized},
+    LexIn, RewriteIn, Stops,
+    act_decl::{act_declaration_normalized, act_declaration_selected_lexical},
     binding::{
-        binding_statement_normalized, binding_statement_selected_normalized, is_binding_visibility,
+        binding_statement_normalized, binding_statement_selected_lexical, is_binding_visibility,
     },
-    cast_decl::{cast_declaration_normalized, cast_declaration_selected_normalized},
-    current_item::{CurrentItem, LineEntry, current_item},
+    cast_decl::{cast_declaration_normalized, cast_declaration_selected_lexical},
+    current_item::{LineEntry, current_item},
     driver::{
         Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
         continue_normalized_tail, delimited_baseline, expr_from_nud_normalized, handoff,
@@ -20,18 +20,18 @@ use super::{
         is_separator, ordinary_exit, scan_expression_literal_payload, suffix_marker, token_kind,
     },
     emit::{emit_missing, emit_token_item},
-    enum_decl::{enum_declaration_normalized, enum_declaration_selected_normalized},
-    error_decl::{error_declaration_normalized, error_declaration_selected_normalized},
+    enum_decl::{enum_declaration_normalized, enum_declaration_selected_lexical},
+    error_decl::{error_declaration_normalized, error_declaration_selected_lexical},
     for_decl::{for_statement_normalized, for_statement_selected},
-    impl_decl::{impl_declaration_normalized, impl_declaration_selected_normalized},
+    impl_decl::{impl_declaration_normalized, impl_declaration_selected_lexical},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::scan_statement_payload,
-    mod_decl::{mod_declaration_normalized, mod_declaration_selected_normalized},
+    mod_decl::{mod_declaration_normalized, mod_declaration_selected_lexical},
     operator::stops_for,
-    role_decl::{role_declaration_normalized, role_declaration_selected_normalized},
-    struct_decl::{struct_declaration_normalized, struct_declaration_selected_normalized},
-    type_decl::{type_declaration_normalized, type_declaration_selected_normalized},
-    use_decl::{use_declaration_normalized, use_declaration_selected_normalized},
+    role_decl::{role_declaration_normalized, role_declaration_selected_lexical},
+    struct_decl::{struct_declaration_normalized, struct_declaration_selected_lexical},
+    type_decl::{type_declaration_normalized, type_declaration_selected_lexical},
+    use_decl::{use_declaration_normalized, use_declaration_selected_lexical},
     yumark::FenceBoundary,
 };
 
@@ -471,7 +471,29 @@ enum StatementFamily {
 }
 
 pub(super) fn classify_statement_item_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<StatementAdmission> {
+    i.map(
+        |lex: LexIn| {
+            Some(classify_statement_item_lexical(
+                lex.remainder(),
+                item,
+                baseline,
+                item_origin,
+                fence,
+            ))
+        },
+        |admission| admission,
+    )
+    .flatten()
+}
+
+pub(super) fn classify_statement_item_lexical(
+    source: &str,
     item: &Item,
     baseline: usize,
     item_origin: usize,
@@ -480,39 +502,38 @@ pub(super) fn classify_statement_item_normalized(
     if item.payload_view().is_boundary() {
         return None;
     }
-    let family =
-        if struct_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Struct
-        } else if enum_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Enum
-        } else if error_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence)
-        {
-            StatementFamily::Error
-        } else if mod_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Mod
-        } else if type_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Type
-        } else if role_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Role
-        } else if impl_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Impl
-        } else if cast_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Cast
-        } else if act_declaration_selected_normalized(i.rb(), item, baseline, item_origin, fence) {
-            StatementFamily::Act
-        } else if for_statement_selected(item) {
-            StatementFamily::For
-        } else if is_binding_visibility(item)
-            && binding_statement_selected_normalized(i.rb(), item, baseline, item_origin, fence)
-        {
-            StatementFamily::Binding
-        } else if use_declaration_selected_normalized(i.rb(), item, item_origin, fence) {
-            StatementFamily::Use
-        } else if !is_binding_visibility(item) && is_nud_item(item) {
-            StatementFamily::Expression
-        } else {
-            return None;
-        };
+    let family = if struct_declaration_selected_lexical(source, item, baseline, item_origin, fence)
+    {
+        StatementFamily::Struct
+    } else if enum_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Enum
+    } else if error_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Error
+    } else if mod_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Mod
+    } else if type_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Type
+    } else if role_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Role
+    } else if impl_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Impl
+    } else if cast_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Cast
+    } else if act_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+        StatementFamily::Act
+    } else if for_statement_selected(item) {
+        StatementFamily::For
+    } else if is_binding_visibility(item)
+        && binding_statement_selected_lexical(source, item, baseline, item_origin, fence)
+    {
+        StatementFamily::Binding
+    } else if use_declaration_selected_lexical(source, item, item_origin, fence) {
+        StatementFamily::Use
+    } else if !is_binding_visibility(item) && is_nud_item(item) {
+        StatementFamily::Expression
+    } else {
+        return None;
+    };
     Some(StatementAdmission(family))
 }
 
@@ -1156,25 +1177,46 @@ pub(super) fn statement_item_normalized(
     baseline: usize,
     stops: Stops,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |mut lex, leading, origin, fence, _| {
-                    scan_expression_literal_payload(lex.rb(), OperatorSite::Nud).or_else(|| {
-                        scan_statement_payload(lex, leading, origin, fence, baseline, stops)
-                    })
-                },
-            )
-        })
-        .expect("statement payload scanning is total");
-    let item_origin = advanced_origin(item_origin, entry, i);
-    (item, item_origin, next_line_entry)
+    i.token(|lex| {
+        Some(scan_statement_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+        ))
+    })
+    .expect("statement payload scanning is total")
+}
+
+pub(super) fn scan_statement_item_lexical(
+    i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> (Item, usize, LineEntry) {
+    let (current, consumed) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| {
+                scan_expression_literal_payload(lex.rb(), OperatorSite::Nud).or_else(|| {
+                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                })
+            },
+        )
+        .expect("statement payload scanning is total")
+    });
+    (
+        current.item,
+        item_origin
+            .checked_add(consumed.len())
+            .expect("a Statement coordinate fits usize"),
+        current.next_line_entry,
+    )
 }

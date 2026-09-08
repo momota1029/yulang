@@ -121,15 +121,35 @@ pub(super) fn role_declaration_selected_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> bool {
+    i.map(
+        |lex: LexIn| {
+            Some(role_declaration_selected_lexical(
+                lex.remainder(),
+                item,
+                baseline,
+                item_origin,
+                fence,
+            ))
+        },
+        |selected| selected,
+    )
+    .unwrap_or(false)
+}
+
+pub(super) fn role_declaration_selected_lexical(
+    source: &str,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("role") {
         return true;
     }
     if !matches!(item_word(item), Some("my" | "our" | "pub")) {
         return false;
     }
-    observes(i, |source| {
-        prefixed_role_candidate_normalized(source, item_origin, fence, baseline)
-    })
+    prefixed_role_candidate_normalized(source, item_origin, fence, baseline)
 }
 
 fn prefixed_role_candidate_normalized(

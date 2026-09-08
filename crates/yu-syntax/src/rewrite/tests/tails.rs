@@ -428,7 +428,8 @@ fn with_c5_is_a_terminal_direct_body_tail() {
     );
 
     let (green, exit) = run("f with ;");
-    assert_eq!(green.to_string(), "f with ");
+    // The inline recovery contract preserves the protected semicolon's whole Item.
+    assert_eq!(green.to_string(), "f with");
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))
@@ -479,7 +480,8 @@ fn with_c5_is_a_terminal_direct_body_tail() {
     }
 
     let (green, exit) = run("f with {}");
-    assert_eq!(green.to_string(), "f with ");
+    // Missing-introducer recovery also protects the braced candidate's leading.
+    assert_eq!(green.to_string(), "f with");
     assert!(matches!(
         exit,
         Some(Err(Either::Left(item)))

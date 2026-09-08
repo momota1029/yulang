@@ -115,21 +115,41 @@ pub(super) fn error_declaration_selected_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> bool {
+    i.map(
+        |lex: LexIn| {
+            Some(error_declaration_selected_lexical(
+                lex.remainder(),
+                item,
+                baseline,
+                item_origin,
+                fence,
+            ))
+        },
+        |selected| selected,
+    )
+    .unwrap_or(false)
+}
+
+pub(super) fn error_declaration_selected_lexical(
+    source: &str,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> bool {
     if item_word(item) == Some("error") {
         return true;
     }
     if !matches!(item_word(item), Some("my" | "our" | "pub")) {
         return false;
     }
-    observes(i, |source| {
-        prefixed_error_candidate_normalized(
-            source,
-            item_origin,
-            fence,
-            baseline,
-            item_word(item) == Some("my"),
-        )
-    })
+    prefixed_error_candidate_normalized(
+        source,
+        item_origin,
+        fence,
+        baseline,
+        item_word(item) == Some("my"),
+    )
 }
 
 fn prefixed_error_candidate_normalized(

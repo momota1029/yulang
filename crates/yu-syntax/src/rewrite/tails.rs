@@ -2,8 +2,9 @@
 
 use super::ambient_claim::AmbientClaimContext;
 use crate::session::{
-    ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, RecoveryKind, RecoverySiteKey,
-    SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+    ColonApplicationRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole,
+    PunctuationEvidence as Punctuation, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+    UnexpectedCategory, UnexpectedSyntax, WithBodyRole,
 };
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
@@ -12,7 +13,7 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 
 use super::{
     LexIn, RewriteIn, Stops,
-    current_item::{CurrentItem, LineEntry, current_item},
+    current_item::{LineEntry, current_item},
     delimited::{DelimitedOwner, delimited_items_normalized},
     driver::{
         Either, MlMode, NormalizedExit, advanced_origin, chain_continuation, complete,
@@ -22,18 +23,18 @@ use super::{
         scan_tail_after_accept_normalized, suffix_marker, tail_normalized, token_kind,
     },
     emit::{
-        emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
-        emit_with_keyword, token_syntax_kind,
+        emit_recovery_error_run, emit_recovery_missing, emit_token_item, emit_with_keyword,
+        token_syntax_kind,
     },
     item::{Item, LeadingTrivia, TokenKind},
-    lexer::{
-        introduced_body_indentation_normalized, scan_path_segment_payload, scan_statement_payload,
-    },
+    lexer::{introduced_body_indentation_normalized, scan_path_segment_payload},
     operator::{STOP_COMMA, lone_colon_after_fenced_trivia},
     output::RecoveryDraft,
     statement::{
         StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
-        classify_statement_item_normalized, indented_statement_block_normalized,
+        classify_statement_item_lexical, classify_statement_item_normalized,
+        indented_statement_block_normalized, scan_statement_item_lexical,
+        statement_item_normalized,
     },
     yumark::FenceBoundary,
 };
@@ -80,7 +81,7 @@ pub(super) fn colon_tail_normalized(
             baseline,
             stops,
             ml_mode,
-            true,
+            ColonApplicationRole::Rhs,
             line_handoff,
             item_origin,
             line_entry,
@@ -109,7 +110,7 @@ fn inline_colon_argument_normalized(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
-    missing_on_boundary: bool,
+    role: ColonApplicationRole,
     line_handoff: StatementLineHandoff,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -117,16 +118,25 @@ fn inline_colon_argument_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        if missing_on_boundary {
-            emit_inline_missing(&mut i, &mut item, baseline);
-        }
+        emit_inline_slot_missing(
+            i.rb(),
+            &mut item,
+            item_origin,
+            GrammarRole::ColonApplication(role),
+            ExpectedSyntax::Expression,
+            stops,
+        );
         return complete(handoff(item), line_entry);
     }
     if is_colon_owned_comma(&item, stops) {
-        emit_inline_leading(&mut i, &mut item);
-        if missing_on_boundary {
-            emit_missing(&mut i, LeadingTrivia::default());
-        }
+        emit_inline_slot_missing(
+            i.rb(),
+            &mut item,
+            item_origin,
+            GrammarRole::ColonApplication(role),
+            ExpectedSyntax::Expression,
+            stops,
+        );
         return inline_colon_successor_normalized(
             i,
             complete(handoff(item), line_entry),
@@ -140,9 +150,14 @@ fn inline_colon_argument_normalized(
         );
     }
     if inline_colon_boundary(i.rb(), &item, baseline, stops) {
-        if missing_on_boundary {
-            emit_inline_missing(&mut i, &mut item, baseline);
-        }
+        emit_inline_slot_missing(
+            i.rb(),
+            &mut item,
+            item_origin,
+            GrammarRole::ColonApplication(role),
+            ExpectedSyntax::Expression,
+            stops,
+        );
         return complete(handoff(item), line_entry);
     }
 
@@ -151,6 +166,7 @@ fn inline_colon_argument_normalized(
         (item, item_origin, line_entry) = retry_inline_colon_argument_normalized(
             i.rb(),
             item,
+            role,
             baseline,
             stops,
             item_origin,
@@ -171,8 +187,8 @@ fn inline_colon_argument_normalized(
             );
         }
         if inline_colon_boundary(i.rb(), &item, baseline, stops) {
-            if !implicit_delimited_newline(baseline, item.leading_view()) {
-                emit_inline_leading(&mut i, &mut item);
+            if item.payload_view().is_eof() && !is_line_stop(&item, stops) {
+                item.emit_eof_leading(&mut *i.state);
             }
             return complete(handoff(item), line_entry);
         }
@@ -244,7 +260,7 @@ fn inline_colon_successor_normalized(
                 baseline,
                 stops,
                 ml_mode,
-                true,
+                ColonApplicationRole::InlineArgument,
                 line_handoff,
                 item_origin,
                 line_entry,
@@ -258,45 +274,82 @@ fn inline_colon_successor_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn retry_inline_colon_argument_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     mut item: Item,
+    role: ColonApplicationRole,
     baseline: usize,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = expression_item(
-            i.rb(),
-            OperatorSite::Nud,
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops | STOP_COMMA,
-        );
-        if is_colon_owned_comma(&item, stops)
-            || inline_colon_boundary(i.rb(), &item, baseline, stops)
-            || is_nud_item(&item)
-        {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-    }
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind =
+                    token_syntax_kind(token_kind(&item).expect("a Colon Error emits a token"));
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) = run.lexical(|lex| {
+                    scan_expression_item_lexical(
+                        lex,
+                        OperatorSite::Nud,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops | STOP_COMMA,
+                    )
+                });
+                if inline_boundary(&item, baseline, stops)
+                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
+                    || is_nud_item(&item)
+                {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| {
+            inline_slot_draft(
+                GrammarRole::ColonApplication(role),
+                ExpectedSyntax::Expression,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+            )
+        },
+    )
 }
 
 fn is_colon_owned_comma(item: &Item, stops: Stops) -> bool {
-    token_kind(item) == Some(TokenKind::Comma) && stops & STOP_COMMA == 0
+    !item.payload_view().is_boundary()
+        && token_kind(item) == Some(TokenKind::Comma)
+        && stops & STOP_COMMA == 0
 }
 
-fn inline_colon_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+fn inline_colon_boundary(i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    inline_boundary(item, baseline, stops)
+        || i.map(
+            |lex: LexIn| Some(is_active_stop_lex(lex, item, stops)),
+            |stop| stop,
+        )
+        .unwrap_or(false)
+}
+
+fn inline_boundary(item: &Item, baseline: usize, stops: Stops) -> bool {
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
+        || is_close(item)
+        || is_line_stop(item, stops)
         || implicit_delimited_newline(baseline, item.leading_view())
 }
 
@@ -306,11 +359,52 @@ fn emit_inline_leading(i: &mut RewriteIn, item: &mut Item) {
     }
 }
 
-fn emit_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize) {
-    if !implicit_delimited_newline(baseline, item.leading_view()) {
-        emit_inline_leading(i, item);
-    }
-    emit_missing(i, LeadingTrivia::default());
+fn emit_inline_slot_missing(
+    i: RewriteIn,
+    item: &mut Item,
+    origin: usize,
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+    stops: Stops,
+) {
+    let at = if item.payload_view().is_boundary() {
+        item.payload_view()
+            .pending_boundary()
+            .expect("boundary coordinate")
+            .coordinate()
+    } else {
+        if item.payload_view().is_eof() && !is_line_stop(item, stops) {
+            item.emit_eof_leading(&mut *i.state);
+        }
+        item.extent(origin).recovery_range().start
+    };
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        inline_slot_draft(role, expected, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn inline_slot_draft(
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 /// The terminal generic `with:` continuation. Its body is an existing direct
@@ -387,26 +481,16 @@ pub(super) fn with_tail_normalized(
             with_inline_terminal_normalized(i.rb(), exit, baseline, stops, item_origin, fence)
         }
     } else {
-        let (mut item, item_origin, line_entry) = statement_item_for_tail_normalized(
+        let (mut item, item_origin, line_entry) =
+            statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
+        emit_inline_slot_missing(
             i.rb(),
+            &mut item,
             item_origin,
-            line_entry,
-            fence,
-            baseline,
+            GrammarRole::WithBody(WithBodyRole::Introducer),
+            ExpectedSyntax::Punctuation(Punctuation::Colon),
             stops,
         );
-        if item.payload_view().is_boundary() {
-            emit_missing(&mut i, LeadingTrivia::default());
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if implicit_delimited_newline(baseline, item.leading_view()) {
-            emit_missing(&mut i, LeadingTrivia::default());
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        emit_inline_leading(&mut i, &mut item);
-        emit_missing(&mut i, LeadingTrivia::default());
         with_inline_item_normalized(
             i.rb(),
             item,
@@ -440,7 +524,7 @@ fn with_inline_body_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) =
-        statement_item_for_tail_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
+        statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
     with_inline_item_normalized(
         i,
         item,
@@ -472,11 +556,19 @@ fn with_inline_item_normalized(
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
-            emit_with_inline_missing(&mut i, &mut item, baseline);
+            emit_inline_slot_missing(
+                i.rb(),
+                &mut item,
+                item_origin,
+                GrammarRole::WithBody(WithBodyRole::Body),
+                ExpectedSyntax::Statement,
+                stops,
+            );
         }
         return complete(handoff(item), line_entry);
     }
-    if !allow_braced
+    if !item.payload_view().is_boundary()
+        && !allow_braced
         && matches!(
             token_kind(&item),
             Some(TokenKind::LBrace | TokenKind::PathSeparator)
@@ -486,7 +578,14 @@ fn with_inline_item_normalized(
     }
     if with_inline_boundary(i.rb(), &item, baseline, stops) {
         if missing_on_boundary {
-            emit_with_inline_missing(&mut i, &mut item, baseline);
+            emit_inline_slot_missing(
+                i.rb(),
+                &mut item,
+                item_origin,
+                GrammarRole::WithBody(WithBodyRole::Body),
+                ExpectedSyntax::Statement,
+                stops,
+            );
         }
         return complete(handoff(item), line_entry);
     }
@@ -521,7 +620,8 @@ fn with_inline_item_normalized(
         line_entry,
         fence,
     );
-    if !allow_braced
+    if !item.payload_view().is_boundary()
+        && !allow_braced
         && matches!(
             token_kind(&item),
             Some(TokenKind::LBrace | TokenKind::PathSeparator)
@@ -530,8 +630,8 @@ fn with_inline_item_normalized(
         return complete(handoff(item), line_entry);
     }
     if with_inline_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, item.leading_view()) {
-            emit_inline_leading(&mut i, &mut item);
+        if item.payload_view().is_eof() && !is_line_stop(&item, stops) {
+            item.emit_eof_leading(&mut *i.state);
         }
         return complete(handoff(item), line_entry);
     }
@@ -551,7 +651,7 @@ fn with_inline_item_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn retry_with_inline_body_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -560,50 +660,70 @@ fn retry_with_inline_body_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = statement_item_for_tail_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-        );
-        if with_inline_boundary(i.rb(), &item, baseline, stops)
-            || (!allow_braced
-                && matches!(
-                    token_kind(&item),
-                    Some(TokenKind::LBrace | TokenKind::PathSeparator)
-                ))
-        {
-            i.state.finish_node();
-            return (item, None, item_origin, line_entry);
-        }
-        if (allow_braced || token_kind(&item) != Some(TokenKind::LBrace))
-            && let Some(admission) =
-                classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
-            i.state.finish_node();
-            return (item, Some(admission), item_origin, line_entry);
-        }
-    }
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind =
+                    token_syntax_kind(token_kind(&item).expect("a With Error emits a token"));
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) = run.lexical(|lex| {
+                    scan_statement_item_lexical(
+                        lex,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops,
+                    )
+                });
+                let boundary = inline_boundary(&item, baseline, stops)
+                    || (!allow_braced
+                        && matches!(
+                            token_kind(&item),
+                            Some(TokenKind::LBrace | TokenKind::PathSeparator)
+                        ))
+                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops));
+                let admission = if boundary {
+                    None
+                } else {
+                    run.lexical(|lex| {
+                        classify_statement_item_lexical(
+                            lex.remainder(),
+                            &item,
+                            baseline,
+                            item_origin,
+                            fence,
+                        )
+                    })
+                };
+                if boundary || admission.is_some() {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, admission, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| {
+            inline_slot_draft(
+                GrammarRole::WithBody(WithBodyRole::Body),
+                ExpectedSyntax::Statement,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+            )
+        },
+    )
 }
 
-fn with_inline_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    item.payload_view().is_boundary()
-        || item.payload_view().is_eof()
-        || is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
-        || implicit_delimited_newline(baseline, item.leading_view())
-}
-
-fn emit_with_inline_missing(i: &mut RewriteIn, item: &mut Item, baseline: usize) {
-    if !implicit_delimited_newline(baseline, item.leading_view()) {
-        emit_inline_leading(i, item);
-    }
-    emit_missing(i, LeadingTrivia::default());
+fn with_inline_boundary(i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    inline_colon_boundary(i, item, baseline, stops)
 }
 
 fn with_inline_terminal_normalized(
@@ -634,35 +754,6 @@ fn with_inline_terminal_normalized(
         stops,
     );
     complete(handoff(item), line_entry)
-}
-
-fn statement_item_for_tail_normalized(
-    mut i: RewriteIn,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    baseline: usize,
-    stops: Stops,
-) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |lex, leading, origin, fence, _| {
-                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
-                },
-            )
-        })
-        .expect("statement payload scanning is total");
-    let item_origin = advanced_origin(item_origin, entry, i);
-    (item, item_origin, next_line_entry)
 }
 
 #[allow(clippy::too_many_arguments)]
