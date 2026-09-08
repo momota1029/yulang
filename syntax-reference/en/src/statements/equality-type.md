@@ -165,6 +165,8 @@ outside this syntax contract.
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/type_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_type_statement_intro`, `parse_type_declaration_header_slots`,
 `parse_type_declaration_shared_header_phase`,
@@ -177,4 +179,3 @@ Fixtures:
 `type_declaration_header_slots_follow_td_r_name_and_equals_recovery`,
 `type_declaration_td_r_worked_examples_are_lossless_and_byte_exact`, and
 `type_declaration_rhs_wiring_is_atomic_typed_and_state_balanced`.
-

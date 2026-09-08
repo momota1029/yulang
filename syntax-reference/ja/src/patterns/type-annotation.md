@@ -92,6 +92,8 @@ constructor/ML Pattern tail、annotation semantics/type checking、Pattern HIR/l
 
 ## 11. 実装と regression fixture の cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/pattern.rs`と`crates/yu-syntax/src/rewrite/type_expr.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/pattern.rs` では `parse_pattern_bp`、`parse_pattern_bp_with_fresh_primary_policy`、`recognize_pattern_led`、`PatternTypeAnnotation`、`parse_required_pattern_with_outer_missing_role_and_policy`、`commit_direct_pattern_with_outer_missing_role_and_policy` を参照する。
 
 `crates/yu-syntax/src/grammar/type_expr.rs` では `parse_required_type_expression_with_recovery_context`、`commit_direct_type_expression_with_recovery_context`、`classify_type_malformed_trivia`、`scan_type_item_invalid_run_with_disposition`、positional-fence handling を参照する。

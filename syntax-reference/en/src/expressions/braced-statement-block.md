@@ -96,6 +96,8 @@ The documented `ASOB-G` caller-boundary residual remains characterized rather th
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/statement.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_braced_statement_block_open`, `recognize_braced_statement_block_close`, `parse_braced_statement_block_expression`, `braced_statement_block_close_pending`, `push_braced_statement_block_scope`, `pop_braced_statement_block_scope`, `commit_braced_statement_block_expression`, `commit_braced_statement_block_close`, `emit_braced_statement_separator_missing`, `emit_braced_close_missing`, and `emit_braced_close_error`.
 
 Fixtures include `braced_statement_block_is_a_primary_with_all_separator_forms`, `braced_statement_block_ast_keeps_statement_count_close_and_range`, `braced_statement_block_is_binding_power_invariant_and_keeps_deeper_newlines_local`, `braced_statement_block_keeps_colon_arguments_and_outer_chain_flat`, and `braced_statement_block_recovers_mandatory_slots_and_close`.

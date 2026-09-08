@@ -94,6 +94,8 @@ Yulang3 makes the trailing-row arrow mandatory with typed recovery, makes a lead
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owners are `crates/yu-syntax/src/rewrite/type_expr.rs` and `crates/yu-syntax/src/rewrite/type_expr/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_bracket_row`, `parse_leading_effect_type_head_for_ast`, `commit_direct_leading_effect_type_head`, `parse_bracket_arrow_tail`, `commit_direct_bracket_arrow_tail`, `bracket_arrow_pending`, `bracket_arrow_recovery_candidate`, `scan_bracket_arrow_invalid_run`, `drive_type_delimited`, `commit_direct_type_delimited`, and `scan_bracket_row_item_invalid_run`.
 
 Fixtures include `leading_bracket_row_is_a_fresh_type_expression_prefix`, `trailing_bracket_row_is_an_arrow_effect_and_not_a_type_apply_argument`, `bracket_arrow_mandatory_slot_recovers_without_rhs_cascades`, `bracket_row_rp1_classifies_every_malformed_item_retry`, and `bracket_row_sequence_matrix_keeps_shared_normal_behavior`.

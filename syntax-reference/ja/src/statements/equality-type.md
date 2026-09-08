@@ -160,6 +160,8 @@ type semantics、companion tail、role-like body、docs/where attachment、HIR�
 
 ## 11. implementation と regression fixture cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/type_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_type_statement_intro`、`parse_type_declaration_header_slots`、
 `parse_type_declaration_shared_header_phase`、
@@ -172,4 +174,3 @@ fixture:
 `type_declaration_header_slots_follow_td_r_name_and_equals_recovery`、
 `type_declaration_td_r_worked_examples_are_lossless_and_byte_exact`、
 `type_declaration_rhs_wiring_is_atomic_typed_and_state_balanced`。
-

@@ -59,7 +59,7 @@ Design lines 9549–9551 revise this to a valid two-element `ParenthesizedPatter
 
 ## 6. Parser-side AST shape
 
-The actual `Pattern` in `crates/yu-syntax/src/grammar/pattern.rs` has recovered `head`, ordered `tails`, optional `type_annotation`, and `range`. `PatternPrimary` currently includes identifier, integer, symbol, `Parenthesized`, `List`, and `Record` variants. The core parenthesized variant stores `open`, recovered element Patterns, literal `trailing_comma`, recovered `close`, and `range`.
+The legacy parser's `Pattern` in `crates/yu-syntax/src/grammar/pattern.rs` had recovered `head`, ordered `tails`, optional `type_annotation`, and `range`. `PatternPrimary` included identifier, integer, symbol, `Parenthesized`, `List`, and `Record` variants. The core parenthesized variant stored `open`, recovered element Patterns, literal `trailing_comma`, recovered `close`, and `range`. This is historical AST evidence, not a current implementation path.
 
 `PatternTail` is `Alias(PatternAliasTail)` or `Alternation(PatternAlternationTail)`. The alias keeps its keyword and a recovered ordinary binding; alternation keeps its pipe and recovered boxed RHS. The Pattern core does not classify identifiers as bindings, constructors, or wildcards.
 
@@ -95,6 +95,8 @@ Yulang3 preserves the independent fixed Pattern Pratt family, contiguous symbol 
 Deferred grammar includes Pattern annotation details, list/record forms, constructor tails, literals, and ML application. Deferred semantic work includes wildcard meaning, binding sets, alias scope, type constraints, exhaustiveness, Pattern HIR, and lowering.
 
 ## 11. Implementation and regression cross-reference
+
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/pattern.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 Key functions in `crates/yu-syntax/src/grammar/pattern.rs` are `parse_pattern`, `parse_pattern_with_outer_missing_role`, `parse_direct_pattern`, `parse_pattern_bp`, `parse_pattern_primary`, `parse_parenthesized_pattern`, `parse_pattern_delimited_items_ast`, `commit_direct_parenthesized_pattern`, `commit_direct_pattern_delimited_items`, `drive_parenthesized_pattern_close_recovery`, and `outer_pattern_close_stop_pending`.
 

@@ -138,6 +138,8 @@ deferred.
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/derives.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_derives_attachment_start`, `drive_derives_clauses`,
 `parse_derives_attachments_isolated`, `parse_derives_clause_isolated`,
@@ -150,4 +152,3 @@ Fixtures include `derives_start_and_driver_follow_drv_j_and_restore_every_probe_
 `derives_drv_r_recovery_rows_keep_ast_and_direct_slots_in_lockstep`,
 `derives_gate_8_real_dispatch_is_atomic_across_every_owner_and_position`, and
 `derives_gate_9_final_public_boundary_matrix_closes_scope_and_parity`.
-

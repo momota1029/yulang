@@ -129,6 +129,8 @@ HIR/resolver/inference/formatter work.
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/impl_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_impl_statement_intro`, `parse_impl_declaration_isolated`,
 `parse_impl_after_head_ast`, `parse_impl_body_ast`,
@@ -143,4 +145,3 @@ Fixtures include `impl_statement_intro_is_exact_isolated_and_rolls_back_every_pr
 `isolated_impl_body_recovery_retries_one_malformed_run_without_cascade`,
 `impl_gate_8_real_dispatch_is_atomic_across_root_and_canonical_owners`, and
 `impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity`.
-

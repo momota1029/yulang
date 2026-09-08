@@ -2,7 +2,6 @@
 
 use std::{ops::Range, sync::Arc};
 
-mod grammar;
 #[allow(dead_code)]
 mod input;
 #[allow(dead_code)]

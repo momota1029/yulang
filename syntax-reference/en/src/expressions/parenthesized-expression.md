@@ -102,6 +102,8 @@ The general missing-delimiter/caller-boundary residual is characterized by `ASOB
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/expression.rs`: `parse_operator_chain`, `parse_direct_operator_chain`, `commit_parenthesized_nud`, `commit_parenthesized_element`, `commit_parenthesized_close`, `parenthesized_expression_stop_set`, `push_parenthesized_expression_scope`, and `pop_parenthesized_expression_scope`.
 
 Fixtures include `operator_chain_ast_preserves_parenthesized_element_counts_and_trailing_commas`, `parenthesized_layout_boundaries_preserve_ast_direct_shape_and_trivia`, `parenthesized_layout_keeps_deeper_newlines_and_same_line_recovery_local`, `direct_chain_uses_one_parenthesized_node_for_every_valid_list_shape`, `parenthesized_primary_continues_to_outer_infix_and_suffix_uses`, and `parenthesized_elements_are_operator_chains_and_outer_continues_flatly`.

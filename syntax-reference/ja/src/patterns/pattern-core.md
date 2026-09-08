@@ -59,7 +59,7 @@ design 9549–9551行はbase zeroでvalid two-element `ParenthesizedPattern`へr
 
 ## 6. Parser-side AST shape
 
-`crates/yu-syntax/src/grammar/pattern.rs`のactual `Pattern`はrecovered `head`、ordered `tails`、optional `type_annotation`、`range`を持つ。`PatternPrimary`はcurrentでidentifier、integer、symbol、`Parenthesized`、`List`、`Record` variantを持つ。core parenthesized variantは`open`、recovered element Pattern、literal `trailing_comma`、recovered `close`、`range`を持つ。
+`crates/yu-syntax/src/grammar/pattern.rs`にあった旧パーサーの`Pattern`は、recovered `head`、ordered `tails`、optional `type_annotation`、`range`を持った。`PatternPrimary`はidentifier、integer、symbol、`Parenthesized`、`List`、`Record` variantを持った。core parenthesized variantは`open`、recovered element Pattern、literal `trailing_comma`、recovered `close`、`range`を持った。これは現行の実装経路ではなく、旧ASTの来歴を示す証拠である。
 
 `PatternTail`は`Alias(PatternAliasTail)`または`Alternation(PatternAlternationTail)`である。aliasはkeywordとrecovered ordinary binding、alternationはpipeとrecovered boxed RHSを持つ。Pattern coreはidentifierをbinding、constructor、wildcardへ分類しない。
 
@@ -95,6 +95,8 @@ Yulang3はindependent fixed Pattern Pratt family、contiguous symbol spelling、
 deferred grammarはPattern annotation detail、List/Record form、constructor tail、literal、ML applicationである。deferred semantic workはwildcard meaning、binding set、alias scope、type constraint、exhaustiveness、Pattern HIR、loweringである。
 
 ## 11. Implementationとregression cross-reference
+
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/pattern.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/pattern.rs`のkey functionは`parse_pattern`、`parse_pattern_with_outer_missing_role`、`parse_direct_pattern`、`parse_pattern_bp`、`parse_pattern_primary`、`parse_parenthesized_pattern`、`parse_pattern_delimited_items_ast`、`commit_direct_parenthesized_pattern`、`commit_direct_pattern_delimited_items`、`drive_parenthesized_pattern_close_recovery`、`outer_pattern_close_stop_pending`である。
 

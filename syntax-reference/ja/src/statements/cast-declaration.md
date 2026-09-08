@@ -103,7 +103,7 @@ siblingではなくblock rangeの中にある。
 
 `CastForm`は`Bodyless { semicolon }`か`Definition { equals, body, range }`であり、
 `CastBody`は`Inline { expression: OperatorChain }`か`Indented { block: IndentedStatementBlock }`である。これは
-`crates/yu-syntax/src/grammar/declaration.rs`の実際の型であり、`BindingBody`やsynthetic
+`crates/yu-syntax/src/grammar/declaration.rs`にあった旧パーサーのdirect AST型であり、現行の型を示すものではない。`BindingBody`やsynthetic
 separatorを代用しない。
 
 ## 7. Typed recovery table
@@ -165,6 +165,8 @@ expected-type behavior、ambiguity/coherence、HIR、resolver、inference、mono
 formatterである。explicit `.cast` method/role familyはseparateのままにする。
 
 ## 11. Implementationとregression cross-reference
+
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/cast_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/declaration.rs`では、Cast pathは
 `recognize_cast_statement_intro`、

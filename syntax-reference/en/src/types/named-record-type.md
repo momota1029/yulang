@@ -91,6 +91,8 @@ The general hidden-boundary residual is documented by `ASOB-G`; no NamedRecord-s
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/type_expr/record.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_named_record_type`, `parse_type_record_field`, `commit_direct_named_record_type`, `commit_direct_type_record_field`, `named_record_next_field_candidate`, `classify_named_record_recovery`, `record_field_head_candidate`, `scan_record_invalid_run`, and `consume_record_colon_invalid_run`.
 
 Fixtures include `named_record_types_are_primary_fields_with_comma_or_newline_boundaries`, `named_record_field_head_yields_before_type_apply`, `named_record_missing_name_commits_the_field_owner`, `named_record_malformed_field_boundary_does_not_cascade`, `named_record_rejects_spread_shorthand_and_default_field_forms`, `named_record_recovers_malformed_colon_and_type_slots`, `named_record_comma_policy_and_close_recovery_are_typed`, and `named_record_sequence_classifies_recovery_gaps_before_consuming_them`.

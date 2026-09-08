@@ -347,6 +347,15 @@ owner remains open; its current public proof is recovery/continuation only.
 Final `yu-syntax`/workspace validation and atomic legacy parser deletion are
 now the immediate gate.
 
+The first full successor-only lib run after removing the legacy tree passed
+1057 tests with 3 failures and 1 ignored. Two are the recorded `my role =
+value` and `(a +\nb)` baselines. The third,
+`virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen`, was
+reproduced unchanged on detached pre-deletion `62e77291` (3 records versus
+its stale expected 1); it is an unrelated pre-cutover baseline, not a deletion
+regression. Expectations remain untouched. Syntax-reference path correction
+and final deletion review remain before committing removal.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

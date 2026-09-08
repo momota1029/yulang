@@ -105,6 +105,8 @@ The documented `ASOB-G` caller-boundary residual remains characterized rather th
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/tails.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_fixed_postfix`, `recognize_ml_argument`, `ml_argument_candidate_input`, `ml_argument_context_allows`, `parse_fixed_postfix_tail`, `parse_call_tail`, `call_argument_error_retry_ast`, `commit_fixed_postfix_tail`, `commit_call_tail`, `commit_call_separator`, `emit_call_missing`, `emit_call_close_missing`, and `emit_call_error`.
 
 Fixtures include `fixed_field_and_path_tails_are_flat_and_bp_neutral`, `call_tail_uses_adjacent_opener_and_layout_boundaries`, `call_tail_recovers_missing_arguments_and_closing_delimiter`, `call_and_ml_adjacency_keep_flat_source_order`, `ml_arguments_split_on_trivia_but_keep_adjacent_fixed_tails_and_colon_terminality`, `call_and_ml_recovery_keep_owner_boundaries_local`, and `call_tail_restores_each_enclosing_owner_frame`.

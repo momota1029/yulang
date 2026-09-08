@@ -93,6 +93,8 @@ Hidden caller-boundary cases behind missing nested delimiters are characterized 
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/type_expr.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_type_expression`, `parse_required_type_expression_with_recovery_context`, `commit_direct_type_expression`, `commit_direct_type_expression_with_recovery_context`, `parse_type_call_tail`, `parse_parenthesized_type_group`, `parse_type_arrow_tail`, `commit_direct_type_delimited`, `classify_type_malformed_trivia`, and `scan_type_item_invalid_run_with_disposition`.
 
 Fixtures include `type_core_forms_keep_fixed_flat_structure`, `type_arrow_is_right_associative_without_an_operator_table`, `type_call_and_group_accept_comma_and_semicolon`, `type_groups_reuse_layout_boundaries_without_synthetic_separator_nodes`, `type_apply_uses_one_argument_per_nonempty_trivia_boundary`, `path_and_arrow_missing_rhs_leave_an_outer_layout_newline_unconsumed`, and `type_call_missing_item_and_close_keep_distinct_typed_slots`.

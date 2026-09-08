@@ -92,6 +92,8 @@ Deferred work includes constructor/ML Pattern tails, annotation semantics and ty
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owners are `crates/yu-syntax/src/rewrite/pattern.rs` and `crates/yu-syntax/src/rewrite/type_expr.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/pattern.rs`: `parse_pattern_bp`, `parse_pattern_bp_with_fresh_primary_policy`, `recognize_pattern_led`, `PatternTypeAnnotation`, `parse_required_pattern_with_outer_missing_role_and_policy`, and `commit_direct_pattern_with_outer_missing_role_and_policy`.
 
 In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_required_type_expression_with_recovery_context`, `commit_direct_type_expression_with_recovery_context`, `classify_type_malformed_trivia`, `scan_type_item_invalid_run_with_disposition`, and positional-fence handling.

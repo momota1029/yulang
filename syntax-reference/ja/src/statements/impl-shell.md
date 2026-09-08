@@ -120,6 +120,8 @@ downstream HIR/resolver/inference/formatter である。
 
 ## 11. implementation と regression fixture cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/impl_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_impl_statement_intro`, `parse_impl_declaration_isolated`,
 `parse_impl_after_head_ast`, `parse_impl_body_ast`,
@@ -135,4 +137,3 @@ fixture:
 `isolated_impl_body_recovery_retries_one_malformed_run_without_cascade`,
 `impl_gate_8_real_dispatch_is_atomic_across_root_and_canonical_owners`,
 `impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity`。
-

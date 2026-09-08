@@ -111,6 +111,8 @@ Deferred surfaces include declaration companions and brace companion bodies, com
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/tails.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_with_body_tail`, `parse_with_body_tail`, `parse_with_inline_statement`, `commit_with_body_tail`, `with_body_absent_boundary`, `with_body_error_retry`, `emit_with_missing`, and `emit_with_error`.
 
 Fixtures include `with_body_tail_is_terminal_and_reuses_inline_and_indented_statement_bodies`, `with_body_tail_missing_colon_is_single_typed_recovery_and_retries_body`, and `indented_and_with_inline_ambient_scopes_restore_after_ast_and_direct_episodes`.

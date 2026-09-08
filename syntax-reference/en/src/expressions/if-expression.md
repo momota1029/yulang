@@ -103,6 +103,8 @@ The general `ASOB-G` caller-boundary residual remains characterized rather than 
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/if_expr.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_if_nud`, `parse_if_expression`, `parse_if_arm`, `parse_else_arm`, `recognize_if_arm_continuation`, `recognize_arm_colon`, `commit_if_expression`, `commit_if_arm`, `commit_else_arm`, `commit_colon_introduced_if_body`, `emit_if_missing`, and `if_body_error_retry`.
 
 Fixtures include `if_expression_owns_arm_colons_without_colon_application_tails`, `if_expression_keeps_elsif_arms_as_siblings`, `if_expression_uses_one_companion_identity_across_every_elsif_arm`, `if_companion_frames_balance_across_ast_and_direct_recovery_exits`, `if_expression_is_binding_power_invariant`, and `if_recovery_preserves_committed_keywords_and_body_retry`.

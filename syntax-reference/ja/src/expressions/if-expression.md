@@ -103,6 +103,8 @@ general `ASOB-G` caller-boundary residual は characterization のままであ�
 
 ## 11. 実装と regression fixture の cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/if_expr.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/expression.rs` では `recognize_if_nud`、`parse_if_expression`、`parse_if_arm`、`parse_else_arm`、`recognize_if_arm_continuation`、`recognize_arm_colon`、`commit_if_expression`、`commit_if_arm`、`commit_else_arm`、`commit_colon_introduced_if_body`、`emit_if_missing`、`if_body_error_retry` を参照する。
 
 fixture は `if_expression_owns_arm_colons_without_colon_application_tails`、`if_expression_keeps_elsif_arms_as_siblings`、`if_expression_uses_one_companion_identity_across_every_elsif_arm`、`if_companion_frames_balance_across_ast_and_direct_recovery_exits`、`if_expression_is_binding_power_invariant`、`if_recovery_preserves_committed_keywords_and_body_retry`。

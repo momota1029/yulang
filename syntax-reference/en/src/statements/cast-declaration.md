@@ -111,8 +111,8 @@ recovered `open`, one recovered boxed `Pattern` value, recovered `close`, and
 its range. `CastTarget` similarly stores a recovered colon, one recovered
 boxed `TypeExpression`, and its range.
 
-`CastForm` is either `Bodyless { semicolon }` or `Definition { equals, body, range }`; `CastBody` is `Inline { expression: OperatorChain }` or `Indented { block: IndentedStatementBlock }`. These are the actual types in
-`crates/yu-syntax/src/grammar/declaration.rs`; no `BindingBody` or synthetic
+`CastForm` is either `Bodyless { semicolon }` or `Definition { equals, body, range }`; `CastBody` is `Inline { expression: OperatorChain }` or `Indented { block: IndentedStatementBlock }`. These were the legacy parser's direct AST types in
+`crates/yu-syntax/src/grammar/declaration.rs`; this historical evidence does not name current types, and no `BindingBody` or synthetic
 separator is substituted.
 
 ## 7. Typed recovery table
@@ -187,6 +187,8 @@ and HIR, resolver, inference, monomorphization, diagnostics wording, and
 formatter work. The explicit `.cast` method/role family remains separate.
 
 ## 11. Implementation and regression cross-reference
+
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/cast_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/declaration.rs`, the Cast path is implemented
 by `recognize_cast_statement_intro`,

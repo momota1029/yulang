@@ -165,6 +165,8 @@ declaration kind は deferred である。
 
 ## 11. implementation と regression fixture cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/binding.rs`、`crates/yu-syntax/src/rewrite/use_decl.rs`、`crates/yu-syntax/src/rewrite/statement.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_statement_intro`、`recognize_binding_statement_intro`、
 `parse_binding_declaration_with_operators`、`parse_binding_body_ast`、
@@ -181,4 +183,3 @@ fixture:
 `direct_binding_missing_target_uses_the_binding_owner_role`、
 `direct_use_missing_target_closes_the_declaration_and_emits_one_missing_node`、
 `direct_use_declaration_has_header_full_fact_parity_and_lossless_groups`。
-

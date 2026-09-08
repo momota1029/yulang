@@ -104,6 +104,8 @@ The documented `ASOB-G` caller-boundary residual remains characterized rather th
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owners are `crates/yu-syntax/src/rewrite/tails.rs` and `crates/yu-syntax/src/rewrite/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_fixed_postfix`, `parse_fixed_postfix_tail`, `parse_index_tail`, `parse_projection_tuple_tail`, `parse_projection_record_tail`, `parse_projection_items_ast`, `commit_fixed_postfix_tail`, `commit_index_tail`, `commit_projection_tuple_tail`, `commit_projection_record_tail`, `commit_projection_items`, `index_item_error_retry`, `projection_item_error_retry`, `emit_index_missing`, `emit_projection_missing`, and `emit_projection_close_missing`.
 
 Fixtures include `index_tails_are_flat_layout_delimited_and_bp_neutral`, `index_tail_requires_adjacency_and_recovers_locally`, `index_tail_restores_owner_frames_and_precedes_terminal_colon`, `projection_tails_precede_field_dispatch_and_keep_general_expression_items`, `projection_tail_recovery_keeps_typed_slots_local`, `projection_tail_close_recovery_is_owner_safe_on_both_paths`, and `record_projection_rejects_non_exact_spread_spellings`.

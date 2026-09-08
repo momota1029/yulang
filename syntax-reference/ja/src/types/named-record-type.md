@@ -91,6 +91,8 @@ general hidden-boundary residual は `ASOB-G` が記録し、NamedRecord-specifi
 
 ## 11. 実装と regression fixture の cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/type_expr/record.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/type_expr.rs` では `parse_named_record_type`、`parse_type_record_field`、`commit_direct_named_record_type`、`commit_direct_type_record_field`、`named_record_next_field_candidate`、`classify_named_record_recovery`、`record_field_head_candidate`、`scan_record_invalid_run`、`consume_record_colon_invalid_run` を参照する。
 
 fixture は `named_record_types_are_primary_fields_with_comma_or_newline_boundaries`、`named_record_field_head_yields_before_type_apply`、`named_record_missing_name_commits_the_field_owner`、`named_record_malformed_field_boundary_does_not_cascade`、`named_record_rejects_spread_shorthand_and_default_field_forms`、`named_record_recovers_malformed_colon_and_type_slots`、`named_record_comma_policy_and_close_recovery_are_typed`、`named_record_sequence_classifies_recovery_gaps_before_consuming_them`。

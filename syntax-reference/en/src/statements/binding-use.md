@@ -173,6 +173,8 @@ this expansion.
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owners are `crates/yu-syntax/src/rewrite/binding.rs`, `crates/yu-syntax/src/rewrite/use_decl.rs`, and `crates/yu-syntax/src/rewrite/statement.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_statement_intro`, `recognize_binding_statement_intro`,
 `parse_binding_declaration_with_operators`, `parse_binding_body_ast`,
@@ -189,4 +191,3 @@ Fixtures:
 `direct_binding_missing_target_uses_the_binding_owner_role`,
 `direct_use_missing_target_closes_the_declaration_and_emits_one_missing_node`,
 and `direct_use_declaration_has_header_full_fact_parity_and_lossless_groups`.
-

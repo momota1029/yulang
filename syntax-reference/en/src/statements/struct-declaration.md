@@ -168,6 +168,8 @@ remains deferred.
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/struct_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_struct_statement_intro`, `parse_struct_declaration`,
 `commit_struct_declaration`, `parse_struct_body_ast`,
@@ -182,4 +184,3 @@ Fixtures include `struct_intro_commits_exact_keywords_before_binding_and_express
 `struct_named_indented_fields_keep_their_block_baseline_and_boundaries`,
 `struct_tuple_fields_keep_type_apply_and_tuple_close_ownership_distinct`, and
 `struct_lists_leave_ambient_if_companions_for_the_statement_owner`.
-

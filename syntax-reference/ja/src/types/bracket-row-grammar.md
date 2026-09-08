@@ -94,6 +94,8 @@ Yulang3 は trailing-row arrow と leading row の head を typed recovery 付�
 
 ## 11. 実装と regression fixture の cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/type_expr.rs`と`crates/yu-syntax/src/rewrite/type_expr/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/type_expr.rs` では `parse_bracket_row`、`parse_leading_effect_type_head_for_ast`、`commit_direct_leading_effect_type_head`、`parse_bracket_arrow_tail`、`commit_direct_bracket_arrow_tail`、`bracket_arrow_pending`、`bracket_arrow_recovery_candidate`、`scan_bracket_arrow_invalid_run`、`drive_type_delimited`、`commit_direct_type_delimited`、`scan_bracket_row_item_invalid_run` を参照する。
 
 fixture は `leading_bracket_row_is_a_fresh_type_expression_prefix`、`trailing_bracket_row_is_an_arrow_effect_and_not_a_type_apply_argument`、`bracket_arrow_mandatory_slot_recovers_without_rhs_cascades`、`bracket_row_rp1_classifies_every_malformed_item_retry`、`bracket_row_sequence_matrix_keeps_shared_normal_behavior`。

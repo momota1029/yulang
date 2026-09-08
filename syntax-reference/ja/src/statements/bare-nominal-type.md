@@ -192,6 +192,8 @@ TND addendumはbare nominal form固有のknown residualを宣言していない�
 
 ## 11. Implementation functions and regression fixtures
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/type_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 Implementation: `crates/yu-syntax/src/grammar/declaration.rs`。
 
 - `recognize_type_statement_intro`

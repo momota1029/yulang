@@ -131,6 +131,8 @@ generated implementation、semantic validation は deferred である。
 
 ## 11. implementation と regression fixture cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/derives.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_derives_attachment_start`, `drive_derives_clauses`,
 `parse_derives_attachments_isolated`, `parse_derives_clause_isolated`,
@@ -144,4 +146,3 @@ fixture:
 `derives_drv_r_recovery_rows_keep_ast_and_direct_slots_in_lockstep`,
 `derives_gate_8_real_dispatch_is_atomic_across_every_owner_and_position`,
 `derives_gate_9_final_public_boundary_matrix_closes_scope_and_parity`。
-

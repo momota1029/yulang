@@ -161,6 +161,8 @@ companion/derives semantics は deferred のままである。
 
 ## 11. implementation と regression fixture cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/struct_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_struct_statement_intro`, `parse_struct_declaration`,
 `commit_struct_declaration`, `parse_struct_body_ast`,
@@ -176,4 +178,3 @@ fixture:
 `struct_named_indented_fields_keep_their_block_baseline_and_boundaries`,
 `struct_tuple_fields_keep_type_apply_and_tuple_close_ownership_distinct`,
 `struct_lists_leave_ambient_if_companions_for_the_statement_owner`。
-

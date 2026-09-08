@@ -105,6 +105,8 @@ documented `ASOB-G` caller-boundary residual は hidden にせず characterize �
 
 ## 11. 実装と regression fixture の cross-reference
 
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/tails.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+
 `crates/yu-syntax/src/grammar/expression.rs` では `recognize_fixed_postfix`、`recognize_ml_argument`、`ml_argument_candidate_input`、`ml_argument_context_allows`、`parse_fixed_postfix_tail`、`parse_call_tail`、`call_argument_error_retry_ast`、`commit_fixed_postfix_tail`、`commit_call_tail`、`commit_call_separator`、`emit_call_missing`、`emit_call_close_missing`、`emit_call_error` を参照する。
 
 fixture は `fixed_field_and_path_tails_are_flat_and_bp_neutral`、`call_tail_uses_adjacent_opener_and_layout_boundaries`、`call_tail_recovers_missing_arguments_and_closing_delimiter`、`call_and_ml_adjacency_keep_flat_source_order`、`ml_arguments_split_on_trivia_but_keep_adjacent_fixed_tails_and_colon_terminality`、`call_and_ml_recovery_keep_owner_boundaries_local`、`call_tail_restores_each_enclosing_owner_frame`。

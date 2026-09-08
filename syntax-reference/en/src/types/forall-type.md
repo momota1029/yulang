@@ -88,6 +88,8 @@ The general hidden-boundary residual is documented by `ASOB-G`; this page adds n
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/type_expr/forall.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_forall_type`, `commit_direct_forall_type`, `scan_forall_keyword`, `scan_forall_binder`, `scan_forall_invalid_run`, `forall_recovery_candidate`, `forall_recovery_boundary_pending`, `parse_forall_body_for_ast`, and `commit_direct_forall_body`.
 
 Fixtures include `forall_type_primary_owns_a_non_delimited_binder_sequence_and_body`, `forall_is_nud_only_apostrophe_only_and_terminal`, `forall_recovery_keeps_its_phase_slots_non_cascading`, and `forall_bounded_phases_defer_a_live_if_companion_before_consuming_trivia`.

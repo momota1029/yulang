@@ -101,6 +101,8 @@ Deferred work includes record-list unification, spread matching and capture sema
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/pattern/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/pattern.rs`: `parse_list_pattern`, `commit_direct_list_pattern`, `parse_pattern_delimited_items_ast`, `commit_direct_pattern_delimited_items`, `commit_direct_pattern_delimited_item`, `recover_pattern_delimited_separator_or_close`, and `outer_pattern_close_stop_pending`.
 
 Fixtures include `list_patterns_accept_comma_or_layout_newline_and_keep_spread_items`, `list_pattern_recovery_preserves_item_and_separator_boundaries`, `list_pattern_typed_recovery_contract_has_direct_coverage_for_every_list_row`, `ambient_if_companion_vetoes_every_pattern_delimited_implicit_newline`, `binding_list_pattern_preserves_else_arm_after_an_ambient_veto`, `pattern_delimited_malformed_recovery_returns_the_same_ambient_gap`, and `pattern_caller_close_propagation_is_right_close_only`.

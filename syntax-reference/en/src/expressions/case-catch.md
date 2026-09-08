@@ -109,6 +109,8 @@ The documented `ASOB-G` residual includes representative Case/Catch arm-sequence
 
 ## 11. Implementation and regression cross-reference
 
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/case_like.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_case_like_nud`, `parse_case_like_label`, `parse_catch_braced_block_ast`, `parse_case_arm_sequence_ast`, `parse_catch_arm_sequence_ast`, `arm_sequence_boundary`, `parse_case_arm_ast`, `parse_catch_arm_ast`, `parse_case_guard_ast`, `parse_catch_guard_ast`, `commit_case_like_expression`, `commit_arm_sequence`, `commit_one_arm`, `commit_arm_guard`, `commit_arm_body`, `emit_case_like_missing`, and `commit_case_like_invalid_arrow`.
 
 Fixtures include `case_and_catch_are_primary_expressions_with_family_owned_arm_shapes`, `case_like_guards_and_indented_arms_keep_their_boundaries`, `case_like_arrow_is_exact_and_never_splits_a_longer_operator`, `case_like_ast_and_direct_paths_agree_on_arm_count_and_layout`, `case_like_missing_arrow_retries_the_body_from_the_same_position`, `case_like_recovery_marks_missing_mandatory_slots_once`, `case_like_invalid_arrow_run_recovers_to_the_next_comma_arm`, `case_like_same_indent_boundaries_stay_with_the_outer_owner`, and `case_like_missing_arm_comma_retries_the_next_pattern`.
