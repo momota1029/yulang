@@ -29,6 +29,7 @@ impl HeaderDiscovery {
     pub(crate) fn into_header_info(self, source: Arc<crate::SourceText>) -> HeaderInfo {
         HeaderInfo {
             source,
+            recoveries: Arc::from([]),
             coverage: HeaderCoverage {
                 range: self.coverage,
                 stop: self.stop,

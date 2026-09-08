@@ -1,6 +1,7 @@
 # Successor public cutover priority
 
-Status: Authoritative; construction pending
+Status: Authoritative; public entry construction complete, validation and
+legacy removal pending
 
 Date: 2026-09-08
 
@@ -114,9 +115,12 @@ Root never invokes a grammar parser inside Error.
 
 ## Current fact and next gate
 
-At this amendment, `scan_header` calls `grammar::header::discover_header` and
-`parse_file` calls `grammar::declaration::parse_direct_root_candidate`. Rewrite
-has neither a public header entry nor a multi-statement root loop. Therefore
-connecting either current private owner directly is unsound. The immediate gate
-is the bounded rewrite header/root entry design and construction, not further
-isolated declaration-tail migration.
+Rewrite now owns the public `scan_header` and `parse_file` entries without a
+fallback. `HeaderInfo` retains the discovery records privately and full Root
+consumes them only through shared header scopes; public pair controls cover
+source identity, recovery/conflict order, imported/local conflict provenance,
+UTF-8/CRLF and fence recovery/continuation. The accepted Yumark NUD owner is
+not yet public; the fence control is recovery/continuation evidence only.
+The immediate gate is final `yu-syntax`/workspace validation followed by
+atomic removal of the now-unrouted legacy parser tree, not further isolated
+declaration-tail migration.

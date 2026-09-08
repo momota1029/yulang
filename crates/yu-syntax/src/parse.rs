@@ -4,8 +4,8 @@ use rowan::GreenNode;
 
 use crate::{
     HeaderInfo, OperatorFixity, SourceText,
-    grammar::declaration::parse_direct_root_candidate,
     operator::{OperatorOrigin, OperatorTable, compile_full_parse_operators_recovering},
+    rewrite::root::parse_root_candidate,
     session::CommittedRecoveryRecord,
 };
 
@@ -151,8 +151,13 @@ pub fn parse_file(
     let operator_compilation =
         compile_full_parse_operators_recovering(syntax.operators(), header.operators())
             .expect("complete header operators and validated imports never have empty spellings");
-    let (green, recoveries) =
-        parse_direct_root_candidate(source.as_ref(), &operator_compilation.table, &[]).into_parts();
+    let candidate = parse_root_candidate(
+        source.as_ref(),
+        &operator_compilation.table,
+        &header.recoveries,
+    );
+    let green = candidate.green;
+    let recoveries = candidate.committed_recoveries;
     let next_construction_event = recoveries
         .iter()
         .map(|record| record.id.0)
@@ -380,6 +385,211 @@ mod tests {
     };
 
     #[test]
+    fn public_rewrite_pair_preserves_headers_and_multiple_statements() {
+        let source: Arc<SourceText> =
+            Arc::from("use std::io\r\nprefix (?) 70 = 値\r\nmy x = 1; my y = 2\r\nx\r\n");
+        let header = Arc::new(crate::scan_header(source.clone()));
+        assert_eq!(header.imports().len(), 1);
+        assert_eq!(header.operators().len(), 1);
+        let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        assert!(
+            parsed.diagnostics().is_empty(),
+            "{:?}",
+            parsed.diagnostics()
+        );
+        let syntax = crate::SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(
+            syntax
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [
+                crate::SyntaxKind::UseDeclaration,
+                crate::SyntaxKind::OperatorHeader,
+                crate::SyntaxKind::OperatorChain,
+                crate::SyntaxKind::BindingStatement,
+                crate::SyntaxKind::BindingStatement,
+                crate::SyntaxKind::OperatorChain
+            ]
+        );
+    }
+
+    #[test]
+    fn public_rewrite_pair_preserves_imported_local_conflict_provenance_after_recovery() {
+        let source: Arc<SourceText> =
+            Arc::from("use a as\r\nprefix (?) 71 = value\r\nmy x = 1\r\n");
+        let header = Arc::new(crate::scan_header(source.clone()));
+        assert_eq!(header.operators().len(), 1);
+        assert_eq!(header.recoveries.len(), 1);
+        let dependency = SyntaxDependencySlot::from_index(0).unwrap();
+        let provenance = SyntaxDependencyProvenance::new(
+            Arc::from("dependency/operators"),
+            SourceRevision::UNTRACKED,
+        );
+        let syntax = Arc::new(
+            SyntaxEnvironment::from_imported(
+                SyntaxEnvironmentKey(7),
+                Arc::new(
+                    OperatorTable::from_declarations([OperatorDeclaration::imported_at_range(
+                        "?",
+                        OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                        dependency,
+                        4..20,
+                    )])
+                    .unwrap(),
+                ),
+                Arc::from([provenance.clone()]),
+            )
+            .unwrap(),
+        );
+        let parsed = parse_file(source.clone(), header.clone(), syntax.clone());
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        assert_eq!(parsed.syntax_environment(), syntax.key());
+        let [recovery, construction] = parsed.diagnostics() else {
+            panic!(
+                "recovery followed by imported/local conflict: {:?}",
+                parsed.diagnostics()
+            );
+        };
+        let SyntaxDiagnosticCause::Recovery(recovery_record) = recovery.cause() else {
+            panic!("header recovery precedes construction");
+        };
+        assert_eq!(recovery_record.record(), &header.recoveries[0]);
+        let SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = construction.cause()
+        else {
+            panic!("imported/local conflict");
+        };
+        assert_eq!(conflict.spelling(), "?");
+        assert_eq!(conflict.fixity(), OperatorFixity::Prefix);
+        assert_eq!(
+            conflict.first_origin(),
+            OperatorOrigin::Imported(dependency)
+        );
+        assert_eq!(syntax.dependency(dependency), Some(&provenance));
+        assert_eq!(conflict.first_range(), &(4..20));
+        assert_eq!(conflict.second_origin(), OperatorOrigin::Local);
+        assert_eq!(conflict.second_range(), header.operators()[0].range());
+        assert!(recovery.id() < construction.id());
+    }
+
+    #[test]
+    fn public_rewrite_pair_keeps_header_fences_opaque_and_continues_after_body_recovery() {
+        for body in [
+            "'{\n```raw\n}\nuse hidden\n```\n}",
+            "'{\n> ```yulang\n> \"```\"\n> ```\n}",
+        ] {
+            let source: Arc<SourceText> = Arc::from(format!(
+                "prefix (!) 70 = {body}\nuse visible\nmy value = 1\n\"following\""
+            ));
+            let header = Arc::new(crate::scan_header(source.clone()));
+            assert_eq!(header.operators().len(), 1, "{source}");
+            assert_eq!(header.imports().len(), 1, "{source}");
+            assert_eq!(header.imports()[0].path(), ["visible"], "{source}");
+            let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
+            assert_eq!(parsed.green().to_string(), source.as_ref());
+            assert!(parsed.diagnostics().iter().any(|diagnostic| matches!(
+                diagnostic.cause(),
+                SyntaxDiagnosticCause::Recovery(recovery)
+                    if recovery.record().site.role == crate::session::GrammarRole::Statement(
+                        crate::session::StatementRole::OperatorDefinitionBody
+                    )
+            )));
+            let syntax = crate::SyntaxNode::new_root(parsed.green().clone());
+            assert!(
+                syntax
+                    .children()
+                    .any(|node| node.kind() == crate::SyntaxKind::UseDeclaration
+                        && node.to_string() == "use visible"),
+                "{source}"
+            );
+            assert!(
+                syntax
+                    .children()
+                    .any(|node| node.kind() == crate::SyntaxKind::BindingStatement
+                        && node.to_string() == "my value = 1"),
+                "{source}"
+            );
+            assert_eq!(
+                syntax.children().last().unwrap().to_string(),
+                "\"following\""
+            );
+        }
+    }
+
+    #[test]
+    fn public_rewrite_pair_reconciles_frozen_header_after_full_only_recovery() {
+        let source: Arc<SourceText> = Arc::from(
+            "prefix (?) 70 =\r\nuse a as\r\nuse good\r\nprefix (?) 71 = value\r\nmy x = 1\r\n",
+        );
+        let header = Arc::new(crate::scan_header(source.clone()));
+        assert_eq!(header.recoveries.len(), 1);
+        assert_eq!(header.imports().len(), 1);
+        assert_eq!(header.imports()[0].path(), ["good"]);
+        let parsed = parse_file(
+            source.clone(),
+            header.clone(),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        let [body, alias, conflict] = parsed.diagnostics() else {
+            panic!(
+                "body, frozen alias, then construction conflict: {:?}",
+                parsed.diagnostics()
+            );
+        };
+        let SyntaxDiagnosticCause::Recovery(body) = body.cause() else {
+            panic!("body recovery")
+        };
+        assert_eq!(
+            body.record().site.role,
+            crate::session::GrammarRole::Statement(
+                crate::session::StatementRole::OperatorDefinitionBody
+            )
+        );
+        let SyntaxDiagnosticCause::Recovery(alias) = alias.cause() else {
+            panic!("alias recovery")
+        };
+        assert_eq!(alias.record(), &header.recoveries[0]);
+        assert!(body.record().id.0 > alias.record().id.0);
+        assert!(matches!(
+            conflict.cause(),
+            SyntaxDiagnosticCause::ConflictingOperatorFixity(_)
+        ));
+        assert!(conflict.id() > body.record().id.0);
+    }
+
+    #[test]
+    fn public_rewrite_pair_retains_binding_selector_and_initial_layout() {
+        for word in ["use", "prefix", "infix", "suffix", "nullfix", "lazy"] {
+            let source: Arc<SourceText> = Arc::from(format!("my {word} = 値\r\nuse later"));
+            let header = Arc::new(crate::scan_header(source.clone()));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
+            let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
+            assert_eq!(parsed.green().to_string(), source.as_ref());
+            assert!(
+                parsed.diagnostics().is_empty(),
+                "{:?}",
+                parsed.diagnostics()
+            );
+        }
+        let source: Arc<SourceText> = Arc::from("  use a");
+        let header = Arc::new(crate::scan_header(source.clone()));
+        assert!(header.imports().is_empty());
+        let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        assert_eq!(parsed.diagnostics().len(), 1);
+        let SyntaxDiagnosticCause::Recovery(record) = parsed.diagnostics()[0].cause() else {
+            panic!("initial layout recovery")
+        };
+        assert_eq!(
+            record.record().site.role,
+            crate::session::GrammarRole::Statement(crate::session::StatementRole::Starter)
+        );
+    }
+
+    #[test]
     fn header_source_identity_accepts_shared_allocation_and_cloned_header() {
         let source: Arc<SourceText> = Arc::from("let x = 1");
         let header = crate::scan_header(source.clone());
@@ -445,8 +655,10 @@ mod tests {
 
     #[test]
     fn parse_file_preserves_recovery_diagnostics_before_construction_diagnostics() {
+        // Root expressions are admitted by the public-cutover amendment;
+        // an unclaimed close exercises a genuine root recovery.
         let source: Arc<SourceText> =
-            Arc::from("infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\ngarbage\n");
+            Arc::from("infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\n]\n");
         let header = Arc::new(crate::scan_header(Arc::clone(&source)));
         let parsed = parse_file(
             Arc::clone(&source),

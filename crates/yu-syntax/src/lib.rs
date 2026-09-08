@@ -33,6 +33,7 @@ pub type SourceText = str;
 #[derive(Clone, Eq)]
 pub struct HeaderInfo {
     source: Arc<SourceText>,
+    recoveries: Arc<[session::CommittedRecoveryRecord]>,
     coverage: HeaderCoverage,
     imports: Arc<[HeaderImport]>,
     operators: Arc<[HeaderOperator]>,
@@ -329,7 +330,7 @@ impl BindingPower {
 
 /// Discover leading imports and operator signatures.
 pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
-    grammar::header::discover_header(source.as_ref()).into_header_info(source)
+    rewrite::header::discover_header(source.as_ref()).into_header_info(source)
 }
 
 #[cfg(test)]

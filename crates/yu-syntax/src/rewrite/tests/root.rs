@@ -248,6 +248,47 @@ fn root_expression_trailing_input_has_separator_role_and_root_owned_gaps() {
 }
 
 #[test]
+fn root_error_keeps_undeclared_operator_as_raw_token() {
+    use crate::session::{
+        RecoveryKind, RootUnexpected, RootUnexpectedHead, StatementKind, UnexpectedSyntax,
+    };
+
+    let source = "use a <+>\r\nnext";
+    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
+    assert_eq!(root.green.to_string(), source);
+    assert_eq!(root.committed_recoveries.len(), 1);
+    let record = &root.committed_recoveries[0];
+    assert_eq!(record.kind, RecoveryKind::Error);
+    assert_eq!(
+        record.site.role,
+        GrammarRole::Statement(StatementRole::TrailingInput {
+            owner: StatementKind::UseDeclaration,
+        })
+    );
+    assert_eq!(record.site.range, 6..9);
+    assert_eq!(
+        record.unexpected.as_ref(),
+        [UnexpectedSyntax::Root(RootUnexpected::TrailingInput {
+            owner: StatementKind::UseDeclaration,
+            range: 6..9,
+            head: RootUnexpectedHead::OperatorLike,
+        })]
+    );
+    let syntax = SyntaxNode::new_root(root.green);
+    let error = syntax
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Error)
+        .unwrap();
+    assert_eq!(error.to_string(), "<+>");
+    assert!(
+        error.children_with_tokens().any(|element| {
+            element.kind() == SyntaxKind::Operator && element.to_string() == "<+>"
+        }),
+        "{error:#?}"
+    );
+}
+
+#[test]
 fn root_operator_body_missing_gap_and_empty_body_keep_typed_owner() {
     use crate::session::{ExpectedSyntax, LayoutRole, RecoveryKind};
     for (source, role, at, expected) in [

@@ -261,6 +261,7 @@ fn operator_body(mut i: RewriteIn, origin: usize, line: LineEntry) -> Normalized
                     let kind = item
                         .payload_view()
                         .token_kind()
+                        .filter(|kind| *kind != TokenKind::Operator)
                         .map(token_syntax_kind)
                         .unwrap_or(SyntaxKind::Operator);
                     let end = run.emit_item_as(item, origin, kind).recovery_range().end;
@@ -378,6 +379,7 @@ fn root_error(
                     let kind = item
                         .payload_view()
                         .token_kind()
+                        .filter(|kind| *kind != TokenKind::Operator)
                         .map(token_syntax_kind)
                         .unwrap_or(SyntaxKind::Operator);
                     run.emit_item_as(item, origin, kind);
@@ -398,6 +400,7 @@ fn root_error(
                     let kind = item
                         .payload_view()
                         .token_kind()
+                        .filter(|kind| *kind != TokenKind::Operator)
                         .map(token_syntax_kind)
                         .unwrap_or(SyntaxKind::Operator);
                     run.emit_item_as(item, origin, kind);

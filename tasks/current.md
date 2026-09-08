@@ -333,9 +333,19 @@ Root owns direct top-level topology, separators, pending/End handoff, scoped
 header publication, and lexical delimiter-aware recovery. The root construction
 review found and repaired binding-vs-operator prefix precedence and initial
 indentation admission before closure. Header/Use/OperatorHeader/Root focused
-filters pass 9/11/5/11; specification and regression review passed. This is
-still private construction: HeaderInfo record transport, public adapter,
-package/workspace validation and legacy deletion remain the immediate gate.
+filters pass 9/11/5/11; specification and regression review passed. At that
+private checkpoint, HeaderInfo record transport, public adapter,
+package/workspace validation and legacy deletion remained open.
+
+The public adapter is now connected without fallback: `scan_header` constructs
+rewrite facts/records and `parse_file` passes the retained frozen header record
+slice into rewrite Root before diagnostics and conflict construction. Public
+pair tests cover UTF-8/CRLF, header/full interleaving, imported/local conflict
+provenance and fence recovery/continuation. A public fence fixture exposed and
+repaired raw rejected-operator emission in Root Error. The accepted Yumark NUD
+owner remains open; its current public proof is recovery/continuation only.
+Final `yu-syntax`/workspace validation and atomic legacy parser deletion are
+now the immediate gate.
 
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
