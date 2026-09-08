@@ -1,5 +1,318 @@
 use crate::tests::support::*;
 
+#[test]
+fn for_structural_records_are_exact_shifted_and_frozen() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::recovery_record::*;
+    use std::sync::Arc;
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (source, slot, kind, range) in [
+        (
+            "for x in xs\r\n> > ```\r\nouter",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Missing,
+            13..13,
+        ),
+        (
+            "for x in xs\r\n> foreign",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Missing,
+            13..13,
+        ),
+        (
+            "for x in xs @\r\n> > ```\r\nouter",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            12..13,
+        ),
+        (
+            "for x in xs @\r\n> foreign",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            12..13,
+        ),
+        (
+            "for @\r\n> > ```\r\nouter",
+            ForStatementRole::Pattern,
+            RecoveryKind::Error,
+            4..5,
+        ),
+        (
+            "for @\r\n> foreign",
+            ForStatementRole::Pattern,
+            RecoveryKind::Error,
+            4..5,
+        ),
+        (
+            "for",
+            ForStatementRole::Pattern,
+            RecoveryKind::Missing,
+            3..3,
+        ),
+        (
+            "for  ",
+            ForStatementRole::Pattern,
+            RecoveryKind::Missing,
+            5..5,
+        ),
+        (
+            "for  ]",
+            ForStatementRole::Pattern,
+            RecoveryKind::Missing,
+            3..3,
+        ),
+        (
+            "for @",
+            ForStatementRole::Pattern,
+            RecoveryKind::Error,
+            4..5,
+        ),
+        (
+            "for x",
+            ForStatementRole::InKeyword,
+            RecoveryKind::Missing,
+            5..5,
+        ),
+        (
+            "for x  ]",
+            ForStatementRole::InKeyword,
+            RecoveryKind::Missing,
+            5..5,
+        ),
+        (
+            "for x in xs",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Missing,
+            11..11,
+        ),
+        (
+            "for x in xs @",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            12..13,
+        ),
+        (
+            "for x in xs @  ]",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            12..13,
+        ),
+        (
+            "for x in xs @\n: body",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            12..13,
+        ),
+        (
+            "for x in xs @ : body",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            12..13,
+        ),
+        (
+            "for x in xs @ { body }",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            12..13,
+        ),
+        (
+            "for α in xs @",
+            ForStatementRole::BodyIntroducer,
+            RecoveryKind::Error,
+            13..14,
+        ),
+        (
+            "for x in xs:\r\nnext",
+            ForStatementRole::Body,
+            RecoveryKind::Missing,
+            12..12,
+        ),
+    ] {
+        for origin in [0, 8100] {
+            let range = origin + range.start..origin + range.end;
+            let role = GrammarRole::ForStatement(slot);
+            let expected = match slot {
+                ForStatementRole::Pattern => vec![ExpectedSyntax::Pattern],
+                ForStatementRole::InKeyword => vec![ExpectedSyntax::Keyword(KeywordEvidence::In)],
+                ForStatementRole::BodyIntroducer => vec![
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+                ],
+                ForStatementRole::Body => vec![ExpectedSyntax::Statement],
+                _ => unreachable!(),
+            };
+            let expected = [CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                kind,
+                unexpected: if kind == RecoveryKind::Missing {
+                    Arc::from([])
+                } else {
+                    Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }])
+                },
+                expectations: expected
+                    .into_iter()
+                    .map(|expected| SyntaxExpectation {
+                        role,
+                        expected,
+                        range: range.clone(),
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    })
+                    .collect(),
+                primary_expectation: 0,
+            }];
+            let mut seed = expected[0].clone();
+            seed.id = DiagnosticId(7);
+            seed.site.range = 0..0;
+            seed.kind = RecoveryKind::Missing;
+            seed.unexpected = Arc::from([]);
+            seed.expectations = seed
+                .expectations
+                .iter()
+                .cloned()
+                .map(|mut expectation| {
+                    expectation.range = 0..0;
+                    expectation
+                })
+                .collect();
+            let mut reused = expected[0].clone();
+            reused.id = DiagnosticId(19);
+            let seeded = [seed.clone(), reused];
+            for (frozen, seed_first) in [
+                (None, false),
+                (Some(expected.as_slice()), false),
+                (Some(seeded.as_slice()), true),
+            ] {
+                let mut output = frozen
+                    .map(GreenNodeBuilder::reconcile)
+                    .unwrap_or_else(GreenNodeBuilder::new);
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut input = source;
+                output.start_node(SyntaxKind::Root.into());
+                if seed_first {
+                    output.start_node(SyntaxKind::Missing.into());
+                    output.finish_node();
+                    output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+                        seed.site.clone(),
+                        seed.kind,
+                        seed.unexpected.clone(),
+                        seed.expectations.clone(),
+                        0,
+                    ));
+                }
+                let exit = statement_normalized(
+                    In::new(&mut input, &mut recover, &mut output),
+                    0,
+                    0,
+                    origin,
+                    LineEntry::InLine,
+                    source.contains('>').then_some(&fence),
+                    Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+                    Some(crate::sequence::SequenceOwner::RootStatement),
+                );
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(
+                    records.as_slice(),
+                    if seed_first {
+                        seeded.as_slice()
+                    } else {
+                        expected.as_slice()
+                    },
+                    "{source:?}"
+                );
+                if let Some((head, remainder)) = source.split_once("\r\n>") {
+                    let NormalizedExit::Complete(
+                        Err(Either::Left(boundary)),
+                        LineEntry::PhysicalStart,
+                    ) = exit
+                    else {
+                        panic!(
+                            "the protected boundary and its line entry remain pending: {source:?}"
+                        )
+                    };
+                    assert!(boundary.payload_view().is_boundary());
+                    assert_eq!(green.to_string(), head);
+                    assert_eq!(input, format!(">{remainder}"));
+                    assert_eq!(
+                        boundary
+                            .extent(origin + source.len() - input.len())
+                            .recovery_range()
+                            .start,
+                        origin + head.len()
+                    );
+                    let (leading, pending) = emit_terminal_leading_text(boundary);
+                    assert_eq!(leading, "\r\n");
+                    assert_eq!(pending.coordinate(), origin + head.len() + 2);
+                } else if source.ends_with(']') {
+                    let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+                        panic!("close remains pending")
+                    };
+                    assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+                    assert_eq!(
+                        item.extent(origin + source.len()).recovery_range().end
+                            - item.extent(origin + source.len()).recovery_range().start,
+                        3
+                    );
+                    assert_eq!(input, "");
+                    assert!(!green.to_string().ends_with(' '));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn for_pattern_nested_recovery_keeps_its_native_role_without_slot_cascades() {
+    use crate::recovery_record::*;
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new(&operators);
+    let source = "for x as @";
+    let mut input = source;
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let _ = statement_normalized(
+        In::new(&mut input, &mut recover, &mut output),
+        0,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+        Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        Some(crate::sequence::SequenceOwner::RootStatement),
+    );
+    output.finish_node();
+    let (green, records) = output.finish_with_recoveries();
+    assert_eq!(green.to_string(), source);
+    assert_eq!(input, "");
+    assert_eq!(
+        records.len(),
+        1,
+        "terminal Pattern recovery must not cascade into For slots"
+    );
+    assert_eq!(
+        records[0].site.role,
+        GrammarRole::Pattern(PatternRole::AliasBinding)
+    );
+    assert_eq!(records[0].kind, RecoveryKind::Error);
+    assert_eq!(records[0].site.range, 9..10);
+}
+
 fn for_node(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .descendants()

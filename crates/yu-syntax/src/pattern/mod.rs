@@ -460,19 +460,30 @@ pub(super) fn pattern_from_entry_item_with_completion_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, PatternCompletion) {
-    required_pattern_from_entry_item_with_policy_normalized(
+    let stops = stops
+        | PATTERN_STOP_RPAREN
+        | PATTERN_STOP_RBRACKET
+        | PATTERN_STOP_RBRACE
+        | PATTERN_STOP_COMMA
+        | PATTERN_STOP_SEMICOLON;
+    let mut completion = PatternCompletion::Incomplete;
+    let exit = pattern_from_item_recording_with_policy_normalized(
         i,
         item,
+        PatternPrecedence::Lowest,
         baseline,
         stops,
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
+        GrammarRole::ForStatement(crate::recovery_record::ForStatementRole::Pattern),
+        &mut completion,
         item_origin,
         line_entry,
         fence,
         ambient,
-    )
+    );
+    (exit, completion)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1187,10 +1198,11 @@ fn initial_pattern_recovery_draft(
         role,
         GrammarRole::Declaration(crate::recovery_record::DeclarationRole::Binding(
             crate::recovery_record::BindingRole::Target
-        )) | GrammarRole::CaseLike(
-            crate::recovery_record::CaseLikeRole::Pattern
-                | crate::recovery_record::CaseLikeRole::Handler
-        )
+        )) | GrammarRole::ForStatement(crate::recovery_record::ForStatementRole::Pattern)
+            | GrammarRole::CaseLike(
+                crate::recovery_record::CaseLikeRole::Pattern
+                    | crate::recovery_record::CaseLikeRole::Handler
+            )
     ));
     RecoveryDraft::new(
         RecoverySiteKey {

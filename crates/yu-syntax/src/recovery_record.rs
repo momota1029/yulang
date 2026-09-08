@@ -770,6 +770,7 @@ pub(crate) enum YumarkSyntaxEvidence {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum KeywordEvidence {
+    In,
     Use,
     #[allow(
         dead_code,

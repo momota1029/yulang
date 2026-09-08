@@ -220,6 +220,10 @@ Expression tails, literal/Statement callers, RB-E, O4 or public adoption.
 | `expression::case_like::guard_normalized` | `CaseLike(Guard)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing arrow handoff | `expression_recovery::*`, `case_like::*` | C |
 | `expression::for_decl::iterable_from_item_normalized`, including newline/fence bypass | `ForStatement(Iterable)` | M/E | same predicate plus existing implicit newline bypass; protected Item remains whole | `[]` or `other(Rng)` / `Expression` | body only when iterable is not missing | `expression_recovery::*`, `for_statement::*` | C |
 | `expression::for_decl::inline_body_normalized` | `ForStatement(Body)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Statement` | existing statement-owner handoff; actual `]`/`@` caller controls reconcile fresh and frozen records | `expression_recovery::*`, `for_statement::*` | C |
+| `for_decl::pattern_slot_normalized` initial mandatory Pattern | `ForStatement(Pattern)` | M/E | protected absence or existing Pattern lexical run | `[]` or `other(Rng)` / Pattern | only initial transport; nested Pattern roles remain native and terminal failure cascades nowhere | `for_statement::*`, `pattern::*` | C-structural |
+| `for_decl::in_slot_normalized` | `ForStatement(InKeyword)` | M | completed Pattern without exact `in` | `[]` / keyword In | retry existing iterable/body starter without Iterable cascade | `for_statement::*` | C-structural |
+| `for_decl::recover_body_introducer_normalized` | `ForStatement(BodyIntroducer)` | M/E | absent/malformed `:` or `{` starter | `[]` or `other(Rng)` / ordered Colon then open Brace | lexical retry outside Error; protected boundary unchanged | `for_statement::*` | C-structural |
+| `for_decl::colon_body_normalized` shallow post-colon branch | `ForStatement(Body)` | M | equal/shallow pending Statement Item | `[]` / Statement | full Item returns to outer owner | `for_statement::*`, normalized For | C-structural |
 
 If arm recovery is now mapped below. Condition and indented child Statement
 publication remain their already-complete owners.

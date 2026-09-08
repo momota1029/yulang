@@ -545,7 +545,8 @@ recovery-equality prerequisite.
    declaration/literal owners. Local Type construction does not certify raw
    recovery still emitted by another owner. CaseLike structural, Arrow/Body,
    Separator and Catch-close slots are complete; continue with a distinct
-   remaining owner rather than reopening that family wholesale.
+   remaining owner rather than reopening that family wholesale. For Pattern,
+   `in`, body-introducer and shallow Body slots are also complete.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption
