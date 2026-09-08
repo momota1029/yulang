@@ -436,11 +436,12 @@ fn use_c9_leaves_statement_boundaries_for_the_caller() {
     assert_eq!(emit_pending_leading_text(&mut item), "  ");
 
     let (green, exit) = run_statement("use  [next");
-    assert_eq!(green.to_string(), "use  ");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item))) if token_kind(&item) == Some(TokenKind::LBracket)
-    ));
+    assert_eq!(green.to_string(), "use");
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("bracket must remain pending")
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::LBracket));
+    assert_eq!(emit_pending_leading_text(&mut item), "  ");
 }
 
 #[test]

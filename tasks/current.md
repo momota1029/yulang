@@ -326,11 +326,16 @@ construction; scoped header reconciliation prevents full-only records from
 consuming later frozen header IDs. Header/root rewrite entries, public
 integration and legacy removal remain the immediate gate.
 
-The private rewrite OperatorHeader substep is implemented. It constructs facts
-and CST through one scan, commits facts at actual `=`, keeps body input
-unscanned, and publishes typed slots with mandatory safe points. Operator
-header: 5; package/format/diff and specification/regression reviews passed.
-Shared Use/header discovery and root remain before public routing.
+The private rewrite Header/Root entry is implemented. Header discovery shares
+Use and OperatorHeader construction, projects imports atomically, preserves
+exact opaque-region boundaries and retains records for later reconciliation.
+Root owns direct top-level topology, separators, pending/End handoff, scoped
+header publication, and lexical delimiter-aware recovery. The root construction
+review found and repaired binding-vs-operator prefix precedence and initial
+indentation admission before closure. Header/Use/OperatorHeader/Root focused
+filters pass 9/11/5/11; specification and regression review passed. This is
+still private construction: HeaderInfo record transport, public adapter,
+package/workspace validation and legacy deletion remain the immediate gate.
 
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,

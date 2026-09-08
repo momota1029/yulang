@@ -313,6 +313,8 @@ root and declaration-local owners open.
 | `act_decl` BodyIntroducer/inline Body | `Declaration(Act(BodyIntroducer/Body))` | E / M/E | malformed punctuation introducer or absent/maximal lexical body | implicit bodyless terminal succeeds; attachment and child owners remain native | `act_decl::*`, `derives::*`, `declaration_companion::*` | C |
 | `output::DiagnosticSequence` header scope | public header/full reconciliation foundation | scoped frozen / fresh | shared-header publications consume frozen cursor; full-only records allocate above frozen maximum | one encounter order; nested/unwind scope restoration | `scoped_reconciliation::*`, `header_source_identity::*` | C-foundation |
 | `operator_header` shared header signature slots | `OperatorHeader(Name/Fixity/LeftBindingPower/RightBindingPower/DefinitionIntroducer)` | M/E | mandatory signature slot or maximal lexical run | fact commits at exact Equals; body Item stays root-owned | `operator_header::*` | C-private-entry |
+| `header` shared Use/operator discovery | Import slots and OperatorHeader slots | M/E | source-leading shared owner only; opaque body is lexical | all-or-none import facts; scoped frozen IDs only | `header::*`, `use_decl::*`, `operator_header::*` | C-private-entry |
+| `root` top-level sequence/body recovery | `Statement(Starter/Separator/TrailingInput/OperatorDefinitionBody)` and Layout InlineTrivia | M/E | root-start/layout boundary, lexical delimiter-aware Error, or operator body slot | exact pending/End handoff; header scope is leading-only; full records remain fresh | `root::*` | C-private-entry |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
@@ -320,8 +322,8 @@ independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-if/case typed-recovery; root canonical Statement and braced/root/colon/
-with raw owners and caller bypasses; remaining declaration shells/fields;
+if/case typed-recovery; public HeaderInfo/root adapter, public Yumark/fence
+context, braced/colon/with raw owners and caller bypasses; remaining declaration shells/fields;
 raw VirtualStatementBlock recovery; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type

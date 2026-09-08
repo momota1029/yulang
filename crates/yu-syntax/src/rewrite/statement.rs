@@ -487,6 +487,28 @@ pub(super) fn is_canonical_statement_nud_normalized(
 #[derive(Clone, Copy)]
 pub(super) struct StatementAdmission(StatementFamily);
 
+impl StatementAdmission {
+    pub(super) fn root_trailing_role(&self) -> crate::session::StatementRole {
+        use crate::session::{StatementKind as Kind, StatementRole};
+        let owner = match self.0 {
+            StatementFamily::Struct => Kind::StructDeclaration,
+            StatementFamily::Enum => Kind::EnumDeclaration,
+            StatementFamily::Error => Kind::ErrorDeclaration,
+            StatementFamily::Mod => Kind::ModDeclaration,
+            StatementFamily::Type => Kind::TypeDeclaration,
+            StatementFamily::Role => Kind::RoleDeclaration,
+            StatementFamily::Impl => Kind::ImplDeclaration,
+            StatementFamily::Cast => Kind::CastDeclaration,
+            StatementFamily::Act => Kind::ActDeclaration,
+            StatementFamily::For => Kind::ForStatement,
+            StatementFamily::Binding => Kind::BindingDeclaration,
+            StatementFamily::Use => Kind::UseDeclaration,
+            StatementFamily::Expression => return StatementRole::Separator,
+        };
+        StatementRole::TrailingInput { owner }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum StatementFamily {
     Struct,
