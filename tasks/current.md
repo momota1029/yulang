@@ -284,6 +284,14 @@ Name and BodyIntroducer now publish typed records with the existing ordered
 starter union; header EOF/protected boundary ownership is explicit. Struct 28,
 normalized Struct 4, package/format/diff and independent delta audits passed.
 
+The Mod gate in `2026-09-08-successor-mod-current-item-recovery.md` is
+implemented. Name/TestName/BodyIntroducer/Body now publish typed records with
+sealed lexical retry and protected current-Item handoff. Only the first `test`
+is a marker; the second name remains an Identifier. Mod: 13; indented: 7;
+normalized: 83; package/format/diff and independent specification/regression
+audits passed. The accepted test-only repair pins fresh/frozen boundary
+payload, leading, line entry, suffix and fence coordinates.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

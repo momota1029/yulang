@@ -1,7 +1,14 @@
 //! Direct canonical `mod` declaration construction.
 
 use super::ambient_claim::AmbientClaimContext;
+use super::output::RecoveryDraft;
+use crate::session::{
+    DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ModRole,
+    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+    UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
@@ -12,7 +19,7 @@ use super::{
         Either, NormalizedExit, advanced_origin, complete, handoff, implicit_delimited_newline,
         indentation_after_newline, is_active_stop, suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
         introduced_body_indentation_normalized, scan_identifier, scan_statement_payload,
@@ -195,6 +202,7 @@ fn parse_identity_normalized(
         item_origin,
         line_entry,
         fence,
+        ModRole::Name,
     )? {
         Ok(is_test) => is_test,
         Err(item) => return Ok(Some(item)),
@@ -221,7 +229,16 @@ fn parse_identity_normalized(
     {
         return Ok(Some(second));
     }
-    match required_name_normalized(i, second, baseline, stops, item_origin, line_entry, fence)? {
+    match required_name_normalized(
+        i,
+        second,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+        ModRole::TestName,
+    )? {
         Ok(_) => Ok(None),
         Err(item) => Ok(Some(item)),
     }
@@ -238,68 +255,56 @@ fn required_name_normalized(
     item_origin: &mut usize,
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
+    role: ModRole,
 ) -> Result<Result<bool, Item>, Item> {
     if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, *item_origin, role, false);
         return Err(item);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, *item_origin, role, false);
         return Err(item);
     }
     if name_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, *item_origin, role, false);
         return Err(item);
     }
     if !gmod_allowed(&item, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, *item_origin, role, false);
         return Err(item);
     }
     if is_body_starter_item(&item) {
         item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, *item_origin, role, false);
         return Ok(Err(item));
     }
     item.emit_all_remaining_leading(&mut *i.state);
     if item_word(&item).is_some() {
-        let is_test = item_word(&item) == Some("test");
+        let is_test = role == ModRole::Name && item_word(&item) == Some("test");
         emit_name(&mut i, item, is_test);
         return Ok(Ok(is_test));
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let (mut next, next_origin, next_entry) = mod_item_normalized(
-            i.rb(),
-            *item_origin,
-            *line_entry,
-            fence,
-            baseline,
-            stops,
-            true,
-        );
-        *item_origin = next_origin;
-        *line_entry = next_entry;
-        if name_boundary(i.rb(), &next, baseline, stops) || !gmod_allowed(&next, baseline) {
-            i.state.finish_node();
-            return Err(next);
-        }
-        if is_body_starter_item(&next) {
-            next.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            return Ok(Err(next));
-        }
-        if item_word(&next).is_some() {
-            next.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            let is_test = item_word(&next) == Some("test");
-            emit_name(&mut i, next, is_test);
-            return Ok(Ok(is_test));
-        }
-        item = next;
+    (item, *item_origin, *line_entry) = mod_error_run(
+        i.rb(),
+        item,
+        role,
+        baseline,
+        stops,
+        *item_origin,
+        *line_entry,
+        fence,
+    );
+    if name_boundary(i.rb(), &item, baseline, stops) || !gmod_allowed(&item, baseline) {
+        return Err(item);
     }
+    if is_body_starter_item(&item) {
+        return Ok(Err(item));
+    }
+    let is_test = role == ModRole::Name && item_word(&item) == Some("test");
+    emit_name(&mut i, item, is_test);
+    Ok(Ok(is_test))
 }
 
 fn emit_name(i: &mut RewriteIn, item: Item, is_test: bool) {
@@ -326,16 +331,16 @@ fn parse_body_item_normalized(
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, false);
         return complete(handoff(item), line_entry);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, false);
         return complete(handoff(item), line_entry);
     }
     if body_boundary(i.rb(), &item, baseline, stops) || !gmod_allowed(&item, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, false);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -379,7 +384,7 @@ fn parse_body_item_normalized(
             )
         }
         _ if admission.is_some() => {
-            emit_missing(&mut i, LeadingTrivia::default());
+            mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, true);
             parse_inline_statement_normalized(
                 i,
                 item,
@@ -422,56 +427,51 @@ fn recover_body_introducer_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = mod_item_normalized(
-            i.rb(),
+    (item, item_origin, line_entry) = mod_error_run(
+        i.rb(),
+        item,
+        ModRole::BodyIntroducer,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if body_boundary(i.rb(), &item, baseline, stops) {
+        return complete(handoff(item), line_entry);
+    }
+    if is_body_starter_item(&item) {
+        return parse_body_item_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
+            ambient,
+            sequence,
+        );
+    }
+    if let Some(admission) =
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    {
+        return parse_inline_statement_normalized(
+            i,
+            item,
+            admission,
             baseline,
             stops,
-            false,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
         );
-        if body_boundary(i.rb(), &item, baseline, stops) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if is_body_starter_item(&item) {
-            i.state.finish_node();
-            return parse_body_item_normalized(
-                i,
-                item,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
-        if let Some(admission) =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
-            i.state.finish_node();
-            return parse_inline_statement_normalized(
-                i,
-                item,
-                admission,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
     }
+    unreachable!("Mod introducer run stops at a boundary or retry")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -500,9 +500,16 @@ fn parse_colon_body_normalized(
             ambient,
         ),
         Some(_) => {
-            emit_missing(&mut i, LeadingTrivia::default());
-            let (item, _, next_entry) =
-                mod_item_normalized(i, item_origin, line_entry, fence, baseline, stops, false);
+            let (item, origin, next_entry) = mod_item_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                baseline,
+                stops,
+                false,
+            );
+            mod_missing(&mut i, &item, origin, ModRole::Body, false);
             complete(handoff(item), next_entry)
         }
         None => {
@@ -545,16 +552,16 @@ fn parse_inline_body_item_normalized(
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() || item.payload_view().is_eof() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, item_origin, ModRole::Body, false);
         return complete(handoff(item), line_entry);
     }
     if inline_terminal_semicolon(&item) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, item_origin, ModRole::Body, false);
         emit_token_item(&mut i, item);
         return after_completed_normalized(i, baseline, stops, item_origin, line_entry, fence);
     }
     if mod_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        mod_missing(&mut i, &item, item_origin, ModRole::Body, false);
         return complete(handoff(item), line_entry);
     }
     if let Some(admission) =
@@ -575,7 +582,6 @@ fn parse_inline_body_item_normalized(
         );
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
     recover_inline_body_normalized(
         i,
         item,
@@ -603,49 +609,45 @@ fn recover_inline_body_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
-    loop {
+    item.emit_all_remaining_leading(&mut *i.state);
+    (item, item_origin, line_entry) = mod_error_run(
+        i.rb(),
+        item,
+        ModRole::Body,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if item.payload_view().is_boundary() || item.payload_view().is_eof() {
+        return complete(handoff(item), line_entry);
+    }
+    if inline_terminal_semicolon(&item) {
         emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = mod_item_normalized(
-            i.rb(),
+        return after_completed_normalized(i, baseline, stops, item_origin, line_entry, fence);
+    }
+    if mod_boundary(i.rb(), &item, baseline, stops) {
+        return complete(handoff(item), line_entry);
+    }
+    if let Some(admission) =
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    {
+        return parse_inline_statement_normalized(
+            i,
+            item,
+            admission,
+            baseline,
+            stops,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
-            baseline,
-            stops,
-            false,
+            ambient,
+            sequence,
         );
-        if item.payload_view().is_boundary() || item.payload_view().is_eof() {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if inline_terminal_semicolon(&item) {
-            i.state.finish_node();
-            emit_token_item(&mut i, item);
-            return after_completed_normalized(i, baseline, stops, item_origin, line_entry, fence);
-        }
-        if mod_boundary(i.rb(), &item, baseline, stops) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if let Some(admission) =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
-            i.state.finish_node();
-            return parse_inline_statement_normalized(
-                i,
-                item,
-                admission,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
     }
+    unreachable!("Mod body run stops at a boundary or Statement")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -714,7 +716,31 @@ fn mod_item_normalized(
     stops: Stops,
     raw_name: bool,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
+    i.token(|lex| {
+        Some(scan_mod_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+            raw_name,
+        ))
+    })
+    .expect("total Mod scanner")
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_mod_item(
+    mut i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    raw_name: bool,
+) -> (Item, usize, LineEntry) {
+    let entry = i.remainder().len();
     let CurrentItem {
         item,
         next_line_entry,
@@ -741,8 +767,125 @@ fn mod_item_normalized(
         .expect("Mod payload scanning is total");
     (
         item,
-        advanced_origin(item_origin, entry, i),
+        item_origin + entry - i.remainder().len(),
         next_line_entry,
+    )
+}
+
+fn mod_draft(
+    slot: ModRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+    colon_only: bool,
+) -> RecoveryDraft {
+    let role = GrammarRole::Declaration(DeclarationRole::Mod(slot));
+    let expected: &[ExpectedSyntax] = match slot {
+        ModRole::Name | ModRole::TestName => &[ExpectedSyntax::Identifier],
+        ModRole::Body => &[ExpectedSyntax::Statement],
+        ModRole::BodyIntroducer if colon_only => {
+            &[ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)]
+        }
+        ModRole::BodyIntroducer => &[
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        ],
+        _ => unreachable!("local Mod recovery slot"),
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expected
+            .iter()
+            .map(|expected| SyntaxExpectation {
+                role,
+                expected: *expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            })
+            .collect::<Vec<_>>()
+            .into(),
+        0,
+    )
+}
+
+fn mod_missing(i: &mut RewriteIn, item: &Item, origin: usize, role: ModRole, colon_only: bool) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        mod_draft(
+            role,
+            RecoveryKind::Missing,
+            range,
+            Arc::from([]),
+            colon_only,
+        )
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mod_error_run(
+    mut i: RewriteIn,
+    mut item: Item,
+    role: ModRole,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let name = matches!(role, ModRole::Name | ModRole::TestName);
+    let start = item.extent(origin).recovery_range().start;
+    emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = token_kind(&item)
+                .map(token_syntax_kind)
+                .unwrap_or(SyntaxKind::Operator);
+            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+            (item, origin, line) =
+                run.lexical(|lex| scan_mod_item(lex, origin, line, fence, baseline, stops, name));
+            let boundary = item.payload_view().is_boundary()
+                || item.payload_view().is_eof()
+                || implicit_delimited_newline(baseline, item.leading_view())
+                || (name && !gmod_allowed(&item, baseline))
+                || run.lexical(|lex| super::driver::is_active_stop_lex(lex, &item, stops))
+                || token_kind(&item) == Some(TokenKind::Comma);
+            let retry = !boundary
+                && if name {
+                    is_body_starter_item(&item) || item_word(&item).is_some()
+                } else {
+                    (role == ModRole::BodyIntroducer && is_body_starter_item(&item))
+                        || (role == ModRole::Body
+                            && token_kind(&item) == Some(TokenKind::Semicolon))
+                        || run
+                            .lexical(|lex| {
+                                super::statement::classify_statement_item_lexical(
+                                    lex.remainder(),
+                                    &item,
+                                    baseline,
+                                    origin,
+                                    fence,
+                                )
+                            })
+                            .is_some()
+                };
+            if boundary || retry {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: start..end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, origin, line);
+            }
+        },
+        |range, unexpected| mod_draft(role, RecoveryKind::Error, range, unexpected, false),
     )
 }
 

@@ -307,6 +307,7 @@ root and declaration-local owners open.
 | `binding::binding_target_normalized`, inline body/retry | `Declaration(Binding(Target/Body))` | M/E | initial Pattern slot / direct Expression body absence or lexical run | initial caller role enters Pattern only; nested children retain roles; protected boundary stays pending | `binding::*`, `pattern::*` | C |
 | `declaration_companion` introducer/body/item/sequence/close sites | `Declaration(Companion(Introducer/Body/Item/IndentedItem/Separator))`, `close(DeclarationCompanion, Brace)` | M/E | owner slot absence, lexical run, separator or local close | colon-only Introducer; Statement/Derives children retain roles; caller attachments unchanged | `declaration_companion::*`, declaration caller suites | C |
 | `struct_decl` required Name and BodyIntroducer | `Declaration(Struct(Name/BodyIntroducer))` | M/E | header required slots and lexical runs | existing ordered starter union; protected Item stays pending, TypePrimary gap is Struct-owned | `struct_decl::*`, `normalized_struct::*` | C |
+| `mod_decl` Name/TestName/BodyIntroducer/Body | `Declaration(Mod(Name/TestName/BodyIntroducer/Body))` | M/E | required identity/body slots or maximal lexical run | only initial `test` marks; retry/pending boundary leading and nested Statement owners stay distinct | `mod_decl::*`, `indented_recovery::*`, `normalized::*` | C |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
@@ -315,8 +316,8 @@ independently migrated Pattern owner.
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
 if/case typed-recovery; root canonical Statement and braced/root/colon/
-with raw owners and caller bypasses; declarations/derives/companions; raw
-VirtualStatementBlock recovery; all remaining RB-E/P/S/
+with raw owners and caller bypasses; remaining declaration shells/fields;
+raw VirtualStatementBlock recovery; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type
 helper's role transport. No unbounded test suite or fresh benchmark was run
