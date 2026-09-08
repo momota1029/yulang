@@ -27,6 +27,7 @@ mod lexer;
 mod literal;
 mod mod_decl;
 mod operator;
+mod operator_header;
 mod output;
 mod pattern;
 mod role_decl;

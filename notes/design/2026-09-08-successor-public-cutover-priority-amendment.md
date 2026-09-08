@@ -73,6 +73,45 @@ is retained. Scope exit restores ordinary publication on every exit. This is a
 narrow correction to the old prefix assumption; it adds no lookup, sort,
 deduplication or second parser authority.
 
+## Selected header and root construction contract
+
+Rewrite's shared Use/operator-header owner is the sole producer of header
+facts and its typed records. Discovery and full parsing publish the same owner
+records inside the header reconciliation scope; operator body and root records
+remain full-only. Import projection remains all-or-none per Use declaration:
+append its expanded facts only after the complete declaration projects, discard
+that declaration's pending batch on projection failure, and do not treat a
+recovery record alone as projection failure. Operator facts commit when fixity,
+name, required binding powers and actual `=` are complete; body failure cannot
+retract that fact.
+
+Header Missing anchors at remaining-start with no unexpected fact. Header Error
+is one nonempty lexical run with an OtherCharacter fact; initial leading belongs
+to header, internal leading to Error and retry/boundary leading stays pending.
+Existing slot roles and expectations remain specific: Import Path/GroupEntry/
+Alias and their closes; OperatorHeader Name/Fixity/LeftBindingPower/
+RightBindingPower/DefinitionIntroducer. Fixity remains ordered Prefix/Infix/
+Suffix/Nullfix, primary zero.
+
+Operator mandatory slots retain their structural safe points. Missing Name stops
+before a first binding power or actual `=`; missing binding-power or Definition
+Introducer stops before a body NUD. Each publishes its own Missing while the
+downstream Item remains pending. A binding power requires I+ separation from a
+completed name or preceding binding power. Actual accepted `=` emits
+`SyntaxKind::Equals`; `==` is not a DefinitionIntroducer. These rules preserve
+accepted header CST and body handoff independently of successor malformed
+topology.
+
+Root owns top-level progression and separators. Top-level expression trailing
+input selects existing `Statement(Separator)`, expected StatementSeparator;
+declaration trailing input retains its specific existing owner. Its lexical
+Error tracks delimiter stack: push openers, pop only matching closes and keep
+mismatches nested. At outer depth stop before semicolon or root-layout newline;
+inside delimiters neither stops. Literal, Rule and Yumark regions are opaque;
+abstract boundary is protected at any depth. Initial leading belongs to Root,
+internal leading to Error and terminating boundary leading remains pending.
+Root never invokes a grammar parser inside Error.
+
 ## Current fact and next gate
 
 At this amendment, `scan_header` calls `grammar::header::discover_header` and

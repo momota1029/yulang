@@ -326,6 +326,12 @@ construction; scoped header reconciliation prevents full-only records from
 consuming later frozen header IDs. Header/root rewrite entries, public
 integration and legacy removal remain the immediate gate.
 
+The private rewrite OperatorHeader substep is implemented. It constructs facts
+and CST through one scan, commits facts at actual `=`, keeps body input
+unscanned, and publishes typed slots with mandatory safe points. Operator
+header: 5; package/format/diff and specification/regression reviews passed.
+Shared Use/header discovery and root remain before public routing.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

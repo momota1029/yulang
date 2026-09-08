@@ -312,6 +312,7 @@ root and declaration-local owners open.
 | `impl_decl` BodyIntroducer/inline Body | `Declaration(Impl(BodyIntroducer/Body))` | M/E | body punctuation slot or maximal lexical run after complete Description | first colon remains Description; second colon starts Body; child Type/Statement roles remain native | `impl_decl::*`, `indented_recovery::*` | C |
 | `act_decl` BodyIntroducer/inline Body | `Declaration(Act(BodyIntroducer/Body))` | E / M/E | malformed punctuation introducer or absent/maximal lexical body | implicit bodyless terminal succeeds; attachment and child owners remain native | `act_decl::*`, `derives::*`, `declaration_companion::*` | C |
 | `output::DiagnosticSequence` header scope | public header/full reconciliation foundation | scoped frozen / fresh | shared-header publications consume frozen cursor; full-only records allocate above frozen maximum | one encounter order; nested/unwind scope restoration | `scoped_reconciliation::*`, `header_source_identity::*` | C-foundation |
+| `operator_header` shared header signature slots | `OperatorHeader(Name/Fixity/LeftBindingPower/RightBindingPower/DefinitionIntroducer)` | M/E | mandatory signature slot or maximal lexical run | fact commits at exact Equals; body Item stays root-owned | `operator_header::*` | C-private-entry |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an

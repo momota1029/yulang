@@ -58,6 +58,7 @@ mod literal;
 mod mod_decl;
 mod normalized;
 mod operators;
+mod operator_header;
 mod output;
 mod owners;
 mod pattern;
