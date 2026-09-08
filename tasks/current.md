@@ -103,6 +103,13 @@ owner. No raw Cast Missing/Error publisher remains, and the stale
 marks the whole Cast phase C; next recovery work requires a refreshed raw-site
 inventory rather than a guessed nearby declaration gate.
 
+A strict production publisher inventory now finds no untyped Missing/Error
+publisher. The remaining manual Rule ExpressionList newline callback commits
+its exact `ExpressionList(Item)` record in the same callback, so it is not a
+raw recovery escape. This M0 cleanup removed stale dead-code exemptions from
+the live For, If, and CaseLike recovery roles only; deliberately deferred role
+vocabulary remains annotated. Package check, format, and diff passed.
+
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E
 addenda. Selected P/E/numeric-Call structured Error controls cover exact

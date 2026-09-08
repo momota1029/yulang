@@ -166,21 +166,9 @@ pub(crate) enum StatementRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ForStatementRole {
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Pattern,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     InKeyword,
     Iterable,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     BodyIntroducer,
     Body,
     IndentedStatement,
@@ -380,20 +368,8 @@ pub(crate) enum WithBodyRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum IfExpressionRole {
     Condition,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     BodyIntroducer,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Body,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     ElseBody,
     IndentedStatement,
 }
@@ -401,41 +377,13 @@ pub(crate) enum IfExpressionRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum CaseLikeRole {
     Scrutinee,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Block,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Arm,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Pattern,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Handler,
     Guard,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Arrow,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Body,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Separator,
 }
 

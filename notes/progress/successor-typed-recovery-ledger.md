@@ -452,6 +452,20 @@ remain open.
   diff passed. The direct statement filter has one reviewed unrelated
   non-Cast baseline failure. Benchmark use: zero samples/processes.
 
+## Production publisher inventory and live-role cleanup
+
+- A strict production search finds no Missing/Error CST publisher that omits a
+  typed committed recovery record. The only manual Rule ExpressionList newline
+  callback starts its node and commits its exact `ExpressionList(Item)` Missing
+  draft in the same callback; it is typed, not a generic escape hatch.
+- Removed stale deferred-owner `dead_code` exemptions from live
+  ForStatement(Pattern/InKeyword/BodyIntroducer),
+  IfExpression(BodyIntroducer/Body/ElseBody), and
+  CaseLike(Block/Arm/Pattern/Handler/Arrow/Body/Separator) vocabulary. Kept
+  annotations for genuinely deferred owners. This is M0 structural cleanup,
+  not aggregate recovery certification. Package check, format, and diff
+  passed; benchmark use: zero samples/processes.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
