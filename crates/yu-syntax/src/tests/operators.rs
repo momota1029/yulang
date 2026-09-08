@@ -269,13 +269,91 @@ fn dynamic_operator_uses_delimited_baseline_and_matching_stop() {
         OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::new(40, [1])),
     )])
     .expect("one infix operator declaration");
-    let (green, exit) = run_with("(\n  a +\n    b)", &infix);
-    assert_eq!(green.to_string(), "(\n  a +\n    b)");
-    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    for (source, accepted_infix) in [
+        ("(\n  a +\n    b)", true),
+        ("(a +\nb)", false),
+        ("(a +\r\nb)", false),
+    ] {
+        use crate::recovery_record::{
+            DiagnosticId, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole,
+            RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+        };
+        use std::sync::Arc;
 
-    let (green, exit) = run_with("(a +\nb)", &infix);
-    assert_eq!(green.to_string(), "(a");
-    assert!(matches!(exit, Some(Err(Either::Left(_)))));
+        let mut input = source;
+        let mut recover = Recover::new(&infix);
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(SyntaxKind::Root.into());
+        let mut exit = expr(In::new(&mut input, &mut recover, &mut builder));
+        if let Some(Err(Either::Right(end))) = &mut exit {
+            emit_end(&mut builder, end);
+        }
+        builder.finish_node();
+        let (green, records) = builder.finish_with_recoveries();
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        assert_eq!(input, "");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+                .count(),
+            usize::from(accepted_infix)
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing)
+        );
+        if accepted_infix {
+            assert!(records.is_empty());
+        } else {
+            let role = GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator);
+            assert_eq!(
+                records,
+                [CommittedRecoveryRecord {
+                    id: DiagnosticId(0),
+                    site: RecoverySiteKey { role, range: 3..4 },
+                    kind: RecoveryKind::Error,
+                    unexpected: Arc::from([UnexpectedSyntax::Token {
+                        range: 3..4,
+                        category: UnexpectedCategory::OtherCharacter
+                    }]),
+                    expectations: Arc::from([SyntaxExpectation {
+                        role,
+                        expected: ExpectedSyntax::DelimitedSequenceSeparator,
+                        range: 3..4,
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
+                    }]),
+                    primary_expectation: 0,
+                }]
+            );
+            let group = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+                .unwrap();
+            let chains: Vec<_> = group
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .collect();
+            assert_eq!(
+                chains.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                [
+                    "a",
+                    if source.contains('\r') {
+                        "\r\nb"
+                    } else {
+                        "\nb"
+                    }
+                ]
+            );
+            assert!(chains.iter().all(|chain| {
+                !chain
+                    .children()
+                    .any(|node| node.kind() == SyntaxKind::OperatorChain)
+            }));
+        }
+    }
 
     let suffix_or_nullfix = OperatorTable::from_declarations([OperatorDeclaration::new(
         "~",

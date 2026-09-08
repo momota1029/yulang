@@ -501,6 +501,16 @@ remain open.
   one existing manual measurement harness ignored; package, format, and diff
   passed. Benchmark use: zero samples/processes.
 
+## Parenthesized operator newline control
+
+- The retained `(a +\nb)` partial-output expectation was stale. At delimiter
+  baseline zero, the newline RHS cannot admit `+` as an infix operator; the
+  Parenthesized separator owner emits its one Error, then admits `b` in the
+  next flat chain and consumes the matching close. LF and CRLF now assert the
+  exact record and native newline ownership; the deeper-indent accepted infix
+  control asserts zero recovery. No parser behavior changed. Focused operator
+  and delimiter controls passed 20 tests; format and diff passed.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

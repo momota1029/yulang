@@ -324,9 +324,9 @@ it covers the finite Expression/Statement, Virtual, RecordPattern-default and
 Rule-list bridges. Ownerless Colon owns comma/qualifying newline arguments;
 outer-owned Colon returns the whole boundary. Focused Colon: 12; Rule: 1;
 literal/Yumark/Yumark-cell: 35/14/5; package/format/diff pass. The related
-cone has 511 passes and the separately reproduced `(a +\nb)` baseline operator
-mismatch. Spec/recovery and regression delta audits passed. No benchmark process
-was used.
+cone then had a separately reproduced `(a +\nb)` operator mismatch; its stale
+delimiter expectation was later corrected under the approved owner contract.
+Spec/recovery and regression delta audits passed. No benchmark process was used.
 
 The non-Rule StringLiteral gate in
 `2026-09-08-successor-string-literal-current-item-recovery.md` is implemented.
@@ -494,8 +494,8 @@ complete.
 The first full successor-only lib run after removing the legacy tree passed
 1057 tests with 3 failures and 1 ignored. At that checkpoint, two were the
 recorded `my role = value` and `(a +\nb)` baselines. The Role assertion was
-later corrected as stale by the approved owner contract; the operator baseline
-remains. The third,
+later corrected as stale by the approved owner contract, and the operator
+assertion was later corrected by the approved delimiter contract. The third,
 `virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen`, was
 reproduced unchanged on detached pre-deletion `62e77291` (3 records versus
 its stale expected 1); it is an unrelated pre-cutover baseline, not a deletion
@@ -557,9 +557,10 @@ and `tests/mod.rs` is a catalogue with explicit support and declaration suites.
 The For Body publication now maps only that role to `Statement`; direct and
 actual-caller Missing/Error fresh/frozen controls preserve exact CST, Item
 extents and `InLine` handoff. M2 conformance and regression review closed after
-two test-only evidence repairs. The known unrelated `(a +\nb)` operator test
-baseline remains unchanged. Next: body-level responsibility review before
-splitting the still-large Expression, TypeExpression and Pattern owners.
+two test-only evidence repairs. Its then-known unrelated `(a +\nb)` operator
+test expectation was later corrected by the approved delimiter contract. Next:
+body-level responsibility review before splitting the still-large Expression,
+TypeExpression and Pattern owners.
 
 Gate B1 is the reviewed Expression split. `expression/operator_chain.rs` owns
 admitted NUD dispatch, prefix/infix/suffix recursion, ML application, tail
@@ -576,8 +577,8 @@ all executable bodies are equivalent to the pre-split Expression implementation
 apart from private child visibility and formatting. Focused handoff, operand,
 tail, delimiter, normalized, output and frozen controls passed. Independent
 regression review also confirmed the unchanged If/Case/For caller roles and
-the retained For Body `Statement` mapping. The known operator baseline remains
-unchanged.
+the retained For Body `Statement` mapping. The then-known operator baseline
+was later corrected as a stale delimiter expectation.
 
 Gate B2 is complete. The former mixed tail body is now a narrow
 `expression/tails/mod.rs` façade over `colon.rs`, `with_body.rs`,
@@ -634,8 +635,8 @@ no Rust, visibility, public-boundary or owner-split defect; it found stale
 current task/ledger locators only, which are corrected here and in the ledger.
 Focused lexical/output/recovery/header/root/public-boundary controls, package
 and workspace checks, dependency-graph, format and diff checks pass. The
-documented `(a +\nb)` operator baseline remains unchanged. Benchmark use is
-zero samples/processes.
+documented `(a +\nb)` operator expectation was later corrected under the
+approved delimiter contract. Benchmark use is zero samples/processes.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
