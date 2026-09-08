@@ -1,6 +1,8 @@
 //! Private direct `role` declaration construction.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 use super::output::RecoveryDraft;
 use crate::session::{
     DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
@@ -40,6 +42,7 @@ use super::{
 };
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(super) fn role_declaration_witness(
     mut i: RewriteIn,
     baseline: usize,
@@ -78,6 +81,7 @@ pub(super) fn role_declaration_witness(
     })
 }
 
+#[cfg(test)]
 fn role_source_selected_normalized(
     i: RewriteIn,
     baseline: usize,
@@ -121,6 +125,7 @@ fn role_source_selected_normalized(
     .unwrap_or(false)
 }
 
+#[cfg(test)]
 pub(super) fn role_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
@@ -892,15 +897,4 @@ fn emit_visibility(i: &mut RewriteIn, item: Item) {
         _ => unreachable!("Role visibility uses exact declaration words"),
     };
     emit_item_as(i, item, kind);
-}
-
-fn observes<F>(i: RewriteIn, predicate: F) -> bool
-where
-    F: FnOnce(&str) -> bool,
-{
-    i.map(
-        |lex: LexIn| Some(predicate(lex.remainder())),
-        |observed| observed,
-    )
-    .expect("source observation is total")
 }

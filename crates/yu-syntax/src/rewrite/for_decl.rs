@@ -736,13 +736,6 @@ fn iterable_stops(outer_stops: Stops) -> Stops {
     outer_stops | STOP_COLON | STOP_LBRACE | STOP_COMMA | STOP_SEMICOLON
 }
 
-fn iterable_boundary(mut i: RewriteIn, item: &Item, baseline: usize, outer_stops: Stops) -> bool {
-    item.payload_view().is_boundary()
-        || implicit_delimited_newline(baseline, item.leading_view())
-        || item.payload_view().is_eof()
-        || is_active_stop(i.rb(), item, iterable_stops(outer_stops))
-}
-
 fn outer_boundary(mut i: RewriteIn, item: &Item, baseline: usize, outer_stops: Stops) -> bool {
     item.payload_view().is_boundary()
         || implicit_delimited_newline(baseline, item.leading_view())

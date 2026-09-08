@@ -1,6 +1,10 @@
 //! Direct expression ownership and Item handoff for the isolated rewrite.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
+#[cfg(test)]
+use super::{current_item::CurrentItem, lexer::scan_nud_payload};
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -18,7 +22,7 @@ use crate::{
 use super::{
     LexIn, RewriteIn, Stops,
     case_like::{CaseLikeFamily, case_like_nud_normalized},
-    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item},
     delimited::parenthesized_nud_normalized,
     emit::{
         ErrorRunOutput, emit_identifier_core, emit_integer_core, emit_operator_use,
@@ -27,8 +31,7 @@ use super::{
     if_expr::if_nud_normalized,
     item::{Item, LeadingTrivia, LeadingView, OperatorUse, TokenKind},
     lexer::{
-        contextual_word_suffix_follower, scan_expression_payload, scan_nud_payload,
-        scan_operator_shaped_unknown,
+        contextual_word_suffix_follower, scan_expression_payload, scan_operator_shaped_unknown,
     },
     literal::{
         NormalizedRuleLiteralExit, NormalizedStringLiteralExit, quote_run, rule_literal_normalized,
@@ -71,9 +74,14 @@ pub(super) enum MlMode {
 
 pub(super) enum NormalizedExit {
     Complete(TailExit, LineEntry),
+    #[allow(
+        dead_code,
+        reason = "normalized-exit frontier contract retains effect-free deferral"
+    )]
     Deferred(Item, LineEntry),
 }
 
+#[cfg(test)]
 pub(super) fn expr(i: RewriteIn) -> Option<TailExit> {
     expr_normalized(
         i,
@@ -91,6 +99,7 @@ pub(super) fn expr(i: RewriteIn) -> Option<TailExit> {
     .map(ordinary_exit)
 }
 
+#[cfg(test)]
 pub(super) fn expr_normalized(
     mut i: RewriteIn,
     threshold: Option<&BindingPower>,
@@ -119,31 +128,6 @@ pub(super) fn expr_normalized(
         fence,
         ambient,
         sequence,
-    ))
-}
-
-pub(super) fn expr_from_nud(
-    i: RewriteIn,
-    nud: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(expr_from_nud_normalized(
-        i,
-        nud,
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        None,
     ))
 }
 
@@ -448,32 +432,6 @@ fn append_rule_literal_nud(
     }
 }
 
-/// An accepted prefix or infix always owns its mandatory right operand. A pure
-/// local absence is Missing; malformed source is one Error sentinel and never
-/// receives a second Missing at the same boundary.
-pub(super) fn required_expr_after_accept(
-    i: RewriteIn,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(required_expr_after_accept_normalized(
-        i,
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        None,
-    ))
-}
-
 #[allow(clippy::too_many_arguments)]
 fn required_expr_after_accept_normalized(
     mut i: RewriteIn,
@@ -512,32 +470,6 @@ fn required_expr_after_accept_normalized(
         ambient,
         sequence,
     )
-}
-
-pub(super) fn required_expr_item(
-    i: RewriteIn,
-    item: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(required_expr_item_normalized(
-        i,
-        item,
-        GrammarRole::Expression(ExpressionRole::Nud),
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        None,
-    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -741,29 +673,6 @@ fn required_expression_recovery_draft(
     )
 }
 
-pub(super) fn scan_tail_after_accept(
-    i: RewriteIn,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(scan_tail_after_accept_normalized(
-        i,
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        None,
-    ))
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn scan_tail_after_accept_normalized(
     mut i: RewriteIn,
@@ -801,22 +710,6 @@ pub(super) fn scan_tail_after_accept_normalized(
         ambient,
         sequence,
     )
-}
-
-pub(super) fn continue_completed_tail(
-    i: RewriteIn,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-    exit: TailExit,
-) -> TailExit {
-    match exit {
-        Ok(()) => scan_tail_after_accept(i, threshold, baseline, stops, ml_mode, line_handoff),
-        Err(Either::Left(item)) => tail(i, item, threshold, baseline, stops, ml_mode, line_handoff),
-        Err(Either::Right(end)) => Err(Either::Right(end)),
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -866,31 +759,6 @@ pub(super) fn continue_normalized_tail(
         }
         NormalizedExit::Deferred(item, line_entry) => NormalizedExit::Deferred(item, line_entry),
     }
-}
-
-pub(super) fn tail(
-    i: RewriteIn,
-    item: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(tail_normalized(
-        i,
-        item,
-        threshold,
-        baseline,
-        stops,
-        ml_mode,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        None,
-    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1268,6 +1136,7 @@ fn operator_tail(
     }
 }
 
+#[cfg(test)]
 fn optional_nud_item(
     mut i: RewriteIn,
     item_origin: usize,
@@ -1415,6 +1284,7 @@ pub(super) fn complete(exit: TailExit, line_entry: LineEntry) -> NormalizedExit 
     NormalizedExit::Complete(exit, line_entry)
 }
 
+#[cfg(test)]
 pub(super) fn ordinary_exit(exit: NormalizedExit) -> TailExit {
     match exit {
         NormalizedExit::Complete(exit, _) => exit,

@@ -1,6 +1,8 @@
 //! Private direct standalone `impl` declaration construction.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 use super::output::RecoveryDraft;
 use crate::session::{
     DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ImplRole,
@@ -41,6 +43,7 @@ use super::{
 };
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(super) fn impl_declaration_witness(
     mut i: RewriteIn,
     baseline: usize,
@@ -79,6 +82,7 @@ pub(super) fn impl_declaration_witness(
     })
 }
 
+#[cfg(test)]
 fn impl_source_selected_normalized(
     i: RewriteIn,
     baseline: usize,
@@ -122,6 +126,7 @@ fn impl_source_selected_normalized(
     .unwrap_or(false)
 }
 
+#[cfg(test)]
 pub(super) fn impl_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
@@ -1120,15 +1125,4 @@ fn emit_visibility(i: &mut RewriteIn, item: Item) {
         _ => unreachable!("Impl visibility uses exact declaration words"),
     };
     emit_item_as(i, item, kind);
-}
-
-fn observes<F>(i: RewriteIn, predicate: F) -> bool
-where
-    F: FnOnce(&str) -> bool,
-{
-    i.map(
-        |lex: LexIn| Some(predicate(lex.remainder())),
-        |observed| observed,
-    )
-    .expect("source observation is total")
 }

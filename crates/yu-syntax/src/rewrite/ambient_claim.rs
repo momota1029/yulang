@@ -84,12 +84,28 @@ pub(super) struct AmbientClaimView<'frame> {
 }
 
 pub(super) struct AmbientIfCompanion<'frame> {
+    #[allow(
+        dead_code,
+        reason = "ambient-claim prerequisite retains companion evidence until its observer gate"
+    )]
     parent: Option<&'frame AmbientIfCompanion<'frame>>,
+    #[allow(
+        dead_code,
+        reason = "ambient-claim prerequisite retains companion evidence until its observer gate"
+    )]
     baseline: usize,
+    #[allow(
+        dead_code,
+        reason = "ambient-claim prerequisite retains companion evidence until its observer gate"
+    )]
     exact_words: &'static [&'static str],
 }
 
 #[derive(Clone, Copy)]
+#[allow(
+    dead_code,
+    reason = "ambient-claim prerequisite reserves this evidence for the separately approved observer"
+)]
 pub(super) struct AmbientPositionEvidence<'word> {
     pub(super) has_physical_newline: bool,
     pub(super) following_line_indent: usize,
@@ -139,6 +155,10 @@ impl<'frame> AmbientClaimView<'frame> {
         }
     }
 
+    #[allow(
+        dead_code,
+        reason = "ambient-claim prerequisite explicitly keeps the query unused outside its proof tests"
+    )]
     pub(super) fn claims(self, evidence: AmbientPositionEvidence<'_>) -> bool {
         if evidence.has_physical_newline
             && self

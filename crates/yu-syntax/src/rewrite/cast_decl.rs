@@ -1,12 +1,16 @@
 //! Private isolated direct standalone `cast` declaration construction.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+#[cfg(test)]
+use super::LexIn;
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 use crate::session::{CastRole, DeclarationRole, GrammarRole};
 use crate::{rewrite::operator::OperatorSite, syntax_kind::SyntaxKind};
 use reborrow_generic::Reborrow as _;
 
 use super::{
-    LexIn, RewriteIn, Stops,
+    RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     driver::{
         Either, MlMode, NormalizedExit, advanced_origin, complete, expr_from_nud_normalized,
@@ -52,6 +56,7 @@ enum CastTransition {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(super) fn cast_declaration_witness(
     mut i: RewriteIn,
     baseline: usize,
@@ -89,6 +94,7 @@ pub(super) fn cast_declaration_witness(
     })
 }
 
+#[cfg(test)]
 fn cast_source_selected_normalized(
     i: RewriteIn,
     baseline: usize,
@@ -132,6 +138,7 @@ fn cast_source_selected_normalized(
     .unwrap_or(false)
 }
 
+#[cfg(test)]
 pub(super) fn cast_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
@@ -1429,15 +1436,4 @@ fn emit_visibility(i: &mut RewriteIn, item: Item) {
         _ => unreachable!("Cast visibility uses exact declaration words"),
     };
     emit_item_as(i, item, kind);
-}
-
-fn observes<F>(i: RewriteIn, predicate: F) -> bool
-where
-    F: FnOnce(&str) -> bool,
-{
-    i.map(
-        |lex: LexIn| Some(predicate(lex.remainder())),
-        |observed| observed,
-    )
-    .expect("source observation is total")
 }

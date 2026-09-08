@@ -13,7 +13,15 @@ pub(super) struct FenceOpener {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum FencePrefixPolicy {
+    #[allow(
+        dead_code,
+        reason = "fence/current-Item contract retains ordinary and quoted prefix policies"
+    )]
     None,
+    #[allow(
+        dead_code,
+        reason = "fence/current-Item contract retains ordinary and quoted prefix policies"
+    )]
     ActivePrefixQuote { depth: usize, base: usize },
 }
 
@@ -84,6 +92,7 @@ pub(super) enum FenceLineDecision {
 }
 
 /// Selects only an exact first ASCII-horizontal-delimited `yulang` atom.
+#[cfg(test)]
 pub(super) fn is_yulang_fence_info(info: &str) -> bool {
     if info.bytes().any(|byte| matches!(byte, b'\r' | b'\n')) {
         return false;

@@ -17,8 +17,8 @@ use super::{
         Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
         continue_normalized_tail, expr_from_nud_normalized, expression_item, handoff,
         implicit_delimited_newline, indentation_after_newline, is_active_stop, is_contextual_word,
-        is_line_stop, is_nud_item, is_separator, ordinary_exit, required_expr_item_normalized,
-        suffix_marker, token_kind,
+        is_line_stop, is_nud_item, is_separator, required_expr_item_normalized, suffix_marker,
+        token_kind,
     },
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
@@ -54,33 +54,6 @@ enum ArmSequencePolicy {
     CatchBraced {
         baseline: usize,
     },
-}
-
-pub(super) fn case_like_nud(
-    i: RewriteIn,
-    family: CaseLikeFamily,
-    keyword: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    outer_stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(case_like_nud_normalized(
-        i,
-        family,
-        keyword,
-        threshold,
-        baseline,
-        outer_stops,
-        ml_mode,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        None,
-    ))
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -7,7 +7,7 @@ use reborrow_generic::Reborrow as _;
 use crate::syntax_kind::SyntaxKind;
 
 use super::{
-    LexIn, RewriteIn, Stops,
+    RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     declaration_companion::declaration_companion_normalized,
     derives::{derives_clause_normalized, is_word},
@@ -32,28 +32,6 @@ use super::{
 };
 
 type NameResult = Result<Option<Item>, Item>;
-
-pub(super) fn type_declaration_selected_normalized(
-    i: RewriteIn,
-    item: &Item,
-    baseline: usize,
-    item_origin: usize,
-    fence: Option<&FenceBoundary>,
-) -> bool {
-    i.map(
-        |lex: LexIn| {
-            Some(type_declaration_selected_lexical(
-                lex.remainder(),
-                item,
-                baseline,
-                item_origin,
-                fence,
-            ))
-        },
-        |selected| selected,
-    )
-    .unwrap_or(false)
-}
 
 pub(super) fn type_declaration_selected_lexical(
     source: &str,
@@ -1009,15 +987,4 @@ fn emit_visibility(i: &mut RewriteIn, item: Item) {
 
 fn emit_item_leading(i: &mut RewriteIn, item: &mut Item) {
     item.emit_all_remaining_leading(&mut *i.state);
-}
-
-fn observes<F>(i: RewriteIn, predicate: F) -> bool
-where
-    F: FnOnce(&str) -> bool,
-{
-    i.map(
-        |lex: LexIn| Some(predicate(lex.remainder())),
-        |observed| observed,
-    )
-    .expect("source observation is total")
 }

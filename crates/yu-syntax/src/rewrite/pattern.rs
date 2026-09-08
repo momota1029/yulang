@@ -1,6 +1,8 @@
 //! Source-free direct Pattern construction.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 use crate::session::{
     ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole, RecoveryKind, RecoverySiteKey,
     SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
@@ -11,14 +13,15 @@ use std::{ops::Range, sync::Arc};
 use crate::syntax_kind::SyntaxKind;
 
 mod delimited;
+#[cfg(test)]
+use super::driver::{TailExit, ordinary_exit};
 
 use super::{
     LexIn, RewriteIn, Stops,
     current_item::{LineEntry, current_item},
     driver::{
-        Either, NormalizedExit, TailExit, advanced_origin, complete, delimited_baseline, handoff,
-        implicit_delimited_newline, ordinary_exit, scan_pattern_literal_payload, suffix_marker,
-        token_kind,
+        Either, NormalizedExit, advanced_origin, complete, delimited_baseline, handoff,
+        implicit_delimited_newline, scan_pattern_literal_payload, suffix_marker, token_kind,
     },
     emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     item::{Item, LeadingTrivia, Payload, TokenKind},
@@ -63,6 +66,7 @@ pub(super) const PATTERN_STOP_IN: PatternStops = 1 << 11;
 pub(super) const PATTERN_STOP_LBRACE: PatternStops = 1 << 12;
 pub(super) const PATTERN_STOP_PRIMARY_COLON: PatternStops = 1 << 13;
 
+#[cfg(test)]
 pub(super) const PATTERN_DEFAULT_STOPS: PatternStops = PATTERN_STOP_COMMA
     | PATTERN_STOP_SEMICOLON
     | PATTERN_STOP_RPAREN
@@ -165,10 +169,7 @@ enum PatternPrecedence {
     Alias,
 }
 
-pub(super) fn pattern(i: RewriteIn) -> TailExit {
-    pattern_with_stops(i, PATTERN_DEFAULT_STOPS)
-}
-
+#[cfg(test)]
 pub(super) fn pattern_with_stops(i: RewriteIn, stops: PatternStops) -> TailExit {
     ordinary_exit(pattern_normalized(
         i,
@@ -180,6 +181,7 @@ pub(super) fn pattern_with_stops(i: RewriteIn, stops: PatternStops) -> TailExit 
     ))
 }
 
+#[cfg(test)]
 pub(super) fn pattern_normalized(
     mut i: RewriteIn,
     item_origin: usize,
@@ -205,6 +207,7 @@ pub(super) fn pattern_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 fn pattern_from_item_normalized(
     i: RewriteIn,
     item: Item,
@@ -238,12 +241,8 @@ pub(super) enum PatternCompletion {
     Incomplete,
 }
 
-pub(super) struct PatternOutcome {
-    pub(super) exit: TailExit,
-    pub(super) completion: PatternCompletion,
-}
-
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 fn pattern_from_item_with_completion_normalized(
     i: RewriteIn,
     item: Item,
@@ -274,6 +273,7 @@ fn pattern_from_item_with_completion_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 fn pattern_from_item_recording_normalized(
     i: RewriteIn,
     item: Item,
@@ -402,50 +402,6 @@ fn pattern_from_item_core_normalized(
             fence,
             ambient,
         )
-    }
-}
-
-pub(super) fn pattern_from_entry_item(
-    i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    stops: PatternStops,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(pattern_from_entry_item_normalized(
-        i,
-        item,
-        baseline,
-        stops,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    ))
-}
-
-pub(super) fn pattern_from_entry_item_with_completion(
-    i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    stops: PatternStops,
-    line_handoff: StatementLineHandoff,
-) -> PatternOutcome {
-    let (exit, completion) = pattern_from_entry_item_with_completion_normalized(
-        i,
-        item,
-        baseline,
-        stops,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    );
-    PatternOutcome {
-        exit: ordinary_exit(exit),
-        completion,
     }
 }
 
@@ -646,37 +602,6 @@ fn recover_pattern_primary_normalized(
         line_handoff,
         policy.recovered_primary_tail_stops,
         caller_closes,
-        completion,
-        item_origin,
-        line_entry,
-        fence,
-        ambient,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn pattern_from_primary_normalized(
-    i: RewriteIn,
-    item: Item,
-    minimum: PatternPrecedence,
-    baseline: usize,
-    stops: PatternStops,
-    line_handoff: StatementLineHandoff,
-    completion: &mut PatternCompletion,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-) -> NormalizedExit {
-    pattern_from_primary_with_recovered_tail_stops_normalized(
-        i,
-        item,
-        minimum,
-        baseline,
-        stops,
-        line_handoff,
-        0,
-        PatternCallerCloses::NONE,
         completion,
         item_origin,
         line_entry,

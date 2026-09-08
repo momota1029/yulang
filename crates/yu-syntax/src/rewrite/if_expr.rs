@@ -1,6 +1,6 @@
 //! Direct ownership for NUD `if` expressions and their arm boundaries.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{
@@ -14,11 +14,10 @@ use super::{
     RewriteIn, Stops,
     current_item::LineEntry,
     driver::{
-        Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
-        continue_normalized_tail, expr_from_nud_normalized, expression_item, handoff,
-        implicit_delimited_newline, indentation_after_newline, is_active_stop, is_contextual_word,
-        is_nud_item, is_required_operand_boundary, ordinary_exit, required_expr_item_normalized,
-        suffix_marker, token_kind,
+        Either, MlMode, NormalizedExit, advanced_origin, complete, continue_normalized_tail,
+        expr_from_nud_normalized, expression_item, handoff, implicit_delimited_newline,
+        indentation_after_newline, is_active_stop, is_contextual_word, is_nud_item,
+        is_required_operand_boundary, required_expr_item_normalized, suffix_marker, token_kind,
     },
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
@@ -27,31 +26,6 @@ use super::{
     statement::{StatementLineHandoff, indented_statement_block_normalized},
     yumark::FenceBoundary,
 };
-
-pub(super) fn if_nud(
-    i: RewriteIn,
-    keyword: Item,
-    threshold: Option<&BindingPower>,
-    baseline: usize,
-    outer_stops: Stops,
-    ml_mode: MlMode,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(if_nud_normalized(
-        i,
-        keyword,
-        threshold,
-        baseline,
-        outer_stops,
-        ml_mode,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        None,
-    ))
-}
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn if_nud_normalized(

@@ -38,6 +38,7 @@ pub(super) fn stops_for(close: super::item::TokenKind) -> Stops {
     STOP_COMMA | STOP_SEMICOLON | close
 }
 
+#[cfg(test)]
 pub(super) fn scan_operator(
     i: LexIn,
     site: OperatorSite,
@@ -115,21 +116,6 @@ pub(super) fn scan_operator_fenced(
         text: text.into(),
         use_,
     })
-}
-
-/// After ordinary role selection rejects a spelling for lack of a value,
-/// recover one role only when the current site makes that role unambiguous.
-///
-/// This remains a source-only probe: no logical Item exists until the caller
-/// accepts the returned token.  In particular, it keeps the ordinary trie
-/// traversal's longer-to-shorter fallback and boundary check intact.
-pub(super) fn scan_dangling_operator(
-    i: LexIn,
-    site: OperatorSite,
-    baseline: usize,
-    stops: Stops,
-) -> Option<OperatorToken> {
-    scan_dangling_operator_fenced(i, site, baseline, stops, 0, None)
 }
 
 /// Fence-aware counterpart of [`scan_dangling_operator`]. A fence boundary
@@ -239,12 +225,6 @@ pub(super) fn active_stop_item(kind: super::item::TokenKind, stops: Stops) -> bo
     }
 }
 
-/// Source-only reservation evidence for the second half of an exact `with:`
-/// introducer. No logical item or parser state is completed by this probe.
-pub(super) fn lone_colon_after_trivia(source: &str) -> bool {
-    lone_colon_after_fenced_trivia(source, 0, LineEntry::InLine, None)
-}
-
 pub(super) fn lone_colon_after_fenced_trivia(
     source: &str,
     source_origin: usize,
@@ -258,12 +238,6 @@ pub(super) fn lone_colon_after_fenced_trivia(
     )
 }
 
-/// Source-only layout evidence for a colon's mandatory RHS. The caller alone
-/// compares it with its incoming baseline; no logical item is completed here.
-pub(super) fn newline_indentation_after_trivia(source: &str) -> Option<usize> {
-    newline_indentation_after_fenced_trivia(source, 0, LineEntry::InLine, None)
-}
-
 pub(super) fn newline_indentation_after_fenced_trivia(
     source: &str,
     source_origin: usize,
@@ -274,18 +248,6 @@ pub(super) fn newline_indentation_after_fenced_trivia(
         TriviaObservation::Visible(visible) => visible.indentation,
         TriviaObservation::Boundary => None,
     }
-}
-
-/// Return source-only facts about one maximal trivia run.  Statement-head
-/// reservation uses the same lexical trivia boundary as operator and body
-/// layout probes without completing an Item.
-pub(super) fn source_after_trivia(source: &str) -> (&str, bool, Option<usize>) {
-    let TriviaObservation::Visible(visible) =
-        observe_fenced_trivia(source, 0, LineEntry::InLine, None)
-    else {
-        unreachable!("ordinary source observation has no fence boundary");
-    };
-    (visible.source, visible.present, visible.indentation)
 }
 
 fn operator_boundary(last: char, following: &str) -> Option<()> {

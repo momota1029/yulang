@@ -1,10 +1,12 @@
 //! Direct canonical statements and their closed sequence owners.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+#[cfg(test)]
+use super::driver::ordinary_exit;
 use crate::session::{
-    BracedStatementBlockRole, ColonApplicationRole, ConstructRole, Delimiter, ExpectationSources,
-    ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey,
-    SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+    BracedStatementBlockRole, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax,
+    GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+    UnexpectedCategory, UnexpectedSyntax,
 };
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
@@ -23,8 +25,8 @@ use super::{
         Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
         continue_normalized_tail, delimited_baseline, expr_from_nud_normalized, handoff,
         implicit_delimited_newline, indentation_after_newline, is_active_stop, is_active_stop_lex,
-        is_close, is_nud_item, is_separator, ordinary_exit, scan_expression_literal_payload,
-        suffix_marker, token_kind,
+        is_close, is_nud_item, is_separator, scan_expression_literal_payload, suffix_marker,
+        token_kind,
     },
     emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     enum_decl::{enum_declaration_normalized, enum_declaration_selected_lexical},
@@ -62,6 +64,7 @@ impl StatementLineHandoff {
     }
 }
 
+#[cfg(test)]
 pub(super) fn statement(i: RewriteIn, baseline: usize, stops: Stops) -> TailExit {
     ordinary_exit(statement_normalized(
         i,
@@ -75,6 +78,7 @@ pub(super) fn statement(i: RewriteIn, baseline: usize, stops: Stops) -> TailExit
     ))
 }
 
+#[cfg(test)]
 pub(super) fn statement_normalized(
     mut i: RewriteIn,
     baseline: usize,
@@ -101,26 +105,8 @@ pub(super) fn statement_normalized(
     )
 }
 
-pub(super) fn statement_from_item(
-    i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    stops: Stops,
-) -> TailExit {
-    ordinary_exit(statement_from_item_normalized(
-        i,
-        item,
-        baseline,
-        stops,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        Some(super::sequence::SequenceOwner::RootStatement),
-    ))
-}
-
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(super) fn statement_from_item_normalized(
     mut i: RewriteIn,
     item: Item,
@@ -145,57 +131,6 @@ pub(super) fn statement_from_item_normalized(
         baseline,
         stops,
         StatementLineHandoff::OrdinaryLayout,
-        item_origin,
-        line_entry,
-        fence,
-        ambient,
-        sequence,
-    )
-}
-
-pub(super) fn canonical_statement(
-    i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    stops: Stops,
-    line_handoff: StatementLineHandoff,
-) -> TailExit {
-    ordinary_exit(canonical_statement_normalized(
-        i,
-        item,
-        baseline,
-        stops,
-        line_handoff,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-        Some(super::sequence::SequenceOwner::RootStatement),
-    ))
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(super) fn canonical_statement_normalized(
-    mut i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    stops: Stops,
-    line_handoff: StatementLineHandoff,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
-) -> NormalizedExit {
-    let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        .expect("canonical Statement wrapper requires an admitted Item");
-    canonical_statement_from_admission_normalized(
-        i,
-        item,
-        admission,
-        baseline,
-        stops,
-        line_handoff,
         item_origin,
         line_entry,
         fence,
@@ -234,39 +169,6 @@ pub(super) fn canonical_statement_from_admission_normalized(
     );
     i.state.finish_node();
     exit
-}
-
-/// Emit one already-selected canonical Statement inside a caller-owned
-/// `Statement` node.  Recovery owners use this after emitting their local
-/// prefix recovery without adding a nested Statement wrapper.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn canonical_statement_contents_normalized(
-    mut i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    stops: Stops,
-    line_handoff: StatementLineHandoff,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
-) -> NormalizedExit {
-    let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        .expect("canonical Statement contents require an admitted Item");
-    canonical_statement_contents_from_admission_normalized(
-        i,
-        item,
-        admission,
-        baseline,
-        stops,
-        line_handoff,
-        item_origin,
-        line_entry,
-        fence,
-        ambient,
-        sequence,
-    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -470,18 +372,9 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
     }
 }
 
+#[cfg(test)]
 pub(super) fn is_canonical_statement_nud(i: RewriteIn, item: &Item, baseline: usize) -> bool {
     classify_statement_item_normalized(i, item, baseline, 0, None).is_some()
-}
-
-pub(super) fn is_canonical_statement_nud_normalized(
-    i: RewriteIn,
-    item: &Item,
-    baseline: usize,
-    item_origin: usize,
-    fence: Option<&FenceBoundary>,
-) -> bool {
-    classify_statement_item_normalized(i, item, baseline, item_origin, fence).is_some()
 }
 
 #[derive(Clone, Copy)]
@@ -602,21 +495,6 @@ enum StatementSequencePolicy {
     Braced,
 }
 
-/// The canonical indented sequence owns its opening trivia and equal-indent
-/// separators; dedent and unimplemented statement starts remain pending Items.
-pub(super) fn indented_statement_block(i: RewriteIn, base_indent: usize, stops: Stops) -> TailExit {
-    ordinary_exit(indented_statement_block_normalized(
-        i,
-        base_indent,
-        GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
-        stops,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(base_indent)).into(),
-    ))
-}
-
 pub(super) fn indented_statement_block_normalized(
     mut i: RewriteIn,
     base_indent: usize,
@@ -704,24 +582,6 @@ pub(super) fn braced_nud_normalized(
         ambient,
         sequence,
     )
-}
-
-/// Construct the existing braced canonical-statement owner without attaching
-/// an expression tail. Declaration bodies reuse this exact delimiter scope.
-pub(super) fn braced_statement_block(
-    i: RewriteIn,
-    open: Item,
-    incoming_baseline: usize,
-) -> TailExit {
-    ordinary_exit(braced_statement_block_normalized(
-        i,
-        open,
-        incoming_baseline,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(incoming_baseline)).into(),
-    ))
 }
 
 pub(super) fn braced_statement_block_normalized(

@@ -609,6 +609,10 @@ pub(crate) enum LiteralRole {
     StringEscapeUnicodeEnd,
     StringInterpolationOpenBrace,
     StringInterpolationCloseBrace,
+    #[allow(
+        dead_code,
+        reason = "typed Rule DSL body-close contract awaits its production owner"
+    )]
     RuleBodyCloseBrace,
     RuleParenClose,
     RuleCaptureRightItem,

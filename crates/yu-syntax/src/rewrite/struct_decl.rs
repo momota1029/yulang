@@ -43,6 +43,7 @@ use super::{
     yumark::FenceBoundary,
 };
 
+#[cfg(test)]
 pub(super) fn struct_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
@@ -610,13 +611,6 @@ impl FieldList {
         match self {
             Self::NamedBrace => TokenKind::RBrace,
             Self::Tuple => TokenKind::RParen,
-        }
-    }
-
-    fn type_boundary(self) -> Option<TypeApplyBoundary> {
-        match self {
-            Self::NamedBrace => Some(TypeApplyBoundary::DeclarationNamedFields),
-            Self::Tuple => None,
         }
     }
 }

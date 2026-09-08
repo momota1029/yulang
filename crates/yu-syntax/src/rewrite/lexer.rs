@@ -1,9 +1,13 @@
 //! Lexical item construction and ordinary trivia ownership for the rewrite.
 
-use chasa_recover::{
-    In,
-    parser::{choice, token},
+#[cfg(test)]
+use super::{
+    item::{LeadingTrivia, Payload},
+    state::Recover,
 };
+#[cfg(test)]
+use chasa_recover::In;
+use chasa_recover::parser::{choice, token};
 use reborrow_generic::short::Rb;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
@@ -12,37 +16,17 @@ use crate::rewrite::operator::OperatorSite;
 use super::{
     LexIn, RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentPayload, LineEntry},
-    item::{
-        ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary, PendingFragments, Token,
-        TokenKind, Trivia,
-    },
+    item::{ForeignSplit, Item, PendingBoundary, PendingFragments, Token, TokenKind, Trivia},
     operator::{
-        STOP_ARROW, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, lone_colon_after_trivia,
-        newline_indentation_after_trivia, scan_dangling_operator_fenced, scan_operator_fenced,
+        STOP_ARROW, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR,
+        scan_dangling_operator_fenced, scan_operator_fenced,
     },
-    state::Recover,
     yumark::{FenceBoundary, FenceLineDecision, judge_fence_line},
 };
 
-pub(super) fn tail_item_after_trivia(
-    mut i: RewriteIn,
-    leading: LeadingTrivia,
-    site: OperatorSite,
-    baseline: usize,
-    stops: Stops,
-) -> Item {
-    let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = i
-        .token(|lex| {
-            scan_expression_payload(lex, site, has_leading_trivia, 0, None, baseline, stops)
-        })
-        .map(accepted_payload)
-        .unwrap_or(Payload::Eof);
-    Item::plain(leading, payload)
-}
-
 /// Complete one canonical Statement head. Visibility words are reserved here,
 /// before dynamic operators, but nowhere in expression-only positions.
+#[cfg(test)]
 pub(super) fn statement_item_after_trivia(
     mut i: RewriteIn,
     leading: LeadingTrivia,
@@ -60,6 +44,7 @@ pub(super) fn statement_item_after_trivia(
 /// Scan one complete canonical Statement item without access to the Rowan
 /// sink. Callers may therefore use the exact typed boundary vocabulary inside
 /// a rollback-capable lexical transaction.
+#[cfg(test)]
 pub(super) fn scan_statement_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
     let leading = scan_trivia(i.rb());
     let payload = scan_statement_payload(
@@ -101,22 +86,6 @@ pub(super) fn scan_statement_payload(
             stops,
         )
     }
-}
-
-/// Path segments have their own lexical vocabulary: sigil-prefixed words and
-/// underscore-prefixed words are not ordinary expression primaries.
-pub(super) fn path_segment_item_after_trivia(
-    mut i: RewriteIn,
-    leading: LeadingTrivia,
-    baseline: usize,
-    stops: Stops,
-) -> Item {
-    let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = i
-        .token(|lex| scan_path_segment_payload(lex, has_leading_trivia, 0, None, baseline, stops))
-        .map(accepted_payload)
-        .unwrap_or(Payload::Eof);
-    Item::plain(leading, payload)
 }
 
 /// Raw payload vocabulary for one normalized expression Item. Leading trivia,
@@ -188,6 +157,7 @@ pub(super) fn scan_expression_payload(
 
 /// Optional NUD payload vocabulary. The enclosing `current_item` transaction
 /// owns rollback when no expression can start at this Item.
+#[cfg(test)]
 pub(super) fn scan_nud_payload(
     mut i: LexIn,
     has_leading_trivia: bool,
@@ -277,10 +247,7 @@ fn scan_token(mut i: LexIn) -> Option<Token> {
     )))
 }
 
-fn scan_token_payload(i: LexIn) -> Payload {
-    scan_token(i).map(Payload::Token).unwrap_or(Payload::Eof)
-}
-
+#[cfg(test)]
 fn accepted_payload(accepted: AcceptedPayload) -> Payload {
     match accepted.payload {
         CurrentPayload::Token(token) => Payload::Token(token),
@@ -288,40 +255,10 @@ fn accepted_payload(accepted: AcceptedPayload) -> Payload {
     }
 }
 
-pub(super) fn scan_nud_item(mut i: LexIn, baseline: usize, stops: Stops) -> Option<Item> {
-    let leading = scan_trivia(i.rb());
-    let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = accepted_payload(
-        i.token(|lex| scan_nud_payload(lex, has_leading_trivia, 0, None, baseline, stops))?,
-    );
-    Some(Item::plain(leading, payload))
-}
-
-/// Source-only reservation evidence for the second half of an exact `with:`
-/// introducer. It completes no logical item and leaves the cursor unchanged.
-pub(super) fn with_colon_follower(i: LexIn) -> Option<bool> {
-    Some(lone_colon_after_trivia(i.remainder()))
-}
-
 /// A dynamic table may recognize a word prefix before the ordinary scanner's
 /// optional `?` / `!` suffix. A contextual word accepts only the full word.
 pub(super) fn contextual_word_suffix_follower(i: LexIn) -> Option<bool> {
     Some(!matches!(i.remainder().chars().next(), Some('?' | '!')))
-}
-
-/// Source-only evidence for a body after any already-accepted introducer.
-/// The caller alone decides its own body arity and indentation policy.
-pub(super) fn introduced_body_indentation_follower(i: LexIn) -> Option<Option<usize>> {
-    Some(newline_indentation_after_trivia(i.remainder()))
-}
-
-/// The one shared source-only layout probe for an already-accepted body
-/// introducer.  It neither completes an Item nor changes recovery state.
-pub(super) fn introduced_body_indentation(i: RewriteIn) -> Option<usize> {
-    i.map(introduced_body_indentation_follower, |indentation| {
-        indentation
-    })
-    .flatten()
 }
 
 pub(super) fn introduced_body_indentation_normalized(
@@ -347,29 +284,6 @@ pub(super) fn scan_case_label_payload(mut i: LexIn) -> Option<AcceptedPayload> {
     Some(token_payload(i.token(scan_apostrophe_sigil_identifier)?))
 }
 
-pub(super) fn scan_type_nud_item(mut i: LexIn) -> Option<Item> {
-    let payload = accepted_payload(i.token(|lex| {
-        let accepted = scan_type_nud_payload(lex, false, 0, None)?;
-        matches!(
-            accepted.payload,
-            CurrentPayload::Token(Token {
-                kind: TokenKind::Forall
-                    | TokenKind::EffectRowApostrophe
-                    | TokenKind::PolymorphicVariantColon
-                    | TokenKind::Identifier
-                    | TokenKind::SigilIdentifier
-                    | TokenKind::Integer
-                    | TokenKind::LBracket
-                    | TokenKind::LParen
-                    | TokenKind::LBrace,
-                ..
-            })
-        )
-        .then_some(accepted)
-    })?);
-    Some(Item::plain(LeadingTrivia::default(), payload))
-}
-
 /// Raw NUD vocabulary for one normalized TypeExpression Item.
 pub(super) fn scan_type_nud_payload(
     mut i: LexIn,
@@ -381,55 +295,6 @@ pub(super) fn scan_type_nud_payload(
         return Some(token_payload(forall));
     }
     scan_type_payload(i, has_leading_trivia, payload_origin, fence)
-}
-
-pub(super) fn type_nud_item_after_trivia<S>(
-    mut i: In<'_, &str, &mut Recover<'_>, S>,
-    leading: LeadingTrivia,
-) -> Item
-where
-    S: Rb,
-{
-    let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = i
-        .token(|lex| scan_type_nud_payload(lex, has_leading_trivia, 0, None))
-        .map(accepted_payload)
-        .unwrap_or(Payload::Eof);
-    Item::plain(leading, payload)
-}
-
-/// Type-declaration headers use raw identifiers rather than TypeExpression's
-/// contextual/sigil classification.  Exact `=` remains separately visible so
-/// the mandatory name slot can hand it directly to the definition slot.
-pub(super) fn declaration_type_header_item_after_trivia<S>(
-    mut i: In<'_, &str, &mut Recover<'_>, S>,
-    leading: LeadingTrivia,
-) -> Item
-where
-    S: Rb,
-{
-    if let Some(token) = i
-        .token(scan_exact_equals)
-        .or_else(|| i.token(scan_identifier))
-    {
-        return Item::plain(leading, Payload::Token(token));
-    }
-    type_nud_item_after_trivia(i, leading)
-}
-
-pub(super) fn type_item_after_trivia<S>(
-    mut i: In<'_, &str, &mut Recover<'_>, S>,
-    leading: LeadingTrivia,
-) -> Item
-where
-    S: Rb,
-{
-    let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = i
-        .token(|lex| scan_type_payload(lex, has_leading_trivia, 0, None))
-        .map(accepted_payload)
-        .unwrap_or(Payload::Eof);
-    Item::plain(leading, payload)
 }
 
 /// Raw successor vocabulary for one normalized TypeExpression Item.
@@ -463,24 +328,6 @@ fn scan_malformed_equals(i: LexIn) -> Option<Token> {
     scan_operator_shaped_unknown(i)
 }
 
-/// Complete a Pattern primary candidate.  Only a primary position recognizes
-/// the adjacent `:identifier` Symbol spelling.
-pub(super) fn pattern_nud_item_after_trivia<S>(
-    mut i: In<'_, &str, &mut Recover<'_>, S>,
-    leading: LeadingTrivia,
-    stops: super::pattern::PatternStops,
-) -> Item
-where
-    S: Rb,
-{
-    let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = i
-        .token(|lex| scan_pattern_nud_payload(lex, has_leading_trivia, 0, None, stops))
-        .map(accepted_payload)
-        .unwrap_or(Payload::Eof);
-    Item::plain(leading, payload)
-}
-
 /// Raw primary vocabulary for one normalized Pattern Item.
 pub(super) fn scan_pattern_nud_payload(
     mut i: LexIn,
@@ -493,24 +340,6 @@ pub(super) fn scan_pattern_nud_payload(
         return Some(token_payload(symbol));
     }
     scan_pattern_payload(i, has_leading_trivia, payload_origin, fence, stops)
-}
-
-/// Complete an already-accepted Pattern's successor.  A colon here belongs to
-/// the Pattern tail judge (or its caller), never to a fresh Symbol primary.
-pub(super) fn pattern_item_after_trivia<S>(
-    mut i: In<'_, &str, &mut Recover<'_>, S>,
-    leading: LeadingTrivia,
-    stops: super::pattern::PatternStops,
-) -> Item
-where
-    S: Rb,
-{
-    let has_leading_trivia = !leading.view().is_grammar_empty();
-    let payload = i
-        .token(|lex| scan_pattern_payload(lex, has_leading_trivia, 0, None, stops))
-        .map(accepted_payload)
-        .unwrap_or(Payload::Eof);
-    Item::plain(leading, payload)
 }
 
 /// Raw successor vocabulary for one normalized Pattern Item.
@@ -586,6 +415,7 @@ pub(super) fn is_operator_shaped_unknown(item: &Item) -> bool {
             .is_some_and(|text| text.chars().all(is_operator_shaped_character))
 }
 
+#[cfg(test)]
 pub(super) fn scan_trivia<S>(mut i: In<'_, &str, &mut Recover<'_>, S>) -> LeadingTrivia
 where
     S: Rb,
@@ -601,16 +431,6 @@ pub(super) fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
     i.check(choice((
         token(scan_horizontal_whitespace),
         token(scan_newline),
-        token(scan_line_comment),
-        token(scan_block_comment),
-    )))
-}
-
-/// One ordinary trivia part that cannot claim a physical newline token.
-/// Multiline block comments remain one part, as in the canonical scanner.
-pub(super) fn scan_ordinary_trivia_part(mut i: LexIn) -> Option<Trivia> {
-    i.check(choice((
-        token(scan_horizontal_whitespace),
         token(scan_line_comment),
         token(scan_block_comment),
     )))
@@ -1265,19 +1085,16 @@ fn scan_record_spread_marker(i: LexIn) -> Option<Token> {
     })
 }
 
+#[cfg(test)]
 fn scan_lparen(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LParen).then_some(token)
 }
 
+#[cfg(test)]
 pub(super) fn scan_lbrace(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LBrace).then_some(token)
-}
-
-pub(super) fn scan_lbracket(i: LexIn) -> Option<Token> {
-    let token = scan_punctuation(i)?;
-    (token.kind == TokenKind::LBracket).then_some(token)
 }
 
 fn scan_dot(mut i: LexIn) -> Option<()> {

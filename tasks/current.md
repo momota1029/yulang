@@ -363,15 +363,16 @@ effect-free optional entry. No benchmark sample/process has been used.
 The old eighth-terminal proposal is not a required prerequisite. Public
 dispatch is rewrite-only; the legacy parser tree has been removed.
 
-Post-cutover cleanup has removed the inactive chasa cursor/scanner/CST stack:
-`input.rs`, `sink.rs`, and `scan/**` are gone; `session.rs` now owns only the
+Post-cutover cleanup is complete. The inactive chasa cursor/scanner/CST stack
+(`input.rs`, `sink.rs`, and `scan/**`) is gone; `session.rs` now owns only the
 typed recovery vocabulary; and the unchanged dynamic-operator judge is
-rewrite-local. The removed bridge had no public consumer. `cargo check -p
-yu-syntax`, its test configuration, focused public/recovery filters, and one
-workspace check pass with zero warnings. The remaining cleanup gate is the
-still-broad `rewrite` dead-code allowance: delete genuinely inactive private
-paths or move test seams before removing that allowance; retain only narrowly
-annotated typed vocabulary required by deferred owner gates.
+rewrite-local. The removed bridge had no public consumer. Test-only rewrite
+seams live under `rewrite/tests/`, about 1,400 further inactive private lines
+are removed, and no module-wide `dead_code` suppression remains. The residual
+annotations are variant/field/method-local contracts for retained Deferred,
+ambient, pending-boundary, Rule and fence vocabulary. Production/test checks,
+public pairs, focused recovery controls and the unrelated workspace check pass
+with zero warnings; known unrelated full-lib baselines remain untouched.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining

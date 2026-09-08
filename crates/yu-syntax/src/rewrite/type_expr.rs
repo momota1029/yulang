@@ -1,6 +1,8 @@
 //! Standalone source-free direct TypeExpression core.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -15,6 +17,8 @@ use crate::{
 };
 
 mod delimited;
+#[cfg(test)]
+use super::driver::{TailExit, ordinary_exit};
 mod forall;
 mod record;
 mod variants;
@@ -23,8 +27,7 @@ use super::{
     RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     driver::{
-        Either, NormalizedExit, TailExit, advanced_origin, complete, handoff, ordinary_exit,
-        suffix_marker, token_kind,
+        Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
     },
     emit::{
         ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_recovery_error_run,
@@ -166,6 +169,7 @@ pub(super) struct RequiredTypeFreshPrimaryPolicy {
 }
 
 /// Isolated ordinary Type ingress; nested owners use the carrier-bearing entry.
+#[cfg(test)]
 pub(super) fn type_nud_item_normalized(
     i: RewriteIn,
     item_origin: usize,
@@ -257,6 +261,7 @@ pub(super) fn required_variant_payload_type_normalized(
     )
 }
 
+#[cfg(test)]
 pub(super) fn type_expr(i: RewriteIn) -> Option<TailExit> {
     type_expr_normalized(
         i,
@@ -268,6 +273,7 @@ pub(super) fn type_expr(i: RewriteIn) -> Option<TailExit> {
     .map(ordinary_exit)
 }
 
+#[cfg(test)]
 pub(super) fn type_expr_normalized(
     mut i: RewriteIn,
     item_origin: usize,
@@ -934,35 +940,6 @@ fn type_expr_from_nud_normalized(
     )
 }
 
-fn type_expr_from_primary(
-    i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    type_ml: TypeMlContext,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    ordinary_exit(type_expr_from_primary_normalized(
-        i,
-        primary,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    ))
-}
-
 #[allow(clippy::too_many_arguments)]
 fn type_expr_from_primary_normalized(
     mut i: RewriteIn,
@@ -999,35 +976,6 @@ fn type_expr_from_primary_normalized(
     );
     i.state.finish_node();
     exit
-}
-
-fn type_expr_from_primary_started(
-    i: RewriteIn,
-    primary: Item,
-    baseline: usize,
-    type_ml: TypeMlContext,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    ordinary_exit(type_expr_from_primary_started_normalized(
-        i,
-        primary,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1148,16 +1096,6 @@ fn type_expr_from_primary_started_normalized(
         ),
         _ => unreachable!("the type NUD scanner accepts only type primaries"),
     }
-}
-
-fn type_item_normalized(
-    i: RewriteIn,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-) -> (Item, usize, LineEntry) {
-    type_item_with_pipe_lexical_normalized(i, item_origin, line_entry, fence, false, ambient)
 }
 
 fn type_item_with_pipe_lexical_normalized(
@@ -1345,33 +1283,6 @@ fn type_item_with_pipe_lexical_normalized_in_error_run(
     })
 }
 
-fn scan_type_tail(
-    i: RewriteIn,
-    baseline: usize,
-    type_ml: TypeMlContext,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    ordinary_exit(scan_type_tail_normalized(
-        i,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    ))
-}
-
 #[allow(clippy::too_many_arguments)]
 fn scan_type_tail_normalized(
     mut i: RewriteIn,
@@ -1412,35 +1323,6 @@ fn scan_type_tail_normalized(
         fence,
         ambient,
     )
-}
-
-fn type_tail(
-    i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    type_ml: TypeMlContext,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-) -> TailExit {
-    ordinary_exit(type_tail_normalized(
-        i,
-        item,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2181,61 +2063,6 @@ fn type_call_tail_normalized(
         fence,
         ambient,
     )
-}
-
-fn type_arrow_rhs(
-    i: RewriteIn,
-    arrow: Item,
-    baseline: usize,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-) -> TailExit {
-    ordinary_exit(type_arrow_rhs_normalized(
-        i,
-        arrow,
-        baseline,
-        TypeMlContext::INACTIVE,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        TypeOuterBoundary::NONE,
-        false,
-        0,
-        LineEntry::InLine,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    ))
-}
-
-fn continue_type_tail(
-    i: RewriteIn,
-    baseline: usize,
-    type_ml: TypeMlContext,
-    apply_boundary: Option<TypeApplyBoundary>,
-    outer_separators: bool,
-    outer_closes: u8,
-    caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
-    exit: TailExit,
-) -> TailExit {
-    ordinary_exit(continue_type_tail_normalized(
-        i,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-        false,
-        complete(exit, LineEntry::InLine),
-        0,
-        None,
-        Some(AmbientClaimView::root_statement(baseline)).into(),
-    ))
 }
 
 #[allow(clippy::too_many_arguments)]

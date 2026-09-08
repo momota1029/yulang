@@ -12,7 +12,7 @@ use std::sync::Arc;
 use crate::{rewrite::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
-    LexIn, RewriteIn, Stops,
+    RewriteIn, Stops,
     current_item::{CurrentItem, LineEntry, current_item},
     driver::{
         Either, MlMode, NormalizedExit, advanced_origin, complete, expr_from_nud_normalized,
@@ -32,28 +32,6 @@ use super::{
     statement::{StatementLineHandoff, indented_statement_block_normalized},
     yumark::FenceBoundary,
 };
-
-pub(super) fn binding_statement_selected_normalized(
-    i: RewriteIn,
-    item: &Item,
-    baseline: usize,
-    item_origin: usize,
-    fence: Option<&FenceBoundary>,
-) -> bool {
-    i.map(
-        |lex: LexIn| {
-            Some(binding_statement_selected_lexical(
-                lex.remainder(),
-                item,
-                baseline,
-                item_origin,
-                fence,
-            ))
-        },
-        |selected| selected,
-    )
-    .unwrap_or(false)
-}
 
 pub(super) fn binding_statement_selected_lexical(
     source: &str,

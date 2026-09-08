@@ -34,28 +34,6 @@ use super::{
     yumark::FenceBoundary,
 };
 
-pub(super) fn mod_declaration_selected_normalized(
-    i: RewriteIn,
-    item: &Item,
-    baseline: usize,
-    item_origin: usize,
-    fence: Option<&FenceBoundary>,
-) -> bool {
-    i.map(
-        |lex: LexIn| {
-            Some(mod_declaration_selected_lexical(
-                lex.remainder(),
-                item,
-                baseline,
-                item_origin,
-                fence,
-            ))
-        },
-        |selected| selected,
-    )
-    .unwrap_or(false)
-}
-
 pub(super) fn mod_declaration_selected_lexical(
     source: &str,
     item: &Item,

@@ -1,6 +1,8 @@
 //! L7 RuleLiteral construction shared by Expression and Pattern owners.
 
-use super::super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::super::ambient_claim::AmbientClaimView;
 use unicode_ident::is_xid_continue;
 
 use super::*;
@@ -9,6 +11,7 @@ use crate::rewrite::rule::{
 };
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg(test)]
 pub(in crate::rewrite) enum RuleLiteralExit {
     Complete,
     Boundary(Item),
@@ -19,11 +22,13 @@ pub(in crate::rewrite) enum NormalizedRuleLiteralExit {
     Boundary(Item, LineEntry),
 }
 
+#[cfg(test)]
 pub(in crate::rewrite) enum PatternLiteralOpener {
     Rule(Item),
     String(Item, StringMode),
 }
 
+#[cfg(test)]
 pub(in crate::rewrite) fn scan_expression_rule_literal_opener_witness(
     mut i: LexIn,
 ) -> Option<Item> {
@@ -40,6 +45,7 @@ pub(in crate::rewrite) fn scan_expression_rule_literal_opener_token(mut i: LexIn
     })
 }
 
+#[cfg(test)]
 pub(in crate::rewrite) fn scan_pattern_literal_opener_witness(
     mut i: LexIn,
 ) -> Option<PatternLiteralOpener> {
@@ -77,6 +83,7 @@ pub(in crate::rewrite) fn scan_pattern_literal_opener_token(mut i: LexIn) -> Opt
 
 /// Builds the non-interpolation portion of an isolated RuleLiteral. A plain
 /// `{` is completed as the exact next Item and handed to the L7 owner.
+#[cfg(test)]
 pub(in crate::rewrite) fn rule_literal_witness(
     i: RewriteIn,
     opener: Item,

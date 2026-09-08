@@ -4,7 +4,6 @@ use std::{ops::Range, sync::Arc};
 
 mod operator;
 mod parse;
-#[allow(dead_code)]
 mod rewrite;
 mod session;
 mod syntax_kind;

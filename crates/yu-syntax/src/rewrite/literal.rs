@@ -53,6 +53,7 @@ pub(super) enum StringMode {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg(test)]
 pub(super) enum StringLiteralExit {
     Complete,
     Boundary(Item),
@@ -61,19 +62,6 @@ pub(super) enum StringLiteralExit {
 pub(super) enum NormalizedStringLiteralExit {
     Complete(LineEntry),
     Boundary(Item, LineEntry),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub(super) enum NonInterpolatingStringExit {
-    Complete,
-    Boundary(Item),
-    DeferredInterpolation(Item),
-}
-
-pub(super) enum NormalizedNonInterpolatingStringExit {
-    Complete(LineEntry),
-    Boundary(Item, LineEntry),
-    DeferredInterpolation(Item, LineEntry),
 }
 
 struct LiteralScan {
@@ -95,6 +83,7 @@ enum InterpolationBodyExit {
 /// Accepts only a complete literal opener candidate. Two adjacent quotes are
 /// the opener and terminator of one normal string; three or more form one
 /// heredoc opener.
+#[cfg(test)]
 pub(super) fn scan_string_opener_witness(mut i: LexIn) -> Option<(Item, StringMode)> {
     let (token, mode) = i.token(scan_string_opener_token)?;
     Some((
@@ -157,6 +146,7 @@ fn accept_string_close(mut i: LexIn, mode: StringMode) -> Option<()> {
 /// Scans one maximal nonempty StringText Item, or returns the first fence/EOF
 /// boundary together with the text Item completed before it. The caller has
 /// already ruled out a structural starter at the entry cursor.
+#[cfg(test)]
 pub(super) fn scan_string_text_witness(
     i: LexIn,
     part_origin: usize,
@@ -174,6 +164,7 @@ pub(super) fn scan_string_text_witness(
 /// witness. The witness is the sole source of a successful borrowed `RBrace`;
 /// this callback surface remains the preserved L3 primitive, while the L6
 /// adapter below supplies full virtual-statement construction.
+#[cfg(test)]
 pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'output, 'frozen>(
     i: RewriteIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
     opener: Item,
@@ -205,6 +196,7 @@ where
 
 /// L6 isolated StringLiteral construction using the canonical virtual
 /// Statement sequence for every interpolation body.
+#[cfg(test)]
 pub(super) fn string_literal_with_virtual_statements_witness<
     'source,
     'recover,
@@ -399,186 +391,6 @@ where
             Err(pending) => return finish_string_boundary(i, pending, part_origin),
         }
     }
-}
-
-/// The RuleAtom/Pattern L5 checkpoint commits every non-interpolation string
-/// piece, but hands the first interpolation percent to the later L6 owner.
-pub(super) fn non_interpolating_string_literal_witness(
-    mut i: RewriteIn,
-    opener: Item,
-    mode: StringMode,
-    part_origin: usize,
-    fence: &FenceBoundary,
-) -> NonInterpolatingStringExit {
-    i.state.start_node(SyntaxKind::StringLiteral.into());
-    emit_literal_item(&mut i, opener, SyntaxKind::StringStart);
-    match non_interpolating_string_body_normalized(
-        i,
-        mode,
-        part_origin,
-        LineEntry::InLine,
-        Some(fence),
-    ) {
-        NormalizedNonInterpolatingStringExit::Complete(_) => NonInterpolatingStringExit::Complete,
-        NormalizedNonInterpolatingStringExit::Boundary(item, _) => {
-            NonInterpolatingStringExit::Boundary(item)
-        }
-        NormalizedNonInterpolatingStringExit::DeferredInterpolation(item, _) => {
-            NonInterpolatingStringExit::DeferredInterpolation(item)
-        }
-    }
-}
-
-/// Completes an already-open StringLiteral whose caller emitted its outer
-/// current Item, including any ordinary leading trivia or Yumark carrier.
-pub(super) fn non_interpolating_string_body_normalized(
-    mut i: RewriteIn,
-    mode: StringMode,
-    mut part_origin: usize,
-    _line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-) -> NormalizedNonInterpolatingStringExit {
-    let mut next_prefix = None;
-
-    loop {
-        let lead = if let Some(prefix) = next_prefix.take() {
-            let structural = i
-                .token(|lex| {
-                    accepted_prefix_content(lex.remainder(), part_origin, &prefix)
-                        .chars()
-                        .next()
-                })
-                .expect("a deferred prefix has a structural successor");
-            match structural {
-                '"' => {
-                    let close = i
-                        .token(|lex| {
-                            scan_prefixed_literal_token(lex, part_origin, &prefix, |token| {
-                                accept_string_close(token, mode)
-                            })
-                        })
-                        .expect("a judged prefixed terminator is accepted");
-                    emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
-                    i.state.finish_node();
-                    return NormalizedNonInterpolatingStringExit::Complete(LineEntry::InLine);
-                }
-                '%' => {
-                    let percent = i
-                        .token(|lex| {
-                            scan_prefixed_literal_token(
-                                lex,
-                                part_origin,
-                                &prefix,
-                                accept_interpolation_percent,
-                            )
-                        })
-                        .expect("a judged interpolation prefix has a percent successor");
-                    i.state.finish_node();
-                    return NormalizedNonInterpolatingStringExit::DeferredInterpolation(
-                        percent,
-                        LineEntry::InLine,
-                    );
-                }
-                '\\' => Some(
-                    i.token(|lex| {
-                        scan_prefixed_literal_token(lex, part_origin, &prefix, accept_escape_lead)
-                    })
-                    .expect("a judged prefixed escape lead is accepted"),
-                ),
-                _ => unreachable!("only a structural literal starter defers a prefix"),
-            }
-        } else if let Some(close) = i.token(|lex| scan_string_close_witness(lex, mode)) {
-            emit_literal_item(&mut i, close, SyntaxKind::StringEnd);
-            i.state.finish_node();
-            return NormalizedNonInterpolatingStringExit::Complete(LineEntry::InLine);
-        } else if i
-            .token(|lex| Some(lex.remainder().starts_with('%')))
-            .expect("the literal source probe is total")
-        {
-            let percent = i
-                .token(scan_interpolation_percent)
-                .expect("checked interpolation percent");
-            i.state.finish_node();
-            return NormalizedNonInterpolatingStringExit::DeferredInterpolation(
-                percent,
-                LineEntry::InLine,
-            );
-        } else {
-            i.token(scan_escape_lead)
-        };
-
-        if let Some(lead) = lead {
-            match emit_string_escape(i.rb(), lead, &mut part_origin, fence, mode) {
-                EscapeExit::Continue => continue,
-                EscapeExit::AfterLine => {
-                    let scan = i
-                        .token(|lex| {
-                            Some(scan_multiline_literal_item(
-                                lex,
-                                part_origin,
-                                fence,
-                                true,
-                                |source| string_text_stop(source, mode),
-                            ))
-                        })
-                        .expect("the post-line literal scanner is total");
-                    match emit_text_scan(&mut i, scan, &mut part_origin) {
-                        Ok(prefix) => {
-                            next_prefix = prefix;
-                            continue;
-                        }
-                        Err(pending) => {
-                            return finish_non_interpolating_string_boundary(
-                                i,
-                                pending,
-                                part_origin,
-                            );
-                        }
-                    }
-                }
-                EscapeExit::NextPrefix(prefix) => {
-                    next_prefix = Some(prefix);
-                    continue;
-                }
-                EscapeExit::Boundary(pending) => {
-                    return finish_non_interpolating_string_boundary(i, pending, part_origin);
-                }
-            }
-        }
-
-        let scan = i
-            .token(|lex| {
-                Some(scan_multiline_literal_item(
-                    lex,
-                    part_origin,
-                    fence,
-                    false,
-                    |source| string_text_stop(source, mode),
-                ))
-            })
-            .expect("the committed literal text scanner is total");
-        match emit_text_scan(&mut i, scan, &mut part_origin) {
-            Ok(prefix) => next_prefix = prefix,
-            Err(pending) => {
-                return finish_non_interpolating_string_boundary(i, pending, part_origin);
-            }
-        }
-    }
-}
-
-fn finish_non_interpolating_string_boundary(
-    mut i: RewriteIn,
-    pending: Item,
-    origin: usize,
-) -> NormalizedNonInterpolatingStringExit {
-    let line_entry = pending_line_entry(&pending);
-    emit_literal_missing(
-        i.rb(),
-        LiteralRole::StringTerminator,
-        boundary_coordinate(&pending, origin),
-    );
-    i.state.finish_node();
-    NormalizedNonInterpolatingStringExit::Boundary(pending, line_entry)
 }
 
 fn pending_line_entry(item: &Item) -> LineEntry {

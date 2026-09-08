@@ -1,6 +1,8 @@
 //! Isolated RuleSequenceCore construction before RuleExpression dispatch.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 mod expression_list;
 
 use reborrow_generic::Reborrow as _;
@@ -94,8 +96,14 @@ pub(super) fn rule_item_unexpected_category(item: &Item) -> UnexpectedCategory {
 
 #[derive(Clone, Copy)]
 enum RuleFrame {
+    #[allow(
+        dead_code,
+        reason = "Rule DSL body owner and its typed close contract remain a deferred production gate"
+    )]
     Body,
-    Parenthesis { outer_literal_quote: bool },
+    Parenthesis {
+        outer_literal_quote: bool,
+    },
     LiteralInterpolation,
 }
 
@@ -107,12 +115,14 @@ pub(super) enum RuleLiteralSequenceExit {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg(test)]
 pub(super) enum RuleWitnessExit {
     Complete,
     Returned(Item),
     Deferred(Item),
 }
 
+#[cfg(test)]
 enum NormalizedRuleWitnessExit {
     Complete(LineEntry),
     Returned(Item, LineEntry),
@@ -131,6 +141,7 @@ enum ItemExit {
 
 /// Builds one isolated RuleBody from an already accepted `{` and one current
 /// Item. It does not recognize `rule` or enter production expression dispatch.
+#[cfg(test)]
 pub(super) fn rule_body_witness(
     i: RewriteIn,
     opener: Item,
@@ -182,6 +193,7 @@ pub(super) fn rule_body_normalized_witness(
     }
 }
 
+#[cfg(test)]
 fn rule_body_normalized(
     mut i: RewriteIn,
     opener: Item,
@@ -227,6 +239,7 @@ fn rule_body_normalized(
 
 /// Scans one rule-local current Item. Physical newlines remain in its leading
 /// trivia so the alternatives owner can consume one separator at a time.
+#[cfg(test)]
 pub(super) fn scan_rule_item_witness(i: LexIn) -> Option<Item> {
     current_item(i, 0, LineEntry::InLine, None, scan_rule_payload).map(|current| current.item)
 }
@@ -842,12 +855,6 @@ pub(super) fn rule_recovery_at(item: &Item, origin: usize) -> usize {
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     )
-}
-
-// Ordinary ExpressionList recovery remains owned by its separate gate.
-fn emit_missing(i: &mut RewriteIn) {
-    i.state.start_node(SyntaxKind::Missing.into());
-    i.state.finish_node();
 }
 
 pub(super) fn emit_rule_missing(i: RewriteIn, role: LiteralRole, at: usize) {

@@ -3,7 +3,9 @@
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
-use rowan::{Checkpoint, GreenNode, GreenNodeBuilder, SyntaxKind as RowanSyntaxKind};
+#[cfg(test)]
+use rowan::Checkpoint;
+use rowan::{GreenNode, GreenNodeBuilder, SyntaxKind as RowanSyntaxKind};
 
 use crate::{
     session::{
@@ -318,6 +320,7 @@ impl RewriteOutput<'_> {
     }
 
     #[inline]
+    #[cfg(test)]
     pub(super) fn checkpoint(&self) -> Checkpoint {
         self.builder.checkpoint()
     }
@@ -328,6 +331,7 @@ impl RewriteOutput<'_> {
     }
 
     #[inline]
+    #[cfg(test)]
     pub(super) fn start_node_at(&mut self, checkpoint: Checkpoint, kind: RowanSyntaxKind) {
         self.builder.start_node_at(checkpoint, kind);
     }
@@ -351,6 +355,7 @@ impl RewriteOutput<'_> {
         self.recoveries.push(RecoverySlot::Complete(record));
     }
 
+    #[cfg(test)]
     pub(super) fn finish(self) -> GreenNode {
         let (green, recoveries) = self.finish_with_recoveries();
         assert!(

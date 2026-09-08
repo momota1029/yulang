@@ -1,12 +1,16 @@
 //! Private direct `error` declaration construction.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+#[cfg(test)]
+use super::LexIn;
+use super::ambient_claim::AmbientClaimContext;
+#[cfg(test)]
+use super::ambient_claim::AmbientClaimView;
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
 
 use super::{
-    LexIn, RewriteIn, Stops,
+    RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     declaration_companion::declaration_companion_normalized,
     declaration_variant::{VariantSequenceForm, declaration_variant_sequence_normalized},
@@ -32,6 +36,7 @@ use super::{
 type NameResult = Result<Option<Item>, Item>;
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(super) fn error_declaration_witness(
     mut i: RewriteIn,
     baseline: usize,
@@ -70,6 +75,7 @@ pub(super) fn error_declaration_witness(
     })
 }
 
+#[cfg(test)]
 fn error_source_selected_normalized(
     i: RewriteIn,
     baseline: usize,
@@ -109,6 +115,7 @@ fn error_source_selected_normalized(
     .unwrap_or(false)
 }
 
+#[cfg(test)]
 pub(super) fn error_declaration_selected_normalized(
     i: RewriteIn,
     item: &Item,
@@ -1004,15 +1011,4 @@ fn emit_visibility(i: &mut RewriteIn, item: Item) {
         _ => unreachable!("Error visibility uses exact declaration words"),
     };
     emit_item_as(i, item, kind);
-}
-
-fn observes<F>(i: RewriteIn, predicate: F) -> bool
-where
-    F: FnOnce(&str) -> bool,
-{
-    i.map(
-        |lex: LexIn| Some(predicate(lex.remainder())),
-        |observed| observed,
-    )
-    .expect("source observation is total")
 }

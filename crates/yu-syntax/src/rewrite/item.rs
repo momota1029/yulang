@@ -10,55 +10,12 @@ impl LeadingTrivia {
         Self(parts)
     }
 
+    #[cfg(test)]
     pub(super) fn view(&self) -> LeadingView<'_> {
         LeadingView {
             physical: &self.0,
             first_unemitted: 0,
         }
-    }
-
-    pub(super) fn ordinary_parts(&self) -> impl Iterator<Item = &Trivia> {
-        self.0.iter()
-    }
-
-    pub(super) fn has_ordinary_trivia(&self) -> bool {
-        self.ordinary_parts().next().is_some()
-    }
-
-    pub(super) fn is_grammar_empty(&self) -> bool {
-        !self.has_ordinary_trivia()
-    }
-
-    pub(super) fn is_adjacent(&self) -> bool {
-        self.is_grammar_empty()
-    }
-
-    pub(super) fn has_ordinary_newline(&self) -> bool {
-        self.ordinary_parts()
-            .any(|part| part.kind == TriviaKind::Newline)
-    }
-
-    pub(super) fn indentation_after_newline(&self) -> Option<usize> {
-        let mut saw_newline = false;
-        let mut at_line_start = false;
-        let mut indentation = 0usize;
-        for part in self.ordinary_parts() {
-            match part.kind {
-                TriviaKind::Newline => {
-                    saw_newline = true;
-                    at_line_start = true;
-                    indentation = 0;
-                }
-                TriviaKind::Whitespace if at_line_start => {
-                    indentation += part.text.chars().count();
-                }
-                TriviaKind::YmQuotePrefix => {
-                    unreachable!("ordinary parts exclude quote prefixes")
-                }
-                _ => at_line_start = false,
-            }
-        }
-        saw_newline.then_some(indentation)
     }
 
     pub(super) fn emit(&self, output: &mut RewriteOutput) {
@@ -79,6 +36,7 @@ impl LeadingTrivia {
 pub(super) struct PhysicalLeadingTrivia(Vec<Trivia>);
 
 impl PhysicalLeadingTrivia {
+    #[cfg(test)]
     pub(super) fn from_ordinary(leading: LeadingTrivia) -> Self {
         Self(leading.0.into_vec())
     }
@@ -123,6 +81,7 @@ impl<'item> LeadingView<'item> {
         !self.has_ordinary_trivia()
     }
 
+    #[cfg(test)]
     pub(super) fn is_adjacent(self) -> bool {
         self.is_grammar_empty()
     }
@@ -230,10 +189,6 @@ impl Trivia {
             kind: TriviaKind::BlockComment,
             text,
         }
-    }
-
-    pub(super) fn is_newline(&self) -> bool {
-        self.kind == TriviaKind::Newline
     }
 
     pub(super) fn has_line_feed(&self) -> bool {
@@ -376,6 +331,7 @@ impl PendingBoundary {
         self.inspected.start
     }
 
+    #[cfg(test)]
     pub(super) fn inspected(&self) -> &std::ops::Range<usize> {
         &self.inspected
     }
@@ -384,6 +340,7 @@ impl PendingBoundary {
         &self.kind
     }
 
+    #[cfg(test)]
     pub(super) fn into_kind(self) -> Boundary {
         self.kind
     }
@@ -391,8 +348,20 @@ impl PendingBoundary {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Delimiter {
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     Parenthesis,
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     Bracket,
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     Brace,
 }
 
@@ -404,8 +373,16 @@ pub(super) struct LayoutEvidence {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum Boundary {
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     Close(Delimiter),
     BorrowedClose(BorrowedTarget),
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     Dedent(LayoutEvidence),
     Stop(StopKind),
     EofAfterTrivia,
@@ -413,33 +390,31 @@ pub(super) enum Boundary {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum BorrowedTarget {
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     Delimiter(Delimiter),
     YumarkFence(Box<super::yumark::FenceCloseFacts>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum StopKind {
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     Newline,
-    Comma,
-    Semicolon,
-    Colon,
-    LeftBrace,
-    Elsif,
-    Else,
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     RightParenthesis,
-    RightBracket,
+    #[allow(
+        dead_code,
+        reason = "protected pending-boundary vocabulary exercised by recovery/output proofs"
+    )]
     RightBrace,
-    Equal,
-    Arrow,
-    ArmGuardIf,
-    ArmGuardWhere,
-    With,
-    Derives,
-    Via,
-    In,
-    Impl,
-    LeftParenthesis,
-    Pipe,
     YumarkFence(Box<super::yumark::YumarkFenceTransition>),
 }
 
@@ -604,6 +579,7 @@ impl ItemExtent {
         self.physical.clone()
     }
 
+    #[cfg(test)]
     pub(super) fn leading(&self) -> std::ops::Range<usize> {
         self.leading.clone()
     }
@@ -899,6 +875,7 @@ impl Item {
         self.emit_leading_range(output, self.physical_leading.len(), |_, _| {});
     }
 
+    #[cfg(test)]
     pub(super) fn emit_terminal_boundary(mut self, output: &mut RewriteOutput) -> PendingBoundary {
         assert_eq!(self.first_unemitted_leading, 0);
         assert!(self.payload_view().is_boundary());

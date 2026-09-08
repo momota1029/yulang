@@ -1,5 +1,7 @@
 //! Direct Rowan emission for already-accepted rewrite items.
 
+#[cfg(test)]
+use super::driver::End;
 use std::{ops::Range, sync::Arc};
 
 use crate::{
@@ -9,7 +11,6 @@ use crate::{
 
 use super::{
     LexIn, RewriteIn,
-    driver::End,
     item::{Item, ItemExtent, LeadingTrivia, TokenKind},
     output::{RecoveryDraft, RewriteOutput},
 };
@@ -398,17 +399,8 @@ pub(super) fn emit_missing(i: &mut RewriteIn, leading: LeadingTrivia) {
     i.state.finish_node();
 }
 
-pub(super) fn emit_leading_trivia(i: &mut RewriteIn, trivia: &LeadingTrivia) {
-    emit_trivia(i, trivia);
-}
-
-pub(super) fn emit_error_item(i: &mut RewriteIn, item: Item) {
-    i.state.start_node(SyntaxKind::Error.into());
-    emit_token_item(i, item);
-    i.state.finish_node();
-}
-
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
+#[cfg(test)]
 pub(super) fn emit_end(output: &mut RewriteOutput, end: &mut End) {
     end.item.emit_eof_leading(output);
 }
