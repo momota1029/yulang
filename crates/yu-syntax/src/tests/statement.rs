@@ -60,24 +60,9 @@ fn canonical_statement_keeps_visibility_collisions_with_their_existing_owner() {
         assert_statement_family(source, family);
     }
 
-    for (source, accepted, family) in [
-        ("my role = value", "my role ", SyntaxKind::RoleDeclaration),
-        ("my impl = value", "my impl ", SyntaxKind::ImplDeclaration),
-    ] {
-        let (green, exit) = run_statement(source);
-        assert_eq!(green.to_string(), accepted, "{source:?}");
-        let root = SyntaxNode::new_root(green);
-        assert_eq!(count(&root, family), 1, "{source:?}");
-        let Some(Err(Either::Left(mut pending))) = exit else {
-            panic!("recovery-owned equals must remain pending: {source:?}")
-        };
-        assert_eq!(
-            pending.payload_view().token_kind(),
-            Some(TokenKind::Equals),
-            "{source:?}",
-        );
-        assert_eq!(emit_pending_leading_text(&mut pending), "", "{source:?}");
-    }
+    // Neither declaration claims Equals as a boundary of its required Type head.
+    assert_statement_family("my role = value", SyntaxKind::RoleDeclaration);
+    assert_statement_family("my impl = value", SyntaxKind::ImplDeclaration);
 
     for source in ["enumx", "errors", "roles", "implicit", "casting", "active"] {
         let (green, _) = run_statement(source);

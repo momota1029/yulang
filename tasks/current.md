@@ -92,8 +92,8 @@ Inline Error is lexical-only and does not cascade a Body Missing. Same-line EOF
 leading stays Cast-owned, while LF/CRLF and protected boundary leading remain
 pending. The now-unreferenced generic raw Missing helper was removed. Cast 22;
 expression recovery 6; normalized 83; recovery-output 25; package/format/diff
-passed. The direct statement filter has one reviewed, unchanged non-Cast
-baseline failure. Benchmark use: zero.
+passed. A later owner-contract audit corrected the stale Role/Impl statement
+dispatch assertion that had exposed the unrelated failure. Benchmark use: zero.
 
 The complete Cast owner is now audited: PatternIntroducer, Pattern, its local
 close, TargetIntroducer, delegated TargetType, BodyIntroducer, Body, and
@@ -109,6 +109,12 @@ its exact `ExpressionList(Item)` record in the same callback, so it is not a
 raw recovery escape. This M0 cleanup removed stale dead-code exemptions from
 the live For, If, and CaseLike recovery roles only; deliberately deferred role
 vocabulary remains annotated. Package check, format, and diff passed.
+
+The ordinary statement dispatch control now separately follows the approved
+Role and Impl required-Type recovery contracts: neither owner claims `=` as a
+head boundary, so its malformed head recovery remains lossless rather than
+returning Equals pending. Only the stale test expectation changed; focused
+statement dispatch, format, and diff checks passed.
 
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E

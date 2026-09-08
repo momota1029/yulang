@@ -449,8 +449,9 @@ remain open.
   `cst_output::emit_missing` helper was removed.
 - M2 preflight and delta review found no concrete defect. Cast 22; expression
   recovery 6; normalized 83; recovery-output 25; package check, format and
-  diff passed. The direct statement filter has one reviewed unrelated
-  non-Cast baseline failure. Benchmark use: zero samples/processes.
+  diff passed. A later owner-contract audit corrected the stale Role/Impl
+  statement-dispatch assertion that had exposed the unrelated failure.
+  Benchmark use: zero samples/processes.
 
 ## Production publisher inventory and live-role cleanup
 
@@ -465,6 +466,15 @@ remain open.
   annotations for genuinely deferred owners. This is M0 structural cleanup,
   not aggregate recovery certification. Package check, format, and diff
   passed; benchmark use: zero samples/processes.
+
+## Statement dispatch owner-contract repair
+
+- The combined `my role = value` / `my impl = value` pending-Equals assertion
+  was stale. Under their approved required-Type contracts neither declaration
+  claims Equals as a head boundary: head recovery remains lossless, then the
+  declaration's established body recovery continues. The test now asserts the
+  distinct Role and Impl declaration owners directly, without changing parser
+  behavior. Focused statement dispatch, format, and diff passed.
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
