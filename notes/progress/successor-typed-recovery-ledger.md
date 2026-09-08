@@ -306,6 +306,7 @@ root and declaration-local owners open.
 | `declaration_variant::parse_variant` and sequence slots | `Variant(Item/Name/Separator)`, `close(EnumBracedVariantBody, Brace)` | M/E | required/terminal item, retry-name, missing separator or local close | lexical exit selects Item/Name; payload children retain roles; `with` and outer terminals remain pending | `declaration_variant::*`, `enum_decl::*`, `error_decl::*` | C |
 | `binding::binding_target_normalized`, inline body/retry | `Declaration(Binding(Target/Body))` | M/E | initial Pattern slot / direct Expression body absence or lexical run | initial caller role enters Pattern only; nested children retain roles; protected boundary stays pending | `binding::*`, `pattern::*` | C |
 | `declaration_companion` introducer/body/item/sequence/close sites | `Declaration(Companion(Introducer/Body/Item/IndentedItem/Separator))`, `close(DeclarationCompanion, Brace)` | M/E | owner slot absence, lexical run, separator or local close | colon-only Introducer; Statement/Derives children retain roles; caller attachments unchanged | `declaration_companion::*`, declaration caller suites | C |
+| `struct_decl` required Name and BodyIntroducer | `Declaration(Struct(Name/BodyIntroducer))` | M/E | header required slots and lexical runs | existing ordered starter union; protected Item stays pending, TypePrimary gap is Struct-owned | `struct_decl::*`, `normalized_struct::*` | C |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an

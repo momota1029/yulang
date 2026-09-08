@@ -1,16 +1,22 @@
 //! Direct canonical `struct` declaration construction.
 
 use super::ambient_claim::AmbientClaimContext;
+use super::output::RecoveryDraft;
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::{
-    session::{DeclarationRole, GrammarRole, StructRole},
+    session::{
+        DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StructRole, SyntaxExpectation,
+        UnexpectedCategory, UnexpectedSyntax,
+    },
     syntax_kind::SyntaxKind,
 };
 
 use super::{
     LexIn, RewriteIn, Stops,
-    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item},
     declaration_companion::declaration_companion_normalized,
     derives::{derives_clause_normalized, is_word},
     driver::{
@@ -18,7 +24,10 @@ use super::{
         implicit_delimited_newline, indentation_after_newline, is_active_stop, suffix_marker,
         token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{
+        emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+        token_syntax_kind,
+    },
     if_expr::active_statement_companion,
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
@@ -265,26 +274,25 @@ fn required_name_normalized(
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> Result<Option<Item>, Item> {
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if item.payload_view().is_boundary()
+        || !gstruct_allowed(&item, baseline)
+        || is_active_stop(i.rb(), &item, stops)
+    {
+        header_missing(&mut i, &item, *item_origin, StructRole::Name);
         return Err(item);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(item);
-    }
-    if !gstruct_allowed(&item, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        header_missing(&mut i, &item, *item_origin, StructRole::Name);
         return Err(item);
     }
     if body_starter_item(&item) {
+        header_missing(&mut i, &item, *item_origin, StructRole::Name);
         item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
         return Ok(Some(item));
     }
     if header_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        header_missing(&mut i, &item, *item_origin, StructRole::Name);
         return Err(item);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -293,51 +301,34 @@ fn required_name_normalized(
         return Ok(None);
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let (mut next, next_origin, next_entry) = struct_item_normalized(
-            i.rb(),
-            *item_origin,
-            *line_entry,
-            fence,
-            baseline,
-            stops,
-            true,
-            false,
-        );
-        *item_origin = next_origin;
-        *line_entry = next_entry;
-        if next.payload_view().is_boundary() {
-            i.state.finish_node();
-            return Err(next);
-        }
-        if next.payload_view().is_eof() {
-            next.emit_eof_leading(&mut *i.state);
-            i.state.finish_node();
-            return Err(next);
-        }
-        if !gstruct_allowed(&next, baseline) {
-            i.state.finish_node();
-            return Err(next);
-        }
-        if body_starter_item(&next) {
-            next.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            return Ok(Some(next));
-        }
-        if header_boundary(i.rb(), &next, baseline, stops) {
-            i.state.finish_node();
-            return Err(next);
-        }
-        if raw_name(&next) {
-            next.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            emit_item_as(&mut i, next, SyntaxKind::Identifier);
-            return Ok(None);
-        }
-        item = next;
+    let (mut next, origin, line) = header_error_run(
+        i.rb(),
+        item,
+        StructRole::Name,
+        baseline,
+        stops,
+        *item_origin,
+        *line_entry,
+        fence,
+    );
+    *item_origin = origin;
+    *line_entry = line;
+    if next.payload_view().is_boundary()
+        || next.payload_view().is_eof()
+        || !gstruct_allowed(&next, baseline)
+        || is_active_stop(i.rb(), &next, stops)
+    {
+        return Err(next);
     }
+    if body_starter_item(&next) {
+        return Ok(Some(next));
+    }
+    if header_boundary(i.rb(), &next, baseline, stops) {
+        return Err(next);
+    }
+    next.emit_all_remaining_leading(&mut *i.state);
+    emit_item_as(&mut i, next, SyntaxKind::Identifier);
+    Ok(None)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -353,19 +344,23 @@ fn parse_body_item_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if item.payload_view().is_boundary()
+        || !gstruct_allowed(&item, baseline)
+        || is_active_stop(i.rb(), &item, stops)
+    {
+        header_missing(&mut i, &item, item_origin, StructRole::BodyIntroducer);
         return complete(handoff(item), line_entry);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        header_missing(&mut i, &item, item_origin, StructRole::BodyIntroducer);
         return complete(handoff(item), line_entry);
     }
-    if !gstruct_allowed(&item, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if !body_starter_item(&item) && body_boundary(i.rb(), &item, baseline, stops) {
+        header_missing(&mut i, &item, item_origin, StructRole::BodyIntroducer);
         return complete(handoff(item), line_entry);
     }
+    let gap = item.extent(item_origin).recovery_range().start;
     item.emit_all_remaining_leading(&mut *i.state);
     match token_kind(&item) {
         Some(TokenKind::Semicolon) => {
@@ -411,7 +406,14 @@ fn parse_body_item_normalized(
             )
         }
         _ if body_boundary(i.rb(), &item, baseline, stops) || type_starter(&item) => {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_recovery_missing(i.rb(), LeadingTrivia::default(), gap, |range| {
+                header_draft(
+                    StructRole::BodyIntroducer,
+                    RecoveryKind::Missing,
+                    range,
+                    Arc::from([]),
+                )
+            });
             complete(handoff(item), line_entry)
         }
         _ => recover_body_introducer_normalized(
@@ -442,53 +444,148 @@ fn recover_body_introducer_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = struct_item_with_pipe_lexical_normalized(
-            i.rb(),
+    (item, item_origin, line_entry) = header_error_run(
+        i.rb(),
+        item,
+        StructRole::BodyIntroducer,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if !item.payload_view().is_boundary()
+        && !item.payload_view().is_eof()
+        && gstruct_allowed(&item, baseline)
+        && !is_active_stop(i.rb(), &item, stops)
+        && body_starter_item(&item)
+    {
+        return parse_body_item_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
-            baseline,
-            stops,
-            false,
-            true,
-            false,
+            ambient,
+            sequence,
         );
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if item.payload_view().is_eof() {
-            item.emit_eof_leading(&mut *i.state);
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if !gstruct_allowed(&item, baseline) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if body_starter_item(&item) {
-            i.state.finish_node();
-            return parse_body_item_normalized(
-                i,
-                item,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
-        if body_boundary(i.rb(), &item, baseline, stops) || type_starter(&item) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
     }
+    complete(handoff(item), line_entry)
+}
+
+fn header_draft(
+    slot: StructRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::Declaration(DeclarationRole::Struct(slot));
+    let expected: &[ExpectedSyntax] = match slot {
+        StructRole::Name => &[ExpectedSyntax::Identifier],
+        StructRole::BodyIntroducer => &[
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis)),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        ],
+        _ => unreachable!("Struct header slot"),
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expected
+            .iter()
+            .map(|expected| SyntaxExpectation {
+                role,
+                expected: *expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            })
+            .collect::<Vec<_>>()
+            .into(),
+        0,
+    )
+}
+
+fn header_missing(i: &mut RewriteIn, item: &Item, origin: usize, role: StructRole) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        header_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn header_error_run(
+    mut i: RewriteIn,
+    mut item: Item,
+    role: StructRole,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let start = item.extent(origin).recovery_range().start;
+    emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = token_kind(&item)
+                .map(token_syntax_kind)
+                .unwrap_or(SyntaxKind::Operator);
+            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+            (item, origin, line) = run.lexical(|lex| {
+                scan_struct_item_lexical(
+                    lex,
+                    origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                    role == StructRole::Name,
+                    role != StructRole::Name,
+                    false,
+                )
+            });
+            let boundary = item.payload_view().is_boundary()
+                || item.payload_view().is_eof()
+                || !gstruct_allowed(&item, baseline)
+                || run.lexical(|lex| super::driver::is_active_stop_lex(lex, &item, stops))
+                || matches!(
+                    token_kind(&item),
+                    Some(
+                        TokenKind::Comma
+                            | TokenKind::RParen
+                            | TokenKind::RBracket
+                            | TokenKind::RBrace
+                    )
+                );
+            if boundary
+                || body_starter_item(&item)
+                || (if role == StructRole::Name {
+                    raw_name(&item)
+                } else {
+                    type_starter(&item)
+                })
+            {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: start..end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, origin, line);
+            }
+        },
+        |range, unexpected| header_draft(role, RecoveryKind::Error, range, unexpected),
+    )
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -1564,43 +1661,68 @@ fn struct_item_with_pipe_lexical_normalized(
     type_vocabulary: bool,
     pipe_lexical: bool,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |mut lex, leading, origin, fence, _| {
-                    if pipe_lexical && let Some(pipe) = lex.token(scan_exact_pipe) {
-                        return Some(AcceptedPayload {
-                            payload: CurrentPayload::Token(pipe),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
-                        return Some(AcceptedPayload {
-                            payload: CurrentPayload::Token(identifier),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    if type_vocabulary {
-                        scan_type_nud_payload(lex, leading, origin, fence)
-                    } else {
-                        scan_statement_payload(lex, leading, origin, fence, baseline, stops)
-                    }
-                },
-            )
-        })
-        .expect("Struct payload scanning is total");
+    i.token(|lex| {
+        Some(scan_struct_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+            raw_identifier,
+            type_vocabulary,
+            pipe_lexical,
+        ))
+    })
+    .expect("Struct payload scanning is total")
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_struct_item_lexical(
+    i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    raw_identifier: bool,
+    type_vocabulary: bool,
+    pipe_lexical: bool,
+) -> (Item, usize, LineEntry) {
+    let (current, consumed) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| {
+                if pipe_lexical && let Some(pipe) = lex.token(scan_exact_pipe) {
+                    return Some(AcceptedPayload {
+                        payload: CurrentPayload::Token(pipe),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
+                    return Some(AcceptedPayload {
+                        payload: CurrentPayload::Token(identifier),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                if type_vocabulary {
+                    scan_type_nud_payload(lex, leading, origin, fence)
+                } else {
+                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                }
+            },
+        )
+        .expect("Struct payload scanning is total")
+    });
     (
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
+        current.item,
+        item_origin
+            .checked_add(consumed.len())
+            .expect("Struct coordinate fits usize"),
+        current.next_line_entry,
     )
 }
 
@@ -1611,7 +1733,13 @@ fn header_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops)
         || is_active_stop(i.rb(), item, stops)
         || matches!(
             token_kind(item),
-            Some(TokenKind::Comma | TokenKind::Semicolon)
+            Some(
+                TokenKind::Comma
+                    | TokenKind::Semicolon
+                    | TokenKind::RParen
+                    | TokenKind::RBracket
+                    | TokenKind::RBrace
+            )
         )
 }
 
@@ -1622,7 +1750,13 @@ fn body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -
         || is_active_stop(i.rb(), item, stops)
         || matches!(
             token_kind(item),
-            Some(TokenKind::Comma | TokenKind::Semicolon)
+            Some(
+                TokenKind::Comma
+                    | TokenKind::Semicolon
+                    | TokenKind::RParen
+                    | TokenKind::RBracket
+                    | TokenKind::RBrace
+            )
         )
 }
 

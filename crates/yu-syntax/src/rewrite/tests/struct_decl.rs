@@ -1,10 +1,419 @@
 use super::*;
 
+fn typed_struct(
+    source: &str,
+    origin: usize,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
+    let (green, exit, records, _) = typed_struct_continuation(source, origin, frozen, stops, fence);
+    (green, exit, records)
+}
+
+fn typed_struct_continuation<'a>(
+    source: &'a str,
+    origin: usize,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> (
+    GreenNode,
+    NormalizedExit,
+    Vec<CommittedRecoveryRecord>,
+    &'a str,
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = statement_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        stops,
+        origin,
+        LineEntry::InLine,
+        fence,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        Some(crate::rewrite::sequence::SequenceOwner::RootStatement),
+    );
+    builder.finish_node();
+    let (green, records) = builder.finish_with_recoveries();
+    (green, exit, records, input)
+}
+
+#[test]
+fn struct_header_frozen_preserves_exact_close_and_newline_continuation() {
+    for header in ["struct", "struct @", "struct S", "struct 名 @"] {
+        for (leading, pending, suffix) in [
+            ("  ", ")", "tail"),
+            ("  ", "}", "tail"),
+            ("  ", "]", "tail"),
+            ("\r\n", "next", " tail"),
+        ] {
+            let source = format!("{header}{leading}{pending}{suffix}");
+            let (green, exit, mut records, remainder) =
+                typed_struct_continuation(&source, 100, None, 0, None);
+            assert_eq!(green.to_string(), header);
+            assert_eq!(records.len(), 1);
+            assert_eq!(remainder, suffix);
+            records[0].id = crate::session::DiagnosticId(71);
+            let (again, frozen_exit, frozen, frozen_remainder) =
+                typed_struct_continuation(&source, 100, Some(&records), 0, None);
+            assert_eq!(again, green);
+            assert_eq!(frozen, records);
+            assert_eq!(frozen_remainder, remainder);
+            let NormalizedExit::Complete(Err(Either::Left(mut item)), entry) = exit else {
+                panic!("protected Item")
+            };
+            let NormalizedExit::Complete(Err(Either::Left(frozen_item)), frozen_entry) =
+                frozen_exit
+            else {
+                panic!("frozen protected Item")
+            };
+            assert_eq!(frozen_item, item);
+            assert_eq!(frozen_entry, entry);
+            assert_eq!(entry, LineEntry::InLine);
+            let successor_origin = 100 + source.len() - remainder.len();
+            assert_eq!(
+                successor_origin,
+                100 + header.len() + leading.len() + pending.len()
+            );
+            assert_eq!(
+                item.extent(successor_origin).payload(),
+                100 + header.len() + leading.len()..successor_origin
+            );
+            assert_eq!(item.payload_view().spelling(), Some(pending));
+            assert_eq!(emit_pending_leading_text(&mut item), leading);
+        }
+    }
+}
+
+#[test]
+fn struct_header_visibility_rejection_preserves_seeded_output_and_cursor() {
+    use crate::rewrite::{
+        item::{LeadingTrivia, Payload, Token},
+        output::RecoveryDraft,
+        struct_decl::struct_declaration_selected_normalized,
+    };
+    let (_, _, mut seed) = typed_struct("struct", 100, None, 0, None);
+    seed[0].id = crate::session::DiagnosticId(71);
+    for visibility in ["my", "our", "pub"] {
+        for source in [" structure S;", "\r\nstruct S;"] {
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new(&operators);
+            let mut input = source;
+            let mut builder = GreenNodeBuilder::reconcile(&seed);
+            builder.start_node(SyntaxKind::Root.into());
+            builder.token(SyntaxKind::Identifier.into(), "seed");
+            builder.start_node(SyntaxKind::Missing.into());
+            builder.finish_node();
+            builder.commit_recovery(RecoveryDraft::new(
+                seed[0].site.clone(),
+                seed[0].kind,
+                seed[0].unexpected.clone(),
+                seed[0].expectations.clone(),
+                0,
+            ));
+            let before = builder.diagnostic_position();
+            let make_item = || {
+                Item::plain(
+                    LeadingTrivia::default(),
+                    Payload::Token(Token {
+                        kind: TokenKind::Identifier,
+                        text: visibility.into(),
+                    }),
+                )
+            };
+            let item = make_item();
+            assert!(!struct_declaration_selected_normalized(
+                In::new(&mut input, &mut recover, &mut builder),
+                &item,
+                0,
+                100,
+                None
+            ));
+            assert_eq!(item, make_item());
+            assert_eq!(input, source);
+            assert_eq!(builder.diagnostic_position(), before);
+            assert_eq!(builder.recovery_slot_count(), 1);
+            builder.finish_node();
+            let (green, records) = builder.finish_with_recoveries();
+            assert_eq!(green.to_string(), "seed");
+            assert_eq!(
+                SyntaxNode::new_root(green).children_with_tokens().count(),
+                2
+            );
+            assert_eq!(records, seed);
+        }
+    }
+}
+
+#[test]
+fn struct_header_exact_shifted_frozen_records_and_native_runs() {
+    use crate::session::{
+        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StructRole, SyntaxExpectation,
+        UnexpectedCategory, UnexpectedSyntax,
+    };
+    use std::sync::Arc;
+    for (source, slot, kind, range, text) in [
+        (
+            "struct",
+            StructRole::Name,
+            RecoveryKind::Missing,
+            6..6,
+            "struct",
+        ),
+        (
+            "struct  ",
+            StructRole::Name,
+            RecoveryKind::Missing,
+            8..8,
+            "struct  ",
+        ),
+        (
+            "struct;",
+            StructRole::Name,
+            RecoveryKind::Missing,
+            6..6,
+            "struct;",
+        ),
+        (
+            "struct @ S;",
+            StructRole::Name,
+            RecoveryKind::Error,
+            7..8,
+            "struct @ S;",
+        ),
+        (
+            "struct @ # S;",
+            StructRole::Name,
+            RecoveryKind::Error,
+            7..10,
+            "struct @ # S;",
+        ),
+        (
+            "struct @  ",
+            StructRole::Name,
+            RecoveryKind::Error,
+            7..8,
+            "struct @",
+        ),
+        (
+            "struct S",
+            StructRole::BodyIntroducer,
+            RecoveryKind::Missing,
+            8..8,
+            "struct S",
+        ),
+        (
+            "struct S  ",
+            StructRole::BodyIntroducer,
+            RecoveryKind::Missing,
+            10..10,
+            "struct S  ",
+        ),
+        (
+            "struct S Foo",
+            StructRole::BodyIntroducer,
+            RecoveryKind::Missing,
+            8..8,
+            "struct S ",
+        ),
+        (
+            "struct S @ ;",
+            StructRole::BodyIntroducer,
+            RecoveryKind::Error,
+            9..10,
+            "struct S @ ;",
+        ),
+        (
+            "struct S @  ",
+            StructRole::BodyIntroducer,
+            RecoveryKind::Error,
+            9..10,
+            "struct S @",
+        ),
+        (
+            "struct 名 @ ;",
+            StructRole::BodyIntroducer,
+            RecoveryKind::Error,
+            11..12,
+            "struct 名 @ ;",
+        ),
+    ] {
+        let (green, _, records) = typed_struct(source, 100, None, 0, None);
+        assert_eq!(green.to_string(), text, "{source:?}");
+        let range = range.start + 100..range.end + 100;
+        let role = GrammarRole::Declaration(DeclarationRole::Struct(slot));
+        let expected = if slot == StructRole::Name {
+            vec![ExpectedSyntax::Identifier]
+        } else {
+            vec![
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis)),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            ]
+        };
+        assert_eq!(
+            records,
+            [CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone()
+                },
+                kind,
+                unexpected: if kind == RecoveryKind::Error {
+                    Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }])
+                } else {
+                    Arc::from([])
+                },
+                expectations: expected
+                    .into_iter()
+                    .map(|expected| SyntaxExpectation {
+                        role,
+                        expected,
+                        range: range.clone(),
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
+                    })
+                    .collect::<Vec<_>>()
+                    .into(),
+                primary_expectation: 0
+            }],
+            "{source:?}"
+        );
+        let mut seeded = records.clone();
+        seeded[0].id = DiagnosticId(71);
+        let (again, _, frozen) = typed_struct(source, 100, Some(&seeded), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, seeded);
+    }
+}
+
+#[test]
+fn struct_header_keeps_terminal_leading_and_accepts_deeper_retry() {
+    for (source, text) in [
+        ("struct  ]tail", "struct"),
+        ("struct @  ]tail", "struct @"),
+        ("struct S  ]tail", "struct S"),
+        ("struct S @  ]tail", "struct S @"),
+        ("struct\r\nnext", "struct"),
+        ("struct @\r\nnext", "struct @"),
+        ("struct S\r\nnext", "struct S"),
+        ("struct S @\r\nnext", "struct S @"),
+    ] {
+        let (green, exit, records) = typed_struct(source, 100, None, 0, None);
+        assert_eq!(green.to_string(), text, "{source:?}");
+        assert_eq!(records.len(), 1);
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+            panic!("pending boundary")
+        };
+        assert!(emit_pending_leading_text(&mut item).len() >= 2);
+    }
+    for source in [
+        "struct @\r\n  S;",
+        "struct S @\r\n  ;",
+        "struct @ S{}",
+        "struct @ S()",
+        "struct @ S:\n  x: F",
+    ] {
+        let (green, _, records) = typed_struct(source, 0, None, 0, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(records.len(), 1);
+    }
+}
+
 fn declaration(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .descendants()
         .find(|node| node.kind() == SyntaxKind::StructDeclaration)
         .expect("StructDeclaration")
+}
+
+#[test]
+fn struct_header_active_starters_and_quoted_fences_remain_whole() {
+    use crate::rewrite::{
+        operator::{STOP_COLON, STOP_LBRACE},
+        yumark::{FenceOpener, FencePrefixPolicy},
+    };
+    use crate::session::RecoveryKind;
+    for (source, text, stops, leading) in [
+        ("struct  :tail", "struct", STOP_COLON, "  "),
+        ("struct @  :tail", "struct @", STOP_COLON, "  "),
+        ("struct S  :tail", "struct S", STOP_COLON, "  "),
+        ("struct S @  :tail", "struct S @", STOP_COLON, "  "),
+        ("struct  {tail", "struct", STOP_LBRACE, "  "),
+        ("struct S @  {tail", "struct S @", STOP_LBRACE, "  "),
+        ("struct\r\n", "struct", STOP_COLON, "\r\n"),
+        ("struct S\r\n", "struct S", STOP_COLON, "\r\n"),
+    ] {
+        let (green, exit, records) = typed_struct(source, 100, None, stops, None);
+        assert_eq!(green.to_string(), text, "{source:?}");
+        assert_eq!(records.len(), 1);
+        let mut item = match exit {
+            NormalizedExit::Complete(Err(Either::Left(item)), _) => item,
+            NormalizedExit::Complete(Err(Either::Right(end)), _) => end.item,
+            _ => panic!("protected item"),
+        };
+        assert_eq!(emit_pending_leading_text(&mut item), leading);
+        if !source.contains('@') {
+            assert_eq!(records[0].site.range, 100 + text.len()..100 + text.len());
+        }
+    }
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (source, text, range, kind) in [
+        (
+            "struct\r\n>> ```",
+            "struct",
+            108..108,
+            RecoveryKind::Missing,
+        ),
+        (
+            "struct @\r\n>> ```",
+            "struct @",
+            107..108,
+            RecoveryKind::Error,
+        ),
+        (
+            "struct S\r\n>> ```",
+            "struct S",
+            110..110,
+            RecoveryKind::Missing,
+        ),
+        (
+            "struct S @\r\n>> ```",
+            "struct S @",
+            109..110,
+            RecoveryKind::Error,
+        ),
+    ] {
+        let (green, exit, records) = typed_struct(source, 100, None, 0, Some(&fence));
+        assert_eq!(green.to_string(), text);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].site.range, range);
+        assert_eq!(records[0].kind, kind);
+        assert!(
+            matches!(exit, NormalizedExit::Complete(Err(Either::Left(ref item)), _) if item.payload_view().is_boundary())
+        );
+        let (again, _, frozen) = typed_struct(source, 100, Some(&records), 0, Some(&fence));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
@@ -186,8 +595,8 @@ fn struct_c11_header_and_body_recovery_stays_owner_local() {
 #[test]
 fn struct_c11_malformed_recovery_owns_trailing_eof_trivia() {
     for (source, error_parent, error_text) in [
-        ("struct @ ", SyntaxKind::StructDeclaration, "@ "),
-        ("struct S @ ", SyntaxKind::StructDeclaration, "@ "),
+        ("struct @ ", SyntaxKind::StructDeclaration, "@"),
+        ("struct S @ ", SyntaxKind::StructDeclaration, "@"),
         ("struct S{x @ ", SyntaxKind::StructField, " @ "),
         ("struct S{@ ", SyntaxKind::StructField, "@ "),
     ] {
@@ -201,7 +610,14 @@ fn struct_c11_malformed_recovery_owns_trailing_eof_trivia() {
             .expect("trailing EOF trivia token");
         assert_eq!(trailing.kind(), SyntaxKind::Whitespace, "{source:?}");
         assert_eq!(trailing.text(), " ", "{source:?}");
-        let error = trailing.parent().expect("trailing EOF trivia owner");
+        if error_parent == SyntaxKind::StructDeclaration {
+            // Header Error leaves terminal EOF leading to the pending Item.
+            assert_eq!(trailing.parent().unwrap().kind(), SyntaxKind::Root);
+        }
+        let error = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Error)
+            .unwrap();
         assert_eq!(error.kind(), SyntaxKind::Error, "{source:?}");
         assert_eq!(error.to_string(), error_text, "{source:?}");
         assert_eq!(

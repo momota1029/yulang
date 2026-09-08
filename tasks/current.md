@@ -278,6 +278,12 @@ the selected colon-only Introducer expectation and protected retry leading are
 covered across Struct/Type/Enum/Error/Act callers. Companion: 28; package/
 format/diff and specification/regression audits passed.
 
+The Struct header gate in
+`2026-09-08-successor-struct-header-current-item-recovery.md` is implemented.
+Name and BodyIntroducer now publish typed records with the existing ordered
+starter union; header EOF/protected boundary ownership is explicit. Struct 28,
+normalized Struct 4, package/format/diff and independent delta audits passed.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public
