@@ -123,10 +123,17 @@ substitute. The completed authority inventory also proves that Yumark's
 authoritative `Vec<Recovered<Statement>>` does not define the canonical
 Statement sum or its field/recovery mappings: historical candidate AST prose
 cannot be adopted implicitly from current-item record roles. A combined M3
-canonical syntax-product amendment must select that full closure together with
-the seam and literal schema. Complete its compiler/recovery, specification and
-static performance review, then record user approval before its shared-output
-pilot.
+canonical syntax-product Draft now selects a candidate closure for the actual
+currently admitted surface, explicitly excluding the still-unadmitted generic
+expression assignment/`as Type`/Type-attached-Impl gates. It must select its
+still-open Type/body/list/chain/header field maps together with the seam and
+literal schema, complete
+compiler/recovery, specification and static performance review, then record
+user approval before its shared-output pilot.
+Focused Draft deltas have so far closed the Act implicit-bodyless/companion and
+Impl first-colon product mapping, and identified the Rule leading-fragment
+batching obligation; they do not constitute review of the incomplete total
+product closure or implementation authority.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be

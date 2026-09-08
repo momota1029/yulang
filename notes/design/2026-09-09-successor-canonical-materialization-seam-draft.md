@@ -209,19 +209,69 @@ PublishedFragment { text, physical: Range, logical: language-text | foreign-pref
 ```
 
 The consuming Item/leading owner derives these ranges once from its explicit
-origin, extent, physical leading parts, and single existing split cursor. It
-checks `physical.end - physical.start == text.len()` and that fragments
-partition the consumed physical Item. This makes unfragmented payloads and
-partially emitted leading explicit at a nonzero origin, while a split's lexical
-coordinate is a checked input rather than an independently rediscovered AST
-fact. The common surface advances physical accounting from `text` exactly once
-and passes the classified coordinate to the AST materializer immediately.
+origin, extent, physical leading parts, and one emission-local monotone cursor.
+The cursor validates carrier structure once at Item construction/finalization,
+then advances leading index, split index and physical offset exactly once per
+fragment. It checks `physical.end - physical.start == text.len()` and partition
+progression during that one traversal; it never restarts a split search or
+calls `extent()`/`fragment_cursor()` per fragment. This makes unfragmented
+payloads and partially emitted leading explicit at a nonzero origin, while a
+split's lexical coordinate is a checked input rather than an independently
+rediscovered AST fact. The common surface advances physical accounting from
+`text` exactly once and passes the classified coordinate to the AST materializer
+immediately.
 
 The direct-CST specialization replaces the current token-counter increment
 with this common call; it may not wrap it with a second counter, branch,
 dynamic dispatch, `Option<Vec<Range>>`, or AST accumulator on its per-fragment
 path. AST owner vectors grow only after their grammar owner has committed;
 rejected/deferred entry allocates neither parent nor child.
+
+### Candidate static construction boundary
+
+The candidate has exactly two private static materializers:
+
+```text
+CommittedOutput<M> { ledger: RecoveryLedger, account: PhysicalEmissionAccount,
+                     sink: M::Sink }
+M ::= DirectCst | SyntaxAst
+```
+
+Only committed construction owners are generic in `M`; they return
+`Committed { product, exit }`. Direct products and list accumulators are
+erased rather than `Vec<()>`; AST products are the selected owned structures.
+Lexing, operator/stop judgment, coordinate cursor, recovery draft validation,
+reservation, frozen reconciliation and physical accounting remain non-generic
+narrow operations. A materializer has neither parser cursor nor ledger access.
+
+Two product modes necessarily create bounded construction specialization; this
+Draft does not promise impossible zero code duplication. The design instead
+forbids duplicate heavy lexical/recovery algorithms, dynamic dispatch and an
+event interpreter. Before widening the generic closure, the pilot must inspect
+optimized code size/symbols under matching settings and distinguish intentional
+two-mode owner code from duplicated shared algorithms.
+
+The existing single-frontier API may allow multiple partial emission operations
+per Item. A one-cursor-per-operation proof is therefore insufficient until a
+caller audit proves operations are bounded or batches newline-sensitive emission
+through the existing immediate hook. If that audit finds unbounded resumptions,
+stop: a persistent/resumable coordinate capability would need its own narrow
+frontier amendment, not an accidental cache.
+
+The audit has one concrete unbounded-resumption site:
+`rule/mod.rs` repeatedly emits one ordinary-newline prefix of the same Item.
+The candidate repair is to consume through the last eligible newline in one
+emission-local cursor traversal and perform the existing Rule finish/start
+sequence from that traversal's immediate per-part callback. It must preserve
+the exact token/node order and line handoff for LF, CRLF, comments and foreign
+prefixes. Because the callback runs before its part, its local `open_next`
+state finishes the current `RuleSequence` immediately before each newline
+fragment, opens the next only immediately before the following physical
+fragment, and opens it after traversal before payload/boundary handling when
+the newline was final. Thus no newline token enters the next RuleSequence. No
+persistent cursor is selected by this Draft. If this batching cannot preserve
+the Rule contract, return to design for a narrowly approved frontier capability
+rather than retaining repeated cursor restarts.
 
 ## Product inventory prerequisite
 
