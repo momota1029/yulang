@@ -336,10 +336,6 @@ pub(crate) enum ConstructRole {
     ParenthesizedPattern,
     ListPattern,
     RecordPattern,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     CastPattern,
     TypeCall,
     ParenthesizedTypeGroup,

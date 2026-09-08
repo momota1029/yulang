@@ -50,6 +50,14 @@ The immediately following Cast Pattern absence gate is complete under
 colon/form handoff use the existing transition, while malformed Pattern input
 remains Pattern-owned. Cast 13; direct cone 162; package/format/diff passed.
 
+Cast Pattern's local closing-parenthesis gate is complete under
+`2026-09-09-successor-cast-pattern-close-current-item-recovery.md`. Its two
+Missing paths and bounded malformed run publish `CastPattern` closing-delimiter
+records; local close keeps priority, outer boundaries remain unread, and Error
+does not add a second Missing. Nonempty same-line EOF leading extends the Error
+node, record, and fact together. Cast 14; direct cone 162; package/format/diff
+passed. Benchmark use: zero.
+
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E
 addenda. Selected P/E/numeric-Call structured Error controls cover exact

@@ -144,6 +144,97 @@ fn cast_pattern_record(id: u32, at: usize) -> CommittedRecoveryRecord {
     }
 }
 
+fn cast_pattern_close_record(
+    id: u32,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+) -> CommittedRecoveryRecord {
+    use crate::recovery_record::{
+        ConstructRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax,
+    };
+    use std::sync::Arc;
+    let role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::CastPattern,
+        delimiter: Delimiter::Parenthesis,
+    };
+    let unexpected = (kind == RecoveryKind::Error)
+        .then(|| UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        })
+        .into_iter()
+        .collect::<Vec<_>>()
+        .into();
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            )),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+#[test]
+fn cast_pattern_close_records_are_exact_and_reconcile() {
+    for origin in [100, 12_000] {
+        for (source, kind, relative_range) in [
+            ("cast(x", RecoveryKind::Missing, 6..6),
+            ("cast(x;", RecoveryKind::Missing, 6..6),
+            ("cast(x= value", RecoveryKind::Missing, 6..6),
+            ("cast(x @ ): T;", RecoveryKind::Error, 7..8),
+            ("cast(x @   ", RecoveryKind::Error, 7..11),
+            ("cast(x @\r\n", RecoveryKind::Error, 7..8),
+        ] {
+            let expected = cast_pattern_close_record(
+                0,
+                kind,
+                origin + relative_range.start..origin + relative_range.end,
+            );
+            let (green, _, records, remainder) = typed_cast(source, origin, None, 0, None);
+            assert_eq!(records.first(), Some(&expected), "{source:?} at {origin}");
+            assert_eq!(
+                records
+                    .iter()
+                    .filter(|record| {
+                        record.site.role
+                            == crate::recovery_record::GrammarRole::ClosingDelimiter {
+                                owner: crate::recovery_record::ConstructRole::CastPattern,
+                                delimiter: crate::recovery_record::Delimiter::Parenthesis,
+                            }
+                    })
+                    .collect::<Vec<_>>(),
+                [&expected],
+                "{source:?} at {origin}"
+            );
+            let (again, _, frozen, frozen_remainder) =
+                typed_cast(source, origin, Some(&records), 0, None);
+            assert_eq!(again, green, "{source:?} at {origin}");
+            assert_eq!(frozen, records, "{source:?} at {origin}");
+            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
+            let mut seeded = records.clone();
+            seeded[0].id = crate::recovery_record::DiagnosticId(71);
+            let (seeded_green, _, seeded_records, seeded_remainder) =
+                typed_cast(source, origin, Some(&seeded), 0, None);
+            assert_eq!(seeded_green, green, "{source:?} at {origin}");
+            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
+            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+        }
+    }
+}
+
 #[test]
 fn cast_pattern_absence_records_are_exact_and_reconcile() {
     for origin in [100, 12_000] {

@@ -380,6 +380,19 @@ root and declaration-local owners open.
 | `root` top-level sequence/body recovery | `Statement(Starter/Separator/TrailingInput/OperatorDefinitionBody)` and Layout InlineTrivia | M/E | root-start/layout boundary, lexical delimiter-aware Error, or operator body slot | exact pending/End handoff; header scope is leading-only; full records remain fresh | `root::*` | C-private-entry |
 | public `scan_header -> parse_file` | retained header records plus full Root records | scoped frozen / fresh | one syntax authority; public source identity precedes table build | recovery encounter order precedes conflicts; records are not replayed | `parse::tests::public_parser_pair_*` | C-cutover; legacy removed at `dfa481c4` |
 
+## Cast Pattern close current-Item recovery
+
+- Completed `2026-09-09-successor-cast-pattern-close-current-item-recovery.md`.
+  The Cast Pattern local close's two Missing sites and its single bounded Error
+  run now publish `ClosingDelimiter(CastPattern, Parenthesis)`. Local `)` keeps
+  priority; target/form and outer boundaries retain their pending Items; an
+  Error boundary never appends a same-slot Missing.
+- The selected nonempty same-line EOF-leading suffix extends the Error node,
+  typed record, and `OtherCharacter` fact together; empty/newline EOF leading
+  remains pending. M2 preflight plus delta review found no concrete defect.
+  Cast 14; Pattern/normalized/recovery-output 162; package, format and diff
+  passed. Benchmark use: zero.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

@@ -604,7 +604,7 @@ fn cast_pattern_close_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    let transition = cast_transition(i.rb(), &item, baseline, stops, has_local_close);
+    let mut transition = cast_transition(i.rb(), &item, baseline, stops, has_local_close);
     if !has_local_close {
         i.state.finish_node();
         return match transition {
@@ -667,7 +667,7 @@ fn cast_pattern_close_normalized(
     }
     if matches!(transition, CastTransition::Target | CastTransition::Form) {
         item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_pattern_close_missing(&mut i, &item, item_origin);
         i.state.finish_node();
         return if transition == CastTransition::Target {
             cast_target_introducer_normalized(
@@ -698,27 +698,23 @@ fn cast_pattern_close_normalized(
         };
     }
     if transition == CastTransition::OuterBoundary {
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_pattern_close_missing(&mut i, &item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), line_entry);
     }
 
     item.emit_all_remaining_leading(&mut *i.state);
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = cast_item_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-            CastVocabulary::Statement,
-        );
-        let transition = cast_transition(i.rb(), &item, baseline, stops, true);
-        if transition == CastTransition::LocalClose {
-            i.state.finish_node();
+    (item, item_origin, line_entry, transition) = cast_pattern_close_error_run(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    match transition {
+        CastTransition::LocalClose => {
             item.emit_all_remaining_leading(&mut *i.state);
             emit_token_item(&mut i, item);
             i.state.finish_node();
@@ -734,8 +730,7 @@ fn cast_pattern_close_normalized(
                 sequence,
             );
         }
-        if matches!(transition, CastTransition::Target | CastTransition::Form) {
-            i.state.finish_node();
+        CastTransition::Target | CastTransition::Form => {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.finish_node();
             return if transition == CastTransition::Target {
@@ -766,15 +761,11 @@ fn cast_pattern_close_normalized(
                 )
             };
         }
-        if transition == CastTransition::OuterBoundary {
-            if item.payload_view().is_eof() && cast_gap_allowed(&item, baseline) {
-                item.emit_eof_leading(&mut *i.state);
-            }
-            i.state.finish_node();
+        CastTransition::OuterBoundary => {
             i.state.finish_node();
             return complete(handoff(item), line_entry);
         }
-        item.emit_all_remaining_leading(&mut *i.state);
+        CastTransition::Other => unreachable!("close Error returns a transition"),
     }
 }
 
@@ -1425,6 +1416,143 @@ fn cast_pattern_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
             0,
         )
     });
+}
+
+fn cast_pattern_close_role() -> GrammarRole {
+    GrammarRole::ClosingDelimiter {
+        owner: crate::recovery_record::ConstructRole::CastPattern,
+        delimiter: Delimiter::Parenthesis,
+    }
+}
+
+fn cast_pattern_close_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    let role = cast_pattern_close_role();
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        RecoveryDraft::new(
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                )),
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cast_pattern_close_error_run(
+    i: SyntaxIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry, CastTransition) {
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(origin).recovery_range().start;
+            loop {
+                let kind = cast_error_syntax_kind(&item);
+                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+                (item, origin, line) = run.lexical(|lex| {
+                    scan_cast_item_lexical(
+                        lex,
+                        origin,
+                        line,
+                        fence,
+                        baseline,
+                        stops,
+                        CastVocabulary::Statement,
+                    )
+                });
+                let transition = cast_transition_lex(run, &item, baseline, stops);
+                if transition != CastTransition::Other {
+                    let error_end = if transition == CastTransition::OuterBoundary
+                        && cast_error_owns_eof_leading(&item)
+                        && !item.extent(origin).remaining().is_empty()
+                    {
+                        run.emit_same_line_eof_leading(&mut item, origin).end
+                    } else {
+                        end
+                    };
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..error_end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, origin, line, transition);
+                }
+            }
+        },
+        |range, unexpected| {
+            let role = cast_pattern_close_role();
+            RecoveryDraft::new(
+                RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                RecoveryKind::Error,
+                unexpected,
+                Arc::from([SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Parenthesis,
+                    )),
+                    range,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                0,
+            )
+        },
+    )
+}
+
+fn cast_transition_lex(
+    run: &mut crate::cst_output::emit::ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+) -> CastTransition {
+    if cast_token_kind(item) == Some(TokenKind::RParen) {
+        return CastTransition::LocalClose;
+    }
+    if !cast_gap_allowed(item, baseline) {
+        return CastTransition::OuterBoundary;
+    }
+    if cast_token_kind(item) == Some(TokenKind::Colon) {
+        return CastTransition::Target;
+    }
+    if is_form_starter(item) {
+        return CastTransition::Form;
+    }
+    if item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || run.lexical(|lex| is_active_stop_lex(lex, item, stops))
+        || is_line_stop(item, stops)
+        || is_separator(item)
+        || matches!(
+            cast_token_kind(item),
+            Some(TokenKind::RBracket | TokenKind::RBrace)
+        )
+    {
+        CastTransition::OuterBoundary
+    } else {
+        CastTransition::Other
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
