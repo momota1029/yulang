@@ -300,7 +300,7 @@ fn pattern_from_item_recording_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        PatternRole::Primary,
+        GrammarRole::Pattern(PatternRole::Primary),
         completion,
         item_origin,
         line_entry,
@@ -319,7 +319,7 @@ fn pattern_from_item_recording_with_policy_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    primary_role: PatternRole,
+    primary_role: GrammarRole,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -358,7 +358,7 @@ fn pattern_from_item_core_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    primary_role: PatternRole,
+    primary_role: GrammarRole,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -369,7 +369,7 @@ fn pattern_from_item_core_normalized(
         || is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops)
     {
         *completion = PatternCompletion::Incomplete;
-        emit_pattern_missing(&mut i, primary_role, &item, item_origin);
+        emit_initial_pattern_missing(&mut i, primary_role, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if is_pattern_nud(&item, stops) {
@@ -533,7 +533,7 @@ pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
         line_handoff,
         policy,
         caller_closes,
-        PatternRole::Primary,
+        GrammarRole::Pattern(PatternRole::Primary),
         &mut completion,
         item_origin,
         line_entry,
@@ -553,7 +553,7 @@ fn recover_pattern_primary_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    primary_role: PatternRole,
+    primary_role: GrammarRole,
     completion: &mut PatternCompletion,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -567,11 +567,11 @@ fn recover_pattern_primary_normalized(
             || is_pattern_primary_boundary(item, baseline, stops)
     };
     if boundary(&item) {
-        emit_pattern_missing(&mut i, primary_role, &item, item_origin);
+        emit_initial_pattern_missing(&mut i, primary_role, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if is_current_pattern_tail(&item, stops) {
-        emit_pattern_missing(&mut i, primary_role, &item, item_origin);
+        emit_initial_pattern_missing(&mut i, primary_role, &item, item_origin);
         return pattern_tail_normalized(
             i,
             item,
@@ -616,7 +616,7 @@ fn recover_pattern_primary_normalized(
             }
         },
         |range, unexpected| {
-            pattern_recovery_draft(primary_role, RecoveryKind::Error, range, unexpected)
+            initial_pattern_recovery_draft(primary_role, RecoveryKind::Error, range, unexpected)
         },
     );
     if boundary(&item) {
@@ -1078,7 +1078,7 @@ fn pattern_tail_normalized(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            PatternRole::AlternationRhs,
+            GrammarRole::Pattern(PatternRole::AlternationRhs),
             completion,
             rhs_origin,
             rhs_line_entry,
@@ -1189,6 +1189,85 @@ fn recover_pattern_alias_binding_normalized(
     emit_token_item(&mut i, item);
     *completion = PatternCompletion::Complete;
     pattern_item_normalized(i, item_origin, line_entry, fence, stops)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn binding_target_from_entry_item_normalized(
+    i: RewriteIn,
+    item: Item,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    pattern_from_item_recording_with_policy_normalized(
+        i,
+        item,
+        PatternPrecedence::Lowest,
+        baseline,
+        stops,
+        line_handoff,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        GrammarRole::Declaration(crate::session::DeclarationRole::Binding(
+            crate::session::BindingRole::Target,
+        )),
+        &mut PatternCompletion::Incomplete,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+fn emit_initial_pattern_missing(
+    i: &mut RewriteIn,
+    role: GrammarRole,
+    item: &Item,
+    item_origin: usize,
+) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        initial_pattern_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn initial_pattern_recovery_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    if let GrammarRole::Pattern(role) = role {
+        return pattern_recovery_draft(role, kind, range, unexpected);
+    }
+    debug_assert_eq!(
+        role,
+        GrammarRole::Declaration(crate::session::DeclarationRole::Binding(
+            crate::session::BindingRole::Target
+        ))
+    );
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Pattern,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 fn emit_pattern_missing(i: &mut RewriteIn, role: PatternRole, item: &Item, item_origin: usize) {

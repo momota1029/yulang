@@ -1,4 +1,307 @@
 use super::*;
+use crate::rewrite::yumark::{FenceOpener, FencePrefixPolicy};
+
+fn typed_binding<'a>(
+    source: &'a str,
+    origin: usize,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+) -> (
+    GreenNode,
+    NormalizedExit,
+    &'a str,
+    Vec<CommittedRecoveryRecord>,
+) {
+    typed_binding_fenced(source, origin, frozen, None, 0)
+}
+
+fn typed_binding_fenced<'a>(
+    source: &'a str,
+    origin: usize,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    fence: Option<&FenceBoundary>,
+    stops: Stops,
+) -> (
+    GreenNode,
+    NormalizedExit,
+    &'a str,
+    Vec<CommittedRecoveryRecord>,
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = statement_normalized(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        stops,
+        origin,
+        LineEntry::InLine,
+        fence,
+        Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        Some(crate::rewrite::sequence::SequenceOwner::RootStatement),
+    );
+    builder.finish_node();
+    let (green, records) = builder.finish_with_recoveries();
+    (green, exit, input, records)
+}
+
+#[test]
+fn binding_body_keeps_complete_protected_items_and_quoted_fences() {
+    use crate::session::{BindingRole, DeclarationRole, GrammarRole, RecoveryKind};
+    for (source, text, range, kind) in [
+        ("my x =  ]tail", "my x =", 106..106, RecoveryKind::Missing),
+        ("my x = @  ]tail", "my x = @", 107..108, RecoveryKind::Error),
+    ] {
+        let stops = crate::rewrite::operator::stops_for(TokenKind::RBracket);
+        let (green, exit, suffix, records) = typed_binding_fenced(source, 100, None, None, stops);
+        assert_eq!(green.to_string(), text);
+        assert_eq!(suffix, "tail");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].site.range, range);
+        assert_eq!(records[0].kind, kind);
+        let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+            panic!("active close remains pending")
+        };
+        assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+        assert_eq!(
+            item.extent(100 + source.len() - suffix.len())
+                .recovery_range()
+                .start,
+            100 + text.len()
+        );
+    }
+    for source in [
+        "my x =  ;tail",
+        "my x = @  ;tail",
+        "my x =\r\nnext tail",
+        "my x = @\r\nnext tail",
+    ] {
+        let (_, exit, suffix, records) = typed_binding(source, 100, None);
+        let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+            panic!("pending boundary: {source:?}")
+        };
+        let pending_end = 100 + source.len() - suffix.len();
+        let protected_start = if source.contains('@') { 108 } else { 106 };
+        assert_eq!(
+            item.extent(pending_end).recovery_range().start,
+            protected_start,
+            "{source:?}"
+        );
+        assert_eq!(records.len(), 1);
+    }
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (source, text, kind, range) in [
+        (
+            "my x =\r\n>> ```",
+            "my x =",
+            RecoveryKind::Missing,
+            108..108,
+        ),
+        (
+            "my x = @\r\n>> ```",
+            "my x = @",
+            RecoveryKind::Error,
+            107..108,
+        ),
+    ] {
+        let (green, exit, _, records) = typed_binding_fenced(source, 100, None, Some(&fence), 0);
+        assert_eq!(green.to_string(), text);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, kind);
+        assert_eq!(records[0].site.range, range);
+        assert_eq!(records[0].expectations.len(), 1);
+        assert_eq!(records[0].expectations[0].range, range);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body))
+        );
+        assert!(
+            matches!(exit, NormalizedExit::Complete(Err(Either::Left(ref item)), _) if item.payload_view().is_boundary())
+        );
+        let (again, _, _, frozen) =
+            typed_binding_fenced(source, 100, Some(&records), Some(&fence), 0);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
+}
+
+#[test]
+fn binding_initial_slots_publish_exact_shifted_and_frozen_records() {
+    use crate::session::*;
+    use std::sync::Arc;
+    for (source, slot, kind, range, text) in [
+        ("my", BindingRole::Target, RecoveryKind::Missing, 2..2, "my"),
+        (
+            "my = value",
+            BindingRole::Target,
+            RecoveryKind::Missing,
+            3..3,
+            "my = value",
+        ),
+        (
+            "my @ x = value",
+            BindingRole::Target,
+            RecoveryKind::Error,
+            3..4,
+            "my @ x = value",
+        ),
+        (
+            "my @ = value",
+            BindingRole::Target,
+            RecoveryKind::Error,
+            3..4,
+            "my @ = value",
+        ),
+        (
+            "my @ ;",
+            BindingRole::Target,
+            RecoveryKind::Error,
+            3..4,
+            "my @",
+        ),
+        (
+            "my x =  ",
+            BindingRole::Body,
+            RecoveryKind::Missing,
+            8..8,
+            "my x =  ",
+        ),
+        (
+            "my x =  ;",
+            BindingRole::Body,
+            RecoveryKind::Missing,
+            6..6,
+            "my x =",
+        ),
+        (
+            "my x =\r\nnext",
+            BindingRole::Body,
+            RecoveryKind::Missing,
+            6..6,
+            "my x =",
+        ),
+        (
+            "my x = @ @ value",
+            BindingRole::Body,
+            RecoveryKind::Error,
+            7..10,
+            "my x = @ @ value",
+        ),
+        (
+            "my x = @  ;",
+            BindingRole::Body,
+            RecoveryKind::Error,
+            7..8,
+            "my x = @",
+        ),
+        (
+            "my x = @\r\nnext",
+            BindingRole::Body,
+            RecoveryKind::Error,
+            7..8,
+            "my x = @",
+        ),
+        (
+            "my x = @  ",
+            BindingRole::Body,
+            RecoveryKind::Error,
+            7..8,
+            "my x = @  ",
+        ),
+        (
+            "my 界 = @ λ",
+            BindingRole::Body,
+            RecoveryKind::Error,
+            9..10,
+            "my 界 = @ λ",
+        ),
+    ] {
+        for origin in [0, 4103] {
+            let (green, _, _, records) = typed_binding(source, origin, None);
+            assert_eq!(green.to_string(), text, "{source:?}");
+            let range = origin + range.start..origin + range.end;
+            let role = GrammarRole::Declaration(DeclarationRole::Binding(slot));
+            let unexpected = if kind == RecoveryKind::Error {
+                Arc::from([UnexpectedSyntax::Token {
+                    range: range.clone(),
+                    category: UnexpectedCategory::OtherCharacter,
+                }])
+            } else {
+                Arc::from([])
+            };
+            let expected = [CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                kind,
+                unexpected,
+                expectations: Arc::from([SyntaxExpectation {
+                    role,
+                    expected: if slot == BindingRole::Target {
+                        ExpectedSyntax::Pattern
+                    } else {
+                        ExpectedSyntax::Expression
+                    },
+                    range,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            }];
+            assert_eq!(records, expected, "{source:?}");
+            let (again, _, _, reconciled) = typed_binding(source, origin, Some(&records));
+            assert_eq!(again, green);
+            assert_eq!(reconciled, records);
+        }
+    }
+}
+
+#[test]
+fn binding_admitted_children_keep_their_own_recovery_roles() {
+    use crate::session::*;
+    for (source, role) in [
+        (
+            "my (,) = value",
+            GrammarRole::Pattern(PatternRole::ParenthesizedElement),
+        ),
+        (
+            "my x: = value",
+            GrammarRole::Pattern(PatternRole::TypeAnnotation),
+        ),
+        (
+            "my x = (",
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::ExpressionGroup,
+                delimiter: Delimiter::Parenthesis,
+            },
+        ),
+    ] {
+        let (_, _, _, records) = typed_binding(source, 0, None);
+        assert!(
+            records.iter().any(|record| record.site.role == role),
+            "{source:?}: {records:?}"
+        );
+        assert!(
+            records.iter().all(|record| !matches!(
+                record.site.role,
+                GrammarRole::Declaration(DeclarationRole::Binding(
+                    BindingRole::Target | BindingRole::Body
+                ))
+            )),
+            "{source:?}: {records:?}"
+        );
+    }
+}
 
 fn binding(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())

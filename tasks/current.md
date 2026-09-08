@@ -265,6 +265,12 @@ repair added child ownership/effect-free evidence and aligned the authorized
 trailing `| with` missing count. Variant/Enum/Error: 23/17/12; package/format/
 diff pass; specification/regression delta audits passed.
 
+The Binding gate in `2026-09-08-successor-binding-current-item-recovery.md`
+is implemented. Binding now transports its initial Target role through Pattern
+only for that required slot; Body publishes typed Missing/Error with lexical
+retry and protected handoff. Binding/Pattern/indented/recovery-output:
+11/54/7/25; package/format/diff pass; independent audits passed.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

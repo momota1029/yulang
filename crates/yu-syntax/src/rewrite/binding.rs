@@ -1,7 +1,13 @@
 //! Direct canonical BindingStatement construction.
 
 use super::ambient_claim::AmbientClaimContext;
+use super::output::RecoveryDraft;
+use crate::session::{
+    BindingRole, DeclarationRole, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
+    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
@@ -13,14 +19,16 @@ use super::{
         expression_item, handoff, implicit_delimited_newline, is_active_stop, is_line_stop,
         is_nud_item, is_separator, suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
         introduced_body_indentation_normalized, is_exact_equals_source, scan_pattern_nud_payload,
         scan_statement_payload, source_declaration_head, source_identifier,
     },
     operator::{TriviaObservation, observe_fenced_trivia},
-    pattern::{PATTERN_STOP_EQUALS, pattern_from_entry_item_normalized, pattern_stops_from_owner},
+    pattern::{
+        PATTERN_STOP_EQUALS, binding_target_from_entry_item_normalized, pattern_stops_from_owner,
+    },
     statement::{StatementLineHandoff, indented_statement_block_normalized},
     yumark::FenceBoundary,
 };
@@ -300,12 +308,12 @@ fn binding_target_normalized(
             .is_some_and(|indentation| indentation <= baseline)
     {
         i.state.start_node(SyntaxKind::Pattern.into());
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_binding_missing(&mut i, BindingRole::Target, &item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), next_line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
-    pattern_from_entry_item_normalized(
+    binding_target_from_entry_item_normalized(
         i,
         item,
         baseline,
@@ -344,8 +352,7 @@ fn binding_body_normalized(
             ambient,
         ),
         Some(_) => {
-            emit_missing(&mut i, LeadingTrivia::default());
-            let (item, _, line_entry) = binding_statement_item_normalized(
+            let (item, item_origin, line_entry) = binding_statement_item_normalized(
                 i.rb(),
                 item_origin,
                 line_entry,
@@ -353,6 +360,7 @@ fn binding_body_normalized(
                 baseline,
                 stops,
             );
+            emit_binding_missing(&mut i, BindingRole::Body, &item, item_origin);
             complete(handoff(item), line_entry)
         }
         None => inline_binding_body_normalized(
@@ -390,15 +398,12 @@ fn inline_binding_body_normalized(
         baseline,
         stops,
     );
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if binding_body_boundary(i.rb(), &item, baseline, stops) {
+        emit_binding_body_eof_leading(&mut i, &mut item, baseline, stops);
+        emit_binding_missing(&mut i, BindingRole::Body, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
-    if binding_body_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
     if is_nud_item(&item) {
         return expr_from_nud_normalized(
             i,
@@ -426,11 +431,7 @@ fn inline_binding_body_normalized(
         fence,
     );
     if binding_body_boundary(i.rb(), &item, baseline, stops) {
-        if !item.payload_view().is_boundary()
-            && !implicit_delimited_newline(baseline, item.leading_view())
-        {
-            item.emit_all_remaining_leading(&mut *i.state);
-        }
+        emit_binding_body_eof_leading(&mut i, &mut item, baseline, stops);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -461,32 +462,108 @@ fn retry_inline_binding_body_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = expression_item(
-            i.rb(),
-            OperatorSite::Nud,
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-        );
-        if binding_body_boundary(i.rb(), &item, baseline, stops) || is_nud_item(&item) {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-    }
+    let start = item.extent(item_origin).recovery_range().start;
+    emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = token_syntax_kind(token_kind(&item).expect("malformed Binding body token"));
+            let end = run
+                .emit_item_as(item, item_origin, kind)
+                .recovery_range()
+                .end;
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                super::driver::scan_expression_item_lexical(
+                    lex,
+                    OperatorSite::Nud,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    baseline,
+                    stops,
+                )
+            });
+            if binding_body_static_boundary(&item, baseline, stops)
+                || run.lexical(|lex| super::driver::is_active_stop_lex(lex, &item, stops))
+                || is_nud_item(&item)
+            {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: start..end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| {
+            binding_recovery_draft(BindingRole::Body, RecoveryKind::Error, range, unexpected)
+        },
+    )
 }
 
 fn binding_body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    binding_body_static_boundary(item, baseline, stops) || is_active_stop(i.rb(), item, stops)
+}
+
+fn binding_body_static_boundary(item: &Item, baseline: usize, stops: Stops) -> bool {
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
         || is_line_stop(item, stops)
         || implicit_delimited_newline(baseline, item.leading_view())
+}
+
+fn emit_binding_body_eof_leading(
+    i: &mut RewriteIn,
+    item: &mut Item,
+    baseline: usize,
+    stops: Stops,
+) {
+    if item.payload_view().is_eof()
+        && !item.payload_view().is_boundary()
+        && !is_line_stop(item, stops)
+        && !implicit_delimited_newline(baseline, item.leading_view())
+        && !is_active_stop(i.rb(), item, stops)
+    {
+        item.emit_eof_leading(&mut *i.state);
+    }
+}
+
+fn emit_binding_missing(i: &mut RewriteIn, role: BindingRole, item: &Item, origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        binding_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn binding_recovery_draft(
+    role: BindingRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        BindingRole::Target => ExpectedSyntax::Pattern,
+        BindingRole::Body => ExpectedSyntax::Expression,
+        _ => unreachable!("inline Binding recovery"),
+    };
+    let role = GrammarRole::Declaration(DeclarationRole::Binding(role));
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
