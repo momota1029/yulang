@@ -271,6 +271,13 @@ only for that required slot; Body publishes typed Missing/Error with lexical
 retry and protected handoff. Binding/Pattern/indented/recovery-output:
 11/54/7/25; package/format/diff pass; independent audits passed.
 
+The declaration Companion gate in
+`2026-09-08-successor-declaration-companion-current-item-recovery.md` is
+implemented. All shared introducer/body/item/separator/close records are typed;
+the selected colon-only Introducer expectation and protected retry leading are
+covered across Struct/Type/Enum/Error/Act callers. Companion: 28; package/
+format/diff and specification/regression audits passed.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

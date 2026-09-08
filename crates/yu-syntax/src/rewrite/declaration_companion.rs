@@ -6,7 +6,14 @@
 //! separators/brace close.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use super::output::RecoveryDraft;
+use crate::session::{
+    ConstructRole, DeclarationCompanionRole as CompanionRole, DeclarationRole, Delimiter,
+    ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
+    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
@@ -19,7 +26,10 @@ use super::{
         implicit_delimited_newline, indentation_after_newline, is_active_stop, is_close,
         is_contextual_word, is_separator, suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item, emit_with_keyword},
+    emit::{
+        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+        emit_with_keyword, token_syntax_kind,
+    },
     if_expr::active_statement_companion,
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{scan_statement_payload, scan_unknown},
@@ -109,10 +119,15 @@ fn companion_after_keyword(
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if introducer_boundary(i.rb(), &item, baseline, caller_stops) {
-        if !item.payload_view().is_boundary() && !item.leading_view().has_ordinary_newline() {
-            item.emit_all_remaining_leading(&mut *i.state);
+        if item.payload_view().is_eof() && !item.leading_view().has_ordinary_newline() {
+            item.emit_eof_leading(&mut *i.state);
         }
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_companion_missing(
+            &mut i,
+            &item,
+            item_origin,
+            companion_role(CompanionRole::Introducer),
+        );
         return complete(handoff(item), line_entry);
     }
 
@@ -146,7 +161,12 @@ fn companion_after_keyword(
             )
         }
         _ if !matches!(admission, CompanionItemAdmission::Rejected) => {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_companion_missing(
+                &mut i,
+                &item,
+                item_origin,
+                companion_role(CompanionRole::Introducer),
+            );
             inline_form_from_item(
                 i,
                 item,
@@ -186,80 +206,65 @@ fn retry_introducer(
     ambient: AmbientClaimContext<'_>,
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    emit_token_item(&mut i, item);
-    let mut item;
-    loop {
-        (item, item_origin, line_entry) = companion_form_item_normalized(
-            i.rb(),
+    let (mut item, origin, entry, admission) = companion_error_run(
+        i.rb(),
+        item,
+        CompanionRole::Introducer,
+        CompanionLayout::Inline,
+        baseline,
+        caller_stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    item_origin = origin;
+    line_entry = entry;
+    if introducer_boundary(i.rb(), &item, baseline, caller_stops) {
+        if item.payload_view().is_eof() && !item.leading_view().has_ordinary_newline() {
+            item.emit_eof_leading(&mut *i.state);
+        }
+        return complete(handoff(item), line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    match token_kind(&item) {
+        Some(TokenKind::Colon) => {
+            emit_token_item(&mut i, item);
+            colon_form(
+                i,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+                sequence,
+            )
+        }
+        Some(TokenKind::LBrace) => {
+            emit_token_item(&mut i, item);
+            braced_form(
+                i,
+                baseline,
+                caller_stops,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+                sequence,
+            )
+        }
+        _ => inline_form_from_item(
+            i,
+            item,
+            admission,
+            baseline,
+            caller_stops,
             item_origin,
             line_entry,
             fence,
-            baseline,
-            caller_stops,
-        );
-        if introducer_boundary(i.rb(), &item, baseline, caller_stops) {
-            if !item.payload_view().is_boundary() {
-                if item.leading_view().has_ordinary_newline() {
-                    emit_leading_before_first_newline(&mut i, &mut item);
-                } else {
-                    item.emit_all_remaining_leading(&mut *i.state);
-                }
-            }
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-
-        let starter = matches!(
-            token_kind(&item),
-            Some(TokenKind::Colon | TokenKind::LBrace)
-        );
-        let admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
-        if starter || !matches!(admission, CompanionItemAdmission::Rejected) {
-            item.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            return match token_kind(&item) {
-                Some(TokenKind::Colon) => {
-                    emit_token_item(&mut i, item);
-                    colon_form(
-                        i,
-                        baseline,
-                        caller_stops,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        ambient,
-                        sequence,
-                    )
-                }
-                Some(TokenKind::LBrace) => {
-                    emit_token_item(&mut i, item);
-                    braced_form(
-                        i,
-                        baseline,
-                        caller_stops,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        ambient,
-                        sequence,
-                    )
-                }
-                _ => inline_form_from_item(
-                    i,
-                    item,
-                    admission,
-                    baseline,
-                    caller_stops,
-                    item_origin,
-                    line_entry,
-                    fence,
-                    ambient,
-                    sequence,
-                ),
-            };
-        }
-        emit_token_item(&mut i, item);
+            ambient,
+            sequence,
+        ),
     }
 }
 
@@ -287,7 +292,12 @@ fn colon_form(
         if block_indent <= baseline
             || companion_body_boundary(i.rb(), &item, baseline, caller_stops)
         {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_companion_missing(
+                &mut i,
+                &item,
+                item_origin,
+                companion_role(CompanionRole::Body),
+            );
             return complete(handoff(item), line_entry);
         }
         return indented_form_from_item(
@@ -303,10 +313,15 @@ fn colon_form(
         );
     }
     if companion_body_boundary(i.rb(), &item, baseline, caller_stops) {
-        if !item.payload_view().is_boundary() {
-            item.emit_all_remaining_leading(&mut *i.state);
+        if item.payload_view().is_eof() {
+            item.emit_eof_leading(&mut *i.state);
         }
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_companion_missing(
+            &mut i,
+            &item,
+            item_origin,
+            companion_role(CompanionRole::Body),
+        );
         return complete(handoff(item), line_entry);
     }
     let admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
@@ -402,7 +417,7 @@ fn indented_form_from_item(
 
         if token_kind(&item) == Some(TokenKind::Semicolon) {
             if after_separator {
-                emit_missing_statement(&mut i);
+                emit_missing_statement(&mut i, &item, item_origin, CompanionRole::IndentedItem);
             }
             (item, item_origin, line_entry) = consume_explicit_separator(
                 i.rb(),
@@ -461,7 +476,12 @@ fn indented_form_from_item(
         if !matches!(admission, CompanionItemAdmission::Rejected)
             && indentation_after_newline(item.leading_view()).is_none()
         {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_companion_missing(
+                &mut i,
+                &item,
+                item_origin,
+                companion_role(CompanionRole::Separator),
+            );
         }
     }
 }
@@ -510,7 +530,7 @@ fn braced_form(
                 }
                 Some(TokenKind::Comma | TokenKind::Semicolon) => {
                     if matches!(slot, BracedSlot::Initial | BracedSlot::AfterSeparator) {
-                        emit_missing_statement(&mut i);
+                        emit_missing_statement(&mut i, &item, item_origin, CompanionRole::Item);
                     }
                     (item, item_origin, line_entry) = consume_explicit_separator(
                         i.rb(),
@@ -535,23 +555,47 @@ fn braced_form(
             if item.payload_view().is_eof() {
                 item.emit_eof_leading(&mut *i.state);
             }
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_companion_missing(&mut i, &item, item_origin, companion_close_role());
             return complete(handoff(item), line_entry);
         }
 
         if is_active_stop(i.rb(), &item, caller_stops)
             || active_statement_companion(i.rb(), &item, baseline, caller_stops).is_some()
         {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_companion_missing(&mut i, &item, item_origin, companion_close_role());
             return complete(handoff(item), line_entry);
         }
 
         match token_kind(&item) {
             Some(TokenKind::RParen | TokenKind::RBracket) => {
                 item.emit_all_remaining_leading(&mut *i.state);
-                i.state.start_node(SyntaxKind::Error.into());
-                emit_token_item(&mut i, item);
-                i.state.finish_node();
+                let delimiter = if token_kind(&item) == Some(TokenKind::RParen) {
+                    Delimiter::Parenthesis
+                } else {
+                    Delimiter::Bracket
+                };
+                let kind = token_syntax_kind(token_kind(&item).unwrap());
+                let range = item.extent(item_origin).recovery_range();
+                emit_recovery_error_item(
+                    i.rb(),
+                    item,
+                    item_origin,
+                    kind,
+                    UnexpectedSyntax::Token {
+                        range,
+                        category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                            delimiter,
+                        )),
+                    },
+                    |range, unexpected| {
+                        companion_draft(
+                            companion_close_role(),
+                            RecoveryKind::Error,
+                            range,
+                            unexpected,
+                        )
+                    },
+                );
                 (item, item_origin, line_entry) = statement_item_normalized(
                     i.rb(),
                     item_origin,
@@ -577,7 +621,12 @@ fn braced_form(
 
         let candidate = !matches!(admission, CompanionItemAdmission::Rejected);
         if matches!(slot, BracedSlot::AfterItem) && candidate {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_companion_missing(
+                &mut i,
+                &item,
+                item_origin,
+                companion_role(CompanionRole::Separator),
+            );
         }
 
         let parsed = companion_item_slot(
@@ -708,7 +757,12 @@ fn derives_run_slot(
             if pending_admission
                 .is_some_and(|admission| !matches!(admission, CompanionItemAdmission::Rejected))
             {
-                emit_missing(&mut i, LeadingTrivia::default());
+                emit_companion_missing(
+                    &mut i,
+                    &item,
+                    item_origin,
+                    companion_role(CompanionRole::Separator),
+                );
             }
             return SlotExit {
                 exit: complete(handoff(item), line_entry),
@@ -763,70 +817,78 @@ fn statement_slot(
     if !item.payload_view().is_boundary() {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    i.state.start_node(SyntaxKind::Error.into());
-    emit_token_item(&mut i, item);
-    loop {
-        (item, item_origin, line_entry) =
-            statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-        if statement_slot_boundary(i.rb(), &item, layout, stops) {
-            if !item.payload_view().is_boundary() && !item.leading_view().has_ordinary_newline() {
-                item.emit_all_remaining_leading(&mut *i.state);
-            }
-            i.state.finish_node();
-            i.state.finish_node();
-            return SlotExit {
-                exit: complete(handoff(item), line_entry),
-                item_origin,
-                complete: false,
-                pending_admission: None,
-            };
+    let role = match layout {
+        CompanionLayout::Inline => CompanionRole::Body,
+        CompanionLayout::Indented { .. } => CompanionRole::IndentedItem,
+        CompanionLayout::Braced { .. } => CompanionRole::Item,
+    };
+    let (next, origin, entry, admission) = companion_error_run(
+        i.rb(),
+        item,
+        role,
+        layout,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    item = next;
+    item_origin = origin;
+    line_entry = entry;
+    if statement_slot_boundary(i.rb(), &item, layout, stops) {
+        if item.payload_view().is_eof() && !item.leading_view().has_ordinary_newline() {
+            item.emit_eof_leading(&mut *i.state);
         }
-        if is_word(&item, "derives") {
-            item.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            i.state.finish_node();
-            return derives_run_slot(
-                i,
-                item,
-                layout,
-                baseline,
-                stops,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
-        if let Some(admission) =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
-            item.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            let entry = suffix_marker(i.rb());
-            let exit = canonical_statement_contents_from_admission_normalized(
-                i.rb(),
-                item,
-                admission,
-                baseline,
-                stops,
-                line_handoff(layout),
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-            item_origin = advanced_origin(item_origin, entry, i.rb());
-            i.state.finish_node();
-            return SlotExit {
-                exit,
-                item_origin,
-                complete: true,
-                pending_admission: None,
-            };
-        }
-        emit_token_item(&mut i, item);
+        i.state.finish_node();
+        return SlotExit {
+            exit: complete(handoff(item), line_entry),
+            item_origin,
+            complete: false,
+            pending_admission: None,
+        };
     }
+    if is_word(&item, "derives") {
+        item.emit_all_remaining_leading(&mut *i.state);
+        i.state.finish_node();
+        return derives_run_slot(
+            i,
+            item,
+            layout,
+            baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+    }
+    if let CompanionItemAdmission::Statement(admission) = admission {
+        item.emit_all_remaining_leading(&mut *i.state);
+        let entry = suffix_marker(i.rb());
+        let exit = canonical_statement_contents_from_admission_normalized(
+            i.rb(),
+            item,
+            admission,
+            baseline,
+            stops,
+            line_handoff(layout),
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        );
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        i.state.finish_node();
+        return SlotExit {
+            exit,
+            item_origin,
+            complete: true,
+            pending_admission: None,
+        };
+    }
+    unreachable!("a lexical retry returns an admitted Statement or boundary")
 }
 
 fn classify_companion_item(
@@ -967,7 +1029,10 @@ fn consume_explicit_separator(
         indentation_after_newline(item.leading_view())
             .is_some_and(|indentation| indentation < block_indent)
     });
-    if !item.payload_view().is_boundary() && !dedent {
+    let protected = is_close(&item)
+        && (indented.is_some() || token_kind(&item) != Some(TokenKind::RBrace))
+        || (token_kind(&item) != Some(TokenKind::RBrace) && is_active_stop(i.rb(), &item, stops));
+    if !item.payload_view().is_boundary() && !dedent && !protected {
         item.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.finish_node();
@@ -981,20 +1046,185 @@ fn emit_separator_leading(i: &mut RewriteIn, item: &mut Item) {
     i.state.finish_node();
 }
 
-fn emit_leading_before_first_newline(i: &mut RewriteIn, item: &mut Item) {
-    let newline_end = item
-        .leading_view()
-        .cut_after_first_ordinary_newline()
-        .expect("a newline boundary has one remaining ordinary newline");
-    let newline_part = newline_end
-        .checked_sub(1)
-        .expect("the first newline has a physical part");
-    item.emit_leading_prefix_with(&mut *i.state, newline_part, |_, _| {});
+fn companion_role(role: CompanionRole) -> GrammarRole {
+    GrammarRole::Declaration(DeclarationRole::Companion(role))
 }
 
-fn emit_missing_statement(i: &mut RewriteIn) {
+fn companion_close_role() -> GrammarRole {
+    GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::DeclarationCompanion,
+        delimiter: Delimiter::Brace,
+    }
+}
+
+fn emit_companion_missing(i: &mut RewriteIn, item: &Item, origin: usize, role: GrammarRole) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        companion_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn companion_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Introducer)) => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
+        }
+        GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Separator)) => {
+            ExpectedSyntax::StatementSeparator
+        }
+        GrammarRole::Declaration(DeclarationRole::Companion(_)) => ExpectedSyntax::Statement,
+        GrammarRole::ClosingDelimiter { delimiter, .. } => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
+        }
+        _ => unreachable!("companion publication role"),
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn companion_error_run(
+    mut i: RewriteIn,
+    mut item: Item,
+    role: CompanionRole,
+    layout: CompanionLayout,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry, CompanionItemAdmission) {
+    let start = item.extent(origin).recovery_range().start;
+    emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = item
+                .payload_view()
+                .token_kind()
+                .map(token_syntax_kind)
+                .unwrap_or(SyntaxKind::Operator);
+            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+            (item, origin, line) = run.lexical(|lex| {
+                scan_companion_item_lexical(
+                    lex,
+                    origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                    role == CompanionRole::Introducer,
+                )
+            });
+            let boundary = item.payload_view().is_boundary()
+                || item.payload_view().is_eof()
+                || is_separator(&item)
+                || is_close(&item)
+                || (if role == CompanionRole::Introducer {
+                    item.leading_view().has_ordinary_newline()
+                } else {
+                    derives_separator_before(&item, layout)
+                        || matches!(layout, CompanionLayout::Indented { block_indent } if indentation_after_newline(item.leading_view()).is_some_and(|indent| indent < block_indent))
+                })
+                || run.lexical(|lex| super::driver::is_active_stop_lex(lex, &item, stops));
+            let admission = if boundary {
+                CompanionItemAdmission::Rejected
+            } else if is_word(&item, "derives") {
+                CompanionItemAdmission::Derives
+            } else {
+                run.lexical(|lex| {
+                    super::statement::classify_statement_item_lexical(
+                        lex.remainder(),
+                        &item,
+                        baseline,
+                        origin,
+                        fence,
+                    )
+                })
+                .map_or(
+                    CompanionItemAdmission::Rejected,
+                    CompanionItemAdmission::Statement,
+                )
+            };
+            let introducer = role == CompanionRole::Introducer
+                && matches!(
+                    token_kind(&item),
+                    Some(TokenKind::Colon | TokenKind::LBrace)
+                );
+            if boundary || introducer || !matches!(admission, CompanionItemAdmission::Rejected) {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: start..end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, origin, line, admission);
+            }
+        },
+        |range, unexpected| {
+            companion_draft(companion_role(role), RecoveryKind::Error, range, unexpected)
+        },
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_companion_item_lexical(
+    i: LexIn,
+    origin: usize,
+    line: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    form: bool,
+) -> (Item, usize, LineEntry) {
+    let (current, consumed) = i.with_str(|lex| {
+        current_item(
+            lex,
+            origin,
+            line,
+            fence,
+            |mut lex: LexIn, leading, origin, fence, _| {
+                if form && lex.remainder().starts_with("::") {
+                    return lex.token(scan_unknown).map(|token| AcceptedPayload {
+                        payload: CurrentPayload::Token(token),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+            },
+        )
+        .expect("companion scanning is total")
+    });
+    (
+        current.item,
+        origin
+            .checked_add(consumed.len())
+            .expect("companion coordinate fits usize"),
+        current.next_line_entry,
+    )
+}
+
+fn emit_missing_statement(i: &mut RewriteIn, item: &Item, origin: usize, role: CompanionRole) {
     i.state.start_node(SyntaxKind::Statement.into());
-    emit_missing(i, LeadingTrivia::default());
+    emit_companion_missing(i, item, origin, companion_role(role));
     i.state.finish_node();
 }
 
@@ -1026,73 +1256,53 @@ fn successor_item(
 }
 
 fn companion_form_item_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     baseline: usize,
     stops: Stops,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
+    i.map(
+        |lex: LexIn| {
+            Some(scan_companion_item_lexical(
                 lex,
                 item_origin,
                 line_entry,
                 fence,
-                |mut lex: LexIn, leading, origin, fence, _| {
-                    if lex.remainder().starts_with("::") {
-                        return lex.token(scan_unknown).map(|token| AcceptedPayload {
-                            payload: CurrentPayload::Token(token),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
-                },
-            )
-        })
-        .expect("declaration companion form scanning is total");
-    (
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
+                baseline,
+                stops,
+                true,
+            ))
+        },
+        |result| result,
     )
+    .expect("companion scanning is total")
 }
 
 fn statement_item_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     baseline: usize,
     stops: Stops,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
+    i.map(
+        |lex: LexIn| {
+            Some(scan_companion_item_lexical(
                 lex,
                 item_origin,
                 line_entry,
                 fence,
-                |lex, leading, origin, fence, _| {
-                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
-                },
-            )
-        })
-        .expect("declaration companion statement scanning is total");
-    (
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
+                baseline,
+                stops,
+                false,
+            ))
+        },
+        |result| result,
     )
+    .expect("companion scanning is total")
 }
 
 #[cfg(test)]
