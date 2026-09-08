@@ -302,6 +302,8 @@ root and declaration-local owners open.
 | `statement::braced_statement_successor_normalized` | `BracedStatementBlock(Separator)` | M | separate admitted Statement without separator | same Item admitted after Missing | `braced_statement_recovery::*`, `statement::*` | C |
 | `statement::braced_terminal_normalized` | `close(BracedStatementBlockExpression, Brace)` | M | local close absent at EOF/fence/outer close | actual `}` emitted only locally; EOF leading emits before successor anchor | `braced_statement_recovery::*`, `tails::*` | C |
 
+| `derives::required_role_normalized`, `required_via_target_normalized` | `Declaration(Derives(RoleReference/ViaTarget))` | M/E | required role boundary / Via lexical run or absence | C15 protected boundary wins before raw-Identifier retry; nested Type retains its role | `derives::*`, `type_expr::*` | C |
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

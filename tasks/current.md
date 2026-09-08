@@ -251,6 +251,12 @@ asserts the authorized handoff. Braced: 7; tails: 14; Act/For/Impl/Mod/Role:
 15/12/11/9/15; package/format/diff pass. Specification/recovery and regression
 delta audits passed; no benchmark process was used.
 
+The Derives gate in `2026-09-08-successor-derives-current-item-recovery.md`
+is implemented. Existing RoleReference/ViaTarget records now publish typed
+output, and ViaTarget recovery returns protected contextual/newline Items before
+identifier retry. Derives: 52; Type: 196; package/format/diff pass; M1
+specification review passed. No benchmark process was used.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

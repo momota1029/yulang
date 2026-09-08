@@ -2,8 +2,12 @@
 //! companion-item owners.
 
 use super::ambient_claim::AmbientClaimContext;
-use crate::session::{DeclarationRole, DerivesRole, GrammarRole};
+use crate::session::{
+    DeclarationRole, DerivesRole, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
+    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::{ops::Range, sync::Arc};
 
 use crate::syntax_kind::SyntaxKind;
 
@@ -11,13 +15,13 @@ use super::{
     LexIn, RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     driver::{
-        Either, NormalizedExit, advanced_origin, indentation_after_newline, is_active_stop,
+        Either, NormalizedExit, advanced_origin, indentation_after_newline, is_active_stop_lex,
         suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
-    if_expr::active_statement_companion,
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{scan_identifier, scan_type_nud_payload},
+    output::RecoveryDraft,
     statement::StatementLineHandoff,
     type_expr::{
         TypeOuterBoundary,
@@ -105,8 +109,12 @@ fn required_role_normalized(
 ) -> (Item, usize, LineEntry) {
     let (primary, item_origin, line_entry) =
         next_clause_item_normalized(i.rb(), item_origin, line_entry, fence, false);
-    if !clause_gap_continues(i.rb(), &primary, baseline, caller_stops, line_handoff) {
-        emit_missing_type_expression(&mut i);
+    if primary.payload_view().is_eof()
+        || !clause_gap_continues(i.rb(), &primary, baseline, caller_stops, line_handoff)
+    {
+        i.state.start_node(SyntaxKind::TypeExpression.into());
+        emit_derives_missing(i.rb(), &primary, item_origin, DerivesRole::RoleReference);
+        i.state.finish_node();
         return (primary, item_origin, line_entry);
     }
     let child_entry = suffix_marker(i.rb());
@@ -143,7 +151,7 @@ fn required_via_target_normalized(
     if !clause_gap_continues(i.rb(), &target, baseline, caller_stops, line_handoff)
         || via_target_boundary(&target)
     {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_derives_missing(i.rb(), &target, item_origin, DerivesRole::ViaTarget);
         return (target, item_origin, line_entry);
     }
     if raw_identifier(&target) {
@@ -151,23 +159,51 @@ fn required_via_target_normalized(
         return next_clause_item_normalized(i, item_origin, line_entry, fence, false);
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, target);
-        (target, item_origin, line_entry) =
-            next_clause_item_normalized(i.rb(), item_origin, line_entry, fence, true);
-        if !clause_gap_continues(i.rb(), &target, baseline, caller_stops, line_handoff)
-            || via_target_boundary(&target)
-            || raw_identifier(&target)
-        {
-            i.state.finish_node();
-            if raw_identifier(&target) {
-                emit_token_item(&mut i, target);
-                return next_clause_item_normalized(i, item_origin, line_entry, fence, false);
+    let (target, item_origin, line_entry, protected) = emit_recovery_error_run(
+        i.rb(),
+        |run| {
+            let start = target.extent(item_origin).recovery_range().start;
+            loop {
+                let kind =
+                    token_syntax_kind(token_kind(&target).expect("ViaTarget Error is lexical"));
+                let extent = run.emit_item_as(target, item_origin, kind);
+                (target, item_origin, line_entry) = run.lexical(|lex| {
+                    next_clause_item_lexical(lex, item_origin, line_entry, fence, true)
+                });
+                let protected = via_target_boundary(&target)
+                    || !run.lexical(|lex| {
+                        clause_gap_continues_lexical(
+                            lex,
+                            &target,
+                            baseline,
+                            caller_stops,
+                            line_handoff,
+                        )
+                    });
+                if protected || raw_identifier(&target) {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..extent.recovery_range().end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (target, item_origin, line_entry, protected);
+                }
             }
-            return (target, item_origin, line_entry);
-        }
+        },
+        |range, unexpected| {
+            derives_recovery_draft(
+                DerivesRole::ViaTarget,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+            )
+        },
+    );
+    // Protected contextual and outer-owned newline Items win over raw retry.
+    if protected {
+        return (target, item_origin, line_entry);
     }
+    emit_token_item(&mut i, target);
+    next_clause_item_normalized(i, item_origin, line_entry, fence, false)
 }
 
 /// The raw Identifier slot keeps contextual clause words pending for the
@@ -218,34 +254,58 @@ fn next_clause_item_normalized(
     fence: Option<&FenceBoundary>,
     raw_identifier_first: bool,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
+    i.token(|lex| {
+        Some(next_clause_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            raw_identifier_first,
+        ))
+    })
+    .expect("Derives payload scanning is total")
+}
+
+fn next_clause_item_lexical(
+    mut lex: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    raw_identifier_first: bool,
+) -> (Item, usize, LineEntry) {
+    let entry_pointer = lex.remainder().as_ptr() as usize;
+    let entry_length = lex.remainder().len();
     let CurrentItem {
         item,
         next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |mut lex: LexIn, leading, origin, fence, _| {
-                    if raw_identifier_first && let Some(identifier) = lex.token(scan_identifier) {
-                        return Some(AcceptedPayload {
-                            payload: CurrentPayload::Token(identifier),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    scan_type_nud_payload(lex, leading, origin, fence)
-                },
-            )
-        })
-        .expect("Derives payload scanning is total");
-    (
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
+    } = current_item(
+        lex.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        |mut lex: LexIn, leading, origin, fence, _| {
+            if raw_identifier_first && let Some(identifier) = lex.token(scan_identifier) {
+                return Some(AcceptedPayload {
+                    payload: CurrentPayload::Token(identifier),
+                    next_line_entry: LineEntry::InLine,
+                });
+            }
+            scan_type_nud_payload(lex, leading, origin, fence)
+        },
     )
+    .expect("Derives payload scanning is total");
+    let consumed = entry_length
+        .checked_sub(lex.remainder().len())
+        .expect("a Derives scan cannot lengthen its suffix");
+    assert_eq!(
+        entry_pointer.wrapping_add(consumed),
+        lex.remainder().as_ptr() as usize,
+        "a Derives scan keeps one source suffix"
+    );
+    let item_origin = item_origin
+        .checked_add(consumed)
+        .expect("Derives coordinate fits usize");
+    (item, item_origin, next_line_entry)
 }
 
 /// This is the complete direct-C15 gap decision.  It is deliberately local:
@@ -258,12 +318,29 @@ fn clause_gap_continues(
     caller_stops: Stops,
     line_handoff: StatementLineHandoff,
 ) -> bool {
+    i.token(|lex| {
+        Some(clause_gap_continues_lexical(
+            lex,
+            item,
+            baseline,
+            caller_stops,
+            line_handoff,
+        ))
+    })
+    .expect("Derives gap observation is total")
+}
+
+fn clause_gap_continues_lexical(
+    i: LexIn,
+    item: &Item,
+    baseline: usize,
+    caller_stops: Stops,
+    line_handoff: StatementLineHandoff,
+) -> bool {
     if item.payload_view().is_boundary() {
         return false;
     }
-    if is_active_stop(i.rb(), item, caller_stops)
-        || active_statement_companion(i.rb(), item, baseline, caller_stops).is_some()
-    {
+    if is_active_stop_lex(i, item, caller_stops) {
         return false;
     }
     let Some(indentation) = indentation_after_newline(item.leading_view()) else {
@@ -272,10 +349,48 @@ fn clause_gap_continues(
     matches!(line_handoff, StatementLineHandoff::OrdinaryLayout) && indentation > baseline
 }
 
-fn emit_missing_type_expression(i: &mut RewriteIn) {
-    i.state.start_node(SyntaxKind::TypeExpression.into());
-    emit_missing(i, LeadingTrivia::default());
-    i.state.finish_node();
+fn emit_derives_missing(i: RewriteIn, item: &Item, item_origin: usize, role: DerivesRole) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || {
+            if item.payload_view().is_eof() {
+                item_origin
+            } else {
+                item.extent(item_origin).recovery_range().start
+            }
+        },
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        derives_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn derives_recovery_draft(
+    role: DerivesRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        DerivesRole::RoleReference => ExpectedSyntax::TypeExpression,
+        DerivesRole::ViaTarget => ExpectedSyntax::Identifier,
+    };
+    let role = GrammarRole::Declaration(DeclarationRole::Derives(role));
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 fn emit_contextual_keyword(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
