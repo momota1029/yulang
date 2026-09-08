@@ -1,5 +1,377 @@
 use super::*;
 
+#[test]
+fn impl_first_colon_absence_is_description_without_body_cascade() {
+    use crate::session::{DeclarationRole, ExpectedSyntax, GrammarRole, ImplRole, RecoveryKind};
+    for (source, slot, expected) in [
+        (
+            "impl T:",
+            ImplRole::Description,
+            ExpectedSyntax::TypeExpression,
+        ),
+        ("impl T: D:", ImplRole::Body, ExpectedSyntax::Statement),
+    ] {
+        let (green, _, records, rest) = typed_impl(source, None, 0, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(rest, "");
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Impl(slot))
+        );
+        assert_eq!(records[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            records[0].site.range,
+            100 + source.len()..100 + source.len()
+        );
+        assert_eq!(records[0].expectations[0].expected, expected);
+        let (again, _, frozen, rest) = typed_impl(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(rest, "");
+    }
+}
+
+#[test]
+fn impl_body_protected_fence_and_contextual_stop_reconcile_exact_handoff() {
+    use crate::rewrite::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (source, owned) in [
+        ("impl T\r\n> > ```\r\nouter", "impl T"),
+        ("impl T: D:\r\n> > ```\r\nouter", "impl T: D:"),
+        ("impl T @\r\n> > ```\r\nouter", "impl T @"),
+        ("impl T: D: @\r\n> > ```\r\nouter", "impl T: D: @"),
+    ] {
+        let (green, exit, records, remainder) = typed_impl(source, None, 0, Some(&fence));
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(records.len(), 1);
+        let item = pending_item(exit, LineEntry::PhysicalStart);
+        let (leading, boundary) = emit_terminal_leading_text(item);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
+        if records[0].kind == crate::session::RecoveryKind::Missing {
+            assert_eq!(
+                records[0].site.range,
+                boundary.coordinate()..boundary.coordinate()
+            );
+        }
+        assert_eq!(remainder, "> > ```\r\nouter");
+        let (again, exit, frozen, remainder) = typed_impl(source, Some(&records), 0, Some(&fence));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(remainder, "> > ```\r\nouter");
+        let (leading, boundary) =
+            emit_terminal_leading_text(pending_item(exit, LineEntry::PhysicalStart));
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
+    }
+    for owned in ["impl T", "impl T: D:", "impl T @", "impl T: D: @"] {
+        let source = format!("{owned}  else suffix");
+        let (green, exit, records, remainder) = typed_impl(&source, None, STOP_ELSE, None);
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(records.len(), 1);
+        assert_eq!(remainder, " suffix");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), "  ");
+        assert_eq!(item.payload_view().spelling(), Some("else"));
+        let (again, exit, frozen, remainder) = typed_impl(&source, Some(&records), STOP_ELSE, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(remainder, " suffix");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), "  ");
+        assert_eq!(item.payload_view().spelling(), Some("else"));
+    }
+}
+
+#[test]
+fn impl_body_recovery_retains_head_and_statement_child_owners() {
+    use crate::session::{BindingRole, DeclarationRole, GrammarRole, ImplRole};
+    for (source, role) in [
+        (
+            "impl @ ;",
+            GrammarRole::Type(crate::session::TypeRole::Primary),
+        ),
+        (
+            "impl )",
+            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head)),
+        ),
+    ] {
+        let (_, _, records, _) = typed_impl(source, None, 0, None);
+        assert_eq!(records.len(), 1, "{source}");
+        assert_eq!(records[0].site.role, role);
+    }
+    for source in [
+        "impl T: D: my x =",
+        "impl T {my x =}",
+        "impl T: D:\n  my x =",
+    ] {
+        let (green, _, records, _) = typed_impl(source, None, 0, None);
+        assert_eq!(records.len(), 1, "{source}");
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body))
+        );
+        let (again, _, frozen, _) = typed_impl(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
+}
+
+fn typed_impl<'s>(
+    source: &'s str,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> (
+    GreenNode,
+    Option<NormalizedExit>,
+    Vec<CommittedRecoveryRecord>,
+    &'s str,
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = impl_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        stops,
+        super::super::statement::StatementLineHandoff::OrdinaryLayout,
+        100,
+        LineEntry::InLine,
+        fence,
+    );
+    builder.finish_node();
+    let (green, records) = builder.finish_with_recoveries();
+    (green, exit, records, input)
+}
+
+#[test]
+fn impl_body_introducer_eof_retains_equal_indent_newline() {
+    use crate::session::{DeclarationRole, GrammarRole, ImplRole, RecoveryKind};
+    for owned in ["impl T", "impl T: D"] {
+        let source = format!("{owned}\r\n");
+        let (green, exit, records, remainder) = typed_impl(&source, None, 0, None);
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(remainder, "");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer))
+        );
+        let anchor = 100 + owned.len();
+        assert_eq!(records[0].site.range, anchor..anchor);
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert!(item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut item), "\r\n");
+        let (again, exit, frozen, remainder) = typed_impl(&source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(remainder, "");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert!(item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut item), "\r\n");
+    }
+}
+
+#[test]
+fn impl_body_records_are_exact_and_frozen_with_leading_ownership() {
+    use crate::session::{
+        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        ImplRole as Role, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+        UnexpectedCategory, UnexpectedSyntax,
+    };
+    use std::sync::Arc;
+    for (source, slot, kind, range, owned, leading) in [
+        (
+            "impl T   ",
+            Role::BodyIntroducer,
+            RecoveryKind::Missing,
+            9..9,
+            "impl T   ",
+            "",
+        ),
+        (
+            "impl T  )",
+            Role::BodyIntroducer,
+            RecoveryKind::Missing,
+            6..6,
+            "impl T",
+            "  ",
+        ),
+        (
+            "impl T @  ~   ;",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..11,
+            "impl T @  ~   ;",
+            "",
+        ),
+        (
+            "impl T @ {}",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "impl T @ {}",
+            "",
+        ),
+        (
+            "impl T @ : x",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "impl T @ : x",
+            "",
+        ),
+        (
+            "impl T @   ",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "impl T @",
+            "   ",
+        ),
+        (
+            "impl T @  )",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "impl T @",
+            "  ",
+        ),
+        (
+            "impl T: D:   ",
+            Role::Body,
+            RecoveryKind::Missing,
+            10..10,
+            "impl T: D:",
+            "   ",
+        ),
+        (
+            "impl T: D:  ;",
+            Role::Body,
+            RecoveryKind::Missing,
+            10..10,
+            "impl T: D:",
+            "  ",
+        ),
+        (
+            "impl T: D:\r\nnext",
+            Role::Body,
+            RecoveryKind::Missing,
+            10..10,
+            "impl T: D:",
+            "\r\n",
+        ),
+        (
+            "impl T: D:  ]",
+            Role::Body,
+            RecoveryKind::Missing,
+            10..10,
+            "impl T: D:",
+            "  ",
+        ),
+        (
+            "impl T: D: @  ~   x",
+            Role::Body,
+            RecoveryKind::Error,
+            11..15,
+            "impl T: D: @  ~   x",
+            "",
+        ),
+        (
+            "impl T: D: @  ;",
+            Role::Body,
+            RecoveryKind::Error,
+            11..12,
+            "impl T: D: @",
+            "  ",
+        ),
+        (
+            "impl T: D: @   ",
+            Role::Body,
+            RecoveryKind::Error,
+            11..12,
+            "impl T: D: @",
+            "   ",
+        ),
+        (
+            "impl 型: D: @   ]",
+            Role::Body,
+            RecoveryKind::Error,
+            13..14,
+            "impl 型: D: @",
+            "   ",
+        ),
+    ] {
+        let (green, exit, records, remainder) = typed_impl(source, None, 0, None);
+        assert_eq!(green.to_string(), owned, "{source:?}");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), leading, "{source:?}");
+        let role = GrammarRole::Declaration(DeclarationRole::Impl(slot));
+        let range = 100 + range.start..100 + range.end;
+        let expected = if slot == Role::Body {
+            vec![ExpectedSyntax::Statement]
+        } else {
+            vec![
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            ]
+        };
+        assert_eq!(
+            records,
+            [CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone()
+                },
+                kind,
+                unexpected: if kind == RecoveryKind::Error {
+                    Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }])
+                } else {
+                    Arc::from([])
+                },
+                expectations: expected
+                    .into_iter()
+                    .map(|expected| SyntaxExpectation {
+                        role,
+                        expected,
+                        range: range.clone(),
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
+                    })
+                    .collect::<Vec<_>>()
+                    .into(),
+                primary_expectation: 0
+            }],
+            "{source:?}"
+        );
+        let mut seed = records;
+        seed[0].id = DiagnosticId(73);
+        let (again, exit, frozen, again_remainder) = typed_impl(source, Some(&seed), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, seed);
+        assert_eq!(again_remainder, remainder);
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), leading);
+    }
+}
+
 fn declaration(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .descendants()
@@ -480,9 +852,15 @@ fn impl_body_recovery_is_bounded_and_keeps_terminal_boundaries_pending() {
             "{source:?}\n{node:#?}"
         );
     }
-    for source in ["impl T @   ", "impl T: D: @   "] {
-        let (green, _, remainder) = run_impl_declaration(source, 0, 0, LineEntry::InLine, None);
-        assert_eq!(green.to_string(), source, "{source:?}");
+    for (source, owned) in [
+        ("impl T @   ", "impl T @"),
+        ("impl T: D: @   ", "impl T: D: @"),
+    ] {
+        let (green, exit, remainder) = run_impl_declaration(source, 0, 0, LineEntry::InLine, None);
+        // Terminal leading stays with the pending EOF Item, outside Error.
+        assert_eq!(green.to_string(), owned, "{source:?}");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), "   ");
         assert_eq!(remainder, "", "{source:?}");
         assert_eq!(count(&declaration(&green), SyntaxKind::Error), 1);
     }
@@ -505,12 +883,12 @@ fn impl_body_recovery_is_bounded_and_keeps_terminal_boundaries_pending() {
     assert_eq!(count(&declaration(&green), SyntaxKind::Missing), 1);
     let source = "impl T: D: ;";
     let (green, exit, remainder) = run_impl_declaration(source, 0, 0, LineEntry::InLine, None);
-    assert_eq!(green.to_string(), "impl T: D: ");
+    assert_eq!(green.to_string(), "impl T: D:");
     assert_eq!(remainder, "");
     assert_eq!(count(&declaration(&green), SyntaxKind::Missing), 1);
     assert_eq!(
         pending_token_leading(exit, TokenKind::Semicolon, ";", LineEntry::InLine),
-        []
+        [(SyntaxKind::Whitespace, " ".to_owned())]
     );
     let source = "impl T:\nnext";
     let (green, exit, remainder) = run_impl_declaration(source, 0, 0, LineEntry::InLine, None);

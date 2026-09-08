@@ -1,8 +1,14 @@
 //! Private direct standalone `impl` declaration construction.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
-use crate::session::{DeclarationRole, GrammarRole, ImplRole};
+use super::output::RecoveryDraft;
+use crate::session::{
+    DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ImplRole,
+    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+    UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
@@ -13,7 +19,7 @@ use super::{
         Either, NormalizedExit, advanced_origin, complete, handoff, implicit_delimited_newline,
         indentation_after_newline, is_active_stop, is_separator, suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     if_expr::active_statement_companion,
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
@@ -312,7 +318,10 @@ fn after_head_from_item_normalized(
         || (!body_starter(&item) && body_boundary(i.rb(), &item, baseline, stops))
     {
         if head_complete {
-            emit_missing(&mut i, LeadingTrivia::default());
+            if impl_gap_allowed(&item, baseline) && item.payload_view().is_eof() {
+                item.emit_eof_leading(&mut *i.state);
+            }
+            impl_missing(&mut i, &item, item_origin, ImplRole::BodyIntroducer);
         }
         return complete(handoff(item), line_entry);
     }
@@ -476,7 +485,10 @@ fn body_from_item_normalized(
         || (!body_starter(&item) && body_boundary(i.rb(), &item, baseline, stops))
     {
         if upstream_complete {
-            emit_missing(&mut i, LeadingTrivia::default());
+            if impl_gap_allowed(&item, baseline) && item.payload_view().is_eof() {
+                item.emit_eof_leading(&mut *i.state);
+            }
+            impl_missing(&mut i, &item, item_origin, ImplRole::BodyIntroducer);
         }
         return complete(handoff(item), line_entry);
     }
@@ -572,55 +584,34 @@ fn recover_body_introducer_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = impl_item_normalized(
-            i.rb(),
+    item.emit_all_remaining_leading(&mut *i.state);
+    (item, item_origin, line_entry) = impl_error_run(
+        i.rb(),
+        item,
+        ImplRole::BodyIntroducer,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if impl_gap_allowed(&item, baseline) && body_starter(&item) {
+        return body_from_item_normalized(
+            i,
+            item,
+            true,
+            false,
+            baseline,
+            stops,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
-            baseline,
-            stops,
-            false,
-            false,
+            ambient,
+            sequence,
         );
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if item.payload_view().is_eof() {
-            item.emit_eof_leading(&mut *i.state);
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if !impl_gap_allowed(&item, baseline) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if body_starter(&item) {
-            i.state.finish_node();
-            return body_from_item_normalized(
-                i,
-                item,
-                true,
-                false,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
-        if body_boundary(i.rb(), &item, baseline, stops) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        item.emit_all_remaining_leading(&mut *i.state);
     }
+    complete(handoff(item), line_entry)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -649,9 +640,8 @@ fn colon_body_normalized(
             ambient,
         ),
         Some(_) => {
-            emit_missing(&mut i, LeadingTrivia::default());
-            let (item, _, line_entry) = impl_item_normalized(
-                i,
+            let (item, origin, line_entry) = impl_item_normalized(
+                i.rb(),
                 item_origin,
                 line_entry,
                 fence,
@@ -660,6 +650,7 @@ fn colon_body_normalized(
                 false,
                 false,
             );
+            impl_missing(&mut i, &item, origin, ImplRole::Body);
             complete(handoff(item), line_entry)
         }
         None => {
@@ -692,7 +683,7 @@ fn colon_body_normalized(
 #[allow(clippy::too_many_arguments)]
 fn inline_body_from_item_normalized(
     mut i: RewriteIn,
-    mut item: Item,
+    item: Item,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -703,14 +694,7 @@ fn inline_body_from_item_normalized(
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if inline_body_boundary(i.rb(), &item, baseline, stops) {
-        if colon_body_gap_is_local(i.rb(), &item, baseline, stops) {
-            if item.payload_view().is_eof() {
-                item.emit_eof_leading(&mut *i.state);
-            } else {
-                item.emit_all_remaining_leading(&mut *i.state);
-            }
-        }
-        emit_missing(&mut i, LeadingTrivia::default());
+        impl_missing(&mut i, &item, item_origin, ImplRole::Body);
         return complete(handoff(item), line_entry);
     }
     if let Some(admission) =
@@ -757,52 +741,38 @@ fn recover_inline_body_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        item.emit_all_remaining_leading(&mut *i.state);
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = impl_item_normalized(
-            i.rb(),
+    item.emit_all_remaining_leading(&mut *i.state);
+    (item, item_origin, line_entry) = impl_error_run(
+        i.rb(),
+        item,
+        ImplRole::Body,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if inline_body_boundary(i.rb(), &item, baseline, stops) {
+        return complete(handoff(item), line_entry);
+    }
+    if let Some(admission) =
+        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+    {
+        return inline_statement_normalized(
+            i,
+            item,
+            admission,
+            baseline,
+            stops,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
-            baseline,
-            stops,
-            false,
-            false,
+            ambient,
+            sequence,
         );
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if item.payload_view().is_eof() {
-            item.emit_eof_leading(&mut *i.state);
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if inline_body_boundary(i.rb(), &item, baseline, stops) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if let Some(admission) =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
-            i.state.finish_node();
-            return inline_statement_normalized(
-                i,
-                item,
-                admission,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
     }
+    unreachable!("Impl body recovery stops at a boundary or Statement")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -930,13 +900,6 @@ fn inline_body_boundary(mut i: RewriteIn, item: &Item, baseline: usize, stops: S
     body_boundary(i.rb(), item, baseline, stops) || token_kind(item) == Some(TokenKind::Semicolon)
 }
 
-fn colon_body_gap_is_local(mut i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    !item.payload_view().is_boundary()
-        && indentation_after_newline(item.leading_view()).is_none()
-        && !is_active_stop(i.rb(), item, stops)
-        && active_statement_companion(i.rb(), item, baseline, stops).is_none()
-}
-
 fn impl_gap_allowed(item: &Item, baseline: usize) -> bool {
     indentation_after_newline(item.leading_view()).is_none_or(|indentation| indentation > baseline)
 }
@@ -973,7 +936,33 @@ fn impl_item_normalized(
     raw_identifier: bool,
     type_vocabulary: bool,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
+    i.token(|lex| {
+        Some(scan_impl_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+            raw_identifier,
+            type_vocabulary,
+        ))
+    })
+    .expect("Impl Item scan is total")
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_impl_item(
+    mut i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    raw_identifier: bool,
+    type_vocabulary: bool,
+) -> (Item, usize, LineEntry) {
+    let entry = i.remainder().len();
     let CurrentItem {
         item,
         next_line_entry,
@@ -1002,7 +991,7 @@ fn impl_item_normalized(
         .expect("Impl declaration payload scanning is total");
     (
         item,
-        advanced_origin(item_origin, entry, i),
+        item_origin + entry - i.remainder().len(),
         next_line_entry,
     )
 }
@@ -1011,6 +1000,112 @@ fn item_word(item: &Item) -> Option<&str> {
     (item.payload_view().token_kind() == Some(TokenKind::Identifier))
         .then(|| item.payload_view().spelling())
         .flatten()
+}
+
+fn impl_draft(
+    slot: ImplRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = GrammarRole::Declaration(DeclarationRole::Impl(slot));
+    let expected: &[ExpectedSyntax] = match slot {
+        ImplRole::BodyIntroducer => &[
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        ],
+        ImplRole::Body => &[ExpectedSyntax::Statement],
+        _ => unreachable!("local Impl recovery slot"),
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expected
+            .iter()
+            .map(|expected| SyntaxExpectation {
+                role,
+                expected: *expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            })
+            .collect::<Vec<_>>()
+            .into(),
+        0,
+    )
+}
+
+fn impl_missing(i: &mut RewriteIn, item: &Item, origin: usize, role: ImplRole) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        impl_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn impl_error_run(
+    mut i: RewriteIn,
+    mut item: Item,
+    role: ImplRole,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let start = item.extent(origin).recovery_range().start;
+    emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = token_kind(&item)
+                .map(token_syntax_kind)
+                .unwrap_or(SyntaxKind::Operator);
+            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+            (item, origin, line) = run.lexical(|lex| {
+                scan_impl_item(lex, origin, line, fence, baseline, stops, false, false)
+            });
+            let starter = role == ImplRole::BodyIntroducer && body_starter(&item);
+            let boundary = item.payload_view().is_boundary()
+                || item.payload_view().is_eof()
+                || !impl_gap_allowed(&item, baseline)
+                || (!starter
+                    && (run.lexical(|lex| super::driver::is_active_stop_lex(lex, &item, stops))
+                        || is_separator(&item)
+                        || matches!(
+                            token_kind(&item),
+                            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                        )));
+            let retry = !boundary
+                && (starter
+                    || (role == ImplRole::Body
+                        && run
+                            .lexical(|lex| {
+                                super::statement::classify_statement_item_lexical(
+                                    lex.remainder(),
+                                    &item,
+                                    baseline,
+                                    origin,
+                                    fence,
+                                )
+                            })
+                            .is_some()));
+            if boundary || retry {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: start..end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, origin, line);
+            }
+        },
+        |range, unexpected| impl_draft(role, RecoveryKind::Error, range, unexpected),
+    )
 }
 
 fn emit_item_as(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {

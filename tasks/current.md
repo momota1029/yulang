@@ -300,6 +300,13 @@ unchanged. Role: 18; output: 4; package/format/diff and independent
 specification/regression audits passed. The recorded `my role = value`
 Statement baseline remains unrelated.
 
+The Impl gate in `2026-09-08-successor-impl-current-item-recovery.md` is
+implemented. BodyIntroducer and inline Body now publish typed recovery while
+the first colon remains Description and the second colon is the Body phase.
+Impl: 16; required Type: 5; indented/braced/normalized/output: 7/7/83/4;
+package/format/diff and independent audits passed. The CRLF boundary repair
+preserves shallow-newline current-Item handoff in fresh/frozen output.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public
