@@ -263,6 +263,17 @@ regression review added actual delimiter-close and nested-dedent caller
 evidence. Focused checks, package check, format and diff pass with zero
 benchmark samples/processes. CaseLike remains a separate open owner.
 
+The CaseLike structural gate in
+`2026-09-08-successor-case-like-structural-current-item-recovery.md` is
+implemented. Block and same-or-shallower Arm publish typed records; first arm
+Pattern and Catch handler Pattern enter the existing Pattern kernel once with
+their finite CaseLike role. Protected newline/close/fence Items now remain
+pending at missing Block, while EOF leading remains Block-owned. Nested Pattern
+and Type roles remain native. E12b/c/d/k exact fresh/shifted/frozen/seeded,
+UTF-8/CRLF/fence, outer delimiter and following-statement controls pass.
+Compiler/recovery and regression reviews found no defect. Arrow/Body, arm
+Separator and Catch-close recovery remain separate open CaseLike owners.
+
 The Rule DSL literal gate in
 `2026-09-08-successor-rule-literal-current-item-recovery.md` is implemented.
 Ten Literal roles now publish typed records; Body/Paren newline stops precede

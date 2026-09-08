@@ -2,16 +2,23 @@
 
 use crate::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::{
     lexical::operator_scan::OperatorSite,
     operator_table::BindingPower,
-    recovery_record::{CaseLikeRole, GrammarRole},
+    recovery_record::{
+        CaseLikeRole, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
+        RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+    },
     syntax_kind::SyntaxKind,
 };
 
 use crate::{
-    cst_output::emit::{emit_missing, emit_token_item},
+    cst_output::{
+        RecoveryDraft,
+        emit::{emit_missing, emit_recovery_missing, emit_token_item},
+    },
     cursor::SyntaxIn,
     expression::{
         continue_normalized_tail, expr_from_nud_normalized, is_nud_item,
@@ -178,7 +185,10 @@ fn case_like_head_normalized(
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
             if item.payload_view().is_boundary() =>
         {
-            complete(missing_block(i, family, handoff(item)), line_entry)
+            complete(
+                missing_block(i, family, handoff(item), item_origin),
+                line_entry,
+            )
         }
         NormalizedExit::Complete(Err(Either::Left(introducer)), line_entry)
             if token_kind(&introducer) == Some(TokenKind::Colon) =>
@@ -212,7 +222,7 @@ fn case_like_head_normalized(
             )
         }
         NormalizedExit::Complete(exit, line_entry) => {
-            complete(missing_block(i, family, exit), line_entry)
+            complete(missing_block(i, family, exit, item_origin), line_entry)
         }
     }
 }
@@ -314,9 +324,10 @@ fn wrong_indent_block_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NormalizedExit {
-    let (item, _, line_entry) = pattern_item_normalized(i.rb(), item_origin, line_entry, fence, 0);
+    let (item, item_origin, line_entry) =
+        pattern_item_normalized(i.rb(), item_origin, line_entry, fence, 0);
     i.state.start_node(family.arm_node().into());
-    emit_missing(&mut i, LeadingTrivia::default());
+    emit_structural_missing(i.rb(), CaseLikeRole::Arm, &item, item_origin);
     i.state.finish_node();
     complete(handoff(item), line_entry)
 }
@@ -350,25 +361,66 @@ fn catch_braced_block_normalized(
     exit
 }
 
-fn missing_block(mut i: SyntaxIn, family: CaseLikeFamily, exit: TailExit) -> TailExit {
+fn missing_block(
+    mut i: SyntaxIn,
+    family: CaseLikeFamily,
+    exit: TailExit,
+    item_origin: usize,
+) -> TailExit {
     i.state.start_node(family.block_node().into());
     let exit = match exit {
         Err(Either::Left(mut item)) => {
-            if !item.payload_view().is_boundary() {
+            if !item.payload_view().is_boundary()
+                && !matches!(
+                    token_kind(&item),
+                    Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                )
+                && !item.leading_view().has_ordinary_newline()
+            {
                 item.emit_all_remaining_leading(&mut *i.state);
             }
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_structural_missing(i.rb(), CaseLikeRole::Block, &item, item_origin);
             handoff(item)
         }
         Err(Either::Right(mut end)) => {
             end.item.emit_all_remaining_leading(&mut *i.state);
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_structural_missing(i.rb(), CaseLikeRole::Block, &end.item, item_origin);
             Err(Either::Right(end))
         }
         Ok(()) => unreachable!("a direct scrutinee always leaves a boundary item"),
     };
     i.state.finish_node();
     exit
+}
+
+fn emit_structural_missing(i: SyntaxIn, role: CaseLikeRole, item: &Item, item_origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    let expected = match role {
+        CaseLikeRole::Block => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        CaseLikeRole::Arm => ExpectedSyntax::Pattern,
+        _ => unreachable!("only structural CaseLike slots publish here"),
+    };
+    let role = GrammarRole::CaseLike(role);
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        RecoveryDraft::new(
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -477,6 +529,7 @@ fn arm_normalized(
     let exit = pattern_from_entry_item_normalized(
         i.rb(),
         item,
+        CaseLikeRole::Pattern,
         arm_baseline,
         first_stops,
         line_handoff,
@@ -514,6 +567,7 @@ fn arm_normalized(
         let exit = pattern_from_entry_item_normalized(
             i.rb(),
             handler,
+            CaseLikeRole::Handler,
             arm_baseline,
             handler_stops,
             line_handoff,

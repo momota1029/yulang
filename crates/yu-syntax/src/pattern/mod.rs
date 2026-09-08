@@ -415,6 +415,7 @@ fn pattern_from_item_core_normalized(
 pub(super) fn pattern_from_entry_item_normalized(
     i: SyntaxIn,
     item: Item,
+    role: crate::recovery_record::CaseLikeRole,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
@@ -423,20 +424,28 @@ pub(super) fn pattern_from_entry_item_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    required_pattern_from_entry_item_with_policy_normalized(
+    debug_assert!(matches!(
+        role,
+        crate::recovery_record::CaseLikeRole::Pattern
+            | crate::recovery_record::CaseLikeRole::Handler
+    ));
+    let mut completion = PatternCompletion::Incomplete;
+    pattern_from_item_recording_with_policy_normalized(
         i,
         item,
+        PatternPrecedence::Lowest,
         baseline,
         stops,
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
+        GrammarRole::CaseLike(role),
+        &mut completion,
         item_origin,
         line_entry,
         fence,
         ambient,
     )
-    .0
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1174,12 +1183,15 @@ fn initial_pattern_recovery_draft(
     if let GrammarRole::Pattern(role) = role {
         return pattern_recovery_draft(role, kind, range, unexpected);
     }
-    debug_assert_eq!(
+    debug_assert!(matches!(
         role,
         GrammarRole::Declaration(crate::recovery_record::DeclarationRole::Binding(
             crate::recovery_record::BindingRole::Target
-        ))
-    );
+        )) | GrammarRole::CaseLike(
+            crate::recovery_record::CaseLikeRole::Pattern
+                | crate::recovery_record::CaseLikeRole::Handler
+        )
+    ));
     RecoveryDraft::new(
         RecoverySiteKey {
             role,
