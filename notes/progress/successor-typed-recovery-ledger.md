@@ -489,6 +489,18 @@ remain open.
   31 tests with one existing manual measurement harness ignored; package,
   format, and diff passed. Benchmark use: zero samples/processes.
 
+## Source-root statement topology
+
+- Completed `2026-09-09-root-statement-topology.md`. `source_file` is now the
+  Root product and frozen-reconciliation facade, while `root_statement` owns
+  the exact statement progression state, operator-body path, root recovery,
+  and the concrete shared-header scopes that determine record order.
+- This is code motion only: the unfenced-boundary assertion and Root Error's
+  opaque source-copy path are unchanged and remain distinct Yumark blockers.
+  Root/header/full-parse/public-boundary/recovery controls passed 63 tests with
+  one existing manual measurement harness ignored; package, format, and diff
+  passed. Benchmark use: zero samples/processes.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

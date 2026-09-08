@@ -16,6 +16,7 @@ mod operator_compilation;
 mod operator_table;
 mod pattern;
 mod recovery_record;
+mod root_statement;
 mod rule;
 mod sequence;
 mod source_file;

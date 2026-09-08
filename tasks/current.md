@@ -53,6 +53,15 @@ table/compilation/environment/diagnostic/full-parse/public controls passed 31
 tests with one existing manual measurement harness ignored; package/format/diff
 passed. Benchmark use: zero.
 
+The source-root statement topology gate is complete under
+`2026-09-09-root-statement-topology.md`. `source_file.rs` now owns the Root
+product/frozen setup and `root_statement.rs` owns exact source-root statement
+progression, operator body handling, root recovery, and concrete header scopes.
+Root/header/full-parse/public-boundary/recovery controls passed 63 tests with
+one existing manual measurement harness ignored; package/format/diff passed.
+Fence-boundary termination and the opaque Root Error source-copy path remain
+separate Yumark prerequisites, not incidental changes to this mechanical split.
+
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
 Its Missing/Error sites now publish the existing Cast role with the required
