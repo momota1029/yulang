@@ -292,6 +292,14 @@ normalized: 83; package/format/diff and independent specification/regression
 audits passed. The accepted test-only repair pins fresh/frozen boundary
 payload, leading, line entry, suffix and fence coordinates.
 
+The Role gate in `2026-09-08-successor-role-current-item-recovery.md` is
+implemented. BodyIntroducer and inline Body now publish typed records with the
+full ordered body-starter union and protected current-Item handoff; existing
+Head Type and braced/indented/canonical Statement child ownership remains
+unchanged. Role: 18; output: 4; package/format/diff and independent
+specification/regression audits passed. The recorded `my role = value`
+Statement baseline remains unrelated.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

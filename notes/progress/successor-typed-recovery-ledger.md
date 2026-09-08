@@ -308,6 +308,7 @@ root and declaration-local owners open.
 | `declaration_companion` introducer/body/item/sequence/close sites | `Declaration(Companion(Introducer/Body/Item/IndentedItem/Separator))`, `close(DeclarationCompanion, Brace)` | M/E | owner slot absence, lexical run, separator or local close | colon-only Introducer; Statement/Derives children retain roles; caller attachments unchanged | `declaration_companion::*`, declaration caller suites | C |
 | `struct_decl` required Name and BodyIntroducer | `Declaration(Struct(Name/BodyIntroducer))` | M/E | header required slots and lexical runs | existing ordered starter union; protected Item stays pending, TypePrimary gap is Struct-owned | `struct_decl::*`, `normalized_struct::*` | C |
 | `mod_decl` Name/TestName/BodyIntroducer/Body | `Declaration(Mod(Name/TestName/BodyIntroducer/Body))` | M/E | required identity/body slots or maximal lexical run | only initial `test` marks; retry/pending boundary leading and nested Statement owners stay distinct | `mod_decl::*`, `indented_recovery::*`, `normalized::*` | C |
+| `role_decl` BodyIntroducer/inline Body | `Declaration(Role(BodyIntroducer/Body))` | M/E | required punctuation body slot or maximal lexical run | ordered three-starter union; Head Type and Statement/block children remain native | `role_decl::*`, `type_expr::required_recovery::*` | C |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an

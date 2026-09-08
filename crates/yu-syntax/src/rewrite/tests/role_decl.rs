@@ -1,10 +1,317 @@
 use super::*;
 
+fn typed_role<'s>(
+    source: &'s str,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> (
+    GreenNode,
+    Option<NormalizedExit>,
+    Vec<CommittedRecoveryRecord>,
+    &'s str,
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = role_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        stops,
+        super::super::statement::StatementLineHandoff::OrdinaryLayout,
+        100,
+        LineEntry::InLine,
+        fence,
+    );
+    builder.finish_node();
+    let (green, records) = builder.finish_with_recoveries();
+    (green, exit, records, input)
+}
+
+#[test]
+fn role_body_records_are_exact_and_frozen_with_leading_ownership() {
+    use crate::session::{
+        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, RoleDeclarationRole as Role,
+        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+    };
+    use std::sync::Arc;
+    for (source, slot, kind, range, owned, leading) in [
+        (
+            "role R   ",
+            Role::BodyIntroducer,
+            RecoveryKind::Missing,
+            9..9,
+            "role R   ",
+            "",
+        ),
+        (
+            "role R  )",
+            Role::BodyIntroducer,
+            RecoveryKind::Missing,
+            6..6,
+            "role R",
+            "  ",
+        ),
+        (
+            "role R @  ~   ;",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..11,
+            "role R @  ~   ;",
+            "",
+        ),
+        (
+            "role R @ {}",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "role R @ {}",
+            "",
+        ),
+        (
+            "role R @ : x",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "role R @ : x",
+            "",
+        ),
+        (
+            "role R @   ",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "role R @",
+            "   ",
+        ),
+        (
+            "role R @  )",
+            Role::BodyIntroducer,
+            RecoveryKind::Error,
+            7..8,
+            "role R @",
+            "  ",
+        ),
+        (
+            "role R:   ",
+            Role::Body,
+            RecoveryKind::Missing,
+            7..7,
+            "role R:",
+            "   ",
+        ),
+        (
+            "role R:  ;",
+            Role::Body,
+            RecoveryKind::Missing,
+            7..7,
+            "role R:",
+            "  ",
+        ),
+        (
+            "role R:\r\nnext",
+            Role::Body,
+            RecoveryKind::Missing,
+            7..7,
+            "role R:",
+            "\r\n",
+        ),
+        (
+            "role R:  ]",
+            Role::Body,
+            RecoveryKind::Missing,
+            7..7,
+            "role R:",
+            "  ",
+        ),
+        (
+            "role R: @  ~   x",
+            Role::Body,
+            RecoveryKind::Error,
+            8..12,
+            "role R: @  ~   x",
+            "",
+        ),
+        (
+            "role R: @  ;",
+            Role::Body,
+            RecoveryKind::Error,
+            8..9,
+            "role R: @",
+            "  ",
+        ),
+        (
+            "role R: @   ",
+            Role::Body,
+            RecoveryKind::Error,
+            8..9,
+            "role R: @",
+            "   ",
+        ),
+        (
+            "role 型: @   ]",
+            Role::Body,
+            RecoveryKind::Error,
+            10..11,
+            "role 型: @",
+            "   ",
+        ),
+    ] {
+        let (green, exit, records, remainder) = typed_role(source, None, 0, None);
+        assert_eq!(green.to_string(), owned, "{source:?}");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), leading, "{source:?}");
+        let role = GrammarRole::Declaration(DeclarationRole::Role(slot));
+        let range = 100 + range.start..100 + range.end;
+        let expected = if slot == Role::Body {
+            vec![ExpectedSyntax::Statement]
+        } else {
+            vec![
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            ]
+        };
+        assert_eq!(
+            records,
+            [CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone()
+                },
+                kind,
+                unexpected: if kind == RecoveryKind::Error {
+                    Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }])
+                } else {
+                    Arc::from([])
+                },
+                expectations: expected
+                    .into_iter()
+                    .map(|expected| SyntaxExpectation {
+                        role,
+                        expected,
+                        range: range.clone(),
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
+                    })
+                    .collect::<Vec<_>>()
+                    .into(),
+                primary_expectation: 0
+            }],
+            "{source:?}"
+        );
+        let mut seed = records;
+        seed[0].id = DiagnosticId(73);
+        let (again, exit, frozen, again_remainder) = typed_role(source, Some(&seed), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, seed);
+        assert_eq!(again_remainder, remainder);
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), leading);
+    }
+}
+
 fn declaration(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .descendants()
         .find(|node| node.kind() == SyntaxKind::RoleDeclaration)
         .expect("RoleDeclaration")
+}
+
+#[test]
+fn role_body_protected_fence_and_contextual_stop_reconcile_exact_handoff() {
+    use crate::rewrite::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (source, owned) in [
+        ("role R\r\n> > ```\r\nouter", "role R"),
+        ("role R:\r\n> > ```\r\nouter", "role R:"),
+        ("role R @\r\n> > ```\r\nouter", "role R @"),
+        ("role R: @\r\n> > ```\r\nouter", "role R: @"),
+    ] {
+        let (green, exit, records, remainder) = typed_role(source, None, 0, Some(&fence));
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(records.len(), 1);
+        let item = pending_item(exit, LineEntry::PhysicalStart);
+        let (leading, boundary) = emit_terminal_leading_text(item);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
+        if records[0].kind == crate::session::RecoveryKind::Missing {
+            assert_eq!(
+                records[0].site.range,
+                boundary.coordinate()..boundary.coordinate()
+            );
+        }
+        assert_eq!(remainder, "> > ```\r\nouter");
+        let (again, exit, frozen, remainder) = typed_role(source, Some(&records), 0, Some(&fence));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(remainder, "> > ```\r\nouter");
+        let (leading, boundary) =
+            emit_terminal_leading_text(pending_item(exit, LineEntry::PhysicalStart));
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
+    }
+    for owned in ["role R", "role R:", "role R @", "role R: @"] {
+        let source = format!("{owned}  else suffix");
+        let (green, exit, records, remainder) = typed_role(&source, None, STOP_ELSE, None);
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(records.len(), 1);
+        assert_eq!(remainder, " suffix");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), "  ");
+        assert_eq!(item.payload_view().spelling(), Some("else"));
+        let (again, exit, frozen, remainder) = typed_role(&source, Some(&records), STOP_ELSE, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(remainder, " suffix");
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut item), "  ");
+        assert_eq!(item.payload_view().spelling(), Some("else"));
+    }
+}
+
+#[test]
+fn role_body_recovery_retains_head_and_statement_child_owners() {
+    use crate::session::{BindingRole, DeclarationRole, GrammarRole, RoleDeclarationRole};
+    for (source, role) in [
+        (
+            "role @ ;",
+            GrammarRole::Type(crate::session::TypeRole::Primary),
+        ),
+        (
+            "role )",
+            GrammarRole::Declaration(DeclarationRole::Role(RoleDeclarationRole::Head)),
+        ),
+    ] {
+        let (_, _, records, _) = typed_role(source, None, 0, None);
+        assert_eq!(records.len(), 1, "{source}");
+        assert_eq!(records[0].site.role, role);
+    }
+    for source in ["role R: my x =", "role R {my x =}", "role R:\n  my x ="] {
+        let (green, _, records, _) = typed_role(source, None, 0, None);
+        assert_eq!(records.len(), 1, "{source}");
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body))
+        );
+        let (again, _, frozen, _) = typed_role(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
@@ -436,9 +743,12 @@ fn role_isolated_body_recovery_commits_one_error_node_per_malformed_run() {
         );
     }
 
-    for (source, error_text) in [("role R @   ", "@   "), ("role R: @   ", " @   ")] {
-        let (green, _, remainder) = run_role_declaration(source, 0, 0, LineEntry::InLine, None);
-        assert_eq!(green.to_string(), source, "{source:?}");
+    for (source, owned) in [("role R @   ", "role R @"), ("role R: @   ", "role R: @")] {
+        let (green, exit, remainder) = run_role_declaration(source, 0, 0, LineEntry::InLine, None);
+        // The Error ends before the pending EOF Item's leading.
+        assert_eq!(green.to_string(), owned, "{source:?}");
+        let mut pending = pending_item(exit, LineEntry::InLine);
+        assert_eq!(emit_pending_leading_text(&mut pending), "   ");
         assert_eq!(remainder, "", "{source:?}");
         let node = declaration(&green);
         assert_eq!(count(&node, SyntaxKind::Error), 1, "{source:?}\n{node:#?}");
@@ -451,11 +761,7 @@ fn role_isolated_body_recovery_commits_one_error_node_per_malformed_run() {
             .descendants()
             .find(|child| child.kind() == SyntaxKind::Error)
             .expect("one malformed body run");
-        assert_eq!(
-            error.text().to_string(),
-            error_text,
-            "{source:?}\n{node:#?}"
-        );
+        assert_eq!(error.text().to_string(), "@", "{source:?}\n{node:#?}");
     }
 }
 
@@ -468,25 +774,18 @@ fn role_colon_body_keeps_missing_and_shallow_boundaries_pending() {
 
     let source = "role R: ;";
     let (green, exit, remainder) = run_role_declaration(source, 0, 0, LineEntry::InLine, None);
-    assert_eq!(green.to_string(), "role R: ");
+    assert_eq!(green.to_string(), "role R:");
     assert_eq!(remainder, "");
     let node = declaration(&green);
     assert_eq!(count(&node, SyntaxKind::Missing), 1, "{node:#?}");
-    let whitespace = node
-        .children_with_tokens()
-        .filter_map(|element| element.into_token())
-        .filter(|token| token.kind() == SyntaxKind::Whitespace)
-        .last()
-        .expect("colon-body local gap");
     let missing = node
         .descendants()
         .find(|child| child.kind() == SyntaxKind::Missing)
         .expect("missing Role body");
-    assert_eq!(whitespace.text(), " ");
-    assert_eq!(whitespace.text_range().end(), missing.text_range().start());
+    assert_eq!(usize::from(missing.text_range().start()), "role R:".len());
     assert_eq!(
         pending_token_leading(exit, TokenKind::Semicolon, ";", LineEntry::InLine),
-        []
+        [(SyntaxKind::Whitespace, " ".to_owned())]
     );
 
     let source = "role R:\nnext";
