@@ -543,7 +543,9 @@ recovery-equality prerequisite.
 
 1. Migrate the remaining mutually recursive Expression/Pattern/Statement/
    declaration/literal owners. Local Type construction does not certify raw
-   recovery still emitted by another owner.
+   recovery still emitted by another owner. CaseLike Arrow/Body is complete;
+   its Separator and Catch-close owners remain the next distinct CaseLike
+   recovery slice.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption

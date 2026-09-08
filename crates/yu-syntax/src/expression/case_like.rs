@@ -9,7 +9,7 @@ use crate::{
     operator_table::BindingPower,
     recovery_record::{
         CaseLikeRole, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
-        RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+        RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -17,9 +17,12 @@ use crate::{
 use crate::{
     cst_output::{
         RecoveryDraft,
-        emit::{emit_missing, emit_recovery_missing, emit_token_item},
+        emit::{
+            emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+            token_syntax_kind,
+        },
     },
-    cursor::SyntaxIn,
+    cursor::{LexIn, SyntaxIn},
     expression::{
         continue_normalized_tail, expr_from_nud_normalized, is_nud_item,
         required_expr_item_normalized,
@@ -27,7 +30,7 @@ use crate::{
     handoff::{Either, MlMode, NormalizedExit, TailExit, complete, handoff},
     lexical::{
         current_item::{CurrentItem, LineEntry, current_item},
-        expression_item::expression_item,
+        expression_item::{expression_item, scan_expression_item_lexical},
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
             introduced_body_indentation_normalized, scan_case_label_payload,
@@ -35,7 +38,8 @@ use crate::{
         },
         observation::{
             implicit_delimited_newline, indentation_after_newline, is_active_stop,
-            is_contextual_word, is_line_stop, is_separator, token_kind,
+            is_active_stop_lex, is_close, is_contextual_word, is_line_stop, is_separator,
+            token_kind,
         },
         position::{advanced_origin, suffix_marker},
         stops::{STOP_ARROW, STOP_COLON, STOP_COMMA, STOP_LBRACE, STOP_LINE_BREAK, Stops},
@@ -542,14 +546,14 @@ fn arm_normalized(
     let item =
         match arm_successor_normalized(i.rb(), exit, first_stops, item_origin, line_entry, fence) {
             Ok(item) => item,
-            Err(exit) => return finish_absent_arm_normalized(i, exit),
+            Err(exit) => return finish_absent_arm_normalized(i, exit, item_origin),
         };
     item_origin = item.1;
     line_entry = item.2;
     let item = item.0;
 
     if item.payload_view().is_boundary() {
-        return finish_absent_arm_normalized(i, complete(handoff(item), line_entry));
+        return finish_absent_arm_normalized(i, complete(handoff(item), line_entry), item_origin);
     }
 
     let item = if matches!(family, CaseLikeFamily::Catch)
@@ -583,12 +587,13 @@ fn arm_normalized(
                 line_entry = next_line_entry;
                 item
             }
-            Err(exit) => return finish_absent_arm_normalized(i, exit),
+            Err(exit) => return finish_absent_arm_normalized(i, exit, item_origin),
         }
     } else {
         item
     };
 
+    let entry = suffix_marker(i.rb());
     let item = if let Some(kind) = guard_kind(i.rb(), &item) {
         guard_normalized(
             i.rb(),
@@ -607,13 +612,14 @@ fn arm_normalized(
     } else {
         Ok((item, item_origin, line_entry))
     };
+    item_origin = advanced_origin(item_origin, entry, i.rb());
     let item = match item {
         Ok((item, next_origin, next_line_entry)) => {
             item_origin = next_origin;
             line_entry = next_line_entry;
             item
         }
-        Err(exit) => return finish_absent_arm_normalized(i, exit),
+        Err(exit) => return finish_absent_arm_normalized(i, exit, item_origin),
     };
 
     let entry = suffix_marker(i.rb());
@@ -667,13 +673,21 @@ fn arm_normalized(
     exit
 }
 
-fn finish_absent_arm_normalized(mut i: SyntaxIn, exit: NormalizedExit) -> NormalizedExit {
+fn finish_absent_arm_normalized(
+    mut i: SyntaxIn,
+    mut exit: NormalizedExit,
+    item_origin: usize,
+) -> NormalizedExit {
     if matches!(exit, NormalizedExit::Deferred(..)) {
         i.state.finish_node();
         return exit;
     }
-    emit_missing(&mut i, LeadingTrivia::default());
-    emit_missing(&mut i, LeadingTrivia::default());
+    let item = match &mut exit {
+        NormalizedExit::Complete(Err(Either::Left(item)), _) => item,
+        NormalizedExit::Complete(Err(Either::Right(end)), _) => &mut end.item,
+        _ => unreachable!("an absent arm retains its terminal Item"),
+    };
+    emit_arm_missing(i.rb(), item, item_origin, CaseLikeRole::Arrow, true);
     i.state.finish_node();
     exit
 }
@@ -770,10 +784,12 @@ fn missing_arrow_then_body_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    if !implicit_delimited_newline(arm_baseline, item.leading_view()) {
-        item.emit_all_remaining_leading(&mut *i.state);
+    if arm_body_boundary(i.rb(), &item, arm_baseline, body_stops) {
+        emit_arm_missing(i.rb(), &mut item, item_origin, CaseLikeRole::Arrow, true);
+        return complete(handoff(item), line_entry);
     }
-    emit_missing(&mut i, LeadingTrivia::default());
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_arm_missing(i.rb(), &mut item, item_origin, CaseLikeRole::Arrow, false);
     arm_inline_body_item_normalized(
         i,
         item,
@@ -853,15 +869,8 @@ fn arm_inline_body_item_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
     if arm_body_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, item.leading_view()) {
-            item.emit_all_remaining_leading(&mut *i.state);
-        }
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_arm_missing(i.rb(), &mut item, item_origin, CaseLikeRole::Body, false);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -891,14 +900,7 @@ fn arm_inline_body_item_normalized(
         line_entry,
         fence,
     );
-    if item.payload_view().is_boundary() {
-        return complete(handoff(item), line_entry);
-    }
     if arm_body_boundary(i.rb(), &item, baseline, stops) {
-        if !implicit_delimited_newline(baseline, item.leading_view()) {
-            item.emit_all_remaining_leading(&mut *i.state);
-        }
-        emit_missing(&mut i, LeadingTrivia::default());
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -921,7 +923,7 @@ fn arm_inline_body_item_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn retry_arm_body_normalized(
-    mut i: SyntaxIn,
+    i: SyntaxIn,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -929,34 +931,126 @@ fn retry_arm_body_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = expression_item(
-            i.rb(),
-            OperatorSite::Nud,
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-        );
-        if item.payload_view().is_boundary()
-            || arm_body_boundary(i.rb(), &item, baseline, stops)
-            || is_nud_item(&item)
-        {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-    }
+    emit_recovery_error_run(
+        i,
+        |run| loop {
+            let kind = match token_kind(&item).expect("Body Error owns lexical Items") {
+                TokenKind::Operator => SyntaxKind::Operator,
+                kind => token_syntax_kind(kind),
+            };
+            let range = run.emit_item_as(item, item_origin, kind).recovery_range();
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range,
+                category: UnexpectedCategory::OtherCharacter,
+            });
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_expression_item_lexical(
+                    lex,
+                    OperatorSite::Nud,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    baseline,
+                    stops,
+                )
+            });
+            if run.lexical(|lex| arm_body_boundary_lex(lex, &item, baseline, stops))
+                || is_nud_item(&item)
+            {
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| {
+            arm_recovery_draft(
+                CaseLikeRole::Body,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+                false,
+            )
+        },
+    )
 }
 
 fn arm_body_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {
-    item.payload_view().is_eof()
+    i.token(|lex| Some(arm_body_boundary_lex(lex, item, baseline, stops)))
+        .expect("Body boundary observation is total")
+}
+
+fn arm_body_boundary_lex(i: LexIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
         || is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
+        || is_active_stop_lex(i, item, stops)
         || is_line_stop(item, stops)
         || implicit_delimited_newline(baseline, item.leading_view())
+        || (!is_nud_item(item)
+            && (is_close(item)
+                || matches!(
+                    token_kind(item),
+                    Some(TokenKind::LBracket | TokenKind::LBrace)
+                )))
+}
+
+fn emit_arm_missing(
+    i: SyntaxIn,
+    item: &mut Item,
+    origin: usize,
+    role: CaseLikeRole,
+    combined: bool,
+) {
+    if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
+        item.emit_eof_leading(&mut *i.state);
+    }
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        arm_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]), combined)
+    });
+}
+
+fn arm_recovery_draft(
+    role: CaseLikeRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+    combined: bool,
+) -> RecoveryDraft {
+    let expectation = SyntaxExpectation {
+        role: GrammarRole::CaseLike(role),
+        expected: if role == CaseLikeRole::Arrow {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)
+        } else {
+            ExpectedSyntax::Expression
+        },
+        range: range.clone(),
+        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+    };
+    let expectations: Arc<[SyntaxExpectation]> = if combined {
+        Arc::from([
+            expectation,
+            SyntaxExpectation {
+                role: GrammarRole::CaseLike(CaseLikeRole::Body),
+                expected: ExpectedSyntax::Expression,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            },
+        ])
+    } else {
+        Arc::from([expectation])
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role: GrammarRole::CaseLike(role),
+            range,
+        },
+        kind,
+        unexpected,
+        expectations,
+        0,
+    )
 }
 
 fn arm_terminal_normalized(

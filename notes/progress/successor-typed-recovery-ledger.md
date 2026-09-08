@@ -234,8 +234,8 @@ An actual colon after a missing Condition opens its separate Body slot: its
 Condition record precedes Body Missing/Error. The parent indented Statement
 role and actual close/fence ownership are unchanged.
 
-CaseLike structural recovery is now mapped below. Arrow/Body, separators and
-Catch-close remain distinct later owners.
+CaseLike structural and Arrow/Body recovery are now mapped below. Separators
+and Catch-close remain distinct later owners.
 
 | source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -243,6 +243,9 @@ Catch-close remain distinct later owners.
 | `case_like::wrong_indent_block_normalized` | `CaseLike(Arm)` | M | same-or-shallower post-colon arm | `[]` / Pattern | whole pending Item/leading returns to outer Statement | `case_like::*`, root continuation | C-structural |
 | `case_like::arm_normalized` first Pattern | `CaseLike(Pattern)` | M/E | existing mandatory Pattern absence/run | `[]` or `other(Rng)` / Pattern | one Pattern-kernel publication; nested Pattern/Type roles stay native | `case_like::*`, `pattern::*` | C-structural |
 | `case_like::arm_normalized` Catch handler after comma | `CaseLike(Handler)` | M/E | existing mandatory Pattern absence/run | `[]` or `other(Rng)` / Pattern | handler comma stays Catch-owned; one Pattern-kernel publication | `case_like::*`, `pattern::*` | C-structural |
+| `case_like::missing_arrow_then_body_normalized` missing Arrow before admitted Body NUD | `CaseLike(Arrow)` | M | zero-width current Item start | `[]` / punctuation Arrow | publish Arrow then retry the same admitted Item as Body | `case_like::*` | C-arrow/body |
+| same, Arrow and Body absent at one boundary | `CaseLike(Arrow)` | M | inspected boundary or remaining start | `[]` / primary punctuation Arrow plus Body Expression expectation | one Missing node/record owns the shared cause; full protected Item stays pending | `case_like::*`, normalized controls | C-arrow/body |
+| `case_like::arm_inline_body_item_normalized`, retry | `CaseLike(Body)` | M/E | post-arrow absence or maximal lexical non-NUD run | `[]` or `other(Rng)` / Expression | retry admitted NUD outside Error; every terminal boundary stays pending without a second Missing | `case_like::*`, recovery output | C-arrow/body |
 
 The finite external Pattern-role transport accepts only these CaseLike roles
 beside Binding Target. No duplicate CaseLike record surrounds the Pattern kernel.
@@ -368,7 +371,7 @@ independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-CaseLike Arrow/Body/Separator/Catch-close recovery; accepted public Yumark/frame-pop, braced/colon/with raw owners and caller bypasses; remaining declaration shells/fields;
+CaseLike Separator/Catch-close recovery; accepted public Yumark/frame-pop, braced/colon/with raw owners and caller bypasses; remaining declaration shells/fields;
 all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type
