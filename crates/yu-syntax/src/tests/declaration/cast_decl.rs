@@ -187,6 +187,104 @@ fn cast_pattern_close_record(
     }
 }
 
+fn cast_target_introducer_record(
+    id: u32,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+) -> CommittedRecoveryRecord {
+    use crate::recovery_record::{
+        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax,
+    };
+    use std::sync::Arc;
+    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetIntroducer));
+    let unexpected = (kind == RecoveryKind::Error)
+        .then(|| UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        })
+        .into_iter()
+        .collect::<Vec<_>>()
+        .into();
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+#[test]
+fn cast_target_introducer_records_are_exact_and_reconcile() {
+    for origin in [100, 12_000] {
+        for (source, stops, kind, relative_range) in [
+            ("cast(x)", 0, RecoveryKind::Missing, 7..7),
+            ("cast(x);", 0, RecoveryKind::Missing, 7..7),
+            ("cast(x)= value", 0, RecoveryKind::Missing, 7..7),
+            ("cast(x) T;", 0, RecoveryKind::Missing, 8..8),
+            ("cast(x) )", 0, RecoveryKind::Missing, 7..7),
+            ("cast(x) ]", 0, RecoveryKind::Missing, 7..7),
+            ("cast(x) }", 0, RecoveryKind::Missing, 7..7),
+            ("cast(x)\r\nT;", 0, RecoveryKind::Missing, 7..7),
+            ("cast(x) else", STOP_ELSE, RecoveryKind::Missing, 7..7),
+            ("cast(x) @ : T;", 0, RecoveryKind::Error, 8..9),
+            ("cast(x) @ T;", 0, RecoveryKind::Error, 8..9),
+            ("cast(x) @ ;", 0, RecoveryKind::Error, 8..9),
+            ("cast(x) @ = value", 0, RecoveryKind::Error, 8..9),
+            ("cast(x) @ )", 0, RecoveryKind::Error, 8..9),
+            ("cast(x) @   ", 0, RecoveryKind::Error, 8..12),
+            ("cast(x) @\r\n", 0, RecoveryKind::Error, 8..9),
+            ("cast(x) @ あ T;", 0, RecoveryKind::Error, 8..9),
+        ] {
+            let expected = cast_target_introducer_record(
+                0,
+                kind,
+                origin + relative_range.start..origin + relative_range.end,
+            );
+            let (green, _, records, remainder) = typed_cast(source, origin, None, stops, None);
+            assert_eq!(records.first(), Some(&expected), "{source:?} at {origin}");
+            assert_eq!(
+                records
+                    .iter()
+                    .filter(|record| {
+                        record.site.role
+                            == crate::recovery_record::GrammarRole::Declaration(
+                                crate::recovery_record::DeclarationRole::Cast(
+                                    CastRole::TargetIntroducer,
+                                ),
+                            )
+                    })
+                    .collect::<Vec<_>>(),
+                [&expected],
+                "{source:?} at {origin}"
+            );
+            let (again, _, frozen, frozen_remainder) =
+                typed_cast(source, origin, Some(&records), stops, None);
+            assert_eq!(again, green, "{source:?} at {origin}");
+            assert_eq!(frozen, records, "{source:?} at {origin}");
+            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
+            let mut seeded = records.clone();
+            seeded[0].id = crate::recovery_record::DiagnosticId(71);
+            let (seeded_green, _, seeded_records, seeded_remainder) =
+                typed_cast(source, origin, Some(&seeded), stops, None);
+            assert_eq!(seeded_green, green, "{source:?} at {origin}");
+            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
+            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+        }
+    }
+}
+
 #[test]
 fn cast_pattern_close_records_are_exact_and_reconcile() {
     for origin in [100, 12_000] {
@@ -246,7 +344,14 @@ fn cast_pattern_absence_records_are_exact_and_reconcile() {
             "cast(;",
             "cast(= value",
         ] {
-            let expected = [cast_pattern_record(0, origin + 5)];
+            let mut expected = vec![cast_pattern_record(0, origin + 5)];
+            if source == "cast()" {
+                expected.push(cast_target_introducer_record(
+                    1,
+                    RecoveryKind::Missing,
+                    origin + 6..origin + 6,
+                ));
+            }
             let (green, _, records, remainder) = typed_cast(source, origin, None, 0, None);
             assert_eq!(records, expected, "{source:?} at {origin}");
             let (again, _, frozen, frozen_remainder) =
@@ -289,7 +394,14 @@ fn cast_pattern_introducer_records_are_exact_shifted_and_reconciled() {
             ("cast @ あ x", 0, RecoveryKind::Error, 5..6),
         ] {
             let range = origin + relative_range.start..origin + relative_range.end;
-            let expected = [pattern_introducer_record(0, kind, range)];
+            let mut expected = vec![pattern_introducer_record(0, kind, range)];
+            if source == "cast @ あ x" {
+                expected.push(cast_target_introducer_record(
+                    1,
+                    RecoveryKind::Missing,
+                    origin + 11..origin + 11,
+                ));
+            }
             let (green, _, records, remainder) = typed_cast(source, origin, None, stops, None);
             assert_eq!(records, expected, "{source:?} at {origin}");
             let (again, _, frozen, frozen_remainder) =
@@ -753,6 +865,52 @@ fn cast_malformed_pattern_introducer_owns_only_same_line_eof_trivia() {
 }
 
 #[test]
+fn cast_malformed_target_introducer_owns_only_same_line_eof_trivia() {
+    let source = "cast(x) @   ";
+    let (green, exit, remainder) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::Error), 1);
+    assert_eq!(count(&node, SyntaxKind::Missing), 0);
+    assert_eq!(
+        node.descendants()
+            .find(|descendant| descendant.kind() == SyntaxKind::Error)
+            .expect("TargetIntroducer Error")
+            .to_string(),
+        "@   "
+    );
+    let mut pending = pending_item(exit);
+    assert!(pending.payload_view().is_eof());
+    assert_eq!(emit_pending_leading_text(&mut pending), "");
+
+    for source in ["cast(x) @\n", "cast(x) @\r\n  "] {
+        let (green, exit, remainder) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), "cast(x) @", "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        let declaration = declaration(&green);
+        assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
+        assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(
+            declaration
+                .descendants()
+                .find(|descendant| descendant.kind() == SyntaxKind::Error)
+                .expect("TargetIntroducer Error")
+                .to_string(),
+            "@",
+            "{source:?}"
+        );
+        let mut pending = pending_item(exit);
+        assert!(pending.payload_view().is_eof());
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            &source["cast(x) @".len()..],
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn cast_local_and_ambient_close_authority_preserves_exact_items() {
     let source = "cast([x ) ) tail";
     let (green, exit, remainder) = run_cast_declaration(
@@ -877,5 +1035,25 @@ fn cast_fence_and_origin_boundary_remain_outer_owned() {
     assert_eq!(
         records,
         [cast_pattern_record(0, origin + accepted.len() + 2)]
+    );
+
+    let accepted = "> > cast(x) @";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (_, _, records, typed_remainder) = typed_cast_at(
+        &source,
+        origin,
+        None,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    assert_eq!(typed_remainder, "> > ```\r\nouter");
+    assert_eq!(
+        records,
+        [cast_target_introducer_record(
+            0,
+            RecoveryKind::Error,
+            origin + "> > cast(x) ".len()..origin + accepted.len(),
+        )]
     );
 }

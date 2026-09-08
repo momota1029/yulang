@@ -393,6 +393,20 @@ root and declaration-local owners open.
   Cast 14; Pattern/normalized/recovery-output 162; package, format and diff
   passed. Benchmark use: zero.
 
+## Cast TargetIntroducer current-Item recovery
+
+- Completed `2026-09-09-successor-cast-target-introducer-current-item-recovery.md`.
+  The four Missing paths and one bounded malformed run now publish
+  `Declaration(Cast(TargetIntroducer))` with a colon expectation. Colon and a
+  reusable Type NUD retry through their distinct existing paths; form and
+  protected boundaries keep their pending Items, and Error adds no second slot
+  record.
+- The selected nonempty same-line EOF-leading suffix extends the Error node,
+  typed record, and `OtherCharacter` fact together; empty/newline EOF leading
+  remains pending. M2 preflight plus delta review found no concrete defect.
+  Cast 16; Pattern/Type/normalized/recovery-output 358; package, format and
+  diff passed. Benchmark use: zero.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

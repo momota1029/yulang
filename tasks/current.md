@@ -58,6 +58,14 @@ does not add a second Missing. Nonempty same-line EOF leading extends the Error
 node, record, and fact together. Cast 14; direct cone 162; package/format/diff
 passed. Benchmark use: zero.
 
+Cast TargetIntroducer is complete under
+`2026-09-09-successor-cast-target-introducer-current-item-recovery.md`. Its
+four Missing paths and bounded malformed run publish the existing typed role
+with a colon expectation. Colon and reusable Type retries remain distinct;
+form and protected boundaries remain unread; Error does not add a second
+TargetIntroducer Missing. Cast 16; direct cone 358; package/format/diff passed.
+Benchmark use: zero.
+
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E
 addenda. Selected P/E/numeric-Call structured Error controls cover exact

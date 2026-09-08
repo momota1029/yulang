@@ -820,7 +820,7 @@ fn cast_target_introducer_normalized(
     let transition = cast_transition(i.rb(), &item, baseline, stops, false);
     if transition == CastTransition::Form {
         item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_target_introducer_missing(&mut i, &item, item_origin);
         return cast_form_normalized(
             i,
             item,
@@ -835,7 +835,7 @@ fn cast_target_introducer_normalized(
         );
     }
     if transition == CastTransition::OuterBoundary {
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_target_introducer_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -866,7 +866,7 @@ fn cast_target_introducer_normalized(
     }
     if is_type_nud(&item) {
         i.state.start_node(SyntaxKind::CastTarget.into());
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_target_introducer_missing(&mut i, &item, item_origin);
         return cast_target_type_normalized(
             i,
             item,
@@ -881,21 +881,20 @@ fn cast_target_introducer_normalized(
         );
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = cast_item_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-            CastVocabulary::Type,
-        );
-        let transition = cast_transition(i.rb(), &item, baseline, stops, false);
-        if transition == CastTransition::Form {
-            i.state.finish_node();
+    let (next_item, next_origin, next_line, error_exit) = cast_target_introducer_error_run(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    item = next_item;
+    item_origin = next_origin;
+    line_entry = next_line;
+    match error_exit {
+        CastTargetIntroducerErrorExit::Form => {
             return cast_form_normalized(
                 i,
                 item,
@@ -909,18 +908,13 @@ fn cast_target_introducer_normalized(
                 sequence,
             );
         }
-        if transition == CastTransition::OuterBoundary {
-            if item.payload_view().is_eof() && cast_gap_allowed(&item, baseline) {
-                item.emit_eof_leading(&mut *i.state);
-            }
-            i.state.finish_node();
+        CastTargetIntroducerErrorExit::Boundary => {
             return complete(handoff(item), line_entry);
         }
-        if transition == CastTransition::Target || is_type_nud(&item) {
-            i.state.finish_node();
+        CastTargetIntroducerErrorExit::Target | CastTargetIntroducerErrorExit::Type => {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.start_node(SyntaxKind::CastTarget.into());
-            let has_colon = transition == CastTransition::Target;
+            let has_colon = error_exit == CastTargetIntroducerErrorExit::Target;
             if has_colon {
                 emit_token_item(&mut i, item);
                 (item, item_origin, line_entry) = cast_item_normalized(
@@ -932,8 +926,6 @@ fn cast_target_introducer_normalized(
                     stops,
                     CastVocabulary::Type,
                 );
-            } else {
-                emit_missing(&mut i, LeadingTrivia::default());
             }
             return cast_target_type_normalized(
                 i,
@@ -1354,6 +1346,14 @@ enum CastPatternIntroducerErrorExit {
     Boundary,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CastTargetIntroducerErrorExit {
+    Target,
+    Type,
+    Form,
+    Boundary,
+}
+
 fn cast_pattern_introducer_role() -> GrammarRole {
     GrammarRole::Declaration(DeclarationRole::Cast(CastRole::PatternIntroducer))
 }
@@ -1415,6 +1415,43 @@ fn cast_pattern_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
             }]),
             0,
         )
+    });
+}
+
+fn cast_target_introducer_role() -> GrammarRole {
+    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetIntroducer))
+}
+
+fn cast_target_introducer_draft(
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = cast_target_introducer_role();
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn cast_target_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        cast_target_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
     });
 }
 
@@ -1556,6 +1593,68 @@ fn cast_transition_lex(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn cast_target_introducer_error_run(
+    i: SyntaxIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry, CastTargetIntroducerErrorExit) {
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(origin).recovery_range().start;
+            loop {
+                let kind = cast_error_syntax_kind(&item);
+                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+                (item, origin, line) = run.lexical(|lex| {
+                    scan_cast_item_lexical(
+                        lex,
+                        origin,
+                        line,
+                        fence,
+                        baseline,
+                        stops,
+                        CastVocabulary::Type,
+                    )
+                });
+                let exit = if cast_token_kind(&item) == Some(TokenKind::Colon)
+                    && cast_gap_allowed(&item, baseline)
+                {
+                    Some(CastTargetIntroducerErrorExit::Target)
+                } else if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
+                    Some(CastTargetIntroducerErrorExit::Form)
+                } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
+                    Some(CastTargetIntroducerErrorExit::Boundary)
+                } else if is_type_nud(&item) {
+                    Some(CastTargetIntroducerErrorExit::Type)
+                } else {
+                    None
+                };
+                if let Some(exit) = exit {
+                    let error_end = if exit == CastTargetIntroducerErrorExit::Boundary
+                        && cast_error_owns_eof_leading(&item)
+                        && !item.extent(origin).remaining().is_empty()
+                    {
+                        run.emit_same_line_eof_leading(&mut item, origin).end
+                    } else {
+                        end
+                    };
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..error_end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, origin, line, exit);
+                }
+            }
+        },
+        |range, unexpected| cast_target_introducer_draft(RecoveryKind::Error, range, unexpected),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 fn cast_pattern_introducer_error_run(
     i: SyntaxIn,
     mut item: Item,
@@ -1589,7 +1688,7 @@ fn cast_pattern_introducer_error_run(
                     Some(CastPatternIntroducerErrorExit::Target)
                 } else if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
                     Some(CastPatternIntroducerErrorExit::Form)
-                } else if cast_pattern_introducer_boundary_lex(run, &item, baseline, stops) {
+                } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
                     Some(CastPatternIntroducerErrorExit::Boundary)
                 } else if cast_token_kind(&item) == Some(TokenKind::LParen)
                     || is_pattern_nud(&item, 0)
@@ -1619,7 +1718,7 @@ fn cast_pattern_introducer_error_run(
     )
 }
 
-fn cast_pattern_introducer_boundary_lex(
+fn cast_prefix_boundary_lex(
     run: &mut crate::cst_output::emit::ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
     item: &Item,
     baseline: usize,

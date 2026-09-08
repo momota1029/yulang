@@ -288,10 +288,6 @@ pub(crate) enum CastRole {
         reason = "typed recovery vocabulary retained for deferred owner migration"
     )]
     Pattern,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     TargetIntroducer,
     TargetType,
     #[allow(
