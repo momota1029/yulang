@@ -121,7 +121,7 @@ fn run_rule_body_normalized<'source>(
         fence,
     );
     builder.finish_node();
-    (builder.finish(), exit, line_entry, input)
+    (builder.finish_with_recoveries().0, exit, line_entry, input)
 }
 
 fn run_rule_body_with<'source>(

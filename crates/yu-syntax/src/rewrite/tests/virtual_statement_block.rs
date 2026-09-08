@@ -56,7 +56,7 @@ fn run_virtual_string<'source>(
         fence,
     );
     builder.finish_node();
-    (builder.finish(), exit, input)
+    (builder.finish_with_recoveries().0, exit, input)
 }
 
 fn count(green: &GreenNode, kind: SyntaxKind) -> usize {

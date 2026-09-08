@@ -265,13 +265,22 @@ not stop-derived inference.
 | Virtual Statement, RecordPattern default, Rule ExpressionList | replace their narrow direct bridge owner | Colon returns their existing comma/newline/close boundary; ambient policy unchanged | `colon_sequence::*`, `rule::*`, literal/Yumark controls | C |
 | Binding/Cast/For inline routes; projection-record spread | forward recorded owner | outer sequence authority remains visible | `colon_sequence::*`, caller controls | C |
 
+Non-Rule StringLiteral recovery is now mapped below. Virtual child and Rule DSL
+publication remain their own owners.
+
+| source / owner | slot role | M/E | trigger and extent | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- |
+| `literal::finish_non_interpolating_string_boundary`, `finish_string_boundary` | `Literal(StringTerminator)` | M | inspected EOF/fence/current boundary coordinate | preserve boundary/remainder | `string_literal_recovery::*`, literal controls | C |
+| simple/Unicode escape slots in `literal.rs` | `StringEscapeSimpleTarget`, `StringEscapeUnicodeHex`, `StringEscapeUnicodeEnd` | M/E | missing slot or one maximal malformed Unicode physical run | native payload; defer structural prefix | `string_literal_recovery::*` | C |
+| interpolation format/open and absent close boundary | `StringInterpolationOpenBrace`, `StringInterpolationCloseBrace` | M | owned missing brace at inspected/successor coordinate | child precedes close then terminator; borrowed close succeeds | `string_literal_recovery::*`, Virtual controls | C |
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-if/case/Rule/string typed-recovery; canonical Statement and braced/root/colon/
+if/case/Rule typed-recovery; canonical Statement and braced/root/colon/
 with raw owners and caller bypasses; declarations/derives/companions; raw
 VirtualStatementBlock recovery; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/

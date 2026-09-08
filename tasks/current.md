@@ -217,12 +217,20 @@ cone has 511 passes and the separately reproduced `(a +\nb)` baseline operator
 mismatch. Spec/recovery and regression delta audits passed. No benchmark process
 was used.
 
-Next, continue literal/Statement/declaration typed-recovery dependencies.
-Braced/root raw recovery, caller body-introducer bypasses, Type/other-Pattern/
-Yumark production context ingress and aggregate/public certification remain
-separate. Extend the same ledger; retain the current acceptance contracts,
-effect-free optional entry and the atomic public cutover boundary. No benchmark
-sample/process has been used.
+The non-Rule StringLiteral gate in
+`2026-09-08-successor-string-literal-current-item-recovery.md` is implemented.
+Terminator, escape and interpolation boundary sites publish six existing typed
+Literal roles; UnicodeHex uses one sealed lexical Error and Virtual child
+recovery remains separate. Focused: 8; literal/Pattern/Rule/Virtual/normalized/
+recovery-output: 35/54/26/9/83/25; package/format/diff pass. Specification and
+regression reviews passed. No benchmark process was used.
+
+Next, continue Rule DSL literal, Statement and declaration typed-recovery
+dependencies. Braced/root raw recovery, caller body-introducer bypasses,
+Type/other-Pattern/Yumark production context ingress and aggregate/public
+certification remain separate. Extend the same ledger; retain the current
+acceptance contracts, effect-free optional entry and the atomic public cutover
+boundary. No benchmark sample/process has been used.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 
