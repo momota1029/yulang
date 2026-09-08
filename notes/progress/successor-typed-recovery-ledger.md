@@ -2,8 +2,8 @@
 
 Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
 primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`,
-default-Expression checkpoint `7832ab2f`; Expression operand preparation paused
-before production edits at the user's request.
+default-Expression checkpoint `7832ab2f`; required Expression operands and
+their explicit caller roles are privately constructed.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -195,21 +195,29 @@ Pattern primary, symbol, alias and alternation sites in `pattern.rs` now have
 zero raw Missing/Error constructors. Its two Error-run producers and shared
 Missing producer map above; the existing annotation Type callee is typed.
 Pattern delimiter/default publication is also mapped above; no raw Pattern
-Missing/Error constructor remains. Next O3b substep: Expression required
-operands and their callers, then tails/delimiters and literal dependencies.
-The explicit initial roles and boundary/run rules are now selected in
-`2026-09-08-successor-expression-operand-current-item-recovery.md`, but are
-not implemented or mapped as completed publication sites. Its isolated
-mandatory ` ]` test failed with no record instead of Nud Missing; the exact
-test is preserved there outside the build for resumption. Optional `? ]`
-rejects before that callee and must not be repurposed as accepted evidence.
-No raw Expression site was removed and no RB-E closure is claimed here.
+Missing/Error constructor remains.
+
+Required Expression operands are now mapped below. The shared driver emits
+the initial role's typed Missing or Error; once a NUD is admitted, nested
+owners select their own role. It has one shared total lexical Item operation
+for ordinary and sealed Error paths. The saved ` ]` witness now passes; `? ]`
+remains an effect-free optional-entry rejection control. This does not close
+Expression tails, literal/Statement callers, RB-E, O4 or public adoption.
+
+| source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `driver::required_expr_item_normalized` ordinary wrapper / accepted operand | `Expression(Nud)` | M/E | absence: abstract coordinate, protected remaining start, or ordinary EOF after leading; maximal malformed run | `[]` / `Expression`; `other(Rng)` / `Expression` | preserve boundary or append retry NUD | `expression_recovery::*`, `operators::*` | C |
+| `if_expr::condition_normalized` | `IfExpression(Condition)` | M/E | same shared predicate/run; existing caller leading remains outside | `[]` or `other(Rng)` / `Expression` | existing condition-arm handoff | `expression_recovery::required_operand_callers_publish_their_own_roles`, `if_expr::*` | C |
+| `case_like::case_like_head_normalized` | `CaseLike(Scrutinee)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing case block handoff | `expression_recovery::*`, `case_like::*` | C |
+| `case_like::guard_normalized` | `CaseLike(Guard)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing arrow handoff | `expression_recovery::*`, `case_like::*` | C |
+| `for_decl::iterable_from_item_normalized`, including newline/fence bypass | `ForStatement(Iterable)` | M/E | same predicate plus existing implicit newline bypass; protected Item remains whole | `[]` or `other(Rng)` / `Expression` | body only when iterable is not missing | `expression_recovery::*`, `for_statement::*` | C |
+| `for_decl::inline_body_normalized` | `ForStatement(Body)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Statement` | existing statement-owner handoff | `expression_recovery::*`, `for_statement::*` | C |
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
-their construction proceeds: Pattern's literal/Expression callees; Expression and tails,
+their construction proceeds: Pattern's literal/Expression callees; Expression tails/delimiters,
 if/case/Rule/string; canonical Statement and braced/indented/colon/with owners;
 declarations/derives/companions; VirtualStatementBlock; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/

@@ -3,7 +3,12 @@
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
-use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{
+    operator::BindingPower,
+    scan::operator::OperatorSite,
+    session::{GrammarRole, IfExpressionRole},
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     RewriteIn, Stops,
@@ -289,6 +294,7 @@ fn condition_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
+        GrammarRole::IfExpression(IfExpressionRole::Condition),
         None,
         baseline,
         stops,

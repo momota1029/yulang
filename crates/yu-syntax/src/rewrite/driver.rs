@@ -1,9 +1,19 @@
 //! Direct expression ownership and Item handoff for the isolated rewrite.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use std::sync::Arc;
+
 use reborrow_generic::Reborrow as _;
 
-use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{
+    operator::BindingPower,
+    scan::operator::OperatorSite,
+    session::{
+        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, RecoveryKind,
+        RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+    },
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     LexIn, RewriteIn, Stops,
@@ -11,7 +21,8 @@ use super::{
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     delimited::parenthesized_nud_normalized,
     emit::{
-        emit_identifier_core, emit_integer_core, emit_missing, emit_operator_use, emit_token_item,
+        ErrorRunOutput, emit_identifier_core, emit_integer_core, emit_operator_use,
+        emit_recovery_error_run, emit_recovery_missing, token_syntax_kind,
     },
     if_expr::if_nud_normalized,
     item::{Item, LeadingTrivia, LeadingView, OperatorUse, TokenKind},
@@ -28,6 +39,7 @@ use super::{
     operator::{
         STOP_LINE_BREAK, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item,
     },
+    output::RecoveryDraft,
     statement::{StatementLineHandoff, braced_nud_normalized},
     tails::{
         call_tail_normalized, colon_tail_normalized, dot_tail_normalized, index_tail_normalized,
@@ -465,6 +477,7 @@ fn required_expr_after_accept_normalized(
     required_expr_item_normalized(
         i,
         item,
+        GrammarRole::Expression(ExpressionRole::Nud),
         threshold,
         baseline,
         stops,
@@ -489,6 +502,7 @@ pub(super) fn required_expr_item(
     ordinary_exit(required_expr_item_normalized(
         i,
         item,
+        GrammarRole::Expression(ExpressionRole::Nud),
         threshold,
         baseline,
         stops,
@@ -505,6 +519,7 @@ pub(super) fn required_expr_item(
 pub(super) fn required_expr_item_normalized(
     mut i: RewriteIn,
     mut item: Item,
+    initial_role: GrammarRole,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
@@ -515,13 +530,8 @@ pub(super) fn required_expr_item_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
     if is_required_operand_boundary(i.rb(), &item, stops) {
-        item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_required_expression_missing(&mut i, &mut item, item_origin, stops, initial_role);
         return complete(handoff(item), line_entry);
     }
     if is_nud_item(&item) {
@@ -539,65 +549,168 @@ pub(super) fn required_expr_item_normalized(
             ambient,
         );
     }
-    if is_unread_operand_boundary(&item) {
+    item.emit_all_remaining_leading(&mut *i.state);
+    (item, item_origin, line_entry) = emit_required_expression_error_run(
+        i.rb(),
+        item,
+        initial_role,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+    );
+    if is_required_operand_boundary(i.rb(), &item, stops) {
         return complete(handoff(item), line_entry);
     }
-
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = expression_item(
-            i.rb(),
-            OperatorSite::Nud,
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
-        );
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if is_required_operand_boundary(i.rb(), &item, stops) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if is_nud_item(&item) {
-            i.state.finish_node();
-            return append_nud(
-                i,
-                item,
-                threshold,
-                baseline,
-                stops,
-                ml_mode,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
-        if is_unread_operand_boundary(&item) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-    }
+    debug_assert!(is_nud_item(&item));
+    append_nud(
+        i,
+        item,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
 }
 
 pub(super) fn is_required_operand_boundary(mut i: RewriteIn, item: &Item, stops: Stops) -> bool {
     (item.payload_view().is_eof() || item.payload_view().is_boundary())
         || is_active_stop(i.rb(), item, stops)
         || is_line_stop(item, stops)
+        || is_unread_operand_boundary(item)
 }
 
 fn is_unread_operand_boundary(item: &Item) -> bool {
-    is_close(item)
-        || matches!(
-            token_kind(item),
-            Some(TokenKind::LBracket | TokenKind::LBrace)
-        )
+    !is_nud_item(item)
+        && (is_close(item)
+            || matches!(
+                token_kind(item),
+                Some(TokenKind::LBracket | TokenKind::LBrace)
+            ))
+}
+
+fn is_required_operand_boundary_in_error_run(
+    run: &mut ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    item: &Item,
+    stops: Stops,
+) -> bool {
+    (item.payload_view().is_eof() || item.payload_view().is_boundary())
+        || is_line_stop(item, stops)
+        || is_unread_operand_boundary(item)
+        || run.lexical(|lex| is_active_stop_lex(lex, item, stops))
+}
+
+pub(super) fn emit_required_expression_missing(
+    i: &mut RewriteIn,
+    item: &mut Item,
+    item_origin: usize,
+    stops: Stops,
+    role: GrammarRole,
+) {
+    let at = if item.payload_view().is_boundary() {
+        item.payload_view()
+            .pending_boundary()
+            .expect("a boundary Item retains its inspected boundary")
+            .coordinate()
+    } else if is_active_stop(i.rb(), item, stops)
+        || is_line_stop(item, stops)
+        || is_unread_operand_boundary(item)
+    {
+        item.extent(item_origin).recovery_range().start
+    } else if item.payload_view().is_eof() {
+        item.emit_eof_leading(&mut *i.state);
+        item.extent(item_origin).recovery_range().start
+    } else {
+        item.extent(item_origin).recovery_range().start
+    };
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        required_expression_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_required_expression_error_run(
+    i: RewriteIn,
+    mut item: Item,
+    role: GrammarRole,
+    stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+) -> (Item, usize, LineEntry) {
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let run_start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind = required_expression_error_syntax_kind(&item);
+                let run_end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) = run.lexical(|lex| {
+                    scan_expression_item_lexical(
+                        lex,
+                        OperatorSite::Nud,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
+                    )
+                });
+                if is_required_operand_boundary_in_error_run(run, &item, stops)
+                    || is_nud_item(&item)
+                {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: run_start..run_end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| {
+            required_expression_recovery_draft(role, RecoveryKind::Error, range, unexpected)
+        },
+    )
+}
+
+fn required_expression_error_syntax_kind(item: &Item) -> SyntaxKind {
+    match token_kind(item).expect("a required-expression Error contains lexical Items") {
+        TokenKind::Operator => SyntaxKind::Operator,
+        kind => token_syntax_kind(kind),
+    }
+}
+
+fn required_expression_recovery_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Expression,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 pub(super) fn scan_tail_after_accept(
@@ -1142,27 +1255,52 @@ pub(super) fn expression_item(
     baseline: usize,
     stops: Stops,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |lex, leading, origin, fence, _| {
-                    scan_expression_payload_with_literals(
-                        lex, site, leading, origin, fence, baseline, stops,
-                    )
-                },
-            )
-        })
-        .expect("expression payload scanning is total");
-    let item_origin = advanced_origin(item_origin, entry, i);
-    (item, item_origin, next_line_entry)
+    i.token(|lex| {
+        Some(scan_expression_item_lexical(
+            lex,
+            site,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+        ))
+    })
+    .expect("expression payload scanning is total")
+}
+
+/// One total lexical operation shared by ordinary and sealed Error-run paths.
+#[allow(clippy::too_many_arguments)]
+fn scan_expression_item_lexical(
+    i: LexIn,
+    site: OperatorSite,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> (Item, usize, LineEntry) {
+    let (current, consumed) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |lex, leading, origin, fence, _| {
+                scan_expression_payload_with_literals(
+                    lex, site, leading, origin, fence, baseline, stops,
+                )
+            },
+        )
+        .expect("expression payload scanning is total")
+    });
+    (
+        current.item,
+        item_origin
+            .checked_add(consumed.len())
+            .expect("a direct expression coordinate must fit usize"),
+        current.next_line_entry,
+    )
 }
 
 pub(super) fn scan_expression_payload_with_literals(

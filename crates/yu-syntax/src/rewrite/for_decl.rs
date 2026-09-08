@@ -3,15 +3,20 @@
 use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
-use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{
+    scan::operator::OperatorSite,
+    session::{ForStatementRole, GrammarRole},
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     LexIn, RewriteIn, Stops,
     current_item::{CurrentItem, LineEntry, current_item},
     driver::{
         Either, MlMode, NormalizedExit, advanced_origin, complete, expression_item, handoff,
-        implicit_delimited_newline, is_active_stop, is_active_stop_lex, is_separator,
-        required_expr_item_normalized, suffix_marker, token_kind,
+        implicit_delimited_newline, is_active_stop, is_active_stop_lex,
+        is_required_operand_boundary, is_separator, required_expr_item_normalized, suffix_marker,
+        token_kind,
     },
     emit::{emit_missing, emit_token_item},
     item::{Item, LeadingTrivia, TokenKind},
@@ -345,7 +350,8 @@ fn iterable_normalized(
         baseline,
         iterable_stops(outer_stops),
     );
-    let missing = iterable_boundary(i.rb(), &item, baseline, outer_stops);
+    let missing = implicit_delimited_newline(baseline, item.leading_view())
+        || is_required_operand_boundary(i.rb(), &item, iterable_stops(outer_stops));
     if !item.payload_view().is_boundary()
         && !implicit_delimited_newline(baseline, item.leading_view())
     {
@@ -390,12 +396,19 @@ fn iterable_from_item_normalized(
     let exit = if item.payload_view().is_boundary()
         || implicit_delimited_newline(baseline, item.leading_view())
     {
-        emit_missing(&mut i, LeadingTrivia::default());
+        super::driver::emit_required_expression_missing(
+            &mut i,
+            &mut item,
+            item_origin,
+            iterable_stops(outer_stops),
+            GrammarRole::ForStatement(ForStatementRole::Iterable),
+        );
         complete(handoff(item), line_entry)
     } else {
         required_expr_item_normalized(
             i.rb(),
             item,
+            GrammarRole::ForStatement(ForStatementRole::Iterable),
             None,
             baseline,
             iterable_stops(outer_stops),
@@ -595,6 +608,7 @@ fn inline_body_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
+        GrammarRole::ForStatement(ForStatementRole::Body),
         None,
         baseline,
         stops,

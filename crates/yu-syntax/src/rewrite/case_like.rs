@@ -3,7 +3,12 @@
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
 
-use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{
+    operator::BindingPower,
+    scan::operator::OperatorSite,
+    session::{CaseLikeRole, GrammarRole},
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     RewriteIn, Stops,
@@ -168,6 +173,7 @@ fn case_like_head_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
+        GrammarRole::CaseLike(CaseLikeRole::Scrutinee),
         None,
         baseline,
         scrutinee_stops,
@@ -674,6 +680,7 @@ fn guard_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
+        GrammarRole::CaseLike(CaseLikeRole::Guard),
         None,
         baseline,
         outer_stops | STOP_ARROW,

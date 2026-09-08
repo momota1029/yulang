@@ -1,7 +1,7 @@
 # Expression required-operand current-Item recovery
 
-Status: Authoritative; private O3b construction pending; checkpointed at the
-user's pause request
+Status: Authoritative; private O3b construction complete; joint certification
+and remaining SCC owners pending
 
 Date: 2026-09-08
 
@@ -232,3 +232,31 @@ implementation pass, no production repair and no independent reviewer.
 Benchmark usage: zero samples/processes. The final pause integration is
 record-only; use diff/reference checks without rerunning broad suites. Task,
 index, single ledger and daily record must all describe construction as pending.
+
+## Resumption result
+
+The private construction described above was implemented on 2026-09-08. The
+kernel now receives its explicit initial `GrammarRole`; ordinary wrappers and
+accepted prefix/infix operands use `Expression(Nud)`, while If, CaseLike and
+For pass the finite roles selected above. The For iterable newline/fence bypass
+calls the same typed Missing helper, and its caller absence flag uses the same
+predicate as the kernel.
+
+The ordinary and sealed Error paths call one shared total expression-Item
+lexical operation. Absence distinguishes abstract boundaries, active/line and
+unread Item boundaries, and ordinary EOF: only ordinary EOF drains its leading
+before the Missing anchor. Initial Error leading is emitted in the open chain;
+internal Error leading remains in the sealed run. The run emits native token
+kinds, including raw `Operator`, publishes one `OtherCharacter` Error record,
+and returns a boundary unchanged or resumes the accepted NUD with unchanged
+threshold, ML, line/fence and ambient inputs.
+
+Focused primary verification restored the saved ` ]` witness and added direct
+boundary, Error-retry, frozen reconciliation, infix and actual caller-role
+controls. The expression-recovery filter passed 4 tests; operators, If,
+CaseLike and For filters passed 11, 8, 12 and 12 tests respectively. `cargo
+check -p yu-syntax`, scoped rustfmt and diff checks passed with existing
+workspace warnings. No performance sample/process was run. Read-only
+specification and regression audits were requested after resumption; their
+implemented findings were the shared lexical operation and the For absence
+flag. This is construction evidence, not independent joint certification.
