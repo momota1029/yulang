@@ -177,9 +177,18 @@ stops. The phase loop publishes maximal lexical Errors, records record-spread
 RHS recovery, and makes Parenthesized semicolon a local Separator Error. New
 fresh/frozen tests: 9; owners 23; tails 14; normalized 83; recovery output 25;
 package check/format/diff pass. Specification and delta-regression audits found
-no blocker. Field/Path and Colon/With are still separate owners.
+no blocker. Colon/With remains a separate owner.
 
-Next, continue Expression Field/Path, then Colon/With, and literal/Statement/declaration
+The Field/Path fixed-tail gate in
+`2026-09-08-successor-expression-fixed-tail-current-item-recovery.md` is
+implemented. FieldName/PathSegment now publish typed Identifier records; Error
+runs are sealed lexical-only, Path preserves sigil retry Items and active
+caller stops, and lone colon remains outer-owned. Focused recovery tests: 9;
+tails 14; normalized 83; recovery output 25; package check/format/diff pass.
+Specification and regression review found one frozen-cursor test-evidence gap,
+closed by one bounded repair and delta review. No public dispatch changed.
+
+Next, continue Expression Colon/With, then literal/Statement/declaration
 dependencies. Extend the same ledger; retain the current acceptance contracts,
 effect-free optional entry and the atomic public cutover boundary. No benchmark
 sample/process has been used.

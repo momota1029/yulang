@@ -45,6 +45,7 @@ mod derives;
 mod enum_decl;
 mod error_decl;
 mod expression_recovery;
+mod fixed_tail_recovery;
 mod for_statement;
 mod if_expr;
 mod impl_decl;

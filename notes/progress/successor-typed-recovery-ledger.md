@@ -3,8 +3,8 @@
 Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
 primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`,
 default-Expression checkpoint `7832ab2f`; required Expression operands, their
-explicit caller roles, and shared Expression delimiters are privately
-constructed.
+explicit caller roles, shared Expression delimiters, and fixed Field/Path tails
+are privately constructed.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -225,13 +225,22 @@ private construction, not RB-E/O4 certification.
 | same common loop | descriptor Separator role | M/E | next Item without boundary, Parenthesized `;`, or maximal malformed separator run | `[]`, native `;`, or `other(Rng)` / `DelimitedSequenceSeparator` | same Item retry or fresh Item after recovered separator | `delimited_recovery::*`, `owners::*` | C |
 | same common loop | matching `ClosingDelimiter` role | M/E | absent/protected close or unclaimed wrong close | `[]` or native close / matching punctuation | protected full Item returns; local close Error retries its phase | `delimited_recovery::*`, `owners::*` | C |
 | `record_spread_item_normalized` | `Expression(ProjectionRecordSpreadRhs)` | M/E | absent/malformed RHS after exact DotDot | `[]` or `other(Rng)` / `Expression` | protected separator/close/fence pending; no duplicate RHS Missing after Error | `delimited_recovery::*`, `owners::*` | C |
+
+Field/Path fixed tails are now mapped below. The finite local mapper keeps the
+name slot separate from the outer tail; Path's lexical retry recognizes sigil
+segments without opening grammar inside Error.
+
+| source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `tails::field_tail_normalized` | `Expression(FieldName)` | M/E | missing adjacent name / maximal lexical non-name run | `[]` or `other(Rng)` / `Identifier` | protected Item and retry name return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
+| `tails::path_tail_normalized` | `Expression(PathSegment)` | M/E | missing post-`::` segment / maximal sigil-aware lexical non-name run | `[]` or `other(Rng)` / `Identifier` | retain Path `G*`; protected Item and retry segment return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-`Field`/`Path` and `Colon`/`With` tails,
+`Colon`/`With` tails,
 if/case/Rule/string; canonical Statement and braced/indented/colon/with owners;
 declarations/derives/companions; VirtualStatementBlock; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
