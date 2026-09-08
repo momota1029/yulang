@@ -291,10 +291,6 @@ pub(crate) enum CastRole {
     TargetIntroducer,
     TargetType,
     BodyIntroducer,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Body,
     IndentedStatement,
 }

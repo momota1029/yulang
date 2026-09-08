@@ -84,6 +84,17 @@ Missing, and same-line EOF leading has the selected Cast-owned extent. Cast
 19; direct Pattern/Type/normalized/recovery-output 358; package/format/diff
 passed. Benchmark use: zero.
 
+Post-equals Cast Body is complete under
+`2026-09-09-successor-cast-body-current-item-recovery.md`. Its three raw
+publishers now use `Declaration(Cast(Body))` with an Expression expectation;
+the deeper indented path remains the existing `Cast(IndentedStatement)` child.
+Inline Error is lexical-only and does not cascade a Body Missing. Same-line EOF
+leading stays Cast-owned, while LF/CRLF and protected boundary leading remain
+pending. The now-unreferenced generic raw Missing helper was removed. Cast 22;
+expression recovery 6; normalized 83; recovery-output 25; package/format/diff
+passed. The direct statement filter has one reviewed, unchanged non-Cast
+baseline failure. Benchmark use: zero.
+
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E
 addenda. Selected P/E/numeric-Call structured Error controls cover exact

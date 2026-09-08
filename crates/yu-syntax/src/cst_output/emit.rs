@@ -414,14 +414,6 @@ pub(crate) fn emit_fragmented_item(i: &mut SyntaxIn, item: Item) {
     }
 }
 
-/// An accepted owner emits the pending item's trivia before its zero-width
-/// missing slot.
-pub(crate) fn emit_missing(i: &mut SyntaxIn, leading: LeadingTrivia) {
-    emit_trivia(i, &leading);
-    i.state.start_node(SyntaxKind::Missing.into());
-    i.state.finish_node();
-}
-
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
 #[cfg(test)]
 pub(crate) fn emit_end(output: &mut CstOutput, end: &mut End) {

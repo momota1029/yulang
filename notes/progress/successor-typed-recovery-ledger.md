@@ -435,6 +435,21 @@ root and declaration-local owners open.
   Pattern/Type/normalized/recovery-output 358; package check, format and diff
   passed. Benchmark use: zero samples/processes.
 
+## Cast Body current-Item recovery
+
+- Completed `2026-09-09-successor-cast-body-current-item-recovery.md`. The
+  post-equals shallow-newline, inline boundary, and inline malformed-run
+  publishers now use `Declaration(Cast(Body))` with `Expression`; deeply
+  indented recovery remains `Cast(IndentedStatement)` without a Body duplicate.
+- Body Error uses the sealed lexical Expression Item operation and retries only
+  a real NUD. Same-line EOF leading extends the open Error or precedes Missing;
+  LF/CRLF and protected boundary leading remain pending. The unreferenced raw
+  `cst_output::emit_missing` helper was removed.
+- M2 preflight and delta review found no concrete defect. Cast 22; expression
+  recovery 6; normalized 83; recovery-output 25; package check, format and
+  diff passed. The direct statement filter has one reviewed unrelated
+  non-Cast baseline failure. Benchmark use: zero samples/processes.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

@@ -16,8 +16,7 @@ use crate::{
     cst_output::{
         RecoveryDraft,
         emit::{
-            emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
-            token_syntax_kind,
+            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
         },
     },
     cursor::{LexIn, SyntaxIn},
@@ -1114,8 +1113,7 @@ fn cast_definition_body_normalized(
             ambient,
         ),
         Some(_) => {
-            emit_missing(&mut i, LeadingTrivia::default());
-            let (item, _, line_entry) = cast_item_normalized(
+            let (item, item_origin, line_entry) = cast_item_normalized(
                 i.rb(),
                 item_origin,
                 line_entry,
@@ -1124,6 +1122,7 @@ fn cast_definition_body_normalized(
                 stops,
                 CastVocabulary::Statement,
             );
+            cast_body_missing(&mut i, &item, item_origin);
             complete(handoff(item), line_entry)
         }
         None => cast_inline_body_normalized(
@@ -1152,7 +1151,7 @@ fn cast_inline_body_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    let (mut item, mut item_origin, mut line_entry) = expression_item(
+    let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
         OperatorSite::Nud,
         item_origin,
@@ -1162,16 +1161,8 @@ fn cast_inline_body_normalized(
         stops,
     );
     if cast_inline_body_boundary(i.rb(), &item, baseline, stops) {
-        if !item.payload_view().is_boundary()
-            && !implicit_delimited_newline(baseline, item.leading_view())
-        {
-            if item.payload_view().is_eof() {
-                item.emit_eof_leading(&mut *i.state);
-            } else {
-                item.emit_all_remaining_leading(&mut *i.state);
-            }
-        }
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_cast_body_eof_leading(&mut i, &mut item, baseline, stops);
+        cast_body_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -1192,63 +1183,62 @@ fn cast_inline_body_normalized(
         );
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let (next, next_origin, next_line_entry) = expression_item(
-            i.rb(),
-            OperatorSite::Nud,
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-        );
-        item = next;
-        if cast_inline_body_boundary(i.rb(), &item, baseline, stops) {
-            if item.payload_view().is_eof()
-                && !implicit_delimited_newline(baseline, item.leading_view())
-            {
-                item.emit_eof_leading(&mut *i.state);
-            }
-            i.state.finish_node();
-            return complete(handoff(item), next_line_entry);
-        }
-        if is_nud_item(&item) {
-            i.state.finish_node();
-            item.emit_all_remaining_leading(&mut *i.state);
-            return expr_from_nud_normalized(
-                i,
-                item,
-                None,
-                baseline,
-                stops,
-                MlMode::All,
-                line_handoff,
-                next_origin,
-                next_line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
-        item_origin = next_origin;
-        line_entry = next_line_entry;
-        item.emit_all_remaining_leading(&mut *i.state);
+    let (mut item, item_origin, line_entry) = cast_body_error_run(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    if cast_inline_body_boundary(i.rb(), &item, baseline, stops) {
+        emit_cast_body_eof_leading(&mut i, &mut item, baseline, stops);
+        return complete(handoff(item), line_entry);
     }
+    item.emit_all_remaining_leading(&mut *i.state);
+    debug_assert!(is_nud_item(&item));
+    expr_from_nud_normalized(
+        i,
+        item,
+        None,
+        baseline,
+        stops,
+        MlMode::All,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        sequence,
+    )
 }
 
 fn cast_inline_body_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    cast_inline_body_static_boundary(item, baseline, stops) || is_active_stop(i.rb(), item, stops)
+}
+
+fn cast_inline_body_static_boundary(item: &Item, baseline: usize, stops: Stops) -> bool {
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
         || is_line_stop(item, stops)
         || implicit_delimited_newline(baseline, item.leading_view())
         || matches!(
             cast_token_kind(item),
             Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
         )
+}
+
+fn emit_cast_body_eof_leading(i: &mut SyntaxIn, item: &mut Item, baseline: usize, stops: Stops) {
+    if item.payload_view().is_eof()
+        && !item.payload_view().is_boundary()
+        && !is_line_stop(item, stops)
+        && !implicit_delimited_newline(baseline, item.leading_view())
+        && !item.leading_view().contains_line_break()
+    {
+        item.emit_eof_leading(&mut *i.state);
+    }
 }
 
 fn after_bodyless_normalized(
@@ -1489,6 +1479,46 @@ fn cast_body_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     });
 }
 
+fn cast_body_role() -> GrammarRole {
+    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Body))
+}
+
+fn cast_body_draft(
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = cast_body_role();
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Expression,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn cast_body_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(
+        i.rb(),
+        crate::lexical::item::LeadingTrivia::default(),
+        at,
+        |range| cast_body_draft(RecoveryKind::Missing, range, Arc::from([])),
+    );
+}
+
 fn cast_pattern_close_role() -> GrammarRole {
     GrammarRole::ClosingDelimiter {
         owner: crate::recovery_record::ConstructRole::CastPattern,
@@ -1679,6 +1709,56 @@ fn cast_body_introducer_error_run(
             }
         },
         |range, unexpected| cast_body_introducer_draft(RecoveryKind::Error, range, unexpected),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cast_body_error_run(
+    i: SyntaxIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let start = item.extent(origin).recovery_range().start;
+    emit_recovery_error_run(
+        i,
+        |run| loop {
+            let kind = cast_error_syntax_kind(&item);
+            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+            (item, origin, line) = run.lexical(|lex| {
+                crate::lexical::expression_item::scan_expression_item_lexical(
+                    lex,
+                    OperatorSite::Nud,
+                    origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                )
+            });
+            if cast_inline_body_static_boundary(&item, baseline, stops)
+                || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
+                || is_nud_item(&item)
+            {
+                let error_end = if cast_inline_body_static_boundary(&item, baseline, stops)
+                    && cast_error_owns_eof_leading(&item)
+                    && !item.extent(origin).remaining().is_empty()
+                {
+                    run.emit_same_line_eof_leading(&mut item, origin).end
+                } else {
+                    end
+                };
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: start..error_end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, origin, line);
+            }
+        },
+        |range, unexpected| cast_body_draft(RecoveryKind::Error, range, unexpected),
     )
 }
 
