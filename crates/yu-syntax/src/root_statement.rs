@@ -34,6 +34,9 @@ use crate::{
     statement::{self, StatementLineHandoff},
 };
 
+#[cfg(test)]
+use crate::lexical::item::PendingBoundary;
+
 pub(crate) fn parse_root_statements(
     source_len: usize,
     remaining: &mut &str,
@@ -61,6 +64,31 @@ pub(crate) fn parse_root_statements(
         "an unfenced Root ends at EOF"
     );
     terminal.emit_eof_leading(output);
+}
+
+/// Consume one cell body in the host syntax environment and return its outer boundary.
+#[cfg(test)]
+pub(crate) fn parse_yulang_code_cell(
+    source_len: usize,
+    remaining: &mut &str,
+    recover: &mut Recover<'_>,
+    output: &mut CstOutput,
+    origin: usize,
+    line: LineEntry,
+    fence: &FenceBoundary,
+) -> (PendingBoundary, usize, LineEntry) {
+    output.start_node(SyntaxKind::YmYulangCodeCell.into());
+    let (terminal, origin, line) = root_statement_sequence(
+        source_len,
+        remaining,
+        recover,
+        output,
+        RootStatementState::fenced(origin, line),
+        Some(fence),
+    );
+    let boundary = terminal.emit_terminal_boundary(output);
+    output.finish_node();
+    (boundary, origin, line)
 }
 
 struct RootStatementState {
@@ -124,7 +152,7 @@ fn root_statement_sequence(
                 scanned.0
             }
         };
-        // Only the source wrapper or a later cell terminal adapter may emit
+        // Only the source wrapper or cell terminal adapter may emit
         // terminal leading. Root layout and recovery must not inspect it first.
         if item.payload_view().is_eof() || item.payload_view().is_boundary() {
             return (item, origin, line);
@@ -566,6 +594,237 @@ fn recovery_draft(
             .collect(),
         0,
     )
+}
+
+#[cfg(test)]
+mod cell_tests {
+    use super::*;
+    use crate::{
+        lexical::yumark::{FenceLineDecision, FenceOpener, FencePrefixPolicy, judge_fence_line},
+        operator_table::OperatorTable,
+        syntax_kind::SyntaxNode,
+    };
+
+    #[test]
+    fn cell_stream_preserves_terminal_facts_body_leading_and_common_root_ranges() {
+        for newline in ["\n", "\r\n"] {
+            for quoted in [false, true] {
+                let prefix = if quoted { "> " } else { "" };
+                for body in ["", "値", "値; 終", "our x = 値", "値\n終"] {
+                    for ending in ["close", "transition", "eof"] {
+                        if !quoted && ending == "transition" {
+                            continue;
+                        }
+                        let host = format!("host α{newline}");
+                        let body = format!(
+                            "{prefix}{} {newline}{prefix}{newline}",
+                            body.replace('\n', &format!("{newline}{prefix}"))
+                        );
+                        let suffix = match ending {
+                            "close" => format!("{prefix}``` \t{newline}rest"),
+                            "transition" => format!(">> outer{newline}rest"),
+                            _ => String::new(),
+                        };
+                        let source = format!("{host}{body}{suffix}");
+                        let mut remaining = &source[host.len()..];
+                        let operators = OperatorTable::empty();
+                        let mut recover = Recover::new(&operators);
+                        let mut output = CstOutput::new();
+                        output.start_node(SyntaxKind::Root.into());
+                        output.token(SyntaxKind::Unknown.into(), &host);
+                        output.start_node(SyntaxKind::YmCodeFence.into());
+                        let fence = FenceBoundary {
+                            opener: FenceOpener {
+                                line: 0,
+                                marker: 0..3,
+                                marker_width: 3,
+                            },
+                            prefix_policy: if quoted {
+                                FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 }
+                            } else {
+                                FencePrefixPolicy::None
+                            },
+                            close_column: 0,
+                        };
+                        let (boundary, origin, line) = parse_yulang_code_cell(
+                            source.len(),
+                            &mut remaining,
+                            &mut recover,
+                            &mut output,
+                            host.len(),
+                            LineEntry::PhysicalStart,
+                            &fence,
+                        );
+                        assert_eq!(remaining, suffix);
+                        assert_eq!(origin, host.len() + body.len());
+                        let FenceLineDecision::Boundary(expected) =
+                            judge_fence_line(&suffix, origin, &fence)
+                        else {
+                            panic!("expected terminal: {source:?}")
+                        };
+                        assert_eq!(boundary, expected);
+                        assert_eq!(boundary.coordinate(), origin);
+                        if ending != "eof" {
+                            assert_eq!(line, LineEntry::PhysicalStart);
+                        }
+                        output.finish_node();
+                        output.finish_node();
+                        let (green, records) = output.finish_with_recoveries();
+                        assert!(records.is_empty(), "{source:?}: {records:?}");
+                        assert_eq!(green.to_string(), format!("{host}{body}"));
+                        let syntax = SyntaxNode::new_root(green);
+                        let cell = syntax
+                            .descendants()
+                            .find(|n| n.kind() == SyntaxKind::YmYulangCodeCell)
+                            .unwrap();
+                        assert_eq!(cell.to_string(), body);
+                        assert_eq!(cell.parent().unwrap().kind(), SyntaxKind::YmCodeFence);
+                        assert!(!cell.descendants().any(|n| n.kind() == SyntaxKind::Root));
+                        for token in cell
+                            .descendants_with_tokens()
+                            .filter_map(|e| e.into_token())
+                        {
+                            let range = usize::from(token.text_range().start())
+                                ..usize::from(token.text_range().end());
+                            assert_eq!(token.text(), &source[range]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cell_keeps_child_recovery_order_before_terminal_leading() {
+        for newline in ["\n", "\r\n"] {
+            for suffix in ["> ```\nrest", ">> outer\nrest", ""] {
+                let body = format!("> ]{newline}> prefix (?) 70 ={newline}");
+                let source = format!("{body}{suffix}");
+                let mut remaining = source.as_str();
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut output = CstOutput::new();
+                output.start_node(SyntaxKind::Root.into());
+                let fence = FenceBoundary {
+                    opener: FenceOpener {
+                        line: 0,
+                        marker: 0..3,
+                        marker_width: 3,
+                    },
+                    prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
+                    close_column: 0,
+                };
+                let (boundary, origin, _) = parse_yulang_code_cell(
+                    source.len(),
+                    &mut remaining,
+                    &mut recover,
+                    &mut output,
+                    0,
+                    LineEntry::PhysicalStart,
+                    &fence,
+                );
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(remaining, suffix);
+                assert_eq!(origin, body.len());
+                assert_eq!(boundary.coordinate(), origin);
+                assert_eq!(green.to_string(), body);
+                assert_eq!(records.len(), 2);
+                assert_eq!(records[0].id, crate::recovery_record::DiagnosticId(0));
+                assert_eq!(records[0].kind, RecoveryKind::Error);
+                assert_eq!(
+                    records[0].site.role,
+                    GrammarRole::Statement(StatementRole::Starter)
+                );
+                assert_eq!(records[0].site.range, 2..3);
+                assert_eq!(records[1].id, crate::recovery_record::DiagnosticId(1));
+                assert_eq!(records[1].kind, RecoveryKind::Missing);
+                assert_eq!(
+                    records[1].site.role,
+                    GrammarRole::Statement(StatementRole::OperatorDefinitionBody)
+                );
+                assert_eq!(records[1].site.range, origin..origin);
+                let syntax = SyntaxNode::new_root(green);
+                let cell = syntax.children().next().unwrap();
+                assert_eq!(cell.kind(), SyntaxKind::YmYulangCodeCell);
+                assert_eq!(
+                    cell.last_child_or_token().unwrap().kind(),
+                    SyntaxKind::Newline
+                );
+                let missing = cell
+                    .descendants()
+                    .find(|n| n.kind() == SyntaxKind::Missing)
+                    .unwrap();
+                assert_eq!(
+                    usize::from(missing.text_range().start()),
+                    body.len() - newline.len()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn cell_uses_host_operators_without_activating_local_declarations() {
+        let header = crate::header::discover_header("infix (<+>) 50 51 = value\n");
+        let compilation = crate::operator_compilation::compile_full_parse_operators_recovering(
+            &OperatorTable::empty(),
+            &header.operators,
+        )
+        .unwrap();
+        assert!(header.recoveries.is_empty());
+        assert!(compilation.rejected_conflicts.is_empty());
+        let operators = compilation.table;
+        for source in [
+            "a <+> b\n```",
+            "prefix (?) 70 = 値\na <+> b\n```",
+            "prefix (?) 70 = 値\n? value\n```",
+        ] {
+            let mut remaining = source;
+            let mut recover = Recover::new(&operators);
+            let mut output = CstOutput::new();
+            output.start_node(SyntaxKind::Root.into());
+            let fence = FenceBoundary {
+                opener: FenceOpener {
+                    line: 0,
+                    marker: 0..3,
+                    marker_width: 3,
+                },
+                prefix_policy: FencePrefixPolicy::None,
+                close_column: 0,
+            };
+            parse_yulang_code_cell(
+                source.len(),
+                &mut remaining,
+                &mut recover,
+                &mut output,
+                0,
+                LineEntry::PhysicalStart,
+                &fence,
+            );
+            output.finish_node();
+            let (green, records) = output.finish_with_recoveries();
+            assert_eq!(remaining, "```");
+            assert_eq!(green.to_string(), source.strip_suffix("```").unwrap());
+            let syntax = SyntaxNode::new_root(green);
+            if source.contains("? value") {
+                assert!(!records.is_empty());
+                assert!(
+                    !syntax
+                        .descendants()
+                        .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
+                );
+            } else {
+                assert!(records.is_empty(), "{source:?}: {records:?}");
+                assert_eq!(
+                    syntax
+                        .descendants()
+                        .filter(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+                        .count(),
+                    1
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]

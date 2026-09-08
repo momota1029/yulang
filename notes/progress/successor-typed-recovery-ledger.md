@@ -572,6 +572,16 @@ reviews were clean after two test-only exact-boundary repairs. Full lib passed
 1049 with one existing ignored manual harness; package check, format and diff
 passed. Cell terminal adapter and outer Yumark integration remain open.
 
+## Isolated real-stream cell wrapper
+
+The test-only wrapper opens `YmYulangCodeCell`, invokes the shared fenced root
+sequence and performs the frontier-authorized terminal-leading emission exactly
+once before returning unchanged facts. It proves real physical streams rather
+than only injected terminals, while deliberately retaining the old segmented
+Item witness for its distinct carrier evidence. No production outer Yumark
+document owner/AST product exists yet, so the wrapper remains test-only to keep
+`cargo check` warning-free; it is not Gate 4/5 convergence evidence.
+
 ## Parenthesized operator newline control
 
 - The retained `(a +\nb)` partial-output expectation was stale. At delimiter

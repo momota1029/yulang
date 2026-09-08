@@ -102,11 +102,19 @@ ambient `None`. Compiler/recovery and regression review were clean after two
 test-only closure repairs. Full lib passed 1049 with one existing ignored
 manual harness, package check, format and diff passed; no benchmark samples.
 
-Next is the internal `YmYulangCodeCell` wrapper only: it opens the node, calls
-the sequence with the existing immutable host table and disabled header state,
-uses the terminal adapter's narrow frontier authority to emit body-leading once,
-then returns boundary facts. It must not add an outer Yumark document branch,
-AST materializer or public API.
+The private `YmYulangCodeCell` wrapper is now a test-only construction proof:
+it drives the real stream through the boundary-capable sequence, emits terminal
+body-leading exactly once while the cell remains open, and returns unchanged
+facts. It is deliberately not production code: no outer Yumark document owner
+exists to reach it, and exposing an unused crate-private wrapper would add
+dead-code warnings. The historical injected-item witness remains separate.
+
+The next actual parser gate is M3 successor Yumark document/frame construction:
+raw/selected fence dispatch, Frame/quote continuation, close suffix/newline
+ownership, one-builder host-table cell call, AST/CST thin materializers and
+following-document continuation. Existing parsed-fence authority decides this
+direction; it must not be approximated by an artificial caller or a standalone
+fence entry.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
