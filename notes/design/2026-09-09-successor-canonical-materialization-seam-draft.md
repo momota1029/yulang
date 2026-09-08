@@ -1,0 +1,259 @@
+# Draft: canonical AST/direct-CST materialization seam
+
+Status: Draft; not implementation authority
+
+Date: 2026-09-09
+
+Scope: the missing representation and committed-output boundary needed for the
+canonical successor grammar to produce its already-specified AST products as
+an alternative to direct CST. This is the prerequisite to the selected Yumark
+cell's `Vec<Recovered<Statement>>`; it neither changes accepted syntax nor
+selects any new recovery policy, Yumark form, public API, or parser entrypoint.
+
+Authority considered: the chasa architecture's `Recovered<T>` and incremental
+surface-product sections; minimal token-transaction amendment §§1--3;
+typed-output amendment §§1--6; structured recovery reservation and extent
+addenda; public-cutover priority amendment; doc-comment Yumark §§4/8/11; and
+parsed-Yulang-fence addendum §§3--5/§7--9.
+
+## Problem and boundary
+
+The selected fence contract requires one cell decision driver with thin,
+alternate AST and direct-CST materializers:
+
+```text
+YumarkYulangCodeCell {
+  statements: Vec<Recovered<Statement>>,
+  range,
+}
+```
+
+The current successor has only `CstOutput`: `SyntaxIn` fixes every canonical
+call to it, grammar procedures construct Rowan directly, and their exits carry
+only completion or an unread successor Item. No semantic `Statement`,
+`Recovered<T>`, or Yumark structural product exists in source. Consequently a
+cell-only adapter would either invent range placeholders, walk the resulting
+CST, replay source, or add a second grammar; all are forbidden.
+
+This draft does not restore a legacy parser or an adapter retained only by a
+superseded cutover order. It supplies the missing output representation for
+the one canonical grammar.
+
+## Retained invariants
+
+1. Lexical scanning, candidate selection, mandatory-slot recovery, grammar
+   admission, current-Item ownership, and boundary handoff are shared and run
+   once. A materializer cannot scan source, select an alternative, consume a
+   boundary, allocate diagnostics, or inspect CST/recovery history.
+2. Direct CST streams one Rowan tree and does not allocate or replay an AST.
+   AST mode creates no Rowan tree, token-event tape, source/body copy, or
+   second parse. Neither mode is derived from the other.
+3. `NormalizedExit::Complete(Err(Item))` remains successful completion with
+   an unread successor. Product completion is independent from that handoff;
+   rejected/deferred optional entry creates neither product nor output effect.
+4. `Recovered<T>::Incomplete` means an owner committed its CST/recovery but
+   has no mandatory semantic fact. It is a total continuation, not an abort,
+   a whole-parent Error, or permission to drop later siblings. A complete
+   parent may contain incomplete children.
+5. The existing recovery ID sequence, frozen-header reconciliation scope,
+   structured-reservation order, LIFO completion, exact draft comparison,
+   diagnostic order, and panic-invalidates-output rule remain single and
+   mode-independent. A materializer receives only a completed recovery
+   identity when its documented product needs it.
+6. Structured Error extent validation remains physical: every consumed token
+   and trivia fragment, including operator-header split tokens, advances one
+   common checked byte account. Reservation completion still requires that
+   emitted-account delta equals the Error's physical source extent.
+7. Product leaves own their semantic spelling or source-coordinate facts.
+   They cannot borrow a consumed `Item`, short `PayloadView`, mutable output,
+   or recursive-call reborrow. A range is structural metadata only; it never
+   replaces the move-only Item/leading/suffix handoff.
+
+## Candidate representation; not yet a selected API
+
+The candidate seam is private and statically selected, not a public parser
+framework, dynamic registry, trait-object sink, or generic `parser/` module.
+This records a candidate responsibility split, not a selected Rust API. The
+product inventory below must first establish that every returned shape is
+authoritatively specified.
+
+```text
+mode-independent committed output
+  RecoveryLedger = diagnostic sequence + ordered slots + reservations
+  PhysicalEmissionAccount = checked source-byte accounting
+
+direct-CST materializer
+  Rowan builder + node/token publication
+
+AST materializer
+  documented owned structural products only
+
+canonical owner continuation
+  one admission/recovery/boundary decision
+  + selected materializer operation(s)
+  -> owned product, independently of NormalizedExit
+```
+
+`RecoveryLedger` owns fresh/reconcile publication, shared-header scope,
+reservation/finish validation, and final records. `PhysicalEmissionAccount`
+is shared by both modes and is updated for every physical fragment the direct
+mode would emit. Rowan-specific checkpoints and node/token construction stay
+with the direct-CST materializer.
+
+The candidate canonical construction closure receives a private static
+materialization parameter only at construction boundaries. Its associated
+products are owner-specific and owned; it cannot choose grammar or recovery.
+The direct specialization has no retained semantic product. AST specialization
+constructs only an already-authoritative child shape from accepted lexical
+facts, child products, and owner-supplied physical coordinates.
+
+The minimum conceptual result contract is:
+
+```text
+Entry<P> ::= Rejected
+           | Deferred { item, line }
+           | Committed { product: P, exit: CompleteExit }
+```
+
+`Rejected` is the existing effect-free optional non-match. `Committed` is
+entered only after the owner accepts its branch; `CompleteExit` may carry an
+unread successor Item independently of `product`. `Deferred` transports the
+existing zero-effect deferred Item/line outcome and creates no product. A
+required missing slot contributes `Recovered::Incomplete` to its documented
+parent field, whereas a malformed root item contributes the documented root
+sequence entry. This is not `Result<P, Item>` and must not interpret
+`Complete(Err(Item))` as failure.
+
+One sealed common publication surface accepts an actual physical fragment,
+advances `PhysicalEmissionAccount` from that fragment's byte length, and then
+immediately invokes the selected materializer operation. Grammar callers may
+not advance an account from an asserted range. Reservation identities, their
+account snapshots, and LIFO completion remain private to `RecoveryLedger`.
+The header reconciliation scope is an RAII reborrow of the whole selected
+output, so nested grammar can publish fragments and records while restoration
+remains unconditional. This is synchronous forwarding, not a retained event
+buffer.
+
+The shared recovery product is exactly the established conceptual form:
+
+```text
+Recovered<T> ::= Complete(T) | Incomplete
+```
+
+It carries neither a borrowed input nor an inferred diagnostic. Mandatory
+slots, recovered delimiters, malformed root items, and retryable children map
+to an actual owner product or the relevant `Incomplete` slot according to the
+latest owner-specific AST contract. A whole `Statement` is not made
+incomplete merely because one of its children recovered.
+
+## Product inventory prerequisite
+
+The seam is not certified by a literal-only or range-only cell control. The
+following is a dependency map, **not a completed authority inventory**:
+
+```text
+Expression(OperatorChain), Binding, Use, Mod, Struct, Type, Impl, Cast,
+Role, Act, Enum, Error, For, and DocCommentDeclaration.
+```
+
+It reaches flat source-order operator chains and their fixed tails; Patterns;
+Type expressions including records, forall, effect rows and polymorphic
+variants; braced/indented statement blocks; If/Case/Catch forms; declaration
+payloads and their recursive statement bodies. Each product and field needs an
+owner/field-to-authority locator, approval-status adjudication, recovery-slot
+mapping, and explicit leaf ownership rule. Earlier proposal/review-pending
+appendices are evidence, not automatic authority; a later approval signature
+or narrow supersession must be checked at the exact field.
+
+Literal syntax is an explicit unresolved dependency: String and Rule literals
+are admitted through canonical expression dispatch, while the literal-cone
+addendum excludes its own AST/HIR interpretation. The inventory must determine
+whether another latest Authoritative source defines their syntax products. If
+none does, a separate literal syntax-product decision is required before a
+canonical selected cell can claim actual `Vec<Recovered<Statement>>`. It is
+not valid to use an opaque range, CST handle, placeholder Statement, or
+`Recovered::Incomplete` merely to bypass that gap.
+
+That audit is now concrete: no later Authoritative source supplies such a
+product. `2026-09-05-direct-literal-cone-addendum.md` explicitly excludes
+AST/HIR interpretation, and the later StringLiteral, RuleLiteral, and Rule
+ExpressionList records are recovery-only. A companion M3 literal
+syntax-product amendment must define owned String/interpolation and
+RuleExpression/RuleLiteral fields, every recovered delimiter/escape/
+interpolation slot, and their child `Recovered` mapping before the canonical
+inventory can close.
+
+Until this finite inventory is completed and independently reviewed, this
+Draft cannot become Reviewed or authorize a shared-output or materialization
+pilot.
+
+## Required supersession ledger
+
+Any successor amendment adopting this candidate must explicitly supersede only
+the representation clauses below, and must restate every retained invariant:
+
+| current authority | clause to supersede narrowly | retained rule |
+| --- | --- | --- |
+| minimal token-transaction amendment §1 | successor results are only handoff/recovery facts and no structural product; source-free output restriction where it precludes owned structural coordinates | `I = &str`, operator-only `Recover`, move-only Item handoff, no root source/cursor/cache, and effect-free entry |
+| typed-output amendment §2 | one output is necessarily a Rowan-owner in every mode | one mode-independent recovery authority; direct mode owns exactly one Rowan builder; AST mode owns none |
+| structured extent-validation addendum §2 | byte counter is builder metadata updated only by the Rowan token forwarder | one sealed common fragment-forwarding account, reservation snapshots, physical-delta assertion, and no caller-supplied extent assertion |
+
+No supersession may weaken typed-output optional-entry preservation, fresh and
+frozen record reconciliation, structured reservation order, sealed lexical
+Error scanning, or the parsed-fence one-driver/no-replay contract. The final
+amendment must name exact paragraph ranges rather than relying on this table's
+summary.
+
+## Rejected routes
+
+- Attach an AST accumulator to `CstOutput` or always build AST beside CST:
+  violates the no-AST-mirror direct-CST contract and adds ordinary allocations.
+- Make `CstOutput` an enum/no-op facade: it discards CST events, creates no
+  AST, and loses the current recovery/extent owner.
+- CST walk, source replay, retained source/body buffer, event tape, tree
+  splice, or separate AST grammar: violates the selected-cell contract.
+- Cell-only statement ranges/CST handles: does not provide actual recovered
+  canonical statements.
+- Store source/root state, a materializer, diagnostics, or parser frames in
+  `Recover`: violates the source-free/operator-only recovery boundary.
+
+## Construction and evidence gates
+
+1. **Inventory closure:** provide the authority/field/recovery/leaf map,
+   literal-product adjudication, and exact supersession paragraphs. This Draft
+   deliberately leaves that work open. No Rust change.
+2. **Reviewed amendment:** resolve the concrete private API and product shapes,
+   have compiler/recovery and specification reviewers test the inventory and
+   rollback conditions, and obtain recorded user approval. No Rust change.
+3. **Shared-output pilot:** factor `RecoveryLedger` and
+   `PhysicalEmissionAccount` behind the existing non-generic direct output,
+   with unchanged CST/fresh/frozen/structured tests. This may not add AST mode
+   or change parser signatures.
+4. **Private materialization pilot:** one fully inventoried canonical
+   statement-reachable closure, including nested Missing/Error, an unread
+   same-Item successor, rejected optional entry, and owned leaves after Item
+   drop. CST and AST modes prove identical recovery identities/order and input
+   progression; direct mode proves no AST allocation and AST mode no Rowan.
+5. **Canonical closure:** migrate every included owner before a selected cell
+   claims `Vec<Recovered<Statement>>`. Unsupported admitted families cannot be
+   silently discarded or published as incomplete public statements.
+6. **Yumark integration:** the future `yumark/` document/frame owner selects
+   raw versus `yulang`, owns the fence envelope/close/suffix/continuation, and
+   invokes the completed canonical cell materializer with the immutable host
+   table. It remains private until the existing outer grammar gate is closed.
+
+Pilot evidence includes fresh and frozen records, structured nested recovery,
+nonzero origin, UTF-8/CRLF/foreign prefixes, protected terminal leading,
+exact terminal Item/origin/line return, and no source replay/event buffer.
+Any need for materializer-selected recovery, a CST-derived AST, an AST direct
+mirror, a borrow beyond Item consumption, or a different recovery sequence
+returns the affected gate to design.
+
+## Required review and approval
+
+This is a new durable representation decision. Before implementation it needs
+the still-open exact inventory, compiler/recovery and specification review of
+an exact API/product inventory, then user approval in a successor amendment.
+The existing Yumark AST/direct requirement is retained; only this missing
+canonical seam and any independently unspecified literal product require
+approval.

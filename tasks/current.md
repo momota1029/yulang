@@ -109,12 +109,23 @@ facts. It is deliberately not production code: no outer Yumark document owner
 exists to reach it, and exposing an unused crate-private wrapper would add
 dead-code warnings. The historical injected-item witness remains separate.
 
-The next actual parser gate is M3 successor Yumark document/frame construction:
-raw/selected fence dispatch, Frame/quote continuation, close suffix/newline
-ownership, one-builder host-table cell call, AST/CST thin materializers and
-following-document continuation. Existing parsed-fence authority decides this
-direction; it must not be approximated by an artificial caller or a standalone
-fence entry.
+The next actual parser gate is blocked only at its new representation
+prerequisite. `2026-09-09-successor-canonical-materialization-seam-draft.md`
+records the missing private canonical AST/direct-CST materialization boundary:
+shared recovery ledger/physical accounting, mode-specific thin materializers,
+and owned products independent from unread Item handoff. It is Draft, not
+implementation authority: first complete its field-level canonical product and
+literal-product authority inventory. The inventory now proves that the
+Authoritative literal cone deliberately excludes AST/HIR products; a companion
+M3 literal syntax-product Draft now records the candidate String/Rule fields
+and immediate recovery-slot mapping. It is not a range/CST handle/placeholder
+substitute. Complete the combined field-level product inventory and M3
+compiler/recovery and specification review, then record user approval before
+its shared-output pilot.
+Once approved, successor Yumark document/frame construction owns raw/selected
+fence dispatch, Frame/quote continuation, close suffix/newline ownership,
+host-table cell call, and following-document continuation. It must not be
+approximated by an artificial caller or a standalone fence entry.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
