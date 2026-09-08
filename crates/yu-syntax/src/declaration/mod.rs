@@ -11,6 +11,7 @@ pub(super) mod enum_decl;
 pub(super) mod error_decl;
 pub(super) mod fields;
 pub(super) mod impl_decl;
+mod impl_tail;
 pub(super) mod mod_decl;
 pub(super) mod operator_header;
 pub(super) mod role_decl;

@@ -35,6 +35,16 @@ output boundaries. Public exports, syntax behavior and test contracts are
 unchanged. Dated design and daily records retain their historical paths;
 current source links and test commands name their direct owners.
 
+The standalone `impl` declaration now has the same responsibility boundary as
+the approved TAI tail plan: `declaration::impl_decl` owns statement selection,
+visibility, the `impl` keyword and the `ImplDeclaration` wrapper, while private
+`declaration::impl_tail` owns the post-keyword Type head, description, body,
+recovery and successor handoff. This is a behavior-preserving partial Gate 2
+extraction, reviewed against the unchanged standalone tests; it neither
+activates Type-attached `impl` nor closes the historical owner-spec/AST-direct
+parity requirement. The product Draft now identifies that form as approved
+authority with successor promotion still pending.
+
 The public syntax phase is now split under
 `2026-09-09-syntax-phase-topology.md`: `syntax_environment.rs` owns selected
 inputs/provenance, `syntax_diagnostic.rs` owns diagnostic data, and
@@ -124,8 +134,8 @@ authoritative `Vec<Recovered<Statement>>` does not define the canonical
 Statement sum or its field/recovery mappings: historical candidate AST prose
 cannot be adopted implicitly from current-item record roles. A combined M3
 canonical syntax-product Draft now selects a candidate closure for the actual
-currently admitted surface, explicitly excluding the still-unadmitted generic
-expression assignment/`as Type`/Type-attached-Impl gates. It must select its
+currently admitted surface, explicitly excluding generic expression
+assignment/`as Type` and the not-yet-promoted Type-attached-Impl form. It must select its
 still-open Type/body/list/chain/header field maps together with the seam and
 literal schema, complete
 compiler/recovery, specification and static performance review, then record
