@@ -117,6 +117,64 @@ fn pattern_introducer_record(
     }
 }
 
+fn cast_pattern_record(id: u32, at: usize) -> CommittedRecoveryRecord {
+    use crate::recovery_record::{
+        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        RecoverySiteKey, SyntaxExpectation,
+    };
+    use std::sync::Arc;
+
+    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern));
+    let range = at..at;
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Missing,
+        unexpected: Arc::from([]),
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Pattern,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+#[test]
+fn cast_pattern_absence_records_are_exact_and_reconcile() {
+    for origin in [100, 12_000] {
+        for source in [
+            "cast(",
+            "cast(\r\n",
+            "cast()",
+            "cast(: T;",
+            "cast(;",
+            "cast(= value",
+        ] {
+            let expected = [cast_pattern_record(0, origin + 5)];
+            let (green, _, records, remainder) = typed_cast(source, origin, None, 0, None);
+            assert_eq!(records, expected, "{source:?} at {origin}");
+            let (again, _, frozen, frozen_remainder) =
+                typed_cast(source, origin, Some(&records), 0, None);
+            assert_eq!(again, green, "{source:?} at {origin}");
+            assert_eq!(frozen, records, "{source:?} at {origin}");
+            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
+
+            let mut seeded = records.clone();
+            seeded[0].id = crate::recovery_record::DiagnosticId(71);
+            let (seeded_green, _, seeded_records, seeded_remainder) =
+                typed_cast(source, origin, Some(&seeded), 0, None);
+            assert_eq!(seeded_green, green, "{source:?} at {origin}");
+            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
+            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+        }
+    }
+}
+
 #[test]
 fn cast_pattern_introducer_records_are_exact_shifted_and_reconciled() {
     for origin in [100, 12_000] {
@@ -712,5 +770,21 @@ fn cast_fence_and_origin_boundary_remain_outer_owned() {
             RecoveryKind::Error,
             origin + "> > cast ".len()..origin + accepted.len(),
         )]
+    );
+
+    let accepted = "> > cast(";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (_, _, records, typed_remainder) = typed_cast_at(
+        &source,
+        origin,
+        None,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    assert_eq!(typed_remainder, "> > ```\r\nouter");
+    assert_eq!(
+        records,
+        [cast_pattern_record(0, origin + accepted.len() + 2)]
     );
 }

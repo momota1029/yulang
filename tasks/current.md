@@ -45,6 +45,11 @@ empty/newline EOF leading remains outside. Pattern value/close, target and
 body remain separate open Cast owners. Cast: 12; direct Pattern/required-Type/
 recovery-output: 84; package/format/diff passed. Benchmark use: zero.
 
+The immediately following Cast Pattern absence gate is complete under
+`2026-09-09-successor-cast-pattern-current-item-recovery.md`; local close and
+colon/form handoff use the existing transition, while malformed Pattern input
+remains Pattern-owned. Cast 13; direct cone 162; package/format/diff passed.
+
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E
 addenda. Selected P/E/numeric-Call structured Error controls cover exact

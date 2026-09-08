@@ -451,12 +451,25 @@ fn cast_pattern_value_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    if slot_outer_boundary(i.rb(), &item, baseline, stops)
-        && !(has_local_close && cast_token_kind(&item) == Some(TokenKind::RParen))
-    {
-        emit_missing(&mut i, LeadingTrivia::default());
-        i.state.finish_node();
-        return complete(handoff(item), line_entry);
+    let immediate_absence = has_local_close && cast_token_kind(&item) == Some(TokenKind::RParen)
+        || (cast_token_kind(&item) == Some(TokenKind::Colon) && cast_gap_allowed(&item, baseline))
+        || (is_form_starter(&item) && cast_gap_allowed(&item, baseline))
+        || slot_outer_boundary(i.rb(), &item, baseline, stops);
+    if immediate_absence {
+        cast_pattern_missing(&mut i, &item, item_origin);
+        return cast_after_incomplete_pattern_normalized(
+            i,
+            item,
+            has_local_close,
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        );
     }
     item.emit_all_remaining_leading(&mut *i.state);
     let child_entry = suffix_marker(i.rb());
@@ -1386,6 +1399,31 @@ fn cast_pattern_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize)
     );
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
         cast_pattern_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn cast_pattern_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern));
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        RecoveryDraft::new(
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Pattern,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
     });
 }
 
