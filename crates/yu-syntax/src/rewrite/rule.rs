@@ -7,7 +7,11 @@ use reborrow_generic::Reborrow as _;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::{
-    session::{Delimiter, PunctuationEvidence, UnexpectedCategory},
+    session::{
+        Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax,
+    },
     syntax_kind::SyntaxKind,
 };
 
@@ -15,8 +19,8 @@ use super::{
     LexIn, RewriteIn,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     driver::{advanced_origin, suffix_marker},
-    emit::emit_error_item,
-    item::{Item, Token, TokenKind},
+    emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
+    item::{Item, LeadingTrivia, Token, TokenKind},
     lexer::{
         is_operator_shaped_unknown, scan_exact_equals, scan_integer, scan_operator_shaped_unknown,
         scan_punctuation, scan_unknown,
@@ -25,10 +29,12 @@ use super::{
         NormalizedStringLiteralExit, scan_string_opener_token,
         string_literal_with_virtual_statements_normalized, string_mode_from_opener,
     },
+    output::RecoveryDraft,
     yumark::FenceBoundary,
 };
 
 use self::expression_list::{ExpressionListExit, expression_list, first_item as first_list_item};
+use std::{ops::Range, sync::Arc};
 
 /// Maps one already-owned malformed Rule item to its exact diagnostic category.
 ///
@@ -204,7 +210,11 @@ fn rule_body_normalized(
             NormalizedRuleWitnessExit::Complete(line_entry)
         }
         SequenceExit::Stop(pending, line_entry) => {
-            emit_missing(&mut i);
+            emit_rule_missing(
+                i.rb(),
+                LiteralRole::RuleBodyCloseBrace,
+                rule_recovery_at(&pending, origin),
+            );
             NormalizedRuleWitnessExit::Returned(pending, line_entry)
         }
         SequenceExit::Deferred(item, line_entry) => {
@@ -388,7 +398,7 @@ fn rule_sequence(
             continue;
         }
 
-        emit_unexpected(&mut i, current);
+        emit_unexpected(i.rb(), current, *origin, LiteralRole::RuleUnexpectedItem);
         (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     }
 }
@@ -423,7 +433,11 @@ fn rule_item(
                 next_rule_item(i.rb(), origin, line_entry, fence)
             }
             SequenceExit::Stop(pending, line_entry) => {
-                emit_missing(&mut i);
+                emit_rule_missing(
+                    i.rb(),
+                    LiteralRole::RuleParenClose,
+                    rule_recovery_at(&pending, *origin),
+                );
                 i.state.finish_node();
                 return ItemExit::Continue(pending, line_entry);
             }
@@ -592,6 +606,14 @@ fn required_rule_item(
     ambient: AmbientClaimContext<'_>,
 ) -> ItemExit {
     loop {
+        if is_rule_newline_stop(&current, frame) {
+            emit_rule_missing(
+                i.rb(),
+                LiteralRole::RuleCaptureRightItem,
+                rule_recovery_at(&current, *origin),
+            );
+            return ItemExit::Continue(current, line_entry);
+        }
         if carries_outer_literal_quote(frame)
             && is_outer_literal_quote(&current)
             && is_rule_atom_start(&current)
@@ -599,13 +621,17 @@ fn required_rule_item(
             return rule_item(i, current, line_entry, frame, origin, fence, ambient);
         }
         if is_rule_stop(&current, frame) {
-            emit_missing(&mut i);
+            emit_rule_missing(
+                i.rb(),
+                LiteralRole::RuleCaptureRightItem,
+                rule_recovery_at(&current, *origin),
+            );
             return ItemExit::Continue(current, line_entry);
         }
         if is_rule_atom_start(&current) {
             return rule_item(i, current, line_entry, frame, origin, fence, ambient);
         }
-        emit_unexpected(&mut i, current);
+        emit_unexpected(i.rb(), current, *origin, LiteralRole::RuleUnexpectedItem);
         (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     }
 }
@@ -627,6 +653,16 @@ fn rule_named_postfix(
     emit_item_as(&mut i, introducer, missing);
 
     let (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
+    let role = if node == SyntaxKind::RuleField {
+        LiteralRole::RuleFieldName
+    } else {
+        LiteralRole::RulePathName
+    };
+    if is_rule_newline_stop(&current, frame) || is_rule_stop(&current, frame) {
+        emit_rule_missing(i.rb(), role, rule_recovery_at(&current, *origin));
+        i.state.finish_node();
+        return (current, line_entry);
+    }
     if is_rule_identifier(&current) && !is_stop_keyword(&current) {
         emit_item_as(&mut i, current, SyntaxKind::Identifier);
         let next = next_rule_item(i.rb(), origin, line_entry, fence);
@@ -634,13 +670,7 @@ fn rule_named_postfix(
         return next;
     }
 
-    if is_rule_stop(&current, frame) {
-        emit_missing(&mut i);
-        i.state.finish_node();
-        return (current, line_entry);
-    }
-
-    emit_unexpected(&mut i, current);
+    emit_unexpected(i.rb(), current, *origin, role);
     let next = next_rule_item(i.rb(), origin, line_entry, fence);
     i.state.finish_node();
     next
@@ -787,13 +817,87 @@ fn emit_separator(i: &mut RewriteIn, item: Item) {
     emit_item_as(i, item, kind);
 }
 
-fn emit_unexpected(i: &mut RewriteIn, item: Item) {
-    emit_error_item(i, item);
+fn emit_unexpected(i: RewriteIn, item: Item, origin: usize, role: LiteralRole) {
+    let category = rule_item_unexpected_category(&item);
+    let kind = token_syntax_kind(
+        item.payload_view()
+            .token_kind()
+            .expect("Rule Error owns a token"),
+    );
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let range = run.emit_item_as(item, origin, kind).recovery_range();
+            run.append_unexpected(UnexpectedSyntax::Token { range, category });
+        },
+        |range, unexpected| rule_draft(role, RecoveryKind::Error, range, unexpected),
+    );
 }
 
+pub(super) fn rule_recovery_at(item: &Item, origin: usize) -> usize {
+    if item.payload_view().is_eof() {
+        return origin;
+    }
+    item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    )
+}
+
+// Ordinary ExpressionList recovery remains owned by its separate gate.
 fn emit_missing(i: &mut RewriteIn) {
     i.state.start_node(SyntaxKind::Missing.into());
     i.state.finish_node();
+}
+
+pub(super) fn emit_rule_missing(i: RewriteIn, role: LiteralRole, at: usize) {
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        rule_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn rule_draft(
+    role: LiteralRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        LiteralRole::RuleBodyCloseBrace
+        | LiteralRole::RuleLiteralInterpolationCloseBrace
+        | LiteralRole::RuleLazyCaptureCloseBrace => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
+        }
+        LiteralRole::RuleParenClose => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis))
+        }
+        LiteralRole::RuleCaptureRightItem | LiteralRole::RuleUnexpectedItem => {
+            ExpectedSyntax::Literal(LiteralExpected::RuleItem)
+        }
+        LiteralRole::RuleFieldName
+        | LiteralRole::RulePathName
+        | LiteralRole::RuleLazyCaptureName => ExpectedSyntax::Identifier,
+        LiteralRole::RuleLiteralTerminator => {
+            ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator)
+        }
+        _ => unreachable!("String recovery belongs to its own owner"),
+    };
+    let role = GrammarRole::Literal(role);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 fn emit_item_as(i: &mut RewriteIn, item: Item, kind: SyntaxKind) {
@@ -840,6 +944,12 @@ fn is_rule_stop(item: &Item, frame: RuleFrame) -> bool {
             is_token(item, TokenKind::RBrace) || is_outer_literal_quote(item)
         }
     }
+}
+
+fn is_rule_newline_stop(item: &Item, frame: RuleFrame) -> bool {
+    !matches!(frame, RuleFrame::LiteralInterpolation)
+        && !item.payload_view().is_boundary()
+        && item.leading_view().has_ordinary_newline()
 }
 
 fn carries_outer_literal_quote(frame: RuleFrame) -> bool {

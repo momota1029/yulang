@@ -93,7 +93,7 @@ fn run_rule_body_with_fence_and_operators<'source>(
         fence,
     );
     builder.finish_node();
-    (builder.finish(), exit, input)
+    (builder.finish_with_recoveries().0, exit, input)
 }
 
 fn run_rule_body_normalized<'source>(
@@ -143,7 +143,7 @@ fn run_rule_body_with<'source>(
         None,
     );
     builder.finish_node();
-    (builder.finish(), exit, input)
+    (builder.finish_with_recoveries().0, exit, input)
 }
 
 fn token_item(kind: TokenKind, text: &str) -> Item {

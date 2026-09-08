@@ -63,6 +63,7 @@ mod pattern;
 mod recovery_output;
 mod role_decl;
 mod rule;
+mod rule_literal_recovery;
 mod statement;
 mod string_literal_recovery;
 mod struct_decl;

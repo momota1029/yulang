@@ -14,7 +14,7 @@ use std::{ops::Range, sync::Arc};
 use super::{
     LexIn, RewriteIn,
     current_item::LineEntry,
-    emit::{emit_literal_item, emit_missing, emit_recovery_error_run, emit_recovery_missing},
+    emit::{emit_literal_item, emit_recovery_error_run, emit_recovery_missing},
     item::{
         ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, PhysicalLeadingTrivia, Token,
         TokenKind,

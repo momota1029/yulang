@@ -225,7 +225,14 @@ recovery remains separate. Focused: 8; literal/Pattern/Rule/Virtual/normalized/
 recovery-output: 35/54/26/9/83/25; package/format/diff pass. Specification and
 regression reviews passed. No benchmark process was used.
 
-Next, continue Rule DSL literal, Statement and declaration typed-recovery
+The Rule DSL literal gate in
+`2026-09-08-successor-rule-literal-current-item-recovery.md` is implemented.
+Ten Literal roles now publish typed records; Body/Paren newline stops precede
+admission, and EOF-leading Missing anchors at successor. Rule: 35; literal:
+35; normalized/recovery-output: 83/25; package/format/diff pass. Specification
+and regression delta audits passed. No benchmark process was used.
+
+Next, continue Rule ExpressionList, Statement and declaration typed-recovery
 dependencies. Braced/root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public
 certification remain separate. Extend the same ledger; retain the current

@@ -4,7 +4,9 @@ use super::super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use unicode_ident::is_xid_continue;
 
 use super::*;
-use crate::rewrite::rule::{RuleLiteralSequenceExit, rule_literal_sequence_normalized};
+use crate::rewrite::rule::{
+    RuleLiteralSequenceExit, emit_rule_missing, rule_literal_sequence_normalized, rule_recovery_at,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(in crate::rewrite) enum RuleLiteralExit {
@@ -168,7 +170,11 @@ pub(in crate::rewrite) fn rule_literal_normalized(
                     }
                     RuleLiteralSequenceExit::OuterTerminator(mut end, line_entry) => {
                         end.emit_all_remaining_leading(&mut *i.state);
-                        emit_missing(&mut i, LeadingTrivia::default());
+                        emit_rule_missing(
+                            i.rb(),
+                            LiteralRole::RuleLiteralInterpolationCloseBrace,
+                            rule_recovery_at(&end, part_origin),
+                        );
                         i.state.finish_node();
                         debug_assert_eq!(end.payload_view().spelling(), Some("\""));
                         end.emit_payload(&mut *i.state, SyntaxKind::RuleLiteralEnd);
@@ -176,9 +182,13 @@ pub(in crate::rewrite) fn rule_literal_normalized(
                         return NormalizedRuleLiteralExit::Complete(line_entry);
                     }
                     RuleLiteralSequenceExit::Boundary(pending, _) => {
-                        emit_missing(&mut i, LeadingTrivia::default());
+                        emit_rule_missing(
+                            i.rb(),
+                            LiteralRole::RuleLiteralInterpolationCloseBrace,
+                            rule_recovery_at(&pending, part_origin),
+                        );
                         i.state.finish_node();
-                        return finish_rule_literal_boundary(i, pending);
+                        return finish_rule_literal_boundary(i, pending, part_origin);
                     }
                 }
             }
@@ -189,7 +199,7 @@ pub(in crate::rewrite) fn rule_literal_normalized(
                 advance_item_origin(&mut part_origin, &colon);
                 match emit_rule_lazy_capture(i.rb(), colon, &mut part_origin, fence) {
                     Ok(()) => continue,
-                    Err(pending) => return finish_rule_literal_boundary(i, pending),
+                    Err(pending) => return finish_rule_literal_boundary(i, pending, part_origin),
                 }
             }
             Some(_) => unreachable!("RuleLiteral has only three structural starters"),
@@ -209,7 +219,7 @@ pub(in crate::rewrite) fn rule_literal_normalized(
             .expect("the committed RuleLiteral text scanner is total");
         match emit_literal_scan(&mut i, scan, &mut part_origin, SyntaxKind::RuleLiteralText) {
             Ok(prefix) => next_prefix = prefix,
-            Err(pending) => return finish_rule_literal_boundary(i, pending),
+            Err(pending) => return finish_rule_literal_boundary(i, pending, part_origin),
         }
     }
 }
@@ -247,7 +257,11 @@ fn emit_rule_lazy_capture(
         {
             Ok(prefix) => prefix,
             Err(pending) => {
-                emit_missing(&mut i, LeadingTrivia::default());
+                emit_rule_missing(
+                    i.rb(),
+                    LiteralRole::RuleLazyCaptureCloseBrace,
+                    rule_recovery_at(&pending, *part_origin),
+                );
                 i.state.finish_node();
                 return Err(pending);
             }
@@ -277,7 +291,7 @@ fn emit_rule_lazy_capture(
         advance_item_origin(part_origin, &name);
         emit_literal_item(&mut i, name, SyntaxKind::RuleLiteralText);
     } else {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_rule_missing(i.rb(), LiteralRole::RuleLazyCaptureName, *part_origin);
     }
     i.state.finish_node();
     Ok(())
@@ -331,9 +345,17 @@ fn rule_literal_text_stop(source: &str) -> bool {
     source.starts_with(['"', ':', '{'])
 }
 
-fn finish_rule_literal_boundary(mut i: RewriteIn, pending: Item) -> NormalizedRuleLiteralExit {
+fn finish_rule_literal_boundary(
+    mut i: RewriteIn,
+    pending: Item,
+    origin: usize,
+) -> NormalizedRuleLiteralExit {
     let line_entry = pending_line_entry(&pending);
-    emit_missing(&mut i, LeadingTrivia::default());
+    emit_rule_missing(
+        i.rb(),
+        LiteralRole::RuleLiteralTerminator,
+        rule_recovery_at(&pending, origin),
+    );
     i.state.finish_node();
     NormalizedRuleLiteralExit::Boundary(pending, line_entry)
 }
