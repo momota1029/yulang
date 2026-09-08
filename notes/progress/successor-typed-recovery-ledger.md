@@ -360,8 +360,9 @@ owner or grammar route.
 | `rule::expression_list` after admitted Item | `ExpressionList(Separator)` | E | one native lexical non-separator Item | scan next Item outside Error; no merged Error run | `rule_expression_list_recovery::*` | C |
 | `rule::expression_list` absent local close | `close(ExpressionList, Parenthesis/Bracket)` | M | current local close absent at EOF/fence/outer boundary | caller emits actual matching close; outer close remains pending | `rule_expression_list_recovery::*`, `rule::*` | C |
 
-Canonical braced Statement sequence recovery is now mapped below. This leaves
-root and declaration-local owners open.
+Canonical braced Statement sequence recovery is now mapped below. Declaration
+owners are now individually mapped; root and later literal/context owners
+remain open.
 
 | source / owner | slot role | M/E | trigger and extent | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -382,6 +383,7 @@ root and declaration-local owners open.
 | `declaration::fields` sequence, separator, and terminal close | caller-selected Struct/Variant field and construct-close roles | M/E | required field, unseparated field, semicolon/close Error run, or absent matching close | per-Item `other(Rng)` or `[]` / field, separator, and close expectation | matching close first; active/fence and Borrow close stay pending; neutral lexical path has no Struct dependency | `struct_decl::*`, `declaration_variant::*`, `equals_recovery::*`, `normalized::*` | C-field-sequence |
 | `cast_pattern_introducer_normalized` | `Declaration(Cast(PatternIntroducer))` | M/E | absent/reusable/malformed pattern opener | `[]` or one maximal `other(Rng)` / open parenthesis | colon/form priority, outer `)` unread; bare Pattern retry has one Error; nonempty same-line EOF extends Error record/fact | `cast_decl::*`, Pattern/required-Type/output controls | C |
 | `cast_pattern_value_normalized` initial absence | `Declaration(Cast(Pattern))` | M | EOF/local close/colon/form/protected boundary before child admission | `[]` / Pattern | existing incomplete transition owns local close and phase handoff; malformed Pattern remains native | `cast_decl::*`, Pattern/output controls | C |
+| `cast_decl` target/form/body phases | `Cast(TargetIntroducer/TargetType/BodyIntroducer/Body/IndentedStatement)` | M/E or delegated child | punctuation/current-Item absence, sealed lexical run, or existing required-Type/Statement child | exact starter and NUD retry; protected Item stays pending | `cast_decl::*`, Pattern/Type/normalized/output controls | C |
 | `struct_decl` required Name and BodyIntroducer | `Declaration(Struct(Name/BodyIntroducer))` | M/E | header required slots and lexical runs | existing ordered starter union; protected Item stays pending, TypePrimary gap is Struct-owned | `struct_decl::*`, `normalized_struct::*` | C |
 | `mod_decl` Name/TestName/BodyIntroducer/Body | `Declaration(Mod(Name/TestName/BodyIntroducer/Body))` | M/E | required identity/body slots or maximal lexical run | only initial `test` marks; retry/pending boundary leading and nested Statement owners stay distinct | `mod_decl::*`, `indented_recovery::*`, `normalized::*` | C |
 | `role_decl` BodyIntroducer/inline Body | `Declaration(Role(BodyIntroducer/Body))` | M/E | required punctuation body slot or maximal lexical run | ordered three-starter union; Head Type and Statement/block children remain native | `role_decl::*`, `type_expr::required_recovery::*` | C |
@@ -456,7 +458,7 @@ independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-accepted public Yumark/frame-pop, braced/colon/with raw owners and caller bypasses; remaining declaration shells/fields;
+accepted public Yumark/frame-pop, braced/colon/with raw owners and caller bypasses;
 all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type

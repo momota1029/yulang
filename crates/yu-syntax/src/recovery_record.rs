@@ -283,10 +283,6 @@ pub(crate) enum ActDeclarationRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum CastRole {
     PatternIntroducer,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Pattern,
     TargetIntroducer,
     TargetType,
