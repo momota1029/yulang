@@ -250,6 +250,19 @@ topology. M2 compiler/recovery and regression review found no production defect;
 one caller-evidence repair adds actual Expression/Pattern/Rule string paths.
 Yumark production convergence and its AST-product decision remain separate.
 
+The If arm gate in `2026-09-08-successor-if-current-item-recovery.md` is
+implemented. BodyIntroducer Missing now expects Colon; If/Elsif and Else inline
+slots retain distinct Body/ElseBody Missing/Error records through a finite role
+transport. The Error scan is sealed lexical-only and preserves existing leading,
+boundary and retry handoff. A missing Condition suppresses only the absent
+introducer path; after an actual colon, a separate Body slot remains required,
+so `if :` and `if : @` publish Condition before Body recovery. The current
+Condition boundary flag and indented Statement role remain unchanged. M2
+compiler/recovery review found and closed that exact scope clarification;
+regression review added actual delimiter-close and nested-dedent caller
+evidence. Focused checks, package check, format and diff pass with zero
+benchmark samples/processes. CaseLike remains a separate open owner.
+
 The Rule DSL literal gate in
 `2026-09-08-successor-rule-literal-current-item-recovery.md` is implemented.
 Ten Literal roles now publish typed records; Body/Paren newline stops precede

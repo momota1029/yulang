@@ -221,6 +221,19 @@ Expression tails, literal/Statement callers, RB-E, O4 or public adoption.
 | `expression::for_decl::iterable_from_item_normalized`, including newline/fence bypass | `ForStatement(Iterable)` | M/E | same predicate plus existing implicit newline bypass; protected Item remains whole | `[]` or `other(Rng)` / `Expression` | body only when iterable is not missing | `expression_recovery::*`, `for_statement::*` | C |
 | `expression::for_decl::inline_body_normalized` | `ForStatement(Body)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Statement` | existing statement-owner handoff; actual `]`/`@` caller controls reconcile fresh and frozen records | `expression_recovery::*`, `for_statement::*` | C |
 
+If arm recovery is now mapped below. Condition and indented child Statement
+publication remain their already-complete owners.
+
+| source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `if_expr::missing_if_arm_normalized` after a completed condition | `IfExpression(BodyIntroducer)` | M | no accepted colon/body introducer; ordinary leading remains arm-owned | `[]` / punctuation Colon | pending Item stays unread; missing Condition suppresses this site | `if_expr::*` | C |
+| `if_expr::inline_body_item_normalized` If/Elsif | `IfExpression(Body)` | M/E | protected body absence or maximal lexical non-NUD run | `[]` or `other(Rng)` / Expression | retry admitted NUD outside Error; boundary remains pending | `if_expr::*`, expression/indented callers | C |
+| `if_expr::inline_body_item_normalized` Else | `IfExpression(ElseBody)` | M/E | bare or colon body absence, or maximal lexical non-NUD run | `[]` or `other(Rng)` / Expression | same retry/boundary ownership; literal children retain roles | `if_expr::*` | C |
+
+An actual colon after a missing Condition opens its separate Body slot: its
+Condition record precedes Body Missing/Error. The parent indented Statement
+role and actual close/fence ownership are unchanged.
+
 Shared Expression delimiters are now mapped below. The descriptor is the only
 role source; a close-only inherited mask protects `)`, `]` and `}` through
 nested delimiter scans without exporting ordinary caller stops. This remains

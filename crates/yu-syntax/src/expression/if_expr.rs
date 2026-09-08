@@ -2,17 +2,26 @@
 
 use crate::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::{
     lexical::operator_scan::OperatorSite,
     operator_table::BindingPower,
-    recovery_record::{GrammarRole, IfExpressionRole},
+    recovery_record::{
+        ExpectationSources, ExpectedSyntax, GrammarRole, IfExpressionRole, RecoveryKind,
+        RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+    },
     syntax_kind::SyntaxKind,
 };
 
 use crate::{
-    cst_output::emit::{emit_missing, emit_token_item},
-    cursor::SyntaxIn,
+    cst_output::{
+        RecoveryDraft,
+        emit::{
+            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
+        },
+    },
+    cursor::{LexIn, SyntaxIn},
     expression::{
         continue_normalized_tail, expr_from_nud_normalized, is_nud_item,
         is_required_operand_boundary, required_expr_item_normalized,
@@ -20,11 +29,11 @@ use crate::{
     handoff::{Either, MlMode, NormalizedExit, complete, handoff},
     lexical::{
         current_item::LineEntry,
-        expression_item::expression_item,
+        expression_item::{expression_item, scan_expression_item_lexical},
         item::{Item, LeadingTrivia, TokenKind},
         lexer::introduced_body_indentation_normalized,
         observation::{
-            implicit_delimited_newline, indentation_after_newline, is_active_stop,
+            implicit_delimited_newline, indentation_after_newline, is_active_stop_lex,
             is_contextual_word, token_kind,
         },
         position::{advanced_origin, suffix_marker},
@@ -228,6 +237,7 @@ fn if_arm_normalized(
                 i.rb(),
                 complete(handoff(item), line_entry),
                 condition_missing,
+                item_origin,
             )
         }
         NormalizedExit::Complete(Err(Either::Left(colon)), line_entry)
@@ -236,6 +246,7 @@ fn if_arm_normalized(
             emit_token_item(&mut i, colon);
             colon_body_normalized(
                 i.rb(),
+                InlineBodyRole::Body,
                 baseline,
                 outer_stops | STOP_ELSIF | STOP_ELSE,
                 line_handoff,
@@ -246,7 +257,7 @@ fn if_arm_normalized(
                 sequence,
             )
         }
-        exit => missing_if_arm_normalized(i.rb(), exit, condition_missing),
+        exit => missing_if_arm_normalized(i.rb(), exit, condition_missing, item_origin),
     };
     i.state.finish_node();
     exit
@@ -303,6 +314,7 @@ fn missing_if_arm_normalized(
     mut i: SyntaxIn,
     exit: NormalizedExit,
     condition_missing: bool,
+    item_origin: usize,
 ) -> NormalizedExit {
     if condition_missing {
         return exit;
@@ -312,12 +324,17 @@ fn missing_if_arm_normalized(
             if !item.payload_view().is_boundary() {
                 item.emit_all_remaining_leading(&mut *i.state);
             }
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_if_missing(i.rb(), &item, item_origin, IfExpressionRole::BodyIntroducer);
             complete(handoff(item), line_entry)
         }
         NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
             end.item.emit_all_remaining_leading(&mut *i.state);
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_if_missing(
+                i.rb(),
+                &end.item,
+                item_origin,
+                IfExpressionRole::BodyIntroducer,
+            );
             complete(Err(Either::Right(end)), line_entry)
         }
         NormalizedExit::Complete(Ok(()), _) => {
@@ -355,7 +372,7 @@ fn else_arm_normalized(
         outer_stops,
     );
     if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_if_missing(i.rb(), &item, item_origin, IfExpressionRole::ElseBody);
         i.state.finish_node();
         return complete(handoff(item), line_entry);
     }
@@ -363,6 +380,7 @@ fn else_arm_normalized(
         emit_token_item(&mut i, item);
         colon_body_normalized(
             i.rb(),
+            InlineBodyRole::ElseBody,
             baseline,
             outer_stops | STOP_ELSIF | STOP_ELSE,
             line_handoff,
@@ -376,6 +394,7 @@ fn else_arm_normalized(
         inline_body_item_normalized(
             i.rb(),
             item,
+            InlineBodyRole::ElseBody,
             baseline,
             outer_stops | STOP_ELSIF | STOP_ELSE,
             line_handoff,
@@ -390,9 +409,25 @@ fn else_arm_normalized(
     exit
 }
 
+#[derive(Clone, Copy)]
+enum InlineBodyRole {
+    Body,
+    ElseBody,
+}
+
+impl InlineBodyRole {
+    fn recovery_role(self) -> IfExpressionRole {
+        match self {
+            Self::Body => IfExpressionRole::Body,
+            Self::ElseBody => IfExpressionRole::ElseBody,
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn colon_body_normalized(
     mut i: SyntaxIn,
+    inline_role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -418,6 +453,7 @@ fn colon_body_normalized(
     } else {
         inline_body_normalized(
             i,
+            inline_role,
             baseline,
             stops,
             line_handoff,
@@ -433,6 +469,7 @@ fn colon_body_normalized(
 #[allow(clippy::too_many_arguments)]
 fn inline_body_normalized(
     mut i: SyntaxIn,
+    role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -454,6 +491,7 @@ fn inline_body_normalized(
     inline_body_item_normalized(
         i,
         item,
+        role,
         baseline,
         stops,
         line_handoff,
@@ -469,6 +507,7 @@ fn inline_body_normalized(
 fn inline_body_item_normalized(
     mut i: SyntaxIn,
     mut item: Item,
+    role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -479,11 +518,11 @@ fn inline_body_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_if_missing(i.rb(), &item, item_origin, role.recovery_role());
         return complete(handoff(item), line_entry);
     }
     if inline_boundary(i.rb(), &item, baseline, stops) {
-        emit_inline_missing(&mut i, &mut item, baseline);
+        emit_inline_missing(&mut i, &mut item, baseline, item_origin, role);
         return complete(handoff(item), line_entry);
     }
 
@@ -508,6 +547,7 @@ fn inline_body_item_normalized(
     (item, item_origin, line_entry) = retry_inline_body_normalized(
         i.rb(),
         item,
+        role,
         baseline,
         stops,
         item_origin,
@@ -543,40 +583,66 @@ fn inline_body_item_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn retry_inline_body_normalized(
-    mut i: SyntaxIn,
+    i: SyntaxIn,
     mut item: Item,
+    role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = expression_item(
-            i.rb(),
-            OperatorSite::Nud,
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-        );
-        if item.payload_view().is_boundary()
-            || inline_boundary(i.rb(), &item, baseline, stops)
-            || is_nud_item(&item)
-        {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-    }
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind = match token_kind(&item).expect("inline Error owns a lexical Item") {
+                    TokenKind::Operator => SyntaxKind::Operator,
+                    kind => token_syntax_kind(kind),
+                };
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) = run.lexical(|lex| {
+                    scan_expression_item_lexical(
+                        lex,
+                        OperatorSite::Nud,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops,
+                    )
+                });
+                if item.payload_view().is_boundary()
+                    || run.lexical(|lex| inline_boundary_lex(lex, &item, baseline, stops))
+                    || is_nud_item(&item)
+                {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| {
+            if_recovery_draft(role.recovery_role(), RecoveryKind::Error, range, unexpected)
+        },
+    )
 }
 
 fn inline_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    i.token(|lex| Some(inline_boundary_lex(lex, item, baseline, stops)))
+        .expect("inline boundary observation is total")
+}
+
+fn inline_boundary_lex(i: LexIn, item: &Item, baseline: usize, stops: Stops) -> bool {
     item.payload_view().is_eof()
         || crate::lexical::observation::is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
+        || is_active_stop_lex(i, item, stops)
         || implicit_delimited_newline(baseline, item.leading_view())
         || token_kind(item) == Some(TokenKind::LBrace)
 }
@@ -587,11 +653,56 @@ fn emit_inline_leading(i: &mut SyntaxIn, item: &mut Item) {
     }
 }
 
-fn emit_inline_missing(i: &mut SyntaxIn, item: &mut Item, baseline: usize) {
+fn emit_inline_missing(
+    i: &mut SyntaxIn,
+    item: &mut Item,
+    baseline: usize,
+    item_origin: usize,
+    role: InlineBodyRole,
+) {
     if !implicit_delimited_newline(baseline, item.leading_view()) {
         emit_inline_leading(i, item);
     }
-    emit_missing(i, LeadingTrivia::default());
+    emit_if_missing(i.rb(), item, item_origin, role.recovery_role());
+}
+
+fn emit_if_missing(i: SyntaxIn, item: &Item, item_origin: usize, role: IfExpressionRole) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        if_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn if_recovery_draft(
+    role: IfExpressionRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = if role == IfExpressionRole::BodyIntroducer {
+        ExpectedSyntax::Punctuation(crate::recovery_record::PunctuationEvidence::Colon)
+    } else {
+        ExpectedSyntax::Expression
+    };
+    let role = GrammarRole::IfExpression(role);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 fn emit_contextual_keyword(i: &mut SyntaxIn, item: Item, kind: SyntaxKind) {
