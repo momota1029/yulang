@@ -88,7 +88,7 @@ general hidden-boundary residual は `ASOB-G` が記録し、このページは 
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/type_expr/forall.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/type_expr/forall.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/type_expr.rs` では `parse_forall_type`、`commit_direct_forall_type`、`scan_forall_keyword`、`scan_forall_binder`、`scan_forall_invalid_run`、`forall_recovery_candidate`、`forall_recovery_boundary_pending`、`parse_forall_body_for_ast`、`commit_direct_forall_body` を参照する。
 

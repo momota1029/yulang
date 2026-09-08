@@ -93,7 +93,7 @@ missing nested delimiter の背後にある hidden caller-boundary case は、�
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/type_expr.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/type_expr.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/type_expr.rs` では `parse_type_expression`、`parse_required_type_expression_with_recovery_context`、`commit_direct_type_expression`、`commit_direct_type_expression_with_recovery_context`、`parse_type_call_tail`、`parse_parenthesized_type_group`、`parse_type_arrow_tail`、`commit_direct_type_delimited`、`classify_type_malformed_trivia`、`scan_type_item_invalid_run_with_disposition` を参照する。
 

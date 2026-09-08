@@ -96,7 +96,7 @@ Deferred grammar includes Pattern annotation details, list/record forms, constru
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/pattern.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching parser owner is `crates/yu-syntax/src/parser/pattern.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 Key functions in `crates/yu-syntax/src/grammar/pattern.rs` are `parse_pattern`, `parse_pattern_with_outer_missing_role`, `parse_direct_pattern`, `parse_pattern_bp`, `parse_pattern_primary`, `parse_parenthesized_pattern`, `parse_pattern_delimited_items_ast`, `commit_direct_parenthesized_pattern`, `commit_direct_pattern_delimited_items`, `drive_parenthesized_pattern_close_recovery`, and `outer_pattern_close_stop_pending`.
 

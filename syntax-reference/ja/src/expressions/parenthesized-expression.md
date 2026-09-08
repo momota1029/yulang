@@ -102,7 +102,7 @@ general missing-delimiter/caller-boundary residual は `ASOB-G` が characteriza
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/expression.rs` では `parse_operator_chain`、`parse_direct_operator_chain`、`commit_parenthesized_nud`、`commit_parenthesized_element`、`commit_parenthesized_close`、`parenthesized_expression_stop_set`、`push_parenthesized_expression_scope`、`pop_parenthesized_expression_scope` を参照する。
 

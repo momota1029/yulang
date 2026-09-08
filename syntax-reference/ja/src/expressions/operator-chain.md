@@ -97,7 +97,7 @@ documented `ASOB-G` caller-boundary residual はここでも characterization �
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/operator.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/operator.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/expression.rs` では `parse_operator_chain`、`parse_direct_operator_chain`、`recognize_nud`、`recognize_led`、`probe_nud`、`probe_led`、`commit_direct_operand_slot_from`、`operator_chain_item_end` を参照する。
 

@@ -104,7 +104,7 @@ shared `ASOB-G` hidden caller-boundary residual は characterization のまま�
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/tails.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/tails.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/expression.rs` では `recognize_colon_application_tail`、`parse_inline_colon_arguments`、`outer_owns_inline_argument_sequence`、`commit_colon_application_tail`、`commit_colon_inline_argument`、`colon_inline_argument_error_retry`、`emit_colon_application_missing`、`emit_colon_application_error` を参照する。
 

@@ -5,7 +5,7 @@ use rowan::GreenNode;
 use crate::{
     HeaderInfo, OperatorFixity, SourceText,
     operator::{OperatorOrigin, OperatorTable, compile_full_parse_operators_recovering},
-    rewrite::root::parse_root_candidate,
+    parser::root::parse_root_candidate,
     session::CommittedRecoveryRecord,
 };
 
@@ -386,7 +386,7 @@ mod tests {
     };
 
     #[test]
-    fn public_rewrite_pair_preserves_headers_and_multiple_statements() {
+    fn public_parser_pair_preserves_headers_and_multiple_statements() {
         let source: Arc<SourceText> =
             Arc::from("use std::io\r\nprefix (?) 70 = 値\r\nmy x = 1; my y = 2\r\nx\r\n");
         let header = Arc::new(crate::scan_header(source.clone()));
@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn public_rewrite_pair_preserves_imported_local_conflict_provenance_after_recovery() {
+    fn public_parser_pair_preserves_imported_local_conflict_provenance_after_recovery() {
         let source: Arc<SourceText> =
             Arc::from("use a as\r\nprefix (?) 71 = value\r\nmy x = 1\r\n");
         let header = Arc::new(crate::scan_header(source.clone()));
@@ -475,7 +475,7 @@ mod tests {
     }
 
     #[test]
-    fn public_rewrite_pair_keeps_header_fences_opaque_and_continues_after_body_recovery() {
+    fn public_parser_pair_keeps_header_fences_opaque_and_continues_after_body_recovery() {
         for body in [
             "'{\n```raw\n}\nuse hidden\n```\n}",
             "'{\n> ```yulang\n> \"```\"\n> ```\n}",
@@ -519,7 +519,7 @@ mod tests {
     }
 
     #[test]
-    fn public_rewrite_pair_reconciles_frozen_header_after_full_only_recovery() {
+    fn public_parser_pair_reconciles_frozen_header_after_full_only_recovery() {
         let source: Arc<SourceText> = Arc::from(
             "prefix (?) 70 =\r\nuse a as\r\nuse good\r\nprefix (?) 71 = value\r\nmy x = 1\r\n",
         );
@@ -561,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn public_rewrite_pair_retains_binding_selector_and_initial_layout() {
+    fn public_parser_pair_retains_binding_selector_and_initial_layout() {
         for word in ["use", "prefix", "infix", "suffix", "nullfix", "lazy"] {
             let source: Arc<SourceText> = Arc::from(format!("my {word} = 値\r\nuse later"));
             let header = Arc::new(crate::scan_header(source.clone()));

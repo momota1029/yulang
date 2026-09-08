@@ -4,7 +4,7 @@ Updated: 2026-09-08. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Objective and current authority
 
-Prioritize rewrite-owned public header/root connection and atomic old-parser
+Prioritize parser-owned public header/root connection and atomic old-parser
 removal once the entry paths have sufficient validation functionality. Exhaustive
 private owner completion is no longer an automatic cutover prerequisite;
 deferred rows stay open. Private construction is not itself public cutover.
@@ -24,10 +24,16 @@ deferred rows stay open. Private construction is not itself public cutover.
   for a bounded gate; deterministic verification and honest reporting of review
   scope remain required.
 - `notes/design/2026-09-08-successor-public-cutover-priority-amendment.md`
-  records the current ordering: build rewrite header/root entries, exercise the
+  records the current ordering: build parser header/root entries, exercise the
   actual public two-phase path, then remove the legacy parser without fallback.
 
 ## Current gate and immediate next action
+
+The user-authorized topology cleanup names the sole internal implementation
+`parser` (`crates/yu-syntax/src/parser/`). `ParserIn` and `ParserOutput` name its
+input and output boundaries. Public exports, parser behavior and test contracts
+are unchanged. Dated design and daily records retain their historical paths;
+current source links and test commands use `parser`.
 
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E
@@ -323,10 +329,10 @@ Public-cutover foundations are implemented under
 `2026-09-08-successor-public-cutover-priority-amendment.md`. HeaderInfo retains
 private source identity and `parse_file` rejects a distinct source before
 construction; scoped header reconciliation prevents full-only records from
-consuming later frozen header IDs. The rewrite public entry, public integration
+consuming later frozen header IDs. The parser public entry, public integration
 and atomic legacy removal are complete.
 
-The private rewrite Header/Root entry is implemented. Header discovery shares
+The private parser Header/Root entry is implemented. Header discovery shares
 Use and OperatorHeader construction, projects imports atomically, preserves
 exact opaque-region boundaries and retains records for later reconciliation.
 Root owns direct top-level topology, separators, pending/End handoff, scoped
@@ -338,8 +344,8 @@ private checkpoint, HeaderInfo record transport, public adapter,
 package/workspace validation and legacy deletion remained open.
 
 The public adapter is now connected without fallback: `scan_header` constructs
-rewrite facts/records and `parse_file` passes the retained frozen header record
-slice into rewrite Root before diagnostics and conflict construction. Public
+parser facts/records and `parse_file` passes the retained frozen header record
+slice into parser Root before diagnostics and conflict construction. Public
 pair tests cover UTF-8/CRLF, header/full interleaving, imported/local conflict
 provenance and fence recovery/continuation. A public fence fixture exposed and
 repaired raw rejected-operator emission in Root Error. The accepted Yumark NUD
@@ -361,13 +367,13 @@ the accepted Yumark NUD/frame-pop owner. Those remain separate from the
 completed public cutover; retain the current acceptance contracts and
 effect-free optional entry. No benchmark sample/process has been used.
 The old eighth-terminal proposal is not a required prerequisite. Public
-dispatch is rewrite-only; the legacy parser tree has been removed.
+dispatch is parser-only; the legacy parser tree has been removed.
 
 Post-cutover cleanup is complete. The inactive chasa cursor/scanner/CST stack
 (`input.rs`, `sink.rs`, and `scan/**`) is gone; `session.rs` now owns only the
 typed recovery vocabulary; and the unchanged dynamic-operator judge is
-rewrite-local. The removed bridge had no public consumer. Test-only rewrite
-seams live under `rewrite/tests/`, about 1,400 further inactive private lines
+parser-local. The removed bridge had no public consumer. Test-only parser
+seams live under `parser/tests/`, about 1,400 further inactive private lines
 are removed, and no module-wide `dead_code` suppression remains. The residual
 annotations are variant/field/method-local contracts for retained Deferred,
 ambient, pending-boundary, Rule and fence vocabulary. Production/test checks,
@@ -393,12 +399,12 @@ recovery-equality prerequisite.
 
 ## Verification and environment
 
-Use `cargo test -p yu-syntax --lib rewrite::tests::type_expr:: -- --test-threads=1`
+Use `cargo test -p yu-syntax --lib parser::tests::type_expr:: -- --test-threads=1`
 for Type construction. The leading-row gate also ran the known-small
-`rewrite::tests::normalized::normalized_type` and
-`rewrite::tests::normalized::ordinary_type_unmatched` filters. Use the focused
-`rewrite::tests::output::` and
-`rewrite::tests::recovery_output::` filters for output/RB invariants, then one
+`parser::tests::normalized::normalized_type` and
+`parser::tests::normalized::ordinary_type_unmatched` filters. Use the focused
+`parser::tests::output::` and
+`parser::tests::recovery_output::` filters for output/RB invariants, then one
 `cargo check -p yu-syntax`. Check inventory before broadening. Benchmark budget
 for these bounded owner-local gates is zero samples/processes unless material
 cost uncertainty requires a separately justified measurement.

@@ -85,7 +85,7 @@ The general hidden-boundary residual is characterized by `ASOB-G`; no EffectRow-
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/type_expr/variants.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching parser owner is `crates/yu-syntax/src/parser/type_expr/variants.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_effect_row_type`, `scan_effect_row_open`, `commit_direct_type_primary_head`, `drive_type_delimited`, `commit_direct_type_delimited`, `classify_type_delimited_recovery`, `scan_type_delimited_item_invalid_run`, and `drive_type_close_slot`.
 

@@ -104,7 +104,7 @@ Yulang3 は Yulang2 の trivia-tolerant colon/brace spelling を adjacent `":{"`
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/type_expr/variants.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/type_expr/variants.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 shared implementation は `crates/yu-syntax/src/grammar/type_expr/polymorphic_variant.rs` にある。`parse`、`commit_direct`、`drive`、`drive_payloads`、`inspect_payload`、`classify_tag_boundary`、`consume_invalid_run` を参照する。`crates/yu-syntax/src/grammar/type_expr.rs` は `scan_polymorphic_variant_open` と enclosing canonical primary/tail entry を提供する。
 

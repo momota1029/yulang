@@ -101,7 +101,7 @@ deferred workはrecord-list unification、spread matching/capture semantics、mu
 
 ## 11. Implementationとregression cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/pattern/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/pattern/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/pattern.rs`では`parse_list_pattern`、`commit_direct_list_pattern`、`parse_pattern_delimited_items_ast`、`commit_direct_pattern_delimited_items`、`commit_direct_pattern_delimited_item`、`recover_pattern_delimited_separator_or_close`、`outer_pattern_close_stop_pending`を使う。
 

@@ -104,7 +104,7 @@ Yulang3 intentionally narrows Yulang2's trivia-tolerant colon/brace spelling to 
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/type_expr/variants.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/type_expr/variants.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 The shared implementation is `crates/yu-syntax/src/grammar/type_expr/polymorphic_variant.rs`: `parse`, `commit_direct`, `drive`, `drive_payloads`, `inspect_payload`, `classify_tag_boundary`, and `consume_invalid_run`. `crates/yu-syntax/src/grammar/type_expr.rs` supplies `scan_polymorphic_variant_open` and the enclosing canonical primary/tail entry.
 

@@ -101,7 +101,7 @@ Deferred work includes record-list unification, spread matching and capture sema
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/pattern/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching parser owner is `crates/yu-syntax/src/parser/pattern/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/pattern.rs`: `parse_list_pattern`, `commit_direct_list_pattern`, `parse_pattern_delimited_items_ast`, `commit_direct_pattern_delimited_items`, `commit_direct_pattern_delimited_item`, `recover_pattern_delimited_separator_or_close`, and `outer_pattern_close_stop_pending`.
 

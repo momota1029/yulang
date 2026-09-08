@@ -109,7 +109,7 @@ The documented `ASOB-G` residual includes representative Case/Catch arm-sequence
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/case_like.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/case_like.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_case_like_nud`, `parse_case_like_label`, `parse_catch_braced_block_ast`, `parse_case_arm_sequence_ast`, `parse_catch_arm_sequence_ast`, `arm_sequence_boundary`, `parse_case_arm_ast`, `parse_catch_arm_ast`, `parse_case_guard_ast`, `parse_catch_guard_ast`, `commit_case_like_expression`, `commit_arm_sequence`, `commit_one_arm`, `commit_arm_guard`, `commit_arm_body`, `emit_case_like_missing`, and `commit_case_like_invalid_arrow`.
 

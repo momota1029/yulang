@@ -98,7 +98,7 @@ Deferred work includes duplicate-field/spread validation, matching/capture seman
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching rewrite owner is `crates/yu-syntax/src/rewrite/pattern/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching parser owner is `crates/yu-syntax/src/parser/pattern/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/pattern.rs`: `parse_record_pattern`, `parse_record_item_ast`, `parse_record_default_ast`, `commit_direct_record_pattern`, `commit_direct_record_item`, `commit_direct_record_default`, `commit_direct_record_default_after_equals`, `commit_direct_pattern_delimited_items`, and `outer_pattern_close_stop_pending`.
 

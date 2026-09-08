@@ -97,7 +97,7 @@ The documented `ASOB-G` caller-boundary residual remains characterized rather th
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching rewrite owner is `crates/yu-syntax/src/rewrite/operator.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/operator.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/expression.rs`: `parse_operator_chain`, `parse_direct_operator_chain`, `recognize_nud`, `recognize_led`, `probe_nud`, `probe_led`, `commit_direct_operand_slot_from`, and `operator_chain_item_end`.
 

@@ -4,7 +4,7 @@ use std::{ops::Range, sync::Arc};
 
 mod operator;
 mod parse;
-mod rewrite;
+mod parser;
 mod session;
 mod syntax_kind;
 
@@ -320,7 +320,7 @@ impl BindingPower {
 
 /// Discover leading imports and operator signatures.
 pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
-    rewrite::header::discover_header(source.as_ref()).into_header_info(source)
+    parser::header::discover_header(source.as_ref()).into_header_info(source)
 }
 
 #[cfg(test)]

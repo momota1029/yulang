@@ -104,7 +104,7 @@ documented `ASOB-G` caller-boundary residual は hidden にせず characterize �
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するrewrite ownerは`crates/yu-syntax/src/rewrite/tails.rs`と`crates/yu-syntax/src/rewrite/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/tails.rs`と`crates/yu-syntax/src/parser/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/expression.rs` では `recognize_fixed_postfix`、`parse_fixed_postfix_tail`、`parse_index_tail`、`parse_projection_tuple_tail`、`parse_projection_record_tail`、`parse_projection_items_ast`、`commit_fixed_postfix_tail`、`commit_index_tail`、`commit_projection_tuple_tail`、`commit_projection_record_tail`、`commit_projection_items`、`index_item_error_retry`、`projection_item_error_retry`、`emit_index_missing`、`emit_projection_missing`、`emit_projection_close_missing` を参照する。
 
