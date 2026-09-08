@@ -96,7 +96,13 @@ The next separate gate is the boundary-capable root-statement sequence: thread
 the fence through root acquisition, header/operator lookahead and body paths,
 return the entire boundary Item instead of asserting unfenced Root, and give a
 future cell-only wrapper `leading_header = false`. It must not expose the cell
-or add outer Yumark dispatch yet.
+or add outer Yumark dispatch yet. The sequence never emits a fenced terminal:
+it returns the exact Item at frontier zero. A later `YmYulangCodeCell` terminal
+adapter alone has the item-emission-frontier amendment's narrow authority to
+emit retained body-leading once before handing the boundary facts back to outer
+Yumark. Ordinary source EOF remains a separate emitting terminal. Preserve
+`None` ambient ingress for this private sequence preparation; choosing a
+production Yumark ambient context remains deferred.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

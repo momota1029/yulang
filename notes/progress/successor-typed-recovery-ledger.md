@@ -551,6 +551,15 @@ and failed none in 1.70s. Package check, format and diff passed. Benchmark use:
 zero samples/processes. Root-sequence boundary return, cell entry and outer
 Yumark dispatch remain distinct open gates.
 
+The next root-sequence gate returns fenced terminals as the complete, un-emitted
+frontier-zero Item. Ordinary source EOF still emits its leading. Only the later
+cell terminal adapter may emit retained body-leading once under the
+item-emission-frontier amendment; the sequence never consumes fence facts.
+Source header reconciliation stays in its concrete source state, while the
+future cell state starts with it disabled and retains unavailable `None` ambient
+ingress. Header/operator modifier lookahead must receive the same fence before
+that state can be constructed.
+
 ## Parenthesized operator newline control
 
 - The retained `(a +\nb)` partial-output expectation was stale. At delimiter
