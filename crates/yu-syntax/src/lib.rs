@@ -12,6 +12,7 @@ mod handoff;
 mod header;
 mod lexical;
 mod literal;
+mod operator_compilation;
 mod operator_table;
 mod pattern;
 mod recovery_record;

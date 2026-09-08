@@ -178,9 +178,8 @@ mod tests {
 
     use crate::{
         BindingPower as HeaderBindingPower, BindingPowers, HeaderOperator, Visibility,
-        operator_table::{
-            BindingPower, OperatorDeclaration, OperatorFixities, compile_full_parse_operators,
-        },
+        operator_compilation::compile_full_parse_operators,
+        operator_table::{BindingPower, OperatorDeclaration, OperatorFixities},
     };
 
     #[test]

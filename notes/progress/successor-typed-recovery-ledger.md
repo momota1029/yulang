@@ -476,6 +476,19 @@ remain open.
   distinct Role and Impl declaration owners directly, without changing parser
   behavior. Focused statement dispatch, format, and diff passed.
 
+## Operator compilation topology
+
+- Completed `2026-09-09-operator-compilation-topology.md`. Header conversion,
+  imported/local table merge, and conflict collection now have the dedicated
+  `operator_compilation` owner; immutable entries/fixities/sites, mechanical
+  build, tries, and source matching remain in `operator_table`.
+- The table has no HeaderOperator adapter or compilation-policy dependency,
+  including test-only paths. The crate-private bridge exposes only construction
+  and immutable site operations; table storage stays private. Scoped
+  table/compilation/environment/diagnostic/full-parse/public controls passed
+  31 tests with one existing manual measurement harness ignored; package,
+  format, and diff passed. Benchmark use: zero samples/processes.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

@@ -25,7 +25,7 @@ impl SyntaxDiagnostic {
 
     pub(crate) fn conflicting_operator_fixity(
         id: u32,
-        conflict: crate::operator_table::RejectedOperatorFixity,
+        conflict: crate::operator_compilation::RejectedOperatorFixity,
     ) -> Self {
         let primary = conflict.second_range.clone();
         Self {

@@ -43,6 +43,16 @@ inputs/provenance, `syntax_diagnostic.rs` owns diagnostic data, and
 5; full parse: 9; public boundary: 8 passed with one existing ignored manual
 measurement harness; package/format/diff passed. Benchmark use: zero.
 
+The operator-compilation topology gate is complete under
+`2026-09-09-operator-compilation-topology.md`. `operator_table.rs` now owns
+only immutable declarations/fixities/sites, mechanical construction, tries,
+and matching; `operator_compilation.rs` owns HeaderOperator conversion,
+imported/local merge, and conflict collection. Public API, scanner, Pratt
+grammar, accepted syntax, and diagnostic contracts are unchanged. Scoped
+table/compilation/environment/diagnostic/full-parse/public controls passed 31
+tests with one existing manual measurement harness ignored; package/format/diff
+passed. Benchmark use: zero.
+
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
 Its Missing/Error sites now publish the existing Cast role with the required

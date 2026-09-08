@@ -4,7 +4,7 @@ use rowan::GreenNode;
 
 use crate::{
     HeaderInfo, SourceText,
-    operator_table::compile_full_parse_operators_recovering,
+    operator_compilation::compile_full_parse_operators_recovering,
     source_file::parse_root_candidate,
     syntax_diagnostic::SyntaxDiagnostic,
     syntax_environment::{SourceRevision, SyntaxEnvironment, SyntaxEnvironmentKey},
