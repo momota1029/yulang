@@ -3,7 +3,7 @@
 use super::super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
-use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{scan::operator::OperatorSite, session::PatternRole, syntax_kind::SyntaxKind};
 
 use super::{
     super::{
@@ -282,6 +282,7 @@ fn pattern_delimited(
                     line_handoff,
                     PatternMandatorySlotPolicy::default(),
                     descendant_caller_closes,
+                    PatternRole::Primary,
                     &mut item_completion,
                     item_origin,
                     line_entry,
@@ -497,6 +498,7 @@ fn list_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
+            PatternRole::Primary,
             completion,
             item_origin,
             line_entry,
@@ -521,6 +523,7 @@ fn list_item(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         caller_closes,
+        PatternRole::Primary,
         completion,
         item_origin,
         line_entry,
@@ -564,6 +567,7 @@ fn record_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
+            PatternRole::Primary,
             completion,
             item_origin,
             line_entry,
@@ -609,6 +613,7 @@ fn record_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
+            PatternRole::Primary,
             completion,
             nested_origin,
             nested_line_entry,

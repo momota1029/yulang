@@ -16,6 +16,8 @@ use crate::rewrite::{
 };
 use reborrow_generic::Reborrow as _;
 
+mod recovery;
+
 fn run_required_pattern_with_policy<'source>(
     source: &'source str,
     stops: PatternStops,
@@ -1412,7 +1414,11 @@ fn standalone_patterns_recover_primary_alias_and_alternation_slots_locally() {
         .filter(|node| node.kind() == SyntaxKind::Error)
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].text().to_string(), "@ ");
+    assert_eq!(errors[0].text().to_string(), "@");
+    assert_eq!(
+        errors[0].next_sibling_or_token().unwrap().kind(),
+        SyntaxKind::Whitespace
+    );
     assert!(
         pattern
             .children()
@@ -1675,7 +1681,11 @@ fn standalone_patterns_keep_delimiter_and_malformed_list_item_recovery_local() {
         .filter(|node| node.kind() == SyntaxKind::Error)
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].text().to_string(), "@ ");
+    assert_eq!(errors[0].text().to_string(), "@");
+    assert_eq!(
+        errors[0].next_sibling_or_token().unwrap().kind(),
+        SyntaxKind::Whitespace
+    );
     assert!(
         items[1]
             .children()
@@ -1915,7 +1925,7 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
     assert!(matches!(exit, Err(Either::Right(_))));
     assert_eq!(
         trivia_parents(&green),
-        [SyntaxKind::RecordPatternField, SyntaxKind::Error]
+        [SyntaxKind::RecordPatternField, SyntaxKind::Pattern]
     );
     let field = record_node(green)
         .children()
@@ -1930,7 +1940,7 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
         .filter(|node| node.kind() == SyntaxKind::Error)
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].text().to_string(), "@ ");
+    assert_eq!(errors[0].text().to_string(), "@");
     assert!(
         nested
             .children()

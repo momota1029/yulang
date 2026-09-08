@@ -127,10 +127,18 @@ owners and local RB controls are mapped. Matrix D4e now has an explicit
 SD-T role correction without an embedded-certification claim. T3's stale
 construction-suspension header is synchronized with its approved successor.
 
-Current gate: O3b SCC construction. Start with Pattern-owned primary, symbol,
-alias and alternation sites in `pattern.rs`, then Pattern delimiters. Extend
-the same ledger; do not claim an independently migrated Pattern owner before
-its literal/Expression/Statement/declaration SCC is complete.
+Pattern primary/symbol/alias/alternation typed construction is complete under
+`2026-09-08-successor-pattern-primary-current-item-recovery.md`. Retry-leading
+now belongs outside Error, malformed alias retry respects the layout/IN
+boundary, and the RHS slot is explicitly AlternationRhs. No raw recovery
+constructor remains in `pattern.rs`. All 33 Pattern tests and 477 expanded
+owner/output tests and package/format/diff checks pass; the same accumulating
+ledger includes its sites/RB controls. This is an O3b substep, not an
+independently completed Pattern owner.
+
+Current gate: O3b SCC construction. Continue with Pattern delimiter slots,
+then its literal/Expression/Statement/declaration dependencies. Extend the
+same ledger and retain the existing joint construction/certification boundary.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 

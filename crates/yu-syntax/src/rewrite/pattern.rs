@@ -1,8 +1,12 @@
 //! Source-free direct Pattern construction.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
-use crate::session::{GrammarRole, PatternRole};
+use crate::session::{
+    ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole, RecoveryKind, RecoverySiteKey,
+    SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::{ops::Range, sync::Arc};
 
 use crate::syntax_kind::SyntaxKind;
 
@@ -11,14 +15,14 @@ mod delimited;
 mod literal;
 
 use super::{
-    RewriteIn, Stops,
-    current_item::{CurrentItem, LineEntry, current_item},
+    LexIn, RewriteIn, Stops,
+    current_item::{LineEntry, current_item},
     driver::{
         Either, NormalizedExit, TailExit, advanced_origin, complete, delimited_baseline, handoff,
         implicit_delimited_newline, ordinary_exit, scan_pattern_literal_payload, suffix_marker,
         token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
     literal::{
@@ -26,6 +30,7 @@ use super::{
         string_literal_with_virtual_statements_normalized, string_mode_from_opener,
     },
     operator::{STOP_COMMA, STOP_IN, STOP_SEMICOLON, stops_for},
+    output::RecoveryDraft,
     statement::StatementLineHandoff,
     type_expr::{
         TypeOuterBoundary,
@@ -295,6 +300,7 @@ fn pattern_from_item_recording_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
+        PatternRole::Primary,
         completion,
         item_origin,
         line_entry,
@@ -313,6 +319,7 @@ fn pattern_from_item_recording_with_policy_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
+    primary_role: PatternRole,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -330,6 +337,7 @@ fn pattern_from_item_recording_with_policy_normalized(
         line_handoff,
         policy,
         caller_closes,
+        primary_role,
         completion,
         item_origin,
         line_entry,
@@ -342,7 +350,7 @@ fn pattern_from_item_recording_with_policy_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn pattern_from_item_core_normalized(
-    i: RewriteIn,
+    mut i: RewriteIn,
     item: Item,
     minimum: PatternPrecedence,
     baseline: usize,
@@ -350,22 +358,18 @@ fn pattern_from_item_core_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
+    primary_role: PatternRole,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    if item.payload_view().is_boundary() {
+    if item.payload_view().is_boundary()
+        || is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops)
+    {
         *completion = PatternCompletion::Incomplete;
-        let mut i = i;
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
-    if is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops) {
-        *completion = PatternCompletion::Incomplete;
-        let mut i = i;
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_pattern_missing(&mut i, primary_role, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if is_pattern_nud(&item, stops) {
@@ -395,6 +399,7 @@ fn pattern_from_item_core_normalized(
             line_handoff,
             policy,
             caller_closes,
+            primary_role,
             completion,
             item_origin,
             line_entry,
@@ -528,6 +533,7 @@ pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
         line_handoff,
         policy,
         caller_closes,
+        PatternRole::Primary,
         &mut completion,
         item_origin,
         line_entry,
@@ -547,6 +553,7 @@ fn recover_pattern_primary_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
+    primary_role: PatternRole,
     completion: &mut PatternCompletion,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -554,20 +561,17 @@ fn recover_pattern_primary_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     *completion = PatternCompletion::Incomplete;
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
-    if is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
-    if is_pattern_primary_boundary(&item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+    let boundary = |item: &Item| {
+        item.payload_view().is_boundary()
+            || is_mandatory_slot_fresh_primary_stop(item, policy.fresh_primary_recovery_stops)
+            || is_pattern_primary_boundary(item, baseline, stops)
+    };
+    if boundary(&item) {
+        emit_pattern_missing(&mut i, primary_role, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if is_current_pattern_tail(&item, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_pattern_missing(&mut i, primary_role, &item, item_origin);
         return pattern_tail_normalized(
             i,
             item,
@@ -584,61 +588,74 @@ fn recover_pattern_primary_normalized(
         );
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if is_pattern_primary_boundary(&item, baseline, stops) {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if is_current_pattern_tail(&item, stops) {
-            i.state.finish_node();
-            return pattern_tail_normalized(
-                i,
-                item,
-                minimum,
-                baseline,
-                stops,
-                line_handoff,
-                caller_closes,
-                completion,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
-        if is_pattern_nud(&item, stops) {
-            item.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            *completion = PatternCompletion::Complete;
-            return pattern_from_primary_with_recovered_tail_stops_normalized(
-                i,
-                item,
-                minimum,
-                baseline,
-                stops,
-                line_handoff,
-                policy.recovered_primary_tail_stops,
-                caller_closes,
-                completion,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        }
+    let run_start = item.extent(item_origin).recovery_range().start;
+    (item, item_origin, line_entry) = emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = token_syntax_kind(token_kind(&item).expect("malformed Pattern Item"));
+            let extent = run.emit_item_as(item, item_origin, kind);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_pattern_item_lexical(
+                    lex,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    stops,
+                    PatternScan::Nud,
+                )
+            });
+            if boundary(&item)
+                || is_current_pattern_tail(&item, stops)
+                || is_pattern_nud(&item, stops)
+            {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: run_start..extent.recovery_range().end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| {
+            pattern_recovery_draft(primary_role, RecoveryKind::Error, range, unexpected)
+        },
+    );
+    if boundary(&item) {
+        return complete(handoff(item), line_entry);
     }
+    if is_current_pattern_tail(&item, stops) {
+        return pattern_tail_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+    }
+    debug_assert!(is_pattern_nud(&item, stops));
+    item.emit_all_remaining_leading(&mut *i.state);
+    *completion = PatternCompletion::Complete;
+    pattern_from_primary_with_recovered_tail_stops_normalized(
+        i,
+        item,
+        minimum,
+        baseline,
+        stops,
+        line_handoff,
+        policy.recovered_primary_tail_stops,
+        caller_closes,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -792,7 +809,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 item_origin = advanced_origin(item_origin, entry, i.rb());
                 line_entry = LineEntry::InLine;
             } else {
-                emit_missing(&mut i, LeadingTrivia::default());
+                emit_pattern_missing_at(&mut i, PatternRole::SymbolName, item_origin);
                 *completion = PatternCompletion::Incomplete;
             }
             i.state.finish_node();
@@ -864,28 +881,17 @@ fn pattern_item_normalized(
     fence: Option<&FenceBoundary>,
     stops: PatternStops,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |lex, leading, origin, fence, _| {
-                    scan_pattern_payload(lex, leading, origin, fence, stops)
-                },
-            )
-        })
-        .expect("Pattern payload scanning is total");
-    (
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
-    )
+    i.token(|lex| {
+        Some(scan_pattern_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            stops,
+            PatternScan::Tail,
+        ))
+    })
+    .expect("Pattern payload scanning is total")
 }
 
 fn pattern_nud_item_normalized(
@@ -895,28 +901,54 @@ fn pattern_nud_item_normalized(
     fence: Option<&FenceBoundary>,
     stops: PatternStops,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |mut lex, leading, origin, fence, _| {
-                    scan_pattern_literal_payload(lex.rb())
-                        .or_else(|| scan_pattern_nud_payload(lex, leading, origin, fence, stops))
-                },
-            )
-        })
-        .expect("Pattern NUD payload scanning is total");
+    i.token(|lex| {
+        Some(scan_pattern_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            stops,
+            PatternScan::Nud,
+        ))
+    })
+    .expect("Pattern NUD payload scanning is total")
+}
+
+#[derive(Clone, Copy)]
+enum PatternScan {
+    Nud,
+    Tail,
+}
+
+/// One total lexical operation shared by ordinary and sealed Error-run paths.
+fn scan_pattern_item_lexical(
+    i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    stops: PatternStops,
+    mode: PatternScan,
+) -> (Item, usize, LineEntry) {
+    let (current, consumed) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| match mode {
+                PatternScan::Nud => scan_pattern_literal_payload(lex.rb())
+                    .or_else(|| scan_pattern_nud_payload(lex, leading, origin, fence, stops)),
+                PatternScan::Tail => scan_pattern_payload(lex, leading, origin, fence, stops),
+            },
+        )
+        .expect("Pattern payload scanning is total")
+    });
     (
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
+        current.item,
+        item_origin
+            .checked_add(consumed.len())
+            .expect("Pattern successor coordinate fits usize"),
+        current.next_line_entry,
     )
 }
 
@@ -1043,6 +1075,7 @@ fn pattern_tail_normalized(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
+            PatternRole::AlternationRhs,
             completion,
             rhs_origin,
             rhs_line_entry,
@@ -1101,40 +1134,101 @@ fn recover_pattern_alias_binding_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return (item, item_origin, line_entry);
-    }
-    if is_pattern_primary_boundary(&item, baseline, stops) || is_current_pattern_tail(&item, stops)
-    {
-        emit_missing(&mut i, LeadingTrivia::default());
+    let boundary = |item: &Item| {
+        item.payload_view().is_boundary() || is_pattern_primary_boundary(item, baseline, stops)
+    };
+    if boundary(&item) || is_current_pattern_tail(&item, stops) {
+        emit_pattern_missing(&mut i, PatternRole::AliasBinding, &item, item_origin);
         return (item, item_origin, line_entry);
     }
 
     item.emit_all_remaining_leading(&mut *i.state);
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-        if token_kind(&item) == Some(TokenKind::Identifier) && !is_pattern_word_stop(&item, stops) {
-            item.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            emit_token_item(&mut i, item);
-            *completion = PatternCompletion::Complete;
-            return pattern_item_normalized(i, item_origin, line_entry, fence, stops);
-        }
-        if is_pattern_primary_boundary(&item, baseline, stops)
-            || is_current_pattern_tail(&item, stops)
-        {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
+    let run_start = item.extent(item_origin).recovery_range().start;
+    (item, item_origin, line_entry) = emit_recovery_error_run(
+        i.rb(),
+        |run| loop {
+            let kind = token_syntax_kind(token_kind(&item).expect("malformed alias binding Item"));
+            let extent = run.emit_item_as(item, item_origin, kind);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_pattern_item_lexical(
+                    lex,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    stops,
+                    PatternScan::Tail,
+                )
+            });
+            if boundary(&item)
+                || token_kind(&item) == Some(TokenKind::Identifier)
+                || is_current_pattern_tail(&item, stops)
+            {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: run_start..extent.recovery_range().end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| {
+            pattern_recovery_draft(
+                PatternRole::AliasBinding,
+                RecoveryKind::Error,
+                range,
+                unexpected,
+            )
+        },
+    );
+    if boundary(&item) || token_kind(&item) != Some(TokenKind::Identifier) {
+        return (item, item_origin, line_entry);
     }
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_token_item(&mut i, item);
+    *completion = PatternCompletion::Complete;
+    pattern_item_normalized(i, item_origin, line_entry, fence, stops)
+}
+
+fn emit_pattern_missing(i: &mut RewriteIn, role: PatternRole, item: &Item, item_origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_pattern_missing_at(i, role, at);
+}
+
+fn emit_pattern_missing_at(i: &mut RewriteIn, role: PatternRole, at: usize) {
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        pattern_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn pattern_recovery_draft(
+    role: PatternRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        PatternRole::Primary | PatternRole::AlternationRhs => ExpectedSyntax::Pattern,
+        PatternRole::SymbolName | PatternRole::AliasBinding => ExpectedSyntax::Identifier,
+        _ => unreachable!("Pattern primary and tail-slot recovery role"),
+    };
+    let role = GrammarRole::Pattern(role);
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -1,22 +1,28 @@
 # Successor typed recovery callsite ledger
 
-Updated: 2026-09-08, branch `yulang3`, production checkpoint `634d5b46`.
+Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, followed
+by the Pattern primary/tail-slot construction described below.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
 owner-specific amendments linked from `notes/design/INDEX.md`. This record
-does not select syntax/recovery policy. Primary-only M0 inventory pass under
-the user's no-subagent instruction; no runtime change or repeated broad tests.
+does not select syntax/recovery policy. The initial Type/PV inventory was an
+M0 pass. Pattern entries accompany their M2 construction under the user's
+no-subagent instruction; self-checks are not independent certification.
 
 ## Reading the ledger
 
-This is the single accumulating ledger for O3/O4. The Type/PV portion maps
-every current publication site to a semantic helper; O3b is explicitly open.
+This is the single accumulating ledger for O3/O4. The Type/PV portion and
+Pattern's primary/tail-slot module map every current publication site to a
+semantic helper; the remaining O3b SCC is explicitly open.
 Source aliases are relative to `crates/yu-syntax/src/rewrite/`:
 
 - `T` = `type_expr.rs`; `D` = `type_expr/delimited.rs`;
   `R` = `type_expr/record.rs`; `F` = `type_expr/forall.rs`;
   `V` = `type_expr/variants.rs`.
+- `P` = `pattern.rs`. Its table's test prefixes are under
+  `rewrite::tests::pattern::recovery::`; P's retained caller/policy controls
+  are in the parent `rewrite::tests::pattern::` module.
 - Test names/prefixes are under `rewrite::tests::type_expr::`. `Q` denotes
   its parent test module; a named child such as `pe_recovery` is its module.
   Prefixes denote the existing finite test family, not tests to invent later.
@@ -95,6 +101,30 @@ in `2026-09-08-successor-required-type-missing-roles.md`; the Equals amendment
 updates Pattern's adapter without changing that mapping. This closes the
 Type-callee sites, not the calling owners' raw bypass sites.
 
+## Pattern primary and tail-slot publication sites
+
+These are O3b internal construction entries, not an independently completed
+Pattern owner. The Pattern-primary current-Item amendment selects the exact
+run/trivia/layout rule; it overrides P1's old malformed retry-space extent.
+`Pat` means ExpectedSyntax::Pattern. `C` remains construction-only.
+
+| source location | matrix/addendum row | owner/slot | kind | sentinel/run | range formula | unexpected array | ordered expectations/source flags | primary | continuation/pending Item | recovery-order predecessor | focused test | ordinary control | RB row | migration state |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| P::pattern_from_item_core_normalized; P::recover_pattern_primary_normalized via emit_pattern_missing | P1 | Primary | M | fresh boundary/policy stop/tail | B..B | [] | Pat / committed | 0 | complete caller Item, or current tail resumes | prior | primary_missing_records_*; primary_and_alias_recovery_* | empty / `x` | RB-P | C |
+| P::recover_pattern_primary_normalized | P1; Pattern-primary amendment | Primary | E | forward native Item run | Rng, excludes retry leading | other(Rng) | Pat / committed | 0 | caller boundary or same primary/tail; retry gap directly in Pattern | prior, before retry-child records | primary_error_runs_*; primary_tail_slots_* | `@ x` / `x` | RB-P | C |
+| P::pattern_from_primary_with_recovered_tail_stops_normalized via emit_pattern_missing_at | P2 | SymbolName | M | immediate identifier probe misses after colon | colon successor..successor | [] | Id / committed | 0 | ordinary tail scanner; no skipped SymbolName run | prior; after colon | primary_missing_records_*; symbol_name_probe_rejection_* | `:` / `:x` with and without colon stop | RB-P | C; Error has no producer |
+| P::recover_pattern_alias_binding_normalized via emit_pattern_missing or emit_recovery_error_run | P3 | AliasBinding | M/E | fresh absence / malformed name run | B..B / Rng | [] / other(Rng) | Id / committed | 0 | boundary outranks malformed-name retry; valid Identifier, including as, outranks tail | prior, before following tail | primary_missing_records_*; primary_error_runs_*; alias_error_retry_* | `A as`, `A as @ x` / `A as x`, fresh multiline name | RB-P | C |
+| P::pattern_tail_normalized -> pattern_from_item_recording_with_policy_normalized -> primary helpers | P4 | AlternationRhs | M/E | explicit recursive RHS role, not precedence inference | B..B / Rng | [] / other(Rng) | Pat / committed | 0 | full RHS at Alternation threshold; children retain their roles | prior, before nested SymbolName/Alias/Type recovery | primary_missing_records_*; primary_error_runs_*; primary_tail_slots_* | `A \|`, `A \| @ x` / `A \| B as c` | RB-P | C |
+| P::pattern_type_annotation_rhs_normalized -> required-Type helper | P8; required-Type roles/Equals | TypeAnnotation Missing; Type::Primary Error | delegated M/E | existing required Type contract | callee B..B / Rng | callee [] / items | Ty / committed | 0 | existing caller-close/Equal/IN policy and completion | prior Pattern records | primary_missing_records_* plus Type required_recovery/equals_recovery | `A \| @ :` / `x: T` | RB-P / RB-T | callee construction mapped; full P8 integration open |
+
+All seven `pattern::recovery` tests reuse exact fresh/frozen records, prior
+seeded output, complete Item/EOF comparisons and shifted coordinates as
+applicable. SymbolName's isolated rejected lexical probe preserves output,
+input identity, record count, next ID and frozen cursor. Primary/tail entry
+and recovery attempts are total committed procedures, not speculative
+Option-returning owners; their NUD/stop predicates are effect-free borrowed
+Item queries. Literal entry probes remain assigned to later SCC/RB work.
+
 ## Local rollback and output evidence
 
 All names below are existing tests in the 470-test run at `634d5b46`.
@@ -122,9 +152,10 @@ The Type/PV private construction inventory is complete. Do not mark O4, O5,
 O6, the overall matrix, or the parser replacement complete from this record.
 No public/root/header dispatch has changed.
 
-Next O3b substep: Pattern-owned primary, symbol, alias and alternation sites
-in `pattern.rs`, followed by its delimiter slots. The existing annotation
-Type callee is already typed. Pattern literal ownership reaches the mutually
+Pattern primary, symbol, alias and alternation sites in `pattern.rs` now have
+zero raw Missing/Error constructors. Its two Error-run producers and shared
+Missing producer map above; the existing annotation Type callee is typed.
+Next O3b substep: Pattern delimiter slots. Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
@@ -135,4 +166,6 @@ declarations/derives/companions; VirtualStatementBlock; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type
 helper's role transport. No unbounded test suite or fresh benchmark was run
-for this record-only pass (zero benchmark samples/processes).
+for the initial inventory. Pattern construction verification now passes the
+expanded 477-test owner/output run, including 33 Pattern tests; benchmark
+usage remains zero samples/processes.

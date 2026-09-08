@@ -421,7 +421,7 @@ fn emit_trivia_builder(output: &mut RewriteOutput, trivia: &LeadingTrivia) {
     trivia.emit(output);
 }
 
-fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {
+pub(super) fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {
     match kind {
         TokenKind::Identifier => SyntaxKind::Identifier,
         TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
