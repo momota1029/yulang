@@ -483,8 +483,10 @@ Final `yu-syntax`/workspace validation and atomic legacy implementation removal 
 complete.
 
 The first full successor-only lib run after removing the legacy tree passed
-1057 tests with 3 failures and 1 ignored. Two are the recorded `my role =
-value` and `(a +\nb)` baselines. The third,
+1057 tests with 3 failures and 1 ignored. At that checkpoint, two were the
+recorded `my role = value` and `(a +\nb)` baselines. The Role assertion was
+later corrected as stale by the approved owner contract; the operator baseline
+remains. The third,
 `virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen`, was
 reproduced unchanged on detached pre-deletion `62e77291` (3 records versus
 its stale expected 1); it is an unrelated pre-cutover baseline, not a deletion
