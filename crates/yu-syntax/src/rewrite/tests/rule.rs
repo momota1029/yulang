@@ -849,7 +849,15 @@ fn expression_list_fence_handoff_keeps_the_exact_item_and_leading_trivia() {
         70,
     );
     builder.finish_node();
-    let green = builder.finish();
+    let (green, records) = builder.finish_with_recoveries();
+    assert_eq!(records.len(), 1);
+    assert_eq!(
+        records[0].site.role,
+        crate::session::GrammarRole::ClosingDelimiter {
+            owner: crate::session::ConstructRole::ExpressionList,
+            delimiter: crate::session::Delimiter::Parenthesis,
+        }
+    );
     let returned = returned(exit);
     let (leading, pending) = emit_terminal_leading_text(returned);
     assert_eq!(leading, "\n  ");

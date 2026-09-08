@@ -845,6 +845,37 @@ impl Item {
         self.emit_leading_range(output, end_part, before_part);
     }
 
+    /// Supplies physical part-end coordinates while emitting one leading prefix.
+    /// The extent and fragment cursor are initialized once for the whole prefix.
+    pub(super) fn emit_leading_prefix_with_coordinate(
+        &mut self,
+        output: &mut RewriteOutput,
+        end_part: usize,
+        successor_origin: usize,
+        mut before_part: impl FnMut(TriviaKind, usize, &mut RewriteOutput),
+    ) {
+        assert!(!self.payload_view().is_boundary());
+        assert!(end_part >= self.first_unemitted_leading);
+        assert!(end_part <= self.physical_leading.len());
+        let mut at = self.extent(successor_origin).remaining().start;
+        let mut cursor = self.fragment_cursor();
+        for index in self.first_unemitted_leading..end_part {
+            let part = &self.physical_leading[index];
+            at = at
+                .checked_add(part.text.len())
+                .expect("leading coordinate overflow");
+            before_part(part.kind, at, output);
+            emit_physical_text(
+                output,
+                self.fragments.as_ref(),
+                &mut cursor,
+                trivia_syntax_kind(part.kind),
+                &part.text,
+            );
+            self.first_unemitted_leading = index + 1;
+        }
+    }
+
     pub(super) fn emit_payload(self, output: &mut RewriteOutput, kind: SyntaxKind) {
         assert_eq!(self.first_unemitted_leading, self.physical_leading.len());
         let mut cursor = self.payload_fragment_cursor();

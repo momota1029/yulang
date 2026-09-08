@@ -1571,6 +1571,7 @@ pub(crate) enum GrammarRole {
     },
     Statement(StatementRole),
     Expression(ExpressionRole),
+    ExpressionList(ExpressionListRole),
     ColonApplication(ColonApplicationRole),
     WithBody(WithBodyRole),
     IfExpression(IfExpressionRole),
@@ -1870,6 +1871,7 @@ pub(crate) enum DeclarationCompanionRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ConstructRole {
+    ExpressionList,
     ImportGroup,
     OperatorName,
     ExpressionGroup,
@@ -1894,6 +1896,12 @@ pub(crate) enum ConstructRole {
     EnumBracedVariantBody,
     VariantNamedPayload,
     VariantTuplePayload,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ExpressionListRole {
+    Item,
+    Separator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

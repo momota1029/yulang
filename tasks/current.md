@@ -232,8 +232,18 @@ admission, and EOF-leading Missing anchors at successor. Rule: 35; literal:
 35; normalized/recovery-output: 83/25; package/format/diff pass. Specification
 and regression delta audits passed. No benchmark process was used.
 
-Next, continue Rule ExpressionList, Statement and declaration typed-recovery
-dependencies. Braced/root raw recovery, caller body-introducer bypasses,
+The Rule ExpressionList gate in
+`2026-09-08-successor-rule-expression-list-current-item-recovery.md` is
+implemented. Dedicated Item/Separator and exact Parenthesis/Bracket close roles
+now cover Rule bracket atoms, calls and indexes, while one-Item lexical Errors
+and protected terminal Items remain unchanged. Repeated newline Item Missing
+anchors use one coordinate-aware leading-prefix emission; the static audit
+proved linear leading/fragment work without a benchmark. Rule: 40; focused
+records: 5; recovery-output: 25; package/format/diff pass. Independent
+specification/recovery and regression audits passed.
+
+Next, continue Statement and declaration typed-recovery dependencies.
+Braced/root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public
 certification remain separate. Extend the same ledger; retain the current
 acceptance contracts, effect-free optional entry and the atomic public cutover

@@ -4,7 +4,8 @@ Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
 primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`,
 default-Expression checkpoint `7832ab2f`; required Expression operands, their
 explicit caller roles, shared Expression delimiters, and fixed Field/Path tails
-plus inline Colon/With recovery are privately constructed.
+plus inline Colon/With recovery and Rule ExpressionList are privately
+constructed.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -282,13 +283,23 @@ String and Virtual child owners remain separate.
 | `rule.rs` body/paren/capture/name/path/unexpected sites | `RuleBodyCloseBrace`, `RuleParenClose`, `RuleCaptureRightItem`, `RuleFieldName`, `RulePathName`, `RuleUnexpectedItem` | M/E | protected EOF/fence/outer stop or one lexical Item | newline stops before admission; same Rule retry | `rule_literal_recovery::*`, `rule::*` | C |
 | `literal/rule_literal.rs` terminator/interpolation/lazy sites | `RuleLiteralTerminator`, `RuleLiteralInterpolationCloseBrace`, `RuleLazyCaptureName`, `RuleLazyCaptureCloseBrace` | M | inspected/successor boundary | preserve sentinels and outer quote topology | `rule_literal_recovery::*` | C |
 
+Rule ordinary ExpressionList recovery is now mapped below. Its narrow
+`item.rs` coordinate prefix helper is an emission capability, not another
+owner or grammar route.
+
+| source / owner | slot role | M/E | trigger and extent | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- |
+| `rule::expression_list` required Item / leading newline separator | `ExpressionList(Item)` | M/E | missing Item at protected boundary, separator or newline end / one native lexical Item | Error retries outside Error; complete EOF/fence/outer-close Item stays pending | `rule_expression_list_recovery::*`, `rule::*` | C |
+| `rule::expression_list` after admitted Item | `ExpressionList(Separator)` | E | one native lexical non-separator Item | scan next Item outside Error; no merged Error run | `rule_expression_list_recovery::*` | C |
+| `rule::expression_list` absent local close | `close(ExpressionList, Parenthesis/Bracket)` | M | current local close absent at EOF/fence/outer boundary | caller emits actual matching close; outer close remains pending | `rule_expression_list_recovery::*`, `rule::*` | C |
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-if/case typed-recovery; Rule ExpressionList; canonical Statement and braced/root/colon/
+if/case typed-recovery; canonical Statement and braced/root/colon/
 with raw owners and caller bypasses; declarations/derives/companions; raw
 VirtualStatementBlock recovery; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
