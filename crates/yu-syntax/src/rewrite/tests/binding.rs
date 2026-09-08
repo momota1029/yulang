@@ -8,6 +8,59 @@ fn binding(green: &GreenNode) -> SyntaxNode {
 }
 
 #[test]
+fn binding_annotation_equals_stays_outside_type_recovery() {
+    for source in [
+        "my x: = value",
+        "my x: @ = value",
+        "my x: A->@ = value",
+        "my x: F(=T) = value",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source);
+        let node = binding(&green);
+        let header = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::BindingHeader)
+            .unwrap();
+        let equals = header
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Equals)
+            .collect::<Vec<_>>();
+        assert_eq!(equals.len(), 1, "{source:?}\n{node:#?}");
+        assert_eq!(
+            usize::from(equals[0].text_range().start()),
+            source.rfind('=').unwrap()
+        );
+        assert_eq!(
+            node.children()
+                .find(|child| child.kind() == SyntaxKind::BindingBody)
+                .unwrap()
+                .to_string(),
+            " value"
+        );
+        let annotation = header
+            .descendants()
+            .find(|child| child.kind() == SyntaxKind::PatternTypeAnnotation)
+            .unwrap();
+        assert_eq!(
+            annotation
+                .descendants()
+                .filter(|child| child.kind() == SyntaxKind::Missing)
+                .count(),
+            usize::from(source == "my x: = value")
+        );
+        assert_eq!(
+            annotation
+                .descendants()
+                .filter(|child| child.kind() == SyntaxKind::Error)
+                .count(),
+            usize::from(source != "my x: = value")
+        );
+    }
+}
+
+#[test]
 fn binding_c8_builds_canonical_header_and_optional_body_topology() {
     for (source, visibility) in [
         ("my x", SyntaxKind::MyKw),

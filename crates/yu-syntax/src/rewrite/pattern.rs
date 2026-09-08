@@ -28,8 +28,8 @@ use super::{
     operator::{STOP_COMMA, STOP_IN, STOP_SEMICOLON, stops_for},
     statement::StatementLineHandoff,
     type_expr::{
-        required_type_expr_normalized,
-        required_type_expr_with_caller_stops_and_completion_normalized_with_ambient,
+        TypeOuterBoundary,
+        required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient,
         type_nud_item_normalized_with_ambient,
     },
     yumark::FenceBoundary,
@@ -1206,51 +1206,32 @@ fn pattern_type_annotation_rhs_normalized(
     {
         primary.emit_all_remaining_leading(&mut *i.state);
     }
-    let caller_stops = caller_closes.type_stops();
+    let mut caller_stops = caller_closes.type_stops();
     if stops & PATTERN_STOP_IN != 0 {
-        let (exit, primary_found) =
-            required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
-                i,
-                primary,
-                GrammarRole::Pattern(PatternRole::TypeAnnotation),
-                baseline,
-                caller_stops | STOP_IN,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-        if primary_found {
-            *completion = PatternCompletion::Complete;
-        }
-        exit
-    } else if caller_stops != 0 {
-        *completion = PatternCompletion::Complete;
-        required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
+        caller_stops |= STOP_IN;
+    }
+    let outer_boundary = if stops & PATTERN_STOP_EQUALS != 0 {
+        TypeOuterBoundary::EQUALS
+    } else {
+        TypeOuterBoundary::NONE
+    };
+    let (exit, primary_found) =
+        required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i,
             primary,
             GrammarRole::Pattern(PatternRole::TypeAnnotation),
             baseline,
             caller_stops,
+            outer_boundary,
             item_origin,
             line_entry,
             fence,
             ambient,
-        )
-        .0
-    } else {
+        );
+    if stops & PATTERN_STOP_IN == 0 || primary_found {
         *completion = PatternCompletion::Complete;
-        required_type_expr_normalized(
-            i,
-            primary,
-            GrammarRole::Pattern(PatternRole::TypeAnnotation),
-            baseline,
-            item_origin,
-            line_entry,
-            fence,
-            ambient,
-        )
     }
+    exit
 }
 
 fn is_pattern_primary(item: &Item) -> bool {

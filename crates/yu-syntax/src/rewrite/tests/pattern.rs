@@ -1187,6 +1187,55 @@ fn standalone_patterns_keep_list_record_and_annotation_owners_local() {
 }
 
 #[test]
+fn pattern_annotation_protects_equals_only_for_an_active_owner() {
+    for source in ["x: =T", "x: @ =T", "x: ="] {
+        for stops in [0, PATTERN_STOP_EQUALS] {
+            let (green, exit, completion, remainder) = run_required_pattern_with_context(
+                source,
+                stops,
+                PatternMandatorySlotPolicy::default(),
+                PatternCallerCloses::NONE,
+                0,
+                LineEntry::InLine,
+                None,
+            );
+            assert_eq!(completion, PatternCompletion::Complete);
+            if stops == 0 {
+                assert_eq!(green.to_string(), source);
+                assert_eq!(remainder, "");
+                assert!(matches!(
+                    exit,
+                    NormalizedExit::Complete(Err(Either::Right(_)), LineEntry::InLine)
+                ));
+                assert_eq!(recovery_count(&green, SyntaxKind::Error), 1);
+                assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+            } else {
+                let has_error = source.contains('@');
+                assert_eq!(green.to_string(), if has_error { "x: @" } else { "x: " });
+                assert_eq!(
+                    recovery_count(&green, SyntaxKind::Error),
+                    usize::from(has_error)
+                );
+                assert_eq!(
+                    recovery_count(&green, SyntaxKind::Missing),
+                    usize::from(!has_error)
+                );
+                assert_eq!(remainder, if source.ends_with('T') { "T" } else { "" });
+                let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit
+                else {
+                    panic!("Pattern caller-owned Equals")
+                };
+                assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Equals));
+                assert_eq!(
+                    emit_pending_leading_text(&mut item),
+                    if has_error { " " } else { "" }
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
     let (green, exit) = run_pattern("x: Int");
     assert_eq!(green.to_string(), "x: Int");

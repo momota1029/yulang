@@ -82,7 +82,7 @@ fn run_required<'source>(
     )
 }
 
-fn assert_same_exit(left: &NormalizedExit, right: &NormalizedExit) {
+pub(super) fn assert_same_exit(left: &NormalizedExit, right: &NormalizedExit) {
     match (left, right) {
         (
             NormalizedExit::Complete(Err(Either::Left(left)), line),
@@ -255,7 +255,7 @@ fn required_missing_fence_uses_inspected_coordinate_without_absorbing_quoted_lea
     }
 }
 
-fn run_statement_records<'source>(
+pub(super) fn run_statement_records<'source>(
     source: &'source str,
     origin: usize,
     frozen: Option<&[CommittedRecoveryRecord]>,

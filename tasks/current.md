@@ -113,10 +113,16 @@ horizontal and record-field rules. Every original literal remains covered;
 accepted tight-arrow/Call and nonhorizontal caller controls were added. The
 expanded serial owner/output filters pass 432, with no failures or skips.
 
-Current gate: tuple-field forward progress. Static tracing found a tuple-field
-`=` nonprogress path: add a bounded
-witness and fix it at the owning admission/sequence boundary before broader
-certification. The old eighth-terminal proposal is not a required prerequisite.
+The tuple-field nonprogress path is fixed under
+`2026-09-08-successor-required-type-equals-ownership.md`. An exact `=` is a Type
+boundary only when the caller owns it; Pattern now forwards that ownership
+explicitly. No field-loop workaround or new context API was needed. A bounded
+single-callee test failed before and passed after the fix; capped tuple tests
+and all 470 expanded owner/output tests pass. Package/format/diff checks pass.
+
+Current gate: complete the Type/PV callsite ledger and reconcile matrix D4e's
+malformed role with SD-T, then continue the remaining O3b SCC construction.
+The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
@@ -125,9 +131,8 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Close the tuple nonprogress path, reconcile matrix D4e's malformed role,
-   complete
-   the Type/PV ledger, then migrate the remaining mutually recursive Expression/Pattern/Statement/
+1. Reconcile matrix D4e's malformed role and complete the Type/PV ledger, then
+   migrate the remaining mutually recursive Expression/Pattern/Statement/
    declaration/literal owners. Local Type construction does not certify raw
    recovery still emitted by another owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,

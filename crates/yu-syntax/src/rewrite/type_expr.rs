@@ -575,37 +575,7 @@ pub(super) fn required_variant_payload_type_normalized_with_ambient(
     )
 }
 
-pub(super) fn required_type_expr_normalized(
-    i: RewriteIn,
-    primary: Item,
-    missing_role: GrammarRole,
-    baseline: usize,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-    ambient: AmbientClaimContext<'_>,
-) -> NormalizedExit {
-    required_type_expr_inner_normalized(
-        i,
-        primary,
-        missing_role,
-        baseline,
-        None,
-        false,
-        0,
-        0,
-        TypeOuterBoundary::NONE,
-        RequiredTypeFreshPrimaryPolicy::default(),
-        TypeMlContext::INACTIVE,
-        false,
-        item_origin,
-        line_entry,
-        fence,
-        ambient,
-    )
-    .0
-}
-
+#[cfg(test)]
 pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
     i: RewriteIn,
     primary: Item,
@@ -2958,7 +2928,6 @@ fn is_required_type_boundary(
         fresh_primary_policy.owns_bare_left_brace && token_kind(item) == Some(TokenKind::LBrace);
     !type_chain_trivia(item.leading_view(), baseline)
         || is_type_rhs_boundary(item)
-        || token_kind(item) == Some(TokenKind::Equals)
         || (!owns_fresh_left_brace && is_type_caller_boundary(item, caller_stops))
         || (!owns_fresh_left_brace && is_fresh_type_outer_boundary(item, outer_boundary))
 }

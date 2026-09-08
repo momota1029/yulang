@@ -16,6 +16,7 @@ use chasa_recover::Recoverable as _;
 
 mod bracket_arrow_recovery;
 mod bracket_recovery;
+mod equals_recovery;
 mod forall_recovery;
 mod leading_row_recovery;
 mod pe_recovery;
@@ -942,7 +943,6 @@ fn required_type_primary_preserves_boundaries_and_accepts_an_ordinary_primary() 
         (")A", TokenKind::RParen),
         ("]A", TokenKind::RBracket),
         ("}A", TokenKind::RBrace),
-        ("=A", TokenKind::Equals),
     ] {
         let (green, exit, primary_found, remainder, records) =
             run_required_type_with_recoveries(source, 0, LineEntry::InLine, None, None);
