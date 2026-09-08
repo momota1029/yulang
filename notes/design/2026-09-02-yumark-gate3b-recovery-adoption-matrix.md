@@ -15,6 +15,10 @@ by bare leading-row witnesses in
 `2026-09-08-successor-leading-row-head-current-item-recovery.md`.
 T5f's misleading trailing-comma/EOF literal has a successor correction in
 `2026-09-08-successor-record-sequence-current-item-recovery.md`.
+D4e's malformed FieldType label is corrected to Type::Primary by
+`2026-09-08-successor-d4e-required-type-role-correction.md`, retaining its
+original witness and range. Private typed construction is tracked in
+`notes/progress/successor-typed-recovery-ledger.md`.
 The historical cells remain for traceability; their aggregate evidence
 obligations remain open. Recovery equality follows the 2026-09-08
 recovery-authority amendment, not a legacy malformed-output oracle.

@@ -1,8 +1,12 @@
 # Successor T3 TypeCall recovery amendment
 
-Status: Authoritative; T3 core local construction complete; T3a post-item
-horizontal caller/outer-boundary certification suspended by direct legacy
-contradiction
+Status: Authoritative; T3 core and shared horizontal private construction complete
+
+Current status (2026-09-08): recovery-authority amendment §4 supersedes the
+historical §6 construction suspension below. The selected horizontal rule is
+implemented and tested; T3b/Call ownership stays retained. O6 and public
+certification remain open. Historical pre-approval and suspension text is
+preserved for provenance, not an active approval request or construction gate.
 
 Date: 2026-09-07
 

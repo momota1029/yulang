@@ -18,6 +18,13 @@ Approved-at: 2026-09-06
 Supersedes: `2026-09-03-yu-syntax-minimal-rewrite-token-transaction-amendment.md`
 only for the narrow conflicts declared in §1
 
+Implementation checkpoint (2026-09-08): O0–O2 are complete; O3a private Type/PV
+construction and its callsite inventory are complete in
+`notes/progress/successor-typed-recovery-ledger.md`. O3b SCC construction is
+next. This is not O4 joint certification, O5 actual header/full proof, O6
+Yumark convergence or O7 public cutover. Later owner/recovery amendments in
+the design index govern the explicitly superseded local behavior.
+
 ## 1. Purpose and authority
 
 This amendment defines the committed typed-recovery output required to certify

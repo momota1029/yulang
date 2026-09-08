@@ -103,8 +103,8 @@ The shared required-Type Missing helper is implemented under
 `2026-09-08-successor-required-type-missing-roles.md`. Production callers
 explicitly select their own missing-slot role; malformed and nested Type
 records remain unchanged. Type: 191 passed; package/format/diff checks passed.
-The Type/PV implementation now has no raw recovery constructors, but the
-complete typed/RB ledger and calling owners' bypass sites are still open.
+The Type/PV implementation now has no raw recovery constructors; the remaining
+SCC/global RB ledger and calling owners' bypass sites are still open.
 
 Wider caller controls are now green under
 `2026-09-08-successor-type-caller-conformance.md`: all five failures were traced
@@ -120,8 +120,17 @@ explicitly. No field-loop workaround or new context API was needed. A bounded
 single-callee test failed before and passed after the fix; capped tuple tests
 and all 470 expanded owner/output tests pass. Package/format/diff checks pass.
 
-Current gate: complete the Type/PV callsite ledger and reconcile matrix D4e's
-malformed role with SD-T, then continue the remaining O3b SCC construction.
+The Type/PV callsite inventory is complete in
+`notes/progress/successor-typed-recovery-ledger.md`: every publication helper,
+all 28 TypeRole names (including the ApplyArgument non-recovery proof), close
+owners and local RB controls are mapped. Matrix D4e now has an explicit
+SD-T role correction without an embedded-certification claim. T3's stale
+construction-suspension header is synchronized with its approved successor.
+
+Current gate: O3b SCC construction. Start with Pattern-owned primary, symbol,
+alias and alternation sites in `pattern.rs`, then Pattern delimiters. Extend
+the same ledger; do not claim an independently migrated Pattern owner before
+its literal/Expression/Statement/declaration SCC is complete.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 
@@ -131,8 +140,7 @@ recovery-equality prerequisite.
 
 ## Following work and residuals
 
-1. Reconcile matrix D4e's malformed role and complete the Type/PV ledger, then
-   migrate the remaining mutually recursive Expression/Pattern/Statement/
+1. Migrate the remaining mutually recursive Expression/Pattern/Statement/
    declaration/literal owners. Local Type construction does not certify raw
    recovery still emitted by another owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
@@ -171,6 +179,7 @@ independent callers, not just shorter syntax at one site.
 - Design entry: `notes/design/INDEX.md`.
 - Replacement gates: `notes/design/2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md`.
 - Typed output: `notes/design/2026-09-06-successor-typed-output-recovery-amendment.md`.
+- Callsite/RB ledger: `notes/progress/successor-typed-recovery-ledger.md`.
 - Current progress: `notes/progress/daily/2026-09-08.md`.
 - The former 2,710-line task log is preserved at
   `notes/progress/rewrite-state-before-recovery-authority-2026-09-08.md`.
