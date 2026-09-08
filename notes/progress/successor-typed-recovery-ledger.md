@@ -511,6 +511,15 @@ remain open.
   control asserts zero recovery. No parser behavior changed. Focused operator
   and delimiter controls passed 20 tests; format and diff passed.
 
+## Virtual Colon parent-record control
+
+- The retained virtual-Colon frozen-record count was stale. An unterminated
+  interpolation has the Colon RHS Error followed by StringInterpolationCloseBrace
+  and StringTerminator Missing records; actual close remains the Error-only
+  control. The test now asserts exact LF/CRLF-fence anchors, records, source,
+  remainder, and frozen replay without changing parser behavior. Focused
+  Colon/StringLiteral/Virtual controls passed 23 tests; format and diff passed.
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.

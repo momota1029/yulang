@@ -498,9 +498,10 @@ later corrected as stale by the approved owner contract, and the operator
 assertion was later corrected by the approved delimiter contract. The third,
 `virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen`, was
 reproduced unchanged on detached pre-deletion `62e77291` (3 records versus
-its stale expected 1); it is an unrelated pre-cutover baseline, not a deletion
-regression. Expectations remain untouched. Syntax-reference paths were
-historicalized and the final deletion review passed before `dfa481c4`.
+its stale expected 1); its exact parent-record assertion was later corrected.
+It was an unrelated pre-cutover control mismatch, not a deletion regression.
+Syntax-reference paths were historicalized and the final deletion review passed
+before `dfa481c4`.
 
 Next, continue deferred Statement/declaration typed-recovery dependencies and
 the accepted Yumark NUD/frame-pop owner. Those remain separate from the
@@ -592,10 +593,10 @@ equivalent apart from owner paths, visibility and that approved rename. M1
 regression review found one duplicate lint attribute only; the one-line repair
 is complete. Tails/delimiter/fixed-tail/Colon-With controls pass, while the
 pre-existing `virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen`
-record mismatch remains excluded and unchanged. Package check, format and diff
-checks pass; no benchmark sample/process was used. Next: prepare the scoped
-successor Yumark document/fence construction gate; do not promote its test-only
-cell witness directly.
+expectation was later corrected to the approved Literal parent-record order.
+Package check, format and diff checks pass; no benchmark sample/process was
+used. Next: prepare the scoped successor Yumark document/fence construction
+gate; do not promote its test-only cell witness directly.
 
 ## Crate-root syntax topology replacement
 

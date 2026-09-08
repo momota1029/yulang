@@ -330,6 +330,12 @@ fn nested_virtual_colons_replace_and_restore_virtual_and_outer_owners() {
 #[test]
 fn virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::recovery_record::{
+        Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, LiteralExpected, LiteralRole,
+        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax,
+    };
+    use std::sync::Arc;
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -348,10 +354,61 @@ fn virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen() {
             let source = format!("{quote}%{{f: 💥{suffix}");
             let (green, records, exit, remaining) =
                 parse_fenced(&source, None, 80, Some(&fence), None);
-            assert_eq!(records.len(), 1, "{source:?}");
-            assert_eq!(records[0].kind, RecoveryKind::Error);
             let start = 80 + quote.len() + "%{f: ".len();
-            assert_eq!(records[0].site.range, start..start + "💥".len());
+            let role = GrammarRole::ColonApplication(ColonApplicationRole::Rhs);
+            let mut expected = vec![CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: start..start + 4,
+                },
+                kind: RecoveryKind::Error,
+                unexpected: Arc::from([UnexpectedSyntax::Token {
+                    range: start..start + 4,
+                    category: UnexpectedCategory::OtherCharacter,
+                }]),
+                expectations: Arc::from([SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Expression,
+                    range: start..start + 4,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            }];
+            if suffix.is_empty() || suffix.contains("```") {
+                let at = start + if suffix.is_empty() { 4 } else { 6 };
+                for (id, slot, expected_syntax) in [
+                    (
+                        1,
+                        LiteralRole::StringInterpolationCloseBrace,
+                        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                    ),
+                    (
+                        2,
+                        LiteralRole::StringTerminator,
+                        ExpectedSyntax::Literal(LiteralExpected::StringTerminator),
+                    ),
+                ] {
+                    let role = GrammarRole::Literal(slot);
+                    expected.push(CommittedRecoveryRecord {
+                        id: DiagnosticId(id),
+                        site: RecoverySiteKey {
+                            role,
+                            range: at..at,
+                        },
+                        kind: RecoveryKind::Missing,
+                        unexpected: Arc::from([]),
+                        expectations: Arc::from([SyntaxExpectation {
+                            role,
+                            expected: expected_syntax,
+                            range: at..at,
+                            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                        }]),
+                        primary_expectation: 0,
+                    });
+                }
+            }
+            assert_eq!(records, expected, "{source:?}");
             if suffix.contains("```") {
                 assert_eq!(green.to_string(), format!("{quote}%{{f: 💥"));
                 assert_eq!(remaining, "> > ```\nouter");
