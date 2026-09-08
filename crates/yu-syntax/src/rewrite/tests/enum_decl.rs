@@ -160,7 +160,7 @@ fn enum_equals_inline_maps_the_exact_shared_with_yield_to_companion() {
     for (source, missing) in [
         ("enum E = A with {}", 0),
         ("enum E = with {}", 1),
-        ("enum E = A | with {}", 1),
+        ("enum E = A | with {}", 0),
         ("enum E = A from with {}", 1),
         ("enum E = A from @ with {}", 0),
     ] {

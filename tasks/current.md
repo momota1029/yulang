@@ -257,6 +257,14 @@ output, and ViaTarget recovery returns protected contextual/newline Items before
 identifier retry. Derives: 52; Type: 196; package/format/diff pass; M1
 specification review passed. No benchmark process was used.
 
+The declaration Variant gate in
+`2026-09-08-successor-declaration-variant-current-item-recovery.md` is
+implemented. Existing Item/Name/Separator/close roles now publish typed output;
+retry leading is outside Error and terminal roles follow the lexical exit. One
+repair added child ownership/effect-free evidence and aligned the authorized
+trailing `| with` missing count. Variant/Enum/Error: 23/17/12; package/format/
+diff pass; specification/regression delta audits passed.
+
 Next, continue root Statement and declaration typed-recovery dependencies.
 Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public

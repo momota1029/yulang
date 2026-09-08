@@ -4,28 +4,32 @@ use super::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use super::ambient_claim::AmbientClaimView;
 use reborrow_generic::Reborrow as _;
+use std::{cell::Cell, ops::Range, sync::Arc};
 
 use crate::{
     session::{
-        DeclarationRole, EnumDeclarationRole, ErrorDeclarationRole, GrammarRole,
+        ConstructRole, DeclarationRole, Delimiter, EnumDeclarationRole, ErrorDeclarationRole,
+        ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
+        RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
         VariantDeclarationRole,
     },
     syntax_kind::SyntaxKind,
 };
 
 use super::{
-    RewriteIn, Stops,
+    LexIn, RewriteIn, Stops,
     current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
     driver::{
         Either, NormalizedExit, advanced_origin, complete, delimited_baseline, handoff,
-        indentation_after_newline, is_active_stop, suffix_marker, token_kind,
+        indentation_after_newline, is_active_stop_lex, suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{
         introduced_body_indentation_normalized, scan_exact_pipe, scan_identifier, scan_type_payload,
     },
     operator::STOP_WITH,
+    output::RecoveryDraft,
     struct_decl::{FieldList, FieldOuterClose, declaration_fields_normalized},
     type_expr::{
         TypeMlContext, TypeOuterBoundary, required_variant_payload_type_normalized_with_ambient,
@@ -108,15 +112,21 @@ pub(super) fn declaration_variant_sequence_normalized(
             let Some(indentation) =
                 introduced_body_indentation_normalized(i.rb(), item_origin, fence)
             else {
-                let (item, _, line_entry) =
+                let (mut item, origin, line_entry) =
                     variant_item_normalized(i.rb(), item_origin, line_entry, fence);
-                emit_missing_variant(&mut i);
+                if item.payload_view().is_eof() {
+                    item.emit_eof_leading(&mut *i.state);
+                }
+                emit_missing_variant(&mut i, owner, &item, origin);
                 return complete(handoff(item), line_entry);
             };
             if indentation <= declaration_baseline {
-                let (item, _, line_entry) =
+                let (mut item, origin, line_entry) =
                     variant_item_normalized(i.rb(), item_origin, line_entry, fence);
-                emit_missing_variant(&mut i);
+                if item.payload_view().is_eof() {
+                    item.emit_eof_leading(&mut *i.state);
+                }
+                emit_missing_variant(&mut i, owner, &item, origin);
                 return complete(handoff(item), line_entry);
             }
             indentation
@@ -173,7 +183,7 @@ fn drive_variant_sequence(
 
     loop {
         if item.payload_view().is_boundary() {
-            finish_incomplete_sequence(&mut i, form, slot);
+            finish_incomplete_sequence(&mut i, owner, form, slot, &item, item_origin);
             return complete(handoff(item), line_entry);
         }
 
@@ -185,21 +195,23 @@ fn drive_variant_sequence(
             return complete(Ok(()), line_entry);
         }
 
-        if sequence_ends(i.rb(), form, &item, sequence_baseline, stops) {
-            finish_incomplete_sequence(&mut i, form, slot);
+        if item.payload_view().is_eof() {
+            item.emit_eof_leading(&mut *i.state);
+            finish_incomplete_sequence(&mut i, owner, form, slot, &item, item_origin);
+            return complete(handoff(item), line_entry);
+        }
+
+        if i.token(|lex| Some(sequence_ends(lex, form, &item, sequence_baseline, stops)))
+            .unwrap()
+        {
+            finish_incomplete_sequence(&mut i, owner, form, slot, &item, item_origin);
             return complete(handoff(item), line_entry);
         }
 
         if yields_with(form, yield_with, &item, sequence_baseline) {
-            if slot == Slot::Initial || slot == Slot::Required {
-                emit_missing_variant(&mut i);
+            if slot == Slot::Initial {
+                emit_missing_variant(&mut i, owner, &item, item_origin);
             }
-            return complete(handoff(item), line_entry);
-        }
-
-        if item.payload_view().is_eof() {
-            item.emit_eof_leading(&mut *i.state);
-            finish_incomplete_sequence(&mut i, form, slot);
             return complete(handoff(item), line_entry);
         }
 
@@ -218,7 +230,7 @@ fn drive_variant_sequence(
             if slot == Slot::Required && !implicit_boundary
                 || slot == Slot::Initial && !leading_pipe
             {
-                emit_missing_variant(&mut i);
+                emit_missing_variant(&mut i, owner, &item, item_origin);
             }
             emit_token_item(&mut i, item);
             accepted_leading_pipe |= leading_pipe;
@@ -230,7 +242,12 @@ fn drive_variant_sequence(
         }
 
         if slot == Slot::AfterVariant {
-            emit_missing(&mut i, LeadingTrivia::default());
+            missing(
+                i.rb(),
+                &item,
+                item_origin,
+                owner.role(VariantDeclarationRole::Separator),
+            );
         }
 
         let parsed = parse_variant(
@@ -254,29 +271,49 @@ fn drive_variant_sequence(
     }
 }
 
-fn finish_incomplete_sequence(i: &mut RewriteIn, form: VariantSequenceForm, slot: Slot) {
+fn finish_incomplete_sequence(
+    i: &mut RewriteIn,
+    owner: VariantOwner,
+    form: VariantSequenceForm,
+    slot: Slot,
+    item: &Item,
+    origin: usize,
+) {
     if slot == Slot::Initial && !form.allows_empty() {
-        emit_missing_variant(i);
+        emit_missing_variant(i, owner, item, origin);
     }
     if form.matching_close().is_some() {
-        emit_missing(i, LeadingTrivia::default());
+        missing(
+            i.rb(),
+            item,
+            origin,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::EnumBracedVariantBody,
+                delimiter: Delimiter::Brace,
+            },
+        );
     }
 }
 
-fn emit_missing_variant(i: &mut RewriteIn) {
+fn emit_missing_variant(i: &mut RewriteIn, owner: VariantOwner, item: &Item, origin: usize) {
     i.state.start_node(SyntaxKind::EnumVariant.into());
-    emit_missing(i, LeadingTrivia::default());
+    missing(
+        i.rb(),
+        item,
+        origin,
+        owner.role(VariantDeclarationRole::Item),
+    );
     i.state.finish_node();
 }
 
 fn sequence_ends(
-    mut i: RewriteIn,
+    i: LexIn,
     form: VariantSequenceForm,
     item: &Item,
     baseline: usize,
     stops: Stops,
 ) -> bool {
-    if is_active_stop(i.rb(), item, stops) {
+    if is_active_stop_lex(i, item, stops) {
         return true;
     }
     if stops & STOP_WITH != 0 && is_exact_with(item) {
@@ -335,30 +372,63 @@ fn parse_variant(
     if is_raw_variant_name(&item) {
         emit_token_item(&mut i, item);
     } else {
-        i.state.start_node(SyntaxKind::Error.into());
-        loop {
-            emit_token_item(&mut i, item);
-            (item, item_origin, line_entry) =
-                variant_item_normalized(i.rb(), item_origin, line_entry, fence);
-            if item.payload_view().is_boundary()
-                || item.payload_view().is_eof()
-                || is_variant_boundary(i.rb(), form, yield_with, &item, sequence_baseline, stops)
-            {
-                i.state.finish_node();
-                i.state.finish_node();
-                return ParsedVariant {
-                    item,
-                    item_origin,
-                    line_entry,
-                };
-            }
-            if is_raw_variant_name(&item) {
-                item.emit_all_remaining_leading(&mut *i.state);
-                i.state.finish_node();
-                emit_token_item(&mut i, item);
-                break;
-            }
+        let role = Cell::new(VariantDeclarationRole::Item);
+        let (next, origin, line, retry) = emit_recovery_error_run(
+            i.rb(),
+            |run| {
+                let start = item.extent(item_origin).recovery_range().start;
+                loop {
+                    let kind =
+                        token_syntax_kind(token_kind(&item).expect("variant Error is lexical"));
+                    let extent = run.emit_item_as(item, item_origin, kind);
+                    (item, item_origin, line_entry) = run
+                        .lexical(|lex| variant_item_lexical(lex, item_origin, line_entry, fence));
+                    let protected = item.payload_view().is_boundary()
+                        || item.payload_view().is_eof()
+                        || run.lexical(|lex| {
+                            is_variant_boundary(
+                                lex,
+                                form,
+                                yield_with,
+                                &item,
+                                sequence_baseline,
+                                stops,
+                            )
+                        });
+                    let retry = !protected && is_raw_variant_name(&item);
+                    if protected || retry {
+                        if retry {
+                            role.set(VariantDeclarationRole::Name);
+                        }
+                        run.append_unexpected(UnexpectedSyntax::Token {
+                            range: start..extent.recovery_range().end,
+                            category: UnexpectedCategory::OtherCharacter,
+                        });
+                        return (item, item_origin, line_entry, retry);
+                    }
+                }
+            },
+            |range, unexpected| {
+                draft(
+                    owner.role(role.get()),
+                    RecoveryKind::Error,
+                    range,
+                    unexpected,
+                )
+            },
+        );
+        item = next;
+        item_origin = origin;
+        line_entry = line;
+        if !retry {
+            i.state.finish_node();
+            return ParsedVariant {
+                item,
+                item_origin,
+                line_entry,
+            };
         }
+        emit_token_item(&mut i, item);
     }
 
     (item, item_origin, line_entry) =
@@ -564,7 +634,7 @@ fn parse_payload_type(
 }
 
 fn is_variant_boundary(
-    i: RewriteIn,
+    i: LexIn,
     form: VariantSequenceForm,
     yield_with: bool,
     item: &Item,
@@ -602,47 +672,141 @@ fn variant_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
+    i.token(|lex| Some(variant_item_lexical(lex, item_origin, line_entry, fence)))
+        .unwrap()
+}
+
+fn variant_item_lexical(
+    mut lex: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let entry_pointer = lex.remainder().as_ptr() as usize;
+    let entry_length = lex.remainder().len();
     let CurrentItem {
         item,
         next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |mut lex, leading, origin, fence, _| {
-                    if let Some(pipe) = lex.token(scan_exact_pipe) {
-                        return Some(AcceptedPayload {
-                            payload: CurrentPayload::Token(pipe),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    if let Some(identifier) = lex.token(scan_identifier) {
-                        return Some(AcceptedPayload {
-                            payload: CurrentPayload::Token(identifier),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    scan_type_payload(lex, leading, origin, fence)
-                },
-            )
-        })
-        .expect("declaration variant payload scanning is total");
+    } = current_item(
+        lex.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        |mut lex, leading, origin, fence, _| {
+            if let Some(pipe) = lex.token(scan_exact_pipe) {
+                return Some(AcceptedPayload {
+                    payload: CurrentPayload::Token(pipe),
+                    next_line_entry: LineEntry::InLine,
+                });
+            }
+            if let Some(identifier) = lex.token(scan_identifier) {
+                return Some(AcceptedPayload {
+                    payload: CurrentPayload::Token(identifier),
+                    next_line_entry: LineEntry::InLine,
+                });
+            }
+            scan_type_payload(lex, leading, origin, fence)
+        },
+    )
+    .expect("declaration variant payload scanning is total");
+    let consumed = entry_length
+        .checked_sub(lex.remainder().len())
+        .expect("variant scan keeps a suffix");
+    assert_eq!(
+        entry_pointer.wrapping_add(consumed),
+        lex.remainder().as_ptr() as usize
+    );
     (
         item,
-        advanced_origin(item_origin, entry, i),
+        item_origin
+            .checked_add(consumed)
+            .expect("variant coordinate fits usize"),
         next_line_entry,
+    )
+}
+
+fn missing(i: RewriteIn, item: &Item, origin: usize, role: GrammarRole) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || {
+            if item.payload_view().is_eof() {
+                origin
+            } else {
+                item.extent(origin).recovery_range().start
+            }
+        },
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        GrammarRole::ClosingDelimiter { delimiter, .. } => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
+        }
+        GrammarRole::Declaration(
+            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::Separator))
+            | DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::Separator,
+            )),
+        ) => ExpectedSyntax::DelimitedSequenceSeparator,
+        _ => ExpectedSyntax::Identifier,
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
     )
 }
 
 #[cfg(test)]
 pub(super) fn declaration_variant_sequence_witness(
-    mut i: RewriteIn,
+    i: RewriteIn,
     form: VariantSequenceForm,
     baseline: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> Option<NormalizedExit> {
+    declaration_variant_owner_witness(
+        i,
+        VariantOwner::Enum,
+        form,
+        false,
+        baseline,
+        0,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(super) fn declaration_variant_owner_witness(
+    mut i: RewriteIn,
+    owner: VariantOwner,
+    form: VariantSequenceForm,
+    yield_with: bool,
+    baseline: usize,
+    stops: Stops,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -652,12 +816,12 @@ pub(super) fn declaration_variant_sequence_witness(
     (token_kind(&introducer) == Some(form.introducer())).then(|| {
         declaration_variant_sequence_normalized(
             i,
-            VariantOwner::Enum,
+            owner,
             form,
             introducer,
-            false,
+            yield_with,
             baseline,
-            0,
+            stops,
             item_origin,
             line_entry,
             fence,

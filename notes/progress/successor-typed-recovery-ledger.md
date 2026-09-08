@@ -303,6 +303,7 @@ root and declaration-local owners open.
 | `statement::braced_terminal_normalized` | `close(BracedStatementBlockExpression, Brace)` | M | local close absent at EOF/fence/outer close | actual `}` emitted only locally; EOF leading emits before successor anchor | `braced_statement_recovery::*`, `tails::*` | C |
 
 | `derives::required_role_normalized`, `required_via_target_normalized` | `Declaration(Derives(RoleReference/ViaTarget))` | M/E | required role boundary / Via lexical run or absence | C15 protected boundary wins before raw-Identifier retry; nested Type retains its role | `derives::*`, `type_expr::*` | C |
+| `declaration_variant::parse_variant` and sequence slots | `Variant(Item/Name/Separator)`, `close(EnumBracedVariantBody, Brace)` | M/E | required/terminal item, retry-name, missing separator or local close | lexical exit selects Item/Name; payload children retain roles; `with` and outer terminals remain pending | `declaration_variant::*`, `enum_decl::*`, `error_decl::*` | C |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an

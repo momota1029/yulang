@@ -150,7 +150,7 @@ fn error_equals_inline_returns_the_same_with_to_outer_statement() {
     for (source, accepted, missing) in [
         ("error E = A with {}", "error E = A", 0),
         ("error E = with {}", "error E =", 1),
-        ("error E = A | with {}", "error E = A |", 1),
+        ("error E = A | with {}", "error E = A |", 0),
         ("error E = A from with {}", "error E = A from", 1),
         ("error E = A from @ with {}", "error E = A from @", 0),
     ] {
