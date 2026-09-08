@@ -67,6 +67,13 @@ allocating a copied tail. It preserves all unfenced CST, recovery, origin and
 line behavior; it deliberately adds neither a fence parameter nor a cell entry.
 The next bounded gate is the fence-aware opaque lexical owner.
 
+After the corrected Role/Impl, Parenthesized newline, and virtual-Colon
+controls plus the no-copy preparation, the coherent successor syntax baseline
+is green: `cargo test -p yu-syntax --lib -- --test-threads=1` passed 1039
+tests, ignored one existing manual measurement harness, and failed none
+(1.75s). This is a phase-boundary validation, not evidence that the deferred
+Yumark cell/fence owner is complete.
+
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
 Its Missing/Error sites now publish the existing Cast role with the required

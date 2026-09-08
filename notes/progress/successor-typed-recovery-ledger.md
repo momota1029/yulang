@@ -514,6 +514,11 @@ remain open.
   controls passed 12 tests; format and diff passed. Static cost removes one
   tail allocation/copy per opaque Root Error; benchmark use: zero samples/processes.
 
+The coherent successor syntax baseline after the associated corrected controls
+is green: `cargo test -p yu-syntax --lib -- --test-threads=1` passed 1039,
+ignored the one existing manual measurement harness, and failed none in 1.75s.
+It does not close deferred Yumark cell/fence construction.
+
 ## Parenthesized operator newline control
 
 - The retained `(a +\nb)` partial-output expectation was stale. At delimiter
