@@ -30,7 +30,6 @@ use super::{
     statement::{statement, statement_normalized},
     type_expr::{type_expr, type_expr_normalized},
     yumark::FenceBoundary,
-    yumark_cell::{accepted_identifier_statement_witness, yulang_code_cell_witness},
 };
 
 mod act_decl;
@@ -79,6 +78,9 @@ mod use_decl;
 mod virtual_statement_block;
 mod yumark;
 mod yumark_cell;
+mod yumark_cell_witness;
+
+use yumark_cell_witness::{accepted_identifier_statement_witness, yulang_code_cell_witness};
 
 fn ordinary_trivia(kind: TriviaKind, text: impl Into<Box<str>>) -> Trivia {
     let text = text.into();

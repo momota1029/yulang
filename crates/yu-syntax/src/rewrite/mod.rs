@@ -44,8 +44,6 @@ mod type_expr;
 mod use_decl;
 mod virtual_statement_block;
 mod yumark;
-#[cfg(test)]
-mod yumark_cell;
 
 #[cfg(test)]
 mod tests;

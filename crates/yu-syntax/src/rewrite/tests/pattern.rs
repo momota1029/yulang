@@ -4,11 +4,13 @@ use crate::rewrite::{
     driver::scan_pattern_literal_payload,
     item::{BorrowedTarget, Boundary},
     lexer::scan_pattern_nud_payload,
-    literal::{RuleLiteralExit, StringLiteralExit},
+    literal::{
+        PatternLiteralOpener, RuleLiteralExit, StringLiteralExit, rule_literal_witness,
+        scan_pattern_literal_opener_witness, string_literal_with_virtual_statements_witness,
+    },
     pattern::{
         PATTERN_STOP_COLON, PATTERN_STOP_EQUALS, PatternCallerCloses, PatternCompletion,
-        PatternLiteralWitnessExit, PatternMandatorySlotPolicy, PatternStops,
-        pattern_literal_witness, pattern_normalized,
+        PatternMandatorySlotPolicy, PatternStops, pattern_normalized,
         required_pattern_from_entry_item_with_policy_normalized,
     },
     statement::StatementLineHandoff,
@@ -17,6 +19,43 @@ use crate::rewrite::{
 use reborrow_generic::Reborrow as _;
 
 mod recovery;
+
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum PatternLiteralWitnessExit {
+    Rule(RuleLiteralExit),
+    String(StringLiteralExit),
+}
+
+/// Applies LC-5's one-quote/three-quote split without making it reachable
+/// through the same literal owners used by the production Pattern primary.
+pub(super) fn pattern_literal_witness(
+    mut i: RewriteIn,
+    origin: usize,
+    fence: &FenceBoundary,
+) -> Option<PatternLiteralWitnessExit> {
+    let opener = i.token(scan_pattern_literal_opener_witness)?;
+    match opener {
+        PatternLiteralOpener::Rule(opener) => Some(PatternLiteralWitnessExit::Rule(
+            rule_literal_witness(i, opener, origin + 1, fence),
+        )),
+        PatternLiteralOpener::String(opener, mode) => {
+            let opener_length = opener
+                .payload_view()
+                .spelling()
+                .expect("a Pattern string opener is one token")
+                .len();
+            Some(PatternLiteralWitnessExit::String(
+                string_literal_with_virtual_statements_witness(
+                    i,
+                    opener,
+                    mode,
+                    origin + opener_length,
+                    fence,
+                ),
+            ))
+        }
+    }
+}
 
 fn run_required_pattern_with_policy<'source>(
     source: &'source str,

@@ -1,10 +1,10 @@
-//! Gate 3's isolated one-builder Yulang-cell construction witness.
+//! Isolated one-builder Yulang-cell construction witness.
 
 use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
 
-use super::{
+use super::super::{
     RewriteIn,
     current_item::LineEntry,
     driver::{Either, TailExit, handoff, ordinary_exit, token_kind},
@@ -16,7 +16,6 @@ use super::{
 
 /// Composes the currently closed canonical statement surface beneath one cell
 /// node, then returns the caller-injected fence boundary without emitting it.
-/// The ordinary lexer remains unaware of Yumark boundaries at this gate.
 pub(super) fn yulang_code_cell_witness(
     mut i: RewriteIn,
     terminal: Item,
@@ -31,7 +30,7 @@ pub(super) fn yulang_code_cell_witness(
         }
 
         if item.payload_view().is_eof() {
-            let mut end = super::driver::End { item };
+            let mut end = super::super::driver::End { item };
             emit_end(&mut *i.state, &mut end);
             return Ok(finish_at_boundary(i, terminal));
         }
@@ -71,17 +70,13 @@ pub(super) fn yulang_code_cell_witness(
 }
 
 /// Exercises an already-accepted segmented identifier statement followed by
-/// the same successor path used by the cell loop. This remains a Gate 3 test
-/// seam until the fence-aware lexical owner exists.
+/// the same successor path used by the cell loop.
 pub(super) fn accepted_identifier_statement_witness(
     mut i: RewriteIn,
     item: Item,
     successor: Item,
 ) -> Result<PendingBoundary, TailExit> {
-    assert_eq!(
-        item.payload_view().token_kind(),
-        Some(TokenKind::Identifier)
-    );
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Identifier));
     assert!(is_canonical_statement_nud(i.rb(), &item, 0));
 
     i.state.start_node(SyntaxKind::YmYulangCodeCell.into());
@@ -100,9 +95,6 @@ pub(super) fn accepted_identifier_statement_witness(
     }
 }
 
-/// A boundary is classified before any ordinary token predicate can observe
-/// it. `Ok(())` means that a statement separator was accepted and the caller
-/// may scan the next statement.
 fn cell_successor(i: &mut RewriteIn, next: Item) -> Result<(), TailExit> {
     debug_assert!(!next.payload_view().is_boundary());
 

@@ -17,9 +17,12 @@ use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
+#[cfg(test)]
+use super::current_item::CurrentItem;
+
 use super::{
     LexIn, RewriteIn, Stops,
-    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+    current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item},
     derives::{derives_clause_normalized, is_word},
     driver::{
         Either, NormalizedExit, advanced_origin, complete, delimited_baseline, handoff,

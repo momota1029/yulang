@@ -11,8 +11,6 @@ use std::{ops::Range, sync::Arc};
 use crate::syntax_kind::SyntaxKind;
 
 mod delimited;
-#[cfg(test)]
-mod literal;
 
 use super::{
     LexIn, RewriteIn, Stops,
@@ -41,8 +39,6 @@ use super::{
 };
 
 use self::delimited::{list_pattern, parenthesized_pattern, record_pattern};
-#[cfg(test)]
-pub(super) use self::literal::{PatternLiteralWitnessExit, pattern_literal_witness};
 
 /// Caller-owned Pattern grammar boundaries. Nested delimiters replace its
 /// non-close bits with their local comma/close mask; only the separate,

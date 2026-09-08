@@ -332,6 +332,7 @@ pub struct RecoveryDiagnostic {
 }
 
 impl RecoveryDiagnostic {
+    #[cfg(test)]
     pub(crate) fn record(&self) -> &CommittedRecoveryRecord {
         &self.record
     }
