@@ -143,9 +143,17 @@ and one guarded RecordFieldName non-recovery proof. Existing CST expectations
 are unchanged. Pattern 40 and expanded owner/output 484 pass, along with
 package/format/diff checks.
 
-Current gate: O3b SCC construction. Continue with Pattern's four raw sequence/
-close Error callsites, then its two RecordDefaultExpression Missing sites and
-literal/Expression/Statement/declaration dependencies. Extend the same ledger
+Pattern sequence/close Error construction is complete under
+`2026-09-08-successor-pattern-sequence-current-item-recovery.md`: maximal
+lexical runs, native wrong-close records and two scoped Record structured
+roles. Invalid nested literals retain their own closes; accepted layout
+literal elements now share canonical admission and maximal opener Items.
+No raw Pattern Error remains. Pattern 48, expanded owner/output/literal/
+normalized-Pattern 533, package/format/diff checks pass; one repair bundle.
+
+Current gate: O3b SCC construction. Continue with Pattern's two remaining
+RecordDefaultExpression Missing sites and literal/Expression/Statement/
+declaration dependencies. Extend the same ledger
 and retain the existing joint construction/certification boundary.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.

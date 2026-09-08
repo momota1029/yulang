@@ -503,7 +503,7 @@ fn structured_start_from_item(primary: &Item, successor_origin: usize) -> usize 
     assert_eq!(
         primary.leading_view().remaining_physical_parts(),
         0,
-        "structured PV recovery requires its direct leading to be pre-emitted"
+        "structured recovery requires its direct leading to be pre-emitted"
     );
     let range = primary.extent(successor_origin).recovery_range();
     assert!(

@@ -2014,7 +2014,10 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
             .filter(|node| node.kind() == SyntaxKind::Error)
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{spelling:?}");
-        assert_eq!(errors[0].text().to_string(), format!(" {spelling}"));
+        assert_eq!(errors[0].text().to_string(), spelling);
+        let leading = errors[0].prev_sibling_or_token().unwrap();
+        assert_eq!(leading.kind(), SyntaxKind::Whitespace);
+        assert_eq!(leading.to_string(), " ");
         assert_eq!(
             errors[0].last_token().map(|token| token.kind()),
             Some(SyntaxKind::Unknown),

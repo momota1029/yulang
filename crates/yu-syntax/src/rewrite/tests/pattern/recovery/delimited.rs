@@ -1,7 +1,7 @@
 use super::*;
 use crate::session::{ConstructRole, Delimiter, PunctuationEvidence};
 
-fn close_record(
+pub(super) fn close_record(
     id: u32,
     owner: ConstructRole,
     delimiter: Delimiter,

@@ -17,6 +17,7 @@ use chasa_recover::Recoverable as _;
 use std::{ops::Range, sync::Arc};
 
 mod delimited;
+mod sequence;
 
 #[derive(Clone, Copy)]
 struct Context<'fence> {

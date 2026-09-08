@@ -7,7 +7,8 @@ use crate::{
     scan::operator::OperatorSite,
     session::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -21,19 +22,22 @@ use super::{
             expression_item, handoff, implicit_delimited_newline, is_nud_item, suffix_marker,
             token_kind,
         },
-        emit::{emit_error_item, emit_missing, emit_recovery_missing, emit_token_item},
+        emit::{
+            emit_missing, emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
+            emit_token_item, token_syntax_kind,
+        },
         item::{Item, LeadingTrivia, LeadingView, TokenKind},
         operator::stops_for,
-        output::RecoveryDraft,
+        output::{RecoveryDraft, StructuredRecoverySpec, emit_structured_recovery_error_from_item},
         statement::StatementLineHandoff,
         yumark::FenceBoundary,
     },
     PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
     PATTERN_STOP_RPAREN, PatternCallerCloses, PatternCompletion, PatternMandatorySlotPolicy,
-    PatternPrecedence, PatternStops, RewriteIn, emit_pattern_missing,
+    PatternPrecedence, PatternScan, PatternStops, RewriteIn, emit_pattern_missing, is_pattern_nud,
     pattern_from_item_recording_with_policy_normalized, pattern_item_normalized,
-    pattern_nud_item_normalized, pattern_primary_stop_token, pattern_tail_normalized,
-    scan_pattern_tail_normalized,
+    pattern_nud_item_normalized, pattern_primary_stop_token, pattern_recovery_draft,
+    pattern_tail_normalized, scan_pattern_item_lexical, scan_pattern_tail_normalized,
 };
 
 #[derive(Clone, Copy)]
@@ -227,78 +231,108 @@ fn pattern_delimited(
             return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
         }
 
-        if expect_item {
-            if token_kind(&item) == Some(owner.close()) {
-                emit_token_item(&mut i, item);
-                i.state.finish_node();
-                return finish_delimited_pattern(
-                    i,
-                    minimum,
-                    incoming_baseline,
-                    outer_stops,
-                    contents_completion,
-                    own_recovery_consumed_error,
-                    recovered_primary_tail_stops,
+        if token_kind(&item) == Some(owner.close()) {
+            emit_token_item(&mut i, item);
+            i.state.finish_node();
+            return finish_delimited_pattern(
+                i,
+                minimum,
+                incoming_baseline,
+                outer_stops,
+                contents_completion,
+                own_recovery_consumed_error,
+                recovered_primary_tail_stops,
+                line_handoff,
+                caller_closes,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            );
+        }
+        if is_carried_caller_close(caller_closes, &item) {
+            *completion = PatternCompletion::Incomplete;
+            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
+        }
+        if token_kind(&item) == Some(TokenKind::Comma)
+            && (!expect_item || matches!(owner, Owner::Record))
+        {
+            if expect_item {
+                item.emit_all_remaining_leading(&mut *i.state);
+                emit_pattern_missing(&mut i, PatternRole::RecordItem, &item, item_origin);
+                contents_completion = PatternCompletion::Incomplete;
+            }
+            emit_token_item(&mut i, item);
+            (item, item_origin, line_entry) =
+                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+            expect_item = true;
+            continue;
+        }
+        if token_kind(&item).is_none() {
+            *completion = PatternCompletion::Incomplete;
+            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
+        }
+        if is_other_close(owner, &item) {
+            own_recovery_consumed_error = true;
+            emit_wrong_close(i.rb(), item, owner, item_origin);
+            (item, item_origin, line_entry) =
+                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+            continue;
+        }
+        if !expect_item && is_item_start(owner, &item) {
+            let separated_by_layout = implicit_delimited_newline(baseline, item.leading_view());
+            item.emit_all_remaining_leading(&mut *i.state);
+            if !separated_by_layout {
+                emit_pattern_missing(&mut i, owner.separator_role(), &item, item_origin);
+            }
+            expect_item = true;
+            continue;
+        }
+        let error_role = if !expect_item {
+            Some(owner.separator_role())
+        } else if matches!(owner, Owner::Record) && !is_item_start(owner, &item) {
+            Some(PatternRole::RecordItem)
+        } else {
+            None
+        };
+        let item_baseline = delimited_baseline(baseline, item.leading_view());
+        item.emit_all_remaining_leading(&mut *i.state);
+        let mut item_completion = PatternCompletion::Incomplete;
+        let entry = suffix_marker(i.rb());
+        let exit = if let Some(role) = error_role {
+            own_recovery_consumed_error = true;
+            if matches!(owner, Owner::Record) && is_pattern_nud(&item, local_stops) {
+                recover_record_pattern(
+                    i.rb(),
+                    item,
+                    role,
+                    item_baseline,
+                    local_stops,
                     line_handoff,
-                    caller_closes,
-                    completion,
+                    descendant_caller_closes,
+                    &mut item_completion,
                     item_origin,
                     line_entry,
                     fence,
                     ambient,
-                );
-            }
-            if is_carried_caller_close(caller_closes, &item) {
-                *completion = PatternCompletion::Incomplete;
-                return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
-            }
-            if matches!(owner, Owner::Record) && token_kind(&item) == Some(TokenKind::Comma) {
-                item.emit_all_remaining_leading(&mut *i.state);
-                emit_pattern_missing(&mut i, PatternRole::RecordItem, &item, item_origin);
-                contents_completion = PatternCompletion::Incomplete;
-                emit_token_item(&mut i, item);
-                (item, item_origin, line_entry) = pattern_nud_item_normalized(
+                )
+            } else {
+                let (next, _, next_line) = recover_sequence_run(
                     i.rb(),
+                    item,
+                    owner,
+                    role,
+                    local_stops,
                     item_origin,
                     line_entry,
                     fence,
-                    local_stops,
                 );
-                continue;
+                item_completion = PatternCompletion::Complete;
+                complete(handoff(next), next_line)
             }
-            if token_kind(&item).is_none() {
-                *completion = PatternCompletion::Incomplete;
-                return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
-            }
-            if is_other_close(owner, &item) {
-                own_recovery_consumed_error = true;
-                emit_error_item(&mut i, item);
-                (item, item_origin, line_entry) = pattern_nud_item_normalized(
-                    i.rb(),
-                    item_origin,
-                    line_entry,
-                    fence,
-                    local_stops,
-                );
-                continue;
-            }
-            if matches!(owner, Owner::Record) && !is_item_start(owner, &item) {
-                own_recovery_consumed_error = true;
-                emit_error_item(&mut i, item);
-                (item, item_origin, line_entry) = pattern_nud_item_normalized(
-                    i.rb(),
-                    item_origin,
-                    line_entry,
-                    fence,
-                    local_stops,
-                );
-                continue;
-            }
-            let item_baseline = delimited_baseline(baseline, item.leading_view());
-            item.emit_all_remaining_leading(&mut *i.state);
-            let mut item_completion = PatternCompletion::Incomplete;
-            let entry = suffix_marker(i.rb());
-            let exit = match owner {
+        } else {
+            match owner {
                 Owner::Parenthesized => pattern_from_item_recording_with_policy_normalized(
                     i.rb(),
                     item,
@@ -341,102 +375,188 @@ fn pattern_delimited(
                     fence,
                     ambient,
                 ),
-            };
-            item_origin = advanced_origin(item_origin, entry, i.rb());
-            merge_completion(&mut contents_completion, item_completion);
-            match exit {
-                NormalizedExit::Complete(Ok(()), next_line_entry) => {
-                    (item, item_origin, line_entry) = pattern_nud_item_normalized(
-                        i.rb(),
-                        item_origin,
-                        next_line_entry,
-                        fence,
-                        local_stops,
-                    );
-                }
-                NormalizedExit::Complete(Err(Either::Left(next)), next_line_entry) => {
-                    item = next;
-                    line_entry = next_line_entry;
-                }
-                NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
-                    *completion = PatternCompletion::Incomplete;
-                    return missing_close(
-                        i,
-                        end.item,
-                        owner,
-                        caller_closes,
-                        item_origin,
-                        next_line_entry,
-                    );
-                }
-                deferred @ NormalizedExit::Deferred(_, _) => {
-                    i.state.finish_node();
-                    return deferred;
-                }
             }
-            expect_item = false;
-            continue;
+        };
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        merge_completion(&mut contents_completion, item_completion);
+        match exit {
+            NormalizedExit::Complete(Ok(()), next_line_entry) => {
+                (item, item_origin, line_entry) = pattern_nud_item_normalized(
+                    i.rb(),
+                    item_origin,
+                    next_line_entry,
+                    fence,
+                    local_stops,
+                );
+            }
+            NormalizedExit::Complete(Err(Either::Left(next)), next_line_entry) => {
+                item = next;
+                line_entry = next_line_entry;
+            }
+            NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
+                *completion = PatternCompletion::Incomplete;
+                return missing_close(
+                    i,
+                    end.item,
+                    owner,
+                    caller_closes,
+                    item_origin,
+                    next_line_entry,
+                );
+            }
+            deferred @ NormalizedExit::Deferred(_, _) => {
+                i.state.finish_node();
+                return deferred;
+            }
         }
+        // An Error already supplied this slot's recovery. Retry an item, or
+        // let its comma close the slot; neither route adds a same-slot Missing.
+        expect_item = error_role.is_some()
+            && !item.payload_view().is_boundary()
+            && token_kind(&item) != Some(TokenKind::Comma);
+    }
+}
 
-        if token_kind(&item) == Some(owner.close()) {
-            emit_token_item(&mut i, item);
-            i.state.finish_node();
-            return finish_delimited_pattern(
-                i,
-                minimum,
-                incoming_baseline,
-                outer_stops,
-                contents_completion,
-                own_recovery_consumed_error,
-                recovered_primary_tail_stops,
+#[allow(clippy::too_many_arguments)]
+fn recover_sequence_run(
+    i: RewriteIn,
+    mut item: Item,
+    owner: Owner,
+    role: PatternRole,
+    stops: PatternStops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let start = item.extent(item_origin).recovery_range().start;
+    emit_recovery_error_run(
+        i,
+        |run| loop {
+            let kind = token_syntax_kind(token_kind(&item).expect("malformed sequence Item"));
+            let extent = run.emit_item_as(item, item_origin, kind);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_pattern_item_lexical(
+                    lex,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    stops,
+                    PatternScan::Nud,
+                )
+            });
+            if item.payload_view().is_boundary()
+                || token_kind(&item).is_none_or(|kind| {
+                    matches!(
+                        kind,
+                        TokenKind::Comma
+                            | TokenKind::RParen
+                            | TokenKind::RBracket
+                            | TokenKind::RBrace
+                    )
+                })
+                || is_item_start(owner, &item)
+                || (matches!(owner, Owner::Record) && is_pattern_nud(&item, stops))
+            {
+                run.append_unexpected(UnexpectedSyntax::Token {
+                    range: start..extent.recovery_range().end,
+                    category: UnexpectedCategory::OtherCharacter,
+                });
+                return (item, item_origin, line_entry);
+            }
+        },
+        |range, unexpected| pattern_recovery_draft(role, RecoveryKind::Error, range, unexpected),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recover_record_pattern(
+    i: RewriteIn,
+    item: Item,
+    role: PatternRole,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternCompletion,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    let expected = match role {
+        PatternRole::RecordItem => ExpectedSyntax::Identifier,
+        PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
+        _ => unreachable!("only Record sequence slots own a wrong-kind Pattern"),
+    };
+    emit_structured_recovery_error_from_item(
+        i,
+        item,
+        item_origin,
+        StructuredRecoverySpec::new(
+            GrammarRole::Pattern(role),
+            UnexpectedCategory::OtherCharacter,
+            expected,
+            ExpectationSources::COMMITTED_RECOVERY_RULE,
+            0,
+        ),
+        |mut nested, item| {
+            let entry = suffix_marker(nested.rb());
+            let exit = pattern_from_item_recording_with_policy_normalized(
+                nested.rb(),
+                item,
+                PatternPrecedence::Lowest,
+                baseline,
+                stops,
                 line_handoff,
+                PatternMandatorySlotPolicy::default(),
                 caller_closes,
+                PatternRole::Primary,
                 completion,
                 item_origin,
                 line_entry,
                 fence,
                 ambient,
             );
-        }
-        if is_carried_caller_close(caller_closes, &item) {
-            *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
-        }
-        if token_kind(&item) == Some(TokenKind::Comma) {
-            emit_token_item(&mut i, item);
-            (item, item_origin, line_entry) =
-                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
-            expect_item = true;
-            continue;
-        }
-        if token_kind(&item).is_none() {
-            *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
-        }
-        if is_other_close(owner, &item) {
-            own_recovery_consumed_error = true;
-            emit_error_item(&mut i, item);
-            (item, item_origin, line_entry) =
-                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
-            continue;
-        }
-        if is_item_start(owner, &item) {
-            let separated_by_layout = implicit_delimited_newline(baseline, item.leading_view());
-            item.emit_all_remaining_leading(&mut *i.state);
-            if !separated_by_layout {
-                emit_pattern_missing(&mut i, owner.separator_role(), &item, item_origin);
-            }
-            expect_item = true;
-            continue;
-        }
-        own_recovery_consumed_error = true;
-        emit_error_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
-        if matches!(owner, Owner::Record) {
-            expect_item = true;
-        }
-    }
+            let post_origin = advanced_origin(item_origin, entry, nested.rb());
+            let pending = match &exit {
+                NormalizedExit::Complete(Ok(()), _) => None,
+                NormalizedExit::Complete(Err(Either::Left(item)), _)
+                | NormalizedExit::Deferred(item, _) => Some(item),
+                NormalizedExit::Complete(Err(Either::Right(end)), _) => Some(&end.item),
+            };
+            let end = pending.map_or(post_origin, |item| {
+                let range = item.extent(post_origin).recovery_range();
+                if range.start < range.end {
+                    range.start
+                } else {
+                    post_origin
+                }
+            });
+            (exit, end)
+        },
+    )
+}
+
+fn emit_wrong_close(i: RewriteIn, item: Item, owner: Owner, item_origin: usize) {
+    let actual = match token_kind(&item) {
+        Some(TokenKind::RParen) => Delimiter::Parenthesis,
+        Some(TokenKind::RBracket) => Delimiter::Bracket,
+        Some(TokenKind::RBrace) => Delimiter::Brace,
+        _ => unreachable!("wrong-close recovery requires a close"),
+    };
+    let kind = token_syntax_kind(token_kind(&item).unwrap());
+    let range = item.extent(item_origin).recovery_range();
+    emit_recovery_error_item(
+        i,
+        item,
+        item_origin,
+        kind,
+        UnexpectedSyntax::Token {
+            range,
+            category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(actual)),
+        },
+        |range, unexpected| close_recovery_draft(owner, RecoveryKind::Error, range, unexpected),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -785,27 +905,36 @@ fn missing_close(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    let (owner, delimiter) = owner.closing_owner();
-    let role = GrammarRole::ClosingDelimiter { owner, delimiter };
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        RecoveryDraft::new(
-            RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            RecoveryKind::Missing,
-            Arc::from([]),
-            Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
-                range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
+        close_recovery_draft(owner, RecoveryKind::Missing, range, Arc::from([]))
     });
     i.state.finish_node();
     complete(handoff(item), line_entry)
+}
+
+fn close_recovery_draft(
+    owner: Owner,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let (owner, delimiter) = owner.closing_owner();
+    let role = GrammarRole::ClosingDelimiter { owner, delimiter };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 fn is_carried_caller_close(caller_closes: PatternCallerCloses, item: &Item) -> bool {
@@ -814,26 +943,10 @@ fn is_carried_caller_close(caller_closes: PatternCallerCloses, item: &Item) -> b
 
 fn is_item_start(owner: Owner, item: &Item) -> bool {
     match owner {
-        Owner::Parenthesized => can_start_pattern(item),
-        Owner::List => token_kind(item) == Some(TokenKind::DotDot) || can_start_pattern(item),
+        Owner::Parenthesized => is_pattern_nud(item, 0),
+        Owner::List => token_kind(item) == Some(TokenKind::DotDot) || is_pattern_nud(item, 0),
         Owner::Record => token_kind(item) == Some(TokenKind::DotDot) || is_pattern_name(item),
     }
-}
-
-fn can_start_pattern(item: &Item) -> bool {
-    matches!(
-        token_kind(item),
-        Some(
-            TokenKind::Identifier
-                | TokenKind::SigilIdentifier
-                | TokenKind::Integer
-                | TokenKind::Colon
-                | TokenKind::PatternSymbolColon
-                | TokenKind::LParen
-                | TokenKind::LBracket
-                | TokenKind::LBrace
-        )
-    )
 }
 
 fn is_pattern_name(item: &Item) -> bool {

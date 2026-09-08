@@ -935,10 +935,13 @@ fn scan_pattern_item_lexical(
             item_origin,
             line_entry,
             fence,
-            |mut lex, leading, origin, fence, _| match mode {
-                PatternScan::Nud => scan_pattern_literal_payload(lex.rb())
-                    .or_else(|| scan_pattern_nud_payload(lex, leading, origin, fence, stops)),
-                PatternScan::Tail => scan_pattern_payload(lex, leading, origin, fence, stops),
+            |mut lex, leading, origin, fence, _| {
+                scan_pattern_literal_payload(lex.rb()).or_else(|| match mode {
+                    PatternScan::Nud => {
+                        scan_pattern_nud_payload(lex, leading, origin, fence, stops)
+                    }
+                    PatternScan::Tail => scan_pattern_payload(lex, leading, origin, fence, stops),
+                })
             },
         )
         .expect("Pattern payload scanning is total")
