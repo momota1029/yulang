@@ -1,6 +1,6 @@
 # VirtualStatementBlock current-Item typed recovery
 
-Status: Authoritative; private O3b construction pending
+Status: Authoritative; private O3b construction complete
 
 Date: 2026-09-08
 
@@ -18,6 +18,16 @@ topology, StringLiteral current-Item recovery, and recovery-authority
 amendment §§1--3. Virtual is a distinct root-style `Statement*` sequence, not
 Root or a braced block. The existing role vocabulary is sufficient; this record
 selects its bounded use rather than adding a role.
+
+## Construction result
+
+The bounded private construction is complete. The required-Statement,
+inter-Statement-separator, and maximal malformed-run sites publish their
+selected `Statement` records; Error-owned leading and protected retry/boundary
+handoff retain the approved split. Fresh/shifted/frozen/seeded, UTF-8,
+foreign-prefix, protected-boundary, and caller controls passed, followed by
+compiler/recovery and regression review, package check, format, and diff.
+Yumark production convergence and AST products remain outside this gate.
 
 ## Selected slots and records
 

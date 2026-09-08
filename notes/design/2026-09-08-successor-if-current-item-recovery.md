@@ -1,6 +1,6 @@
 # If current-Item typed recovery
 
-Status: Authoritative; private O3b construction pending
+Status: Authoritative; private O3b construction complete
 
 Date: 2026-09-08
 
@@ -16,6 +16,16 @@ Authority: the architecture's If mandatory-slot contract, typed-output
 amendment §§3--6, required-operand and indented-statement role contracts, and
 recovery-authority amendment §§1--3. Existing roles are sufficient; this
 record selects their immediate-owner publication without adding vocabulary.
+
+## Construction result
+
+The bounded private construction is complete. `BodyIntroducer`, `Body`, and
+`ElseBody` publish the selected records through the finite role transport;
+the shared Condition boundary flag and the existing indented-Statement child
+role remain unchanged. Compiler/recovery and regression review closed the
+scope, and focused owner/caller controls plus package check, format, and diff
+passed with zero benchmark samples/processes. Public dispatch remains outside
+this gate.
 
 ## Roles and records
 

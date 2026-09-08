@@ -1,6 +1,6 @@
 # CaseLike structural current-Item recovery
 
-Status: Authoritative; private O3b construction pending
+Status: Authoritative; private O3b construction complete
 
 Date: 2026-09-08
 
@@ -16,6 +16,17 @@ Authority: E12b/c/d/k in the SCC amendment, Case/Catch architecture recovery
 contract, Pattern-primary current-Item contract and recovery-authority §§1--3.
 Existing CaseLike roles are sufficient. This records their immediate-owner use
 without adding vocabulary or a duplicate Pattern scan.
+
+## Construction result
+
+The bounded private construction is complete. Block and shallow Arm publish
+their selected records, while first-arm and Catch-handler Pattern admission
+uses the existing Pattern kernel once with its finite CaseLike role. The
+verified controls cover fresh/shifted/frozen/seeded records, UTF-8/CRLF,
+fences, outer delimiters, and following statements; compiler/recovery and
+regression reviews found no defect. Arrow/Body, separator, and Catch-close
+remain distinct completed or separately recorded CaseLike owner work, not part
+of this original structural slice.
 
 ## Roles and records
 
