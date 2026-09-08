@@ -1,12 +1,12 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 use crate::parser::{
+    input::yumark::{FenceOpener, FencePrefixPolicy},
     literal::{
         StringLiteralExit, scan_string_opener_witness,
         string_literal_with_virtual_statements_witness,
     },
     virtual_statement_block::{VirtualStatementBlockExit, virtual_statement_block_normalized},
-    yumark::{FenceOpener, FencePrefixPolicy},
 };
 
 fn plain_fence() -> FenceBoundary {
@@ -258,8 +258,8 @@ fn virtual_statement_block_returns_exact_fence_boundary_origin_and_line_entry() 
     assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
     assert!(matches!(
         pending.into_kind(),
-        super::super::item::Boundary::BorrowedClose(
-            super::super::item::BorrowedTarget::YumarkFence(_)
+        crate::parser::input::item::Boundary::BorrowedClose(
+            crate::parser::input::item::BorrowedTarget::YumarkFence(_)
         )
     ));
     assert_eq!(green.to_string(), accepted);
@@ -279,8 +279,8 @@ fn virtual_string_orders_parent_missing_nodes_before_the_exact_fence_handoff() {
     assert_eq!(leading, "\r\n");
     assert!(matches!(
         pending.into_kind(),
-        super::super::item::Boundary::BorrowedClose(
-            super::super::item::BorrowedTarget::YumarkFence(_)
+        crate::parser::input::item::Boundary::BorrowedClose(
+            crate::parser::input::item::BorrowedTarget::YumarkFence(_)
         )
     ));
     assert_eq!(green.to_string(), "\"%{α");

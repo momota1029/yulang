@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 fn for_node(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
@@ -429,7 +429,7 @@ fn for_c13_use_group_and_header_layout_preserve_the_pending_item() {
     }
 }
 
-fn item_word_for_test(item: &super::super::item::Item) -> Option<&str> {
+fn item_word_for_test(item: &crate::parser::input::item::Item) -> Option<&str> {
     (item.payload_view().token_kind() == Some(TokenKind::Identifier))
         .then(|| item.payload_view().spelling())
         .flatten()

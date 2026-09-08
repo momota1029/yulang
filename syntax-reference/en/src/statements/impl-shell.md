@@ -129,7 +129,7 @@ HIR/resolver/inference/formatter work.
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/impl_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/declaration/impl_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_impl_statement_intro`, `parse_impl_declaration_isolated`,

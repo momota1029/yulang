@@ -1,5 +1,5 @@
-use super::record_sequence_recovery::close;
-use super::*;
+use crate::parser::tests::type_expr::record_sequence_recovery::close;
+use crate::parser::tests::type_expr::*;
 
 pub(super) fn field_record(
     id: u32,
@@ -172,8 +172,8 @@ fn record_field_caller_words_are_checked_before_fresh_and_recovered_candidates()
         ("{a: @", field_record(0, T, 4..5, true)),
     ] {
         for (suffix, stops) in [
-            (" with tail", crate::parser::operator::STOP_WITH),
-            (" /*é*/else tail", crate::parser::operator::STOP_ELSE),
+            (" with tail", crate::parser::input::operator::STOP_WITH),
+            (" /*é*/else tail", crate::parser::input::operator::STOP_ELSE),
         ] {
             let source = format!("{prefix}{suffix}");
             let expected = [

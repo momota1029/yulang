@@ -3,22 +3,24 @@ use rowan::GreenNode;
 
 use crate::{SyntaxKind, SyntaxNode, operator::OperatorTable};
 
-use super::super::{
-    current_item::LineEntry,
-    declaration_variant::VariantSequenceForm,
-    driver::expr,
-    item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+use crate::parser::tests::pattern::pattern_literal_witness;
+use crate::parser::tests::support::{
+    run_act_declaration, run_cast_declaration, run_declaration_companion, run_declaration_variant,
+    run_enum_declaration, run_error_declaration, run_impl_declaration, run_normalized,
+    run_role_declaration, run_type_normalized,
+};
+use crate::parser::{
+    context::state::Recover,
+    declaration::declaration_variant::VariantSequenceForm,
+    expression::expr,
+    input::{
+        current_item::LineEntry,
+        item::{Item, LeadingTrivia, Payload, Token, TokenKind},
+        yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
+    },
     output::ParserOutput,
-    state::Recover,
     statement::classify_statement_item_normalized,
     type_expr::type_expr,
-    yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
-};
-use super::{
-    pattern::pattern_literal_witness, run_act_declaration, run_cast_declaration,
-    run_declaration_companion, run_declaration_variant, run_enum_declaration,
-    run_error_declaration, run_impl_declaration, run_normalized, run_role_declaration,
-    run_type_normalized,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -36,7 +38,7 @@ struct OptionEntryAudit {
 
 const OPTION_PARSER_IN_AUDIT: [OptionEntryAudit; 23] = [
     OptionEntryAudit {
-        source: "declaration_companion.rs",
+        source: "declaration/declaration_companion.rs",
         procedure: "declaration_companion_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
@@ -46,67 +48,67 @@ const OPTION_PARSER_IN_AUDIT: [OptionEntryAudit; 23] = [
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "declaration_variant.rs",
+        source: "declaration/declaration_variant.rs",
         procedure: "declaration_variant_sequence_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "cast_decl.rs",
+        source: "declaration/cast_decl.rs",
         procedure: "cast_declaration_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "enum_decl.rs",
+        source: "declaration/enum_decl.rs",
         procedure: "enum_declaration_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "enum_decl.rs",
+        source: "declaration/enum_decl.rs",
         procedure: "parameter_item_normalized",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
     OptionEntryAudit {
-        source: "impl_decl.rs",
+        source: "declaration/impl_decl.rs",
         procedure: "impl_declaration_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "act_decl.rs",
+        source: "declaration/act_decl.rs",
         procedure: "act_declaration_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "role_decl.rs",
+        source: "declaration/role_decl.rs",
         procedure: "role_declaration_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "if_expr.rs",
+        source: "expression/if_expr.rs",
         procedure: "arm_keyword",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
     OptionEntryAudit {
-        source: "if_expr.rs",
+        source: "expression/if_expr.rs",
         procedure: "active_statement_companion",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
     OptionEntryAudit {
-        source: "driver.rs",
+        source: "expression/mod.rs",
         procedure: "expr",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "driver.rs",
+        source: "expression/mod.rs",
         procedure: "expr_normalized",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "driver.rs",
+        source: "expression/mod.rs",
         procedure: "optional_nud_item",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
     OptionEntryAudit {
-        source: "type_decl.rs",
+        source: "declaration/type_decl.rs",
         procedure: "parameter_item_normalized",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
@@ -126,27 +128,27 @@ const OPTION_PARSER_IN_AUDIT: [OptionEntryAudit; 23] = [
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "error_decl.rs",
+        source: "declaration/error_decl.rs",
         procedure: "error_declaration_witness",
         evidence: OptionEntryEvidence::FocusedRejection,
     },
     OptionEntryAudit {
-        source: "error_decl.rs",
+        source: "declaration/error_decl.rs",
         procedure: "parameter_item_normalized",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
     OptionEntryAudit {
-        source: "lexer.rs",
+        source: "input/lexer.rs",
         procedure: "introduced_body_indentation",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
     OptionEntryAudit {
-        source: "lexer.rs",
+        source: "input/lexer.rs",
         procedure: "introduced_body_indentation_normalized",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },
     OptionEntryAudit {
-        source: "case_like.rs",
+        source: "expression/case_like.rs",
         procedure: "guard_kind",
         evidence: OptionEntryEvidence::SourceOnlyOrLexicallyTransactional,
     },

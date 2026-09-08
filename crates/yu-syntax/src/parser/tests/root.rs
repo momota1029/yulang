@@ -1,4 +1,4 @@
-use super::super::{header::discover_header, root::parse_root_candidate};
+use crate::parser::{header::discover_header, root::parse_root_candidate};
 use crate::{
     OperatorTable, SyntaxNode,
     session::{GrammarRole, StatementRole},

@@ -1,8 +1,8 @@
 //! Source-free direct Pattern construction.
 
-use super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
-use super::ambient_claim::AmbientClaimView;
+use crate::parser::context::ambient_claim::AmbientClaimView;
 use crate::session::{
     ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole, RecoveryKind, RecoverySiteKey,
     SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
@@ -14,34 +14,40 @@ use crate::syntax_kind::SyntaxKind;
 
 mod delimited;
 #[cfg(test)]
-use super::driver::{TailExit, ordinary_exit};
+use crate::parser::handoff::{TailExit, ordinary_exit};
 
-use super::{
+use crate::parser::{
     LexIn, ParserIn, Stops,
-    current_item::{LineEntry, current_item},
-    driver::{
-        Either, NormalizedExit, advanced_origin, complete, delimited_baseline, handoff,
-        implicit_delimited_newline, scan_pattern_literal_payload, suffix_marker, token_kind,
+    handoff::{Either, NormalizedExit, complete, handoff},
+    input::{
+        current_item::{LineEntry, current_item},
+        expression::scan_pattern_literal_payload,
+        item::{Item, LeadingTrivia, Payload, TokenKind},
+        lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
+        observation::{delimited_baseline, implicit_delimited_newline, token_kind},
+        operator::{STOP_COMMA, STOP_IN, STOP_SEMICOLON, stops_for},
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
     },
-    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
-    item::{Item, LeadingTrivia, Payload, TokenKind},
-    lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
     literal::{
         NormalizedRuleLiteralExit, NormalizedStringLiteralExit, rule_literal_normalized,
         string_literal_with_virtual_statements_normalized, string_mode_from_opener,
     },
-    operator::{STOP_COMMA, STOP_IN, STOP_SEMICOLON, stops_for},
-    output::RecoveryDraft,
+    output::{
+        RecoveryDraft,
+        emit::{
+            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
+        },
+    },
     statement::StatementLineHandoff,
     type_expr::{
         TypeOuterBoundary,
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient,
         type_nud_item_normalized_with_ambient,
     },
-    yumark::FenceBoundary,
 };
 
-use self::delimited::{list_pattern, parenthesized_pattern, record_pattern};
+use crate::parser::pattern::delimited::{list_pattern, parenthesized_pattern, record_pattern};
 
 /// Caller-owned Pattern grammar boundaries. Nested delimiters replace its
 /// non-close bits with their local comma/close mask; only the separate,
@@ -157,7 +163,9 @@ pub(super) fn pattern_stops_from_owner(stops: Stops) -> PatternStops {
         (TokenKind::Arrow, PATTERN_STOP_ARROW),
     ]
     .into_iter()
-    .filter_map(|(kind, stop)| super::operator::active_stop_item(kind, stops).then_some(stop))
+    .filter_map(|(kind, stop)| {
+        crate::parser::input::operator::active_stop_item(kind, stops).then_some(stop)
+    })
     .fold(0, |stops, stop| stops | stop)
 }
 
@@ -1366,7 +1374,7 @@ pub(super) fn is_pattern_nud(item: &Item, stops: PatternStops) -> bool {
             && stops & (PATTERN_STOP_COLON | PATTERN_STOP_PRIMARY_COLON) == 0)
         || item.payload_view().spelling() == Some("\"")
         || string_mode_from_opener(item)
-            .is_some_and(|mode| matches!(mode, super::literal::StringMode::Heredoc { .. }))
+            .is_some_and(|mode| matches!(mode, crate::parser::literal::StringMode::Heredoc { .. }))
 }
 
 fn is_pattern_primary_boundary(item: &Item, baseline: usize, stops: PatternStops) -> bool {
@@ -1379,9 +1387,9 @@ fn is_pattern_primary_boundary(item: &Item, baseline: usize, stops: PatternStops
 fn is_pattern_tail_boundary(mut i: ParserIn, item: &Item, stops: PatternStops) -> bool {
     token_kind(item).is_some_and(|kind| pattern_tail_stop_token(kind, stops))
         || (stops & PATTERN_STOP_ARM_GUARD_IF != 0
-            && super::driver::is_contextual_word(i.rb(), item, "if"))
+            && crate::parser::input::observation::is_contextual_word(i.rb(), item, "if"))
         || (stops & PATTERN_STOP_ARM_GUARD_WHERE != 0
-            && super::driver::is_contextual_word(i, item, "where"))
+            && crate::parser::input::observation::is_contextual_word(i, item, "where"))
         || is_pattern_word_stop(item, stops)
 }
 

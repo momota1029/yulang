@@ -1,8 +1,8 @@
 //! Direct canonical statements and their closed sequence owners.
 
-use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use crate::parser::context::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 #[cfg(test)]
-use super::driver::ordinary_exit;
+use crate::parser::handoff::ordinary_exit;
 use crate::session::{
     BracedStatementBlockRole, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax,
     GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
@@ -11,38 +11,50 @@ use crate::session::{
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
-use crate::{operator::BindingPower, parser::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{
+    operator::BindingPower, parser::input::operator::OperatorSite, syntax_kind::SyntaxKind,
+};
 
-use super::{
+use crate::parser::{
     LexIn, ParserIn, Stops,
-    act_decl::{act_declaration_normalized, act_declaration_selected_lexical},
-    binding::{
-        binding_statement_normalized, binding_statement_selected_lexical, is_binding_visibility,
+    declaration::{
+        act_declaration_normalized, act_declaration_selected_lexical, binding_statement_normalized,
+        binding_statement_selected_lexical, cast_declaration_normalized,
+        cast_declaration_selected_lexical, enum_declaration_normalized,
+        enum_declaration_selected_lexical, error_declaration_normalized,
+        error_declaration_selected_lexical, impl_declaration_normalized,
+        impl_declaration_selected_lexical, is_binding_visibility, mod_declaration_normalized,
+        mod_declaration_selected_lexical, role_declaration_normalized,
+        role_declaration_selected_lexical, struct_declaration_normalized,
+        struct_declaration_selected_lexical, type_declaration_normalized,
+        type_declaration_selected_lexical, use_declaration_normalized,
+        use_declaration_selected_lexical,
     },
-    cast_decl::{cast_declaration_normalized, cast_declaration_selected_lexical},
-    current_item::{LineEntry, current_item},
-    driver::{
-        Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
-        continue_normalized_tail, delimited_baseline, expr_from_nud_normalized, handoff,
-        implicit_delimited_newline, indentation_after_newline, is_active_stop, is_active_stop_lex,
-        is_close, is_nud_item, is_separator, scan_expression_literal_payload, suffix_marker,
-        token_kind,
+    expression::{
+        continue_normalized_tail, expr_from_nud_normalized,
+        for_decl::{for_statement_normalized, for_statement_selected},
+        is_nud_item,
     },
-    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
-    enum_decl::{enum_declaration_normalized, enum_declaration_selected_lexical},
-    error_decl::{error_declaration_normalized, error_declaration_selected_lexical},
-    for_decl::{for_statement_normalized, for_statement_selected},
-    impl_decl::{impl_declaration_normalized, impl_declaration_selected_lexical},
-    item::{Item, LeadingTrivia, TokenKind},
-    lexer::scan_statement_payload,
-    mod_decl::{mod_declaration_normalized, mod_declaration_selected_lexical},
-    operator::stops_for,
-    output::RecoveryDraft,
-    role_decl::{role_declaration_normalized, role_declaration_selected_lexical},
-    struct_decl::{struct_declaration_normalized, struct_declaration_selected_lexical},
-    type_decl::{type_declaration_normalized, type_declaration_selected_lexical},
-    use_decl::{use_declaration_normalized, use_declaration_selected_lexical},
-    yumark::FenceBoundary,
+    handoff::{Either, MlMode, NormalizedExit, TailExit, complete, handoff},
+    input::{
+        current_item::{LineEntry, current_item},
+        expression::scan_expression_literal_payload,
+        item::{Item, LeadingTrivia, TokenKind},
+        lexer::scan_statement_payload,
+        observation::{
+            delimited_baseline, implicit_delimited_newline, indentation_after_newline,
+            is_active_stop, is_active_stop_lex, is_close, is_separator, token_kind,
+        },
+        operator::stops_for,
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
+    },
+    output::{
+        RecoveryDraft,
+        emit::{
+            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
+        },
+    },
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -74,7 +86,7 @@ pub(super) fn statement(i: ParserIn, baseline: usize, stops: Stops) -> TailExit 
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
-        Some(super::sequence::SequenceOwner::RootStatement),
+        Some(crate::parser::context::sequence::SequenceOwner::RootStatement),
     ))
 }
 
@@ -87,7 +99,7 @@ pub(super) fn statement_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     let ambient = ambient.map(|view| view.statement(baseline));
     let (item, item_origin, line_entry) =
@@ -116,7 +128,7 @@ pub(super) fn statement_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     let ambient = ambient.map(|view| view.statement(baseline));
     let Some(admission) =
@@ -151,7 +163,7 @@ pub(super) fn canonical_statement_from_admission_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Statement.into());
     let exit = canonical_statement_contents_from_admission_normalized(
@@ -183,7 +195,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     match admission.0 {
         StatementFamily::Struct => {
@@ -505,7 +517,7 @@ pub(super) fn indented_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let sequence = Some(super::sequence::SequenceOwner::IndentedStatement);
+    let sequence = Some(crate::parser::context::sequence::SequenceOwner::IndentedStatement);
     let (mut item, item_origin, line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, base_indent, stops);
     i.state
@@ -556,7 +568,7 @@ pub(super) fn braced_nud_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = braced_statement_block_normalized(
@@ -593,7 +605,7 @@ pub(super) fn braced_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let sequence = Some(super::sequence::SequenceOwner::BracedStatement);
+    let sequence = Some(crate::parser::context::sequence::SequenceOwner::BracedStatement);
     let ambient = ambient.map(AmbientClaimView::braced);
     i.state
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
@@ -643,7 +655,7 @@ fn statement_sequence_normalized(
     fence: Option<&FenceBoundary>,
     mut first: bool,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     let mut known_admission = None;
     loop {
@@ -756,7 +768,7 @@ fn indented_statement_slot_normalized(
     first: bool,
     known_admission: Option<Option<StatementAdmission>>,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
@@ -1000,7 +1012,7 @@ fn braced_statement_slot_normalized(
     first: bool,
     known_admission: Option<Option<StatementAdmission>>,
     ambient: AmbientClaimContext<'_>,
-    sequence: super::sequence::SequenceContext,
+    sequence: crate::parser::context::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return braced_terminal_normalized(i, item, item_origin, line_entry);

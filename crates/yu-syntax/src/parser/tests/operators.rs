@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 #[test]
 fn dynamic_operator_roles_append_to_the_active_flat_chain() {

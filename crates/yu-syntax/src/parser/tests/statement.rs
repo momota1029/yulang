@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 fn count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
     root.descendants()
@@ -241,7 +241,7 @@ fn canonical_statement_dispatch_composes_in_braced_and_indented_sequences() {
 
 #[test]
 fn canonical_statement_dispatch_preserves_normalized_fence_boundary() {
-    use super::super::{
+    use crate::parser::input::{
         item::{BorrowedTarget, Boundary},
         yumark::{FenceOpener, FencePrefixPolicy},
     };

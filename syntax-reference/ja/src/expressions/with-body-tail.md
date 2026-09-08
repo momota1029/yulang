@@ -111,7 +111,7 @@ declaration companion / brace companion body、companion item classification、n
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/tails.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/expression/tails.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/expression.rs` では `recognize_with_body_tail`、`parse_with_body_tail`、`parse_with_inline_statement`、`commit_with_body_tail`、`with_body_absent_boundary`、`with_body_error_retry`、`emit_with_missing`、`emit_with_error` を参照する。
 

@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::type_expr::*;
 
 pub(super) fn arrow(id: u32, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
     let role = GrammarRole::Type(TypeRole::BracketRowArrow);
@@ -110,8 +110,8 @@ fn bracket_arrow_boundaries_preserve_pending_items_before_and_after_error() {
         ("F [e] @", arrow(0, 6..7, true)),
     ] {
         for (suffix, stops) in [
-            (" with tail", crate::parser::operator::STOP_WITH),
-            (" /*é*/else tail", crate::parser::operator::STOP_ELSE),
+            (" with tail", crate::parser::input::operator::STOP_WITH),
+            (" /*é*/else tail", crate::parser::input::operator::STOP_ELSE),
             (" : tail", STOP_COLON),
             (" , tail", 0),
             (" ) tail", 0),

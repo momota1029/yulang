@@ -1,13 +1,15 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::parser::{
-    current_item::LineEntry,
-    item::{Boundary, Item, LeadingTrivia, Payload, PendingBoundary, StopKind, Token},
+    input::{
+        current_item::LineEntry,
+        item::{Boundary, Item, LeadingTrivia, Payload, PendingBoundary, StopKind, Token},
+        yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
+    },
     rule::{
         RuleWitnessExit, expression_list_handoff_witness, rule_body_normalized_witness,
         rule_body_witness, scan_rule_current_item_witness, scan_rule_introducer_successor_witness,
         scan_rule_item_witness,
     },
-    yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
 };
 use reborrow_generic::Reborrow as _;
 
@@ -162,8 +164,8 @@ fn expected_boundary_item(
     fence: &FenceBoundary,
     leading: &[(&str, TriviaKind)],
 ) -> Item {
-    let crate::parser::yumark::FenceLineDecision::Boundary(pending) =
-        crate::parser::yumark::judge_fence_line(suffix, coordinate, fence)
+    let crate::parser::input::yumark::FenceLineDecision::Boundary(pending) =
+        crate::parser::input::yumark::judge_fence_line(suffix, coordinate, fence)
     else {
         panic!("the control suffix must be a fence boundary")
     };
@@ -825,7 +827,7 @@ fn expression_list_fence_handoff_keeps_the_exact_item_and_leading_trivia() {
         Payload::Boundary(PendingBoundary::new(
             70..71,
             Boundary::Stop(StopKind::YumarkFence(Box::new(
-                crate::parser::yumark::YumarkFenceTransition {
+                crate::parser::input::yumark::YumarkFenceTransition {
                     line: 70,
                     expected_depth: 2,
                     expected_base: 0,
@@ -897,7 +899,7 @@ fn capture_and_body_missing_preserve_eof_or_boundary_trivia() {
         Payload::Boundary(PendingBoundary::new(
             90..91,
             Boundary::Stop(StopKind::YumarkFence(Box::new(
-                crate::parser::yumark::YumarkFenceTransition {
+                crate::parser::input::yumark::YumarkFenceTransition {
                     line: 90,
                     expected_depth: 2,
                     expected_base: 0,

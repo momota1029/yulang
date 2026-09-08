@@ -1,8 +1,10 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::parser::{
-    ambient_claim::AmbientClaimView,
-    driver::MlMode,
-    sequence::{SequenceContext, SequenceOwner},
+    context::{
+        ambient_claim::AmbientClaimView,
+        sequence::{SequenceContext, SequenceOwner},
+    },
+    handoff::MlMode,
     statement::StatementLineHandoff,
 };
 use crate::session::{ColonApplicationRole, GrammarRole, RecoveryKind};
@@ -329,7 +331,7 @@ fn nested_virtual_colons_replace_and_restore_virtual_and_outer_owners() {
 
 #[test]
 fn virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,

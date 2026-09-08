@@ -1,9 +1,11 @@
-use super::required_recovery::{assert_same_exit, missing, run_statement_records};
-use super::*;
+use crate::parser::tests::type_expr::required_recovery::{
+    assert_same_exit, missing, run_statement_records,
+};
+use crate::parser::tests::type_expr::*;
 use crate::{
     parser::{
-        ambient_claim::AmbientClaimView,
-        struct_decl::{FieldList, FieldOuterClose, declaration_fields_normalized},
+        context::ambient_claim::AmbientClaimView,
+        declaration::struct_decl::{FieldList, FieldOuterClose, declaration_fields_normalized},
         type_expr::{TypeOuterBoundary, type_nud_item_normalized},
     },
     session::{DeclarationRole, StructRole},

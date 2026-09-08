@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::type_expr::*;
 use crate::session::{
     ActDeclarationRole, CastRole, DeclarationRole, DerivesRole, EnumDeclarationRole,
     ErrorDeclarationRole, ImplRole, PatternRole, RoleDeclarationRole, StructRole,
@@ -59,9 +59,9 @@ fn run_required<'source>(
     }
     let (exit, found) = crate::parser::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
         In::new(&mut input, &mut recover, &mut output), primary, role, 0,
-        crate::parser::operator::STOP_WITH, crate::parser::type_expr::TypeOuterBoundary::WITH,
+        crate::parser::input::operator::STOP_WITH, crate::parser::type_expr::TypeOuterBoundary::WITH,
         next_origin, next_line, fence,
-        Some(crate::parser::ambient_claim::AmbientClaimView::root_statement(0)).into());
+        Some(crate::parser::context::ambient_claim::AmbientClaimView::root_statement(0)).into());
     let slots = output.recovery_slot_count();
     let diagnostics = output.diagnostic_position();
     output.finish_node();
@@ -274,8 +274,8 @@ pub(super) fn run_statement_records<'source>(
         origin,
         LineEntry::InLine,
         None,
-        Some(crate::parser::ambient_claim::AmbientClaimView::root_statement(0)).into(),
-        Some(crate::parser::sequence::SequenceOwner::RootStatement),
+        Some(crate::parser::context::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        Some(crate::parser::context::sequence::SequenceOwner::RootStatement),
     );
     if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
         emit_end(&mut output, end);
@@ -445,5 +445,10 @@ fn required_derives_role_preserves_the_nominal_declaration_terminator() {
 }
 
 fn field_missing(at: usize) -> CommittedRecoveryRecord {
-    super::record_field_recovery::field_record(0, TypeRole::RecordFieldType, at..at, false)
+    crate::parser::tests::type_expr::record_field_recovery::field_record(
+        0,
+        TypeRole::RecordFieldType,
+        at..at,
+        false,
+    )
 }

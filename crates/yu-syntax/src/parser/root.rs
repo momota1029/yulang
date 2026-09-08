@@ -15,21 +15,22 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::{
+use crate::parser::{
     ParserIn,
-    ambient_claim::AmbientClaimView,
-    current_item::LineEntry,
-    driver::{self, Either, MlMode, NormalizedExit},
-    emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
+    context::{ambient_claim::AmbientClaimView, sequence::SequenceOwner, state::Recover},
+    declaration::{operator_header, use_decl},
+    handoff::{Either, MlMode, NormalizedExit},
     header,
-    item::{Item, LeadingTrivia, TokenKind},
-    operator::STOP_SEMICOLON,
-    operator_header,
-    output::{ParserOutput, RecoveryDraft},
-    sequence::SequenceOwner,
-    state::Recover,
+    input::{
+        current_item::LineEntry,
+        item::{Item, LeadingTrivia, TokenKind},
+        operator::STOP_SEMICOLON,
+    },
+    output::{
+        ParserOutput, RecoveryDraft,
+        emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
+    },
     statement::{self, StatementLineHandoff},
-    use_decl,
 };
 
 pub(crate) struct RootCandidate {
@@ -79,9 +80,11 @@ pub(crate) fn parse_root_candidate(
             !item.payload_view().is_boundary(),
             "an unfenced Root cannot acquire an abstract fence"
         );
-        let root_line = driver::indentation_after_newline(item.leading_view()) == Some(0);
+        let root_line =
+            crate::parser::input::observation::indentation_after_newline(item.leading_view())
+                == Some(0);
         let physical_start = (entered_at_start || root_line)
-            && driver::indentation_after_newline(item.leading_view())
+            && crate::parser::input::observation::indentation_after_newline(item.leading_view())
                 .unwrap_or_else(|| usize::from(item.leading_view().has_ordinary_horizontal_gap()))
                 == 0;
         if item.payload_view().token_kind() == Some(TokenKind::Semicolon) {
@@ -102,7 +105,7 @@ pub(crate) fn parse_root_candidate(
         let is_operator = !is_use
             && i.rb()
                 .map(
-                    |lex: super::LexIn| Some(header::operator_selected(lex, &item, origin)),
+                    |lex: crate::parser::LexIn| Some(header::operator_selected(lex, &item, origin)),
                     |x| x,
                 )
                 .unwrap();
@@ -203,9 +206,9 @@ pub(crate) fn parse_root_candidate(
 }
 
 fn operator_body(mut i: ParserIn, origin: usize, line: LineEntry) -> NormalizedExit {
-    let (mut item, mut origin, mut line) = driver::expression_item(
+    let (mut item, mut origin, mut line) = crate::parser::input::expression::expression_item(
         i.rb(),
-        crate::parser::operator::OperatorSite::Nud,
+        crate::parser::input::operator::OperatorSite::Nud,
         origin,
         line,
         None,
@@ -233,7 +236,7 @@ fn operator_body(mut i: ParserIn, origin: usize, line: LineEntry) -> NormalizedE
         );
         return NormalizedExit::Complete(Err(Either::Left(item)), line);
     }
-    if item.leading_view().is_grammar_empty() && driver::is_nud_item(&item) {
+    if item.leading_view().is_grammar_empty() && crate::parser::expression::is_nud_item(&item) {
         let role = GrammarRole::Layout(LayoutRole::InlineTrivia);
         emit_recovery_missing(
             i.rb(),
@@ -252,7 +255,7 @@ fn operator_body(mut i: ParserIn, origin: usize, line: LineEntry) -> NormalizedE
     }
     item.emit_all_remaining_leading(&mut *i.state);
     let role = GrammarRole::Statement(StatementRole::OperatorDefinitionBody);
-    if !body_boundary(&item) && !driver::is_nud_item(&item) {
+    if !body_boundary(&item) && !crate::parser::expression::is_nud_item(&item) {
         (item, origin, line) = emit_recovery_error_run(
             i.rb(),
             |run| {
@@ -266,9 +269,9 @@ fn operator_body(mut i: ParserIn, origin: usize, line: LineEntry) -> NormalizedE
                         .unwrap_or(SyntaxKind::Operator);
                     let end = run.emit_item_as(item, origin, kind).recovery_range().end;
                     (item, origin, line) = run.lexical(|lex| {
-                        driver::scan_expression_item_lexical(
+                        crate::parser::input::expression::scan_expression_item_lexical(
                             lex,
-                            crate::parser::operator::OperatorSite::Nud,
+                            crate::parser::input::operator::OperatorSite::Nud,
                             origin,
                             line,
                             None,
@@ -276,7 +279,7 @@ fn operator_body(mut i: ParserIn, origin: usize, line: LineEntry) -> NormalizedE
                             STOP_SEMICOLON,
                         )
                     });
-                    if body_boundary(&item) || driver::is_nud_item(&item) {
+                    if body_boundary(&item) || crate::parser::expression::is_nud_item(&item) {
                         run.append_unexpected(UnexpectedSyntax::Token {
                             range: start..end,
                             category: UnexpectedCategory::OtherCharacter,
@@ -313,7 +316,7 @@ fn operator_body(mut i: ParserIn, origin: usize, line: LineEntry) -> NormalizedE
         return NormalizedExit::Complete(Err(Either::Left(item)), line);
     }
     item.emit_all_remaining_leading(&mut *i.state);
-    driver::expr_from_nud_normalized(
+    crate::parser::expression::expr_from_nud_normalized(
         i,
         item,
         None,
@@ -339,7 +342,7 @@ fn body_boundary(item: &Item) -> bool {
                 TokenKind::Semicolon | TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace
             )
         )
-        || (!driver::is_nud_item(item)
+        || (!crate::parser::expression::is_nud_item(item)
             && matches!(
                 item.payload_view().token_kind(),
                 Some(TokenKind::LBracket | TokenKind::LBrace)
@@ -419,7 +422,9 @@ fn root_error(
                     || item.payload_view().is_boundary()
                     || (closes.is_empty()
                         && (item.payload_view().token_kind() == Some(TokenKind::Semicolon)
-                            || driver::indentation_after_newline(item.leading_view()) == Some(0)))
+                            || crate::parser::input::observation::indentation_after_newline(
+                                item.leading_view(),
+                            ) == Some(0)))
                 {
                     let range = start..end;
                     run.append_unexpected(match role {

@@ -1,5 +1,5 @@
-use super::delimited::close_record;
-use super::*;
+use crate::parser::tests::pattern::recovery::delimited::close_record;
+use crate::parser::tests::pattern::recovery::*;
 use crate::session::{ConstructRole, Delimiter, PunctuationEvidence};
 
 #[test]
@@ -294,7 +294,7 @@ fn record_default_accepted_expression_controls_retain_canonical_products() {
 
 #[test]
 fn record_default_exact_equals_rejection_preserves_the_original_literal_controls() {
-    use crate::parser::lexer::scan_exact_equals;
+    use crate::parser::input::lexer::scan_exact_equals;
     let operators = OperatorTable::empty();
     for source in ["{a=\"x\"}", "{a=~\"r\"}"] {
         let mut recover = Recover::new(&operators);

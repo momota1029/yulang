@@ -1,6 +1,6 @@
 //! Named record type owner and its local recovery.
 
-use super::super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
@@ -13,20 +13,7 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::super::{
-    LexIn, ParserIn, Stops,
-    current_item::{AcceptedPayload, CurrentPayload, LineEntry},
-    driver::{
-        Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
-    },
-    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
-    item::{Item, LeadingTrivia, Token, TokenKind},
-    lexer::{scan_exact_pipe, scan_type_nud_payload},
-    operator::{TriviaObservation, observe_fenced_trivia},
-    output::RecoveryDraft,
-    yumark::FenceBoundary,
-};
-use super::{
+use crate::parser::type_expr::{
     TypeApplyBoundary, TypeMlContext, TypeOuterBoundary, continue_type_tail_normalized,
     is_type_caller_boundary, is_type_caller_boundary_parts, is_type_implicit_boundary,
     is_type_mismatched_close, is_type_nud, is_type_outer_close, is_type_record_field_boundary,
@@ -35,6 +22,23 @@ use super::{
     type_nud_item_with_pipe_lexical_normalized,
     type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
     with_type_outer_close,
+};
+use crate::parser::{
+    LexIn, ParserIn, Stops,
+    handoff::{Either, NormalizedExit, complete, handoff},
+    input::{
+        current_item::{AcceptedPayload, CurrentPayload, LineEntry},
+        item::{Item, LeadingTrivia, Token, TokenKind},
+        lexer::{scan_exact_pipe, scan_type_nud_payload},
+        observation::token_kind,
+        operator::{TriviaObservation, observe_fenced_trivia},
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
+    },
+    output::{
+        RecoveryDraft,
+        emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
+    },
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -797,7 +801,7 @@ fn type_record_colon_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let colon_stops = caller_stops & !super::super::operator::STOP_COLON;
+    let colon_stops = caller_stops & !crate::parser::input::operator::STOP_COLON;
     let mut at_boundary = is_record_field_slot_boundary(&colon, baseline, colon_stops);
     let recovered =
         !at_boundary && !is_record_colon_kind(token_kind(&colon)) && !is_type_nud(&colon);

@@ -1,6 +1,8 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::{
-    parser::{ambient_claim::AmbientClaimView, driver::MlMode, statement::StatementLineHandoff},
+    parser::{
+        context::ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff,
+    },
     session::{
         CaseLikeRole, DiagnosticId, ExpectationSources, ExpectedSyntax, ExpressionRole,
         ForStatementRole, GrammarRole, IfExpressionRole, RecoveryKind, RecoverySiteKey,
@@ -29,7 +31,7 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
     };
     output.start_node(SyntaxKind::Root.into());
     output.start_node(SyntaxKind::OperatorChain.into());
-    let (item, origin, line) = crate::parser::driver::expression_item(
+    let (item, origin, line) = crate::parser::input::expression::expression_item(
         In::new(&mut input, &mut recover, &mut output),
         OperatorSite::Nud,
         0,
@@ -38,7 +40,7 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
         0,
         stops,
     );
-    let exit = crate::parser::driver::required_expr_item_normalized(
+    let exit = crate::parser::expression::required_expr_item_normalized(
         In::new(&mut input, &mut recover, &mut output),
         item,
         role,
@@ -77,7 +79,10 @@ fn assert_expression_record(
         record.expectations,
         Arc::from([SyntaxExpectation {
             role,
-            expected: ExpectedSyntax::Expression,
+            expected: match role {
+                GrammarRole::ForStatement(ForStatementRole::Body) => ExpectedSyntax::Statement,
+                _ => ExpectedSyntax::Expression,
+            },
             range: range.clone(),
             sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
         }]),
@@ -131,10 +136,20 @@ fn expression_with_recoveries(
 fn statement_with_recoveries(
     source: &str,
 ) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
+    statement_with_frozen_recoveries(source, None)
+}
+
+fn statement_with_frozen_recoveries(
+    source: &str,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new(&operators);
-    let mut output = GreenNodeBuilder::new();
+    let mut output = match frozen {
+        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        None => GreenNodeBuilder::new(),
+    };
     output.start_node(SyntaxKind::Root.into());
     let mut exit = crate::parser::statement::statement_normalized(
         In::new(&mut input, &mut recover, &mut output),
@@ -144,7 +159,7 @@ fn statement_with_recoveries(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
-        Some(crate::parser::sequence::SequenceOwner::RootStatement),
+        Some(crate::parser::context::sequence::SequenceOwner::RootStatement),
     );
     if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
         emit_end(&mut output, end);
@@ -184,7 +199,7 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
 
     let mut input = " ]";
     output.start_node(SyntaxKind::OperatorChain.into());
-    let (item, origin, line) = crate::parser::driver::expression_item(
+    let (item, origin, line) = crate::parser::input::expression::expression_item(
         In::new(&mut input, &mut recover, &mut output),
         OperatorSite::Nud,
         0,
@@ -193,7 +208,7 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
         0,
         0,
     );
-    let exit = crate::parser::driver::required_expr_item_normalized(
+    let exit = crate::parser::expression::required_expr_item_normalized(
         In::new(&mut input, &mut recover, &mut output),
         item,
         GrammarRole::Expression(ExpressionRole::Nud),
@@ -243,10 +258,15 @@ fn required_operand_boundaries_keep_items_except_ordinary_eof_leading() {
     for (source, stops, expected_green, range) in [
         ("", 0, "", 0..0),
         (" ", 0, " ", 1..1),
-        (",", super::super::operator::STOP_COMMA, "", 0..0),
+        (",", crate::parser::input::operator::STOP_COMMA, "", 0..0),
         ("]", 0, "", 0..0),
         ("[", 0, "", 0..0),
-        ("\r\n", super::super::operator::STOP_LINE_BREAK, "", 0..0),
+        (
+            "\r\n",
+            crate::parser::input::operator::STOP_LINE_BREAK,
+            "",
+            0..0,
+        ),
     ] {
         let (green, exit, remainder, records) =
             direct_required_expr_with_recoveries(source, role, stops, None);
@@ -291,7 +311,12 @@ fn required_operand_error_run_is_typed_retries_and_reconciles() {
     ));
 
     let (_, boundary_exit, boundary_remainder, boundary_records) =
-        direct_required_expr_with_recoveries("@ ,", role, super::super::operator::STOP_COMMA, None);
+        direct_required_expr_with_recoveries(
+            "@ ,",
+            role,
+            crate::parser::input::operator::STOP_COMMA,
+            None,
+        );
     assert_eq!(boundary_records.len(), 1);
     assert_expression_record(&boundary_records[0], role, RecoveryKind::Error, 0..1);
     assert!(matches!(
@@ -308,6 +333,174 @@ fn required_operand_error_run_is_typed_retries_and_reconciles() {
     let (_, _, infix_records) = expression_with_recoveries("a + @ b", &operators);
     assert_eq!(infix_records.len(), 1);
     assert_expression_record(&infix_records[0], role, RecoveryKind::Error, 4..5);
+}
+
+#[test]
+fn required_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
+    let role = GrammarRole::ForStatement(ForStatementRole::Body);
+    for (source, kind, range) in [
+        (" ]", RecoveryKind::Missing, 0..0),
+        (" @", RecoveryKind::Error, 1..2),
+    ] {
+        let (green, _, remainder, records) =
+            direct_required_expr_with_recoveries(source, role, 0, None);
+        assert_eq!(records.len(), 1);
+        assert_expression_record(&records[0], role, kind, range);
+        assert_eq!(
+            records[0].expectations[0].expected,
+            ExpectedSyntax::Statement
+        );
+        let (reconciled_green, _, reconciled_remainder, reconciled) =
+            direct_required_expr_with_recoveries(source, role, 0, Some(&records));
+        assert_eq!(reconciled_green, green);
+        assert_eq!(reconciled_remainder, remainder);
+        assert_eq!(reconciled, records);
+    }
+}
+
+#[test]
+fn actual_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
+    let role = GrammarRole::ForStatement(ForStatementRole::Body);
+    for (source, kind, range, emitted) in [
+        (
+            "for x in xs: ]",
+            RecoveryKind::Missing,
+            13..13,
+            "for x in xs: ",
+        ),
+        (
+            "for x in xs: @",
+            RecoveryKind::Error,
+            13..14,
+            "for x in xs: @",
+        ),
+    ] {
+        let (green, exit, records) = statement_with_frozen_recoveries(source, None);
+        assert_eq!(green.to_string(), emitted);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id, DiagnosticId(0));
+        assert_expression_record(&records[0], role, kind, range.clone());
+        assert_eq!(
+            records[0].expectations[0].expected,
+            ExpectedSyntax::Statement
+        );
+        let root = SyntaxNode::new_root(green.clone());
+        let expected_body = match kind {
+            RecoveryKind::Missing => "        Missing@13..13\n",
+            RecoveryKind::Error => "        Error@13..14\n          Unknown@13..14 \"@\"\n",
+        };
+        assert_eq!(
+            format!("{root:#?}"),
+            format!(
+                concat!(
+                    "Root@0..{end}\n",
+                    "  Statement@0..{end}\n",
+                    "    ForStatement@0..{end}\n",
+                    "      ForKw@0..3 \"for\"\n",
+                    "      Whitespace@3..4 \" \"\n",
+                    "      Pattern@4..5\n",
+                    "        IdentifierPattern@4..5\n",
+                    "          Identifier@4..5 \"x\"\n",
+                    "      Whitespace@5..6 \" \"\n",
+                    "      InKw@6..8 \"in\"\n",
+                    "      Whitespace@8..9 \" \"\n",
+                    "      ForIterable@9..11\n",
+                    "        OperatorChain@9..11\n",
+                    "          IdentifierExpression@9..11\n",
+                    "            Identifier@9..11 \"xs\"\n",
+                    "      Colon@11..12 \":\"\n",
+                    "      Whitespace@12..13 \" \"\n",
+                    "      OperatorChain@13..{end}\n",
+                    "{expected_body}",
+                ),
+                end = range.end,
+                expected_body = expected_body,
+            )
+        );
+        let recovery_kind = match kind {
+            RecoveryKind::Missing => SyntaxKind::Missing,
+            RecoveryKind::Error => SyntaxKind::Error,
+        };
+        let recovery_nodes: Vec<_> = root
+            .descendants()
+            .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            .collect();
+        assert_eq!(recovery_nodes.len(), 1);
+        let recovery = &recovery_nodes[0];
+        assert_eq!(recovery.kind(), recovery_kind);
+        assert_eq!(usize::from(recovery.text_range().start()), range.start);
+        assert_eq!(usize::from(recovery.text_range().end()), range.end);
+        let chain = recovery.parent().expect("inline body chain");
+        assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+        assert_eq!(chain.parent().unwrap().kind(), SyntaxKind::ForStatement);
+        match kind {
+            RecoveryKind::Missing => {
+                let NormalizedExit::Complete(Err(Either::Left(item)), _) = &exit else {
+                    panic!("the body close must remain pending")
+                };
+                assert_eq!(token_kind(item), Some(TokenKind::RBracket));
+                assert_eq!(recovery.to_string(), "");
+            }
+            RecoveryKind::Error => {
+                assert!(matches!(
+                    exit,
+                    NormalizedExit::Complete(Err(Either::Right(_)), _)
+                ));
+                assert_eq!(recovery.to_string(), "@");
+            }
+        }
+        let (reconciled_green, reconciled_exit, reconciled) =
+            statement_with_frozen_recoveries(source, Some(&records));
+        assert_eq!(reconciled_green, green);
+        for candidate in [&exit, &reconciled_exit] {
+            let item = match candidate {
+                NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine)
+                    if kind == RecoveryKind::Missing =>
+                {
+                    item
+                }
+                NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine)
+                    if kind == RecoveryKind::Error =>
+                {
+                    assert!(end.item.payload_view().is_eof());
+                    &end.item
+                }
+                _ => panic!("fresh and frozen inline bodies must preserve the InLine handoff"),
+            };
+            let extent = item.extent(source.len());
+            match kind {
+                RecoveryKind::Missing => {
+                    assert_eq!(extent.physical(), 12..14);
+                    assert_eq!(extent.leading(), 12..13);
+                    assert_eq!(extent.remaining(), 13..13);
+                    assert_eq!(extent.payload(), 13..14);
+                    assert_eq!(extent.recovery_range(), 13..14);
+                }
+                RecoveryKind::Error => {
+                    assert_eq!(extent.physical(), 14..14);
+                    assert_eq!(extent.leading(), 14..14);
+                    assert_eq!(extent.remaining(), 14..14);
+                    assert_eq!(extent.payload(), 14..14);
+                    assert_eq!(extent.recovery_range(), 14..14);
+                }
+            }
+        }
+        match (exit, reconciled_exit) {
+            (
+                NormalizedExit::Complete(Err(Either::Left(item)), line),
+                NormalizedExit::Complete(Err(Either::Left(reconciled_item)), reconciled_line),
+            ) => {
+                assert_eq!(token_kind(&reconciled_item), token_kind(&item));
+                assert_eq!(reconciled_line, line);
+            }
+            (
+                NormalizedExit::Complete(Err(Either::Right(_)), line),
+                NormalizedExit::Complete(Err(Either::Right(_)), reconciled_line),
+            ) => assert_eq!(reconciled_line, line),
+            _ => panic!("reconciliation must preserve the body handoff"),
+        }
+        assert_eq!(reconciled, records);
+    }
 }
 
 #[test]

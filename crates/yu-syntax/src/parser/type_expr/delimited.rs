@@ -1,6 +1,6 @@
 //! Type delimiter recovery shared by groups, calls, effect rows, and bracket rows.
 
-use super::super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -14,25 +14,29 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::super::{
-    ParserIn, Stops,
-    current_item::LineEntry,
-    driver::{
-        Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
-    },
-    emit::{
-        CallArgumentRetryLeadingSeal, emit_recovery_error_item, emit_recovery_error_run,
-        emit_recovery_missing, emit_token_item,
-    },
-    item::{Item, LeadingTrivia, TokenKind},
-    output::RecoveryDraft,
-    yumark::FenceBoundary,
-};
-use super::{
+use crate::parser::type_expr::{
     TypeMlContext, TypeOuterBoundary, is_type_caller_boundary, is_type_deeper_newline,
     is_type_implicit_boundary, is_type_mismatched_close, is_type_nud, is_type_outer_close,
     is_type_separator, type_chain_trivia, type_delimited_baseline, type_expr_from_nud_normalized,
     type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
+};
+use crate::parser::{
+    ParserIn, Stops,
+    handoff::{Either, NormalizedExit, complete, handoff},
+    input::{
+        current_item::LineEntry,
+        item::{Item, LeadingTrivia, TokenKind},
+        observation::token_kind,
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
+    },
+    output::{
+        RecoveryDraft,
+        emit::{
+            CallArgumentRetryLeadingSeal, emit_recovery_error_item, emit_recovery_error_run,
+            emit_recovery_missing, emit_token_item,
+        },
+    },
 };
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -147,9 +151,11 @@ pub(super) fn type_delimited_normalized(
             item.emit_all_remaining_leading(&mut *i.state);
             let unexpected = UnexpectedSyntax::Token {
                 range: item.extent(item_origin).recovery_range(),
-                category: super::required_type_primary_unexpected_category(&item),
+                category: crate::parser::type_expr::required_type_primary_unexpected_category(
+                    &item,
+                ),
             };
-            let kind = super::type_recovery_error_syntax_kind(&item);
+            let kind = crate::parser::type_expr::type_recovery_error_syntax_kind(&item);
             emit_recovery_error_item(
                 i.rb(),
                 item,
@@ -668,13 +674,13 @@ fn retry_type_noncall_item_normalized(
         |run| {
             let start = item.extent(item_origin).recovery_range().start;
             loop {
-                let kind = super::type_recovery_error_syntax_kind(&item);
+                let kind = crate::parser::type_expr::type_recovery_error_syntax_kind(&item);
                 let end = run
                     .emit_item_as(item, item_origin, kind)
                     .recovery_range()
                     .end;
                 (item, item_origin, line_entry) =
-                    super::type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    crate::parser::type_expr::type_nud_item_with_pipe_lexical_normalized_in_error_run(
                         run,
                         item_origin,
                         line_entry,
@@ -703,7 +709,9 @@ fn retry_type_noncall_item_normalized(
                 }
             }
         },
-        |range, unexpected| super::type_expression_error_draft(role, range, unexpected),
+        |range, unexpected| {
+            crate::parser::type_expr::type_expression_error_draft(role, range, unexpected)
+        },
     );
     resume_type_delimited_error_normalized(
         i,
@@ -825,7 +833,7 @@ fn retry_type_call_argument_normalized(
                 error_extent = Some(item_extent);
             }
             (item, item_origin, line_entry) =
-                super::type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                crate::parser::type_expr::type_nud_item_with_pipe_lexical_normalized_in_error_run(
                     run,
                     item_origin,
                     line_entry,
@@ -864,7 +872,11 @@ fn retry_type_call_argument_normalized(
             }
         },
         |range, unexpected| {
-            super::type_expression_error_draft(TypeRole::CallArgument, range, unexpected)
+            crate::parser::type_expr::type_expression_error_draft(
+                TypeRole::CallArgument,
+                range,
+                unexpected,
+            )
         },
     );
 
@@ -1044,9 +1056,9 @@ fn retry_bracket_row_close_normalized(
         item.emit_all_remaining_leading(&mut *i.state);
         let unexpected = UnexpectedSyntax::Token {
             range: item.extent(item_origin).recovery_range(),
-            category: super::required_type_primary_unexpected_category(&item),
+            category: crate::parser::type_expr::required_type_primary_unexpected_category(&item),
         };
-        let kind = super::type_recovery_error_syntax_kind(&item);
+        let kind = crate::parser::type_expr::type_recovery_error_syntax_kind(&item);
         emit_recovery_error_item(
             i.rb(),
             item,
@@ -1182,7 +1194,7 @@ fn missing_delimited_close(
     owner: TypeDelimitedOwner,
     baseline: usize,
     item_origin: usize,
-) -> super::super::driver::TailExit {
+) -> crate::parser::handoff::TailExit {
     if owner != TypeDelimitedOwner::BracketRow
         || !is_type_implicit_boundary(baseline, item.leading_view())
     {
@@ -1217,7 +1229,7 @@ fn emit_delimited_item_missing(
     };
     let at = delimited_missing_anchor(item, item_origin);
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        super::type_expression_missing_draft(GrammarRole::Type(role), range)
+        crate::parser::type_expr::type_expression_missing_draft(GrammarRole::Type(role), range)
     });
 }
 

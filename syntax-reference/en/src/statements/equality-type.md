@@ -165,7 +165,7 @@ outside this syntax contract.
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/type_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/declaration/type_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_type_statement_intro`, `parse_type_declaration_header_slots`,

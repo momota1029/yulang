@@ -17,21 +17,21 @@ use crate::{
     },
 };
 
-use super::super::{
-    emit::{
-        CallArgumentRetryLeadingSeal, PathSegmentRetryLeadingSeal, emit_recovery_error_item,
-        emit_recovery_error_run, emit_recovery_missing,
-    },
-    item::{
+use crate::parser::{
+    context::state::Recover,
+    input::item::{
         Boundary, ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary,
         PhysicalLeadingTrivia, StopKind, Token, TokenKind, Trivia,
     },
     output::{
         ParserOutput, RecoveryDraft, StructuredRecoverySpec,
+        emit::{
+            CallArgumentRetryLeadingSeal, PathSegmentRetryLeadingSeal, emit_recovery_error_item,
+            emit_recovery_error_run, emit_recovery_missing,
+        },
         emit_structured_recovery_error_from_item,
     },
     rule::rule_item_unexpected_category,
-    state::Recover,
     statement::classify_statement_item_normalized,
 };
 

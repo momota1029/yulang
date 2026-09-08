@@ -1,6 +1,6 @@
 //! Effect-row and polymorphic-variant type primaries.
 
-use super::super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -14,20 +14,7 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::super::{
-    ParserIn, Stops,
-    current_item::LineEntry,
-    driver::{
-        Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
-    },
-    emit::{
-        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
-    },
-    item::{Item, LeadingTrivia, TokenKind},
-    output::{RecoveryDraft, StructuredRecoverySpec, emit_structured_recovery_error_from_item},
-    yumark::FenceBoundary,
-};
-use super::{
+use crate::parser::type_expr::{
     TypeApplyBoundary, TypeDelimitedOwner, TypeMlContext, TypeOuterBoundary,
     continue_type_tail_normalized, indentation_after_newline, is_type_caller_boundary,
     is_type_mismatched_close, is_type_nud, is_type_outer_close, is_type_payload_boundary,
@@ -36,6 +23,25 @@ use super::{
     type_nud_item_with_pipe_lexical_normalized,
     type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
     with_type_outer_close,
+};
+use crate::parser::{
+    ParserIn, Stops,
+    handoff::{Either, NormalizedExit, complete, handoff},
+    input::{
+        current_item::LineEntry,
+        item::{Item, LeadingTrivia, TokenKind},
+        observation::token_kind,
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
+    },
+    output::{
+        RecoveryDraft, StructuredRecoverySpec,
+        emit::{
+            emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
+            emit_token_item,
+        },
+        emit_structured_recovery_error_from_item,
+    },
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -121,7 +127,7 @@ pub(super) fn type_polymorphic_variant_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     #[cfg(test)]
-    ambient.observe(super::super::ambient_claim::ProofSite::PolymorphicVariant);
+    ambient.observe(crate::parser::context::ambient_claim::ProofSite::PolymorphicVariant);
     i.state
         .start_node(SyntaxKind::PolymorphicVariantType.into());
     emit_token_item(&mut i, colon);

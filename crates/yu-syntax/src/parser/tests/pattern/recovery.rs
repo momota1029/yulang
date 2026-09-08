@@ -1,11 +1,12 @@
-use super::*;
+use crate::parser::tests::pattern::*;
 use crate::{
     parser::{
-        ambient_claim::AmbientClaimView,
-        emit::emit_recovery_missing,
-        item::LeadingTrivia,
-        lexer::{scan_identifier, scan_pattern_payload},
-        output::RecoveryDraft,
+        context::ambient_claim::AmbientClaimView,
+        input::{
+            item::LeadingTrivia,
+            lexer::{scan_identifier, scan_pattern_payload},
+        },
+        output::{RecoveryDraft, emit::emit_recovery_missing},
         pattern::PATTERN_STOP_IN,
     },
     session::{
@@ -427,8 +428,8 @@ fn assert_pending_control(run: &PatternRun<'_>, suffix: &str, origin: usize, con
         |lex, leading, at, fence, _| scan_pattern_payload(lex, leading, at, fence, context.stops),
     )
     .unwrap();
-    let expected = crate::parser::driver::complete(
-        crate::parser::driver::handoff(current.item),
+    let expected = crate::parser::handoff::complete(
+        crate::parser::handoff::handoff(current.item),
         current.next_line_entry,
     );
     assert_same_exit(&run.exit, &expected);

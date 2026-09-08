@@ -1,22 +1,24 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::parser::{
-    current_item::{LineEntry, current_item, scan_identifier_item_witness},
-    driver::handoff,
-    emit::{emit_identifier_core, emit_literal_item, emit_token_item},
-    item::{
-        BorrowedTarget, Boundary, ForeignSplit, FragmentError, Item, LeadingTrivia, Payload,
-        PhysicalLeadingTrivia, StopKind, Token,
+    handoff::handoff,
+    input::{
+        current_item::{LineEntry, current_item, scan_identifier_item_witness},
+        item::{
+            BorrowedTarget, Boundary, ForeignSplit, FragmentError, Item, LeadingTrivia, Payload,
+            PhysicalLeadingTrivia, StopKind, Token,
+        },
+        lexer::{
+            FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part,
+            scan_nud_payload, scan_pattern_nud_payload, scan_statement_item, scan_type_nud_payload,
+            source_declaration_head,
+        },
+        operator::{
+            TriviaObservation, lone_colon_after_fenced_trivia, observe_fenced_trivia,
+            observe_fenced_trivia_with_newline, scan_operator_fenced,
+        },
+        yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
     },
-    lexer::{
-        FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part,
-        scan_nud_payload, scan_pattern_nud_payload, scan_statement_item, scan_type_nud_payload,
-        source_declaration_head,
-    },
-    operator::{
-        TriviaObservation, lone_colon_after_fenced_trivia, observe_fenced_trivia,
-        observe_fenced_trivia_with_newline, scan_operator_fenced,
-    },
-    yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy, QuoteTransitionKind},
+    output::emit::{emit_identifier_core, emit_literal_item, emit_token_item},
 };
 
 #[test]
@@ -52,7 +54,7 @@ fn fenced_boundary_item<'source>(
     let mut recover = Recover::new(&operators);
     let mut input = &root[item_start..];
     let item_origin = checked_source_coordinate(root, input);
-    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
+    let mut i: crate::parser::LexIn = In::new(&mut input, &mut recover, ());
     let mut leading = Vec::new();
     while let Some(part) = i.token(scan_fenced_prior_trivia_part) {
         leading.push(part);
@@ -130,13 +132,13 @@ fn emit_accepted_identifier(item: Item) -> GreenNode {
 fn emit_accepted_end(item: Item) -> GreenNode {
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let mut end = crate::parser::driver::End { item };
+    let mut end = crate::parser::handoff::End { item };
     emit_end(&mut builder, &mut end);
     builder.finish_node();
     builder.finish()
 }
 
-fn emit_accepted_boundary(item: Item) -> (GreenNode, super::super::item::PendingBoundary) {
+fn emit_accepted_boundary(item: Item) -> (GreenNode, crate::parser::input::item::PendingBoundary) {
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let boundary = item.emit_terminal_boundary(&mut builder);
@@ -507,7 +509,7 @@ fn current_item_rolls_back_an_optional_payload_after_tentative_leading_scan() {
         LineEntry::InLine,
         None,
         |mut payload, _, _, _, _| {
-            let _ = payload.token(crate::parser::lexer::scan_identifier)?;
+            let _ = payload.token(crate::parser::input::lexer::scan_identifier)?;
             None
         },
     );
@@ -1038,7 +1040,7 @@ fn fenced_comment_segments_only_one_post_marker_horizontal_byte_as_prefix() {
     let mut recover = Recover::new(&operators);
     let mut input = source;
     let mut foreign = None;
-    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
+    let mut i: crate::parser::LexIn = In::new(&mut input, &mut recover, ());
     let outcome = i
         .token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign))
         .expect("complete fenced block comment");
@@ -1189,7 +1191,7 @@ fn fenced_comment_nonmatch_restores_source_and_preserves_sentinel_splits() {
     let mut input = source;
     let sentinel = ForeignSplit::quote_prefix(900, 1);
     let mut foreign = Some(vec![sentinel]);
-    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
+    let mut i: crate::parser::LexIn = In::new(&mut input, &mut recover, ());
     let result =
         i.token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign));
 
@@ -1206,7 +1208,7 @@ fn fenced_comment_can_complete_only_at_zero_nested_depth() {
     let mut recover = Recover::new(&operators);
     let mut input = source;
     let mut foreign = None;
-    let mut i: super::super::LexIn = In::new(&mut input, &mut recover, ());
+    let mut i: crate::parser::LexIn = In::new(&mut input, &mut recover, ());
     let outcome = i
         .token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign))
         .expect("complete fenced block comment");

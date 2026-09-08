@@ -1,10 +1,10 @@
 //! Direct owners for Pattern's three comma-or-layout delimited primaries.
 
-use super::super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{
-    parser::operator::OperatorSite,
+    parser::input::operator::OperatorSite,
     session::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole,
         PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
@@ -14,30 +14,36 @@ use crate::{
 };
 use std::sync::Arc;
 
-use super::{
-    super::{
+use crate::parser::{
+    expression::is_nud_item,
+    handoff::{Either, MlMode, NormalizedExit, complete, handoff},
+    input::{
         current_item::LineEntry,
-        driver::{
-            Either, MlMode, NormalizedExit, advanced_origin, complete, delimited_baseline,
-            expression_item, handoff, implicit_delimited_newline, is_nud_item, suffix_marker,
-            token_kind,
-        },
+        expression::expression_item,
+        item::{Item, LeadingTrivia, LeadingView, TokenKind},
+        observation::{delimited_baseline, implicit_delimited_newline, token_kind},
+        operator::stops_for,
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
+    },
+    output::{
+        RecoveryDraft, StructuredRecoverySpec,
         emit::{
             emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
             emit_token_item, token_syntax_kind,
         },
-        item::{Item, LeadingTrivia, LeadingView, TokenKind},
-        operator::stops_for,
-        output::{RecoveryDraft, StructuredRecoverySpec, emit_structured_recovery_error_from_item},
-        statement::StatementLineHandoff,
-        yumark::FenceBoundary,
+        emit_structured_recovery_error_from_item,
     },
-    PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
-    PATTERN_STOP_RPAREN, ParserIn, PatternCallerCloses, PatternCompletion,
-    PatternMandatorySlotPolicy, PatternPrecedence, PatternScan, PatternStops, emit_pattern_missing,
-    is_pattern_nud, pattern_from_item_recording_with_policy_normalized, pattern_item_normalized,
-    pattern_nud_item_normalized, pattern_primary_stop_token, pattern_recovery_draft,
-    pattern_tail_normalized, scan_pattern_item_lexical, scan_pattern_tail_normalized,
+    pattern::{
+        PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
+        PATTERN_STOP_RPAREN, ParserIn, PatternCallerCloses, PatternCompletion,
+        PatternMandatorySlotPolicy, PatternPrecedence, PatternScan, PatternStops,
+        emit_pattern_missing, is_pattern_nud, pattern_from_item_recording_with_policy_normalized,
+        pattern_item_normalized, pattern_nud_item_normalized, pattern_primary_stop_token,
+        pattern_recovery_draft, pattern_tail_normalized, scan_pattern_item_lexical,
+        scan_pattern_tail_normalized,
+    },
+    statement::StatementLineHandoff,
 };
 
 #[derive(Clone, Copy)]
@@ -859,7 +865,7 @@ fn record_default_after_equals(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_token_item(&mut i, equals);
-    let sequence = Some(super::super::sequence::SequenceOwner::RecordPattern);
+    let sequence = Some(crate::parser::context::sequence::SequenceOwner::RecordPattern);
     let expression_stops = stops_for(TokenKind::RBrace);
     let (mut rhs, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -876,7 +882,7 @@ fn record_default_after_equals(
     if !protected && is_nud_item(&rhs) {
         let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
         rhs.emit_all_remaining_leading(&mut *i.state);
-        return super::super::driver::expr_from_nud_normalized(
+        return crate::parser::expression::expr_from_nud_normalized(
             i,
             rhs,
             None,

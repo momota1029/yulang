@@ -11,17 +11,21 @@ use crate::{
 use reborrow_generic::Reborrow as _;
 use std::{ops::Range, sync::Arc};
 
-use super::{
+use crate::parser::{
     LexIn, ParserIn,
-    current_item::LineEntry,
-    emit::{emit_literal_item, emit_recovery_error_run, emit_recovery_missing},
-    item::{
-        ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, PhysicalLeadingTrivia, Token,
-        TokenKind,
+    input::{
+        current_item::LineEntry,
+        item::{
+            ForeignSplit, Item, LeadingTrivia, Payload, PendingFragments, PhysicalLeadingTrivia,
+            Token, TokenKind,
+        },
+        yumark::{AcceptedQuotePrefix, FenceBoundary, FenceLineDecision, judge_fence_line},
     },
-    output::RecoveryDraft,
+    output::{
+        RecoveryDraft,
+        emit::{emit_literal_item, emit_recovery_error_run, emit_recovery_missing},
+    },
     virtual_statement_block::{VirtualStatementBlockExit, virtual_statement_block_normalized},
-    yumark::{AcceptedQuotePrefix, FenceBoundary, FenceLineDecision, judge_fence_line},
 };
 
 mod rule_literal;
@@ -232,7 +236,7 @@ pub(super) fn string_literal_with_virtual_statements_normalized(
     mode: StringMode,
     part_origin: usize,
     fence: Option<&FenceBoundary>,
-    ambient: super::ambient_claim::AmbientClaimContext<'_>,
+    ambient: crate::parser::context::ambient_claim::AmbientClaimContext<'_>,
 ) -> NormalizedStringLiteralExit {
     string_literal_with_interpolation_body(
         i,

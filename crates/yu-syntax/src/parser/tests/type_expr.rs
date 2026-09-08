@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 use std::{
     ops::Range,
@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
 use crate::session::{
     ConstructRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
     PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
@@ -332,14 +332,14 @@ fn run_required_type_with_recoveries<'source, 'frozen>(
     };
     output.start_node(SyntaxKind::Root.into());
     let (primary, successor_origin, next_line_entry) =
-        super::super::type_expr::type_nud_item_normalized(
+        crate::parser::type_expr::type_nud_item_normalized(
             In::new(&mut input, &mut recover, &mut output),
             item_origin,
             line_entry,
             fence,
         );
     let (mut exit, primary_found) =
-        super::super::type_expr::required_type_expr_with_caller_stops_and_completion_normalized(
+        crate::parser::type_expr::required_type_expr_with_caller_stops_and_completion_normalized(
             In::new(&mut input, &mut recover, &mut output),
             primary,
             0,
@@ -358,7 +358,7 @@ fn run_required_type_with_recoveries<'source, 'frozen>(
 
 fn run_type_with_context_and_recoveries<'frozen>(
     source: &str,
-    type_ml: super::super::type_expr::TypeMlContext,
+    type_ml: crate::parser::type_expr::TypeMlContext,
     frozen: Option<&'frozen [CommittedRecoveryRecord]>,
 ) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
@@ -369,7 +369,7 @@ fn run_type_with_context_and_recoveries<'frozen>(
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
-    let (mut exit, _) = super::super::type_expr::type_expr_with_context_for_test(
+    let (mut exit, _) = crate::parser::type_expr::type_expr_with_context_for_test(
         In::new(&mut input, &mut recover, &mut output),
         type_ml,
         0,
@@ -398,7 +398,7 @@ struct ContextualTypeRun<'source> {
 #[allow(clippy::too_many_arguments)]
 fn run_contextual_type_snapshot<'source, 'frozen>(
     source: &'source str,
-    type_ml: super::super::type_expr::TypeMlContext,
+    type_ml: crate::parser::type_expr::TypeMlContext,
     caller_stops: Stops,
     outer_closes: u8,
     item_origin: usize,
@@ -418,7 +418,7 @@ fn run_contextual_type_snapshot<'source, 'frozen>(
     output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut output);
     let (mut exit, successor_origin) =
-        super::super::type_expr::type_expr_with_context_and_boundaries_for_test(
+        crate::parser::type_expr::type_expr_with_context_and_boundaries_for_test(
             In::new(&mut input, &mut recover, &mut output),
             type_ml,
             caller_stops,
@@ -456,7 +456,7 @@ fn assert_complete_type_recovery(
     let run = |frozen| {
         run_contextual_type_snapshot(
             source,
-            super::super::type_expr::TypeMlContext::INACTIVE,
+            crate::parser::type_expr::TypeMlContext::INACTIVE,
             0,
             0,
             origin,
@@ -532,27 +532,30 @@ fn assert_direct_children_topology(node: &SyntaxNode, expected: &[(SyntaxKind, R
     }
 }
 
-fn t4p_seeded_contexts() -> [(&'static str, super::super::type_expr::TypeMlContext); 4] {
+fn t4p_seeded_contexts() -> [(&'static str, crate::parser::type_expr::TypeMlContext); 4] {
     [
-        ("inactive", super::super::type_expr::TypeMlContext::INACTIVE),
+        (
+            "inactive",
+            crate::parser::type_expr::TypeMlContext::INACTIVE,
+        ),
         (
             "outer-active",
-            super::super::type_expr::TypeMlContext::outer_active_for_test(),
+            crate::parser::type_expr::TypeMlContext::outer_active_for_test(),
         ),
         (
             "outer-dormant",
-            super::super::type_expr::TypeMlContext::outer_dormant_for_test(),
+            crate::parser::type_expr::TypeMlContext::outer_dormant_for_test(),
         ),
         (
             "non-TypeApply",
-            super::super::type_expr::TypeMlContext::non_type_apply_active_for_test(),
+            crate::parser::type_expr::TypeMlContext::non_type_apply_active_for_test(),
         ),
     ]
 }
 
 fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
     source: &'source str,
-    outer_boundary: super::super::type_expr::TypeOuterBoundary,
+    outer_boundary: crate::parser::type_expr::TypeOuterBoundary,
     pipe_lexical: bool,
     frozen: Option<&'frozen [CommittedRecoveryRecord]>,
 ) -> (
@@ -574,27 +577,30 @@ fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
     };
     output.start_node(SyntaxKind::Root.into());
     let (primary, primary_successor, line_entry) =
-        super::super::type_expr::type_nud_item_normalized(
+        crate::parser::type_expr::type_nud_item_normalized(
             In::new(&mut input, &mut recover, &mut output),
             0,
             LineEntry::InLine,
             None,
         );
-    let continuation_entry =
-        super::super::driver::suffix_marker(In::new(&mut input, &mut recover, &mut output));
+    let continuation_entry = crate::parser::input::position::suffix_marker(In::new(
+        &mut input,
+        &mut recover,
+        &mut output,
+    ));
     let (exit, primary_found) = if pipe_lexical {
-        super::super::type_expr::required_variant_payload_type_normalized(
+        crate::parser::type_expr::required_variant_payload_type_normalized(
             In::new(&mut input, &mut recover, &mut output),
             primary,
             0,
-            super::super::type_expr::TypeMlContext::INACTIVE,
+            crate::parser::type_expr::TypeMlContext::INACTIVE,
             outer_boundary,
             primary_successor,
             line_entry,
             None,
         )
     } else {
-        super::super::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+        crate::parser::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
             In::new(&mut input, &mut recover, &mut output),
             primary,
             0,
@@ -605,7 +611,7 @@ fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
             None,
         )
     };
-    let successor_origin = super::super::driver::advanced_origin(
+    let successor_origin = crate::parser::input::position::advanced_origin(
         primary_successor,
         continuation_entry,
         In::new(&mut input, &mut recover, &mut output),
@@ -627,7 +633,7 @@ fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
 }
 
 fn commit_record_draft(output: &mut GreenNodeBuilder<'_>, record: &CommittedRecoveryRecord) {
-    output.commit_recovery(super::super::output::RecoveryDraft::new(
+    output.commit_recovery(crate::parser::output::RecoveryDraft::new(
         record.site.clone(),
         record.kind,
         record.unexpected.clone(),
@@ -660,22 +666,24 @@ fn scan_type_item_control_with_pipe_lexical<'source>(
     let mut recover = Recover::new(operators);
     let mark = recover.mark();
     let same_operators = std::ptr::eq(recover.operators(), operators);
-    let super::super::current_item::CurrentItem {
+    let crate::parser::input::current_item::CurrentItem {
         item,
         next_line_entry,
-    } = super::super::current_item::current_item(
+    } = crate::parser::input::current_item::current_item(
         In::new(&mut input, &mut recover, ()),
         item_origin,
         LineEntry::InLine,
         None,
         |mut lex, leading, origin, fence, _| {
-            if pipe_lexical && let Some(pipe) = lex.token(super::super::lexer::scan_exact_pipe) {
-                return Some(super::super::current_item::AcceptedPayload {
-                    payload: super::super::current_item::CurrentPayload::Token(pipe),
+            if pipe_lexical
+                && let Some(pipe) = lex.token(crate::parser::input::lexer::scan_exact_pipe)
+            {
+                return Some(crate::parser::input::current_item::AcceptedPayload {
+                    payload: crate::parser::input::current_item::CurrentPayload::Token(pipe),
                     next_line_entry: LineEntry::InLine,
                 });
             }
-            super::super::lexer::scan_type_nud_payload(lex, leading, origin, fence)
+            crate::parser::input::lexer::scan_type_nud_payload(lex, leading, origin, fence)
         },
     )
     .expect("control Type Item scan");
@@ -1128,7 +1136,7 @@ fn rb_t_required_type_probe_rejection_preserves_output_and_input() {
     commit_record_draft(&mut candidate_output, &frozen[0]);
     let before_slots = candidate_output.recovery_slot_count();
     let before_diagnostics = candidate_output.diagnostic_position();
-    let exit = super::super::type_expr::type_expr(In::new(
+    let exit = crate::parser::type_expr::type_expr(In::new(
         &mut candidate_input,
         &mut candidate_recover,
         &mut candidate_output,
@@ -1188,23 +1196,24 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
     let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
     candidate_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut candidate_output);
-    let (primary, primary_origin, primary_line) = super::super::type_expr::type_nud_item_normalized(
-        In::new(
-            &mut candidate_input,
-            &mut candidate_recover,
-            &mut candidate_output,
-        ),
-        0,
-        LineEntry::InLine,
-        None,
-    );
-    let continuation_entry = super::super::driver::suffix_marker(In::new(
+    let (primary, primary_origin, primary_line) =
+        crate::parser::type_expr::type_nud_item_normalized(
+            In::new(
+                &mut candidate_input,
+                &mut candidate_recover,
+                &mut candidate_output,
+            ),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+    let continuation_entry = crate::parser::input::position::suffix_marker(In::new(
         &mut candidate_input,
         &mut candidate_recover,
         &mut candidate_output,
     ));
     let (candidate_exit, primary_found) =
-        super::super::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+        crate::parser::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
             In::new(
                 &mut candidate_input,
                 &mut candidate_recover,
@@ -1213,12 +1222,12 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
             primary,
             0,
             0,
-            super::super::type_expr::TypeOuterBoundary::WITH,
+            crate::parser::type_expr::TypeOuterBoundary::WITH,
             primary_origin,
             primary_line,
             None,
         );
-    let candidate_origin = super::super::driver::advanced_origin(
+    let candidate_origin = crate::parser::input::position::advanced_origin(
         primary_origin,
         continuation_entry,
         In::new(
@@ -1556,7 +1565,7 @@ fn type_path_segment_missing_records_use_exact_owner_anchors_fresh_and_frozen() 
     let (green, exit, primary_found, _, _, records, _, _) =
         run_required_type_with_outer_boundary_and_recoveries(
             "A:: =",
-            super::super::type_expr::TypeOuterBoundary::EQUALS,
+            crate::parser::type_expr::TypeOuterBoundary::EQUALS,
             false,
             None,
         );
@@ -1642,7 +1651,7 @@ fn type_path_segment_missing_records_use_exact_owner_anchors_fresh_and_frozen() 
 
 #[test]
 fn type_contextual_names_belong_to_paths_and_nested_calls() {
-    use super::super::type_expr::TypeOuterBoundary;
+    use crate::parser::type_expr::TypeOuterBoundary;
 
     for (word, boundary) in [
         ("with", TypeOuterBoundary::WITH),
@@ -1727,7 +1736,7 @@ fn type_contextual_names_belong_to_paths_and_nested_calls() {
 
 #[test]
 fn type_contextual_path_newlines_remain_outer_owned() {
-    use super::super::type_expr::TypeOuterBoundary;
+    use crate::parser::type_expr::TypeOuterBoundary;
 
     for (word, boundary) in [
         ("with", TypeOuterBoundary::WITH),
@@ -2107,42 +2116,42 @@ fn type_path_segment_boundaries_outrank_retry_leading_and_remain_pending() {
     for (source, outer_boundary, pipe_lexical, pending_kind, leading_text) in [
         (
             "A::@ with",
-            super::super::type_expr::TypeOuterBoundary::WITH,
+            crate::parser::type_expr::TypeOuterBoundary::WITH,
             false,
             TokenKind::Identifier,
             " ",
         ),
         (
             "A::@/*x*/ with",
-            super::super::type_expr::TypeOuterBoundary::WITH,
+            crate::parser::type_expr::TypeOuterBoundary::WITH,
             false,
             TokenKind::Identifier,
             "/*x*/ ",
         ),
         (
             "A::@ = Body",
-            super::super::type_expr::TypeOuterBoundary::EQUALS,
+            crate::parser::type_expr::TypeOuterBoundary::EQUALS,
             false,
             TokenKind::Equals,
             " ",
         ),
         (
             "A::@ | Body",
-            super::super::type_expr::TypeOuterBoundary::PIPE,
+            crate::parser::type_expr::TypeOuterBoundary::PIPE,
             true,
             TokenKind::Pipe,
             " ",
         ),
         (
             "A::@ : Body",
-            super::super::type_expr::TypeOuterBoundary::STRUCT_BODY,
+            crate::parser::type_expr::TypeOuterBoundary::STRUCT_BODY,
             false,
             TokenKind::Colon,
             " ",
         ),
         (
             "A::@ ; Body",
-            super::super::type_expr::TypeOuterBoundary::VARIANT_BODY,
+            crate::parser::type_expr::TypeOuterBoundary::VARIANT_BODY,
             false,
             TokenKind::Semicolon,
             " ",
@@ -2190,9 +2199,9 @@ fn type_path_segment_boundaries_outrank_retry_leading_and_remain_pending() {
         let mut recover = Recover::new(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (exit, _) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+        let (exit, _) = crate::parser::type_expr::type_expr_with_caller_stops_for_test(
             In::new(&mut input, &mut recover, &mut output),
-            super::super::operator::stops_for(TokenKind::RParen),
+            crate::parser::input::operator::stops_for(TokenKind::RParen),
             0,
             0,
         )
@@ -2280,7 +2289,7 @@ fn type_path_segment_frozen_mismatch_preserves_the_diagnostic_cursor_and_slot() 
     assert_eq!(before_slots, 0);
     assert_eq!(before_diagnostics, (Some(8), 0));
     let mismatch = catch_unwind(AssertUnwindSafe(|| {
-        let _ = super::super::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+        let _ = crate::parser::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
     }));
     assert!(mismatch.is_err());
     assert_eq!(output.recovery_slot_count(), before_slots);
@@ -2306,7 +2315,7 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
         candidate_output.start_node(SyntaxKind::Root.into());
         seed_identifier(&mut candidate_output);
         let (primary, primary_origin, primary_line) =
-            super::super::type_expr::type_nud_item_normalized(
+            crate::parser::type_expr::type_nud_item_normalized(
                 In::new(
                     &mut candidate_input,
                     &mut candidate_recover,
@@ -2316,12 +2325,12 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
                 LineEntry::InLine,
                 None,
             );
-        let continuation_entry = super::super::driver::suffix_marker(In::new(
+        let continuation_entry = crate::parser::input::position::suffix_marker(In::new(
             &mut candidate_input,
             &mut candidate_recover,
             &mut candidate_output,
         ));
-        let (candidate_exit, primary_found) = super::super::type_expr::
+        let (candidate_exit, primary_found) = crate::parser::type_expr::
             required_type_expr_with_caller_stops_and_outer_boundary_normalized(
                 In::new(
                     &mut candidate_input,
@@ -2331,12 +2340,12 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
                 primary,
                 0,
                 0,
-                super::super::type_expr::TypeOuterBoundary::WITH,
+                crate::parser::type_expr::TypeOuterBoundary::WITH,
                 primary_origin,
                 primary_line,
                 None,
             );
-        let candidate_origin = super::super::driver::advanced_origin(
+        let candidate_origin = crate::parser::input::position::advanced_origin(
             primary_origin,
             continuation_entry,
             In::new(
@@ -2635,7 +2644,7 @@ fn type_arrow_rhs_frozen_mismatch_preserves_the_diagnostic_cursor_and_slot() {
     assert_eq!(before_diagnostics, (Some(8), 0));
     assert_eq!(before_slots, 0);
     let mismatch = catch_unwind(AssertUnwindSafe(|| {
-        let _ = super::super::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+        let _ = crate::parser::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
     }));
     assert!(mismatch.is_err());
     assert_eq!(output.diagnostic_position(), before_diagnostics);
@@ -2726,9 +2735,9 @@ fn type_arrow_rhs_preserves_pending_boundaries_after_error() {
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (exit, successor_origin) =
-            super::super::type_expr::type_expr_with_caller_stops_for_test(
+            crate::parser::type_expr::type_expr_with_caller_stops_for_test(
                 In::new(&mut input, &mut recover, &mut output),
-                super::super::operator::stops_for(TokenKind::RParen),
+                crate::parser::input::operator::stops_for(TokenKind::RParen),
                 0,
                 0,
             )
@@ -2788,7 +2797,7 @@ fn type_arrow_rhs_preserves_real_with_outer_boundaries_before_and_after_error() 
         let (green, exit, primary_found, successor_origin, remainder, records, slots, diagnostics) =
             run_required_type_with_outer_boundary_and_recoveries(
                 source,
-                super::super::type_expr::TypeOuterBoundary::WITH,
+                crate::parser::type_expr::TypeOuterBoundary::WITH,
                 false,
                 None,
             );
@@ -2861,7 +2870,7 @@ fn type_arrow_rhs_preserves_real_with_outer_boundaries_before_and_after_error() 
             frozen_diagnostics,
         ) = run_required_type_with_outer_boundary_and_recoveries(
             source,
-            super::super::type_expr::TypeOuterBoundary::WITH,
+            crate::parser::type_expr::TypeOuterBoundary::WITH,
             false,
             Some(std::slice::from_ref(&frozen_expected)),
         );
@@ -2887,19 +2896,19 @@ fn type_arrow_rhs_preserves_non_nud_outer_boundaries_after_error() {
     for (source, outer_boundary, pipe_lexical, pending_kind) in [
         (
             "A ->@ = Body",
-            super::super::type_expr::TypeOuterBoundary::EQUALS,
+            crate::parser::type_expr::TypeOuterBoundary::EQUALS,
             false,
             TokenKind::Equals,
         ),
         (
             "A ->@ | Body",
-            super::super::type_expr::TypeOuterBoundary::PIPE,
+            crate::parser::type_expr::TypeOuterBoundary::PIPE,
             true,
             TokenKind::Pipe,
         ),
         (
             "A ->@ : Body",
-            super::super::type_expr::TypeOuterBoundary::STRUCT_BODY,
+            crate::parser::type_expr::TypeOuterBoundary::STRUCT_BODY,
             false,
             TokenKind::Colon,
         ),
@@ -3502,10 +3511,10 @@ fn type_parenthesized_t4p_standalone_and_priority_controls_publish_no_separator(
 
 #[test]
 fn type_parenthesized_t4p_seeded_context_phase_is_lexical_and_frozen_stable() {
-    let inactive = super::super::type_expr::TypeMlContext::INACTIVE;
-    let outer_active = super::super::type_expr::TypeMlContext::outer_active_for_test();
-    let outer_dormant = super::super::type_expr::TypeMlContext::outer_dormant_for_test();
-    let non_type_apply = super::super::type_expr::TypeMlContext::non_type_apply_active_for_test();
+    let inactive = crate::parser::type_expr::TypeMlContext::INACTIVE;
+    let outer_active = crate::parser::type_expr::TypeMlContext::outer_active_for_test();
+    let outer_dormant = crate::parser::type_expr::TypeMlContext::outer_dormant_for_test();
+    let non_type_apply = crate::parser::type_expr::TypeMlContext::non_type_apply_active_for_test();
 
     for (label, context, expected) in [
         ("inactive", inactive, vec![]),
@@ -3610,7 +3619,7 @@ fn type_parenthesized_t4p_rejected_probe_preserves_seeded_output_and_context() {
             seed_identifier(&mut output);
             let before_slots = output.recovery_slot_count();
             let before_diagnostics = output.diagnostic_position();
-            let exit = super::super::type_expr::type_expr_with_context_for_test(
+            let exit = crate::parser::type_expr::type_expr_with_context_for_test(
                 In::new(&mut input, &mut recover, &mut output),
                 context,
                 0,
@@ -3654,7 +3663,7 @@ fn type_parenthesized_t4p_frozen_rejection_preserves_all_seeded_cursors() {
         assert_eq!(before_slots, 0, "{label}");
         assert_eq!(before_diagnostics, (Some(8), 0), "{label}");
         let mismatch = catch_unwind(AssertUnwindSafe(|| {
-            let _ = super::super::type_expr::type_expr_with_context_for_test(
+            let _ = crate::parser::type_expr::type_expr_with_context_for_test(
                 In::new(&mut input, &mut recover, &mut output),
                 context,
                 0,
@@ -3747,13 +3756,13 @@ fn type_parenthesized_t4p_seeded_eof_and_local_close_exits_are_fresh_frozen_stab
 
 #[test]
 fn type_parenthesized_t4p_seeded_owned_boundaries_preserve_pending_item_frontiers() {
-    let outer_rbrace = super::super::type_expr::with_type_outer_close(0, TokenKind::RBrace);
+    let outer_rbrace = crate::parser::type_expr::with_type_outer_close(0, TokenKind::RBrace);
     for (context_label, context) in t4p_seeded_contexts() {
         for (boundary_label, source, caller_stops, outer_closes, spelling, token_kind) in [
             (
                 "caller",
                 "(F with tail",
-                super::super::operator::STOP_WITH,
+                crate::parser::input::operator::STOP_WITH,
                 0,
                 Some("with"),
                 None,
@@ -4093,7 +4102,7 @@ fn type_parenthesized_t4p_provenance_routes_each_delimited_owner_record() {
 
 #[test]
 fn type_parenthesized_t4p_dormant_provenance_crosses_forall_without_sibling_records() {
-    let context = super::super::type_expr::TypeMlContext::outer_dormant_for_test();
+    let context = crate::parser::type_expr::TypeMlContext::outer_dormant_for_test();
     let expected = expected_parenthesized_separator(0, 11);
     let (green, exit, records) =
         run_type_with_context_and_recoveries("for 'a: (F A)", context, None);
@@ -4134,9 +4143,9 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
 
     let mut rejected_input = "G @";
     let (rejected_exit, rejected_origin) =
-        super::super::type_expr::type_expr_with_context_for_test(
+        crate::parser::type_expr::type_expr_with_context_for_test(
             In::new(&mut rejected_input, &mut recover, &mut output),
-            super::super::type_expr::TypeMlContext::INACTIVE,
+            crate::parser::type_expr::TypeMlContext::INACTIVE,
             0,
         )
         .expect("G remains an accepted Type when its Apply probe rejects");
@@ -4154,9 +4163,9 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
 
     let mut standalone_input = "(F A)";
     let (mut standalone_exit, standalone_origin) =
-        super::super::type_expr::type_expr_with_context_for_test(
+        crate::parser::type_expr::type_expr_with_context_for_test(
             In::new(&mut standalone_input, &mut recover, &mut output),
-            super::super::type_expr::TypeMlContext::INACTIVE,
+            crate::parser::type_expr::TypeMlContext::INACTIVE,
             3,
         )
         .expect("standalone Parenthesized Type after rejected Apply probe");
@@ -4175,10 +4184,10 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
     let mut recover = Recover::new(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
-    let outer = super::super::type_expr::TypeMlContext::outer_active_for_test();
+    let outer = crate::parser::type_expr::TypeMlContext::outer_active_for_test();
     let mut affected_input = "(F A)";
     let (mut affected_exit, affected_origin) =
-        super::super::type_expr::type_expr_with_context_for_test(
+        crate::parser::type_expr::type_expr_with_context_for_test(
             In::new(&mut affected_input, &mut recover, &mut output),
             outer,
             0,
@@ -4194,9 +4203,9 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
 
     let mut second_standalone_input = "(F A)";
     let (mut second_exit, second_origin) =
-        super::super::type_expr::type_expr_with_context_for_test(
+        crate::parser::type_expr::type_expr_with_context_for_test(
             In::new(&mut second_standalone_input, &mut recover, &mut output),
-            super::super::type_expr::TypeMlContext::INACTIVE,
+            crate::parser::type_expr::TypeMlContext::INACTIVE,
             5,
         )
         .expect("standalone Parenthesized Type after affected parse");
@@ -4245,7 +4254,7 @@ fn type_call_t3a_missing_phase_suspends_contextual_but_preserves_caller_boundari
         let (green, exit, primary_found, _, _, records, _, _) =
             run_required_type_with_outer_boundary_and_recoveries(
                 source,
-                super::super::type_expr::TypeOuterBoundary::WITH,
+                crate::parser::type_expr::TypeOuterBoundary::WITH,
                 false,
                 None,
             );
@@ -4260,7 +4269,7 @@ fn type_call_t3a_missing_phase_suspends_contextual_but_preserves_caller_boundari
         let (frozen_green, frozen_exit, _, _, _, frozen_records, _, _) =
             run_required_type_with_outer_boundary_and_recoveries(
                 source,
-                super::super::type_expr::TypeOuterBoundary::WITH,
+                crate::parser::type_expr::TypeOuterBoundary::WITH,
                 false,
                 Some(&frozen),
             );
@@ -4274,8 +4283,8 @@ fn type_call_t3a_missing_phase_suspends_contextual_but_preserves_caller_boundari
 
     let operators = OperatorTable::empty();
     let active_close_stops = stops_for(TokenKind::RBracket)
-        & !super::super::operator::STOP_COMMA
-        & !super::super::operator::STOP_SEMICOLON;
+        & !crate::parser::input::operator::STOP_COMMA
+        & !crate::parser::input::operator::STOP_SEMICOLON;
     for (source, emitted, expected) in [
         (
             "T( ] tail",
@@ -4299,7 +4308,7 @@ fn type_call_t3a_missing_phase_suspends_contextual_but_preserves_caller_boundari
         let mut recover = Recover::new(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (exit, _) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+        let (exit, _) = crate::parser::type_expr::type_expr_with_caller_stops_for_test(
             In::new(&mut input, &mut recover, &mut output),
             active_close_stops,
             0,
@@ -4333,7 +4342,7 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
         let (green, exit, primary_found, _, _, records, _, _) =
             run_required_type_with_outer_boundary_and_recoveries(
                 source,
-                super::super::type_expr::TypeOuterBoundary::WITH,
+                crate::parser::type_expr::TypeOuterBoundary::WITH,
                 false,
                 None,
             );
@@ -4360,7 +4369,7 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
         let (frozen_green, frozen_exit, _, _, _, frozen_records, _, _) =
             run_required_type_with_outer_boundary_and_recoveries(
                 source,
-                super::super::type_expr::TypeOuterBoundary::WITH,
+                crate::parser::type_expr::TypeOuterBoundary::WITH,
                 false,
                 Some(&frozen),
             );
@@ -4414,8 +4423,8 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
 
     let operators = OperatorTable::empty();
     let active_close_stops = stops_for(TokenKind::RBracket)
-        & !super::super::operator::STOP_COMMA
-        & !super::super::operator::STOP_SEMICOLON;
+        & !crate::parser::input::operator::STOP_COMMA
+        & !crate::parser::input::operator::STOP_SEMICOLON;
     for (source, emitted, error_range, close_at) in [
         ("T(@ ] tail", "T(@", 2..3, 3),
         ("T(A,@ ] tail", "T(A,@", 4..5, 5),
@@ -4424,7 +4433,7 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
         let mut recover = Recover::new(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (exit, _) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+        let (exit, _) = crate::parser::type_expr::type_expr_with_caller_stops_for_test(
             In::new(&mut input, &mut recover, &mut output),
             active_close_stops,
             0,
@@ -4782,7 +4791,7 @@ fn type_call_t3b_frozen_error_mismatch_preserves_diagnostic_cursor_and_slot() {
     assert_eq!(before_diagnostics, (Some(8), 0));
     assert_eq!(before_slots, 0);
     let mismatch = catch_unwind(AssertUnwindSafe(|| {
-        let _ = super::super::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+        let _ = crate::parser::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
     }));
     assert!(mismatch.is_err());
     assert_eq!(output.diagnostic_position(), before_diagnostics);
@@ -4900,14 +4909,14 @@ fn type_call_t3b_close_errors_retry_matching_close_and_preserve_native_leading()
 fn type_call_t3b_close_recovery_suspends_contextual_but_preserves_caller_boundaries() {
     let operators = OperatorTable::empty();
     let active_close_stops = stops_for(TokenKind::RBracket)
-        & !super::super::operator::STOP_COMMA
-        & !super::super::operator::STOP_SEMICOLON;
+        & !crate::parser::input::operator::STOP_COMMA
+        & !crate::parser::input::operator::STOP_SEMICOLON;
     let source = "T(A} ] tail";
     let mut input = source;
     let mut recover = Recover::new(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
-    let (exit, _) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+    let (exit, _) = crate::parser::type_expr::type_expr_with_caller_stops_for_test(
         In::new(&mut input, &mut recover, &mut output),
         active_close_stops,
         0,
@@ -4938,7 +4947,7 @@ fn type_call_t3b_close_recovery_suspends_contextual_but_preserves_caller_boundar
     let (green, exit, primary_found, _, _, records, _, _) =
         run_required_type_with_outer_boundary_and_recoveries(
             source,
-            super::super::type_expr::TypeOuterBoundary::WITH,
+            crate::parser::type_expr::TypeOuterBoundary::WITH,
             false,
             None,
         );
@@ -4962,7 +4971,7 @@ fn type_call_t3b_close_recovery_suspends_contextual_but_preserves_caller_boundar
     let (frozen_green, frozen_exit, _, _, _, frozen_records, _, _) =
         run_required_type_with_outer_boundary_and_recoveries(
             source,
-            super::super::type_expr::TypeOuterBoundary::WITH,
+            crate::parser::type_expr::TypeOuterBoundary::WITH,
             false,
             Some(&frozen),
         );
@@ -6877,7 +6886,7 @@ fn polymorphic_variant_structured_frozen_mismatches_reject_each_position() {
             2,
             "(A}",
             4,
-            super::super::type_expr::with_type_outer_close(0, TokenKind::RBrace),
+            crate::parser::type_expr::with_type_outer_close(0, TokenKind::RBrace),
         ),
     ] {
         let mut mismatched = records.clone();
@@ -6896,7 +6905,7 @@ fn polymorphic_variant_structured_frozen_mismatches_reject_each_position() {
         assert_eq!(before_diagnostics, (Some(3), index));
         assert_eq!(before_slots, index);
         let mismatch = catch_unwind(AssertUnwindSafe(|| {
-            let _ = super::super::type_expr::type_expr_with_caller_stops_for_test(
+            let _ = crate::parser::type_expr::type_expr_with_caller_stops_for_test(
                 In::new(&mut input, &mut recover, &mut output),
                 0,
                 outer_closes,
@@ -7007,9 +7016,9 @@ fn parenthesized_close_nonclose_caller_boundary() {
     let mut recover = Recover::new(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
-    let (exit, successor_origin) = super::super::type_expr::type_expr_with_caller_stops_for_test(
+    let (exit, successor_origin) = crate::parser::type_expr::type_expr_with_caller_stops_for_test(
         In::new(&mut input, &mut recover, &mut output),
-        super::super::operator::STOP_WITH,
+        crate::parser::input::operator::STOP_WITH,
         0,
         0,
     )
@@ -7031,8 +7040,8 @@ fn parenthesized_close_nonclose_caller_boundary() {
 fn parenthesized_close_active_caller_close_is_typed_and_preserves_successor() {
     let operators = OperatorTable::empty();
     let active_close_stops = stops_for(TokenKind::RBracket)
-        & !super::super::operator::STOP_COMMA
-        & !super::super::operator::STOP_SEMICOLON;
+        & !crate::parser::input::operator::STOP_COMMA
+        & !crate::parser::input::operator::STOP_SEMICOLON;
     for (source, emitted, missing_count, expected) in [
         (
             "( ] tail",
@@ -7075,7 +7084,7 @@ fn parenthesized_close_active_caller_close_is_typed_and_preserves_successor() {
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (exit, successor_origin) =
-            super::super::type_expr::type_expr_with_caller_stops_for_test(
+            crate::parser::type_expr::type_expr_with_caller_stops_for_test(
                 In::new(&mut input, &mut recover, &mut output),
                 active_close_stops,
                 0,
@@ -7149,7 +7158,7 @@ fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
             for gap in [" ", " \t "] {
                 for (payload, caller_stops, outer_closes) in [
                     ("}", stops_for(TokenKind::RBrace), 0),
-                    (":", super::super::operator::STOP_COLON, 0),
+                    (":", crate::parser::input::operator::STOP_COLON, 0),
                     (
                         if outer_close == TokenKind::RBracket {
                             "]"
@@ -7157,12 +7166,12 @@ fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
                             ")"
                         },
                         0,
-                        super::super::type_expr::with_type_outer_close(0, outer_close),
+                        crate::parser::type_expr::with_type_outer_close(0, outer_close),
                     ),
                 ] {
                     let caller_stops = caller_stops
-                        & !super::super::operator::STOP_COMMA
-                        & !super::super::operator::STOP_SEMICOLON;
+                        & !crate::parser::input::operator::STOP_COMMA
+                        & !crate::parser::input::operator::STOP_SEMICOLON;
                     let prefix = format!("{opener}{slot}");
                     let emitted = format!("{prefix}{gap}");
                     let source = format!("{emitted}{payload} tail");
@@ -7328,11 +7337,11 @@ fn shared_delimited_horizontal_local_closes_and_fresh_else_keep_owner_admission(
         }
         for slot in ["", "F,", "F;"] {
             let source = format!("{opener}{slot} else{close}");
-            let context = super::super::type_expr::TypeMlContext::INACTIVE;
+            let context = crate::parser::type_expr::TypeMlContext::INACTIVE;
             let run = run_contextual_type_snapshot(
                 &source,
                 context,
-                super::super::operator::STOP_ELSE,
+                crate::parser::input::operator::STOP_ELSE,
                 0,
                 0,
                 LineEntry::InLine,
@@ -7343,7 +7352,7 @@ fn shared_delimited_horizontal_local_closes_and_fresh_else_keep_owner_admission(
             let replay = run_contextual_type_snapshot(
                 &source,
                 context,
-                super::super::operator::STOP_ELSE,
+                crate::parser::input::operator::STOP_ELSE,
                 0,
                 0,
                 LineEntry::InLine,
@@ -7411,8 +7420,8 @@ fn shared_delimited_horizontal_local_closes_and_fresh_else_keep_owner_admission(
 #[test]
 fn shared_delimited_horizontal_correction_preserves_nonhorizontal_handoff() {
     let caller_stops = stops_for(TokenKind::RBrace)
-        & !super::super::operator::STOP_COMMA
-        & !super::super::operator::STOP_SEMICOLON;
+        & !crate::parser::input::operator::STOP_COMMA
+        & !crate::parser::input::operator::STOP_SEMICOLON;
     for (prefix, owner) in [
         ("T(F", SyntaxKind::TypeCallTail),
         ("(F", SyntaxKind::ParenthesizedTypeGroup),
@@ -7422,7 +7431,7 @@ fn shared_delimited_horizontal_correction_preserves_nonhorizontal_handoff() {
             let source = format!("{prefix}{leading}}} tail");
             let run = run_contextual_type_snapshot(
                 &source,
-                super::super::type_expr::TypeMlContext::INACTIVE,
+                crate::parser::type_expr::TypeMlContext::INACTIVE,
                 caller_stops,
                 0,
                 0,
@@ -7459,7 +7468,7 @@ fn shared_delimited_horizontal_correction_preserves_nonhorizontal_handoff() {
             let frozen = frozen_recovery_ids(&expected);
             let replay = run_contextual_type_snapshot(
                 &source,
-                super::super::type_expr::TypeMlContext::INACTIVE,
+                crate::parser::type_expr::TypeMlContext::INACTIVE,
                 caller_stops,
                 0,
                 0,
@@ -7693,7 +7702,7 @@ fn rb_pv_rejected_candidate_preservation() {
     seed_identifier(&mut candidate_output);
     let before_slots = candidate_output.recovery_slot_count();
     let before_diagnostics = candidate_output.diagnostic_position();
-    let exit = super::super::type_expr::type_expr(In::new(
+    let exit = crate::parser::type_expr::type_expr(In::new(
         &mut candidate_input,
         &mut candidate_recover,
         &mut candidate_output,
@@ -7753,13 +7762,13 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     candidate_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut candidate_output);
     let (candidate_exit, candidate_origin) =
-        super::super::type_expr::type_expr_with_caller_stops_for_test(
+        crate::parser::type_expr::type_expr_with_caller_stops_for_test(
             In::new(
                 &mut candidate_input,
                 &mut candidate_recover,
                 &mut candidate_output,
             ),
-            super::super::operator::STOP_WITH,
+            crate::parser::input::operator::STOP_WITH,
             0,
             0,
         )

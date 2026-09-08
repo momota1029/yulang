@@ -1,5 +1,5 @@
-use super::record_field_recovery::field_record;
-use super::*;
+use crate::parser::tests::type_expr::record_field_recovery::field_record;
+use crate::parser::tests::type_expr::*;
 
 fn forall_record(
     id: u32,
@@ -321,7 +321,7 @@ fn forall_pending_callers_and_unclaimed_closes_keep_leading_and_no_cascade() {
         assert_pending_forall(
             prefix,
             " /*é*/with tail",
-            crate::parser::operator::STOP_WITH,
+            crate::parser::input::operator::STOP_WITH,
             &expected,
         );
         assert_pending_forall(prefix, " /*é*/) tail", 0, &expected);
@@ -329,7 +329,7 @@ fn forall_pending_callers_and_unclaimed_closes_keep_leading_and_no_cascade() {
         assert_pending_forall(
             prefix,
             ", T",
-            crate::parser::operator::STOP_COMMA,
+            crate::parser::input::operator::STOP_COMMA,
             &expected,
         );
     }
@@ -340,9 +340,9 @@ fn forall_nested_error_handoffs_are_not_reopened_after_the_matching_stack() {
     use TypeRole::ForallBinder as B;
     for (suffix, stops) in [
         (":):T", STOP_COLON),
-        ("with):T", crate::parser::operator::STOP_WITH),
-        ("with:A)", crate::parser::operator::STOP_WITH),
-        (", A)", crate::parser::operator::STOP_COMMA),
+        ("with):T", crate::parser::input::operator::STOP_WITH),
+        ("with:A)", crate::parser::input::operator::STOP_WITH),
+        (", A)", crate::parser::input::operator::STOP_COMMA),
     ] {
         assert_pending_forall("for (", suffix, stops, &[forall_record(0, B, 4..5, true)]);
     }

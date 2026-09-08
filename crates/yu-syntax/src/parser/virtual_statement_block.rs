@@ -8,19 +8,23 @@ use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
 
-use super::{
+use crate::parser::{
     ParserIn, Stops,
-    ambient_claim::AmbientClaimContext,
-    current_item::LineEntry,
-    driver::{Either, NormalizedExit, advanced_origin, suffix_marker, token_kind},
-    emit::{emit_missing, emit_token_item},
-    item::{Item, LeadingTrivia, TokenKind},
-    operator::{STOP_COMMA, STOP_SEMICOLON, stops_for},
+    context::ambient_claim::AmbientClaimContext,
+    handoff::{Either, NormalizedExit},
+    input::{
+        current_item::LineEntry,
+        item::{Item, LeadingTrivia, TokenKind},
+        observation::token_kind,
+        operator::{STOP_COMMA, STOP_SEMICOLON, stops_for},
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
+    },
+    output::emit::{emit_missing, emit_token_item},
     statement::{
         StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
         classify_statement_item_normalized, statement_item_normalized,
     },
-    yumark::FenceBoundary,
 };
 
 pub(super) enum VirtualStatementBlockExit {
@@ -56,7 +60,7 @@ pub(super) fn virtual_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> VirtualStatementBlockExit {
-    let sequence = Some(super::sequence::SequenceOwner::VirtualStatement);
+    let sequence = Some(crate::parser::context::sequence::SequenceOwner::VirtualStatement);
     let baseline = 0;
     let stops: Stops = stops_for(TokenKind::RBrace) | STOP_COMMA | STOP_SEMICOLON;
     let (mut item, mut item_origin, mut line_entry) =

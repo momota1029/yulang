@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::type_expr::*;
 
 fn pv_role(role: TypeRole) -> GrammarRole {
     GrammarRole::Type(role)

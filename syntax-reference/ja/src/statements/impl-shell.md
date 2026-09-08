@@ -120,7 +120,7 @@ downstream HIR/resolver/inference/formatter である。
 
 ## 11. implementation と regression fixture cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/impl_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/declaration/impl_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_impl_statement_intro`, `parse_impl_declaration_isolated`,

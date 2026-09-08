@@ -10,15 +10,12 @@ use crate::{
     SourceText, session::CommittedRecoveryRecord, syntax_kind::SyntaxKind,
 };
 
-use super::{
+use crate::parser::{
     LexIn,
-    current_item::LineEntry,
-    driver::{Either, NormalizedExit},
-    item::Item,
-    operator_header,
+    context::state::Recover,
+    handoff::{Either, NormalizedExit},
+    input::{current_item::LineEntry, item::Item},
     output::ParserOutput,
-    state::Recover,
-    use_decl,
 };
 
 pub(crate) struct HeaderDiscovery {
@@ -64,10 +61,10 @@ pub(super) fn discover_header_with_frozen(
     let mut facts = Vec::new();
     let (coverage_end, stop) = loop {
         let entered_at_start = line == LineEntry::PhysicalStart;
-        let mut i: super::ParserIn = In::new(&mut remaining, &mut recover, &mut output);
+        let mut i: crate::parser::ParserIn = In::new(&mut remaining, &mut recover, &mut output);
         let mut item = pending.take().unwrap_or_else(|| {
             i.token(|lex| {
-                Some(use_decl::next_use_item_lex(
+                Some(crate::parser::declaration::next_use_item_lex(
                     lex,
                     &mut origin,
                     &mut line,
@@ -77,7 +74,8 @@ pub(super) fn discover_header_with_frozen(
             .unwrap()
         });
         let leading_newline = item.leading_view().contains_line_break();
-        let indentation = super::driver::indentation_after_newline(item.leading_view());
+        let indentation =
+            crate::parser::input::observation::indentation_after_newline(item.leading_view());
         let start = origin - item.payload_view().spelling().map_or(0, str::len);
         let at_start = (start == 0 || leading_newline || entered_at_start)
             && indentation
@@ -90,7 +88,12 @@ pub(super) fn discover_header_with_frozen(
         if !at_start {
             break (start, HeaderStop::FirstNonHeader);
         }
-        let is_use = use_decl::use_declaration_selected_normalized(i.rb(), &item, origin, None);
+        let is_use = crate::parser::declaration::use_declaration_selected_normalized(
+            i.rb(),
+            &item,
+            origin,
+            None,
+        );
         let is_operator = !is_use
             && i.rb()
                 .map(
@@ -105,7 +108,7 @@ pub(super) fn discover_header_with_frozen(
         if is_use {
             let (exit, batch) = {
                 let mut scope = output.header_reconciliation_scope();
-                use_decl::use_declaration_header_normalized(
+                crate::parser::declaration::use_declaration_header_normalized(
                     In::new(&mut remaining, &mut recover, &mut *scope),
                     item,
                     0,
@@ -128,7 +131,7 @@ pub(super) fn discover_header_with_frozen(
         } else {
             let (item, next_origin, next_line, fact) = {
                 let mut scope = output.header_reconciliation_scope();
-                operator_header::operator_header_normalized(
+                crate::parser::declaration::operator_header_normalized(
                     In::new(&mut remaining, &mut recover, &mut *scope),
                     item,
                     origin,
@@ -143,7 +146,8 @@ pub(super) fn discover_header_with_frozen(
             }
             pending = item;
             if pending.is_none() {
-                let mut i: super::ParserIn = In::new(&mut remaining, &mut recover, &mut output);
+                let mut i: crate::parser::ParserIn =
+                    In::new(&mut remaining, &mut recover, &mut output);
                 let ((), text) = i
                     .token(|mut lex| {
                         let ((), text) = lex.rb().with_str(|lex| skip_opaque_body(lex));
@@ -171,7 +175,13 @@ pub(super) fn operator_selected(mut i: LexIn, item: &Item, origin: usize) -> boo
     // Statement intro rule 3 reserves `my <word> =` for Binding before
     // interpreting the word as an explicit-private operator modifier.
     if item.payload_view().spelling() == Some("my")
-        && super::binding::binding_statement_selected_lexical(i.remainder(), item, 0, origin, None)
+        && crate::parser::declaration::binding::binding_statement_selected_lexical(
+            i.remainder(),
+            item,
+            0,
+            origin,
+            None,
+        )
     {
         return false;
     }
@@ -182,7 +192,12 @@ pub(super) fn operator_selected(mut i: LexIn, item: &Item, origin: usize) -> boo
         let mut selected = false;
         let _: Option<()> = i.token(|mut lex| {
             if matches!(word.as_str(), "my" | "our" | "pub") {
-                let item = use_decl::next_use_item_lex(lex.rb(), &mut position, &mut line, None);
+                let item = crate::parser::declaration::next_use_item_lex(
+                    lex.rb(),
+                    &mut position,
+                    &mut line,
+                    None,
+                );
                 if item.leading_view().is_grammar_empty()
                     || item.leading_view().contains_line_break()
                 {
@@ -191,7 +206,12 @@ pub(super) fn operator_selected(mut i: LexIn, item: &Item, origin: usize) -> boo
                 word = item.payload_view().spelling().unwrap_or("").to_owned();
             }
             if word == "lazy" {
-                let item = use_decl::next_use_item_lex(lex, &mut position, &mut line, None);
+                let item = crate::parser::declaration::next_use_item_lex(
+                    lex,
+                    &mut position,
+                    &mut line,
+                    None,
+                );
                 if item.leading_view().is_grammar_empty()
                     || item.leading_view().contains_line_break()
                 {

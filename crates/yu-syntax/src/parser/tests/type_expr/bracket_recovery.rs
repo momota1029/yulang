@@ -1,5 +1,5 @@
-use super::bracket_arrow_recovery::arrow;
-use super::*;
+use crate::parser::tests::type_expr::bracket_arrow_recovery::arrow;
+use crate::parser::tests::type_expr::*;
 
 fn row_record(
     id: u32,
@@ -284,7 +284,7 @@ fn bracket_row_boundaries_preserve_the_complete_current_item_in_every_phase() {
             false,
         ));
         for (payload, stops, outer) in [
-            ("else", crate::parser::operator::STOP_ELSE, 0),
+            ("else", crate::parser::input::operator::STOP_ELSE, 0),
             (":", STOP_COLON, 0),
             (
                 "}",

@@ -1,17 +1,19 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::parser::{
-    emit::emit_literal_item,
-    item::{BorrowedTarget, Boundary, Item, LeadingTrivia, Payload, StopKind, Token},
+    input::{
+        item::{BorrowedTarget, Boundary, Item, LeadingTrivia, Payload, StopKind, Token},
+        yumark::{
+            FenceBoundary, FenceLineDecision, FenceOpener, FencePrefixPolicy, QuoteTransitionKind,
+            judge_fence_line,
+        },
+    },
     literal::{
         LiteralPiece, NormalizedRuleLiteralExit, RuleLiteralExit, StringLiteralExit, StringMode,
         rule_literal_normalized, rule_literal_witness, scan_expression_rule_literal_opener_witness,
         scan_string_close_witness, scan_string_opener_witness, scan_string_text_witness,
         string_literal_witness,
     },
-    yumark::{
-        FenceBoundary, FenceLineDecision, FenceOpener, FencePrefixPolicy, QuoteTransitionKind,
-        judge_fence_line,
-    },
+    output::emit::emit_literal_item,
 };
 use reborrow_generic::Reborrow as _;
 
@@ -159,7 +161,7 @@ fn run_rule_literal_normalized<'source>(
         origin + 2,
         LineEntry::InLine,
         fence,
-        Some(crate::parser::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        Some(crate::parser::context::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
     (builder.finish_with_recoveries().0, exit, input)

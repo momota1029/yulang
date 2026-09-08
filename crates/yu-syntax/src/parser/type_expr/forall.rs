@@ -1,6 +1,6 @@
 //! Forall type owner and its phase-local, forward recovery.
 
-use super::super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
@@ -12,22 +12,28 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::super::{
-    ParserIn, Stops,
-    current_item::LineEntry,
-    driver::{NormalizedExit, complete, handoff, token_kind},
-    emit::{
-        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
-    },
-    item::{Item, LeadingTrivia, TokenKind},
-    output::RecoveryDraft,
-    yumark::FenceBoundary,
-};
-use super::{
+use crate::parser::type_expr::{
     TypeApplyBoundary, TypeMlContext, TypeOuterBoundary, is_forall_binder, is_type_caller_boundary,
     is_type_nud, is_type_outer_boundary, is_type_separator, type_chain_trivia,
     type_expr_from_nud_normalized, type_nud_item_with_pipe_lexical_normalized,
     type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
+};
+use crate::parser::{
+    ParserIn, Stops,
+    handoff::{NormalizedExit, complete, handoff},
+    input::{
+        current_item::LineEntry,
+        item::{Item, LeadingTrivia, TokenKind},
+        observation::token_kind,
+        yumark::FenceBoundary,
+    },
+    output::{
+        RecoveryDraft,
+        emit::{
+            emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
+            emit_token_item,
+        },
+    },
 };
 
 #[allow(clippy::too_many_arguments)]

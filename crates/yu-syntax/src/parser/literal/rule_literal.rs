@@ -1,11 +1,11 @@
 //! L7 RuleLiteral construction shared by Expression and Pattern owners.
 
-use super::super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
-use super::super::ambient_claim::AmbientClaimView;
+use crate::parser::context::ambient_claim::AmbientClaimView;
 use unicode_ident::is_xid_continue;
 
-use super::*;
+use crate::parser::literal::*;
 use crate::parser::rule::{
     RuleLiteralSequenceExit, emit_rule_missing, rule_literal_sequence_normalized, rule_recovery_at,
 };

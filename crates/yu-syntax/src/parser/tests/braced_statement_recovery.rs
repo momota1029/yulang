@@ -1,5 +1,5 @@
-use super::*;
-use crate::{parser::ambient_claim::AmbientClaimView, session::*};
+use crate::parser::tests::support::*;
+use crate::{parser::context::ambient_claim::AmbientClaimView, session::*};
 use std::{ops::Range, sync::Arc};
 
 fn parse<'s>(
@@ -28,7 +28,7 @@ fn parse<'s>(
         LineEntry::InLine,
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
-        Some(crate::parser::sequence::SequenceOwner::RootStatement),
+        Some(crate::parser::context::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
     let (green, records) = output.finish_with_recoveries();
@@ -228,7 +228,7 @@ fn declaration_body_callers_return_protected_closes_with_leading() {
 
 #[test]
 fn error_run_stops_at_quoted_fence_and_qualifying_newline() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,

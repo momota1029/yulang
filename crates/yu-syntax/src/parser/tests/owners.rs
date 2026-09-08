@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 #[test]
 fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {

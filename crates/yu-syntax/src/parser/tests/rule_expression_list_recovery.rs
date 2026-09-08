@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::{
     parser::rule::{rule_body_witness, scan_rule_current_item_witness, scan_rule_item_witness},
     session::{
@@ -159,7 +159,7 @@ fn nested_expression_recovery_keeps_its_child_role() {
 
 #[test]
 fn fenced_repeated_newlines_use_physical_end_coordinates_and_frozen_records() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -189,9 +189,11 @@ fn fenced_repeated_newlines_use_physical_end_coordinates_and_frozen_records() {
 #[test]
 fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
     use crate::parser::{
-        driver::expression_item,
+        input::{
+            expression::expression_item,
+            yumark::{FenceOpener, FencePrefixPolicy},
+        },
         rule::{RuleWitnessExit, expression_list_handoff_witness},
-        yumark::{FenceOpener, FencePrefixPolicy},
     };
     let fence = FenceBoundary {
         opener: FenceOpener {

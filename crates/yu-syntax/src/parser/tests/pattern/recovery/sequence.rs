@@ -1,5 +1,5 @@
-use super::delimited::close_record;
-use super::*;
+use crate::parser::tests::pattern::recovery::delimited::close_record;
+use crate::parser::tests::pattern::recovery::*;
 use crate::session::{ConstructRole, Delimiter, PunctuationEvidence};
 
 #[test]

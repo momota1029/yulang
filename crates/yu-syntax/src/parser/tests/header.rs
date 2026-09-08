@@ -1,4 +1,4 @@
-use super::super::header::{discover_header, discover_header_with_frozen};
+use crate::parser::header::{discover_header, discover_header_with_frozen};
 use crate::{HeaderImportForm, HeaderImportRouteSeparator, HeaderStop};
 
 #[test]

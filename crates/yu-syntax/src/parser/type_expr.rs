@@ -1,8 +1,8 @@
 //! Standalone source-free direct TypeExpression core.
 
-use super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
-use super::ambient_claim::AmbientClaimView;
+use crate::parser::context::ambient_claim::AmbientClaimView;
 use std::sync::Arc;
 
 use reborrow_generic::Reborrow as _;
@@ -18,30 +18,34 @@ use crate::{
 
 mod delimited;
 #[cfg(test)]
-use super::driver::{TailExit, ordinary_exit};
+use crate::parser::handoff::{TailExit, ordinary_exit};
 mod forall;
 mod record;
 mod variants;
 
-use super::{
+use crate::parser::{
     ParserIn, Stops,
-    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
-    driver::{
-        Either, NormalizedExit, advanced_origin, complete, handoff, suffix_marker, token_kind,
+    handoff::{Either, NormalizedExit, complete, handoff},
+    input::{
+        current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+        item::{Item, LeadingTrivia, LeadingView, TokenKind},
+        lexer::{
+            is_operator_shaped_unknown, scan_exact_pipe, scan_type_nud_payload, scan_type_payload,
+        },
+        observation::token_kind,
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
     },
-    emit::{
-        ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_recovery_error_run,
-        emit_recovery_missing, emit_token_item,
+    output::{
+        RecoveryDraft,
+        emit::{
+            ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_recovery_error_run,
+            emit_recovery_missing, emit_token_item,
+        },
     },
-    item::{Item, LeadingTrivia, LeadingView, TokenKind},
-    lexer::{
-        is_operator_shaped_unknown, scan_exact_pipe, scan_type_nud_payload, scan_type_payload,
-    },
-    output::RecoveryDraft,
-    yumark::FenceBoundary,
 };
 
-use self::{
+use crate::parser::type_expr::{
     delimited::{TypeDelimitedOwner, type_delimited_normalized},
     forall::type_forall_normalized,
     record::{type_record_next_field_normalized, type_record_normalized},
@@ -1442,7 +1446,7 @@ fn type_tail_normalized(
             ambient,
         ),
         Some(TypeApplyBoundary::DeclarationNamedFields) => {
-            super::struct_decl::named_declaration_fields_next_field_candidate(
+            crate::parser::declaration::struct_decl::named_declaration_fields_next_field_candidate(
                 i.rb(),
                 &item,
                 item_origin,
@@ -2826,16 +2830,17 @@ fn is_type_caller_boundary_parts(
     text: Option<&str>,
     caller_stops: Stops,
 ) -> bool {
-    if kind.is_some_and(|kind| super::operator::active_stop_item(kind, caller_stops)) {
+    if kind.is_some_and(|kind| crate::parser::input::operator::active_stop_item(kind, caller_stops))
+    {
         return true;
     }
     if kind != Some(TokenKind::Identifier) {
         return false;
     }
-    (caller_stops & super::operator::STOP_WITH != 0 && text == Some("with"))
-        || (caller_stops & super::operator::STOP_IN != 0 && text == Some("in"))
-        || (caller_stops & super::operator::STOP_ELSIF != 0 && text == Some("elsif"))
-        || (caller_stops & super::operator::STOP_ELSE != 0 && text == Some("else"))
+    (caller_stops & crate::parser::input::operator::STOP_WITH != 0 && text == Some("with"))
+        || (caller_stops & crate::parser::input::operator::STOP_IN != 0 && text == Some("in"))
+        || (caller_stops & crate::parser::input::operator::STOP_ELSIF != 0 && text == Some("elsif"))
+        || (caller_stops & crate::parser::input::operator::STOP_ELSE != 0 && text == Some("else"))
 }
 
 fn is_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> bool {

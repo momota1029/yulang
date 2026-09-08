@@ -1,5 +1,5 @@
-use super::*;
-use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
+use crate::parser::tests::support::*;
 
 fn active_fence() -> FenceBoundary {
     FenceBoundary {

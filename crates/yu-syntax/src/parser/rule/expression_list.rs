@@ -1,11 +1,11 @@
 //! Rule-owned ordinary expression lists for bracket atoms, calls, and indices.
 
-use super::super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 use std::{ops::Range, sync::Arc};
 
 use crate::{
-    parser::operator::OperatorSite,
+    parser::input::operator::OperatorSite,
     session::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, ExpressionListRole,
         GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
@@ -14,22 +14,25 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::{
-    super::{
-        ParserIn,
+use crate::parser::{
+    ParserIn,
+    expression::{expr_from_nud_normalized, is_nud_item},
+    handoff::{Either, MlMode, NormalizedExit},
+    input::{
         current_item::LineEntry,
-        driver::{
-            Either, MlMode, NormalizedExit, advanced_origin, expr_from_nud_normalized,
-            expression_item, is_close, is_nud_item, suffix_marker,
-        },
-        emit::{emit_recovery_error_item, emit_recovery_missing, token_syntax_kind},
+        expression::expression_item,
         item::{Item, LeadingTrivia, TokenKind, TriviaKind},
+        observation::is_close,
         operator::{STOP_LINE_BREAK, stops_for},
-        output::RecoveryDraft,
-        statement::StatementLineHandoff,
+        position::{advanced_origin, suffix_marker},
         yumark::FenceBoundary,
     },
-    emit_item_as, is_token,
+    output::{
+        RecoveryDraft,
+        emit::{emit_recovery_error_item, emit_recovery_missing, token_syntax_kind},
+    },
+    rule::{emit_item_as, is_token},
+    statement::StatementLineHandoff,
 };
 
 pub(super) enum ExpressionListExit {
@@ -49,7 +52,7 @@ pub(super) fn expression_list(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> ExpressionListExit {
-    let sequence = Some(super::super::sequence::SequenceOwner::RuleExpressionList);
+    let sequence = Some(crate::parser::context::sequence::SequenceOwner::RuleExpressionList);
     let stops = stops_for(close) | STOP_LINE_BREAK;
     let mut needs_expression = true;
     let mut recovery_requires_expression = false;

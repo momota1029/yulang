@@ -1,6 +1,8 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::{
-    parser::{ambient_claim::AmbientClaimView, driver::MlMode, statement::StatementLineHandoff},
+    parser::{
+        context::ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff,
+    },
     session::{
         ConstructRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, ExpressionRole,
         GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
@@ -74,14 +76,14 @@ fn parse<'s>(
         .map(GreenNodeBuilder::reconcile)
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
-    let exit = crate::parser::delimited::delimited_items_normalized(
+    let exit = crate::parser::expression::delimited::delimited_items_normalized(
         In::new(&mut input, &mut recover, &mut output),
         match form {
-            Form::Group => crate::parser::delimited::DelimitedOwner::Parenthesized,
-            Form::Call => crate::parser::delimited::DelimitedOwner::Call,
-            Form::Index => crate::parser::delimited::DelimitedOwner::Index,
-            Form::Tuple => crate::parser::delimited::DelimitedOwner::ProjectionTuple,
-            Form::Record => crate::parser::delimited::DelimitedOwner::ProjectionRecord,
+            Form::Group => crate::parser::expression::delimited::DelimitedOwner::Parenthesized,
+            Form::Call => crate::parser::expression::delimited::DelimitedOwner::Call,
+            Form::Index => crate::parser::expression::delimited::DelimitedOwner::Index,
+            Form::Tuple => crate::parser::expression::delimited::DelimitedOwner::ProjectionTuple,
+            Form::Record => crate::parser::expression::delimited::DelimitedOwner::ProjectionRecord,
         },
         0,
         0,
@@ -358,7 +360,7 @@ fn lexical_errors_end_at_lf_and_crlf_implicit_separators() {
 
 #[test]
 fn delimited_fence_and_nonzero_utf8_extents_reconcile() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -624,7 +626,7 @@ fn accepted_delimiters_shield_contextual_stops_and_keep_ml_items() {
 
 #[test]
 fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,

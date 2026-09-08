@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 #[test]
 fn fixed_field_and_path_tails_keep_their_own_tokens() {

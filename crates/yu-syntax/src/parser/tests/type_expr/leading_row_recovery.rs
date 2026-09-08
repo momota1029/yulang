@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::type_expr::*;
 
 pub(super) fn head_error(id: u32, range: Range<usize>) -> CommittedRecoveryRecord {
     expected_type_expression_error(
@@ -104,10 +104,10 @@ fn leading_row_boundaries_preserve_the_entire_pending_item_at_every_depth() {
         ("[e][f(bad", head_error(0, 3..9)),
     ] {
         for (suffix, stops) in [
-            (" with tail", crate::parser::operator::STOP_WITH),
-            (" /*é*/else tail", crate::parser::operator::STOP_ELSE),
+            (" with tail", crate::parser::input::operator::STOP_WITH),
+            (" /*é*/else tail", crate::parser::input::operator::STOP_ELSE),
             (" : tail", STOP_COLON),
-            (" , tail", crate::parser::operator::STOP_COMMA),
+            (" , tail", crate::parser::input::operator::STOP_COMMA),
             (" } tail", 0),
             ("\nT tail", 0),
             ("\r\nT tail", 0),

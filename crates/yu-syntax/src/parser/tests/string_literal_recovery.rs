@@ -1,12 +1,12 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::{
     parser::{
-        ambient_claim::AmbientClaimView,
-        driver::MlMode,
+        context::ambient_claim::AmbientClaimView,
+        handoff::MlMode,
+        input::yumark::{FenceOpener, FencePrefixPolicy},
         literal::{scan_string_opener_witness, string_literal_with_virtual_statements_normalized},
         pattern::pattern_normalized,
         statement::StatementLineHandoff,
-        yumark::{FenceOpener, FencePrefixPolicy},
     },
     session::{
         Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, LiteralExpected,

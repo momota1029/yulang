@@ -380,6 +380,47 @@ ambient, pending-boundary, Rule and fence vocabulary. Production/test checks,
 public pairs, focused recovery controls and the unrelated workspace check pass
 with zero warnings; known unrelated full-lib baselines remain untouched.
 
+## Parser responsibility reconstitution
+
+The user has directed a role-based reconstruction of the private `parser/`
+tree, not a cosmetic `rewrite` rename. This is a behavior-preserving topology
+gate: preserve public `scan_header`/`parse_file`, accepted and malformed CST,
+committed-recovery order and frozen reconciliation, exact Item/leading/source
+handoff, and all existing source literals and semantic assertions.
+
+The target separates lexical input (Item/current-Item/scanning/stops/fence),
+committed output and emission, parser context, expression policy, statement
+admission, declaration families, and family-owned test suites. Extract shared
+handoff, coordinate and lexical-stop operations from the Expression owner;
+retain required-operand policy, NUD admission and tail control under
+Expression. Do not add a generic `core`, `common`, `utils`, aggregate context,
+or widened recovery capability. Item retains once-only leading emission and
+the sealed Error-run/output protocol remains private.
+
+The review also found a distinct existing contract defect: the For inline-body
+caller selects `ForStatement(Body)`, but the common required-operand draft
+hardcodes `ExpectedSyntax::Expression`. The authoritative operand contract
+requires `ExpectedSyntax::Statement` for that finite role. Repair it as a
+separate behavioral correction with Missing, Error and frozen-reconciliation
+controls; do not preserve the existing assertion as a topology oracle.
+
+Work in bounded stages: first establish these shared boundaries and declaration
+and test-family topology, then split the remaining large family owners only
+after their body-level responsibility review. Stop any extraction that changes
+recovery ownership/order, Item emission, lexical-only observation, or a sealed
+capability; such a change needs its own authority rather than an expectation
+update.
+
+Gate A is complete. `input`, `context`, `output`, `handoff`, `expression` and
+`declaration` now express their actual ownership; `driver` no longer exists,
+and `tests/mod.rs` is a catalogue with explicit support and declaration suites.
+The For Body publication now maps only that role to `Statement`; direct and
+actual-caller Missing/Error fresh/frozen controls preserve exact CST, Item
+extents and `InLine` handoff. M2 conformance and regression review closed after
+two test-only evidence repairs. The known unrelated `(a +\nb)` operator test
+baseline remains unchanged. Next: body-level responsibility review before
+splitting the still-large Expression, TypeExpression and Pattern owners.
+
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
 recovery-equality prerequisite.

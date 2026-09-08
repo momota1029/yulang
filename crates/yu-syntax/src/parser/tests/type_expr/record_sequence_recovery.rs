@@ -1,5 +1,5 @@
-use super::record_field_recovery::field_record;
-use super::*;
+use crate::parser::tests::type_expr::record_field_recovery::field_record;
+use crate::parser::tests::type_expr::*;
 
 pub(super) fn close(id: u32, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
     let role = GrammarRole::ClosingDelimiter {
@@ -286,7 +286,7 @@ fn record_caller_and_inherited_close_boundaries_keep_the_complete_pending_item()
         assert_pending_record(
             prefix,
             " /*é*/with tail",
-            crate::parser::operator::STOP_WITH,
+            crate::parser::input::operator::STOP_WITH,
             0,
             &expected,
         );
@@ -305,7 +305,7 @@ fn record_caller_and_inherited_close_boundaries_keep_the_complete_pending_item()
     assert_pending_record(
         "{a:A",
         "\nwith tail",
-        crate::parser::operator::STOP_WITH,
+        crate::parser::input::operator::STOP_WITH,
         0,
         &[field_record(0, F, 4..4, false), close(1, 4..4, false)],
     );
@@ -316,9 +316,9 @@ fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
     use TypeRole::{RecordField as F, RecordFieldSeparator as S};
     for (suffix, stops) in [
         (":):A}", STOP_COLON),
-        ("with):A}", crate::parser::operator::STOP_WITH),
-        ("with:A)}", crate::parser::operator::STOP_WITH),
-        (",b:B)}", crate::parser::operator::STOP_COMMA),
+        ("with):A}", crate::parser::input::operator::STOP_WITH),
+        ("with:A)}", crate::parser::input::operator::STOP_WITH),
+        (",b:B)}", crate::parser::input::operator::STOP_COMMA),
     ] {
         assert_pending_record(
             "{@ (",
@@ -338,14 +338,14 @@ fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
     assert_pending_record(
         "{a:A",
         "; tail",
-        crate::parser::operator::STOP_SEMICOLON,
+        crate::parser::input::operator::STOP_SEMICOLON,
         0,
         &[close(0, 4..4, false)],
     );
     assert_pending_record(
         "{a:A; (",
         "\nwith tail",
-        crate::parser::operator::STOP_WITH,
+        crate::parser::input::operator::STOP_WITH,
         0,
         &[
             field_record(0, S, 4..7, true),
@@ -475,7 +475,8 @@ fn record_sequence_records_remain_inside_ordered_structured_pv_reservations() {
 
 #[test]
 fn record_local_skeletons_and_punctuation_keep_accepted_caller_contexts() {
-    let stops = crate::parser::operator::STOP_WITH | STOP_COLON | stops_for(TokenKind::RBrace);
+    let stops =
+        crate::parser::input::operator::STOP_WITH | STOP_COLON | stops_for(TokenKind::RBrace);
     for source in [
         "{}",
         "{a:A, b:B,}",

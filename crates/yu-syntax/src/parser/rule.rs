@@ -1,8 +1,8 @@
 //! Isolated RuleSequenceCore construction before RuleExpression dispatch.
 
-use super::ambient_claim::AmbientClaimContext;
+use crate::parser::context::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
-use super::ambient_claim::AmbientClaimView;
+use crate::parser::context::ambient_claim::AmbientClaimView;
 mod expression_list;
 
 use reborrow_generic::Reborrow as _;
@@ -17,25 +17,31 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-use super::{
+use crate::parser::{
     LexIn, ParserIn,
-    current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
-    driver::{advanced_origin, suffix_marker},
-    emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
-    item::{Item, LeadingTrivia, Token, TokenKind},
-    lexer::{
-        is_operator_shaped_unknown, scan_exact_equals, scan_integer, scan_operator_shaped_unknown,
-        scan_punctuation, scan_unknown,
+    input::{
+        current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+        item::{Item, LeadingTrivia, Token, TokenKind},
+        lexer::{
+            is_operator_shaped_unknown, scan_exact_equals, scan_integer,
+            scan_operator_shaped_unknown, scan_punctuation, scan_unknown,
+        },
+        position::{advanced_origin, suffix_marker},
+        yumark::FenceBoundary,
     },
     literal::{
         NormalizedStringLiteralExit, scan_string_opener_token,
         string_literal_with_virtual_statements_normalized, string_mode_from_opener,
     },
-    output::RecoveryDraft,
-    yumark::FenceBoundary,
+    output::{
+        RecoveryDraft,
+        emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
+    },
 };
 
-use self::expression_list::{ExpressionListExit, expression_list, first_item as first_list_item};
+use crate::parser::rule::expression_list::{
+    ExpressionListExit, expression_list, first_item as first_list_item,
+};
 use std::{ops::Range, sync::Arc};
 
 /// Maps one already-owned malformed Rule item to its exact diagnostic category.
@@ -711,7 +717,7 @@ fn scan_rule_payload(
     _leading: bool,
     _origin: usize,
     _fence: Option<&FenceBoundary>,
-    _foreign: &mut Option<Vec<super::item::ForeignSplit>>,
+    _foreign: &mut Option<Vec<crate::parser::input::item::ForeignSplit>>,
 ) -> Option<AcceptedPayload> {
     let token = i.token(scan_rule_token)?;
     Some(AcceptedPayload {

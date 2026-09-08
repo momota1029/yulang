@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::type_expr::*;
 
 fn recovery(
     id: u32,
@@ -225,7 +225,7 @@ fn pe_close_errors_resume_with_owner_trivia_and_protected_caller_words() {
             let run = run_contextual_type_snapshot(
                 &source,
                 crate::parser::type_expr::TypeMlContext::INACTIVE,
-                super::super::super::operator::STOP_ELSE,
+                crate::parser::input::operator::STOP_ELSE,
                 0,
                 0,
                 LineEntry::InLine,

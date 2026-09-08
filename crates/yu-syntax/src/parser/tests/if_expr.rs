@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 #[test]
 fn if_c6_builds_direct_arm_topology_and_keeps_pre_keyword_trivia_outer() {

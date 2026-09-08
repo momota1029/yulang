@@ -1,6 +1,8 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::{
-    parser::{ambient_claim::AmbientClaimView, driver::MlMode, statement::StatementLineHandoff},
+    parser::{
+        context::ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff,
+    },
     session::{
         ColonApplicationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
         PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
@@ -197,7 +199,7 @@ fn with_retry_admits_canonical_statements_and_literals() {
 
 #[test]
 fn inline_boundaries_preserve_the_whole_pending_item() {
-    use crate::parser::operator::STOP_COMMA;
+    use crate::parser::input::operator::STOP_COMMA;
     for (source, stops, emitted, pending, start, role, kind, range) in [
         (
             "f: , x",
@@ -288,7 +290,7 @@ fn inline_boundaries_preserve_the_whole_pending_item() {
 
 #[test]
 fn inline_utf8_crlf_and_quoted_fences_keep_physical_coordinates() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,

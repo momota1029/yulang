@@ -109,7 +109,7 @@ documented `ASOB-G` residual は representative Case/Catch arm-sequence boundary
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/case_like.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/expression/case_like.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/expression.rs` では `recognize_case_like_nud`、`parse_case_like_label`、`parse_catch_braced_block_ast`、`parse_case_arm_sequence_ast`、`parse_catch_arm_sequence_ast`、`arm_sequence_boundary`、`parse_case_arm_ast`、`parse_catch_arm_ast`、`parse_case_guard_ast`、`parse_catch_guard_ast`、`commit_case_like_expression`、`commit_arm_sequence`、`commit_one_arm`、`commit_arm_guard`、`commit_arm_body`、`emit_case_like_missing`、`commit_case_like_invalid_arrow` を参照する。
 

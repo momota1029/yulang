@@ -1,8 +1,8 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 use crate::parser::{
-    ambient_claim::{AmbientClaimContext, AmbientClaimView, ProofSite},
-    yumark::{FenceOpener, FencePrefixPolicy},
+    context::ambient_claim::{AmbientClaimContext, AmbientClaimView, ProofSite},
+    input::yumark::{FenceOpener, FencePrefixPolicy},
 };
 
 fn statement_with_ambient<'source, 'frame>(
@@ -28,9 +28,9 @@ fn statement_with_ambient<'source, 'frame>(
         LineEntry::InLine,
         fence,
         ambient.into(),
-        Some(crate::parser::sequence::SequenceOwner::RootStatement),
+        Some(crate::parser::context::sequence::SequenceOwner::RootStatement),
     );
-    let mut exit = crate::parser::driver::ordinary_exit(exit);
+    let mut exit = crate::parser::handoff::ordinary_exit(exit);
     if let Err(Either::Right(end)) = &mut exit {
         emit_end(&mut output, end);
     }

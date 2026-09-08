@@ -168,7 +168,7 @@ semantic surfaces listed in section 2 remain intentionally absent.
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/mod_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/declaration/mod_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_mod_statement_intro`, `parse_mod_declaration_with_operators`,

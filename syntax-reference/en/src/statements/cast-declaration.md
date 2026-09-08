@@ -188,7 +188,7 @@ formatter work. The explicit `.cast` method/role family remains separate.
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/cast_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/declaration/cast_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/declaration.rs`, the Cast path is implemented
 by `recognize_cast_statement_intro`,

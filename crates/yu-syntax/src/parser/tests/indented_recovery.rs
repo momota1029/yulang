@@ -1,5 +1,5 @@
-use super::*;
-use crate::{parser::ambient_claim::AmbientClaimView, session::*};
+use crate::parser::tests::support::*;
+use crate::{parser::context::ambient_claim::AmbientClaimView, session::*};
 use std::{ops::Range, sync::Arc};
 
 fn record(role: GrammarRole, kind: RecoveryKind, range: Range<usize>) -> CommittedRecoveryRecord {
@@ -55,7 +55,7 @@ fn parse<'s>(
         LineEntry::InLine,
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
-        Some(crate::parser::sequence::SequenceOwner::RootStatement),
+        Some(crate::parser::context::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
     let (green, records) = output.finish_with_recoveries();
@@ -196,7 +196,7 @@ fn indented_direct_callers_transport_their_own_role() {
 
 #[test]
 fn indented_boundaries_preserve_pending_leading_and_line_entry() {
-    use crate::parser::operator::STOP_COMMA;
+    use crate::parser::input::operator::STOP_COMMA;
     for (source, stops, emitted, kind, range, pending, pending_start) in [
         (
             "f:\n  , x",
@@ -318,7 +318,7 @@ fn indented_if_companion_stops_before_and_after_error() {
 
 #[test]
 fn indented_quoted_fence_and_utf8_crlf_use_physical_shifted_extents() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,

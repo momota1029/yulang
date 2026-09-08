@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::literal::*;
 
 #[test]
 fn expression_rule_literal_owns_raw_text_and_both_lazy_capture_forms() {

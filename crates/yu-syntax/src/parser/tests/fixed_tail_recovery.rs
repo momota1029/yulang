@@ -1,6 +1,8 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::{
-    parser::{ambient_claim::AmbientClaimView, driver::MlMode, statement::StatementLineHandoff},
+    parser::{
+        context::ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff,
+    },
     session::{
         DiagnosticId, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole,
         RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
@@ -127,7 +129,7 @@ fn path_error_keeps_each_adjacent_sigil_retry_item() {
 
 #[test]
 fn fixed_tail_boundaries_keep_the_whole_item_before_and_after_error() {
-    use crate::parser::operator::{STOP_COMMA, STOP_LINE_BREAK};
+    use crate::parser::input::operator::{STOP_COMMA, STOP_LINE_BREAK};
     for (intro, role, bad) in [
         ("x.", ExpressionRole::FieldName, "@"),
         ("x::", ExpressionRole::PathSegment, "123"),
@@ -206,7 +208,7 @@ fn recovered_names_keep_fixed_and_unstopped_colon_continuations() {
 
 #[test]
 fn fixed_tail_utf8_error_and_quoted_fence_have_physical_extents() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -408,8 +410,8 @@ fn fixed_tail_recovery_allocates_after_committed_and_frozen_records() {
 
 #[test]
 fn rejected_or_line_deferred_fixed_tail_preserves_seeded_output_and_cursor() {
-    use crate::parser::driver::{expression_item, tail_normalized};
-    use crate::parser::operator::STOP_LINE_BREAK;
+    use crate::parser::input::operator::STOP_LINE_BREAK;
+    use crate::parser::{expression::tail_normalized, input::expression::expression_item};
     let mut seed = record(ExpressionRole::FieldName, RecoveryKind::Missing, 0..0);
     seed.id = DiagnosticId(7);
     let mut next = record(ExpressionRole::FieldName, RecoveryKind::Missing, 12..12);

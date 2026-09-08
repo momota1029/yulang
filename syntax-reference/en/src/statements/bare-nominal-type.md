@@ -189,7 +189,7 @@ Its deferred surface includes companion `impl` / `with`, colon / brace role-like
 
 ## 11. Implementation functions and regression fixtures
 
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching parser owner is `crates/yu-syntax/src/parser/type_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching parser owner is `crates/yu-syntax/src/parser/declaration/type_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 Implementation: `crates/yu-syntax/src/grammar/declaration.rs`.
 

@@ -1,11 +1,11 @@
-use super::*;
-use crate::parser::{
+use crate::parser::input::{
     item::{
         BorrowedTarget, Boundary, ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary,
         StopKind, Token, TokenKind, TriviaKind,
     },
     yumark::{FenceCloseFacts, QuoteTransitionKind, YumarkFenceTransition},
 };
+use crate::parser::tests::support::*;
 
 fn borrowed_close_item() -> Item {
     Item::plain(

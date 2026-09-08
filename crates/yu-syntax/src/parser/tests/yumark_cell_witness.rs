@@ -4,13 +4,16 @@ use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
 
-use super::super::{
+use crate::parser::{
     ParserIn,
-    current_item::LineEntry,
-    driver::{Either, TailExit, handoff, ordinary_exit, token_kind},
-    emit::{emit_end, emit_fragmented_item, emit_token_item},
-    item::{Item, PendingBoundary, TokenKind},
-    lexer::{scan_trivia, statement_item_after_trivia},
+    handoff::{Either, TailExit, handoff, ordinary_exit},
+    input::{
+        current_item::LineEntry,
+        item::{Item, PendingBoundary, TokenKind},
+        lexer::{scan_trivia, statement_item_after_trivia},
+        observation::token_kind,
+    },
+    output::emit::{emit_end, emit_fragmented_item, emit_token_item},
     statement::{is_canonical_statement_nud, statement_from_item_normalized},
 };
 
@@ -30,7 +33,7 @@ pub(super) fn yulang_code_cell_witness(
         }
 
         if item.payload_view().is_eof() {
-            let mut end = super::super::driver::End { item };
+            let mut end = crate::parser::handoff::End { item };
             emit_end(&mut *i.state, &mut end);
             return Ok(finish_at_boundary(i, terminal));
         }

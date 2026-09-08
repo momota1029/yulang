@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::pattern::recovery::*;
 use crate::session::{ConstructRole, Delimiter, PunctuationEvidence};
 
 pub(super) fn close_record(
@@ -419,8 +419,8 @@ fn delimited_eof_missing_anchors_follow_only_owned_leading() {
             item.emit_all_remaining_leading(&mut owner_output);
             owner_output.finish_node();
             assert_eq!(owner_output.finish_with_recoveries().0.to_string(), suffix);
-            let control = crate::parser::driver::complete(
-                crate::parser::driver::handoff(item),
+            let control = crate::parser::handoff::complete(
+                crate::parser::handoff::handoff(item),
                 next_line_entry,
             );
             assert_same_exit(&fresh.exit, &control);

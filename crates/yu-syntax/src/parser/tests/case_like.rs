@@ -1,4 +1,4 @@
-use super::*;
+use crate::parser::tests::support::*;
 
 fn expression(root: &SyntaxNode, kind: SyntaxKind) -> SyntaxNode {
     root.descendants()

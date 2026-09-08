@@ -1,7 +1,7 @@
-use super::*;
+use crate::parser::tests::support::*;
 use crate::{
     parser::{
-        ambient_claim::AmbientClaimView,
+        context::ambient_claim::AmbientClaimView,
         literal::{rule_literal_normalized, scan_expression_rule_literal_opener_witness},
         rule::{rule_body_witness, scan_rule_current_item_witness, scan_rule_item_witness},
     },
@@ -301,7 +301,7 @@ fn accepted_alternatives_lazy_quantifiers_and_raw_capture_have_no_records() {
 #[test]
 fn actual_expression_and_pattern_routes_publish_rule_records() {
     use crate::parser::{
-        driver::MlMode, pattern::pattern_normalized, statement::StatementLineHandoff,
+        handoff::MlMode, pattern::pattern_normalized, statement::StatementLineHandoff,
     };
     for (source, pattern, role, at) in [
         ("~\":\"", false, LiteralRole::RuleLazyCaptureName, 3),
@@ -351,7 +351,7 @@ fn actual_expression_and_pattern_routes_publish_rule_records() {
 
 #[test]
 fn fenced_literal_slots_keep_the_pending_fence_and_exact_coordinates() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -422,7 +422,7 @@ fn rejected_rule_literal_opener_is_effect_free() {
 
 #[test]
 fn one_item_error_range_includes_crlf_and_foreign_prefix() {
-    use crate::parser::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::parser::input::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,

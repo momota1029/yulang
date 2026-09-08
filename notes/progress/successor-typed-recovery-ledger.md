@@ -205,7 +205,7 @@ Missing producer map above; the existing annotation Type callee is typed.
 Pattern delimiter/default publication is also mapped above; no raw Pattern
 Missing/Error constructor remains.
 
-Required Expression operands are now mapped below. The shared driver emits
+Required Expression operands are now mapped below. The shared Expression kernel emits
 the initial role's typed Missing or Error; once a NUD is admitted, nested
 owners select their own role. It has one shared total lexical Item operation
 for ordinary and sealed Error paths. The saved ` ]` witness now passes; `? ]`
@@ -214,12 +214,12 @@ Expression tails, literal/Statement callers, RB-E, O4 or public adoption.
 
 | source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `driver::required_expr_item_normalized` ordinary wrapper / accepted operand | `Expression(Nud)` | M/E | absence: abstract coordinate, protected remaining start, or ordinary EOF after leading; maximal malformed run | `[]` / `Expression`; `other(Rng)` / `Expression` | preserve boundary or append retry NUD | `expression_recovery::*`, `operators::*` | C |
-| `if_expr::condition_normalized` | `IfExpression(Condition)` | M/E | same shared predicate/run; existing caller leading remains outside | `[]` or `other(Rng)` / `Expression` | existing condition-arm handoff | `expression_recovery::required_operand_callers_publish_their_own_roles`, `if_expr::*` | C |
-| `case_like::case_like_head_normalized` | `CaseLike(Scrutinee)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing case block handoff | `expression_recovery::*`, `case_like::*` | C |
-| `case_like::guard_normalized` | `CaseLike(Guard)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing arrow handoff | `expression_recovery::*`, `case_like::*` | C |
-| `for_decl::iterable_from_item_normalized`, including newline/fence bypass | `ForStatement(Iterable)` | M/E | same predicate plus existing implicit newline bypass; protected Item remains whole | `[]` or `other(Rng)` / `Expression` | body only when iterable is not missing | `expression_recovery::*`, `for_statement::*` | C |
-| `for_decl::inline_body_normalized` | `ForStatement(Body)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Statement` | existing statement-owner handoff | `expression_recovery::*`, `for_statement::*` | C |
+| `expression::required_expr_item_normalized` ordinary wrapper / accepted operand | `Expression(Nud)` | M/E | absence: abstract coordinate, protected remaining start, or ordinary EOF after leading; maximal malformed run | `[]` / `Expression`; `other(Rng)` / `Expression` | preserve boundary or append retry NUD | `expression_recovery::*`, `operators::*` | C |
+| `expression::if_expr::condition_normalized` | `IfExpression(Condition)` | M/E | same shared predicate/run; existing caller leading remains outside | `[]` or `other(Rng)` / `Expression` | existing condition-arm handoff | `expression_recovery::required_operand_callers_publish_their_own_roles`, `if_expr::*` | C |
+| `expression::case_like::case_like_head_normalized` | `CaseLike(Scrutinee)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing case block handoff | `expression_recovery::*`, `case_like::*` | C |
+| `expression::case_like::guard_normalized` | `CaseLike(Guard)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing arrow handoff | `expression_recovery::*`, `case_like::*` | C |
+| `expression::for_decl::iterable_from_item_normalized`, including newline/fence bypass | `ForStatement(Iterable)` | M/E | same predicate plus existing implicit newline bypass; protected Item remains whole | `[]` or `other(Rng)` / `Expression` | body only when iterable is not missing | `expression_recovery::*`, `for_statement::*` | C |
+| `expression::for_decl::inline_body_normalized` | `ForStatement(Body)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Statement` | existing statement-owner handoff; actual `]`/`@` caller controls reconcile fresh and frozen records | `expression_recovery::*`, `for_statement::*` | C |
 
 Shared Expression delimiters are now mapped below. The descriptor is the only
 role source; a close-only inherited mask protects `)`, `]` and `}` through
