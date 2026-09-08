@@ -55,6 +55,12 @@ short payload view, decoded value, source/body buffer, or source owner; only
 the completed AST package owns the source allocation used by package-derived
 views. Each leaf coordinate comes from the Item owner's sealed one-pass
 `PublishedFragment`, never from emitted byte counts or a second prefix scan.
+The two valid empty textual leaves are the explicit exception to fragment
+existence, not to provenance: empty interpolation `format` and empty braced
+lazy-capture `text` are complete zero-width leaves anchored at the end of their
+already committed preceding delimiter. That existing scanner coordinate is
+available even at immediate EOF/fence; it creates no token, recovery, fragment
+traversal, or source scan.
 
 ```text
 StringLiteral {
@@ -132,7 +138,7 @@ not by Rule atom/call/index wrappers.
 | Rule body/parenthesis close | matching `RuleBody`/`RuleAtom::Parenthesized` close |
 | Rule capture RHS, field/path name | matching mandatory child slot |
 | malformed Rule item at a sequence item position | current `RuleSequence.items = Incomplete`, then retry the next sequence item |
-| malformed capture RHS | `RuleCapture.rhs` retry Error only; a successful retry is `Complete(rhs)`, and close/boundary yields its `Incomplete` without an outer sequence entry |
+| malformed capture RHS | Error followed by an accepted RHS gives `RuleCapture.rhs = Complete`; a boundary retains that Error plus the existing `RuleCaptureRightItem` Missing and leaves `rhs = Incomplete`, without an outer sequence entry |
 | RuleLiteral terminator/interpolation close | matching RuleLiteral piece/close |
 | lazy name/braced close | matching LazyCapture child slot |
 | expression-list recovery | canonical `ExpressionList` product only |

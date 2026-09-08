@@ -131,8 +131,11 @@ literal schema, complete
 compiler/recovery, specification and static performance review, then record
 user approval before its shared-output pilot.
 Focused Draft deltas have so far closed the Act implicit-bodyless/companion and
-Impl first-colon product mapping, and identified the Rule leading-fragment
-batching obligation; they do not constitute review of the incomplete total
+Impl first-colon product mapping; guard/Use/root/Pattern/ExpressionList and PV
+availability; literal empty-leaf and capture-boundary mapping; and the common
+publication requirement for Item parts, verified source subslices and raw Error
+segments. The Rule leading-fragment batch now has a one-cursor/control proof
+obligation. These slices do not constitute review of the incomplete total
 product closure or implementation authority.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,

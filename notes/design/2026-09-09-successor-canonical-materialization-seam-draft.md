@@ -221,6 +221,18 @@ rediscovered AST fact. The common surface advances physical accounting from
 `text` exactly once and passes the classified coordinate to the AST materializer
 immediately.
 
+`PublishedFragment` is also the only route for a verified source subslice that
+is not an Item part. Its owner supplies borrowed text with checked physical and
+logical ranges; the surface verifies `physical.end - physical.start ==
+text.len()` before advancing the account and forwarding the selected
+token/leaf. This covers source-preserving partition output such as an operator
+spelling emitted as parenthesis/name/parenthesis, binding-power components and
+dots, header opaque tails, and raw opaque/Error segments. A partition may
+change token kinds but must cover the accepted source extent exactly once in
+source order. No raw `token(text)` emission, synthetic/unranged token, or
+after-the-fact asserted range bypasses the account. Recovery-only Error
+segments use this surface before entering their extent in a reservation.
+
 The direct-CST specialization replaces the current token-counter increment
 with this common call; it may not wrap it with a second counter, branch,
 dynamic dispatch, `Option<Vec<Range>>`, or AST accumulator on its per-fragment
@@ -404,6 +416,18 @@ summary.
 Pilot evidence includes fresh and frozen records, structured nested recovery,
 nonzero origin, UTF-8/CRLF/foreign prefixes, protected terminal leading,
 exact terminal Item/origin/line return, and no source replay/event buffer.
+The direct-output pilot must prove every emitted source byte, including
+operator-header partitions and raw opaque/Error segments, crosses exactly one
+checked publication/account operation. Its Rule controls include a fragmented
+multi-newline CRLF/quote-prefix Item, preserving the existing sequence order
+and proving one cursor traversal through the final newline. Before generic
+widening, compare optimized symbols/code size against the matching direct-only
+baseline and show that lexical scanning, recovery reconciliation and coordinate
+traversal have one shared implementation. AST mode may retain only committed
+products/range slices and one shared `Arc<SourceText>`; direct mode may retain
+none. Timing remains conditional: only if that static inspection leaves a
+direct-mode constant-factor uncertainty, use one warm-up and three paired
+samples on a synthetic long fragmented multiline Rule input.
 Any need for materializer-selected recovery, a CST-derived AST, an AST direct
 mirror, a borrow beyond Item consumption, or a different recovery sequence
 returns the affected gate to design.
