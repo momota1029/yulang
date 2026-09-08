@@ -1318,7 +1318,7 @@ pub(super) fn declaration_companion_witness(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> Option<NormalizedExit> {
-    use crate::scan::operator::OperatorSite;
+    use crate::rewrite::operator::OperatorSite;
 
     use super::lexer::{contextual_word_suffix_follower, scan_expression_payload};
 

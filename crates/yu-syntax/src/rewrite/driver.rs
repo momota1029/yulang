@@ -7,7 +7,7 @@ use reborrow_generic::Reborrow as _;
 
 use crate::{
     operator::BindingPower,
-    scan::operator::OperatorSite,
+    rewrite::operator::OperatorSite,
     session::{
         ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, RecoveryKind,
         RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,

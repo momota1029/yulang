@@ -205,7 +205,7 @@ pub(crate) fn parse_root_candidate(
 fn operator_body(mut i: RewriteIn, origin: usize, line: LineEntry) -> NormalizedExit {
     let (mut item, mut origin, mut line) = driver::expression_item(
         i.rb(),
-        crate::scan::operator::OperatorSite::Nud,
+        crate::rewrite::operator::OperatorSite::Nud,
         origin,
         line,
         None,
@@ -268,7 +268,7 @@ fn operator_body(mut i: RewriteIn, origin: usize, line: LineEntry) -> Normalized
                     (item, origin, line) = run.lexical(|lex| {
                         driver::scan_expression_item_lexical(
                             lex,
-                            crate::scan::operator::OperatorSite::Nud,
+                            crate::rewrite::operator::OperatorSite::Nud,
                             origin,
                             line,
                             None,

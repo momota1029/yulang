@@ -2,10 +2,7 @@
 
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::{
-    operator::{OperatorFixities, OperatorFixity, OperatorTable},
-    scan::operator::{OperatorSite, is_call_or_path_sensitive, judge_operator},
-};
+use crate::operator::{OperatorFixities, OperatorFixity, OperatorKindSet, OperatorTable};
 
 use super::{
     LexIn, Stops,
@@ -748,4 +745,120 @@ fn raw_trivia_character(
         ' ' | '\t' if *at_line_start => *indentation += 1,
         _ => *at_line_start = false,
     }
+}
+
+/// Which side of a Pratt operand is requesting an operator.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum OperatorSite {
+    Nud,
+    Led,
+}
+
+pub(crate) fn is_call_or_path_sensitive(kinds: OperatorKindSet) -> bool {
+    kinds.contains(OperatorKindSet::PREFIX | OperatorKindSet::NULLFIX)
+        && !kinds.contains(OperatorKindSet::INFIX)
+        && !kinds.contains(OperatorKindSet::SUFFIX)
+}
+
+pub(crate) fn judge_operator(
+    site: OperatorSite,
+    kinds: OperatorKindSet,
+    pre_whitespace: bool,
+    post_whitespace: bool,
+    probe_value_start: bool,
+) -> Option<OperatorFixity> {
+    match site {
+        OperatorSite::Nud => judge_nud(
+            kind_bits(kinds),
+            pre_whitespace,
+            post_whitespace,
+            probe_value_start,
+        ),
+        OperatorSite::Led => judge_led(
+            kind_bits(kinds),
+            pre_whitespace,
+            post_whitespace,
+            probe_value_start,
+        ),
+    }
+}
+
+const PREFIX: u8 = 1 << 0;
+const INFIX: u8 = 1 << 1;
+const SUFFIX: u8 = 1 << 2;
+const NULLFIX: u8 = 1 << 3;
+
+fn kind_bits(kinds: OperatorKindSet) -> u8 {
+    let mut bits = 0;
+    for (kind, bit) in [
+        (OperatorKindSet::PREFIX, PREFIX),
+        (OperatorKindSet::INFIX, INFIX),
+        (OperatorKindSet::SUFFIX, SUFFIX),
+        (OperatorKindSet::NULLFIX, NULLFIX),
+    ] {
+        if kinds.contains(kind) {
+            bits |= bit;
+        }
+    }
+    bits
+}
+
+fn judge_nud(
+    mut kinds: u8,
+    pre_whitespace: bool,
+    post_whitespace: bool,
+    probe_value_start: bool,
+) -> Option<OperatorFixity> {
+    kinds &= !(INFIX | SUFFIX);
+    if !probe_value_start {
+        kinds &= !PREFIX;
+    }
+    judge_table(kinds, pre_whitespace, post_whitespace)
+}
+
+fn judge_led(
+    mut kinds: u8,
+    pre_whitespace: bool,
+    post_whitespace: bool,
+    probe_value_start: bool,
+) -> Option<OperatorFixity> {
+    if !probe_value_start {
+        kinds &= !(PREFIX | INFIX);
+    }
+    let mut multiline_argument_kinds = kinds;
+    if post_whitespace {
+        multiline_argument_kinds &= !PREFIX;
+    }
+    judge_table(multiline_argument_kinds, pre_whitespace, post_whitespace)
+        .or_else(|| judge_table(kinds, pre_whitespace, post_whitespace))
+}
+
+fn judge_table(kinds: u8, pre_whitespace: bool, post_whitespace: bool) -> Option<OperatorFixity> {
+    use OperatorFixity::{Infix, Nullfix, Prefix, Suffix};
+
+    const P: Option<OperatorFixity> = Some(Prefix);
+    const I: Option<OperatorFixity> = Some(Infix);
+    const S: Option<OperatorFixity> = Some(Suffix);
+    const N: Option<OperatorFixity> = Some(Nullfix);
+    const X: Option<OperatorFixity> = None;
+    const TABLE: [[Option<OperatorFixity>; 4]; 16] = [
+        [X, X, X, X],
+        [P, P, P, P],
+        [I, I, I, I],
+        [I, I, P, I],
+        [S, S, S, S],
+        [X, S, P, X],
+        [I, S, I, I],
+        [I, S, P, I],
+        [N, N, N, N],
+        [P, N, P, N],
+        [I, I, I, N],
+        [I, I, P, N],
+        [N, S, N, N],
+        [N, S, P, N],
+        [I, S, I, N],
+        [I, S, P, N],
+    ];
+    let whitespace = ((pre_whitespace as usize) << 1) | post_whitespace as usize;
+    TABLE[kinds as usize][whitespace]
 }

@@ -2,19 +2,11 @@
 
 use std::{ops::Range, sync::Arc};
 
-#[allow(dead_code)]
-mod input;
-#[allow(dead_code)]
 mod operator;
 mod parse;
 #[allow(dead_code)]
 mod rewrite;
-#[allow(dead_code)]
-mod scan;
-#[allow(dead_code)]
 mod session;
-#[allow(dead_code)]
-mod sink;
 mod syntax_kind;
 
 pub use operator::{OperatorOrigin, OperatorTable};

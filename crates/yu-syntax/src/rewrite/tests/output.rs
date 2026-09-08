@@ -15,9 +15,10 @@ use super::super::{
     yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
 };
 use super::{
-    run_act_declaration, run_cast_declaration, run_declaration_companion, run_declaration_variant,
-    run_enum_declaration, run_error_declaration, run_impl_declaration, run_normalized,
-    pattern::pattern_literal_witness, run_role_declaration, run_type_normalized,
+    pattern::pattern_literal_witness, run_act_declaration, run_cast_declaration,
+    run_declaration_companion, run_declaration_variant, run_enum_declaration,
+    run_error_declaration, run_impl_declaration, run_normalized, run_role_declaration,
+    run_type_normalized,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

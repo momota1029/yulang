@@ -6,7 +6,7 @@ use super::output::RewriteOutput as GreenNodeBuilder;
 use crate::{
     SyntaxKind, SyntaxNode,
     operator::{BindingPower, OperatorDeclaration, OperatorFixities, OperatorTable},
-    scan::operator::OperatorSite,
+    rewrite::operator::OperatorSite,
     session::CommittedRecoveryRecord,
 };
 

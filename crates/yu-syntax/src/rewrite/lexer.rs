@@ -7,7 +7,7 @@ use chasa_recover::{
 use reborrow_generic::short::Rb;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::scan::operator::OperatorSite;
+use crate::rewrite::operator::OperatorSite;
 
 use super::{
     LexIn, RewriteIn, Stops,

@@ -5,7 +5,7 @@ use std::{ops::Range, sync::Arc};
 
 use crate::{
     operator::BindingPower,
-    scan::operator::OperatorSite,
+    rewrite::operator::OperatorSite,
     session::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole,
         PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,

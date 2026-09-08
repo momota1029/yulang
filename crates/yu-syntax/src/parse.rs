@@ -686,30 +686,26 @@ mod tests {
     #[test]
     fn recovery_diagnostic_keeps_the_committed_record_distinct_from_construction() {
         use crate::session::{
-            ExpectationSources, ExpectedSyntax, GrammarRole, ParseLocal, RecoveryKind,
+            DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
             RecoverySiteKey, StatementRole, SyntaxExpectation,
         };
 
-        let mut local = ParseLocal::new();
-        for _ in 0..9 {
-            local.next_diagnostic_id();
-        }
-        let record = CommittedRecoveryRecord::new(
-            &mut local,
-            RecoverySiteKey {
+        let record = CommittedRecoveryRecord {
+            id: DiagnosticId(9),
+            site: RecoverySiteKey {
                 role: GrammarRole::Statement(StatementRole::Starter),
                 range: 4..4,
             },
-            RecoveryKind::Missing,
-            Arc::from([]),
-            Arc::from([SyntaxExpectation {
+            kind: RecoveryKind::Missing,
+            unexpected: Arc::from([]),
+            expectations: Arc::from([SyntaxExpectation {
                 role: GrammarRole::Statement(StatementRole::Starter),
                 expected: ExpectedSyntax::Expression,
                 range: 4..4,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
-            0,
-        );
+            primary_expectation: 0,
+        };
         let diagnostic = SyntaxDiagnostic::recovery(record.clone());
 
         assert_eq!(diagnostic.id(), 9);

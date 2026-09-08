@@ -5,7 +5,7 @@ use reborrow_generic::Reborrow as _;
 use std::{ops::Range, sync::Arc};
 
 use crate::{
-    scan::operator::OperatorSite,
+    rewrite::operator::OperatorSite,
     session::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, ExpressionListRole,
         GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,

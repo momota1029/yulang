@@ -2,6 +2,10 @@
 
 Status: Proposal。実装、dependency 追加、grammar の拡張はこの文書の scope 外とする。
 
+Historical-path note: `c227adf6` removed the pre-rewrite `input` / `sink` /
+`scan` stack.  Source-path citations to those modules below describe the
+investigated pre-cutover snapshot; they are not current implementation paths.
+
 Revision note: 2026-08-20 のユーザー（chasa 作者かつ Yulang 言語設計者）からの直接 feedback を
 反映した。chasa の workspace への取り込み方、operator table の構築時期、full fixity、oracle の
 judge table、Rowan CST 構築方法を decision として確定した。
@@ -1875,7 +1879,7 @@ architecture-level gate と question 7 / 8 の diagnostic detail は上の resol
   `typ/parse.rs`、`mark/scan.rs`、`string/{scan,parse}.rs`、`stmt/{op_def,common}.rs`、
   `stmt/{mod,use_scan,use_decl}.rs`、`parse/mod.rs`、`tests/{expr_grammar,stmt_grammar}.rs`、
   `crates/sources/src/lib.rs`、Cargo manifest / lock。
-- Yulang3 current tree: `docs/yulang3-architecture.md` §4.2.1-4.2.2 / §18、
+- Yulang3 pre-rewrite snapshot: `docs/yulang3-architecture.md` §4.2.1-4.2.2 / §18、
   `crates/yu-syntax/src/{lib,parse,input,session,sink,syntax_kind,operator}.rs`、
   `crates/yu-syntax/src/grammar/{mod,declaration,expression,header}.rs`、
   `crates/yu-syntax/src/scan/operator.rs`、
@@ -7515,8 +7519,8 @@ current `StopKind`には`Arrow` / guard-word stopがなく、pattern mandatory-p
 これらをconsumeしないよう拡張する。`Comma`は既存stopを使う。名前をplain `If` / `Where`にせずarm-local roleを表すのは、
 future consumerが同じword spellingへ別boundary semanticsを与えてもstop authorityを混ぜないためである。
 
-`->`はscanner-layerでは現在dynamic-operator territoryである
-(`crates/yu-syntax/src/scan/punctuation.rs:54-58,159-166`)。arm grammarはshared fixed punctuation setへ無条件追加せず、
+`->`は当時のscanner-layerではdynamic-operator territoryであった
+(`crates/yu-syntax/src/scan/punctuation.rs:54-58,159-166`, historical pre-`c227adf6`)。arm grammarはshared fixed punctuation setへ無条件追加せず、
 arm boundaryでだけmaximal operator-shaped tokenをsink-freeにscanし、textがexact `->`なら`SyntaxKind::Arrow`として
 acceptする。`->>`を`->` + `>`へsplitしない。operator declarationに`->`が存在するか、そのbinding powerが何かは
 arm separatorの認識へ影響しない。nested delimiter内またはguard / bodyのordinary expression regionでは、active arm
@@ -8121,8 +8125,8 @@ case/catch-driven fixesはactive `Arrow` / `ArmGuardIf` / `ArmGuardWhere`をpatt
 parserを作らない。
 
 scanner / session vocabularyには`Delimiter::Bracket`、`StopKind::RightBracket`、`LBracket` / `RBracket` scanとCST tokenが
-すでにある (`crates/yu-syntax/src/session.rs:357-380`;
-`crates/yu-syntax/src/scan/punctuation.rs:67-74`;
+すでにあった (`crates/yu-syntax/src/session.rs:357-380`, historical pre-`c227adf6`;
+`crates/yu-syntax/src/scan/punctuation.rs:67-74`, historical pre-`c227adf6`;
 `crates/yu-syntax/src/syntax_kind.rs:94-100`)。ただしgrammar owner、item sequence、spread marker、typed list recoveryはない。
 tokenが存在することをlist grammar実装済みとは数えない。
 
@@ -8223,8 +8227,8 @@ matching `]`後はouter `Pattern`のexisting LED loopへ戻る。したがって
 
 ### `..` lexical ownership
 
-current fixed punctuation scannerはbracketsを既にscanする一方、`..` / `...`をdynamic-operator territoryへ残している
-(`crates/yu-syntax/src/scan/punctuation.rs:39-58,67-82`)。list pattern parserは`OperatorTable`を受け取らないため、
+当時のfixed punctuation scannerはbracketsを既にscanする一方、`..` / `...`をdynamic-operator territoryへ残していた
+(`crates/yu-syntax/src/scan/punctuation.rs:39-58,67-82`, historical pre-`c227adf6`)。list pattern parserは`OperatorTable`を受け取らないため、
 spread markerをdynamic operator declarationへ問い合わせない。
 
 implementationはdeclaration-independentなmaximal operator-shaped spelling probeをreuse / extractし、list-item-required

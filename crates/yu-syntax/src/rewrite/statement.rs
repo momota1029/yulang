@@ -9,7 +9,7 @@ use crate::session::{
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
-use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{operator::BindingPower, rewrite::operator::OperatorSite, syntax_kind::SyntaxKind};
 
 use super::{
     LexIn, RewriteIn, Stops,

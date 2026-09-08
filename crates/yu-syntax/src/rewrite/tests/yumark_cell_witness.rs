@@ -76,7 +76,10 @@ pub(super) fn accepted_identifier_statement_witness(
     item: Item,
     successor: Item,
 ) -> Result<PendingBoundary, TailExit> {
-    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Identifier));
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
     assert!(is_canonical_statement_nud(i.rb(), &item, 0));
 
     i.state.start_node(SyntaxKind::YmYulangCodeCell.into());

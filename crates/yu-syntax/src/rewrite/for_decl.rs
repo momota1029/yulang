@@ -4,7 +4,7 @@ use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
 use crate::{
-    scan::operator::OperatorSite,
+    rewrite::operator::OperatorSite,
     session::{ForStatementRole, GrammarRole},
     syntax_kind::SyntaxKind,
 };

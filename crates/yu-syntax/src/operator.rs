@@ -1,8 +1,7 @@
-//! Immutable full-fixity operator definitions and chasa trie traversal.
+//! Immutable full-fixity operator definitions and source matching.
 
 use std::{cmp::Ordering, collections::BTreeMap, ops::Range};
 
-use chasa::parser::trie::TrieState as ChasaTrieState;
 use unicode_ident::is_xid_continue;
 
 use crate::{BindingPower as HeaderBindingPower, HeaderOperator, SyntaxDependencySlot};
@@ -28,6 +27,7 @@ impl OperatorTable {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn from_declarations(
         declarations: impl IntoIterator<Item = OperatorDeclaration>,
     ) -> Result<Self, OperatorTableBuildError> {
@@ -35,6 +35,7 @@ impl OperatorTable {
     }
 
     /// Compiles declaration-local header facts into spelling-level fixities.
+    #[cfg(test)]
     pub(crate) fn from_header_operators(
         operators: impl IntoIterator<Item = HeaderOperator>,
     ) -> Result<Self, OperatorTableBuildError> {
@@ -45,16 +46,10 @@ impl OperatorTable {
         )
     }
 
+    #[cfg(test)]
     pub(crate) fn get(&self, spelling: &str) -> Option<&OperatorEntry> {
         let entry = self.trie.find(spelling)?;
         self.entries.get(entry)
-    }
-
-    pub(crate) fn state(&self) -> OperatorTrieState<'_> {
-        OperatorTrieState {
-            table: self,
-            node: Some(0),
-        }
     }
 
     /// Traverses the frozen all-spelling trie directly from source. Terminal
@@ -78,10 +73,6 @@ impl OperatorTable {
                 operator_boundary_source(last_character, &source[end..]).then_some(())
             })
             .map(|((), end)| end)
-    }
-
-    pub(crate) fn is_empty(&self) -> bool {
-        self.entries.is_empty()
     }
 
     pub(crate) fn entries_with_sites(
@@ -108,6 +99,7 @@ pub(crate) struct OperatorDeclaration {
 }
 
 impl OperatorDeclaration {
+    #[cfg(test)]
     pub(crate) fn new(spelling: impl Into<Box<str>>, fixities: OperatorFixities) -> Self {
         Self::at_range(spelling, fixities, 0..0)
     }
@@ -125,6 +117,7 @@ impl OperatorDeclaration {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn imported_at_range(
         spelling: impl Into<Box<str>>,
         fixities: OperatorFixities,
@@ -364,6 +357,7 @@ impl SuffixFixity {
 pub(crate) struct BindingPower(Box<[i8]>);
 
 impl BindingPower {
+    #[cfg(test)]
     pub(crate) fn scalar(value: i8) -> Self {
         Self(Box::new([value]))
     }
@@ -374,6 +368,7 @@ impl BindingPower {
         Self(components.into_boxed_slice())
     }
 
+    #[cfg(test)]
     pub(crate) fn components(&self) -> &[i8] {
         &self.0
     }
@@ -531,6 +526,7 @@ fn merge_capability<T: Clone>(
 }
 
 /// Compiles the immutable full-parse table without modifying the imported table.
+#[cfg(test)]
 pub(crate) fn compile_full_parse_operators(
     imported: &OperatorTable,
     local: &[HeaderOperator],
@@ -655,6 +651,7 @@ struct OperatorTableBuilder {
 }
 
 impl OperatorTableBuilder {
+    #[cfg(test)]
     fn from_declarations(
         declarations: impl IntoIterator<Item = OperatorDeclaration>,
     ) -> Result<Self, OperatorTableBuildError> {
@@ -663,6 +660,7 @@ impl OperatorTableBuilder {
         Ok(builder)
     }
 
+    #[cfg(test)]
     fn extend(
         &mut self,
         declarations: impl IntoIterator<Item = OperatorDeclaration>,
@@ -686,6 +684,7 @@ impl OperatorTableBuilder {
             .merge(&declaration)
     }
 
+    #[cfg(test)]
     fn seed_imported(&mut self, imported: &OperatorTable) -> Result<(), OperatorTableBuildError> {
         for (entry, sites) in imported.entries_with_sites() {
             for fixity in [
@@ -771,34 +770,6 @@ fn matching_presence(fixities: &OperatorFixities, sites: &OperatorFixitySites) -
         && (fixities.nullfix == sites.nullfix.is_some())
 }
 
-/// Borrowing traversal state consumed directly by chasa's trie parser.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct OperatorTrieState<'table> {
-    table: &'table OperatorTable,
-    node: Option<usize>,
-}
-
-impl<'table> ChasaTrieState for OperatorTrieState<'table> {
-    type Item = char;
-    type Value = &'table OperatorEntry;
-
-    fn step(&mut self, character: Self::Item) -> bool {
-        let Some(node) = self.node else {
-            return false;
-        };
-        self.node = self.table.trie.nodes[node]
-            .children
-            .get(&character)
-            .copied();
-        self.node.is_some()
-    }
-
-    fn value(&self) -> Option<Self::Value> {
-        let entry = self.table.trie.nodes[self.node?].entry?;
-        self.table.entries.get(entry)
-    }
-}
-
 #[derive(Debug)]
 struct OperatorTrie {
     nodes: Vec<OperatorTrieNode>,
@@ -827,6 +798,7 @@ impl OperatorTrie {
         self.nodes[node].entry = Some(entry);
     }
 
+    #[cfg(test)]
     fn find(&self, spelling: &str) -> Option<usize> {
         let mut node = 0;
         for character in spelling.chars() {
@@ -892,11 +864,7 @@ struct OperatorTrieNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        BindingPower as HeaderBindingPower, BindingPowers, HeaderOperator, Visibility,
-        input::SourceInput,
-    };
-    use chasa::Input;
+    use crate::{BindingPower as HeaderBindingPower, BindingPowers, HeaderOperator, Visibility};
 
     #[test]
     fn preserves_all_fixities_and_bpvec_binding_powers() {
@@ -1240,59 +1208,6 @@ mod tests {
         );
         assert_eq!(compilation.rejected_conflicts[0].first_range, 4..18);
         assert_eq!(compilation.rejected_conflicts[0].second_range, 20..35);
-    }
-
-    #[test]
-    fn longest_match_then_can_fall_back_from_long_to_short_spelling() {
-        let table = OperatorTable::from_declarations([
-            OperatorDeclaration::new(
-                "+",
-                OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
-            ),
-            OperatorDeclaration::new(
-                "+!",
-                OperatorFixities::new()
-                    .with_infix(BindingPower::scalar(50), BindingPower::new(50, [1])),
-            ),
-            OperatorDeclaration::new(
-                "!",
-                OperatorFixities::new()
-                    .with_prefix(BindingPower::scalar(80))
-                    .with_nullfix(),
-            ),
-        ])
-        .expect("operator declarations should build");
-
-        let mut longest_input = SourceInput::new("+!a");
-        let longest = longest_input.test(
-            table
-                .state()
-                .longest_match_then(|_, candidate, _| Some(candidate.spelling())),
-        );
-        assert_eq!(longest, Some("+!"));
-        assert_eq!(longest_input.pos(), 2);
-
-        let mut candidates = Vec::new();
-        let mut fallback_input = SourceInput::new("+!a");
-        let fallback = fallback_input.test(table.state().longest_match_then(|_, candidate, _| {
-            candidates.push(candidate.spelling());
-            (!candidate
-                .fixities()
-                .kinds()
-                .contains(OperatorKindSet::INFIX))
-            .then(|| candidate.spelling())
-        }));
-
-        assert_eq!(candidates, ["+!", "+"]);
-        assert_eq!(fallback, Some("+"));
-        assert_eq!(fallback_input.pos(), 1);
-        assert_eq!(fallback_input.next(), Some('!'));
-        let bang = table.get("!").expect("bang operator should exist");
-        assert!(
-            bang.fixities()
-                .kinds()
-                .contains(OperatorKindSet::PREFIX | OperatorKindSet::NULLFIX)
-        );
     }
 
     #[test]

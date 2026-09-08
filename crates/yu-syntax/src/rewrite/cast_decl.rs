@@ -2,7 +2,7 @@
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use crate::session::{CastRole, DeclarationRole, GrammarRole};
-use crate::{scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{rewrite::operator::OperatorSite, syntax_kind::SyntaxKind};
 use reborrow_generic::Reborrow as _;
 
 use super::{

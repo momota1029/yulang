@@ -5,7 +5,7 @@ use reborrow_generic::Reborrow as _;
 
 use crate::{
     operator::BindingPower,
-    scan::operator::OperatorSite,
+    rewrite::operator::OperatorSite,
     session::{GrammarRole, IfExpressionRole},
     syntax_kind::SyntaxKind,
 };
