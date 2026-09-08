@@ -235,23 +235,32 @@ segments without opening grammar inside Error.
 | `tails::field_tail_normalized` | `Expression(FieldName)` | M/E | missing adjacent name / maximal lexical non-name run | `[]` or `other(Rng)` / `Identifier` | protected Item and retry name return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
 | `tails::path_tail_normalized` | `Expression(PathSegment)` | M/E | missing post-`::` segment / maximal sigil-aware lexical non-name run | `[]` or `other(Rng)` / `Identifier` | retain Path `G*`; protected Item and retry segment return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
 
-Inline Colon/With publication is now mapped below. Indented body transport and
-the current-depth outer layout-sequence rule remain open and are not implied by
-these rows.
+Inline Colon/With publication is now mapped below. The current-depth outer
+layout-sequence rule remains open and is not implied by these rows.
 
 | source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `tails::inline_colon_argument_normalized` initial / local comma argument | `ColonApplication(Rhs)` / `ColonApplication(InlineArgument)` | M/E | absent protected Item or maximal NUD lexical run | `[]` or `other(Rng)` / `Expression` | local comma opens the next role; outer Item stays pending | `colon_with_recovery::*`, `tails::*` | C-inline |
 | `tails::with_tail_normalized` internal colon | `WithBody(Introducer)` | M | absent lone colon | `[]` / punctuation Colon | same-position canonical body retry; no same-boundary Body cascade | `colon_with_recovery::*`, `tails::*` | C-inline |
 | `tails::with_inline_item_normalized` colon-present/retry body | `WithBody(Body)` | M/E | absent protected Item or maximal canonical-Statement lexical run | `[]` or `other(Rng)` / `Statement` | retry admitted Statement after Error; outer semicolon/close stays pending | `colon_with_recovery::*`, `tails::*` | C-inline |
+
+Shared indented Statement transport is now mapped below. This is private O3b
+construction; it does not certify braced/root Statement recovery or caller
+body-introducer bypasses.
+
+| source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `statement::indented_statement_block_normalized` block entry and `indented_statement_slot_normalized` | explicit Colon/With/If/For/declaration caller role; Case/Catch default Colon role | M | abstract/fence coordinate, EOF after block-owned leading, protected separator/stop/dedent/close at remaining start | `[]` / `Statement` | full protected Item/leading stays unread; nested admitted Statement owns itself | `indented_recovery::*`, direct owner controls | C |
+| `statement::retry_indented_statement_normalized` | same explicit transported role | E | maximal nonempty lexical non-Statement run until admitted Statement or protected retry boundary | `other(Rng)` / `Statement` | retry admitted canonical Statement outside Error; no second Missing at boundary | `indented_recovery::*`, owner/output controls | C |
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-Colon/With indented transport and layout outer-sequence correction,
-if/case/Rule/string; canonical Statement and braced/indented/colon/with owners;
+Colon layout outer-sequence correction, if/case/Rule/string; canonical Statement
+and braced/root/colon/with owners and caller bypasses;
 declarations/derives/companions; VirtualStatementBlock; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type

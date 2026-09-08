@@ -549,6 +549,7 @@ fn colon_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
+            GrammarRole::ForStatement(ForStatementRole::IndentedStatement),
             outer_stops,
             item_origin,
             line_entry,

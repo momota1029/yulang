@@ -415,6 +415,7 @@ fn colon_body_normalized(
         indented_statement_block_normalized(
             i,
             baseline,
+            GrammarRole::IfExpression(IfExpressionRole::IndentedStatement),
             stops,
             item_origin,
             line_entry,

@@ -1068,6 +1068,9 @@ fn cast_definition_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
+            crate::session::GrammarRole::Declaration(crate::session::DeclarationRole::Cast(
+                crate::session::CastRole::IndentedStatement,
+            )),
             stops,
             item_origin,
             line_entry,

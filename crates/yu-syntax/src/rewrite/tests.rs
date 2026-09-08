@@ -50,6 +50,7 @@ mod fixed_tail_recovery;
 mod for_statement;
 mod if_expr;
 mod impl_decl;
+mod indented_recovery;
 mod lexical;
 mod literal;
 mod mod_decl;

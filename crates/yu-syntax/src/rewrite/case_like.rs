@@ -743,6 +743,9 @@ fn arm_body_normalized(
         indented_statement_block_normalized(
             i,
             arrow_baseline,
+            crate::session::GrammarRole::ColonApplication(
+                crate::session::ColonApplicationRole::IndentedStatement,
+            ),
             body_stops,
             item_origin,
             line_entry,

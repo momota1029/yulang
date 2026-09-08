@@ -197,11 +197,20 @@ recovery output 25; package/format/diff pass. Spec/regression reviews found no
 scoped defect. The pre-existing `my role = value` Statement assertion still
 fails identically at baseline `de8e77f3`, so it remains unchanged.
 
-Next, continue Colon/With indented recovery-role transport and the current-depth
-layout outer-sequence correction, then literal/Statement/declaration dependencies.
-Extend the same ledger; retain the current acceptance contracts, effect-free
-optional entry and the atomic public cutover boundary. No benchmark
-sample/process has been used.
+The shared indented Statement recovery-role transport in
+`2026-09-08-successor-expression-indented-statement-role-transport.md` is
+implemented. Every direct indented caller now passes its finite existing role;
+block-entry/child-slot Missing and sealed lexical Error records are typed, and
+close/abstract-boundary handoff is protected. Focused recovery: 7; direct
+caller/owner/output set: 227 (with the recorded baseline visibility-collision
+test excluded); actual For: 12; package/format/diff pass. Specification/recovery
+and regression audits passed. No benchmark process was used.
+
+Next, design the current-depth Colon layout outer-sequence correction, then
+continue literal/Statement/declaration dependencies. Braced/root recovery and
+caller body-introducer bypasses remain separate. Extend the same ledger; retain
+the current acceptance contracts, effect-free optional entry and the atomic
+public cutover boundary. No benchmark sample/process has been used.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 

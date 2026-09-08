@@ -1,7 +1,12 @@
 //! Direct canonical statements and their closed sequence owners.
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
+use crate::session::{
+    ColonApplicationRole, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
+    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
 
@@ -16,10 +21,14 @@ use super::{
     driver::{
         Either, MlMode, NormalizedExit, TailExit, advanced_origin, complete,
         continue_normalized_tail, delimited_baseline, expr_from_nud_normalized, handoff,
-        implicit_delimited_newline, indentation_after_newline, is_active_stop, is_nud_item,
-        is_separator, ordinary_exit, scan_expression_literal_payload, suffix_marker, token_kind,
+        implicit_delimited_newline, indentation_after_newline, is_active_stop, is_active_stop_lex,
+        is_close, is_nud_item, is_separator, ordinary_exit, scan_expression_literal_payload,
+        suffix_marker, token_kind,
     },
-    emit::{emit_missing, emit_token_item},
+    emit::{
+        emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+        token_syntax_kind,
+    },
     enum_decl::{enum_declaration_normalized, enum_declaration_selected_lexical},
     error_decl::{error_declaration_normalized, error_declaration_selected_lexical},
     for_decl::{for_statement_normalized, for_statement_selected},
@@ -28,6 +37,7 @@ use super::{
     lexer::scan_statement_payload,
     mod_decl::{mod_declaration_normalized, mod_declaration_selected_lexical},
     operator::stops_for,
+    output::RecoveryDraft,
     role_decl::{role_declaration_normalized, role_declaration_selected_lexical},
     struct_decl::{struct_declaration_normalized, struct_declaration_selected_lexical},
     type_decl::{type_declaration_normalized, type_declaration_selected_lexical},
@@ -539,7 +549,10 @@ pub(super) fn classify_statement_item_lexical(
 
 #[derive(Clone, Copy)]
 enum StatementSequencePolicy {
-    Indented { block_indent: usize },
+    Indented {
+        block_indent: usize,
+        role: GrammarRole,
+    },
     Braced,
 }
 
@@ -549,6 +562,7 @@ pub(super) fn indented_statement_block(i: RewriteIn, base_indent: usize, stops: 
     ordinary_exit(indented_statement_block_normalized(
         i,
         base_indent,
+        GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
         stops,
         0,
         LineEntry::InLine,
@@ -560,6 +574,7 @@ pub(super) fn indented_statement_block(i: RewriteIn, base_indent: usize, stops: 
 pub(super) fn indented_statement_block_normalized(
     mut i: RewriteIn,
     base_indent: usize,
+    role: GrammarRole,
     stops: Stops,
     item_origin: usize,
     line_entry: LineEntry,
@@ -571,7 +586,7 @@ pub(super) fn indented_statement_block_normalized(
     i.state
         .start_node(SyntaxKind::IndentedStatementBlock.into());
     if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_indented_missing(i.rb(), &mut item, item_origin, role);
         i.state.finish_node();
         return complete(handoff(item), line_entry);
     }
@@ -580,11 +595,13 @@ pub(super) fn indented_statement_block_normalized(
         .expect("C2 admission proved a strictly indented block opening");
     let ambient = ambient.map(|view| view.statement(block_indent));
 
-    item.emit_all_remaining_leading(&mut *i.state);
+    if !indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     let exit = statement_sequence_normalized(
         i.rb(),
         item,
-        StatementSequencePolicy::Indented { block_indent },
+        StatementSequencePolicy::Indented { block_indent, role },
         block_indent,
         stops,
         item_origin,
@@ -718,13 +735,14 @@ fn statement_sequence_normalized(
     let mut known_admission = None;
     loop {
         match policy {
-            StatementSequencePolicy::Indented { block_indent } => {
+            StatementSequencePolicy::Indented { block_indent, role } => {
                 let entry = suffix_marker(i.rb());
                 let exit = indented_statement_slot_normalized(
                     i.rb(),
                     item,
                     baseline,
                     block_indent,
+                    role,
                     stops,
                     true,
                     item_origin,
@@ -813,6 +831,7 @@ fn indented_statement_slot_normalized(
     mut item: Item,
     baseline: usize,
     block_indent: usize,
+    role: GrammarRole,
     stops: Stops,
     missing_on_boundary: bool,
     item_origin: usize,
@@ -824,14 +843,13 @@ fn indented_statement_slot_normalized(
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_indented_missing(i.rb(), &mut item, item_origin, role);
         }
         return complete(handoff(item), line_entry);
     }
     if indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
         if missing_on_boundary {
-            item.emit_all_remaining_leading(&mut *i.state);
-            emit_missing(&mut i, LeadingTrivia::default());
+            emit_indented_missing(i.rb(), &mut item, item_origin, role);
         }
         return complete(handoff(item), line_entry);
     }
@@ -865,6 +883,7 @@ fn indented_statement_slot_normalized(
         item,
         baseline,
         block_indent,
+        role,
         stops,
         item_origin,
         line_entry,
@@ -890,31 +909,114 @@ fn indented_statement_slot_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn retry_indented_statement_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     mut item: Item,
     baseline: usize,
     block_indent: usize,
+    role: GrammarRole,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-        if indented_statement_retry_boundary(i.rb(), &item, block_indent, stops) {
-            i.state.finish_node();
-            return (item, None, item_origin, line_entry);
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind =
+                    token_syntax_kind(token_kind(&item).expect("an indented Error emits a token"));
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) = run.lexical(|lex| {
+                    scan_statement_item_lexical(
+                        lex,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops,
+                    )
+                });
+                let boundary = indented_statement_lexical_boundary(&item, block_indent)
+                    || indentation_after_newline(item.leading_view()) == Some(block_indent)
+                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops));
+                let admission = if boundary {
+                    None
+                } else {
+                    run.lexical(|lex| {
+                        classify_statement_item_lexical(
+                            lex.remainder(),
+                            &item,
+                            baseline,
+                            item_origin,
+                            fence,
+                        )
+                    })
+                };
+                if boundary || admission.is_some() {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, admission, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| indented_recovery_draft(role, RecoveryKind::Error, range, unexpected),
+    )
+}
+
+fn emit_indented_missing(i: RewriteIn, item: &mut Item, origin: usize, role: GrammarRole) {
+    let at = if item.payload_view().is_boundary() {
+        item.payload_view()
+            .pending_boundary()
+            .expect("boundary coordinate")
+            .coordinate()
+    } else {
+        if item.payload_view().is_eof() {
+            item.emit_eof_leading(&mut *i.state);
         }
-        if let Some(admission) =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
-            i.state.finish_node();
-            return (item, Some(admission), item_origin, line_entry);
-        }
-    }
+        item.extent(origin).recovery_range().start
+    };
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        indented_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn indented_recovery_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Statement,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn indented_statement_lexical_boundary(item: &Item, block_indent: usize) -> bool {
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || is_separator(item)
+        || is_close(item)
+        || indentation_after_newline(item.leading_view())
+            .is_some_and(|indentation| indentation < block_indent)
 }
 
 fn indented_statement_slot_boundary(
@@ -923,11 +1025,7 @@ fn indented_statement_slot_boundary(
     block_indent: usize,
     stops: Stops,
 ) -> bool {
-    item.payload_view().is_eof()
-        || is_separator(item)
-        || is_active_stop(i.rb(), item, stops)
-        || indentation_after_newline(item.leading_view())
-            .is_some_and(|indentation| indentation < block_indent)
+    indented_statement_lexical_boundary(item, block_indent) || is_active_stop(i.rb(), item, stops)
 }
 
 fn indented_statement_retry_boundary(
@@ -946,7 +1044,9 @@ fn indented_statement_outer_boundary(
     block_indent: usize,
     stops: Stops,
 ) -> bool {
-    is_separator(item)
+    item.payload_view().is_boundary()
+        || is_close(item)
+        || is_separator(item)
         || is_active_stop(i.rb(), item, stops)
         || indentation_after_newline(item.leading_view())
             .is_some_and(|indentation| indentation < block_indent)

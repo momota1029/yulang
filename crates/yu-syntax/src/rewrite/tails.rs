@@ -92,6 +92,7 @@ pub(super) fn colon_tail_normalized(
         indented_statement_block_normalized(
             i.rb(),
             baseline,
+            GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
             stops,
             item_origin,
             line_entry,
@@ -457,6 +458,7 @@ pub(super) fn with_tail_normalized(
             indented_statement_block_normalized(
                 i.rb(),
                 baseline,
+                GrammarRole::WithBody(WithBodyRole::IndentedStatement),
                 stops,
                 item_origin,
                 line_entry,

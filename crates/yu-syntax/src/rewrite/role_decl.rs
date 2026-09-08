@@ -444,6 +444,9 @@ fn colon_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
+            crate::session::GrammarRole::Declaration(crate::session::DeclarationRole::Role(
+                crate::session::RoleDeclarationRole::IndentedStatement,
+            )),
             stops,
             item_origin,
             line_entry,
