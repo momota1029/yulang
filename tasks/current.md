@@ -59,8 +59,13 @@ product/frozen setup and `root_statement.rs` owns exact source-root statement
 progression, operator body handling, root recovery, and concrete header scopes.
 Root/header/full-parse/public-boundary/recovery controls passed 63 tests with
 one existing manual measurement harness ignored; package/format/diff passed.
-Fence-boundary termination and the opaque Root Error source-copy path remain
-separate Yumark prerequisites, not incidental changes to this mechanical split.
+Fence-boundary termination remains a separate Yumark prerequisite, not an
+incidental change to this mechanical split. The first opaque Root Error
+prerequisite is complete: its existing lexical skipper now emits a borrowed
+source slice from the entry remainder and consumed byte length, rather than
+allocating a copied tail. It preserves all unfenced CST, recovery, origin and
+line behavior; it deliberately adds neither a fence parameter nor a cell entry.
+The next bounded gate is the fence-aware opaque lexical owner.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

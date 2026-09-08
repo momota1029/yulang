@@ -335,12 +335,14 @@ fn body_boundary(item: &Item) -> bool {
 }
 
 fn root_error(
-    i: SyntaxIn,
+    mut i: SyntaxIn,
     mut item: Item,
     mut origin: usize,
     mut line: LineEntry,
     role: StatementRole,
 ) -> (Item, usize, LineEntry) {
+    let source_tail = i.token(|lex| Some(lex.remainder())).unwrap();
+    let source_origin = origin;
     item.emit_all_remaining_leading(&mut *i.state);
     let head = unexpected_head(
         item.payload_view()
@@ -358,11 +360,11 @@ fn root_error(
                     matches!(spelling, "~\"" | "'" | "'[" | "'{") || spelling.starts_with('"');
                 let mut end = origin;
                 if opaque {
-                    let tail: Box<str> = run.lexical(|mut lex| {
+                    let tail_len = run.lexical(|mut lex| {
                         let (_, text) = lex
                             .rb()
                             .with_str(|lex| header::finish_opaque_opener(lex, spelling));
-                        text.into()
+                        text.len()
                     });
                     let kind = item
                         .payload_view()
@@ -371,9 +373,10 @@ fn root_error(
                         .map(token_syntax_kind)
                         .unwrap_or(SyntaxKind::Operator);
                     run.emit_item_as(item, origin, kind);
-                    end += tail.len();
+                    end += tail_len;
+                    let tail = &source_tail[origin - source_origin..end - source_origin];
                     if !tail.is_empty() {
-                        run.emit_literal_segment(&tail, origin..end, SyntaxKind::Unknown);
+                        run.emit_literal_segment(tail, origin..end, SyntaxKind::Unknown);
                     }
                     origin = end;
                     line = LineEntry::InLine;

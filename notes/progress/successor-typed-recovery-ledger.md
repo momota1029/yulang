@@ -495,11 +495,24 @@ remain open.
   Root product and frozen-reconciliation facade, while `root_statement` owns
   the exact statement progression state, operator-body path, root recovery,
   and the concrete shared-header scopes that determine record order.
-- This is code motion only: the unfenced-boundary assertion and Root Error's
-  opaque source-copy path are unchanged and remain distinct Yumark blockers.
-  Root/header/full-parse/public-boundary/recovery controls passed 63 tests with
-  one existing manual measurement harness ignored; package, format, and diff
-  passed. Benchmark use: zero samples/processes.
+- This is code motion only: the unfenced-boundary assertion remains a distinct
+  Yumark blocker. The later M1 opaque Root Error preparation removed its
+  temporary source-tail `Box` allocation without changing the unfenced scan,
+  CST, record, origin or line contract; fence-aware opaque scanning remains a
+  separate gate. Root/header/full-parse/public-boundary/recovery controls
+  passed 63 tests with one existing manual measurement harness ignored; package,
+  format, and diff passed. Benchmark use: zero samples/processes.
+
+## Root opaque no-copy preparation
+
+- `root_statement::root_error` now retains its entry source remainder and emits
+  the opaque skipper's exact consumed byte slice directly. This removes the
+  copied `Box<str>` tail while preserving source order, token kinds, byte
+  ranges, recovery records, origin, and line state. It adds no fence/cell path
+  and does not make the header skipper fence-aware.
+- M1 implementation and independent regression review were clean. Focused Root
+  controls passed 12 tests; format and diff passed. Static cost removes one
+  tail allocation/copy per opaque Root Error; benchmark use: zero samples/processes.
 
 ## Parenthesized operator newline control
 
