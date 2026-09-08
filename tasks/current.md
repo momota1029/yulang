@@ -421,6 +421,26 @@ two test-only evidence repairs. The known unrelated `(a +\nb)` operator test
 baseline remains unchanged. Next: body-level responsibility review before
 splitting the still-large Expression, TypeExpression and Pattern owners.
 
+Gate B1 is the reviewed Expression split. `expression/operator_chain.rs` owns
+admitted NUD dispatch, prefix/infix/suffix recursion, ML application, tail
+dispatch and the three-result continuation protocol. `expression/required_operand.rs`
+owns the explicit-role mandatory-operand kernel, its boundary predicate, typed
+Missing/Error mapping and sealed lexical Error retry. `expression/mod.rs` is
+only their narrow façade. Do not split NUD from tail, reintroduce literal
+scanning, or move the For Body mapping: those would sever established owner
+cycles or contracts. `tails.rs` remains a later separately reviewed owner
+split; TypeExpression and Pattern boundaries are also deferred until their
+full body reviews are converted to bounded gates.
+
+Gate B1 is complete. The façade now declares only the two coherent owners;
+all executable bodies are equivalent to the pre-split Expression implementation
+apart from private child visibility and formatting. Focused handoff, operand,
+tail, delimiter, normalized, output and frozen controls passed. Independent
+regression review also confirmed the unchanged If/Case/For caller roles and
+the retained For Body `Statement` mapping. The known operator baseline remains
+unchanged. Next: review the existing `tails.rs` ownership split before moving
+colon, with-body and fixed-access recovery.
+
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
 recovery-equality prerequisite.
