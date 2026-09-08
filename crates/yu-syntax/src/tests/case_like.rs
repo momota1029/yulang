@@ -11,6 +11,279 @@ use crate::{
 };
 use std::{ops::Range, sync::Arc};
 
+fn sequence_record(id: u32, separator: bool, at: usize) -> CommittedRecoveryRecord {
+    let role = if separator {
+        CaseLikeRole::Separator
+    } else {
+        CaseLikeRole::Block
+    };
+    let mut record = structural_record(id, role, RecoveryKind::Missing, at..at);
+    record.expectations = Arc::from([SyntaxExpectation {
+        role: GrammarRole::CaseLike(role),
+        expected: ExpectedSyntax::Punctuation(if separator {
+            PunctuationEvidence::Comma
+        } else {
+            PunctuationEvidence::Close(crate::recovery_record::Delimiter::Brace)
+        }),
+        range: at..at,
+        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+    }]);
+    record
+}
+
+#[test]
+fn case_sequence_missing_records_are_exact_shifted_frozen_and_seeded() {
+    for (source, separator, at) in [
+        ("case x: n -> [tail] -> yes", true, 12),
+        ("catch x { n -> [tail] -> yes }", true, 14),
+        ("catch action { err -> recover", false, 29),
+        ("catch x { n -> a,  ", false, 19),
+    ] {
+        for origin in [0, 8100] {
+            let expected = if separator {
+                vec![
+                    arm_record(0, CaseLikeRole::Body, origin + at..origin + at, false, &[]),
+                    sequence_record(1, true, origin + at),
+                ]
+            } else {
+                vec![sequence_record(0, false, origin + at)]
+            };
+            for frozen in [None, Some(expected.as_slice())] {
+                let mut output =
+                    frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+                output.start_node(SyntaxKind::Root.into());
+                let (_, suffix) = parse_case_into(source, origin, None, &mut output);
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(suffix, "", "{source:?}");
+                assert_eq!(green.to_string(), source, "{source:?}");
+                assert_eq!(records, expected, "{source:?}");
+            }
+        }
+        let seed = sequence_record(7, false, 0);
+        let expected_at = |origin, id| {
+            if separator {
+                vec![
+                    arm_record(id, CaseLikeRole::Body, origin + at..origin + at, false, &[]),
+                    sequence_record(id + 1, true, origin + at),
+                ]
+            } else {
+                vec![sequence_record(id, false, origin + at)]
+            }
+        };
+        let mut frozen = vec![seed.clone()];
+        frozen.extend(expected_at(100, 19));
+        let mut output = GreenNodeBuilder::reconcile(&frozen);
+        output.start_node(SyntaxKind::Root.into());
+        output.start_node(SyntaxKind::Missing.into());
+        output.finish_node();
+        output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+            seed.site.clone(),
+            seed.kind,
+            seed.unexpected.clone(),
+            seed.expectations.clone(),
+            0,
+        ));
+        for origin in [100, 200] {
+            let _ = parse_case_into(source, origin, None, &mut output);
+        }
+        output.finish_node();
+        let (_, records) = output.finish_with_recoveries();
+        frozen.extend(expected_at(200, if separator { 21 } else { 20 }));
+        assert_eq!(records, frozen);
+    }
+}
+
+#[test]
+fn catch_sequence_matching_close_after_trailing_comma_is_owned_by_block() {
+    for source in [
+        "catch x { n -> a, }",
+        "catch x { n -> a,\r\n }",
+        "catch x { n -> a, _ -> b }",
+        "catch x { n -> a\n _ -> b }",
+        "case x: n -> a, _ -> b",
+        "case x:\n  n -> a\n  _ -> b",
+        "catch x: n -> a",
+    ] {
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let (_, suffix) = parse_case_into(source, 0, None, &mut output);
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(green.to_string(), source);
+        assert_eq!(suffix, "");
+        assert!(records.is_empty(), "{source:?}: {records:?}");
+    }
+}
+
+#[test]
+fn empty_catch_keeps_required_arm_recovery_before_local_close_completion() {
+    for (source, matching_close) in [("catch x {}", true), ("catch x { ]tail", false)] {
+        for origin in [0, 8100] {
+            let at = origin + 9;
+            let mut expected = vec![
+                structural_record(
+                    0,
+                    CaseLikeRole::Pattern,
+                    if matching_close {
+                        RecoveryKind::Missing
+                    } else {
+                        RecoveryKind::Error
+                    },
+                    if matching_close { at..at } else { at..at + 2 },
+                ),
+                arm_record(
+                    1,
+                    CaseLikeRole::Arrow,
+                    if matching_close {
+                        at..at
+                    } else {
+                        origin + 15..origin + 15
+                    },
+                    true,
+                    &[],
+                ),
+            ];
+            if !matching_close {
+                // With no caller stop, `]` retains the Pattern owner's recovery.
+                expected.push(sequence_record(2, false, origin + 15));
+            }
+            for frozen in [None, Some(expected.as_slice())] {
+                let mut output =
+                    frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+                output.start_node(SyntaxKind::Root.into());
+                let (_, suffix) = parse_case_into(source, origin, None, &mut output);
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(records, expected, "{source:?}");
+                let root = SyntaxNode::new_root(green);
+                assert_eq!(root.to_string(), source);
+                assert_eq!(suffix, "");
+                let block = root
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::CatchBlock)
+                    .unwrap();
+                let arm = block
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::CatchArm)
+                    .expect("the first arm is mandatory even at a close");
+                assert_eq!(
+                    arm.descendants()
+                        .filter(|node| node.kind() == SyntaxKind::Missing)
+                        .count(),
+                    if matching_close { 2 } else { 1 }
+                );
+                assert_eq!(
+                    block
+                        .descendants()
+                        .filter(|node| node.kind() == SyntaxKind::Missing)
+                        .count(),
+                    2
+                );
+                if matching_close {
+                    assert_eq!(suffix, "");
+                    assert_eq!(block.last_token().unwrap().text(), "}");
+                } else {
+                    assert_eq!(
+                        arm.descendants()
+                            .find(|node| node.kind() == SyntaxKind::Error)
+                            .unwrap()
+                            .to_string(),
+                        " ]"
+                    );
+                    assert_eq!(block.last_child().unwrap().kind(), SyntaxKind::Missing);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn case_e12i_literal_retains_current_ml_and_operator_judgment() {
+    let source = "case x: 1 -> a 2 -> b";
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let (_, suffix) = parse_case_into(source, 0, None, &mut output);
+    output.finish_node();
+    let (_, records) = output.finish_with_recoveries();
+    assert_eq!(suffix, "> b");
+    assert!(
+        !records
+            .iter()
+            .any(|record| record.site.role == GrammarRole::CaseLike(CaseLikeRole::Separator))
+    );
+}
+
+#[test]
+fn catch_local_close_keeps_protected_item_and_follows_child_records() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for head in [
+        "catch α { n -> a",
+        "catch α { n -> a,",
+        "catch α { n",
+        "catch α { n -> @",
+    ] {
+        for suffix in [" ]tail", "\r\n> > ```\r\nouter", "\r\n> foreign"] {
+            let source = format!("{head}{suffix}");
+            let origin = 7200;
+            let fenced = suffix.contains('>');
+            let at = origin + head.len() + if fenced { 2 } else { 0 };
+            let mut expected = Vec::new();
+            if head.ends_with(" n") {
+                expected.push(arm_record(0, CaseLikeRole::Arrow, at..at, true, &[]));
+            } else if head.ends_with('@') {
+                let start = origin + head.len() - 1;
+                expected.push(arm_record(
+                    0,
+                    CaseLikeRole::Body,
+                    start..start + 1,
+                    false,
+                    &[start..start + 1],
+                ));
+            }
+            expected.push(sequence_record(expected.len() as u32, false, at));
+            for frozen in [None, Some(expected.as_slice())] {
+                let mut output =
+                    frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+                output.start_node(SyntaxKind::Root.into());
+                let (exit, remainder) =
+                    parse_case_into(&source, origin, fenced.then_some(&fence), &mut output);
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(records, expected, "{source:?}");
+                assert_eq!(green.to_string(), head, "{source:?}");
+                let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
+                    panic!("pending {source:?}")
+                };
+                let successor = origin + source.len() - remainder.len();
+                assert_eq!(
+                    item.extent(successor).recovery_range().start,
+                    origin + head.len()
+                );
+                if fenced {
+                    assert!(item.payload_view().is_boundary());
+                    assert_eq!(remainder, suffix.strip_prefix("\r\n").unwrap());
+                    assert_eq!(line, LineEntry::PhysicalStart);
+                } else {
+                    assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+                    assert_eq!(emit_pending_leading_text(&mut item), " ");
+                    assert_eq!(remainder, "tail");
+                    assert_eq!(line, LineEntry::InLine);
+                }
+            }
+        }
+    }
+}
+
 fn arm_record(
     id: u32,
     role: CaseLikeRole,
@@ -595,7 +868,8 @@ fn case_body_unread_opener_reaches_the_existing_next_pattern_owner() {
                 &[],
             )
         };
-        assert_eq!(records, [expected]);
+        let separator_at = head.len();
+        assert_eq!(records, [expected, sequence_record(1, true, separator_at)]);
     }
 }
 

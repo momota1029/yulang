@@ -18,8 +18,7 @@ use crate::{
     cst_output::{
         RecoveryDraft,
         emit::{
-            emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
-            token_syntax_kind,
+            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
         },
     },
     cursor::{LexIn, SyntaxIn},
@@ -350,6 +349,7 @@ fn catch_braced_block_normalized(
     let ambient = ambient.map(AmbientClaimView::braced);
     i.state.start_node(SyntaxKind::CatchBlock.into());
     emit_token_item(&mut i, open);
+    let entry = suffix_marker(i.rb());
     let exit = arm_sequence_normalized(
         i.rb(),
         ArmSequencePolicy::CatchBraced { baseline },
@@ -361,6 +361,29 @@ fn catch_braced_block_normalized(
         fence,
         ambient,
     );
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    let exit = match exit {
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
+            if !item.payload_view().is_boundary()
+                && token_kind(&item) == Some(TokenKind::RBrace) =>
+        {
+            emit_token_item(&mut i, item);
+            complete(Ok(()), line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Left(mut item)), line_entry) => {
+            if item.payload_view().is_eof() {
+                item.emit_eof_leading(&mut *i.state);
+            }
+            emit_sequence_missing(i.rb(), false, &item, item_origin);
+            complete(handoff(item), line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
+            end.item.emit_all_remaining_leading(&mut *i.state);
+            emit_sequence_missing(i.rb(), false, &end.item, item_origin);
+            complete(Err(Either::Right(end)), line_entry)
+        }
+        exit => exit,
+    };
     i.state.finish_node();
     exit
 }
@@ -397,16 +420,44 @@ fn missing_block(
     exit
 }
 
-fn emit_structural_missing(i: SyntaxIn, role: CaseLikeRole, item: &Item, item_origin: usize) {
-    let at = item.payload_view().pending_boundary().map_or_else(
-        || item.extent(item_origin).recovery_range().start,
-        |boundary| boundary.coordinate(),
+fn emit_sequence_missing(i: SyntaxIn, separator: bool, item: &Item, item_origin: usize) {
+    let (role, expected) = if separator {
+        (CaseLikeRole::Separator, PunctuationEvidence::Comma)
+    } else {
+        (
+            CaseLikeRole::Block,
+            PunctuationEvidence::Close(crate::recovery_record::Delimiter::Brace),
+        )
+    };
+    emit_case_missing(
+        i,
+        role,
+        ExpectedSyntax::Punctuation(expected),
+        item,
+        item_origin,
     );
+}
+
+fn emit_structural_missing(i: SyntaxIn, role: CaseLikeRole, item: &Item, item_origin: usize) {
     let expected = match role {
         CaseLikeRole::Block => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
         CaseLikeRole::Arm => ExpectedSyntax::Pattern,
         _ => unreachable!("only structural CaseLike slots publish here"),
     };
+    emit_case_missing(i, role, expected, item, item_origin);
+}
+
+fn emit_case_missing(
+    i: SyntaxIn,
+    role: CaseLikeRole,
+    expected: ExpectedSyntax,
+    item: &Item,
+    item_origin: usize,
+) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
     let role = GrammarRole::CaseLike(role);
     emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
         RecoveryDraft::new(
@@ -485,13 +536,6 @@ fn arm_sequence_normalized(
             NormalizedExit::Complete(Err(Either::Left(next)), next_line_entry) => {
                 line_entry = next_line_entry;
                 next
-            }
-            NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry)
-                if matches!(policy, ArmSequencePolicy::CatchBraced { .. }) =>
-            {
-                end.item.emit_all_remaining_leading(&mut *i.state);
-                emit_missing(&mut i, LeadingTrivia::default());
-                return complete(Err(Either::Right(end)), line_entry);
             }
             exit => return exit,
         };
@@ -1106,6 +1150,11 @@ impl ArmSequencePolicy {
 
     fn first_pattern_stops(self, outer_stops: Stops) -> PatternStops {
         let common = PATTERN_STOP_ARROW | PATTERN_STOP_ARM_GUARD_IF | PATTERN_STOP_ARM_GUARD_WHERE;
+        let outer_stops = if matches!(self, Self::CatchBraced { .. }) {
+            outer_stops | crate::lexical::stops::stops_for(TokenKind::RBrace)
+        } else {
+            outer_stops
+        };
         match self.family() {
             CaseLikeFamily::Case => {
                 common | PATTERN_STOP_ARM_RECOVERY_SEPARATOR | pattern_stops_from_owner(outer_stops)
@@ -1234,7 +1283,7 @@ fn inline_successor_normalized(
         return Err(complete(handoff(item), line_entry));
     }
     if is_pattern_nud(&item, first_stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_sequence_missing(i.rb(), true, &item, item_origin);
         return Ok((item, line_entry));
     }
     Err(complete(handoff(item), line_entry))
@@ -1290,17 +1339,12 @@ fn braced_successor_normalized(
     fence: Option<&FenceBoundary>,
 ) -> Result<(Item, LineEntry), NormalizedExit> {
     if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
         return Err(complete(handoff(item), line_entry));
     }
     if token_kind(&item) == Some(TokenKind::RBrace) {
-        emit_token_item(&mut i, item);
-        return Err(complete(Ok(()), line_entry));
+        return Err(complete(handoff(item), line_entry));
     }
     if item.payload_view().is_eof() {
-        let mut item = item;
-        item.emit_eof_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
         return Err(complete(handoff(item), line_entry));
     }
     if token_kind(&item) == Some(TokenKind::Comma) {
@@ -1324,7 +1368,7 @@ fn braced_successor_normalized(
         return Ok((item, line_entry));
     }
     if is_pattern_nud(&item, first_stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_sequence_missing(i.rb(), true, &item, item_origin);
         return Ok((item, line_entry));
     }
     Err(complete(handoff(item), line_entry))
