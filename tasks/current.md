@@ -549,6 +549,8 @@ recovery-equality prerequisite.
    `in`, body-introducer and shallow Body slots are also complete.
    TypeDeclaration Name and equality DefinitionIntroducer are complete; its
    typed RHS remains a separate existing owner.
+   Enum/Error Name and BodyIntroducer are complete owner-locally; Variant and
+   companion/derives owners remain distinct.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption

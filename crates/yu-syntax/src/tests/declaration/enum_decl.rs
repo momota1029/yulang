@@ -1,10 +1,389 @@
 use crate::tests::support::*;
 
+#[test]
+fn header_recovery_records_are_exact_shifted_and_frozen() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::recovery_record::*;
+    use std::sync::Arc;
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (tail, slot, kind, relative) in [
+        (
+            "\r\n> foreign",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Missing,
+            2..2,
+        ),
+        (
+            " @\r\n> foreign",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Error,
+            1..2,
+        ),
+        (
+            " E @\r\n> foreign",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+        (
+            " @ \t@  名;",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Error,
+            1..5,
+        ),
+        (
+            " E @ \t@  ;",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..7,
+        ),
+        (
+            " @ \t@\r\n> foreign",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Error,
+            1..5,
+        ),
+        (
+            " E @ \t@\r\n> foreign",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..7,
+        ),
+        (
+            "\r\n> > ```\r\nouter",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Missing,
+            2..2,
+        ),
+        (
+            " @\r\n> > ```\r\nouter",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Error,
+            1..2,
+        ),
+        (
+            " E @\r\n> > ```\r\nouter",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+        (
+            "  ]",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Missing,
+            0..0,
+        ),
+        ("  ", EnumDeclarationRole::Name, RecoveryKind::Missing, 2..2),
+        (" @ ", EnumDeclarationRole::Name, RecoveryKind::Error, 1..2),
+        (
+            " @  ]",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Error,
+            1..2,
+        ),
+        (
+            " @ 名;",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Error,
+            1..2,
+        ),
+        (" ;", EnumDeclarationRole::Name, RecoveryKind::Missing, 1..1),
+        (
+            " {}",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Missing,
+            1..1,
+        ),
+        (
+            " = A",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Missing,
+            1..1,
+        ),
+        (
+            " :\n  A",
+            EnumDeclarationRole::Name,
+            RecoveryKind::Missing,
+            1..1,
+        ),
+        (
+            " E @ ",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+        (
+            " E @  ]",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+        (
+            " E @ ;",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+        (
+            " E @ {}",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+        (
+            " E @ = A",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+        (
+            " E @ :\n  A",
+            EnumDeclarationRole::BodyIntroducer,
+            RecoveryKind::Error,
+            3..4,
+        ),
+    ] {
+        let source = format!("enum{tail}");
+        for origin in [0, 1700] {
+            let range = origin + 4 + relative.start..origin + 4 + relative.end;
+            let role = GrammarRole::Declaration(DeclarationRole::Enum(slot));
+            let expected: Vec<_> = if slot == EnumDeclarationRole::Name {
+                vec![ExpectedSyntax::Identifier]
+            } else {
+                vec![
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
+                ]
+            };
+            let record = CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                kind,
+                unexpected: if kind == RecoveryKind::Missing {
+                    Arc::from([])
+                } else if source.contains("@ \t@") {
+                    Arc::from([
+                        UnexpectedSyntax::Token {
+                            range: range.start..range.start + 1,
+                            category: UnexpectedCategory::OtherCharacter,
+                        },
+                        UnexpectedSyntax::Token {
+                            range: range.start + 1..range.end,
+                            category: UnexpectedCategory::OtherCharacter,
+                        },
+                    ])
+                } else {
+                    Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }])
+                },
+                expectations: expected
+                    .into_iter()
+                    .map(|expected| SyntaxExpectation {
+                        role,
+                        expected,
+                        range: range.clone(),
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    })
+                    .collect(),
+                primary_expectation: 0,
+            };
+            for mode in 0..3 {
+                let mut seed = record.clone();
+                seed.id = DiagnosticId(7);
+                seed.site.range = 0..0;
+                seed.kind = RecoveryKind::Missing;
+                seed.unexpected = Arc::from([]);
+                seed.expectations = seed
+                    .expectations
+                    .iter()
+                    .cloned()
+                    .map(|mut e| {
+                        e.range = 0..0;
+                        e
+                    })
+                    .collect();
+                let mut reused = record.clone();
+                if mode == 2 {
+                    reused.id = DiagnosticId(19);
+                }
+                let records = if mode == 2 {
+                    vec![seed.clone(), reused]
+                } else {
+                    vec![reused]
+                };
+                let mut output = if mode != 0 {
+                    GreenNodeBuilder::reconcile(&records)
+                } else {
+                    GreenNodeBuilder::new()
+                };
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut input = source.as_str();
+                output.start_node(SyntaxKind::Root.into());
+                if mode == 2 {
+                    output.start_node(SyntaxKind::Missing.into());
+                    output.finish_node();
+                    output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+                        seed.site,
+                        seed.kind,
+                        seed.unexpected,
+                        seed.expectations,
+                        0,
+                    ));
+                }
+                let exit = crate::declaration::enum_decl::enum_declaration_witness(
+                    In::new(&mut input, &mut recover, &mut output),
+                    0,
+                    if source.ends_with(']') {
+                        stops_for(TokenKind::RBracket)
+                    } else {
+                        0
+                    },
+                    crate::statement::StatementLineHandoff::OrdinaryLayout,
+                    origin,
+                    LineEntry::InLine,
+                    source.contains("\r\n>").then_some(&fence),
+                );
+                output.finish_node();
+                let (green, actual) = output.finish_with_recoveries();
+                assert_eq!(actual, records, "{source:?}");
+                if source.contains("@ \t@") {
+                    let node = declaration(&green);
+                    let errors: Vec<_> = node
+                        .descendants()
+                        .filter(|node| node.kind() == SyntaxKind::Error)
+                        .collect();
+                    assert_eq!(errors.len(), 1);
+                    assert_eq!(errors[0].to_string(), "@ \t@");
+                    assert_eq!(token_count(&errors[0], SyntaxKind::Unknown), 2);
+                    assert_eq!(token_count(&errors[0], SyntaxKind::Whitespace), 1);
+                    assert_eq!(count(&node, SyntaxKind::Missing), 0);
+                }
+                if let Some((head, tail)) = source.split_once("\r\n>") {
+                    let Some(NormalizedExit::Complete(
+                        Err(Either::Left(boundary)),
+                        LineEntry::PhysicalStart,
+                    )) = exit
+                    else {
+                        panic!("fence boundary")
+                    };
+                    assert_eq!(green.to_string(), head);
+                    assert_eq!(input, format!(">{tail}"));
+                    let (leading, boundary) = emit_terminal_leading_text(boundary);
+                    assert_eq!(leading, "\r\n");
+                    assert_eq!(boundary.coordinate(), origin + head.len() + 2);
+                } else if source.ends_with(']') {
+                    pending_token(exit, TokenKind::RBracket, "  ");
+                } else {
+                    assert_eq!(green.to_string(), source, "{source:?}");
+                }
+            }
+        }
+    }
+}
+
 fn declaration(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .descendants()
         .find(|node| node.kind() == SyntaxKind::EnumDeclaration)
         .expect("EnumDeclaration")
+}
+
+#[test]
+fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::recovery_record::*;
+    use std::sync::Arc;
+    let role = GrammarRole::Declaration(DeclarationRole::Enum(EnumDeclarationRole::Name));
+    let seed = CommittedRecoveryRecord {
+        id: DiagnosticId(7),
+        site: RecoverySiteKey { role, range: 0..0 },
+        kind: RecoveryKind::Missing,
+        unexpected: Arc::from([]),
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Identifier,
+            range: 0..0,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    };
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for origin in [0, 1700] {
+        for mode in 0..3 {
+            let source = "enum 名\r\n> foreign";
+            let mut input = source;
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new(&operators);
+            let expected = if mode == 2 {
+                vec![seed.clone()]
+            } else {
+                vec![]
+            };
+            let mut output = if mode != 0 {
+                GreenNodeBuilder::reconcile(&expected)
+            } else {
+                GreenNodeBuilder::new()
+            };
+            output.start_node(SyntaxKind::Root.into());
+            if mode == 2 {
+                output.start_node(SyntaxKind::Missing.into());
+                output.finish_node();
+                output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+                    seed.site.clone(),
+                    seed.kind,
+                    seed.unexpected.clone(),
+                    seed.expectations.clone(),
+                    0,
+                ));
+            }
+            let exit = crate::declaration::enum_decl::enum_declaration_witness(
+                In::new(&mut input, &mut recover, &mut output),
+                0,
+                0,
+                crate::statement::StatementLineHandoff::OrdinaryLayout,
+                origin,
+                LineEntry::InLine,
+                Some(&fence),
+            );
+            output.finish_node();
+            let (green, records) = output.finish_with_recoveries();
+            assert_eq!(records, expected);
+            assert_eq!(green.to_string(), "enum 名");
+            assert_eq!(input, "> foreign");
+            let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+                exit
+            else {
+                panic!("foreign prefix remains pending");
+            };
+            let (leading, boundary) = emit_terminal_leading_text(item);
+            assert_eq!(leading, "\r\n");
+            assert_eq!(boundary.coordinate(), origin + "enum 名\r\n".len());
+        }
+    }
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {

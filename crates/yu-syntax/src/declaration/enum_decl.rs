@@ -3,14 +3,24 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-#[cfg(test)]
 use crate::cursor::LexIn;
+use crate::recovery_record::{
+    DeclarationRole, EnumDeclarationRole, ExpectationSources, ExpectedSyntax, GrammarRole,
+    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+    UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cst_output::emit::{emit_missing, emit_token_item},
+    cst_output::{
+        RecoveryDraft,
+        emit::{
+            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
+        },
+    },
     cursor::SyntaxIn,
     declaration::{
         declaration_companion::declaration_companion_normalized,
@@ -28,7 +38,8 @@ use crate::{
             scan_type_nud_payload, source_declaration_head, source_identifier,
         },
         observation::{
-            implicit_delimited_newline, indentation_after_newline, is_active_stop, token_kind,
+            implicit_delimited_newline, indentation_after_newline, is_active_stop,
+            is_active_stop_lex, token_kind,
         },
         position::{advanced_origin, suffix_marker},
         stops::{STOP_WITH, Stops},
@@ -319,75 +330,45 @@ fn required_name_normalized(
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NameResult {
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(item);
-    }
-    if item.payload_view().is_eof() {
-        item.emit_eof_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(item);
-    }
-    if !declaration_gap_allowed(&item, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || !declaration_gap_allowed(&item, baseline)
+        || (!body_starter(&item) && header_boundary(i.rb(), &item, baseline, stops))
+    {
+        emit_header_missing(i.rb(), &mut item, *item_origin);
         return Err(item);
     }
     item.emit_all_remaining_leading(&mut *i.state);
     if body_starter(&item) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_header_missing(i.rb(), &mut item, *item_origin);
         return Ok(Some(item));
-    }
-    if header_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(item);
     }
     if raw_name(&item) {
         emit_token_item(&mut i, item);
         return Ok(None);
     }
-
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let (mut next, next_origin, next_entry) = enum_item_normalized(
-            i.rb(),
-            *item_origin,
-            *line_entry,
-            fence,
-            baseline,
-            stops,
-            true,
-            true,
-        );
-        *item_origin = next_origin;
-        *line_entry = next_entry;
-        if next.payload_view().is_boundary() {
-            i.state.finish_node();
-            return Err(next);
+    (item, *item_origin, *line_entry) = retry_header(
+        i.rb(),
+        item,
+        *item_origin,
+        *line_entry,
+        baseline,
+        stops,
+        fence,
+        EnumDeclarationRole::Name,
+    );
+    if header_boundary(i.rb(), &item, baseline, stops)
+        || !declaration_gap_allowed(&item, baseline)
+        || body_starter(&item)
+    {
+        if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
+            item.emit_eof_leading(&mut *i.state);
         }
-        if next.payload_view().is_eof() {
-            next.emit_eof_leading(&mut *i.state);
-            i.state.finish_node();
-            return Err(next);
-        }
-        if !declaration_gap_allowed(&next, baseline)
-            || header_boundary(i.rb(), &next, baseline, stops)
-        {
-            i.state.finish_node();
-            return Err(next);
-        }
-        if body_starter(&next) {
-            i.state.finish_node();
-            return Err(next);
-        }
-        if raw_name(&next) {
-            next.emit_all_remaining_leading(&mut *i.state);
-            i.state.finish_node();
-            emit_token_item(&mut i, next);
-            return Ok(None);
-        }
-        item = next;
+        return Err(item);
     }
+    debug_assert!(raw_name(&item));
+    emit_token_item(&mut i, item);
+    Ok(None)
 }
 
 fn parameters_normalized(
@@ -665,42 +646,35 @@ fn recover_body_introducer_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = enum_item_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-            false,
-            true,
-        );
-        if implicit_bodyless_boundary(i.rb(), &item, baseline, stops) {
-            if item.payload_view().is_eof() {
-                item.emit_eof_leading(&mut *i.state);
-            }
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
+    (item, item_origin, line_entry) = retry_header(
+        i.rb(),
+        item,
+        item_origin,
+        line_entry,
+        baseline,
+        stops,
+        fence,
+        EnumDeclarationRole::BodyIntroducer,
+    );
+    if implicit_bodyless_boundary(i.rb(), &item, baseline, stops) {
+        if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
+            item.emit_eof_leading(&mut *i.state);
         }
-        if body_starter(&item) {
-            i.state.finish_node();
-            return parse_body_item_normalized(
-                i,
-                item,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
+        return complete(handoff(item), line_entry);
     }
+    debug_assert!(body_starter(&item));
+    parse_body_item_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        sequence,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -984,38 +958,61 @@ fn enum_item_normalized(
     raw_identifier: bool,
     type_vocabulary: bool,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |mut lex, leading, origin, fence, _| {
-                    if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
-                        return Some(AcceptedPayload {
-                            payload: CurrentPayload::Token(identifier),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    if type_vocabulary {
-                        scan_type_nud_payload(lex, leading, origin, fence)
-                    } else {
-                        scan_statement_payload(lex, leading, origin, fence, baseline, stops)
-                    }
-                },
-            )
-        })
-        .expect("Enum declaration payload scanning is total");
-    (
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
-    )
+    i.token(|lex| {
+        Some(enum_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+            raw_identifier,
+            type_vocabulary,
+        ))
+    })
+    .expect("header scan is total")
+}
+
+#[allow(clippy::too_many_arguments)]
+fn enum_item_lexical(
+    i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    raw_identifier: bool,
+    type_vocabulary: bool,
+) -> (Item, usize, LineEntry) {
+    let (
+        CurrentItem {
+            item,
+            next_line_entry,
+        },
+        consumed,
+    ) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| {
+                if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
+                    return Some(AcceptedPayload {
+                        payload: CurrentPayload::Token(identifier),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                if type_vocabulary {
+                    scan_type_nud_payload(lex, leading, origin, fence)
+                } else {
+                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                }
+            },
+        )
+        .expect("Enum declaration payload scanning is total")
+    });
+    (item, item_origin + consumed.len(), next_line_entry)
 }
 
 fn item_word(item: &Item) -> Option<&str> {
@@ -1045,4 +1042,112 @@ fn emit_visibility(i: &mut SyntaxIn, item: Item) {
         _ => unreachable!("Enum visibility uses exact declaration words"),
     };
     emit_item_as(i, item, kind);
+}
+
+fn emit_header_missing(i: SyntaxIn, item: &mut Item, origin: usize) {
+    if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
+        item.emit_eof_leading(&mut *i.state);
+    }
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        header_draft(
+            EnumDeclarationRole::Name,
+            RecoveryKind::Missing,
+            range,
+            Arc::from([]),
+        )
+    });
+}
+
+fn header_draft(
+    role: EnumDeclarationRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected: &[ExpectedSyntax] = match role {
+        EnumDeclarationRole::Name => &[ExpectedSyntax::Identifier],
+        EnumDeclarationRole::BodyIntroducer => &[
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
+                crate::recovery_record::Delimiter::Brace,
+            )),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
+        ],
+        _ => unreachable!("header recovery has two roles"),
+    };
+    let role = GrammarRole::Declaration(DeclarationRole::Enum(role));
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expected
+            .iter()
+            .map(|expected| SyntaxExpectation {
+                role,
+                expected: *expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            })
+            .collect::<Vec<_>>()
+            .into(),
+        0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_header(
+    i: SyntaxIn,
+    mut item: Item,
+    mut origin: usize,
+    mut line: LineEntry,
+    baseline: usize,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+    role: EnumDeclarationRole,
+) -> (Item, usize, LineEntry) {
+    let name = role == EnumDeclarationRole::Name;
+    emit_recovery_error_run(
+        i,
+        |run| loop {
+            let kind = match token_kind(&item).expect("header Error owns lexical Items") {
+                TokenKind::Operator => SyntaxKind::Operator,
+                kind => token_syntax_kind(kind),
+            };
+            let range = run.emit_item_as(item, origin, kind).recovery_range();
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range,
+                category: UnexpectedCategory::OtherCharacter,
+            });
+            (item, origin, line) = run.lexical(|lex| {
+                enum_item_lexical(lex, origin, line, fence, baseline, stops, name, true)
+            });
+            if item.payload_view().is_boundary()
+                || item.payload_view().is_eof()
+                || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
+                || implicit_delimited_newline(baseline, item.leading_view())
+                || matches!(
+                    token_kind(&item),
+                    Some(
+                        TokenKind::Comma
+                            | TokenKind::RParen
+                            | TokenKind::RBracket
+                            | TokenKind::RBrace
+                    )
+                )
+                || (name && (!declaration_gap_allowed(&item, baseline) || raw_name(&item)))
+                || body_starter(&item)
+            {
+                return (item, origin, line);
+            }
+        },
+        |range, unexpected| header_draft(role, RecoveryKind::Error, range, unexpected),
+    )
 }
