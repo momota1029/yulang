@@ -159,11 +159,22 @@ Pattern-owned recovery constructors. Pattern 54, expanded related set 539,
 package/format/diff checks pass. The exact-Equals lexical contract is unchanged;
 rejected quote-adjacent sources remain covered separately from accepted defaults.
 
-Current gate: O3b SCC construction. Continue with Expression's required
-operand kernel (`driver::required_expr_item_normalized`) and its callers,
-then tails/delimiters and literal/Statement/declaration dependencies. Map
-the immediate roles and boundary rules before editing those owners. Extend the same ledger
-and retain the existing joint construction/certification boundary.
+Current gate: O3b SCC construction, paused at the user's request before
+Expression production edits. The required-operand role/boundary contract is
+recorded in `2026-09-08-successor-expression-operand-current-item-recovery.md`.
+Its exact isolated ` ]` witness reproduced the missing diagnostic (0 passed,
+1 failed); `? ]` remains an optional-entry rejection control. The temporary
+failing test is preserved in that document, outside the build. No production
+implementation was applied; the last completed code checkpoint is `7832ab2f`.
+
+On resumption, restore that test and implement
+`driver::required_expr_item_normalized`, the shared lexical scan, five explicit
+caller-role sites and the ForIterable bypass under the recorded contract.
+Then continue tails/delimiters and literal/Statement/declaration dependencies.
+Extend the same ledger and retain the joint construction/certification boundary.
+Do not reuse the current direct test binary without a Cargo rebuild: it was
+built with the temporary failing witness. No broad checks were repeated for
+this record-only pause checkpoint.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 

@@ -1,8 +1,9 @@
 # Successor typed recovery callsite ledger
 
 Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
-primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`, followed by
-default-Expression publication.
+primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`,
+default-Expression checkpoint `7832ab2f`; Expression operand preparation paused
+before production edits at the user's request.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -196,6 +197,13 @@ Missing producer map above; the existing annotation Type callee is typed.
 Pattern delimiter/default publication is also mapped above; no raw Pattern
 Missing/Error constructor remains. Next O3b substep: Expression required
 operands and their callers, then tails/delimiters and literal dependencies.
+The explicit initial roles and boundary/run rules are now selected in
+`2026-09-08-successor-expression-operand-current-item-recovery.md`, but are
+not implemented or mapped as completed publication sites. Its isolated
+mandatory ` ]` test failed with no record instead of Nud Missing; the exact
+test is preserved there outside the build for resumption. Optional `? ]`
+rejects before that callee and must not be repurposed as accepted evidence.
+No raw Expression site was removed and no RB-E closure is claimed here.
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
