@@ -1105,9 +1105,17 @@ fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
         1
     );
 
-    let (green, exit) = run("{x]}");
-    assert_eq!(green.to_string(), "{x]}");
-    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    // Braced recovery's authoritative Slots, boundary and retry rule protects
+    // nonlocal closes: `]` and the later `}` remain outside this block.
+    let (green, exit, remainder) =
+        run_normalized("{x]}", &OperatorTable::empty(), 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "{x");
+    assert_eq!(remainder, "}");
+    let Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) = exit else {
+        panic!("protected nonlocal close")
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+    assert_eq!(item.extent(3).recovery_range(), 2..3);
     let root = SyntaxNode::new_root(green);
     let block = root
         .descendants()
@@ -1118,7 +1126,7 @@ fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
             .children()
             .filter(|node| node.kind() == SyntaxKind::Error)
             .count(),
-        1
+        0
     );
     assert_eq!(
         block
@@ -1126,10 +1134,10 @@ fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
             .filter_map(|element| element.into_token())
             .filter(|token| token.kind() == SyntaxKind::RBrace)
             .count(),
-        1
+        0
     );
     assert!(
-        !block
+        block
             .children()
             .any(|node| node.kind() == SyntaxKind::Missing)
     );

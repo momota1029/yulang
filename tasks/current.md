@@ -242,8 +242,17 @@ proved linear leading/fragment work without a benchmark. Rule: 40; focused
 records: 5; recovery-output: 25; package/format/diff pass. Independent
 specification/recovery and regression audits passed.
 
-Next, continue Statement and declaration typed-recovery dependencies.
-Braced/root raw recovery, caller body-introducer bypasses,
+The braced canonical Statement sequence gate in
+`2026-09-08-successor-braced-statement-sequence-current-item-recovery.md` is
+implemented. Existing Statement/Separator/local-brace-close roles now publish
+typed records; nonlocal closes stay protected. One repair makes newline-leading
+comma/semicolon advance into the separator phase, and the old local-`]` test now
+asserts the authorized handoff. Braced: 7; tails: 14; Act/For/Impl/Mod/Role:
+15/12/11/9/15; package/format/diff pass. Specification/recovery and regression
+delta audits passed; no benchmark process was used.
+
+Next, continue root Statement and declaration typed-recovery dependencies.
+Root raw recovery, caller body-introducer bypasses,
 Type/other-Pattern/Yumark production context ingress and aggregate/public
 certification remain separate. Extend the same ledger; retain the current
 acceptance contracts, effect-free optional entry and the atomic public cutover

@@ -5,7 +5,7 @@ primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`,
 default-Expression checkpoint `7832ab2f`; required Expression operands, their
 explicit caller roles, shared Expression delimiters, and fixed Field/Path tails
 plus inline Colon/With recovery and Rule ExpressionList are privately
-constructed.
+constructed, as is the canonical braced Statement sequence.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -293,13 +293,22 @@ owner or grammar route.
 | `rule::expression_list` after admitted Item | `ExpressionList(Separator)` | E | one native lexical non-separator Item | scan next Item outside Error; no merged Error run | `rule_expression_list_recovery::*` | C |
 | `rule::expression_list` absent local close | `close(ExpressionList, Parenthesis/Bracket)` | M | current local close absent at EOF/fence/outer boundary | caller emits actual matching close; outer close remains pending | `rule_expression_list_recovery::*`, `rule::*` | C |
 
+Canonical braced Statement sequence recovery is now mapped below. This leaves
+root and declaration-local owners open.
+
+| source / owner | slot role | M/E | trigger and extent | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- |
+| `statement::braced_statement_slot_normalized`, retry | `BracedStatementBlock(Statement)` | M/E | fresh comma/semicolon or protected boundary / maximal lexical non-Statement run | separator phase or retry admitted Statement; nonlocal close stays pending | `braced_statement_recovery::*` | C |
+| `statement::braced_statement_successor_normalized` | `BracedStatementBlock(Separator)` | M | separate admitted Statement without separator | same Item admitted after Missing | `braced_statement_recovery::*`, `statement::*` | C |
+| `statement::braced_terminal_normalized` | `close(BracedStatementBlockExpression, Brace)` | M | local close absent at EOF/fence/outer close | actual `}` emitted only locally; EOF leading emits before successor anchor | `braced_statement_recovery::*`, `tails::*` | C |
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-if/case typed-recovery; canonical Statement and braced/root/colon/
+if/case typed-recovery; root canonical Statement and braced/root/colon/
 with raw owners and caller bypasses; declarations/derives/companions; raw
 VirtualStatementBlock recovery; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/

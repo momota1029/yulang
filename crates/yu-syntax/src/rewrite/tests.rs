@@ -36,6 +36,7 @@ use super::{
 mod act_decl;
 mod ambient_claim;
 mod binding;
+mod braced_statement_recovery;
 mod case_like;
 mod cast_decl;
 mod colon_sequence;

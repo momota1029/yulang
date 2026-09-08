@@ -2,8 +2,9 @@
 
 use super::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use crate::session::{
-    ColonApplicationRole, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
-    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
+    BracedStatementBlockRole, ColonApplicationRole, ConstructRole, Delimiter, ExpectationSources,
+    ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey,
+    SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
 };
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
@@ -25,10 +26,7 @@ use super::{
         is_close, is_nud_item, is_separator, ordinary_exit, scan_expression_literal_payload,
         suffix_marker, token_kind,
     },
-    emit::{
-        emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
-        token_syntax_kind,
-    },
+    emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind},
     enum_decl::{enum_declaration_normalized, enum_declaration_selected_lexical},
     error_decl::{error_declaration_normalized, error_declaration_selected_lexical},
     for_decl::{for_statement_normalized, for_statement_selected},
@@ -727,8 +725,8 @@ pub(super) fn braced_statement_block_normalized(
         incoming_baseline,
         stops,
     );
-    if item.payload_view().is_boundary() {
-        let exit = braced_terminal_normalized(i.rb(), item, line_entry);
+    if item.payload_view().is_boundary() || is_close(&item) {
+        let exit = braced_terminal_normalized(i.rb(), item, item_origin, line_entry);
         i.state.finish_node();
         return exit;
     }
@@ -800,15 +798,16 @@ fn statement_sequence_normalized(
             StatementSequencePolicy::Braced => {
                 if item.payload_view().is_boundary()
                     || item.payload_view().is_eof()
-                    || token_kind(&item) == Some(TokenKind::RBrace)
+                    || is_close(&item)
                 {
                     if !first
                         && !item.payload_view().is_boundary()
+                        && (!is_close(&item) || token_kind(&item) == Some(TokenKind::RBrace))
                         && implicit_delimited_newline(baseline, item.leading_view())
                     {
                         emit_separator_leading(&mut i, &mut item);
                     }
-                    return braced_terminal_normalized(i, item, line_entry);
+                    return braced_terminal_normalized(i, item, item_origin, line_entry);
                 }
                 let entry = suffix_marker(i.rb());
                 let exit = braced_statement_slot_normalized(
@@ -1093,17 +1092,18 @@ fn indented_statement_outer_boundary(
 fn braced_terminal_normalized(
     mut i: RewriteIn,
     item: Item,
+    item_origin: usize,
     line_entry: LineEntry,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        return complete(missing_brace_close(i, item), line_entry);
+        return complete(missing_brace_close(i, item, item_origin), line_entry);
     }
     if token_kind(&item) == Some(TokenKind::RBrace) {
         emit_token_item(&mut i, item);
         return complete(Ok(()), line_entry);
     }
-    debug_assert!(item.payload_view().is_eof());
-    complete(missing_brace_close(i, item), line_entry)
+    debug_assert!(item.payload_view().is_eof() || is_close(&item));
+    complete(missing_brace_close(i, item, item_origin), line_entry)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1121,7 +1121,22 @@ fn braced_statement_slot_normalized(
     sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        return braced_terminal_normalized(i, item, line_entry);
+        return braced_terminal_normalized(i, item, item_origin, line_entry);
+    }
+    if is_separator(&item) {
+        // Retire the newline separator before handing this fresh required-slot
+        // punctuation to the explicit separator owner; otherwise successor
+        // selection retries the same newline-leading Item indefinitely.
+        if implicit_delimited_newline(baseline, item.leading_view()) {
+            emit_separator_leading(&mut i, &mut item);
+        }
+        emit_braced_missing(
+            i.rb(),
+            &item,
+            item_origin,
+            GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
+        );
+        return complete(handoff(item), line_entry);
     }
     let admission = known_admission.unwrap_or_else(|| {
         classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
@@ -1181,7 +1196,7 @@ fn braced_statement_slot_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn retry_braced_statement_normalized(
-    mut i: RewriteIn,
+    i: RewriteIn,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -1189,29 +1204,68 @@ fn retry_braced_statement_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) =
-            statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-        if braced_statement_boundary(&item, baseline) {
-            i.state.finish_node();
-            return (item, None, item_origin, line_entry);
-        }
-        if let Some(admission) =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
-            i.state.finish_node();
-            return (item, Some(admission), item_origin, line_entry);
-        }
-    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let kind = token_syntax_kind(
+                    token_kind(&item).expect("a braced Statement Error emits a token"),
+                );
+                let end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                (item, item_origin, line_entry) = run.lexical(|lex| {
+                    scan_statement_item_lexical(
+                        lex,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops,
+                    )
+                });
+                let boundary = braced_statement_boundary(&item, baseline);
+                let admission = if boundary {
+                    None
+                } else {
+                    run.lexical(|lex| {
+                        classify_statement_item_lexical(
+                            lex.remainder(),
+                            &item,
+                            baseline,
+                            item_origin,
+                            fence,
+                        )
+                    })
+                };
+                if boundary || admission.is_some() {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, admission, item_origin, line_entry);
+                }
+            }
+        },
+        |range, unexpected| {
+            braced_recovery_draft(
+                GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
+                RecoveryKind::Error,
+                range,
+                unexpected,
+            )
+        },
+    )
 }
 
 fn braced_statement_boundary(item: &Item, baseline: usize) -> bool {
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || is_separator(item)
-        || token_kind(item) == Some(TokenKind::RBrace)
+        || is_close(item)
         || implicit_delimited_newline(baseline, item.leading_view())
 }
 
@@ -1232,12 +1286,19 @@ fn braced_statement_successor_normalized(
             if implicit_delimited_newline(baseline, end.item.leading_view()) {
                 emit_separator_leading(&mut i, &mut end.item);
             }
-            Err(complete(missing_brace_close(i, end.item), line_entry))
+            Err(complete(
+                missing_brace_close(i, end.item, item_origin),
+                line_entry,
+            ))
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
-            if item.payload_view().is_boundary() =>
+            if item.payload_view().is_boundary()
+                || (is_close(&item) && token_kind(&item) != Some(TokenKind::RBrace)) =>
         {
-            Err(complete(missing_brace_close(i, item), line_entry))
+            Err(complete(
+                missing_brace_close(i, item, item_origin),
+                line_entry,
+            ))
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
             if implicit_delimited_newline(baseline, item.leading_view()) =>
@@ -1266,7 +1327,12 @@ fn braced_statement_successor_normalized(
             let admission =
                 classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence);
             if admission.is_some() {
-                emit_missing(&mut i, LeadingTrivia::default());
+                emit_braced_missing(
+                    i.rb(),
+                    &item,
+                    item_origin,
+                    GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator),
+                );
             }
             Ok((item, line_entry, item_origin, Some(admission)))
         }
@@ -1288,7 +1354,9 @@ fn braced_explicit_separator_normalized(
     emit_token_item(&mut i, separator);
     let (mut item, item_origin, line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-    if !item.payload_view().is_boundary() {
+    if !item.payload_view().is_boundary()
+        && !(is_close(&item) && token_kind(&item) != Some(TokenKind::RBrace))
+    {
         item.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.finish_node();
@@ -1302,12 +1370,66 @@ fn emit_separator_leading(i: &mut RewriteIn, item: &mut Item) {
     i.state.finish_node();
 }
 
-fn missing_brace_close(mut i: RewriteIn, mut item: Item) -> TailExit {
-    if !item.payload_view().is_boundary() {
+fn missing_brace_close(mut i: RewriteIn, mut item: Item, origin: usize) -> TailExit {
+    if item.payload_view().is_eof() {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    emit_missing(&mut i, LeadingTrivia::default());
+    emit_braced_missing(
+        i.rb(),
+        &item,
+        origin,
+        GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::BracedStatementBlockExpression,
+            delimiter: Delimiter::Brace,
+        },
+    );
     handoff(item)
+}
+
+fn emit_braced_missing(i: RewriteIn, item: &Item, origin: usize, role: GrammarRole) {
+    let at = item
+        .payload_view()
+        .pending_boundary()
+        .map(|boundary| boundary.coordinate())
+        .unwrap_or_else(|| item.extent(origin).recovery_range().start);
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        braced_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn braced_recovery_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement) => {
+            ExpectedSyntax::Statement
+        }
+        GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator) => {
+            ExpectedSyntax::StatementSeparator
+        }
+        GrammarRole::ClosingDelimiter { delimiter, .. } => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
+        }
+        _ => unreachable!("braced Statement recovery role"),
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }
 
 pub(super) fn statement_item_normalized(
