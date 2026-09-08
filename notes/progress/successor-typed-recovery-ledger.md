@@ -228,7 +228,7 @@ private construction, not RB-E/O4 certification.
 
 | source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `delimited::delimited_items_normalized` Parenthesized / Call / Index / Projection tuple / record | descriptor Item role | M/E | leading/repeated separator absence / maximal lexical item run | `[]` or `other(Rng)` / `Expression` | consume local separator or retry NUD; newline boundary stays pending | `delimited_recovery::*`, `owners::*` | C |
+| `tails::delimited_tail::delimited_items_normalized` Parenthesized / Call / Index / Projection tuple / record | descriptor Item role | M/E | leading/repeated separator absence / maximal lexical item run | `[]` or `other(Rng)` / `Expression` | consume local separator or retry NUD; newline boundary stays pending | `delimited_recovery::*`, `owners::*` | C |
 | same common loop | descriptor Separator role | M/E | next Item without boundary, Parenthesized `;`, or maximal malformed separator run | `[]`, native `;`, or `other(Rng)` / `DelimitedSequenceSeparator` | same Item retry or fresh Item after recovered separator | `delimited_recovery::*`, `owners::*` | C |
 | same common loop | matching `ClosingDelimiter` role | M/E | absent/protected close or unclaimed wrong close | `[]` or native close / matching punctuation | protected full Item returns; local close Error retries its phase | `delimited_recovery::*`, `owners::*` | C |
 | `record_spread_item_normalized` | `Expression(ProjectionRecordSpreadRhs)` | M/E | absent/malformed RHS after exact DotDot | `[]` or `other(Rng)` / `Expression` | protected separator/close/fence pending; no duplicate RHS Missing after Error | `delimited_recovery::*`, `owners::*` | C |
@@ -239,17 +239,17 @@ segments without opening grammar inside Error.
 
 | source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `tails::field_tail_normalized` | `Expression(FieldName)` | M/E | missing adjacent name / maximal lexical non-name run | `[]` or `other(Rng)` / `Identifier` | protected Item and retry name return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
-| `tails::path_tail_normalized` | `Expression(PathSegment)` | M/E | missing post-`::` segment / maximal sigil-aware lexical non-name run | `[]` or `other(Rng)` / `Identifier` | retain Path `G*`; protected Item and retry segment return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
+| `tails::fixed_access::field_tail_normalized` | `Expression(FieldName)` | M/E | missing adjacent name / maximal lexical non-name run | `[]` or `other(Rng)` / `Identifier` | protected Item and retry name return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
+| `tails::fixed_access::path_tail_normalized` | `Expression(PathSegment)` | M/E | missing post-`::` segment / maximal sigil-aware lexical non-name run | `[]` or `other(Rng)` / `Identifier` | retain Path `G*`; protected Item and retry segment return to outer tail | `fixed_tail_recovery::*`, `tails::*` | C |
 
 Inline Colon/With publication is now mapped below. The current-depth outer
 layout-sequence rule remains open and is not implied by these rows.
 
 | source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `tails::inline_colon_argument_normalized` initial / local comma argument | `ColonApplication(Rhs)` / `ColonApplication(InlineArgument)` | M/E | absent protected Item or maximal NUD lexical run | `[]` or `other(Rng)` / `Expression` | local comma opens the next role; outer Item stays pending | `colon_with_recovery::*`, `tails::*` | C-inline |
-| `tails::with_tail_normalized` internal colon | `WithBody(Introducer)` | M | absent lone colon | `[]` / punctuation Colon | same-position canonical body retry; no same-boundary Body cascade | `colon_with_recovery::*`, `tails::*` | C-inline |
-| `tails::with_inline_item_normalized` colon-present/retry body | `WithBody(Body)` | M/E | absent protected Item or maximal canonical-Statement lexical run | `[]` or `other(Rng)` / `Statement` | retry admitted Statement after Error; outer semicolon/close stays pending | `colon_with_recovery::*`, `tails::*` | C-inline |
+| `tails::colon::inline_colon_argument_normalized` initial / local comma argument | `ColonApplication(Rhs)` / `ColonApplication(InlineArgument)` | M/E | absent protected Item or maximal NUD lexical run | `[]` or `other(Rng)` / `Expression` | local comma opens the next role; outer Item stays pending | `colon_with_recovery::*`, `tails::*` | C-inline |
+| `tails::with_body::with_tail_normalized` internal colon | `WithBody(Introducer)` | M | absent lone colon | `[]` / punctuation Colon | same-position canonical body retry; no same-boundary Body cascade | `colon_with_recovery::*`, `tails::*` | C-inline |
+| `tails::with_body::with_inline_item_normalized` colon-present/retry body | `WithBody(Body)` | M/E | absent protected Item or maximal canonical-Statement lexical run | `[]` or `other(Rng)` / `Statement` | retry admitted Statement after Error; outer semicolon/close stays pending | `colon_with_recovery::*`, `tails::*` | C-inline |
 
 Shared indented Statement transport is now mapped below. This is private O3b
 construction; it does not certify braced/root Statement recovery or caller

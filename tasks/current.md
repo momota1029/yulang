@@ -428,9 +428,8 @@ owns the explicit-role mandatory-operand kernel, its boundary predicate, typed
 Missing/Error mapping and sealed lexical Error retry. `expression/mod.rs` is
 only their narrow façade. Do not split NUD from tail, reintroduce literal
 scanning, or move the For Body mapping: those would sever established owner
-cycles or contracts. `tails.rs` remains a later separately reviewed owner
-split; TypeExpression and Pattern boundaries are also deferred until their
-full body reviews are converted to bounded gates.
+cycles or contracts. TypeExpression and Pattern boundaries are deferred until
+their full body reviews are converted to bounded gates.
 
 Gate B1 is complete. The façade now declares only the two coherent owners;
 all executable bodies are equivalent to the pre-split Expression implementation
@@ -438,8 +437,24 @@ apart from private child visibility and formatting. Focused handoff, operand,
 tail, delimiter, normalized, output and frozen controls passed. Independent
 regression review also confirmed the unchanged If/Case/For caller roles and
 the retained For Body `Statement` mapping. The known operator baseline remains
-unchanged. Next: review the existing `tails.rs` ownership split before moving
-colon, with-body and fixed-access recovery.
+unchanged.
+
+Gate B2 is complete. The former mixed tail body is now a narrow
+`expression/tails/mod.rs` façade over `colon.rs`, `with_body.rs`,
+`delimited_tail.rs`, `fixed_access.rs`, and the only shared `inline_slot.rs`.
+Colon owns its RHS/comma/outer-sequence recursion; With owns its introducer,
+body and terminal; delimiter wrappers own their open-loop-finish-continuation
+sequence; fixed access owns dot dispatch and Field/Path recovery. The shared
+boundary predicate is accurately named `is_inline_slot_boundary`; the
+misleading Colon-only name and wrapper are gone. Function bodies remain
+equivalent apart from owner paths, visibility and that approved rename. M1
+regression review found one duplicate lint attribute only; the one-line repair
+is complete. Tails/delimiter/fixed-tail/Colon-With controls pass, while the
+pre-existing `virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen`
+record mismatch remains excluded and unchanged. Package check, format and diff
+checks pass; no benchmark sample/process was used. Next: prepare the scoped
+successor Yumark document/fence construction gate; do not promote its test-only
+cell witness directly.
 
 ## Crate-root syntax topology replacement
 
