@@ -48,9 +48,13 @@ schema for a later user-approved companion amendment.
 ## Candidate product schema
 
 Every node below carries its physical source envelope. Token leaves use the
-common owned syntax-text/coordinate representation still to be selected by the
-canonical materialization amendment; they retain no `Item`, short payload view,
-decoded value, or source/body buffer.
+canonical Draft's candidate `TextSyntax { physical, logical }` coordinate
+representation: an inline contiguous logical range or a boxed, coalesced range
+slice only after two non-adjacent logical fragments. They retain no `Item`,
+short payload view, decoded value, source/body buffer, or source owner; only
+the completed AST package owns the source allocation used by package-derived
+views. Each leaf coordinate comes from the Item owner's sealed one-pass
+`PublishedFragment`, never from emitted byte counts or a second prefix scan.
 
 ```text
 StringLiteral {
@@ -141,14 +145,14 @@ RuleItem remains complete with the name slot incomplete when the owner accepted
 the postfix skeleton; an unaccepted outer Rule item is instead the sequence
 entry incomplete. Neither mapping adds or reorders committed records.
 
-## Required unresolved representation choice
+## Shared representation dependency
 
-`TextSyntax`, `WordSyntax`, `IntegerSyntax`, `Range`, and recovery-identity
-association need one common owned representation. The approved path must prove
-that text is available to later syntax consumers without retaining a parser
-source cursor, copying/dequoting a literal body, or storing a per-fragment
-event/source buffer. This choice belongs in the canonical materialization
-amendment, not in a literal-only implementation.
+The source-backed coordinate candidate in the canonical materialization Draft
+is still unapproved. Its amendment must still prove source provenance,
+foreign-prefix exclusion, Item destruction safety, and that committed segment
+metadata never becomes a parser event/source buffer. The literal schema cannot
+be implemented before that shared representation passes compiler/recovery,
+specification, and static performance review.
 
 ## Verification required after approval
 

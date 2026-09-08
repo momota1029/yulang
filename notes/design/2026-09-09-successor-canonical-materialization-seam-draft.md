@@ -146,6 +146,83 @@ to an actual owner product or the relevant `Incomplete` slot according to the
 latest owner-specific AST contract. A whole `Statement` is not made
 incomplete merely because one of its children recovered.
 
+## Candidate source-backed syntax-coordinate leaves
+
+The candidate common leaf representation is source-backed coordinates, not a
+copied/dequoted literal string and not an AST borrow of a consumed Item:
+
+```text
+TextSyntax {
+  physical: Range,
+  logical: Contiguous(Range) | Fragmented(Box<[Range]>),
+}
+```
+
+`WordSyntax` and `IntegerSyntax` reuse this representation with only their
+documented syntax facts. Delimiters use their ordinary physical ranges. An
+empty logical spelling uses a zero-width contiguous range. `physical` includes
+accepted foreign quote prefixes; `logical` selects only the accepted language
+text, preserving original UTF-8, CRLF and ordinary whitespace without decode
+or normalization.
+
+A completed AST package, rather than `SyntaxIn`, `Recover`, or a materializer,
+owns exactly one immutable `Arc<SourceText>` and revision. It resolves a leaf
+only through package-derived traversal views that yield its logical source
+slices. A detached `TextSyntax` has no resolver; the package does not expose a
+`resolve(&leaf, source)` operation. The view borrows the owning package and
+returns a zero-allocation iterator of its `&str` logical segments. Therefore a
+leaf from another equal-text package cannot be supplied as an argument or
+silently resolved. The grammar/materializer never looks up source text through
+that package.
+
+At consumption, the sealed common publication operation receives the accepted
+physical fragments once. It advances the common physical account for every
+fragment and, in AST mode only, records the leaf's already-classified logical
+coordinates. An unfragmented leaf stores its range inline. A fragmented leaf
+creates a temporary vector only when a second non-adjacent logical range is
+actually discovered, coalesces adjacent logical ranges as each one arrives,
+and commits one boxed range slice. A prefix before a sole logical range remains
+`Contiguous` and allocates nothing. The existing move-only
+pending fragment carrier is not cloned or retained. This is committed AST
+storage, not a parser event/body buffer; direct-CST specialization retains no
+leaf accumulator or coordinate vector.
+
+The proposed cost is O(published fragments) construction work, no additional
+text traversal, O(logical segments) deferred accessor traversal, and retained
+O(logical segments) coordinate metadata only in AST products. It is excluded
+from the parser-storage bound as an ordinary committed product. Repeated views
+repeat only their bounded segment traversal; they build no cache or index. For
+`B` source bytes and `F` accepted foreign prefixes, `F <= B`, and each split
+adds at most one committed logical segment. Thus total committed segments are
+O(B); peak temporary memory is the current Item's boxed split carrier plus its
+eventual boxed ranges, O(F_item). It needs static performance review before
+approval.
+
+### Required sealed coordinate publication
+
+The later amendment must give the common publication surface an explicit
+coordinate-bearing physical fragment, not infer a source coordinate from
+emitted-byte count:
+
+```text
+PublishedFragment { text, physical: Range, logical: language-text | foreign-prefix }
+```
+
+The consuming Item/leading owner derives these ranges once from its explicit
+origin, extent, physical leading parts, and single existing split cursor. It
+checks `physical.end - physical.start == text.len()` and that fragments
+partition the consumed physical Item. This makes unfragmented payloads and
+partially emitted leading explicit at a nonzero origin, while a split's lexical
+coordinate is a checked input rather than an independently rediscovered AST
+fact. The common surface advances physical accounting from `text` exactly once
+and passes the classified coordinate to the AST materializer immediately.
+
+The direct-CST specialization replaces the current token-counter increment
+with this common call; it may not wrap it with a second counter, branch,
+dynamic dispatch, `Option<Vec<Range>>`, or AST accumulator on its per-fragment
+path. AST owner vectors grow only after their grammar owner has committed;
+rejected/deferred entry allocates neither parent nor child.
+
 ## Product inventory prerequisite
 
 The seam is not certified by a literal-only or range-only cell control. The
