@@ -519,6 +519,20 @@ is green: `cargo test -p yu-syntax --lib -- --test-threads=1` passed 1039,
 ignored the one existing manual measurement harness, and failed none in 1.75s.
 It does not close deferred Yumark cell/fence construction.
 
+## Active Root opaque fence-recovery contract
+
+Under the parsed-fence addendum §§3--5/§8, the next M2 slice keeps Root as the
+sole Error-record owner and introduces a lexical-only continuation scanner for
+an already accepted opaque opener. It returns source-backed accepted extent and
+an optional complete pending boundary Item; it never copies/dequotes a body,
+invokes a grammar parser/builder, replays source, or retains a token stream.
+Every physical LF, whole CRLF and EOF transition in its recursive opaque paths
+uses the shared fence judge. Accepted equivalent prefixes become ordered
+foreign fragments; close and transition facts remain untouched. Error ends at
+EOF/fence without nested literal publication, while the outer Yumark adapter
+remains the only future fence-Missing owner. Existing unfenced Root output is a
+strict control. This does not construct a cell or outer Yumark dispatch.
+
 ## Parenthesized operator newline control
 
 - The retained `(a +\nb)` partial-output expectation was stale. At delimiter

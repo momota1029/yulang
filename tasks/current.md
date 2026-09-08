@@ -74,6 +74,24 @@ tests, ignored one existing manual measurement harness, and failed none
 (1.75s). This is a phase-boundary validation, not evidence that the deferred
 Yumark cell/fence owner is complete.
 
+The active M2 gate is fence-aware opaque Root Error recovery under the parsed
+fence addendum §§3--5/§8. `root_error` remains the typed-record/CST Error
+owner; a new lexical-only opaque-region owner scans only after an already
+accepted opaque opener. It returns source-backed accepted physical extent and
+the optional exact pending boundary Item (including fragments), never a copied
+body, parser state, grammar parse, builder operation, replay or token buffer.
+At every LF, whole CRLF, and physical EOF through string, interpolation/code,
+comment, and opaque Yumark recursion, it asks the existing fence judge before
+consuming the next body line. Accepted equivalent quote prefixes become the
+current Item's ordered foreign fragments; close/transition bytes remain wholly
+pending. The existing unfenced Root Error output/records stay exact. EOF,
+BorrowedClose and transition terminate the nonempty Error without nested
+literal records; the later outer Yumark owner alone publishes a fence Missing
+when appropriate. This gate does not yet provide a cell entry or outer Yumark
+dispatch. M2 budget: one implementer, compiler/recovery plus regression
+review, at most two repair rounds, no benchmark unless static accounting finds
+uncertain work.
+
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
 Its Missing/Error sites now publish the existing Cast role with the required
