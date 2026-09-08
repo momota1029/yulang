@@ -16,26 +16,26 @@ no-subagent instruction; self-checks are not independent certification.
 
 ## Reading the ledger
 
-The user-authorized internal module rename maps historical `rewrite` paths to
-the current `parser` tree, preserving its owner subtrees and behavior. Current
-source aliases and test filters below use `parser`; dated design/daily records
-retain the names used when their evidence was collected.
+The user-authorized topology reconstruction maps historical `rewrite` and
+generic-umbrella paths to direct crate-root owners, preserving behavior.
+Current source aliases and test filters below use those owners; dated
+design/daily records retain the names used when their evidence was collected.
 
 This is the single accumulating ledger for O3/O4. The Type/PV portion and
 Pattern-owned modules map every current publication site to a
 semantic helper; the remaining O3b SCC is explicitly open.
-Source aliases are relative to `crates/yu-syntax/src/parser/`:
+Source aliases are relative to `crates/yu-syntax/src/`:
 
-- `T` = `type_expr.rs`; `D` = `type_expr/delimited.rs`;
+- `T` = `type_expr/mod.rs`; `D` = `type_expr/delimited.rs`;
   `R` = `type_expr/record.rs`; `F` = `type_expr/forall.rs`;
   `V` = `type_expr/variants.rs`.
-- `P` = `pattern.rs`. Its table's test prefixes are under
-  `parser::tests::pattern::recovery::`; P's retained caller/policy controls
-  are in the parent `parser::tests::pattern::` module.
+- `P` = `pattern/mod.rs`. Its table's test prefixes are under
+  `tests::pattern::recovery::`; P's retained caller/policy controls
+  are in the parent `tests::pattern::` module.
 - `PD` = `pattern/delimited.rs`; the delimiter table's test prefixes are
-  under `parser::tests::pattern::recovery::delimited::`, `sequence::`, or
+  under `tests::pattern::recovery::delimited::`, `sequence::`, or
   `default_expression::`, with the unique function prefix selecting the module.
-- Test names/prefixes are under `parser::tests::type_expr::`. `Q` denotes
+- Test names/prefixes are under `tests::type_expr::`. `Q` denotes
   its parent test module; a named child such as `pe_recovery` is its module.
   Prefixes denote the existing finite test family, not tests to invent later.
 - `M` / `E` = Missing / Error. `B` = inspected abstract-boundary coordinate,
@@ -195,7 +195,7 @@ rewrite; the admitted-argument-only callsite is the exact non-recovery proof,
 not an omitted mandatory slot. EffectRow delegates its slots to D.
 
 The Type/PV private construction inventory is complete. Do not mark O4, O5,
-O6 or the overall matrix complete from this record. The limited public parser
+O6 or the overall matrix complete from this record. The limited public syntax
 replacement is separately complete under the cutover-priority amendment;
 deferred Yumark and typed-owner rows remain open.
 
@@ -321,7 +321,7 @@ root and declaration-local owners open.
 | `operator_header` shared header signature slots | `OperatorHeader(Name/Fixity/LeftBindingPower/RightBindingPower/DefinitionIntroducer)` | M/E | mandatory signature slot or maximal lexical run | fact commits at exact Equals; body Item stays root-owned | `operator_header::*` | C-private-entry |
 | `header` shared Use/operator discovery | Import slots and OperatorHeader slots | M/E | source-leading shared owner only; opaque body is lexical | all-or-none import facts; scoped frozen IDs only | `header::*`, `use_decl::*`, `operator_header::*` | C-private-entry |
 | `root` top-level sequence/body recovery | `Statement(Starter/Separator/TrailingInput/OperatorDefinitionBody)` and Layout InlineTrivia | M/E | root-start/layout boundary, lexical delimiter-aware Error, or operator body slot | exact pending/End handoff; header scope is leading-only; full records remain fresh | `root::*` | C-private-entry |
-| public `scan_header -> parse_file` | retained header records plus full Root records | scoped frozen / fresh | one parser authority; public source identity precedes table build | recovery encounter order precedes conflicts; records are not replayed | `parse::tests::public_parser_pair_*` | C-cutover; legacy removed at `dfa481c4` |
+| public `scan_header -> parse_file` | retained header records plus full Root records | scoped frozen / fresh | one syntax authority; public source identity precedes table build | recovery encounter order precedes conflicts; records are not replayed | `parse::tests::public_parser_pair_*` | C-cutover; legacy removed at `dfa481c4` |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an

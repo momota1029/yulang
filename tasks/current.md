@@ -1,11 +1,11 @@
-# Current task: complete and adopt the successor syntax parser
+# Current task: complete and adopt the successor syntax phase
 
 Updated: 2026-09-08. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Objective and current authority
 
-Prioritize parser-owned public header/root connection and atomic old-parser
-removal once the entry paths have sufficient validation functionality. Exhaustive
+Prioritize syntax-owned public header/root connection and atomic legacy
+implementation removal once the entry paths have sufficient validation functionality. Exhaustive
 private owner completion is no longer an automatic cutover prerequisite;
 deferred rows stay open. Private construction is not itself public cutover.
 
@@ -24,16 +24,16 @@ deferred rows stay open. Private construction is not itself public cutover.
   for a bounded gate; deterministic verification and honest reporting of review
   scope remain required.
 - `notes/design/2026-09-08-successor-public-cutover-priority-amendment.md`
-  records the current ordering: build parser header/root entries, exercise the
-  actual public two-phase path, then remove the legacy parser without fallback.
+  records the current ordering: build syntax header/root entries, exercise the
+  actual public two-phase path, then remove the legacy implementation without fallback.
 
 ## Current gate and immediate next action
 
-The user-authorized topology cleanup names the sole internal implementation
-`parser` (`crates/yu-syntax/src/parser/`). `ParserIn` and `ParserOutput` name its
-input and output boundaries. Public exports, parser behavior and test contracts
-are unchanged. Dated design and daily records retain their historical paths;
-current source links and test commands use `parser`.
+The user-authorized topology cleanup has no generic internal umbrella.
+`SyntaxIn` in `cursor.rs` and `CstOutput` in `cst_output/` name the input and
+output boundaries. Public exports, syntax behavior and test contracts are
+unchanged. Dated design and daily records retain their historical paths;
+current source links and test commands name their direct owners.
 
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E
@@ -329,10 +329,10 @@ Public-cutover foundations are implemented under
 `2026-09-08-successor-public-cutover-priority-amendment.md`. HeaderInfo retains
 private source identity and `parse_file` rejects a distinct source before
 construction; scoped header reconciliation prevents full-only records from
-consuming later frozen header IDs. The parser public entry, public integration
+consuming later frozen header IDs. The public syntax entry, public integration
 and atomic legacy removal are complete.
 
-The private parser Header/Root entry is implemented. Header discovery shares
+The private Header/Root entry is implemented. Header discovery shares
 Use and OperatorHeader construction, projects imports atomically, preserves
 exact opaque-region boundaries and retains records for later reconciliation.
 Root owns direct top-level topology, separators, pending/End handoff, scoped
@@ -344,13 +344,13 @@ private checkpoint, HeaderInfo record transport, public adapter,
 package/workspace validation and legacy deletion remained open.
 
 The public adapter is now connected without fallback: `scan_header` constructs
-parser facts/records and `parse_file` passes the retained frozen header record
-slice into parser Root before diagnostics and conflict construction. Public
+syntax facts/records and `parse_file` passes the retained frozen header record
+slice into `source_file` before diagnostics and conflict construction. Public
 pair tests cover UTF-8/CRLF, header/full interleaving, imported/local conflict
 provenance and fence recovery/continuation. A public fence fixture exposed and
 repaired raw rejected-operator emission in Root Error. The accepted Yumark NUD
 owner remains open; its current public proof is recovery/continuation only.
-Final `yu-syntax`/workspace validation and atomic legacy parser deletion are
+Final `yu-syntax`/workspace validation and atomic legacy implementation removal are
 complete.
 
 The first full successor-only lib run after removing the legacy tree passed
@@ -367,29 +367,29 @@ the accepted Yumark NUD/frame-pop owner. Those remain separate from the
 completed public cutover; retain the current acceptance contracts and
 effect-free optional entry. No benchmark sample/process has been used.
 The old eighth-terminal proposal is not a required prerequisite. Public
-dispatch is parser-only; the legacy parser tree has been removed.
+dispatch is successor-only; the legacy implementation tree has been removed.
 
 Post-cutover cleanup is complete. The inactive chasa cursor/scanner/CST stack
-(`input.rs`, `sink.rs`, and `scan/**`) is gone; `session.rs` now owns only the
-typed recovery vocabulary; and the unchanged dynamic-operator judge is
-parser-local. The removed bridge had no public consumer. Test-only parser
-seams live under `parser/tests/`, about 1,400 further inactive private lines
+(`input.rs`, `sink.rs`, and `scan/**`) is gone; `recovery_record.rs` now owns
+the typed recovery vocabulary; and the unchanged dynamic-operator judge is in
+`lexical/operator_scan.rs`. The removed bridge had no public consumer. Test-only
+seams live under `tests/`, about 1,400 further inactive private lines
 are removed, and no module-wide `dead_code` suppression remains. The residual
 annotations are variant/field/method-local contracts for retained Deferred,
 ambient, pending-boundary, Rule and fence vocabulary. Production/test checks,
 public pairs, focused recovery controls and the unrelated workspace check pass
 with zero warnings; known unrelated full-lib baselines remain untouched.
 
-## Parser responsibility reconstitution
+## Syntax responsibility reconstitution
 
-The user has directed a role-based reconstruction of the private `parser/`
-tree, not a cosmetic `rewrite` rename. This is a behavior-preserving topology
+The user has directed a role-based reconstruction of the private syntax
+implementation, not a cosmetic `rewrite` rename. This is a behavior-preserving topology
 gate: preserve public `scan_header`/`parse_file`, accepted and malformed CST,
 committed-recovery order and frozen reconciliation, exact Item/leading/source
 handoff, and all existing source literals and semantic assertions.
 
 The target separates lexical input (Item/current-Item/scanning/stops/fence),
-committed output and emission, parser context, expression policy, statement
+committed output and emission, cursor state, expression policy, statement
 admission, declaration families, and family-owned test suites. Extract shared
 handoff, coordinate and lexical-stop operations from the Expression owner;
 retain required-operand policy, NUD admission and tail control under
@@ -441,6 +441,47 @@ the retained For Body `Statement` mapping. The known operator baseline remains
 unchanged. Next: review the existing `tails.rs` ownership split before moving
 colon, with-body and fixed-access recovery.
 
+## Crate-root syntax topology replacement
+
+The user has rejected the generic `parser/` umbrella. Supersede the Gate A
+private-tree placement without changing observable behavior: the generic
+umbrella is removed rather than renamed or replaced with another
+generic container. The `yu-syntax` crate root is the syntax-phase boundary;
+its direct private children must name their own responsibility.
+
+`operator.rs` becomes `operator_table.rs` for immutable declarations, fixities,
+tries and table construction. Its separate lexical consumer becomes
+`lexical/operator_scan.rs`; `lexical/stops.rs` owns finite stop masks and
+`lexical/trivia.rs` owns source-only trivia observation. The remaining lexical
+Item/current/scan/fence/position owners stay under `lexical/`. `cursor.rs`
+owns live syntax/lex cursors and recovery state; `cst_output/` owns committed
+green output and recovery reconciliation; `recovery_record.rs` owns the typed
+recovery vocabulary. `ambient_claim.rs`, `sequence.rs` and `handoff.rs` are
+direct narrowly named shared owners.
+
+Grammar owners are direct siblings: `expression/`, `declaration/`,
+`type_expr/`, `pattern/`, `literal/`, `rule/`, `statement.rs`, and
+`virtual_statement_block.rs`. `header.rs` owns source-leading discovery and
+`source_file.rs` owns top-level source progression/reconciliation. Internal
+tests move to `tests/` with their existing role-named subtrees. `lib.rs` owns
+only the public syntax boundary and direct private module declarations.
+
+The move preserves public exports and all accepted/malformed CST, recovery,
+frozen-record, current-Item, lexical-only and cost contracts. Do not merge the
+operator table and lexical scanner, create a replacement umbrella, widen sealed
+fields/capabilities, or change expectations to make paths compile. Root-level
+sibling interfaces may become `pub(crate)` only where the former umbrella
+ancestor supplied the same effective private-crate visibility; retain stricter
+owner-local visibility everywhere else.
+
+This topology replacement is complete. The independent regression review found
+no Rust, visibility, public-boundary or owner-split defect; it found stale
+current task/ledger locators only, which are corrected here and in the ledger.
+Focused lexical/output/recovery/header/root/public-boundary controls, package
+and workspace checks, dependency-graph, format and diff checks pass. The
+documented `(a +\nb)` operator baseline remains unchanged. Benchmark use is
+zero samples/processes.
+
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining
 recovery-equality prerequisite.
@@ -460,12 +501,12 @@ recovery-equality prerequisite.
 
 ## Verification and environment
 
-Use `cargo test -p yu-syntax --lib parser::tests::type_expr:: -- --test-threads=1`
+Use `cargo test -p yu-syntax --lib tests::type_expr:: -- --test-threads=1`
 for Type construction. The leading-row gate also ran the known-small
-`parser::tests::normalized::normalized_type` and
-`parser::tests::normalized::ordinary_type_unmatched` filters. Use the focused
-`parser::tests::output::` and
-`parser::tests::recovery_output::` filters for output/RB invariants, then one
+`tests::normalized::normalized_type` and
+`tests::normalized::ordinary_type_unmatched` filters. Use the focused
+`tests::output::` and
+`tests::recovery_output::` filters for output/RB invariants, then one
 `cargo check -p yu-syntax`. Check inventory before broadening. Benchmark budget
 for these bounded owner-local gates is zero samples/processes unless material
 cost uncertainty requires a separately justified measurement.
@@ -476,7 +517,7 @@ took 38s and 31s. Test execution remained sub-second. Treat an active rebuild
 separately from a running test suite; preserve the focused serial test budget.
 
 `cargo xtask check-graph` is the available dependency-direction check, not a
-parser test runner. The workspace-local `crates/chasa-recover` already provides
+syntax test runner. The workspace-local `crates/chasa-recover` already provides
 `token`, `maybe`, and `with_str`; do not add generic API for owner-specific CST
 or recovery policy. An API addition needs a concrete reusable operation across
 independent callers, not just shorter syntax at one site.

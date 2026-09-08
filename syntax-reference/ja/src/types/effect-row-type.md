@@ -85,7 +85,7 @@ general hidden-boundary residual は `ASOB-G` が characterization し、EffectR
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/type_expr/variants.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/type_expr/variants.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/type_expr.rs` では `parse_effect_row_type`、`scan_effect_row_open`、`commit_direct_type_primary_head`、`drive_type_delimited`、`commit_direct_type_delimited`、`classify_type_delimited_recovery`、`scan_type_delimited_item_invalid_run`、`drive_type_close_slot` を参照する。
 

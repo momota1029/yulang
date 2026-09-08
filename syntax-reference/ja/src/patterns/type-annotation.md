@@ -92,7 +92,7 @@ constructor/ML Pattern tail、annotation semantics/type checking、Pattern HIR/l
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/pattern.rs`と`crates/yu-syntax/src/parser/type_expr.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/pattern/mod.rs`と`crates/yu-syntax/src/type_expr/mod.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/pattern.rs` では `parse_pattern_bp`、`parse_pattern_bp_with_fresh_primary_policy`、`recognize_pattern_led`、`PatternTypeAnnotation`、`parse_required_pattern_with_outer_missing_role_and_policy`、`commit_direct_pattern_with_outer_missing_role_and_policy` を参照する。
 

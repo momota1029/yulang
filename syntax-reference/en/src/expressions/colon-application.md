@@ -104,7 +104,7 @@ The shared `ASOB-G` hidden caller-boundary residual remains characterized rather
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owner is `crates/yu-syntax/src/parser/expression/tails.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owner is `crates/yu-syntax/src/expression/tails.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_colon_application_tail`, `parse_inline_colon_arguments`, `outer_owns_inline_argument_sequence`, `commit_colon_application_tail`, `commit_colon_inline_argument`, `colon_inline_argument_error_retry`, `emit_colon_application_missing`, and `emit_colon_application_error`.
 

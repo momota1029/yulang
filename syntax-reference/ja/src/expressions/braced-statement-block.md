@@ -96,7 +96,7 @@ documented `ASOB-G` caller-boundary residual は hidden にせず characterize �
 
 ## 11. 実装と regression fixture の cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/statement.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/statement.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/expression.rs` では `recognize_braced_statement_block_open`、`recognize_braced_statement_block_close`、`parse_braced_statement_block_expression`、`braced_statement_block_close_pending`、`push_braced_statement_block_scope`、`pop_braced_statement_block_scope`、`commit_braced_statement_block_expression`、`commit_braced_statement_block_close`、`emit_braced_statement_separator_missing`、`emit_braced_close_missing`、`emit_braced_close_error` を参照する。
 

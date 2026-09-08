@@ -173,7 +173,7 @@ this expansion.
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching parser owners are `crates/yu-syntax/src/parser/declaration/binding.rs`, `crates/yu-syntax/src/parser/declaration/use_decl.rs`, and `crates/yu-syntax/src/parser/statement.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owners are `crates/yu-syntax/src/declaration/binding.rs`, `crates/yu-syntax/src/declaration/use_decl.rs`, and `crates/yu-syntax/src/statement.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/declaration.rs`:
 `recognize_statement_intro`, `recognize_binding_statement_intro`,

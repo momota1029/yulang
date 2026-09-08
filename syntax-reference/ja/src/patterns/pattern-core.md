@@ -96,7 +96,7 @@ deferred grammarはPattern annotation detail、List/Record form、constructor ta
 
 ## 11. Implementationとregression cross-reference
 
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応するparser ownerは`crates/yu-syntax/src/parser/pattern.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
+次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/pattern/mod.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
 
 `crates/yu-syntax/src/grammar/pattern.rs`のkey functionは`parse_pattern`、`parse_pattern_with_outer_missing_role`、`parse_direct_pattern`、`parse_pattern_bp`、`parse_pattern_primary`、`parse_parenthesized_pattern`、`parse_pattern_delimited_items_ast`、`commit_direct_parenthesized_pattern`、`commit_direct_pattern_delimited_items`、`drive_parenthesized_pattern_close_recovery`、`outer_pattern_close_stop_pending`である。
 

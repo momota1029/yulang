@@ -4,9 +4,9 @@ use rowan::GreenNode;
 
 use crate::{
     HeaderInfo, OperatorFixity, SourceText,
-    operator::{OperatorOrigin, OperatorTable, compile_full_parse_operators_recovering},
-    parser::root::parse_root_candidate,
-    session::CommittedRecoveryRecord,
+    operator_table::{OperatorOrigin, OperatorTable, compile_full_parse_operators_recovering},
+    recovery_record::CommittedRecoveryRecord,
+    source_file::parse_root_candidate,
 };
 
 /// Syntax facts selected for one full parse.
@@ -283,7 +283,7 @@ impl SyntaxDiagnostic {
 
     fn conflicting_operator_fixity(
         id: u32,
-        conflict: crate::operator::RejectedOperatorFixity,
+        conflict: crate::operator_table::RejectedOperatorFixity,
     ) -> Self {
         let primary = conflict.second_range.clone();
         Self {
@@ -380,7 +380,7 @@ mod tests {
     use super::*;
     use crate::{
         BindingPower as HeaderBindingPower, BindingPowers, HeaderOperator, Visibility,
-        operator::{
+        operator_table::{
             BindingPower, OperatorDeclaration, OperatorFixities, compile_full_parse_operators,
         },
     };
@@ -492,8 +492,8 @@ mod tests {
             assert!(parsed.diagnostics().iter().any(|diagnostic| matches!(
                 diagnostic.cause(),
                 SyntaxDiagnosticCause::Recovery(recovery)
-                    if recovery.record().site.role == crate::session::GrammarRole::Statement(
-                        crate::session::StatementRole::OperatorDefinitionBody
+                    if recovery.record().site.role == crate::recovery_record::GrammarRole::Statement(
+                        crate::recovery_record::StatementRole::OperatorDefinitionBody
                     )
             )));
             let syntax = crate::SyntaxNode::new_root(parsed.green().clone());
@@ -544,8 +544,8 @@ mod tests {
         };
         assert_eq!(
             body.record().site.role,
-            crate::session::GrammarRole::Statement(
-                crate::session::StatementRole::OperatorDefinitionBody
+            crate::recovery_record::GrammarRole::Statement(
+                crate::recovery_record::StatementRole::OperatorDefinitionBody
             )
         );
         let SyntaxDiagnosticCause::Recovery(alias) = alias.cause() else {
@@ -586,7 +586,9 @@ mod tests {
         };
         assert_eq!(
             record.record().site.role,
-            crate::session::GrammarRole::Statement(crate::session::StatementRole::Starter)
+            crate::recovery_record::GrammarRole::Statement(
+                crate::recovery_record::StatementRole::Starter
+            )
         );
     }
 
@@ -685,7 +687,7 @@ mod tests {
 
     #[test]
     fn recovery_diagnostic_keeps_the_committed_record_distinct_from_construction() {
-        use crate::session::{
+        use crate::recovery_record::{
             DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
             RecoverySiteKey, StatementRole, SyntaxExpectation,
         };
@@ -721,7 +723,8 @@ mod tests {
         let operators = Arc::new(
             OperatorTable::from_declarations([OperatorDeclaration::at_range(
                 "+",
-                OperatorFixities::new().with_prefix(crate::operator::BindingPower::scalar(70)),
+                OperatorFixities::new()
+                    .with_prefix(crate::operator_table::BindingPower::scalar(70)),
                 4..12,
             )])
             .expect("local full table should build"),
@@ -747,7 +750,8 @@ mod tests {
         let operators = Arc::new(
             OperatorTable::from_declarations([OperatorDeclaration::imported_at_range(
                 "+",
-                OperatorFixities::new().with_prefix(crate::operator::BindingPower::scalar(70)),
+                OperatorFixities::new()
+                    .with_prefix(crate::operator_table::BindingPower::scalar(70)),
                 missing_dependency,
                 4..12,
             )])

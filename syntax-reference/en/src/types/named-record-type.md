@@ -91,7 +91,7 @@ The general hidden-boundary residual is documented by `ASOB-G`; no NamedRecord-s
 
 ## 11. Implementation and regression cross-reference
 
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching parser owner is `crates/yu-syntax/src/parser/type_expr/record.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
+The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching syntax owner is `crates/yu-syntax/src/type_expr/record.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
 
 In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_named_record_type`, `parse_type_record_field`, `commit_direct_named_record_type`, `commit_direct_type_record_field`, `named_record_next_field_candidate`, `classify_named_record_recovery`, `record_field_head_candidate`, `scan_record_invalid_run`, and `consume_record_colon_invalid_run`.
 
