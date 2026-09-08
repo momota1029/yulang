@@ -253,7 +253,7 @@ ForallType { keyword, binders:nonempty Vec<R<ForallBinder>>, colon:R<Range>,
 ForallBinder { boundary:R<Range>, name:WordSyntax, range }
 PolyvariantType { colon, open, tags:Vec<R<PolyvariantTag>>, trailing_comma,
                   close:R<Range>, range }
-PolyvariantTag { name:R<WordSyntax>, payloads:Vec<PolyvariantPayload>, range }
+PolyvariantTag { name:R<WordSyntax>, payloads:Vec<R<PolyvariantPayload>>, range }
 PolyvariantPayload { boundary:R<Range>, type_expr:R<Box<TypeExpression>>, range }
 ```
 
@@ -262,9 +262,10 @@ committed recovery may yield a complete TypeExpression with an incomplete
 primary; ordinary terminal required-Type failure remains incomplete at its
 caller. Apply admission always has an admitted argument and keeps a complete
 boxed child. Item roles create recovered vector entries, separator roles remain
-ledger-only, and close roles map to the owner close. PV's choice to retain
-unwrapped payload skeletons is a proposed departure from historical candidate
-wrapping and requires explicit reviewer adjudication.
+ledger-only, and close roles map to the owner close. The locally Authoritative
+PV product keeps `payloads: Vec<R<PolyvariantPayload>>`: an admitted payload
+is a complete outer entry even when its boundary/type child is incomplete. This
+wrapper is retained rather than silently superseded.
 
 The owner-specific availability rows are:
 
@@ -277,13 +278,18 @@ The owner-specific availability rows are:
 | Forall keyword then no first binder | `binders = [Incomplete]`; colon may still be accepted without fabricating a name |
 | Forall binder Error then admitted retry | current binder entry complete; boundary leaves it incomplete |
 | Forall colon/body unavailable | their own fields incomplete without extra record |
-| PV tag terminal failure | current tag vector entry incomplete; accepted tag skeleton retains incomplete name/payload child as applicable |
-| PV payload boundary/type failure after accepted payload skeleton | complete payload with recovered boundary/type child; no optional payload invented |
+| PV malformed tag run ending at boundary / published Tag Missing | current tag vector entry incomplete |
+| PV malformed tag run then accepted name | complete tag entry with complete name and retained later payloads |
+| PV wrong-kind head or malformed run then wrong-kind head | complete tag entry with incomplete name and retained later payloads |
+| PV payload boundary/type failure after accepted payload skeleton | complete `R<PolyvariantPayload>` entry with recovered boundary/type child; no optional payload invented |
+| absent optional payload | no payload entry |
 
 The same actual-owner rule applies to record fields and polymorphic payloads:
 an accepted skeleton preserves its inner recovered fields; a wholly unadmitted
-list position is incomplete. This table must be rechecked against the selected
-PV payload wrapping before promotion.
+list position is incomplete. PV tag/payload ranges start with their committed
+head/boundary, exclude outer-list leading already emitted, and end at their last
+owned byte; a missing payload boundary is zero-width at the admitted Type
+start. Nested Type recovery remains its own owner.
 
 ```text
 InlineStatementBody ::= Inline(Box<Statement>) | Indented(IndentedBlock)
