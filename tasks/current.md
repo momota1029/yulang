@@ -74,23 +74,29 @@ tests, ignored one existing manual measurement harness, and failed none
 (1.75s). This is a phase-boundary validation, not evidence that the deferred
 Yumark cell/fence owner is complete.
 
-The active M2 gate is fence-aware opaque Root Error recovery under the parsed
-fence addendum §§3--5/§8. `root_error` remains the typed-record/CST Error
-owner; a new lexical-only opaque-region owner scans only after an already
-accepted opaque opener. It returns source-backed accepted physical extent and
-the optional exact pending boundary Item (including fragments), never a copied
-body, parser state, grammar parse, builder operation, replay or token buffer.
-At every LF, whole CRLF, and physical EOF through string, interpolation/code,
-comment, and opaque Yumark recursion, it asks the existing fence judge before
-consuming the next body line. Accepted equivalent quote prefixes become the
-current Item's ordered foreign fragments; close/transition bytes remain wholly
-pending. The existing unfenced Root Error output/records stay exact. EOF,
-BorrowedClose and transition terminate the nonempty Error without nested
-literal records; the later outer Yumark owner alone publishes a fence Missing
-when appropriate. This gate does not yet provide a cell entry or outer Yumark
-dispatch. M2 budget: one implementer, compiler/recovery plus regression
-review, at most two repair rounds, no benchmark unless static accounting finds
-uncertain work.
+The fence-aware opaque Root Error M2 gate is complete under the parsed-fence
+addendum §§3--5/§8. `lexical::opaque_region` owns only continuation after an
+already accepted opaque opener; `root_error` remains the typed-record/CST Error
+owner. The scanner returns source-backed physical extent and an optional exact
+pending boundary Item, never a copied body, parser state, grammar parse,
+builder operation, replay or token buffer. Every LF, whole CRLF and physical
+EOF through string, interpolation/code, comment, opaque Yumark and nested
+fence recursion uses the existing judge. Equivalent prefixes emit ordered
+foreign fragments; close/transition facts stay pending. Existing unfenced Root
+output/records are exact controls. EOF/BorrowedClose/transition terminate the
+nonempty Error without nested literal records; outer Yumark remains the sole
+future fence-Missing owner. Compiler/recovery and regression review were clean
+after one test-only exact-record repair. Focused matrices passed; full
+`yu-syntax` lib passed 1043 with one existing ignored manual harness, package
+check, format and diff passed. Static work remains linear in scanned opaque
+bytes plus nesting and accepted prefix metadata; the lazy vector/one box
+conversion is the approved current-Item bound, so benchmark use is zero.
+
+The next separate gate is the boundary-capable root-statement sequence: thread
+the fence through root acquisition, header/operator lookahead and body paths,
+return the entire boundary Item instead of asserting unfenced Root, and give a
+future cell-only wrapper `leading_header = false`. It must not expose the cell
+or add outer Yumark dispatch yet.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

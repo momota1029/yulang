@@ -6,6 +6,7 @@ pub(super) mod expression_item;
 pub(super) mod item;
 pub(super) mod lexer;
 pub(super) mod observation;
+pub(super) mod opaque_region;
 pub(super) mod operator_scan;
 pub(super) mod position;
 pub(super) mod yumark;

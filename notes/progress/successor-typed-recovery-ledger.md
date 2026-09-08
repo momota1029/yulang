@@ -519,7 +519,7 @@ is green: `cargo test -p yu-syntax --lib -- --test-threads=1` passed 1039,
 ignored the one existing manual measurement harness, and failed none in 1.75s.
 It does not close deferred Yumark cell/fence construction.
 
-## Active Root opaque fence-recovery contract
+## Root opaque fence-recovery contract
 
 Under the parsed-fence addendum §§3--5/§8, the next M2 slice keeps Root as the
 sole Error-record owner and introduces a lexical-only continuation scanner for
@@ -532,6 +532,24 @@ foreign fragments; close and transition facts remain untouched. Error ends at
 EOF/fence without nested literal publication, while the outer Yumark adapter
 remains the only future fence-Missing owner. Existing unfenced Root output is a
 strict control. This does not construct a cell or outer Yumark dispatch.
+
+Construction is complete. `lexical::opaque_region` is the lexical-only owner
+after an already accepted opaque opener; Root still owns the Error node and
+typed record. Each LF, whole CRLF and EOF over string, interpolation/code,
+comment, opaque Yumark and nested-fence recursion invokes the shared judge.
+Accepted equivalent prefixes use one lazy fragment vector and one final boxed
+carrier conversion; source-backed Unknown and `YmQuotePrefix` segments emit in
+physical order. Borrowed closes/transitions and their complete Items remain
+unconsumed, and EOF contributes no nested literal record. No source body is
+copied, replayed, parsed by a grammar owner, or stored as a token stream.
+
+M2 compiler/recovery and regression reviews were clean after one test-only
+repair that added exact Root record and multi-prefix UTF-8 LF/CRLF source-order
+controls. Focused controls passed; `cargo test -p yu-syntax --lib --
+--test-threads=1` passed 1043, ignored one existing manual measurement harness,
+and failed none in 1.70s. Package check, format and diff passed. Benchmark use:
+zero samples/processes. Root-sequence boundary return, cell entry and outer
+Yumark dispatch remain distinct open gates.
 
 ## Parenthesized operator newline control
 

@@ -86,7 +86,7 @@ pub(crate) fn parse_root_statements(
             continue;
         }
         if !separated && !physical_start {
-            let next = root_error(i, item, origin, line, previous);
+            let next = root_error(i, item, origin, line, previous, None);
             pending = Some(next.0);
             origin = next.1;
             line = next.2;
@@ -172,7 +172,7 @@ pub(crate) fn parse_root_statements(
                 Some(SequenceOwner::RootStatement),
             )
         } else {
-            let next = root_error(i, item, origin, line, StatementRole::Starter);
+            let next = root_error(i, item, origin, line, StatementRole::Starter, None);
             pending = Some(next.0);
             origin = next.1;
             line = next.2;
@@ -340,6 +340,7 @@ fn root_error(
     mut origin: usize,
     mut line: LineEntry,
     role: StatementRole,
+    fence: Option<&crate::lexical::yumark::FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
     let source_tail = i.token(|lex| Some(lex.remainder())).unwrap();
     let source_origin = origin;
@@ -359,12 +360,12 @@ fn root_error(
                 let opaque =
                     matches!(spelling, "~\"" | "'" | "'[" | "'{") || spelling.starts_with('"');
                 let mut end = origin;
+                let mut boundary = None;
                 if opaque {
-                    let tail_len = run.lexical(|mut lex| {
-                        let (_, text) = lex
-                            .rb()
-                            .with_str(|lex| header::finish_opaque_opener(lex, spelling));
-                        text.len()
+                    let region = run.lexical(|lex| {
+                        crate::lexical::opaque_region::finish_opaque_opener(
+                            lex, spelling, origin, fence,
+                        )
                     });
                     let kind = item
                         .payload_view()
@@ -373,13 +374,18 @@ fn root_error(
                         .map(token_syntax_kind)
                         .unwrap_or(SyntaxKind::Operator);
                     run.emit_item_as(item, origin, kind);
-                    end += tail_len;
+                    end += region.length;
                     let tail = &source_tail[origin - source_origin..end - source_origin];
-                    if !tail.is_empty() {
-                        run.emit_literal_segment(tail, origin..end, SyntaxKind::Unknown);
-                    }
+                    region.visit_segments(tail, origin, |text, range, kind| {
+                        run.emit_literal_segment(text, range, kind)
+                    });
+                    line = if fence.is_some() {
+                        region.line
+                    } else {
+                        LineEntry::InLine
+                    };
+                    boundary = region.boundary;
                     origin = end;
-                    line = LineEntry::InLine;
                 } else {
                     if let Some(c) = spelling.chars().next().filter(|_| spelling.len() == 1) {
                         if let Some(close) = header::matching_close(c) {
@@ -396,16 +402,20 @@ fn root_error(
                         .unwrap_or(SyntaxKind::Operator);
                     run.emit_item_as(item, origin, kind);
                 }
-                (item, origin, line) = run.lexical(|lex| {
-                    statement::scan_statement_item_lexical(
-                        lex,
-                        origin,
-                        line,
-                        None,
-                        0,
-                        STOP_SEMICOLON,
-                    )
-                });
+                (item, origin, line) = if let Some(boundary) = boundary {
+                    (boundary, origin, line)
+                } else {
+                    run.lexical(|lex| {
+                        statement::scan_statement_item_lexical(
+                            lex,
+                            origin,
+                            line,
+                            fence,
+                            0,
+                            STOP_SEMICOLON,
+                        )
+                    })
+                };
                 if item.payload_view().is_eof()
                     || item.payload_view().is_boundary()
                     || (closes.is_empty()
@@ -489,6 +499,352 @@ fn recovery_draft(
             .collect(),
         0,
     )
+}
+
+#[cfg(test)]
+mod opaque_fence_tests {
+    use super::*;
+    use crate::{
+        lexical::{
+            item::{BorrowedTarget, Boundary},
+            yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
+        },
+        operator_table::OperatorTable,
+        recovery_record::{CommittedRecoveryRecord, Delimiter, DiagnosticId, PunctuationEvidence},
+    };
+
+    fn starter_error(end: usize) -> CommittedRecoveryRecord {
+        let role = GrammarRole::Statement(StatementRole::Starter);
+        CommittedRecoveryRecord {
+            id: DiagnosticId(0),
+            site: RecoverySiteKey {
+                role,
+                range: 0..end,
+            },
+            kind: RecoveryKind::Error,
+            unexpected: Arc::from([UnexpectedSyntax::Root(
+                RootUnexpected::UnrecognizedStarter {
+                    range: 0..end,
+                    head: RootUnexpectedHead::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Bracket,
+                    )),
+                },
+            )]),
+            expectations: [
+                KeywordEvidence::Use,
+                KeywordEvidence::Lazy,
+                KeywordEvidence::Prefix,
+                KeywordEvidence::Infix,
+                KeywordEvidence::Suffix,
+                KeywordEvidence::Nullfix,
+            ]
+            .map(|keyword| SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Keyword(keyword),
+                range: 0..end,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            })
+            .into(),
+            primary_expectation: 0,
+        }
+    }
+
+    #[test]
+    fn root_opaque_error_preserves_ordered_prefix_segments_and_exact_record() {
+        for newline in ["\n", "\r\n"] {
+            let parts = [
+                format!("é{newline}"),
+                "> ".to_owned(),
+                format!("💥{newline}"),
+                "  >\t".to_owned(),
+                format!("終{newline}"),
+            ];
+            let body = format!("] \"{}", parts.concat());
+            let closing = "> ```\nrest";
+            let source = format!("{body}{closing}");
+            let mut remaining = source.as_str();
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new(&operators);
+            let mut output = CstOutput::new();
+            output.start_node(SyntaxKind::Root.into());
+            let fence = FenceBoundary {
+                opener: FenceOpener {
+                    line: 0,
+                    marker: 0..3,
+                    marker_width: 3,
+                },
+                prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
+                close_column: 0,
+            };
+            let (item, origin, line) = statement::statement_item_normalized(
+                In::new(&mut remaining, &mut recover, &mut output),
+                0,
+                LineEntry::InLine,
+                Some(&fence),
+                0,
+                STOP_SEMICOLON,
+            );
+            let (pending, origin, _) = root_error(
+                In::new(&mut remaining, &mut recover, &mut output),
+                item,
+                origin,
+                line,
+                StatementRole::Starter,
+                Some(&fence),
+            );
+            output.finish_node();
+            let (green, records) = output.finish_with_recoveries();
+            assert_eq!(green.to_string(), body);
+            assert_eq!(records, [starter_error(body.len())]);
+            assert_eq!(remaining, closing);
+            assert_eq!(origin, body.len());
+            assert!(matches!(
+                pending.payload_view().pending_boundary().map(|b| b.kind()),
+                Some(Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_)))
+            ));
+            let syntax = crate::syntax_kind::SyntaxNode::new_root(green);
+            let actual: Vec<_> = syntax
+                .descendants_with_tokens()
+                .filter_map(|e| e.into_token())
+                .filter(|t| usize::from(t.text_range().start()) >= 3)
+                .map(|t| {
+                    (
+                        t.kind(),
+                        usize::from(t.text_range().start())..usize::from(t.text_range().end()),
+                        t.text().to_owned(),
+                    )
+                })
+                .collect();
+            let mut start = 3;
+            let expected: Vec<_> = parts
+                .into_iter()
+                .enumerate()
+                .map(|(index, text)| {
+                    let end = start + text.len();
+                    let range = start..end;
+                    start = end;
+                    (
+                        if index % 2 == 0 {
+                            SyntaxKind::Unknown
+                        } else {
+                            SyntaxKind::YmQuotePrefix
+                        },
+                        range,
+                        text,
+                    )
+                })
+                .collect();
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn unfenced_root_opaque_error_keeps_exact_starter_record() {
+        let source = "] \"é\r\n> 💥";
+        let mut remaining = source;
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new(&operators);
+        let mut output = CstOutput::new();
+        output.start_node(SyntaxKind::Root.into());
+        let (item, origin, line) = statement::statement_item_normalized(
+            In::new(&mut remaining, &mut recover, &mut output),
+            0,
+            LineEntry::InLine,
+            None,
+            0,
+            STOP_SEMICOLON,
+        );
+        let (pending, origin, line) = root_error(
+            In::new(&mut remaining, &mut recover, &mut output),
+            item,
+            origin,
+            line,
+            StatementRole::Starter,
+            None,
+        );
+        output.finish_node();
+        let (green, records) = output.finish_with_recoveries();
+        assert_eq!(green.to_string(), source);
+        assert_eq!(records, [starter_error(source.len())]);
+        assert_eq!(remaining, "");
+        assert_eq!(origin, source.len());
+        assert_eq!(line, LineEntry::InLine);
+        assert!(pending.payload_view().is_eof());
+    }
+
+    #[test]
+    fn root_opaque_error_returns_whole_fence_and_emits_foreign_prefixes() {
+        for newline in ["\n", "\r\n"] {
+            for opener in [
+                "\"text",
+                "\"\"\"text",
+                "~\"text",
+                "\"%{ /* text",
+                "\"%{ // text",
+                "\"%{ '[text",
+                "'{text",
+                "'{\n```text",
+            ] {
+                for closing in [
+                    "> ```  \r\nrest",
+                    ">> transition\nrest",
+                    "plain\nrest",
+                    ">>>\nrest",
+                    "",
+                ] {
+                    let body = format!("] {opener}{newline}> 💥 body{newline}");
+                    let source = format!("{body}{closing}");
+                    let mut remaining = source.as_str();
+                    let operators = OperatorTable::empty();
+                    let mut recover = Recover::new(&operators);
+                    let mut output = CstOutput::new();
+                    output.start_node(SyntaxKind::Root.into());
+                    let fence = FenceBoundary {
+                        opener: FenceOpener {
+                            line: 0,
+                            marker: 0..3,
+                            marker_width: 3,
+                        },
+                        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
+                        close_column: 0,
+                    };
+                    // The opener and first body line were already admitted by the containing owner.
+                    let (item, origin, line) = statement::statement_item_normalized(
+                        In::new(&mut remaining, &mut recover, &mut output),
+                        0,
+                        LineEntry::InLine,
+                        Some(&fence),
+                        0,
+                        STOP_SEMICOLON,
+                    );
+                    let (pending, origin, line) = root_error(
+                        In::new(&mut remaining, &mut recover, &mut output),
+                        item,
+                        origin,
+                        line,
+                        StatementRole::Starter,
+                        Some(&fence),
+                    );
+                    output.finish_node();
+                    let (green, records) = output.finish_with_recoveries();
+                    // A newline inside the nested-fence opener itself can expose a transition first.
+                    let accepted = if opener == "'{\n```text" {
+                        "] '{\n"
+                    } else {
+                        body.as_str()
+                    };
+                    assert_eq!(green.to_string(), accepted, "{source:?}");
+                    assert_eq!(origin, accepted.len(), "{source:?}");
+                    assert_eq!(remaining, &source[accepted.len()..]);
+                    let crate::lexical::yumark::FenceLineDecision::Boundary(expected) =
+                        crate::lexical::yumark::judge_fence_line(remaining, origin, &fence)
+                    else {
+                        panic!("the root must return a judged boundary")
+                    };
+                    assert_eq!(pending.payload_view().pending_boundary(), Some(&expected));
+                    assert_eq!(records.len(), 1, "{source:?}");
+                    assert_eq!(records[0].site.range, 0..accepted.len());
+                    assert_eq!(
+                        pending.extent(origin).recovery_range().start,
+                        accepted.len()
+                    );
+                    assert_eq!(
+                        line,
+                        if remaining.is_empty() {
+                            LineEntry::InLine
+                        } else {
+                            LineEntry::PhysicalStart
+                        }
+                    );
+                    if remaining.starts_with("> ```") {
+                        assert!(matches!(
+                            pending
+                                .payload_view()
+                                .pending_boundary()
+                                .map(|boundary| boundary.kind()),
+                            Some(Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_)))
+                        ));
+                    }
+                    let syntax = crate::syntax_kind::SyntaxNode::new_root(green);
+                    let prefixes: Vec<_> = syntax
+                        .descendants_with_tokens()
+                        .filter_map(|e| e.into_token())
+                        .filter(|t| t.kind() == SyntaxKind::YmQuotePrefix)
+                        .map(|t| t.text().to_owned())
+                        .collect();
+                    assert_eq!(
+                        prefixes,
+                        if accepted == body {
+                            vec!["> ".to_owned()]
+                        } else {
+                            vec![]
+                        }
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn root_opaque_nested_regions_stop_at_unquoted_fence() {
+        for newline in ["\n", "\r\n"] {
+            for opener in [
+                "\"escape\\",
+                "\"%{ /* outer /* inner",
+                "'{\n```text\nraw",
+                "'{\n```yulang\n\"nested",
+                "~\"{ \"nested",
+            ] {
+                let body = format!("] {opener}{newline}");
+                let closing = "````\t\r\nnext";
+                let source = format!("{body}{closing}");
+                let mut remaining = source.as_str();
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new(&operators);
+                let mut output = CstOutput::new();
+                output.start_node(SyntaxKind::Root.into());
+                let fence = FenceBoundary {
+                    opener: FenceOpener {
+                        line: 0,
+                        marker: 0..4,
+                        marker_width: 4,
+                    },
+                    prefix_policy: FencePrefixPolicy::None,
+                    close_column: 0,
+                };
+                let (item, origin, line) = statement::statement_item_normalized(
+                    In::new(&mut remaining, &mut recover, &mut output),
+                    0,
+                    LineEntry::InLine,
+                    Some(&fence),
+                    0,
+                    STOP_SEMICOLON,
+                );
+                let (pending, origin, line) = root_error(
+                    In::new(&mut remaining, &mut recover, &mut output),
+                    item,
+                    origin,
+                    line,
+                    StatementRole::Starter,
+                    Some(&fence),
+                );
+                output.finish_node();
+                let (green, records) = output.finish_with_recoveries();
+                assert_eq!(green.to_string(), body, "{source:?}");
+                assert_eq!(remaining, closing);
+                assert_eq!(origin, body.len());
+                assert_eq!(line, LineEntry::PhysicalStart);
+                assert_eq!(records.len(), 1);
+                assert_eq!(records[0].site.range, 0..body.len());
+                let crate::lexical::yumark::FenceLineDecision::Boundary(expected) =
+                    crate::lexical::yumark::judge_fence_line(remaining, origin, &fence)
+                else {
+                    panic!("expected close")
+                };
+                assert_eq!(pending.payload_view().pending_boundary(), Some(&expected));
+            }
+        }
+    }
 }
 
 fn unexpected_head(text: &str) -> RootUnexpectedHead {

@@ -491,7 +491,7 @@ impl PendingFragments {
     }
 
     /// Completes one item with one move and one boxed-slice conversion.
-    fn finish(
+    pub(super) fn finish(
         pending: Option<Vec<ForeignSplit>>,
         physical_origin: usize,
         physical_length: usize,
@@ -532,6 +532,38 @@ impl PendingFragments {
             physical: physical_origin..physical_end,
             foreign: foreign.into_boxed_slice(),
         }))
+    }
+
+    pub(super) fn visit_segments(
+        &self,
+        text: &str,
+        mut visit: impl FnMut(&str, std::ops::Range<usize>, SyntaxKind),
+    ) {
+        assert_eq!(text.len(), self.physical.end - self.physical.start);
+        let mut cursor = self.physical.start;
+        for split in &self.foreign {
+            if cursor < split.offset {
+                visit(
+                    &text[cursor - self.physical.start..split.offset - self.physical.start],
+                    cursor..split.offset,
+                    SyntaxKind::Unknown,
+                );
+            }
+            let end = split.offset + split.length;
+            visit(
+                &text[split.offset - self.physical.start..end - self.physical.start],
+                split.offset..end,
+                SyntaxKind::YmQuotePrefix,
+            );
+            cursor = end;
+        }
+        if cursor < self.physical.end {
+            visit(
+                &text[cursor - self.physical.start..],
+                cursor..self.physical.end,
+                SyntaxKind::Unknown,
+            );
+        }
     }
 }
 
